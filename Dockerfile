@@ -68,5 +68,9 @@ EXPOSE 8000
 ENV PYTHONUNBUFFERED=1
 ENV PORT=8000
 
-# Run database migrations and start uvicorn
-CMD ["sh", "-c", "alembic upgrade head && uvicorn src.main:app --host 0.0.0.0 --port ${PORT} --proxy-headers --forwarded-allow-ips='*'"]
+# Run database migrations and start uvicorn.
+# Note: no --forwarded-allow-ips='*'. That makes uvicorn overwrite the peer
+# address with the *leftmost* X-Forwarded-For entry, which the caller controls,
+# so every request could mint its own rate-limit bucket. The app resolves the
+# real client itself from TRUSTED_PROXY_HOPS — set that to 1 behind Railway.
+CMD ["sh", "-c", "alembic upgrade head && uvicorn src.main:app --host 0.0.0.0 --port ${PORT} --proxy-headers"]

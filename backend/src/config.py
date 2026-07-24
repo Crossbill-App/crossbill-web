@@ -48,6 +48,13 @@ class Settings(BaseSettings):
     RATE_LIMIT_ENABLED: bool = True
     RATE_LIMIT_DEFAULT: str = "300/minute"
 
+    # Number of reverse proxies in front of the app that append to
+    # X-Forwarded-For. 0 means the app is directly exposed and the header is
+    # ignored entirely; anything else would let callers pick their own
+    # rate-limit bucket. Set to 1 behind a single edge proxy (Railway,
+    # Cloudflare, nginx), 2 behind two chained proxies, and so on.
+    TRUSTED_PROXY_HOPS: int = 0
+
     # Admin setup (for first-time initialization on a fresh deployment)
     ADMIN_USERNAME: str = "admin"
     ADMIN_PASSWORD: str = ""
@@ -120,6 +127,15 @@ class Settings(BaseSettings):
     def strip_admin_password(cls, value: str) -> str:
         """Strip whitespace from admin password."""
         return value.strip()
+
+    @field_validator("TRUSTED_PROXY_HOPS", mode="after")
+    @classmethod
+    def validate_trusted_proxy_hops(cls, value: int) -> int:
+        """Reject a negative proxy-hop count, which would index the wrong entry."""
+        if value < 0:
+            msg = "TRUSTED_PROXY_HOPS must be 0 or greater"
+            raise ValueError(msg)
+        return value
 
     @model_validator(mode="after")
     def validate_jwt_secret_keys(self) -> "Settings":
