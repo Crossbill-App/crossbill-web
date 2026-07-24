@@ -97,7 +97,7 @@ async def _initialize_admin_password() -> None:
             return
 
         # Hash password and update domain entity
-        hashed = hash_password(settings.ADMIN_PASSWORD)
+        hashed = await hash_password(settings.ADMIN_PASSWORD)
         admin_user.update_password(hashed)
 
         # Save via repository

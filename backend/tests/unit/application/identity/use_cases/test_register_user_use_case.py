@@ -40,7 +40,11 @@ class TestRegisterUserUseCase:
 
     @pytest.fixture
     def password_service(self) -> MagicMock:
-        return MagicMock()
+        # Hashing is awaited (it runs on a worker thread); get_dummy_hash is not.
+        service = MagicMock()
+        service.hash_password = AsyncMock(return_value="hashed")
+        service.verify_password = AsyncMock(return_value=False)
+        return service
 
     @pytest.fixture
     def token_service(self) -> MagicMock:

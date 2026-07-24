@@ -59,12 +59,12 @@ class UpdateUserUseCase:
             if current_password is None:
                 raise PasswordVerificationError
 
-            if not user.hashed_password or not self.password_service.verify_password(
+            if not user.hashed_password or not await self.password_service.verify_password(
                 current_password, user.hashed_password
             ):
                 raise PasswordVerificationError
 
-            hashed_password = self.password_service.hash_password(new_password)
+            hashed_password = await self.password_service.hash_password(new_password)
             user.update_password(hashed_password)
 
         user = await self.user_repository.save(user)

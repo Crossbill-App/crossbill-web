@@ -37,10 +37,12 @@ class AuthenticateUserUseCase:
         user = await self.user_repository.find_by_email(email)
 
         if not user:
-            self.password_service.verify_password(password, self.password_service.get_dummy_hash())
+            await self.password_service.verify_password(
+                password, self.password_service.get_dummy_hash()
+            )
             raise InvalidCredentialsError
 
-        if not user.hashed_password or not self.password_service.verify_password(
+        if not user.hashed_password or not await self.password_service.verify_password(
             password, user.hashed_password
         ):
             raise InvalidCredentialsError
