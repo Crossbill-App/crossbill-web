@@ -6,7 +6,7 @@ from fastapi import Depends
 from fastapi.security import OAuth2PasswordBearer
 
 from src.core import container
-from src.database import DatabaseSession
+from src.database import DatabaseSession, bind_db_session
 from src.domain.common.exceptions import AuthenticationError
 from src.domain.identity.entities.user import User
 from src.domain.identity.exceptions import UserNotFoundError
@@ -38,12 +38,12 @@ async def get_current_user(
     if user_id is None:
         raise AuthenticationError("Could not validate credentials")
 
-    try:
-        container.db.override(db)
+    # The binding only has to cover construction — the use case captures the
+    # session then — so it is released before the await rather than held across it.
+    with bind_db_session(db):
         use_case = container.identity.get_user_by_id_use_case()
+
+    try:
         return await use_case.get_user(user_id)
     except UserNotFoundError:
         raise AuthenticationError("Could not validate credentials") from None
-    finally:
-        # Reset override after request completes
-        container.db.reset_override()

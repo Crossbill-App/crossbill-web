@@ -3,8 +3,7 @@ from typing import TypeVar
 
 from dependency_injector.providers import Provider
 
-from src.core import container
-from src.database import DatabaseSession
+from src.database import DatabaseSession, bind_db_session
 
 T = TypeVar("T")
 
@@ -13,15 +12,13 @@ def inject_use_case(provider: Provider[T]) -> Callable[[DatabaseSession], T]:
     """
     Create a FastAPI dependency for a container provider.
 
-    Automatically handles container.db override with request-scoped database session.
+    Binds the request-scoped database session for as long as it takes to build
+    the use case, which is where the container reads it. The binding is
+    context-local, so concurrent requests cannot observe each other's session.
     """
 
     def dependency(db: DatabaseSession) -> T:
-        try:
-            container.db.override(db)
+        with bind_db_session(db):
             return provider()
-        finally:
-            # Reset override after request completes
-            container.db.reset_override()
 
     return dependency
