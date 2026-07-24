@@ -6,14 +6,8 @@ from src.config import get_settings
 from src.infrastructure.common.client_ip import UNKNOWN_CLIENT, client_ip_from_scope
 
 
-@pytest.fixture
-def _one_trusted_hop(monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setattr(get_settings(), "TRUSTED_PROXY_HOPS", 1)
-
-
-@pytest.fixture
-def _no_trusted_hops(monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setattr(get_settings(), "TRUSTED_PROXY_HOPS", 0)
+def _set_hops(monkeypatch: pytest.MonkeyPatch, hops: int) -> None:
+    monkeypatch.setattr(get_settings(), "TRUSTED_PROXY_HOPS", hops)
 
 
 def _scope(forwarded_for: str | None = None, peer: str | None = "10.0.0.1") -> dict[str, object]:
@@ -27,51 +21,57 @@ def _scope(forwarded_for: str | None = None, peer: str | None = "10.0.0.1") -> d
     }
 
 
-@pytest.mark.usefixtures("_no_trusted_hops")
-def test_forwarded_for_is_ignored_when_no_proxy_is_trusted() -> None:
+def test_forwarded_for_is_ignored_when_no_proxy_is_trusted(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    _set_hops(monkeypatch, 0)
     scope = _scope(forwarded_for="1.2.3.4")
 
     assert client_ip_from_scope(scope) == "10.0.0.1"
 
 
-@pytest.mark.usefixtures("_one_trusted_hop")
-def test_uses_entry_appended_by_the_trusted_proxy() -> None:
+def test_uses_entry_appended_by_the_trusted_proxy(monkeypatch: pytest.MonkeyPatch) -> None:
+    _set_hops(monkeypatch, 1)
     scope = _scope(forwarded_for="203.0.113.9")
 
     assert client_ip_from_scope(scope) == "203.0.113.9"
 
 
-@pytest.mark.usefixtures("_one_trusted_hop")
-def test_client_supplied_entries_cannot_displace_the_proxy_appended_one() -> None:
+def test_client_supplied_entries_cannot_displace_the_proxy_appended_one(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     """The spoofing attempt sits to the left; only the rightmost hop counts."""
+    _set_hops(monkeypatch, 1)
     scope = _scope(forwarded_for="1.2.3.4, 5.6.7.8, 203.0.113.9")
 
     assert client_ip_from_scope(scope) == "203.0.113.9"
 
 
-@pytest.mark.usefixtures("_one_trusted_hop")
-def test_falls_back_to_peer_when_request_bypasses_the_proxy() -> None:
+def test_falls_back_to_peer_when_request_bypasses_the_proxy(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    _set_hops(monkeypatch, 1)
     scope = _scope(forwarded_for=None)
 
     assert client_ip_from_scope(scope) == "10.0.0.1"
 
 
-@pytest.mark.usefixtures("_one_trusted_hop")
-def test_falls_back_to_peer_when_header_is_blank() -> None:
+def test_falls_back_to_peer_when_header_is_blank(monkeypatch: pytest.MonkeyPatch) -> None:
+    _set_hops(monkeypatch, 1)
     scope = _scope(forwarded_for="   ")
 
     assert client_ip_from_scope(scope) == "10.0.0.1"
 
 
-@pytest.mark.usefixtures("_one_trusted_hop")
-def test_unattributable_requests_share_one_bucket() -> None:
+def test_unattributable_requests_share_one_bucket(monkeypatch: pytest.MonkeyPatch) -> None:
+    _set_hops(monkeypatch, 1)
     scope = _scope(forwarded_for=None, peer=None)
 
     assert client_ip_from_scope(scope) == UNKNOWN_CLIENT
 
 
 def test_second_hop_is_used_behind_two_proxies(monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setattr(get_settings(), "TRUSTED_PROXY_HOPS", 2)
+    _set_hops(monkeypatch, 2)
     scope = _scope(forwarded_for="1.2.3.4, 203.0.113.9, 172.16.0.1")
 
     assert client_ip_from_scope(scope) == "203.0.113.9"
@@ -81,7 +81,7 @@ def test_short_header_is_rejected_rather_than_misindexed(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """Fewer entries than trusted hops means the chain was bypassed."""
-    monkeypatch.setattr(get_settings(), "TRUSTED_PROXY_HOPS", 2)
+    _set_hops(monkeypatch, 2)
     scope = _scope(forwarded_for="1.2.3.4")
 
     assert client_ip_from_scope(scope) == "10.0.0.1"

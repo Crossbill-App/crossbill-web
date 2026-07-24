@@ -1,6 +1,6 @@
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, Request, Response
+from fastapi import APIRouter, Cookie, Depends, Request, Response
 
 from src.application.identity.use_cases.register_user_use_case import RegisterUserUseCase
 from src.application.identity.use_cases.update_user_use_case import UpdateUserUseCase
@@ -53,6 +53,7 @@ async def update_me(
     current_user: Annotated[User, Depends(get_current_user)],
     db: DatabaseSession,
     update_data: UserUpdateRequest,
+    refresh_token: Annotated[str | None, Cookie()] = None,
     use_case: UpdateUserUseCase = Depends(inject_use_case(container.identity.update_user_use_case)),
 ) -> UserDetailsResponse:
     """
@@ -60,12 +61,15 @@ async def update_me(
 
     - To change email: provide `email` field
     - To change password: provide both `current_password` and `new_password` fields
+
+    Changing the password revokes every other session; this one stays signed in.
     """
     user = await use_case.update_user(
         user_id=current_user.id.value,
         email=update_data.email,
         current_password=update_data.current_password,
         new_password=update_data.new_password,
+        current_refresh_token=refresh_token,
     )
     await db.commit()
     return UserDetailsResponse(email=user.email, id=user.id.value)

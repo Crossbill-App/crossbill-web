@@ -59,36 +59,34 @@ async def test_concurrent_hashing_is_capped(monkeypatch: pytest.MonkeyPatch) -> 
     assert peak <= get_settings().PASSWORD_HASH_CONCURRENCY
 
 
-def test_failed_verification_hashes_once_when_no_pepper_is_set(
+def _count_verify_calls(monkeypatch: pytest.MonkeyPatch) -> list[int]:
+    """Replace the underlying hash comparison with an always-failing counter."""
+    calls = [0]
+
+    def counting_verify(_password: str, _hash: str) -> bool:
+        calls[0] += 1
+        return False
+
+    monkeypatch.setattr(password_service.password_hash, "verify", counting_verify)
+    return calls
+
+
+async def test_failed_verification_hashes_once_when_no_pepper_is_set(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """Without a pepper the legacy fallback is identical to the first attempt."""
     monkeypatch.setattr(password_service, "PASSWORD_PEPPER", "")
-    calls = 0
+    calls = _count_verify_calls(monkeypatch)
 
-    def counting_verify(_password: str, _hash: str) -> bool:
-        nonlocal calls
-        calls += 1
-        return False
-
-    monkeypatch.setattr(password_service.password_hash, "verify", counting_verify)
-
-    assert not password_service._verify_sync("password", "hash")
-    assert calls == 1
+    assert not await password_service.verify_password("password", "hash")
+    assert calls[0] == 1
 
 
-def test_failed_verification_still_tries_legacy_hash_when_peppered(
+async def test_failed_verification_still_tries_legacy_hash_when_peppered(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     monkeypatch.setattr(password_service, "PASSWORD_PEPPER", "pepper")
-    calls = 0
+    calls = _count_verify_calls(monkeypatch)
 
-    def counting_verify(_password: str, _hash: str) -> bool:
-        nonlocal calls
-        calls += 1
-        return False
-
-    monkeypatch.setattr(password_service.password_hash, "verify", counting_verify)
-
-    assert not password_service._verify_sync("password", "hash")
-    assert calls == 2
+    assert not await password_service.verify_password("password", "hash")
+    assert calls[0] == 2
