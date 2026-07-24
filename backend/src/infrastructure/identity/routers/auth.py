@@ -60,7 +60,7 @@ def set_refresh_cookie(response: Response, refresh_token: str) -> None:
     )
 
 
-def _clear_refresh_cookie(response: Response) -> None:
+def clear_refresh_cookie(response: Response) -> None:
     """Clear the refresh token cookie."""
     response.delete_cookie(
         key="refresh_token",
@@ -119,7 +119,7 @@ async def refresh(
         set_refresh_cookie(response, token_pair.refresh_token)
         return token_pair_to_response(token_pair)
     except InvalidCredentialsError:
-        _clear_refresh_cookie(response)
+        clear_refresh_cookie(response)
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid or expired refresh token",
@@ -133,5 +133,5 @@ async def logout(
     use_case: LogoutUseCase = Depends(inject_use_case(container.identity.logout_use_case)),
 ) -> dict[str, str]:
     await use_case.logout(refresh_token)
-    _clear_refresh_cookie(response)
+    clear_refresh_cookie(response)
     return {"message": "Logged out successfully"}

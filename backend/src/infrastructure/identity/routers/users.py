@@ -1,6 +1,6 @@
 from typing import Annotated
 
-from fastapi import APIRouter, Cookie, Depends, Request, Response
+from fastapi import APIRouter, Depends, Request, Response
 
 from src.application.identity.use_cases.register_user_use_case import RegisterUserUseCase
 from src.application.identity.use_cases.update_user_use_case import UpdateUserUseCase
@@ -10,7 +10,11 @@ from src.domain.identity.entities.user import User
 from src.infrastructure.common.di import inject_use_case
 from src.infrastructure.common.rate_limit import limiter
 from src.infrastructure.identity.dependencies import get_current_user
-from src.infrastructure.identity.routers.auth import set_refresh_cookie, token_pair_to_response
+from src.infrastructure.identity.routers.auth import (
+    clear_refresh_cookie,
+    set_refresh_cookie,
+    token_pair_to_response,
+)
 from src.infrastructure.identity.schemas import (
     UserDetailsResponse,
     UserRegisterRequest,
@@ -53,7 +57,7 @@ async def update_me(
     current_user: Annotated[User, Depends(get_current_user)],
     db: DatabaseSession,
     update_data: UserUpdateRequest,
-    refresh_token: Annotated[str | None, Cookie()] = None,
+    response: Response,
     use_case: UpdateUserUseCase = Depends(inject_use_case(container.identity.update_user_use_case)),
 ) -> UserDetailsResponse:
     """
@@ -62,14 +66,20 @@ async def update_me(
     - To change email: provide `email` field
     - To change password: provide both `current_password` and `new_password` fields
 
-    Changing the password revokes every other session; this one stays signed in.
+    Changing the password signs every session out, this one included, so clients
+    should send the user back to the login screen afterwards.
     """
     user = await use_case.update_user(
         user_id=current_user.id.value,
         email=update_data.email,
         current_password=update_data.current_password,
         new_password=update_data.new_password,
-        current_refresh_token=refresh_token,
     )
     await db.commit()
+
+    if update_data.new_password is not None:
+        # The cookie's token was just revoked; drop it rather than leave the
+        # client holding one that can only fail.
+        clear_refresh_cookie(response)
+
     return UserDetailsResponse(email=user.email, id=user.id.value)

@@ -6,7 +6,6 @@ from src.application.identity.protocols.password_service import PasswordServiceP
 from src.application.identity.protocols.refresh_token_repository import (
     RefreshTokenRepositoryProtocol,
 )
-from src.application.identity.protocols.token_service import TokenServiceProtocol
 from src.application.identity.protocols.user_repository import UserRepositoryProtocol
 from src.domain.common.value_objects.ids import UserId
 from src.domain.identity.entities.user import User
@@ -22,13 +21,11 @@ class UpdateUserUseCase:
         self,
         user_repository: UserRepositoryProtocol,
         password_service: PasswordServiceProtocol,
-        token_service: TokenServiceProtocol,
         refresh_token_repository: RefreshTokenRepositoryProtocol,
     ) -> None:
         """Initialize use case with dependencies."""
         self.user_repository = user_repository
         self.password_service = password_service
-        self.token_service = token_service
         self.refresh_token_repository = refresh_token_repository
 
     async def update_user(
@@ -37,7 +34,6 @@ class UpdateUserUseCase:
         email: str | None = None,
         current_password: str | None = None,
         new_password: str | None = None,
-        current_refresh_token: str | None = None,
     ) -> User:
         """
         Update the user's profile.
@@ -46,10 +42,8 @@ class UpdateUserUseCase:
             user_id: ID of the user to update
             email: New email address (optional)
             current_password: Current password for verification (required if changing password)
-            new_password: New password (optional)
-            current_refresh_token: Refresh token of the session making the request. Its
-                token family survives a password change so the caller is not logged out
-                of the device they are sitting at; every other session is revoked.
+            new_password: New password (optional). Changing it signs every session
+                out, including the caller's own.
 
         Returns:
             Updated user entity
@@ -85,31 +79,13 @@ class UpdateUserUseCase:
             # Changing a password is how someone responds to a suspected
             # compromise, so it has to evict sessions a thief may be holding.
             # Refresh tokens live for 30 days and would otherwise outlive it.
-            await self._revoke_other_sessions(user.id, current_refresh_token)
+            #
+            # Every session goes, the caller's included. Sparing the current one
+            # would mean identifying it from its refresh cookie, and that cookie
+            # is scoped to /api/v1/auth so it never reaches this endpoint.
+            await self.refresh_token_repository.revoke_all_for_user(user.id)
+            logger.info("sessions_revoked_after_password_change", user_id=user_id)
 
         logger.info("user_profile_updated", user_id=user_id)
 
         return user
-
-    async def _revoke_other_sessions(
-        self, user_id: UserId, current_refresh_token: str | None
-    ) -> None:
-        """Revoke every refresh token for the user except the calling session's family."""
-        surviving_family_id: str | None = None
-
-        if current_refresh_token is not None:
-            claims = self.token_service.verify_refresh_token(current_refresh_token)
-            if claims is not None:
-                existing_token = await self.refresh_token_repository.find_by_jti(claims.jti)
-                if existing_token is not None and existing_token.user_id == user_id:
-                    surviving_family_id = existing_token.family_id
-
-        await self.refresh_token_repository.revoke_all_for_user(
-            user_id, except_family_id=surviving_family_id
-        )
-
-        logger.info(
-            "sessions_revoked_after_password_change",
-            user_id=user_id.value,
-            kept_current_session=surviving_family_id is not None,
-        )
