@@ -8,7 +8,7 @@ from pathlib import Path
 from typing import Any, Literal
 
 import structlog
-from pydantic import computed_field, field_validator, model_validator
+from pydantic import AliasChoices, Field, computed_field, field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 # Path constants - calculated once at module load
@@ -71,8 +71,16 @@ class Settings(BaseSettings):
     # Raise it only if the host has memory and cores to spare.
     PASSWORD_HASH_CONCURRENCY: int = 2
 
-    # Registration
-    ALLOW_USER_REGISTRATIONS: bool = True
+    # Registration. Defaults to closed: a deployment that never sets this is
+    # almost always a single-user install on the public internet, and the wrong
+    # default here silently hands out accounts.
+    # ALLOW_USER_REGISTRATION (singular) is accepted too — .env.example shipped
+    # that spelling for a while, and reading only the plural name meant anyone
+    # who followed it set a variable nothing consumed.
+    ALLOW_USER_REGISTRATIONS: bool = Field(
+        default=False,
+        validation_alias=AliasChoices("ALLOW_USER_REGISTRATIONS", "ALLOW_USER_REGISTRATION"),
+    )
 
     # Reading sessions
     MINIMUM_READING_SESSION_DURATION: int = 120
