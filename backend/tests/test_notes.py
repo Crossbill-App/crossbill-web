@@ -381,6 +381,33 @@ class TestGetNotesForBook:
         raskolnikov = next(n for n in notes if n["title"] == "Raskolnikov")
         assert raskolnikov["chapters"] == [{"id": test_chapter.id, "name": test_chapter.name}]
 
+    async def test_list_excludes_soft_deleted_highlight(
+        self,
+        client: AsyncClient,
+        db_session: AsyncSession,
+        test_book: models.Book,
+        test_highlight: models.Highlight,
+    ) -> None:
+        # The mirror of test_get_note_excludes_soft_deleted_highlight: the list
+        # view must hide a deleted highlight exactly as the detail view does.
+        await client.post(
+            "/api/v1/notes",
+            json={
+                "title": "X",
+                "book_id": test_book.id,
+                "highlight_ids": [test_highlight.id],
+            },
+        )
+
+        test_highlight.deleted_at = datetime.now(UTC)
+        db_session.add(test_highlight)
+        await db_session.commit()
+
+        response = await client.get(f"/api/v1/books/{test_book.id}/notes")
+        assert response.status_code == status.HTTP_200_OK
+        note = next(n for n in response.json()["items"] if n["title"] == "X")
+        assert note["highlights"] == []
+
     async def test_list_notes_filter_by_kind(
         self, client: AsyncClient, test_book: models.Book, two_notes: tuple[int, int]
     ) -> None:
