@@ -90,3 +90,33 @@ async def test_failed_verification_still_tries_legacy_hash_when_peppered(
 
     assert not await password_service.verify_password("password", "hash")
     assert calls[0] == 2
+
+
+async def test_peppered_success_costs_the_same_as_failure(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A short circuit on the peppered hit would leak which hashes are legacy."""
+    monkeypatch.setattr(password_service, "PASSWORD_PEPPER", "pepper")
+    calls = [0]
+
+    def verify_peppered_only(password: str, _hash: str) -> bool:
+        calls[0] += 1
+        return password == "passwordpepper"
+
+    monkeypatch.setattr(password_service.password_hash, "verify", verify_peppered_only)
+
+    assert await password_service.verify_password("password", "hash")
+    assert calls[0] == 2
+
+
+async def test_legacy_hash_still_verifies_when_peppered(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(password_service, "PASSWORD_PEPPER", "pepper")
+
+    def verify_unpeppered_only(password: str, _hash: str) -> bool:
+        return password == "password"
+
+    monkeypatch.setattr(password_service.password_hash, "verify", verify_unpeppered_only)
+
+    assert await password_service.verify_password("password", "hash")

@@ -48,18 +48,22 @@ def _hash_sync(plain_password: str) -> str:
 
 def _verify_sync(plain_password: str, hashed_password: str) -> bool:
     try:
-        if password_hash.verify(plain_password + PASSWORD_PEPPER, hashed_password):
-            return True
+        peppered_matches = password_hash.verify(plain_password + PASSWORD_PEPPER, hashed_password)
 
         if not PASSWORD_PEPPER:
             # With no pepper configured the legacy attempt below is byte-for-byte
-            # the one we just made; repeating it would only double the cost of
-            # every failed login.
-            return False
+            # the one just made; repeating it would only double the cost.
+            return peppered_matches
 
         # Fallback to non-peppered for backward compatibility (DEPRECATED).
         # This allows existing users to login and change their password.
-        return password_hash.verify(plain_password, hashed_password)
+        #
+        # Deliberately not short-circuited on peppered_matches: returning early
+        # would make a peppered hash cost one verification and a legacy hash two,
+        # and that ~30ms gap is measurable from outside. Cost per call is
+        # therefore constant, and bounded by the semaphore in the callers below.
+        legacy_matches = password_hash.verify(plain_password, hashed_password)
+        return peppered_matches or legacy_matches
     except UnknownHashError:
         return False
 
