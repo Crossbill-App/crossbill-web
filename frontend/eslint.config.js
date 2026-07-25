@@ -32,6 +32,25 @@ export default tseslint.config(
       ],
       '@typescript-eslint/no-unnecessary-condition': 'warn',
       'no-console': ['warn', { allow: ['warn', 'error'] }],
+      // Invalidation belongs in src/lib/cacheEvents.ts, which owns the query keys
+      // and takes them from the generated getters. A hand-written key here once
+      // matched nothing and left deleted books in the list for five minutes.
+      // `setQueryData` is deliberately not restricted: optimistic updates, cache
+      // seeding and write-through are not invalidation and belong at their call site.
+      'no-restricted-syntax': [
+        'error',
+        {
+          selector:
+            'CallExpression[callee.property.name=/^(invalidateQueries|refetchQueries)$/]',
+          message:
+            'Express the change as an event in @/lib/cacheEvents.ts rather than invalidating a query key here.',
+        },
+      ],
     },
+  },
+  {
+    // The one module allowed to invalidate, since it is where the keys live.
+    files: ['src/lib/cacheEvents.ts'],
+    rules: { 'no-restricted-syntax': 'off' },
   }
 );

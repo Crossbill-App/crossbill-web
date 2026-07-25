@@ -40,10 +40,7 @@ const withQueryKey = <T extends object, K>(query: T, queryKey: K): T & { queryKe
  * Get the full text content of a chapter from the EPUB file.
  * @summary Get Chapter Content
  */
-export const getChapterContentApiV1ChaptersChapterIdContentGet = (
-  chapterId: number,
-  signal?: AbortSignal
-) => {
+export const getChapterContent = (chapterId: number, signal?: AbortSignal) => {
   return axiosInstance<ChapterContentResponse>({
     url: `/api/v1/chapters/${chapterId}/content`,
     method: 'GET',
@@ -51,113 +48,84 @@ export const getChapterContentApiV1ChaptersChapterIdContentGet = (
   });
 };
 
-export const getGetChapterContentApiV1ChaptersChapterIdContentGetQueryKey = (chapterId: number) => {
+export const getGetChapterContentQueryKey = (chapterId: number) => {
   return [`/api/v1/chapters/${chapterId}/content`] as const;
 };
 
-export const getGetChapterContentApiV1ChaptersChapterIdContentGetQueryOptions = <
-  TData = Awaited<ReturnType<typeof getChapterContentApiV1ChaptersChapterIdContentGet>>,
+export const getGetChapterContentQueryOptions = <
+  TData = Awaited<ReturnType<typeof getChapterContent>>,
   TError = HTTPValidationError,
 >(
   chapterId: number,
   options?: {
-    query?: Partial<
-      UseQueryOptions<
-        Awaited<ReturnType<typeof getChapterContentApiV1ChaptersChapterIdContentGet>>,
-        TError,
-        TData
-      >
-    >;
+    query?: Partial<UseQueryOptions<Awaited<ReturnType<typeof getChapterContent>>, TError, TData>>;
   }
 ) => {
   const { query: queryOptions } = options ?? {};
 
-  const queryKey =
-    queryOptions?.queryKey ??
-    getGetChapterContentApiV1ChaptersChapterIdContentGetQueryKey(chapterId);
+  const queryKey = queryOptions?.queryKey ?? getGetChapterContentQueryKey(chapterId);
 
-  const queryFn: QueryFunction<
-    Awaited<ReturnType<typeof getChapterContentApiV1ChaptersChapterIdContentGet>>
-  > = ({ signal }) => getChapterContentApiV1ChaptersChapterIdContentGet(chapterId, signal);
+  const queryFn: QueryFunction<Awaited<ReturnType<typeof getChapterContent>>> = ({ signal }) =>
+    getChapterContent(chapterId, signal);
 
   return {
     queryKey,
     queryFn,
     enabled: chapterId !== null && chapterId !== undefined,
     ...queryOptions,
-  } as UseQueryOptions<
-    Awaited<ReturnType<typeof getChapterContentApiV1ChaptersChapterIdContentGet>>,
-    TError,
-    TData
-  > & { queryKey: DataTag<QueryKey, TData, TError> };
+  } as UseQueryOptions<Awaited<ReturnType<typeof getChapterContent>>, TError, TData> & {
+    queryKey: DataTag<QueryKey, TData, TError>;
+  };
 };
 
-export type GetChapterContentApiV1ChaptersChapterIdContentGetQueryResult = NonNullable<
-  Awaited<ReturnType<typeof getChapterContentApiV1ChaptersChapterIdContentGet>>
+export type GetChapterContentQueryResult = NonNullable<
+  Awaited<ReturnType<typeof getChapterContent>>
 >;
-export type GetChapterContentApiV1ChaptersChapterIdContentGetQueryError = HTTPValidationError;
+export type GetChapterContentQueryError = HTTPValidationError;
 
-export function useGetChapterContentApiV1ChaptersChapterIdContentGet<
-  TData = Awaited<ReturnType<typeof getChapterContentApiV1ChaptersChapterIdContentGet>>,
+export function useGetChapterContent<
+  TData = Awaited<ReturnType<typeof getChapterContent>>,
   TError = HTTPValidationError,
 >(
   chapterId: number,
   options: {
-    query: Partial<
-      UseQueryOptions<
-        Awaited<ReturnType<typeof getChapterContentApiV1ChaptersChapterIdContentGet>>,
-        TError,
-        TData
-      >
-    > &
+    query: Partial<UseQueryOptions<Awaited<ReturnType<typeof getChapterContent>>, TError, TData>> &
       Pick<
         DefinedInitialDataOptions<
-          Awaited<ReturnType<typeof getChapterContentApiV1ChaptersChapterIdContentGet>>,
+          Awaited<ReturnType<typeof getChapterContent>>,
           TError,
-          Awaited<ReturnType<typeof getChapterContentApiV1ChaptersChapterIdContentGet>>
+          Awaited<ReturnType<typeof getChapterContent>>
         >,
         'initialData'
       >;
   },
   queryClient?: QueryClient
 ): DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
-export function useGetChapterContentApiV1ChaptersChapterIdContentGet<
-  TData = Awaited<ReturnType<typeof getChapterContentApiV1ChaptersChapterIdContentGet>>,
+export function useGetChapterContent<
+  TData = Awaited<ReturnType<typeof getChapterContent>>,
   TError = HTTPValidationError,
 >(
   chapterId: number,
   options?: {
-    query?: Partial<
-      UseQueryOptions<
-        Awaited<ReturnType<typeof getChapterContentApiV1ChaptersChapterIdContentGet>>,
-        TError,
-        TData
-      >
-    > &
+    query?: Partial<UseQueryOptions<Awaited<ReturnType<typeof getChapterContent>>, TError, TData>> &
       Pick<
         UndefinedInitialDataOptions<
-          Awaited<ReturnType<typeof getChapterContentApiV1ChaptersChapterIdContentGet>>,
+          Awaited<ReturnType<typeof getChapterContent>>,
           TError,
-          Awaited<ReturnType<typeof getChapterContentApiV1ChaptersChapterIdContentGet>>
+          Awaited<ReturnType<typeof getChapterContent>>
         >,
         'initialData'
       >;
   },
   queryClient?: QueryClient
 ): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
-export function useGetChapterContentApiV1ChaptersChapterIdContentGet<
-  TData = Awaited<ReturnType<typeof getChapterContentApiV1ChaptersChapterIdContentGet>>,
+export function useGetChapterContent<
+  TData = Awaited<ReturnType<typeof getChapterContent>>,
   TError = HTTPValidationError,
 >(
   chapterId: number,
   options?: {
-    query?: Partial<
-      UseQueryOptions<
-        Awaited<ReturnType<typeof getChapterContentApiV1ChaptersChapterIdContentGet>>,
-        TError,
-        TData
-      >
-    >;
+    query?: Partial<UseQueryOptions<Awaited<ReturnType<typeof getChapterContent>>, TError, TData>>;
   },
   queryClient?: QueryClient
 ): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
@@ -165,26 +133,17 @@ export function useGetChapterContentApiV1ChaptersChapterIdContentGet<
  * @summary Get Chapter Content
  */
 
-export function useGetChapterContentApiV1ChaptersChapterIdContentGet<
-  TData = Awaited<ReturnType<typeof getChapterContentApiV1ChaptersChapterIdContentGet>>,
+export function useGetChapterContent<
+  TData = Awaited<ReturnType<typeof getChapterContent>>,
   TError = HTTPValidationError,
 >(
   chapterId: number,
   options?: {
-    query?: Partial<
-      UseQueryOptions<
-        Awaited<ReturnType<typeof getChapterContentApiV1ChaptersChapterIdContentGet>>,
-        TError,
-        TData
-      >
-    >;
+    query?: Partial<UseQueryOptions<Awaited<ReturnType<typeof getChapterContent>>, TError, TData>>;
   },
   queryClient?: QueryClient
 ): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
-  const queryOptions = getGetChapterContentApiV1ChaptersChapterIdContentGetQueryOptions(
-    chapterId,
-    options
-  );
+  const queryOptions = getGetChapterContentQueryOptions(chapterId, options);
 
   const query = useQuery(queryOptions, queryClient) as UseQueryResult<TData, TError> & {
     queryKey: DataTag<QueryKey, TData, TError>;

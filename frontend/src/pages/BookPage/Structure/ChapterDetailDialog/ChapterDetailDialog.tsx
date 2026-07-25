@@ -5,7 +5,7 @@ import type {
   Flashcard,
   TagInBook,
 } from '@/api/generated/model';
-import { useGetNotesForBookApiV1BooksBookIdNotesGet } from '@/api/generated/notes/notes.ts';
+import { useGetNotesForBook } from '@/api/generated/notes/notes.ts';
 import { FadeInOut } from '@/components/animations/FadeInOut.tsx';
 import { CommonDialog } from '@/components/dialogs/CommonDialog.tsx';
 import { CommonDialogHorizontalNavigation } from '@/components/dialogs/CommonDialogHorizontalNavigation.tsx';
@@ -86,10 +86,9 @@ export const ChapterDetailDialog = ({
 
   const prereadingSummary = prereadingByChapterId[chapter.id];
 
-  const { data: notesData, isLoading: notesLoading } = useGetNotesForBookApiV1BooksBookIdNotesGet(
-    bookId,
-    { chapter_id: chapter.id }
-  );
+  const { data: notesData, isLoading: notesLoading } = useGetNotesForBook(bookId, {
+    chapter_id: chapter.id,
+  });
   // NOTE: the orval axios mutator unwraps the response (`.then(({ data }) => data)`),
   // so the generated GET hook's `data` is the payload itself, not an AxiosResponse.
   const notes = notesData?.items ?? [];

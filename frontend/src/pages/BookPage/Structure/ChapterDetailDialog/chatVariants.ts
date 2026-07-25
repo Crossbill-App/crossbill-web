@@ -1,8 +1,8 @@
 import {
-  useCreateChatSessionApiV1ChaptersChapterIdChatSessionsPost,
-  useCreateQuizSessionApiV1ChaptersChapterIdQuizSessionsPost,
-  useSendChatMessageApiV1ChatSessionsSessionIdMessagesPost,
-  useSendQuizMessageApiV1QuizSessionsSessionIdMessagesPost,
+  useCreateChatSession,
+  useCreateQuizSession,
+  useSendChatMessage,
+  useSendQuizMessage,
 } from '@/api/generated/chat/chat';
 
 /**
@@ -12,18 +12,18 @@ import {
  */
 export interface ChatVariant {
   title: (chapterName: string) => string;
-  useCreateSession: typeof useCreateChatSessionApiV1ChaptersChapterIdChatSessionsPost;
-  useSendMessage: typeof useSendChatMessageApiV1ChatSessionsSessionIdMessagesPost;
+  useCreateSession: typeof useCreateChatSession;
+  useSendMessage: typeof useSendChatMessage;
 }
 
 export const CHAT_VARIANT: ChatVariant = {
   title: (chapterName) => `Chat: ${chapterName}`,
-  useCreateSession: useCreateChatSessionApiV1ChaptersChapterIdChatSessionsPost,
-  useSendMessage: useSendChatMessageApiV1ChatSessionsSessionIdMessagesPost,
+  useCreateSession: useCreateChatSession,
+  useSendMessage: useSendChatMessage,
 };
 
 export const QUIZ_VARIANT: ChatVariant = {
   title: (chapterName) => `Quiz: ${chapterName}`,
-  useCreateSession: useCreateQuizSessionApiV1ChaptersChapterIdQuizSessionsPost,
-  useSendMessage: useSendQuizMessageApiV1QuizSessionsSessionIdMessagesPost,
+  useCreateSession: useCreateQuizSession,
+  useSendMessage: useSendQuizMessage,
 };

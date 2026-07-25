@@ -49,10 +49,7 @@ const withQueryKey = <T extends object, K>(query: T, queryKey: K): T & { queryKe
  * Get all highlight labels for a book with resolved labels.
  * @summary Get Book Highlight Labels
  */
-export const getBookHighlightLabelsApiV1BooksBookIdHighlightLabelsGet = (
-  bookId: number,
-  signal?: AbortSignal
-) => {
+export const getBookHighlightLabels = (bookId: number, signal?: AbortSignal) => {
   return axiosInstance<CollectionResponseHighlightLabelInBook>({
     url: `/api/v1/books/${bookId}/highlight-labels`,
     method: 'GET',
@@ -60,115 +57,91 @@ export const getBookHighlightLabelsApiV1BooksBookIdHighlightLabelsGet = (
   });
 };
 
-export const getGetBookHighlightLabelsApiV1BooksBookIdHighlightLabelsGetQueryKey = (
-  bookId: number
-) => {
+export const getGetBookHighlightLabelsQueryKey = (bookId: number) => {
   return [`/api/v1/books/${bookId}/highlight-labels`] as const;
 };
 
-export const getGetBookHighlightLabelsApiV1BooksBookIdHighlightLabelsGetQueryOptions = <
-  TData = Awaited<ReturnType<typeof getBookHighlightLabelsApiV1BooksBookIdHighlightLabelsGet>>,
+export const getGetBookHighlightLabelsQueryOptions = <
+  TData = Awaited<ReturnType<typeof getBookHighlightLabels>>,
   TError = HTTPValidationError,
 >(
   bookId: number,
   options?: {
     query?: Partial<
-      UseQueryOptions<
-        Awaited<ReturnType<typeof getBookHighlightLabelsApiV1BooksBookIdHighlightLabelsGet>>,
-        TError,
-        TData
-      >
+      UseQueryOptions<Awaited<ReturnType<typeof getBookHighlightLabels>>, TError, TData>
     >;
   }
 ) => {
   const { query: queryOptions } = options ?? {};
 
-  const queryKey =
-    queryOptions?.queryKey ??
-    getGetBookHighlightLabelsApiV1BooksBookIdHighlightLabelsGetQueryKey(bookId);
+  const queryKey = queryOptions?.queryKey ?? getGetBookHighlightLabelsQueryKey(bookId);
 
-  const queryFn: QueryFunction<
-    Awaited<ReturnType<typeof getBookHighlightLabelsApiV1BooksBookIdHighlightLabelsGet>>
-  > = ({ signal }) => getBookHighlightLabelsApiV1BooksBookIdHighlightLabelsGet(bookId, signal);
+  const queryFn: QueryFunction<Awaited<ReturnType<typeof getBookHighlightLabels>>> = ({ signal }) =>
+    getBookHighlightLabels(bookId, signal);
 
   return {
     queryKey,
     queryFn,
     enabled: bookId !== null && bookId !== undefined,
     ...queryOptions,
-  } as UseQueryOptions<
-    Awaited<ReturnType<typeof getBookHighlightLabelsApiV1BooksBookIdHighlightLabelsGet>>,
-    TError,
-    TData
-  > & { queryKey: DataTag<QueryKey, TData, TError> };
+  } as UseQueryOptions<Awaited<ReturnType<typeof getBookHighlightLabels>>, TError, TData> & {
+    queryKey: DataTag<QueryKey, TData, TError>;
+  };
 };
 
-export type GetBookHighlightLabelsApiV1BooksBookIdHighlightLabelsGetQueryResult = NonNullable<
-  Awaited<ReturnType<typeof getBookHighlightLabelsApiV1BooksBookIdHighlightLabelsGet>>
+export type GetBookHighlightLabelsQueryResult = NonNullable<
+  Awaited<ReturnType<typeof getBookHighlightLabels>>
 >;
-export type GetBookHighlightLabelsApiV1BooksBookIdHighlightLabelsGetQueryError =
-  HTTPValidationError;
+export type GetBookHighlightLabelsQueryError = HTTPValidationError;
 
-export function useGetBookHighlightLabelsApiV1BooksBookIdHighlightLabelsGet<
-  TData = Awaited<ReturnType<typeof getBookHighlightLabelsApiV1BooksBookIdHighlightLabelsGet>>,
+export function useGetBookHighlightLabels<
+  TData = Awaited<ReturnType<typeof getBookHighlightLabels>>,
   TError = HTTPValidationError,
 >(
   bookId: number,
   options: {
     query: Partial<
-      UseQueryOptions<
-        Awaited<ReturnType<typeof getBookHighlightLabelsApiV1BooksBookIdHighlightLabelsGet>>,
-        TError,
-        TData
-      >
+      UseQueryOptions<Awaited<ReturnType<typeof getBookHighlightLabels>>, TError, TData>
     > &
       Pick<
         DefinedInitialDataOptions<
-          Awaited<ReturnType<typeof getBookHighlightLabelsApiV1BooksBookIdHighlightLabelsGet>>,
+          Awaited<ReturnType<typeof getBookHighlightLabels>>,
           TError,
-          Awaited<ReturnType<typeof getBookHighlightLabelsApiV1BooksBookIdHighlightLabelsGet>>
+          Awaited<ReturnType<typeof getBookHighlightLabels>>
         >,
         'initialData'
       >;
   },
   queryClient?: QueryClient
 ): DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
-export function useGetBookHighlightLabelsApiV1BooksBookIdHighlightLabelsGet<
-  TData = Awaited<ReturnType<typeof getBookHighlightLabelsApiV1BooksBookIdHighlightLabelsGet>>,
+export function useGetBookHighlightLabels<
+  TData = Awaited<ReturnType<typeof getBookHighlightLabels>>,
   TError = HTTPValidationError,
 >(
   bookId: number,
   options?: {
     query?: Partial<
-      UseQueryOptions<
-        Awaited<ReturnType<typeof getBookHighlightLabelsApiV1BooksBookIdHighlightLabelsGet>>,
-        TError,
-        TData
-      >
+      UseQueryOptions<Awaited<ReturnType<typeof getBookHighlightLabels>>, TError, TData>
     > &
       Pick<
         UndefinedInitialDataOptions<
-          Awaited<ReturnType<typeof getBookHighlightLabelsApiV1BooksBookIdHighlightLabelsGet>>,
+          Awaited<ReturnType<typeof getBookHighlightLabels>>,
           TError,
-          Awaited<ReturnType<typeof getBookHighlightLabelsApiV1BooksBookIdHighlightLabelsGet>>
+          Awaited<ReturnType<typeof getBookHighlightLabels>>
         >,
         'initialData'
       >;
   },
   queryClient?: QueryClient
 ): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
-export function useGetBookHighlightLabelsApiV1BooksBookIdHighlightLabelsGet<
-  TData = Awaited<ReturnType<typeof getBookHighlightLabelsApiV1BooksBookIdHighlightLabelsGet>>,
+export function useGetBookHighlightLabels<
+  TData = Awaited<ReturnType<typeof getBookHighlightLabels>>,
   TError = HTTPValidationError,
 >(
   bookId: number,
   options?: {
     query?: Partial<
-      UseQueryOptions<
-        Awaited<ReturnType<typeof getBookHighlightLabelsApiV1BooksBookIdHighlightLabelsGet>>,
-        TError,
-        TData
-      >
+      UseQueryOptions<Awaited<ReturnType<typeof getBookHighlightLabels>>, TError, TData>
     >;
   },
   queryClient?: QueryClient
@@ -177,26 +150,19 @@ export function useGetBookHighlightLabelsApiV1BooksBookIdHighlightLabelsGet<
  * @summary Get Book Highlight Labels
  */
 
-export function useGetBookHighlightLabelsApiV1BooksBookIdHighlightLabelsGet<
-  TData = Awaited<ReturnType<typeof getBookHighlightLabelsApiV1BooksBookIdHighlightLabelsGet>>,
+export function useGetBookHighlightLabels<
+  TData = Awaited<ReturnType<typeof getBookHighlightLabels>>,
   TError = HTTPValidationError,
 >(
   bookId: number,
   options?: {
     query?: Partial<
-      UseQueryOptions<
-        Awaited<ReturnType<typeof getBookHighlightLabelsApiV1BooksBookIdHighlightLabelsGet>>,
-        TError,
-        TData
-      >
+      UseQueryOptions<Awaited<ReturnType<typeof getBookHighlightLabels>>, TError, TData>
     >;
   },
   queryClient?: QueryClient
 ): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
-  const queryOptions = getGetBookHighlightLabelsApiV1BooksBookIdHighlightLabelsGetQueryOptions(
-    bookId,
-    options
-  );
+  const queryOptions = getGetBookHighlightLabelsQueryOptions(bookId, options);
 
   const query = useQuery(queryOptions, queryClient) as UseQueryResult<TData, TError> & {
     queryKey: DataTag<QueryKey, TData, TError>;
@@ -209,7 +175,7 @@ export function useGetBookHighlightLabelsApiV1BooksBookIdHighlightLabelsGet<
  * Update label and/or ui_color on a highlight style.
  * @summary Update Highlight Label
  */
-export const updateHighlightLabelApiV1HighlightLabelsStyleIdPatch = (
+export const updateHighlightLabel = (
   styleId: number,
   highlightLabelUpdate: HighlightLabelUpdate,
   signal?: AbortSignal
@@ -223,23 +189,23 @@ export const updateHighlightLabelApiV1HighlightLabelsStyleIdPatch = (
   });
 };
 
-export const getUpdateHighlightLabelApiV1HighlightLabelsStyleIdPatchMutationOptions = <
+export const getUpdateHighlightLabelMutationOptions = <
   TError = HTTPValidationError,
   TContext = unknown,
 >(options?: {
   mutation?: UseMutationOptions<
-    Awaited<ReturnType<typeof updateHighlightLabelApiV1HighlightLabelsStyleIdPatch>>,
+    Awaited<ReturnType<typeof updateHighlightLabel>>,
     TError,
     { styleId: number; data: HighlightLabelUpdate },
     TContext
   >;
 }): UseMutationOptions<
-  Awaited<ReturnType<typeof updateHighlightLabelApiV1HighlightLabelsStyleIdPatch>>,
+  Awaited<ReturnType<typeof updateHighlightLabel>>,
   TError,
   { styleId: number; data: HighlightLabelUpdate },
   TContext
 > => {
-  const mutationKey = ['updateHighlightLabelApiV1HighlightLabelsStyleIdPatch'];
+  const mutationKey = ['updateHighlightLabel'];
   const { mutation: mutationOptions } = options
     ? options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey
       ? options
@@ -247,33 +213,30 @@ export const getUpdateHighlightLabelApiV1HighlightLabelsStyleIdPatchMutationOpti
     : { mutation: { mutationKey } };
 
   const mutationFn: MutationFunction<
-    Awaited<ReturnType<typeof updateHighlightLabelApiV1HighlightLabelsStyleIdPatch>>,
+    Awaited<ReturnType<typeof updateHighlightLabel>>,
     { styleId: number; data: HighlightLabelUpdate }
   > = (props) => {
     const { styleId, data } = props ?? {};
 
-    return updateHighlightLabelApiV1HighlightLabelsStyleIdPatch(styleId, data);
+    return updateHighlightLabel(styleId, data);
   };
 
   return { mutationFn, ...mutationOptions };
 };
 
-export type UpdateHighlightLabelApiV1HighlightLabelsStyleIdPatchMutationResult = NonNullable<
-  Awaited<ReturnType<typeof updateHighlightLabelApiV1HighlightLabelsStyleIdPatch>>
+export type UpdateHighlightLabelMutationResult = NonNullable<
+  Awaited<ReturnType<typeof updateHighlightLabel>>
 >;
-export type UpdateHighlightLabelApiV1HighlightLabelsStyleIdPatchMutationBody = HighlightLabelUpdate;
-export type UpdateHighlightLabelApiV1HighlightLabelsStyleIdPatchMutationError = HTTPValidationError;
+export type UpdateHighlightLabelMutationBody = HighlightLabelUpdate;
+export type UpdateHighlightLabelMutationError = HTTPValidationError;
 
 /**
  * @summary Update Highlight Label
  */
-export const useUpdateHighlightLabelApiV1HighlightLabelsStyleIdPatch = <
-  TError = HTTPValidationError,
-  TContext = unknown,
->(
+export const useUpdateHighlightLabel = <TError = HTTPValidationError, TContext = unknown>(
   options?: {
     mutation?: UseMutationOptions<
-      Awaited<ReturnType<typeof updateHighlightLabelApiV1HighlightLabelsStyleIdPatch>>,
+      Awaited<ReturnType<typeof updateHighlightLabel>>,
       TError,
       { styleId: number; data: HighlightLabelUpdate },
       TContext
@@ -281,21 +244,18 @@ export const useUpdateHighlightLabelApiV1HighlightLabelsStyleIdPatch = <
   },
   queryClient?: QueryClient
 ): UseMutationResult<
-  Awaited<ReturnType<typeof updateHighlightLabelApiV1HighlightLabelsStyleIdPatch>>,
+  Awaited<ReturnType<typeof updateHighlightLabel>>,
   TError,
   { styleId: number; data: HighlightLabelUpdate },
   TContext
 > => {
-  return useMutation(
-    getUpdateHighlightLabelApiV1HighlightLabelsStyleIdPatchMutationOptions(options),
-    queryClient
-  );
+  return useMutation(getUpdateHighlightLabelMutationOptions(options), queryClient);
 };
 /**
  * Get all global default highlight labels.
  * @summary Get Global Highlight Labels
  */
-export const getGlobalHighlightLabelsApiV1HighlightLabelsGlobalGet = (signal?: AbortSignal) => {
+export const getGlobalHighlightLabels = (signal?: AbortSignal) => {
   return axiosInstance<CollectionResponseHighlightLabelInBook>({
     url: `/api/v1/highlight-labels/global`,
     method: 'GET',
@@ -303,100 +263,83 @@ export const getGlobalHighlightLabelsApiV1HighlightLabelsGlobalGet = (signal?: A
   });
 };
 
-export const getGetGlobalHighlightLabelsApiV1HighlightLabelsGlobalGetQueryKey = () => {
+export const getGetGlobalHighlightLabelsQueryKey = () => {
   return [`/api/v1/highlight-labels/global`] as const;
 };
 
-export const getGetGlobalHighlightLabelsApiV1HighlightLabelsGlobalGetQueryOptions = <
-  TData = Awaited<ReturnType<typeof getGlobalHighlightLabelsApiV1HighlightLabelsGlobalGet>>,
+export const getGetGlobalHighlightLabelsQueryOptions = <
+  TData = Awaited<ReturnType<typeof getGlobalHighlightLabels>>,
   TError = unknown,
 >(options?: {
   query?: Partial<
-    UseQueryOptions<
-      Awaited<ReturnType<typeof getGlobalHighlightLabelsApiV1HighlightLabelsGlobalGet>>,
-      TError,
-      TData
-    >
+    UseQueryOptions<Awaited<ReturnType<typeof getGlobalHighlightLabels>>, TError, TData>
   >;
 }) => {
   const { query: queryOptions } = options ?? {};
 
-  const queryKey =
-    queryOptions?.queryKey ?? getGetGlobalHighlightLabelsApiV1HighlightLabelsGlobalGetQueryKey();
+  const queryKey = queryOptions?.queryKey ?? getGetGlobalHighlightLabelsQueryKey();
 
-  const queryFn: QueryFunction<
-    Awaited<ReturnType<typeof getGlobalHighlightLabelsApiV1HighlightLabelsGlobalGet>>
-  > = ({ signal }) => getGlobalHighlightLabelsApiV1HighlightLabelsGlobalGet(signal);
+  const queryFn: QueryFunction<Awaited<ReturnType<typeof getGlobalHighlightLabels>>> = ({
+    signal,
+  }) => getGlobalHighlightLabels(signal);
 
   return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
-    Awaited<ReturnType<typeof getGlobalHighlightLabelsApiV1HighlightLabelsGlobalGet>>,
+    Awaited<ReturnType<typeof getGlobalHighlightLabels>>,
     TError,
     TData
   > & { queryKey: DataTag<QueryKey, TData, TError> };
 };
 
-export type GetGlobalHighlightLabelsApiV1HighlightLabelsGlobalGetQueryResult = NonNullable<
-  Awaited<ReturnType<typeof getGlobalHighlightLabelsApiV1HighlightLabelsGlobalGet>>
+export type GetGlobalHighlightLabelsQueryResult = NonNullable<
+  Awaited<ReturnType<typeof getGlobalHighlightLabels>>
 >;
-export type GetGlobalHighlightLabelsApiV1HighlightLabelsGlobalGetQueryError = unknown;
+export type GetGlobalHighlightLabelsQueryError = unknown;
 
-export function useGetGlobalHighlightLabelsApiV1HighlightLabelsGlobalGet<
-  TData = Awaited<ReturnType<typeof getGlobalHighlightLabelsApiV1HighlightLabelsGlobalGet>>,
+export function useGetGlobalHighlightLabels<
+  TData = Awaited<ReturnType<typeof getGlobalHighlightLabels>>,
   TError = unknown,
 >(
   options: {
     query: Partial<
-      UseQueryOptions<
-        Awaited<ReturnType<typeof getGlobalHighlightLabelsApiV1HighlightLabelsGlobalGet>>,
-        TError,
-        TData
-      >
+      UseQueryOptions<Awaited<ReturnType<typeof getGlobalHighlightLabels>>, TError, TData>
     > &
       Pick<
         DefinedInitialDataOptions<
-          Awaited<ReturnType<typeof getGlobalHighlightLabelsApiV1HighlightLabelsGlobalGet>>,
+          Awaited<ReturnType<typeof getGlobalHighlightLabels>>,
           TError,
-          Awaited<ReturnType<typeof getGlobalHighlightLabelsApiV1HighlightLabelsGlobalGet>>
+          Awaited<ReturnType<typeof getGlobalHighlightLabels>>
         >,
         'initialData'
       >;
   },
   queryClient?: QueryClient
 ): DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
-export function useGetGlobalHighlightLabelsApiV1HighlightLabelsGlobalGet<
-  TData = Awaited<ReturnType<typeof getGlobalHighlightLabelsApiV1HighlightLabelsGlobalGet>>,
+export function useGetGlobalHighlightLabels<
+  TData = Awaited<ReturnType<typeof getGlobalHighlightLabels>>,
   TError = unknown,
 >(
   options?: {
     query?: Partial<
-      UseQueryOptions<
-        Awaited<ReturnType<typeof getGlobalHighlightLabelsApiV1HighlightLabelsGlobalGet>>,
-        TError,
-        TData
-      >
+      UseQueryOptions<Awaited<ReturnType<typeof getGlobalHighlightLabels>>, TError, TData>
     > &
       Pick<
         UndefinedInitialDataOptions<
-          Awaited<ReturnType<typeof getGlobalHighlightLabelsApiV1HighlightLabelsGlobalGet>>,
+          Awaited<ReturnType<typeof getGlobalHighlightLabels>>,
           TError,
-          Awaited<ReturnType<typeof getGlobalHighlightLabelsApiV1HighlightLabelsGlobalGet>>
+          Awaited<ReturnType<typeof getGlobalHighlightLabels>>
         >,
         'initialData'
       >;
   },
   queryClient?: QueryClient
 ): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
-export function useGetGlobalHighlightLabelsApiV1HighlightLabelsGlobalGet<
-  TData = Awaited<ReturnType<typeof getGlobalHighlightLabelsApiV1HighlightLabelsGlobalGet>>,
+export function useGetGlobalHighlightLabels<
+  TData = Awaited<ReturnType<typeof getGlobalHighlightLabels>>,
   TError = unknown,
 >(
   options?: {
     query?: Partial<
-      UseQueryOptions<
-        Awaited<ReturnType<typeof getGlobalHighlightLabelsApiV1HighlightLabelsGlobalGet>>,
-        TError,
-        TData
-      >
+      UseQueryOptions<Awaited<ReturnType<typeof getGlobalHighlightLabels>>, TError, TData>
     >;
   },
   queryClient?: QueryClient
@@ -405,23 +348,18 @@ export function useGetGlobalHighlightLabelsApiV1HighlightLabelsGlobalGet<
  * @summary Get Global Highlight Labels
  */
 
-export function useGetGlobalHighlightLabelsApiV1HighlightLabelsGlobalGet<
-  TData = Awaited<ReturnType<typeof getGlobalHighlightLabelsApiV1HighlightLabelsGlobalGet>>,
+export function useGetGlobalHighlightLabels<
+  TData = Awaited<ReturnType<typeof getGlobalHighlightLabels>>,
   TError = unknown,
 >(
   options?: {
     query?: Partial<
-      UseQueryOptions<
-        Awaited<ReturnType<typeof getGlobalHighlightLabelsApiV1HighlightLabelsGlobalGet>>,
-        TError,
-        TData
-      >
+      UseQueryOptions<Awaited<ReturnType<typeof getGlobalHighlightLabels>>, TError, TData>
     >;
   },
   queryClient?: QueryClient
 ): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
-  const queryOptions =
-    getGetGlobalHighlightLabelsApiV1HighlightLabelsGlobalGetQueryOptions(options);
+  const queryOptions = getGetGlobalHighlightLabelsQueryOptions(options);
 
   const query = useQuery(queryOptions, queryClient) as UseQueryResult<TData, TError> & {
     queryKey: DataTag<QueryKey, TData, TError>;
@@ -434,7 +372,7 @@ export function useGetGlobalHighlightLabelsApiV1HighlightLabelsGlobalGet<
  * Create a global default highlight label.
  * @summary Create Global Highlight Label
  */
-export const createGlobalHighlightLabelApiV1HighlightLabelsGlobalPost = (
+export const createGlobalHighlightLabel = (
   highlightLabelCreate: HighlightLabelCreate,
   signal?: AbortSignal
 ) => {
@@ -447,23 +385,23 @@ export const createGlobalHighlightLabelApiV1HighlightLabelsGlobalPost = (
   });
 };
 
-export const getCreateGlobalHighlightLabelApiV1HighlightLabelsGlobalPostMutationOptions = <
+export const getCreateGlobalHighlightLabelMutationOptions = <
   TError = HTTPValidationError,
   TContext = unknown,
 >(options?: {
   mutation?: UseMutationOptions<
-    Awaited<ReturnType<typeof createGlobalHighlightLabelApiV1HighlightLabelsGlobalPost>>,
+    Awaited<ReturnType<typeof createGlobalHighlightLabel>>,
     TError,
     { data: HighlightLabelCreate },
     TContext
   >;
 }): UseMutationOptions<
-  Awaited<ReturnType<typeof createGlobalHighlightLabelApiV1HighlightLabelsGlobalPost>>,
+  Awaited<ReturnType<typeof createGlobalHighlightLabel>>,
   TError,
   { data: HighlightLabelCreate },
   TContext
 > => {
-  const mutationKey = ['createGlobalHighlightLabelApiV1HighlightLabelsGlobalPost'];
+  const mutationKey = ['createGlobalHighlightLabel'];
   const { mutation: mutationOptions } = options
     ? options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey
       ? options
@@ -471,35 +409,30 @@ export const getCreateGlobalHighlightLabelApiV1HighlightLabelsGlobalPostMutation
     : { mutation: { mutationKey } };
 
   const mutationFn: MutationFunction<
-    Awaited<ReturnType<typeof createGlobalHighlightLabelApiV1HighlightLabelsGlobalPost>>,
+    Awaited<ReturnType<typeof createGlobalHighlightLabel>>,
     { data: HighlightLabelCreate }
   > = (props) => {
     const { data } = props ?? {};
 
-    return createGlobalHighlightLabelApiV1HighlightLabelsGlobalPost(data);
+    return createGlobalHighlightLabel(data);
   };
 
   return { mutationFn, ...mutationOptions };
 };
 
-export type CreateGlobalHighlightLabelApiV1HighlightLabelsGlobalPostMutationResult = NonNullable<
-  Awaited<ReturnType<typeof createGlobalHighlightLabelApiV1HighlightLabelsGlobalPost>>
+export type CreateGlobalHighlightLabelMutationResult = NonNullable<
+  Awaited<ReturnType<typeof createGlobalHighlightLabel>>
 >;
-export type CreateGlobalHighlightLabelApiV1HighlightLabelsGlobalPostMutationBody =
-  HighlightLabelCreate;
-export type CreateGlobalHighlightLabelApiV1HighlightLabelsGlobalPostMutationError =
-  HTTPValidationError;
+export type CreateGlobalHighlightLabelMutationBody = HighlightLabelCreate;
+export type CreateGlobalHighlightLabelMutationError = HTTPValidationError;
 
 /**
  * @summary Create Global Highlight Label
  */
-export const useCreateGlobalHighlightLabelApiV1HighlightLabelsGlobalPost = <
-  TError = HTTPValidationError,
-  TContext = unknown,
->(
+export const useCreateGlobalHighlightLabel = <TError = HTTPValidationError, TContext = unknown>(
   options?: {
     mutation?: UseMutationOptions<
-      Awaited<ReturnType<typeof createGlobalHighlightLabelApiV1HighlightLabelsGlobalPost>>,
+      Awaited<ReturnType<typeof createGlobalHighlightLabel>>,
       TError,
       { data: HighlightLabelCreate },
       TContext
@@ -507,13 +440,10 @@ export const useCreateGlobalHighlightLabelApiV1HighlightLabelsGlobalPost = <
   },
   queryClient?: QueryClient
 ): UseMutationResult<
-  Awaited<ReturnType<typeof createGlobalHighlightLabelApiV1HighlightLabelsGlobalPost>>,
+  Awaited<ReturnType<typeof createGlobalHighlightLabel>>,
   TError,
   { data: HighlightLabelCreate },
   TContext
 > => {
-  return useMutation(
-    getCreateGlobalHighlightLabelApiV1HighlightLabelsGlobalPostMutationOptions(options),
-    queryClient
-  );
+  return useMutation(getCreateGlobalHighlightLabelMutationOptions(options), queryClient);
 };

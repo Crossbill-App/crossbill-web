@@ -1,5 +1,5 @@
 import type { NoteWithLinks } from '@/api/generated/model';
-import { useGetNotesForBookApiV1BooksBookIdNotesGet } from '@/api/generated/notes/notes.ts';
+import { useGetNotesForBook } from '@/api/generated/notes/notes.ts';
 import { Spinner } from '@/components/animations/Spinner.tsx';
 import { CommonDialog } from '@/components/dialogs/CommonDialog.tsx';
 import { List, ListItemButton, ListItemText, Typography } from '@mui/material';
@@ -19,7 +19,7 @@ export const NotePickerDialog = ({
   title,
   onSelect,
 }: NotePickerDialogProps) => {
-  const { data, isLoading } = useGetNotesForBookApiV1BooksBookIdNotesGet(bookId, undefined, {
+  const { data, isLoading } = useGetNotesForBook(bookId, undefined, {
     query: { enabled: open },
   });
 

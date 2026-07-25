@@ -1,18 +1,16 @@
 import {
-  getGetActiveBookPrereadingBatchApiV1JobsBooksBookIdPrereadingGetQueryKey,
-  useCancelJobBatchApiV1JobsBatchesBatchIdDelete,
-  useEnqueueBookPrereadingApiV1JobsBooksBookIdPrereadingPost,
-  useGetActiveBookPrereadingBatchApiV1JobsBooksBookIdPrereadingGet,
-  useGetJobBatchApiV1JobsBatchesBatchIdGet,
+  useCancelJobBatch,
+  useEnqueueBookPrereading,
+  useGetActiveBookPrereadingBatch,
+  useGetJobBatch,
 } from '@/api/generated/jobs/jobs';
 import type { JobBatchResponse } from '@/api/generated/model';
-import { getGetBookPrereadingApiV1BooksBookIdPrereadingGetQueryKey } from '@/api/generated/prereading/prereading';
 import { IconButtonWithTooltip } from '@/components/buttons/IconButtonWithTooltip';
 import { AIFeature } from '@/components/features/AIFeature';
 import { useSnackbar } from '@/context/SnackbarContext';
+import { useCacheEvents } from '@/lib/cacheEvents.ts';
 import { AIIcon, CloseIcon } from '@/theme/Icons';
 import { Box, CircularProgress, Typography } from '@mui/material';
-import { useQueryClient } from '@tanstack/react-query';
 import { useCallback, useRef, useState } from 'react';
 
 interface BatchPrereadingToolbarProps {
@@ -43,13 +41,13 @@ function showCompletionMessage(
 }
 
 export const BatchPrereadingToolbar = ({ bookId }: BatchPrereadingToolbarProps) => {
-  const queryClient = useQueryClient();
+  const cache = useCacheEvents();
   const { showSnackbar } = useSnackbar();
   const [batchId, setBatchId] = useState<number | null>(null);
   const handledTerminalRef = useRef<number | null>(null);
 
   // Check for an already-active batch on mount (survives page refresh)
-  useGetActiveBookPrereadingBatchApiV1JobsBooksBookIdPrereadingGet(bookId, {
+  useGetActiveBookPrereadingBatch(bookId, {
     query: {
       select: (response: JobBatchResponse | null) => {
         if (response && !isTerminal(response.status) && batchId === null) {
@@ -62,20 +60,19 @@ export const BatchPrereadingToolbar = ({ bookId }: BatchPrereadingToolbarProps) 
     },
   });
 
-  const { mutate: enqueue, isPending: isEnqueuing } =
-    useEnqueueBookPrereadingApiV1JobsBooksBookIdPrereadingPost({
-      mutation: {
-        onSuccess: (response) => {
-          handledTerminalRef.current = null;
-          setBatchId(response.id);
-        },
-        onError: () => {
-          showSnackbar('Failed to start batch generation.', 'error');
-        },
+  const { mutate: enqueue, isPending: isEnqueuing } = useEnqueueBookPrereading({
+    mutation: {
+      onSuccess: (response) => {
+        handledTerminalRef.current = null;
+        setBatchId(response.id);
       },
-    });
+      onError: () => {
+        showSnackbar('Failed to start batch generation.', 'error');
+      },
+    },
+  });
 
-  const { data: batch } = useGetJobBatchApiV1JobsBatchesBatchIdGet(batchId ?? 0, {
+  const { data: batch } = useGetJobBatch(batchId ?? 0, {
     query: {
       enabled: batchId !== null,
       refetchInterval: (query) => {
@@ -87,13 +84,7 @@ export const BatchPrereadingToolbar = ({ bookId }: BatchPrereadingToolbarProps) 
         if (isTerminal(response.status) && handledTerminalRef.current !== response.id) {
           handledTerminalRef.current = response.id;
 
-          void queryClient.invalidateQueries({
-            queryKey: getGetBookPrereadingApiV1BooksBookIdPrereadingGetQueryKey(bookId),
-          });
-          void queryClient.invalidateQueries({
-            queryKey:
-              getGetActiveBookPrereadingBatchApiV1JobsBooksBookIdPrereadingGetQueryKey(bookId),
-          });
+          cache.prereadingBatchFinished(bookId);
 
           showCompletionMessage(response, showSnackbar);
 
@@ -106,14 +97,11 @@ export const BatchPrereadingToolbar = ({ bookId }: BatchPrereadingToolbarProps) 
     },
   });
 
-  const { mutate: cancelBatch } = useCancelJobBatchApiV1JobsBatchesBatchIdDelete({
+  const { mutate: cancelBatch } = useCancelJobBatch({
     mutation: {
       onSuccess: () => {
         showSnackbar('Batch generation cancelled.', 'info');
-        void queryClient.invalidateQueries({
-          queryKey:
-            getGetActiveBookPrereadingBatchApiV1JobsBooksBookIdPrereadingGetQueryKey(bookId),
-        });
+        cache.prereadingBatchCancelled(bookId);
         setBatchId(null);
       },
       onError: () => {

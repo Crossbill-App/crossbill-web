@@ -5,7 +5,7 @@
  * OpenAPI spec version: 0.1.0
  */
 
-export type SearchBookHighlightsApiV1BooksBookIdHighlightsGetParams = {
+export type SearchBookHighlightsParams = {
   /**
    * Text to search for in highlights
    * @minLength 1

@@ -1,11 +1,8 @@
-import {
-  getGetBookHighlightLabelsApiV1BooksBookIdHighlightLabelsGetQueryKey,
-  useUpdateHighlightLabelApiV1HighlightLabelsStyleIdPatch,
-} from '@/api/generated/highlight-labels/highlight-labels.ts';
-import { useBookMutationHelpers } from '@/hooks/useBookMutationHelpers.ts';
+import { useUpdateHighlightLabel } from '@/api/generated/highlight-labels/highlight-labels.ts';
+import { useMutationErrorHandler } from '@/hooks/useMutationErrorHandler.ts';
+import { useCacheEvents } from '@/lib/cacheEvents.ts';
 import { LABEL_COLORS } from '@/utils/colorUtils.ts';
 import { Box, Popover, TextField, Typography } from '@mui/material';
-import { useQueryClient } from '@tanstack/react-query';
 import { type MutableRefObject, useEffect, useRef, useState } from 'react';
 import { CirclePicker, type ColorResult } from 'react-color';
 
@@ -32,17 +29,14 @@ const LabelEditorContent = ({
   submitRef,
   onClose,
 }: LabelEditorContentProps) => {
-  const queryClient = useQueryClient();
-  const { mutationErrorHandler, invalidateBookDetails } = useBookMutationHelpers(bookId);
+  const cache = useCacheEvents();
+  const mutationErrorHandler = useMutationErrorHandler();
   const [labelText, setLabelText] = useState(currentLabel || '');
 
-  const updateMutation = useUpdateHighlightLabelApiV1HighlightLabelsStyleIdPatch({
+  const updateMutation = useUpdateHighlightLabel({
     mutation: {
       onSuccess: () => {
-        invalidateBookDetails();
-        void queryClient.invalidateQueries({
-          queryKey: getGetBookHighlightLabelsApiV1BooksBookIdHighlightLabelsGetQueryKey(bookId),
-        });
+        cache.highlightLabelsChanged(bookId);
       },
       onError: mutationErrorHandler('update label'),
     },

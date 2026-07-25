@@ -1,4 +1,4 @@
-import { useSearchBookHighlightsApiV1BooksBookIdHighlightsGet } from '@/api/generated/highlights/highlights.ts';
+import { useSearchBookHighlights } from '@/api/generated/highlights/highlights.ts';
 import type {
   Bookmark,
   ChapterWithHighlights,
@@ -6,7 +6,7 @@ import type {
   TagGroupInBook,
   TagInBook,
 } from '@/api/generated/model';
-import { useGetTagsApiV1BooksBookIdTagsGet } from '@/api/generated/tags/tags.ts';
+import { useGetTags } from '@/api/generated/tags/tags.ts';
 import { scrollToElementWithHighlight } from '@/components/animations/scrollUtils';
 import { ContentWithSidebar } from '@/components/layout/Layouts.tsx';
 import { useBookPage } from '@/pages/BookPage/BookPageContext';
@@ -48,7 +48,7 @@ export const HighlightsPage = () => {
   }, [urlLabelId]);
 
   // Fetch available tags for the highlight modal
-  const { data: tagsResponse } = useGetTagsApiV1BooksBookIdTagsGet(book.id);
+  const { data: tagsResponse } = useGetTags(book.id);
 
   const handleLabelClick = useCallback(
     (newLabelId: number | null) => {
@@ -428,18 +428,17 @@ const useHighlightsPageData = (chapters: ChapterData[]) => {
 };
 
 const useBookSearch = (bookId: number, searchText: string) => {
-  const { data: searchResults, isLoading: isSearching } =
-    useSearchBookHighlightsApiV1BooksBookIdHighlightsGet(
-      bookId,
-      {
-        searchText: searchText || 'placeholder',
+  const { data: searchResults, isLoading: isSearching } = useSearchBookHighlights(
+    bookId,
+    {
+      searchText: searchText || 'placeholder',
+    },
+    {
+      query: {
+        enabled: searchText.length > 0,
       },
-      {
-        query: {
-          enabled: searchText.length > 0,
-        },
-      }
-    );
+    }
+  );
 
   const showSearchResults = searchText.length > 0;
 

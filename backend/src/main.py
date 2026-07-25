@@ -31,6 +31,7 @@ from src.domain.common.exceptions import (
     ValidationError,
 )
 from src.infrastructure.common.client_ip import client_ip, client_ip_from_scope, proxy_chain
+from src.infrastructure.common.openapi import operation_id
 from src.infrastructure.common.rate_limit import RateLimitMiddleware, limiter
 from src.infrastructure.common.routers import settings as settings_router
 from src.infrastructure.identity.repositories.user_repository import UserRepository
@@ -169,6 +170,7 @@ app = FastAPI(
     redoc_url=f"{settings.API_V1_PREFIX}/redoc" if _docs_enabled else None,
     openapi_url=f"{settings.API_V1_PREFIX}/openapi.json" if _docs_enabled else None,
     lifespan=lifespan,
+    generate_unique_id_function=operation_id,
 )
 
 # Wire the shared rate limiter and install our rate-limit middleware so

@@ -1,256 +1,224 @@
-# Frontend data-access seam
+# Frontend cache-invalidation seam
 
-Migrate direct `@/api/generated` usage behind hand-written modules named after domain
-nouns, so that query keys, cache invalidation and payload unwrapping have one home each.
+Give cache invalidation one home, so that "a note changed" is expressed once instead of
+three times and no component has to hold a React Query key.
 
-Branch: `frontend-data-seam`.
+**This plan was originally much larger** — one hand-written module per domain noun,
+wrapping every generated hook, with components banned from importing `@/api/generated`.
+Measuring the justifications killed most of them. What survived is roughly 80 lines. The
+[reasoning is below](#why-this-is-small), kept so the larger version is not proposed again
+from the same premises.
 
-## Measured starting point
+## The problem, measured
 
-| Fact | Count |
-| --- | --- |
-| Files importing `@/api/generated` at all | 77 |
-| …of which import **only** types from `@/api/generated/model` | 36 |
-| Files importing the **runtime** client (hooks, query-key getters) | **41** |
-| `invalidateQueries` / `setQueryData` / `refetchQueries` call sites | 16 / 7 / 2, across 16 files |
-| Existing insulation | `hooks/useBookMutationHelpers.ts`, 48 lines |
+26 cache operations — `invalidateQueries`, `setQueryData`, `refetchQueries`,
+`cancelQueries` — spread across 16 files, with no shared vocabulary.
 
-The 41 runtime importers are the migration surface. Type-only importers are out of scope
-(see *Decisions*).
+**A hand-written query key has already drifted, and it is a live bug.**
+`BookEditModal.tsx` refetches the books list after deleting a book:
 
-## Concrete problems this closes
+```ts
+await queryClient.refetchQueries({ queryKey: ['/api/v1/books'], exact: true });
+```
 
-1. **"A note changed" is written three times.** `NoteEditorForm.tsx`, `NoteViewModal.tsx`
-   and `hooks/useNoteLinks.ts` each independently invalidate
-   `getGetNotesForBook…QueryKey(bookId)` plus `getGetNote…QueryKey(noteId)`.
+`getGetBooksQueryKey()` returns `` [`/api/v1/books/`] `` — with a trailing slash — and
+`LandingPage` calls `useGetBooks({ search, offset, limit })`, so the real key is
+`` [`/api/v1/books/`, { search, offset, limit }] ``. The literal matches neither: wrong
+path, and `exact: true` against a two-element key. Combined with the 5-minute `staleTime`
+in `lib/queryClient.ts`, **a deleted book keeps appearing in the list for up to five
+minutes.** This is precisely the failure the seam prevents: a key written by hand, never
+checked against the generated one, silently matching nothing.
+
+The rest:
+
+1. **"A note changed" is written twice**, in `NoteEditorForm.tsx` and
+   `hooks/useNoteLinks.ts`, each invalidating `getGetNotesForBookQueryKey(bookId)` *and*
+   `getGetNoteQueryKey(noteId)` with nothing enforcing the pair. (`NoteViewModal.tsx`
+   invalidates only the list — correctly, since it deletes the note and refetching a
+   removed note's detail would 404. It is a different event, not a third copy.)
 2. **Cache keys travel as props.** `additionalInvalidateKeys` originates in
    `NoteFlashcardSection.tsx` and is threaded through `FlashcardSection` →
-   `FlashcardListCard` → `useFlashcardMutations`. A leaf presentational component is
-   holding a React Query key.
-3. **`getGetBookDetails…QueryKey` appears in four files**, with the book-details cache
-   entry mutated by hand (`old as { tags: TagInBook[] }`) in `useTagMutations.ts`.
-4. **Regeneration blast radius.** `npm run api:generate` currently churns names across 41
-   files. After the seam it can only churn `src/api/generated` and `src/data`.
+   `FlashcardListCard` → `useFlashcardMutations`. A leaf presentational component holds a
+   React Query key because no other channel exists.
+3. **`getGetBookDetailsQueryKey` appears in four files**, one of which edits that cache
+   entry by hand through an untyped cast (`old as { tags: TagInBook[] }`).
 
-## What the seam does *not* fix
+## Design
 
-Two things were initially attributed to the missing seam and turn out to have other causes.
-Recorded here so they are not re-litigated mid-migration.
+One module, `src/lib/cacheEvents.ts`, next to the `queryClient` it acts on. It exposes
+invalidation as **entity events** rather than query keys.
 
-**Generated hook names.** `useUpdateTagApiV1BooksBookIdTagTagIdPost` is long because
-FastAPI derives `operationId` from function name + path + method. The backend sets no
-`operation_id` and no `generate_unique_id_function`. Nothing in this plan shortens those
-names; the seam only stops them from reaching the render tree.
+The vocabulary is read off the existing call sites, not invented — every event below
+exists because some mutation already performs exactly that set of invalidations:
 
-*Follow-up worth having, but not now:* adding `generate_unique_id_function` to the app
-would yield `useUpdateTag`. Done today it is a mechanical rename across 41 files that
-collides with this migration; done after the seam it touches only `src/data/**`. Order
-matters — seam first.
+| Event | Invalidates | Replaces |
+| --- | --- | --- |
+| `bookChanged(bookId)` | book details | `invalidateBookDetails` (8 callers) |
+| `tagsChanged(bookId)` | book details, book tags | `invalidateBookAndTags` |
+| `noteChanged(bookId, noteId)` | notes-for-book, note detail | `NoteEditorForm`, `useNoteLinks` |
+| `noteDeleted(bookId)` | notes-for-book | `NoteViewModal` |
+| `booksListChanged()` | books list, recently-viewed | `BookEditModal` (**the bug**), `BookPage` |
+| `prereadingChanged(bookId)` | book prereading | `ChapterReviewSection`, `ChapterToolbar` |
+| `prereadingBatchChanged(bookId)` | book prereading, active batch | `BatchPrereadingToolbar` (on finish) |
+| `prereadingBatchStarted(bookId)` | active batch | `BatchPrereadingToolbar` (on enqueue) |
+| `highlightLabelsChanged(bookId)` | book highlight labels | `LabelEditorPopover` |
+| `flashcardsChanged(bookId, owner)` | book details, owner's detail | `useFlashcardMutations`, `FlashcardListCard` |
 
-**The `createFlashcard` callback injection.** `useFlashcardMutations` takes the create
-call as a caller-supplied callback because the four create endpoints take different path
-parameters (`bookId` / `noteId` / `highlightId` / `chapterId`). That is API shape, not
-module grouping. A `data/flashcards.ts` can still remove the injection by dispatching on
-a discriminated source union — but that is a frontend design choice made inside step 3,
-not something the seam grants automatically.
+`owner` is `{ noteId } | { highlightId } | { chapterId } | undefined`. That parameter is
+what retires `additionalInvalidateKeys`: the caller names the entity that owns the
+flashcard instead of passing a query key, and the prop disappears from four modules.
 
-## Relationship to the generated module layout
+The module absorbs `useBookMutationHelpers` — its `invalidateBookDetails` /
+`invalidateBookAndTags` are two of the ten events above — and `mutationErrorHandler` moves
+across with it.
 
-orval runs in `mode: 'tags-split'`, so generated modules follow OpenAPI tags — which come
-from `APIRouter(tags=[...])`, not from URL prefixes.
+**Not in scope:** wrapping the 48 generated hooks. Components keep importing them
+directly. This module is about *invalidation*, not about hiding the client.
 
-**Flashcards were already grouped correctly.** Six routers across four different prefixes
-(`/books`, `/notes`, `/chapters`, `/flashcards`) all carry `tags=["flashcards"]` and land
-in one generated module. Exactly one endpoint was misfiled: `create_flashcard_for_highlight`,
-defined inside `reading/routers/highlights.py` under `tags=["highlights"]`.
+### What deliberately stays put
 
-*Fixed.* Moved to `learning/routers/highlight_flashcards.py` (`prefix="/highlights"`,
-`tags=["flashcards"]`), mirroring the existing `note_flashcards.py`. The URL and
-`operationId` are byte-identical, so the hook keeps its name and only relocates from
-`generated/highlights/highlights.ts` to `generated/flashcards/flashcards.ts`. 517 backend
-tests pass. On the next `npm run api:generate`, one frontend import line changes.
+Four things use the query cache for something that is not invalidation. Moving them behind
+an event vocabulary would misrepresent what they do:
 
-**Tags are a genuine misgrouping, but the fix is smaller than a bounded-context move.**
-Eight tag operations — `get_tags`, `create_tag`, `update_tag`, `delete_tag`, both
-tag-group endpoints and both tag↔highlight association endpoints — are defined inside
-`reading/routers/highlights.py` under `tags=["highlights"]`, so they generate into
-`highlights.ts`.
+- **`useTagMutations`** — `cancelQueries` + `setQueryData` + rollback on book details.
+  Optimistic update machinery. Only its `onSuccess` invalidation becomes `tagsChanged`.
+- **`useNoteModals`** — `setQueryData(noteKey, note)` seeds the detail cache from a list
+  item so the modal opens without a fetch. Cache seeding, not invalidation.
+- **`ReflectionPage`, `ChapterReviewSection`** — `setQueryData` write-through with the
+  server's response after a save.
+- **`BatchPrereadingToolbar`** — `refetchInterval` predicate reading
+  `query.state.data?.status`. Polling.
 
-The key separation: **an OpenAPI tag is not a bounded context.** Splitting those eight
-endpoints into a `tags=["tags"]` router — which can stay under `reading/` — yields
-`generated/tags/tags.ts` without deciding where Tag belongs in the domain. It is a
-router-file change, not a domain move.
+The lint rule below therefore covers `invalidateQueries` and `refetchQueries` only.
+Banning `setQueryData` would flag all four of these, and they have nowhere better to live.
 
-*Done.* The eight moved to `reading/routers/tags.py` with paths and handler names
-carried over unchanged, so operationIds are identical and only the tag differs. Verified
-by diffing the OpenAPI operation table: no routes added or removed, no operationId
-changed, exactly eight tag flips. 517 tests pass.
+### Lint rule
 
-The two tag-group routes then moved from `/highlights/tag_group` to `/tag-groups`, since
-that prefix only made sense while they lived in the highlights router. That one *does*
-change operationIds, so it was kept as its own commit: two hooks renamed, no schema
-touched.
+```js
+// error everywhere except src/lib/cacheEvents.ts
+'no-restricted-syntax': [
+  'error',
+  { selector: "CallExpression[callee.property.name=/^(invalidateQueries|refetchQueries)$/]",
+    message: 'Express the change as an event in @/lib/cacheEvents.ts instead.' },
+]
+```
 
-The generated client has since been regenerated, so `src/api/generated/tags/tags.ts`
-exists and eight frontend files import from it. `generated/highlights/highlights.ts` is
-down 940 lines to the three operations the highlights router still serves.
+This is what stops the `BookEditModal` failure recurring: with no way to call
+`invalidateQueries` outside one file, there is nowhere left to hand-write a key.
 
-The bounded-context question remains open and is *not a prerequisite for this migration*.
-`src/data/tags.ts` behaves identically wherever Tag ends up in the domain.
+The originally-planned ban on importing `@/api/generated` is dropped — it only made sense
+when every hook was wrapped.
 
-### Evidence for the open backend question
+## Sequence
 
-Recorded because it was gathered while scoping this work, not because this plan resolves it:
+Three commits, one PR.
+
+**1 — Fix the books-list bug on its own.** Replace the hand-written literal in
+`BookEditModal` with `getGetBooksQueryKey()` and `getGetRecentlyViewedBooksQueryKey()`,
+switching `refetchQueries({ exact: true })` to `invalidateQueries`. Prefix matching then
+covers the paginated key, and marking the list stale is enough — `LandingPage` refetches on
+mount, so the `await` before `navigate` is no longer load-bearing. Separate commit because
+it is the one behaviour change in this work, and it should be reviewable and revertable
+without the refactor around it.
+
+**2 — `cacheEvents.ts` + notes.** Write the module, reimplement `useBookMutationHelpers` on
+top of it, convert the three note sites. This step proves the design: if `noteChanged` and
+`noteDeleted` cannot express all three without an escape hatch, the vocabulary is wrong and
+better to find out at three sites than at sixteen.
+
+**3 — The remaining 13 files, then turn the lint rule on.** Includes deleting
+`additionalInvalidateKeys` from `NoteFlashcardSection` → `FlashcardSection` →
+`FlashcardListCard` → `useFlashcardMutations`.
+
+## Verification
+
+`npx tsc --noEmit` and `npm run lint` throughout.
+
+There is no frontend test infrastructure, so the review property is: **for commits 2 and 3,
+the set of query keys invalidated per mutation is unchanged, key for key.** That is
+readable in the diff as long as commit 1 carries the only behaviour change. If any event
+turns out to invalidate more than the site it replaces, say so in the commit message rather
+than letting it pass as mechanical.
+
+Two things worth checking by hand, since nothing else will:
+
+- **Delete a book** and confirm it leaves the list immediately — the bug fix in commit 1,
+  which is invisible to `tsc`.
+- **Generate prereading for a book** and watch the batch toolbar, since it is the only
+  place where polling and invalidation interact.
+
+## Why this is small
+
+Three of the four original justifications did not survive contact with evidence.
+
+**"Regeneration churns 41 files" — false.** Checked against 12 months of history: 19
+regenerations removed hook names. The largest, `2c374432 "Reorganize API routes"`, renamed
+**40 hooks and touched 7 non-generated files** (~54 lines). `e3c31743` renamed 27 → 6
+files; `e97a6f47` renamed 25 → 1 file. This branch's own regeneration — two module
+regroupings plus two renames, about as disruptive as it gets — touched 8 files and 9
+import lines. There are 48 distinct hooks across ~60 call sites, so most are used exactly
+once and renames do not fan out. The 41-file figure was inferred from the import count and
+never observed. A seam would not reduce this to zero either; it would relocate the same
+edits into `src/data/`.
+
+**"77 files import the generated client" — misleading.** 36 of them import only DTO types
+from `@/api/generated/model`, which carry no cache or client coupling.
+
+**"A fake adapter makes tests possible" — out of scope.** There is no frontend test
+infrastructure, and adding it is separate work. This is the one justification that could
+bring the larger seam back: wrapping hooks starts paying when something needs to swap the
+adapter.
+
+**Long hook names have a cheaper fix.** `useUpdateTagApiV1BooksBookIdTagTagIdPost` is long
+because FastAPI derives operationIds from handler name + path + method and the backend
+sets no `generate_unique_id_function`. Five backend lines address that directly. Note it
+is the one change that *does* touch all 41 runtime importers, since every hook is renamed
+at once — but mechanically, in a single sweep.
+
+**What the larger version would have cost:** 48 wrapper hooks and 9 key wrappers across 14
+modules, 500–800 lines of hand-written indirection maintained permanently, with no tests to
+catch a wrapper that silently drops an option — against ~25 lines of duplicated
+invalidation and one badly-threaded prop.
+
+## Revisit if
+
+- Frontend tests arrive and something needs to substitute the API layer.
+- A domain noun accumulates enough real client-side logic to justify its own module on its
+  own merits, rather than for symmetry.
+
+Neither is true today.
+
+## Related backend work, already done on this branch
+
+Three routing changes that came out of scoping this, none of which the frontend seam
+depends on:
+
+- `create_flashcard_for_highlight` moved to a `tags=["flashcards"]` router; it was the
+  only flashcard endpoint tagged `highlights`.
+- Eight tag operations split out of `reading/routers/highlights.py` into
+  `reading/routers/tags.py` with `tags=["tags"]`. A router split, not a domain move — an
+  OpenAPI tag is a client-grouping hint, so it does not prejudge where `Tag` belongs.
+- The tag group routes moved from `/highlights/tag_group` to `/tag-groups`.
+
+### Still open: where `Tag` belongs
+
+Recorded because it was gathered while scoping, not because anything here resolves it:
 
 - `Tag` carries `user_id` **and** `book_id`; its docstring still says "for categorizing
-  highlights within a book", which notes have since outgrown.
+  highlights within a book", which notes have outgrown.
 - `TagGroup` carries `book_id` but **no `user_id`** — the user-scoping rule genuinely
   breaks between the two aggregates in one repository.
 - `tag_repository.py` imports `src.infrastructure.notes.orm.associations.note_tags`:
   Reading infrastructure reaching into Notes.
 - `TagRepositoryProtocol` has 19 dependents: 12 under `application/reading`, 6 under
-  `application/notes`, 1 under `application/library` (`get_book_details_use_case`).
+  `application/notes`, 1 under `application/library`.
 
-Both Tag and TagGroup are scoped to a Book and have no lifetime independent of one, which
-argues against a standalone context and for treating Tag as owned by whichever module owns
-Book, with Reading and Notes as consumers.
+Both `Tag` and `TagGroup` are scoped to a Book and have no lifetime independent of one,
+which argues against a standalone bounded context and for treating Tag as owned by
+whichever module owns Book, with Reading and Notes as consumers.
 
-## Decisions taken
+### Also outstanding
 
-- **One hook per operation**, not a facade per noun. `data/notes.ts` exports
-  `useNotesForBook`, `useNote`, `useCreateNote`, `useUpdateNote`, `useDeleteNote`.
-  A literal `useNotes(bookId)` facade cannot hold the queries without breaking the Rules
-  of Hooks — `notes.list(params)` would be a conditional hook call — and splitting into
-  "facade for mutations, hooks for queries" buys grouping at the cost of two idioms.
-  One idiom, one signature per hook, tree-shakeable.
-- **DTO types stay generated.** `import type { TagInBook } from '@/api/generated/model'`
-  remains legal everywhere; those types are the wire contract and carry no cache or
-  client coupling. The lint rule bans the runtime modules only. This keeps the migration
-  at 41 files instead of 77 and avoids a hand-maintained re-export list.
-- **Test infrastructure is out of scope.** The frontend has none today; adding it is a
-  separate piece of work and is not an argument used here. The seam is justified by
-  invalidation ownership, regeneration blast radius, and keys-as-props on its own.
-
-## Target structure
-
-```
-src/api/
-  axios-instance.ts, config.ts, token-manager.ts   # unchanged
-  generated/                                        # orval output; imported by src/data/** only
-src/data/
-  keys.ts             # domain-named query keys, wrapping the orval getters
-  cache.ts            # useCacheEvents(): semantic invalidation + mutationErrorHandler
-  notes.ts  tags.ts  flashcards.ts  books.ts  highlights.ts  highlightLabels.ts
-  prereading.ts  jobs.ts  reflections.ts  readingSessions.ts  chapters.ts
-  chat.ts  bookmarks.ts  session.ts
-```
-
-`keys.ts` exists to break the import cycle: nouns need each other's keys (a tag mutation
-invalidates book details), so keys live below every noun module rather than inside one.
-
-### Module conventions
-
-Each `data/*.ts` module, and nothing else:
-
-- imports from `@/api/generated/**`;
-- owns the query keys for its noun (via `keys.ts`);
-- performs the orval unwrap idiom — the axios mutator already unwraps to the payload, so
-  a list hook returns `data?.items ?? []` rather than making every caller repeat it;
-- names things in domain terms: `useNotesForBook(bookId, params)`, not
-  `useGetNotesForBookApiV1BooksBookIdNotesGet`.
-
-It does **not** add caching policy, retries, or a repository abstraction beyond the above.
-The seam is deliberately shallow; the goal is one home per concern, not a new framework.
-
-### Semantic invalidation
-
-`data/cache.ts` replaces key-passing with entity events:
-
-```ts
-const cache = useCacheEvents();
-cache.noteChanged(bookId, noteId);            // notes-for-book + note detail
-cache.tagsChanged(bookId);                    // book details + book tags
-cache.flashcardsChanged(bookId, { noteId });  // book details + the owning entity
-cache.prereadingChanged(bookId, chapterId);
-```
-
-`flashcardsChanged` is what retires `additionalInvalidateKeys`: the caller states which
-entity owns the flashcard, not which query key to invalidate.
-
-### Lint enforcement
-
-`no-restricted-imports` in `eslint.config.*`:
-
-```js
-patterns: [{
-  group: ['@/api/generated/*', '!@/api/generated/model'],
-  message: 'Import from @/data/<noun> instead. Only src/data may touch the generated client.',
-}]
-```
-
-with an override switching it off for `src/data/**`. `npm run lint` runs with
-`--max-warnings 0`, so a `warn` phase buys nothing. The rule lands in step 1 as `error`
-with an explicit allowlist of the files not yet migrated, and each step shortens that
-list. Remaining work stays visible in the config and cannot silently regress.
-
-## Sequence
-
-Each step is a self-contained PR. Steps 2–7 are import rewiring plus key ownership; any
-change in observable behaviour must be a separate commit whose subject says so.
-
-**0 — Backend flashcard re-tag.** *Done on this branch.* Regenerate with
-`npm run api:generate` before step 3 so `data/flashcards.ts` imports one module.
-
-**1 — Foundation.** Add `keys.ts` and `cache.ts`. Reimplement `useBookMutationHelpers` as
-a thin wrapper over `useCacheEvents` so no call site changes yet. Add the lint rule with
-the full 41-file allowlist.
-
-**2 — notes** (11 files). Retires the triplicated "note changed". Largest single win.
-
-**3 — flashcards** (6 files). Retires `additionalInvalidateKeys` across four modules, and
-decides whether to replace the `createFlashcard` callback with a source union. Depends on
-step 2 (`NoteFlashcardSection`).
-
-**4 — tags** (5 files). Move only. All three current strategies are preserved verbatim:
-the optimistic `setQueryData` on book details in `useTagMutations`, the local-state sync
-in `useImmediateTagMutation`, and the create-only path in `useNoteTagField`. Unifying
-them is a behaviour change and belongs in a follow-up — see *Risks*.
-
-**5 — prereading + jobs** (4 files). The polling cluster in `BatchPrereadingToolbar`
-(three cache ops, including the only two `refetchQueries` and a `refetchInterval`
-predicate reading `query.state.data?.status`).
-
-**6 — books, highlights, highlightLabels** (~11 files, several already touched above).
-
-**7 — reflections, readingSessions, chat, bookmarks, session** (~9 files).
-
-**8 — close the seam.** Empty the lint allowlist, delete `useBookMutationHelpers`, add a
-short `src/data/README.md` stating the one rule: components import `@/data`, never
-`@/api/generated`.
-
-## Verification
-
-Per PR: `npm run lint`, `npx tsc --noEmit`, and a manual smoke of the touched tab.
-
-Whole-migration success criterion, checkable mechanically: running `npm run api:generate`
-produces a diff confined to `src/api/generated/**`.
-
-Because there is no automated coverage, the review discipline carries the weight: for
-steps 2–7 the reviewer should confirm that the *set of query keys invalidated per
-mutation* is unchanged, key for key. That is a readable property of each diff as long as
-mechanical moves and behaviour changes stay in separate commits.
-
-## Risks
-
-- **Tag optimistic update.** `useTagMutations` mutates the book-details cache entry
-  through an untyped `old as { tags: TagInBook[] }` cast. Moving it into `data/tags.ts`
-  invites typing it against `BookDetails` — resist during step 4, do it after.
-- **`useNoteTagField` vs `useImmediateTagMutation` are not accidentally different.** Notes
-  defer tag linking to the note's own save; highlights link immediately via dedicated
-  endpoints. The seam gives them a shared `useCreateTag` primitive; it does not and should
-  not merge them. The existing docstring is correct.
-- **`BatchPrereadingToolbar` reads query state** inside a `refetchInterval` predicate.
-  Moving that behind `data/jobs.ts` needs the predicate to keep receiving the live query
-  object, not a snapshot.
-- **Scope creep.** Every step will surface a tempting refactor of the component it touches.
-  The rule for this branch: rewire imports, move keys, move invalidation. Nothing else.
+`add_tag_to_highlight` and `remove_tag_from_highlight` in `tags.py` share ~40 duplicated
+lines building the same `Highlight` schema. `reading/schema_mappers.py` is the natural home
+for a `map_highlight_to_schema`.

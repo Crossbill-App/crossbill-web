@@ -1,6 +1,7 @@
 import type { TagInBook } from '@/api/generated/model';
-import { useCreateTagApiV1BooksBookIdTagPost } from '@/api/generated/tags/tags.ts';
-import { useBookMutationHelpers } from '@/hooks/useBookMutationHelpers.ts';
+import { useCreateTag } from '@/api/generated/tags/tags.ts';
+import { useMutationErrorHandler } from '@/hooks/useMutationErrorHandler.ts';
+import { useCacheEvents } from '@/lib/cacheEvents.ts';
 
 /**
  * Tag-field logic for the note editor: resolve the `(tag | string)` values from
@@ -23,11 +24,12 @@ export interface NoteTagField {
 }
 
 export const useNoteTagField = (bookId: number): NoteTagField => {
-  const { mutationErrorHandler, invalidateBookAndTags } = useBookMutationHelpers(bookId);
+  const mutationErrorHandler = useMutationErrorHandler();
+  const cache = useCacheEvents();
 
-  const createTagMutation = useCreateTagApiV1BooksBookIdTagPost({
+  const createTagMutation = useCreateTag({
     mutation: {
-      onSuccess: invalidateBookAndTags,
+      onSuccess: () => cache.tagsChanged(bookId),
       onError: mutationErrorHandler('create tag'),
     },
   });

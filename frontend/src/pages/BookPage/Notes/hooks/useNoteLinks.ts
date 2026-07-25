@@ -1,12 +1,8 @@
 import type { NoteUpdateRequest, NoteWithLinks } from '@/api/generated/model';
-import {
-  getGetNoteApiV1NotesNoteIdGetQueryKey,
-  getGetNotesForBookApiV1BooksBookIdNotesGetQueryKey,
-  useUpdateNoteApiV1NotesNoteIdPut,
-} from '@/api/generated/notes/notes.ts';
+import { useUpdateNote } from '@/api/generated/notes/notes.ts';
 import { useSnackbar } from '@/context/SnackbarContext.tsx';
-import { useBookMutationHelpers } from '@/hooks/useBookMutationHelpers.ts';
-import { useQueryClient } from '@tanstack/react-query';
+import { useMutationErrorHandler } from '@/hooks/useMutationErrorHandler.ts';
+import { useCacheEvents } from '@/lib/cacheEvents.ts';
 
 interface UseNoteLinksOptions {
   bookId: number;
@@ -23,20 +19,13 @@ interface MutateOptions {
  * to or filtered out of the relevant array.
  */
 export const useNoteLinks = ({ bookId }: UseNoteLinksOptions) => {
-  const queryClient = useQueryClient();
+  const cache = useCacheEvents();
   const { showSnackbar } = useSnackbar();
-  const { mutationErrorHandler } = useBookMutationHelpers(bookId);
+  const mutationErrorHandler = useMutationErrorHandler();
 
-  const updateNoteMutation = useUpdateNoteApiV1NotesNoteIdPut({
+  const updateNoteMutation = useUpdateNote({
     mutation: {
-      onSuccess: (_data, { noteId }) => {
-        void queryClient.invalidateQueries({
-          queryKey: getGetNotesForBookApiV1BooksBookIdNotesGetQueryKey(bookId),
-        });
-        void queryClient.invalidateQueries({
-          queryKey: getGetNoteApiV1NotesNoteIdGetQueryKey(noteId),
-        });
-      },
+      onSuccess: (_data, { noteId }) => cache.noteChanged(bookId, noteId),
       onError: mutationErrorHandler('update note links'),
     },
   });

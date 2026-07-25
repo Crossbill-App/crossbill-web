@@ -62,7 +62,7 @@ const withQueryKey = <T extends object, K>(query: T, queryKey: K): T & { queryKe
  *     HTTPException: If creation/update fails
  * @summary Create Or Update Tag Group
  */
-export const createOrUpdateTagGroupApiV1TagGroupsPost = (
+export const createOrUpdateTagGroup = (
   tagGroupCreateRequest: TagGroupCreateRequest,
   signal?: AbortSignal
 ) => {
@@ -75,23 +75,23 @@ export const createOrUpdateTagGroupApiV1TagGroupsPost = (
   });
 };
 
-export const getCreateOrUpdateTagGroupApiV1TagGroupsPostMutationOptions = <
+export const getCreateOrUpdateTagGroupMutationOptions = <
   TError = HTTPValidationError,
   TContext = unknown,
 >(options?: {
   mutation?: UseMutationOptions<
-    Awaited<ReturnType<typeof createOrUpdateTagGroupApiV1TagGroupsPost>>,
+    Awaited<ReturnType<typeof createOrUpdateTagGroup>>,
     TError,
     { data: TagGroupCreateRequest },
     TContext
   >;
 }): UseMutationOptions<
-  Awaited<ReturnType<typeof createOrUpdateTagGroupApiV1TagGroupsPost>>,
+  Awaited<ReturnType<typeof createOrUpdateTagGroup>>,
   TError,
   { data: TagGroupCreateRequest },
   TContext
 > => {
-  const mutationKey = ['createOrUpdateTagGroupApiV1TagGroupsPost'];
+  const mutationKey = ['createOrUpdateTagGroup'];
   const { mutation: mutationOptions } = options
     ? options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey
       ? options
@@ -99,33 +99,30 @@ export const getCreateOrUpdateTagGroupApiV1TagGroupsPostMutationOptions = <
     : { mutation: { mutationKey } };
 
   const mutationFn: MutationFunction<
-    Awaited<ReturnType<typeof createOrUpdateTagGroupApiV1TagGroupsPost>>,
+    Awaited<ReturnType<typeof createOrUpdateTagGroup>>,
     { data: TagGroupCreateRequest }
   > = (props) => {
     const { data } = props ?? {};
 
-    return createOrUpdateTagGroupApiV1TagGroupsPost(data);
+    return createOrUpdateTagGroup(data);
   };
 
   return { mutationFn, ...mutationOptions };
 };
 
-export type CreateOrUpdateTagGroupApiV1TagGroupsPostMutationResult = NonNullable<
-  Awaited<ReturnType<typeof createOrUpdateTagGroupApiV1TagGroupsPost>>
+export type CreateOrUpdateTagGroupMutationResult = NonNullable<
+  Awaited<ReturnType<typeof createOrUpdateTagGroup>>
 >;
-export type CreateOrUpdateTagGroupApiV1TagGroupsPostMutationBody = TagGroupCreateRequest;
-export type CreateOrUpdateTagGroupApiV1TagGroupsPostMutationError = HTTPValidationError;
+export type CreateOrUpdateTagGroupMutationBody = TagGroupCreateRequest;
+export type CreateOrUpdateTagGroupMutationError = HTTPValidationError;
 
 /**
  * @summary Create Or Update Tag Group
  */
-export const useCreateOrUpdateTagGroupApiV1TagGroupsPost = <
-  TError = HTTPValidationError,
-  TContext = unknown,
->(
+export const useCreateOrUpdateTagGroup = <TError = HTTPValidationError, TContext = unknown>(
   options?: {
     mutation?: UseMutationOptions<
-      Awaited<ReturnType<typeof createOrUpdateTagGroupApiV1TagGroupsPost>>,
+      Awaited<ReturnType<typeof createOrUpdateTagGroup>>,
       TError,
       { data: TagGroupCreateRequest },
       TContext
@@ -133,15 +130,12 @@ export const useCreateOrUpdateTagGroupApiV1TagGroupsPost = <
   },
   queryClient?: QueryClient
 ): UseMutationResult<
-  Awaited<ReturnType<typeof createOrUpdateTagGroupApiV1TagGroupsPost>>,
+  Awaited<ReturnType<typeof createOrUpdateTagGroup>>,
   TError,
   { data: TagGroupCreateRequest },
   TContext
 > => {
-  return useMutation(
-    getCreateOrUpdateTagGroupApiV1TagGroupsPostMutationOptions(options),
-    queryClient
-  );
+  return useMutation(getCreateOrUpdateTagGroupMutationOptions(options), queryClient);
 };
 /**
  * Delete a tag group.
@@ -153,30 +147,27 @@ export const useCreateOrUpdateTagGroupApiV1TagGroupsPost = <
  *     HTTPException: If tag group not found or deletion fails
  * @summary Delete Tag Group
  */
-export const deleteTagGroupApiV1TagGroupsTagGroupIdDelete = (
-  tagGroupId: number,
-  signal?: AbortSignal
-) => {
+export const deleteTagGroup = (tagGroupId: number, signal?: AbortSignal) => {
   return axiosInstance<void>({ url: `/api/v1/tag-groups/${tagGroupId}`, method: 'DELETE', signal });
 };
 
-export const getDeleteTagGroupApiV1TagGroupsTagGroupIdDeleteMutationOptions = <
+export const getDeleteTagGroupMutationOptions = <
   TError = HTTPValidationError,
   TContext = unknown,
 >(options?: {
   mutation?: UseMutationOptions<
-    Awaited<ReturnType<typeof deleteTagGroupApiV1TagGroupsTagGroupIdDelete>>,
+    Awaited<ReturnType<typeof deleteTagGroup>>,
     TError,
     { tagGroupId: number },
     TContext
   >;
 }): UseMutationOptions<
-  Awaited<ReturnType<typeof deleteTagGroupApiV1TagGroupsTagGroupIdDelete>>,
+  Awaited<ReturnType<typeof deleteTagGroup>>,
   TError,
   { tagGroupId: number },
   TContext
 > => {
-  const mutationKey = ['deleteTagGroupApiV1TagGroupsTagGroupIdDelete'];
+  const mutationKey = ['deleteTagGroup'];
   const { mutation: mutationOptions } = options
     ? options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey
       ? options
@@ -184,33 +175,28 @@ export const getDeleteTagGroupApiV1TagGroupsTagGroupIdDeleteMutationOptions = <
     : { mutation: { mutationKey } };
 
   const mutationFn: MutationFunction<
-    Awaited<ReturnType<typeof deleteTagGroupApiV1TagGroupsTagGroupIdDelete>>,
+    Awaited<ReturnType<typeof deleteTagGroup>>,
     { tagGroupId: number }
   > = (props) => {
     const { tagGroupId } = props ?? {};
 
-    return deleteTagGroupApiV1TagGroupsTagGroupIdDelete(tagGroupId);
+    return deleteTagGroup(tagGroupId);
   };
 
   return { mutationFn, ...mutationOptions };
 };
 
-export type DeleteTagGroupApiV1TagGroupsTagGroupIdDeleteMutationResult = NonNullable<
-  Awaited<ReturnType<typeof deleteTagGroupApiV1TagGroupsTagGroupIdDelete>>
->;
+export type DeleteTagGroupMutationResult = NonNullable<Awaited<ReturnType<typeof deleteTagGroup>>>;
 
-export type DeleteTagGroupApiV1TagGroupsTagGroupIdDeleteMutationError = HTTPValidationError;
+export type DeleteTagGroupMutationError = HTTPValidationError;
 
 /**
  * @summary Delete Tag Group
  */
-export const useDeleteTagGroupApiV1TagGroupsTagGroupIdDelete = <
-  TError = HTTPValidationError,
-  TContext = unknown,
->(
+export const useDeleteTagGroup = <TError = HTTPValidationError, TContext = unknown>(
   options?: {
     mutation?: UseMutationOptions<
-      Awaited<ReturnType<typeof deleteTagGroupApiV1TagGroupsTagGroupIdDelete>>,
+      Awaited<ReturnType<typeof deleteTagGroup>>,
       TError,
       { tagGroupId: number },
       TContext
@@ -218,15 +204,12 @@ export const useDeleteTagGroupApiV1TagGroupsTagGroupIdDelete = <
   },
   queryClient?: QueryClient
 ): UseMutationResult<
-  Awaited<ReturnType<typeof deleteTagGroupApiV1TagGroupsTagGroupIdDelete>>,
+  Awaited<ReturnType<typeof deleteTagGroup>>,
   TError,
   { tagGroupId: number },
   TContext
 > => {
-  return useMutation(
-    getDeleteTagGroupApiV1TagGroupsTagGroupIdDeleteMutationOptions(options),
-    queryClient
-  );
+  return useMutation(getDeleteTagGroupMutationOptions(options), queryClient);
 };
 /**
  * Get all tags for a book.
@@ -241,7 +224,7 @@ export const useDeleteTagGroupApiV1TagGroupsTagGroupIdDelete = <
  *     HTTPException: If book is not found
  * @summary Get Tags
  */
-export const getTagsApiV1BooksBookIdTagsGet = (bookId: number, signal?: AbortSignal) => {
+export const getTags = (bookId: number, signal?: AbortSignal) => {
   return axiosInstance<CollectionResponseTag>({
     url: `/api/v1/books/${bookId}/tags`,
     method: 'GET',
@@ -249,95 +232,80 @@ export const getTagsApiV1BooksBookIdTagsGet = (bookId: number, signal?: AbortSig
   });
 };
 
-export const getGetTagsApiV1BooksBookIdTagsGetQueryKey = (bookId: number) => {
+export const getGetTagsQueryKey = (bookId: number) => {
   return [`/api/v1/books/${bookId}/tags`] as const;
 };
 
-export const getGetTagsApiV1BooksBookIdTagsGetQueryOptions = <
-  TData = Awaited<ReturnType<typeof getTagsApiV1BooksBookIdTagsGet>>,
+export const getGetTagsQueryOptions = <
+  TData = Awaited<ReturnType<typeof getTags>>,
   TError = HTTPValidationError,
 >(
   bookId: number,
-  options?: {
-    query?: Partial<
-      UseQueryOptions<Awaited<ReturnType<typeof getTagsApiV1BooksBookIdTagsGet>>, TError, TData>
-    >;
-  }
+  options?: { query?: Partial<UseQueryOptions<Awaited<ReturnType<typeof getTags>>, TError, TData>> }
 ) => {
   const { query: queryOptions } = options ?? {};
 
-  const queryKey = queryOptions?.queryKey ?? getGetTagsApiV1BooksBookIdTagsGetQueryKey(bookId);
+  const queryKey = queryOptions?.queryKey ?? getGetTagsQueryKey(bookId);
 
-  const queryFn: QueryFunction<Awaited<ReturnType<typeof getTagsApiV1BooksBookIdTagsGet>>> = ({
-    signal,
-  }) => getTagsApiV1BooksBookIdTagsGet(bookId, signal);
+  const queryFn: QueryFunction<Awaited<ReturnType<typeof getTags>>> = ({ signal }) =>
+    getTags(bookId, signal);
 
   return {
     queryKey,
     queryFn,
     enabled: bookId !== null && bookId !== undefined,
     ...queryOptions,
-  } as UseQueryOptions<
-    Awaited<ReturnType<typeof getTagsApiV1BooksBookIdTagsGet>>,
-    TError,
-    TData
-  > & { queryKey: DataTag<QueryKey, TData, TError> };
+  } as UseQueryOptions<Awaited<ReturnType<typeof getTags>>, TError, TData> & {
+    queryKey: DataTag<QueryKey, TData, TError>;
+  };
 };
 
-export type GetTagsApiV1BooksBookIdTagsGetQueryResult = NonNullable<
-  Awaited<ReturnType<typeof getTagsApiV1BooksBookIdTagsGet>>
->;
-export type GetTagsApiV1BooksBookIdTagsGetQueryError = HTTPValidationError;
+export type GetTagsQueryResult = NonNullable<Awaited<ReturnType<typeof getTags>>>;
+export type GetTagsQueryError = HTTPValidationError;
 
-export function useGetTagsApiV1BooksBookIdTagsGet<
-  TData = Awaited<ReturnType<typeof getTagsApiV1BooksBookIdTagsGet>>,
+export function useGetTags<
+  TData = Awaited<ReturnType<typeof getTags>>,
   TError = HTTPValidationError,
 >(
   bookId: number,
   options: {
-    query: Partial<
-      UseQueryOptions<Awaited<ReturnType<typeof getTagsApiV1BooksBookIdTagsGet>>, TError, TData>
-    > &
+    query: Partial<UseQueryOptions<Awaited<ReturnType<typeof getTags>>, TError, TData>> &
       Pick<
         DefinedInitialDataOptions<
-          Awaited<ReturnType<typeof getTagsApiV1BooksBookIdTagsGet>>,
+          Awaited<ReturnType<typeof getTags>>,
           TError,
-          Awaited<ReturnType<typeof getTagsApiV1BooksBookIdTagsGet>>
+          Awaited<ReturnType<typeof getTags>>
         >,
         'initialData'
       >;
   },
   queryClient?: QueryClient
 ): DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
-export function useGetTagsApiV1BooksBookIdTagsGet<
-  TData = Awaited<ReturnType<typeof getTagsApiV1BooksBookIdTagsGet>>,
+export function useGetTags<
+  TData = Awaited<ReturnType<typeof getTags>>,
   TError = HTTPValidationError,
 >(
   bookId: number,
   options?: {
-    query?: Partial<
-      UseQueryOptions<Awaited<ReturnType<typeof getTagsApiV1BooksBookIdTagsGet>>, TError, TData>
-    > &
+    query?: Partial<UseQueryOptions<Awaited<ReturnType<typeof getTags>>, TError, TData>> &
       Pick<
         UndefinedInitialDataOptions<
-          Awaited<ReturnType<typeof getTagsApiV1BooksBookIdTagsGet>>,
+          Awaited<ReturnType<typeof getTags>>,
           TError,
-          Awaited<ReturnType<typeof getTagsApiV1BooksBookIdTagsGet>>
+          Awaited<ReturnType<typeof getTags>>
         >,
         'initialData'
       >;
   },
   queryClient?: QueryClient
 ): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
-export function useGetTagsApiV1BooksBookIdTagsGet<
-  TData = Awaited<ReturnType<typeof getTagsApiV1BooksBookIdTagsGet>>,
+export function useGetTags<
+  TData = Awaited<ReturnType<typeof getTags>>,
   TError = HTTPValidationError,
 >(
   bookId: number,
   options?: {
-    query?: Partial<
-      UseQueryOptions<Awaited<ReturnType<typeof getTagsApiV1BooksBookIdTagsGet>>, TError, TData>
-    >;
+    query?: Partial<UseQueryOptions<Awaited<ReturnType<typeof getTags>>, TError, TData>>;
   },
   queryClient?: QueryClient
 ): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
@@ -345,19 +313,17 @@ export function useGetTagsApiV1BooksBookIdTagsGet<
  * @summary Get Tags
  */
 
-export function useGetTagsApiV1BooksBookIdTagsGet<
-  TData = Awaited<ReturnType<typeof getTagsApiV1BooksBookIdTagsGet>>,
+export function useGetTags<
+  TData = Awaited<ReturnType<typeof getTags>>,
   TError = HTTPValidationError,
 >(
   bookId: number,
   options?: {
-    query?: Partial<
-      UseQueryOptions<Awaited<ReturnType<typeof getTagsApiV1BooksBookIdTagsGet>>, TError, TData>
-    >;
+    query?: Partial<UseQueryOptions<Awaited<ReturnType<typeof getTags>>, TError, TData>>;
   },
   queryClient?: QueryClient
 ): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
-  const queryOptions = getGetTagsApiV1BooksBookIdTagsGetQueryOptions(bookId, options);
+  const queryOptions = getGetTagsQueryOptions(bookId, options);
 
   const query = useQuery(queryOptions, queryClient) as UseQueryResult<TData, TError> & {
     queryKey: DataTag<QueryKey, TData, TError>;
@@ -380,7 +346,7 @@ export function useGetTagsApiV1BooksBookIdTagsGet<
  *     HTTPException: If book is not found, tag already exists, or creation fails
  * @summary Create Tag
  */
-export const createTagApiV1BooksBookIdTagPost = (
+export const createTag = (
   bookId: number,
   tagCreateRequest: TagCreateRequest,
   signal?: AbortSignal
@@ -394,23 +360,23 @@ export const createTagApiV1BooksBookIdTagPost = (
   });
 };
 
-export const getCreateTagApiV1BooksBookIdTagPostMutationOptions = <
+export const getCreateTagMutationOptions = <
   TError = HTTPValidationError,
   TContext = unknown,
 >(options?: {
   mutation?: UseMutationOptions<
-    Awaited<ReturnType<typeof createTagApiV1BooksBookIdTagPost>>,
+    Awaited<ReturnType<typeof createTag>>,
     TError,
     { bookId: number; data: TagCreateRequest },
     TContext
   >;
 }): UseMutationOptions<
-  Awaited<ReturnType<typeof createTagApiV1BooksBookIdTagPost>>,
+  Awaited<ReturnType<typeof createTag>>,
   TError,
   { bookId: number; data: TagCreateRequest },
   TContext
 > => {
-  const mutationKey = ['createTagApiV1BooksBookIdTagPost'];
+  const mutationKey = ['createTag'];
   const { mutation: mutationOptions } = options
     ? options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey
       ? options
@@ -418,33 +384,28 @@ export const getCreateTagApiV1BooksBookIdTagPostMutationOptions = <
     : { mutation: { mutationKey } };
 
   const mutationFn: MutationFunction<
-    Awaited<ReturnType<typeof createTagApiV1BooksBookIdTagPost>>,
+    Awaited<ReturnType<typeof createTag>>,
     { bookId: number; data: TagCreateRequest }
   > = (props) => {
     const { bookId, data } = props ?? {};
 
-    return createTagApiV1BooksBookIdTagPost(bookId, data);
+    return createTag(bookId, data);
   };
 
   return { mutationFn, ...mutationOptions };
 };
 
-export type CreateTagApiV1BooksBookIdTagPostMutationResult = NonNullable<
-  Awaited<ReturnType<typeof createTagApiV1BooksBookIdTagPost>>
->;
-export type CreateTagApiV1BooksBookIdTagPostMutationBody = TagCreateRequest;
-export type CreateTagApiV1BooksBookIdTagPostMutationError = HTTPValidationError;
+export type CreateTagMutationResult = NonNullable<Awaited<ReturnType<typeof createTag>>>;
+export type CreateTagMutationBody = TagCreateRequest;
+export type CreateTagMutationError = HTTPValidationError;
 
 /**
  * @summary Create Tag
  */
-export const useCreateTagApiV1BooksBookIdTagPost = <
-  TError = HTTPValidationError,
-  TContext = unknown,
->(
+export const useCreateTag = <TError = HTTPValidationError, TContext = unknown>(
   options?: {
     mutation?: UseMutationOptions<
-      Awaited<ReturnType<typeof createTagApiV1BooksBookIdTagPost>>,
+      Awaited<ReturnType<typeof createTag>>,
       TError,
       { bookId: number; data: TagCreateRequest },
       TContext
@@ -452,12 +413,12 @@ export const useCreateTagApiV1BooksBookIdTagPost = <
   },
   queryClient?: QueryClient
 ): UseMutationResult<
-  Awaited<ReturnType<typeof createTagApiV1BooksBookIdTagPost>>,
+  Awaited<ReturnType<typeof createTag>>,
   TError,
   { bookId: number; data: TagCreateRequest },
   TContext
 > => {
-  return useMutation(getCreateTagApiV1BooksBookIdTagPostMutationOptions(options), queryClient);
+  return useMutation(getCreateTagMutationOptions(options), queryClient);
 };
 /**
  * Delete a tag from a book.
@@ -472,11 +433,7 @@ export const useCreateTagApiV1BooksBookIdTagPost = <
  *     HTTPException: If tag is not found, doesn't belong to book, or deletion fails
  * @summary Delete Tag
  */
-export const deleteTagApiV1BooksBookIdTagTagIdDelete = (
-  bookId: number,
-  tagId: number,
-  signal?: AbortSignal
-) => {
+export const deleteTag = (bookId: number, tagId: number, signal?: AbortSignal) => {
   return axiosInstance<void>({
     url: `/api/v1/books/${bookId}/tag/${tagId}`,
     method: 'DELETE',
@@ -484,23 +441,23 @@ export const deleteTagApiV1BooksBookIdTagTagIdDelete = (
   });
 };
 
-export const getDeleteTagApiV1BooksBookIdTagTagIdDeleteMutationOptions = <
+export const getDeleteTagMutationOptions = <
   TError = HTTPValidationError,
   TContext = unknown,
 >(options?: {
   mutation?: UseMutationOptions<
-    Awaited<ReturnType<typeof deleteTagApiV1BooksBookIdTagTagIdDelete>>,
+    Awaited<ReturnType<typeof deleteTag>>,
     TError,
     { bookId: number; tagId: number },
     TContext
   >;
 }): UseMutationOptions<
-  Awaited<ReturnType<typeof deleteTagApiV1BooksBookIdTagTagIdDelete>>,
+  Awaited<ReturnType<typeof deleteTag>>,
   TError,
   { bookId: number; tagId: number },
   TContext
 > => {
-  const mutationKey = ['deleteTagApiV1BooksBookIdTagTagIdDelete'];
+  const mutationKey = ['deleteTag'];
   const { mutation: mutationOptions } = options
     ? options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey
       ? options
@@ -508,33 +465,28 @@ export const getDeleteTagApiV1BooksBookIdTagTagIdDeleteMutationOptions = <
     : { mutation: { mutationKey } };
 
   const mutationFn: MutationFunction<
-    Awaited<ReturnType<typeof deleteTagApiV1BooksBookIdTagTagIdDelete>>,
+    Awaited<ReturnType<typeof deleteTag>>,
     { bookId: number; tagId: number }
   > = (props) => {
     const { bookId, tagId } = props ?? {};
 
-    return deleteTagApiV1BooksBookIdTagTagIdDelete(bookId, tagId);
+    return deleteTag(bookId, tagId);
   };
 
   return { mutationFn, ...mutationOptions };
 };
 
-export type DeleteTagApiV1BooksBookIdTagTagIdDeleteMutationResult = NonNullable<
-  Awaited<ReturnType<typeof deleteTagApiV1BooksBookIdTagTagIdDelete>>
->;
+export type DeleteTagMutationResult = NonNullable<Awaited<ReturnType<typeof deleteTag>>>;
 
-export type DeleteTagApiV1BooksBookIdTagTagIdDeleteMutationError = HTTPValidationError;
+export type DeleteTagMutationError = HTTPValidationError;
 
 /**
  * @summary Delete Tag
  */
-export const useDeleteTagApiV1BooksBookIdTagTagIdDelete = <
-  TError = HTTPValidationError,
-  TContext = unknown,
->(
+export const useDeleteTag = <TError = HTTPValidationError, TContext = unknown>(
   options?: {
     mutation?: UseMutationOptions<
-      Awaited<ReturnType<typeof deleteTagApiV1BooksBookIdTagTagIdDelete>>,
+      Awaited<ReturnType<typeof deleteTag>>,
       TError,
       { bookId: number; tagId: number },
       TContext
@@ -542,15 +494,12 @@ export const useDeleteTagApiV1BooksBookIdTagTagIdDelete = <
   },
   queryClient?: QueryClient
 ): UseMutationResult<
-  Awaited<ReturnType<typeof deleteTagApiV1BooksBookIdTagTagIdDelete>>,
+  Awaited<ReturnType<typeof deleteTag>>,
   TError,
   { bookId: number; tagId: number },
   TContext
 > => {
-  return useMutation(
-    getDeleteTagApiV1BooksBookIdTagTagIdDeleteMutationOptions(options),
-    queryClient
-  );
+  return useMutation(getDeleteTagMutationOptions(options), queryClient);
 };
 /**
  * Update a tag's name and/or tag group association.
@@ -567,7 +516,7 @@ export const useDeleteTagApiV1BooksBookIdTagTagIdDelete = <
  *     HTTPException: If tag not found, doesn't belong to book, or update fails
  * @summary Update Tag
  */
-export const updateTagApiV1BooksBookIdTagTagIdPost = (
+export const updateTag = (
   bookId: number,
   tagId: number,
   tagUpdateRequest: TagUpdateRequest,
@@ -582,23 +531,23 @@ export const updateTagApiV1BooksBookIdTagTagIdPost = (
   });
 };
 
-export const getUpdateTagApiV1BooksBookIdTagTagIdPostMutationOptions = <
+export const getUpdateTagMutationOptions = <
   TError = HTTPValidationError,
   TContext = unknown,
 >(options?: {
   mutation?: UseMutationOptions<
-    Awaited<ReturnType<typeof updateTagApiV1BooksBookIdTagTagIdPost>>,
+    Awaited<ReturnType<typeof updateTag>>,
     TError,
     { bookId: number; tagId: number; data: TagUpdateRequest },
     TContext
   >;
 }): UseMutationOptions<
-  Awaited<ReturnType<typeof updateTagApiV1BooksBookIdTagTagIdPost>>,
+  Awaited<ReturnType<typeof updateTag>>,
   TError,
   { bookId: number; tagId: number; data: TagUpdateRequest },
   TContext
 > => {
-  const mutationKey = ['updateTagApiV1BooksBookIdTagTagIdPost'];
+  const mutationKey = ['updateTag'];
   const { mutation: mutationOptions } = options
     ? options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey
       ? options
@@ -606,33 +555,28 @@ export const getUpdateTagApiV1BooksBookIdTagTagIdPostMutationOptions = <
     : { mutation: { mutationKey } };
 
   const mutationFn: MutationFunction<
-    Awaited<ReturnType<typeof updateTagApiV1BooksBookIdTagTagIdPost>>,
+    Awaited<ReturnType<typeof updateTag>>,
     { bookId: number; tagId: number; data: TagUpdateRequest }
   > = (props) => {
     const { bookId, tagId, data } = props ?? {};
 
-    return updateTagApiV1BooksBookIdTagTagIdPost(bookId, tagId, data);
+    return updateTag(bookId, tagId, data);
   };
 
   return { mutationFn, ...mutationOptions };
 };
 
-export type UpdateTagApiV1BooksBookIdTagTagIdPostMutationResult = NonNullable<
-  Awaited<ReturnType<typeof updateTagApiV1BooksBookIdTagTagIdPost>>
->;
-export type UpdateTagApiV1BooksBookIdTagTagIdPostMutationBody = TagUpdateRequest;
-export type UpdateTagApiV1BooksBookIdTagTagIdPostMutationError = HTTPValidationError;
+export type UpdateTagMutationResult = NonNullable<Awaited<ReturnType<typeof updateTag>>>;
+export type UpdateTagMutationBody = TagUpdateRequest;
+export type UpdateTagMutationError = HTTPValidationError;
 
 /**
  * @summary Update Tag
  */
-export const useUpdateTagApiV1BooksBookIdTagTagIdPost = <
-  TError = HTTPValidationError,
-  TContext = unknown,
->(
+export const useUpdateTag = <TError = HTTPValidationError, TContext = unknown>(
   options?: {
     mutation?: UseMutationOptions<
-      Awaited<ReturnType<typeof updateTagApiV1BooksBookIdTagTagIdPost>>,
+      Awaited<ReturnType<typeof updateTag>>,
       TError,
       { bookId: number; tagId: number; data: TagUpdateRequest },
       TContext
@@ -640,12 +584,12 @@ export const useUpdateTagApiV1BooksBookIdTagTagIdPost = <
   },
   queryClient?: QueryClient
 ): UseMutationResult<
-  Awaited<ReturnType<typeof updateTagApiV1BooksBookIdTagTagIdPost>>,
+  Awaited<ReturnType<typeof updateTag>>,
   TError,
   { bookId: number; tagId: number; data: TagUpdateRequest },
   TContext
 > => {
-  return useMutation(getUpdateTagApiV1BooksBookIdTagTagIdPostMutationOptions(options), queryClient);
+  return useMutation(getUpdateTagMutationOptions(options), queryClient);
 };
 /**
  * Add a tag to a highlight.
@@ -665,7 +609,7 @@ export const useUpdateTagApiV1BooksBookIdTagTagIdPost = <
  *     HTTPException: If highlight or tag not found, or association fails
  * @summary Add Tag To Highlight
  */
-export const addTagToHighlightApiV1BooksBookIdHighlightHighlightIdTagPost = (
+export const addTagToHighlight = (
   bookId: number,
   highlightId: number,
   tagAssociationRequest: TagAssociationRequest,
@@ -680,23 +624,23 @@ export const addTagToHighlightApiV1BooksBookIdHighlightHighlightIdTagPost = (
   });
 };
 
-export const getAddTagToHighlightApiV1BooksBookIdHighlightHighlightIdTagPostMutationOptions = <
+export const getAddTagToHighlightMutationOptions = <
   TError = HTTPValidationError,
   TContext = unknown,
 >(options?: {
   mutation?: UseMutationOptions<
-    Awaited<ReturnType<typeof addTagToHighlightApiV1BooksBookIdHighlightHighlightIdTagPost>>,
+    Awaited<ReturnType<typeof addTagToHighlight>>,
     TError,
     { bookId: number; highlightId: number; data: TagAssociationRequest },
     TContext
   >;
 }): UseMutationOptions<
-  Awaited<ReturnType<typeof addTagToHighlightApiV1BooksBookIdHighlightHighlightIdTagPost>>,
+  Awaited<ReturnType<typeof addTagToHighlight>>,
   TError,
   { bookId: number; highlightId: number; data: TagAssociationRequest },
   TContext
 > => {
-  const mutationKey = ['addTagToHighlightApiV1BooksBookIdHighlightHighlightIdTagPost'];
+  const mutationKey = ['addTagToHighlight'];
   const { mutation: mutationOptions } = options
     ? options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey
       ? options
@@ -704,36 +648,30 @@ export const getAddTagToHighlightApiV1BooksBookIdHighlightHighlightIdTagPostMuta
     : { mutation: { mutationKey } };
 
   const mutationFn: MutationFunction<
-    Awaited<ReturnType<typeof addTagToHighlightApiV1BooksBookIdHighlightHighlightIdTagPost>>,
+    Awaited<ReturnType<typeof addTagToHighlight>>,
     { bookId: number; highlightId: number; data: TagAssociationRequest }
   > = (props) => {
     const { bookId, highlightId, data } = props ?? {};
 
-    return addTagToHighlightApiV1BooksBookIdHighlightHighlightIdTagPost(bookId, highlightId, data);
+    return addTagToHighlight(bookId, highlightId, data);
   };
 
   return { mutationFn, ...mutationOptions };
 };
 
-export type AddTagToHighlightApiV1BooksBookIdHighlightHighlightIdTagPostMutationResult =
-  NonNullable<
-    Awaited<ReturnType<typeof addTagToHighlightApiV1BooksBookIdHighlightHighlightIdTagPost>>
-  >;
-export type AddTagToHighlightApiV1BooksBookIdHighlightHighlightIdTagPostMutationBody =
-  TagAssociationRequest;
-export type AddTagToHighlightApiV1BooksBookIdHighlightHighlightIdTagPostMutationError =
-  HTTPValidationError;
+export type AddTagToHighlightMutationResult = NonNullable<
+  Awaited<ReturnType<typeof addTagToHighlight>>
+>;
+export type AddTagToHighlightMutationBody = TagAssociationRequest;
+export type AddTagToHighlightMutationError = HTTPValidationError;
 
 /**
  * @summary Add Tag To Highlight
  */
-export const useAddTagToHighlightApiV1BooksBookIdHighlightHighlightIdTagPost = <
-  TError = HTTPValidationError,
-  TContext = unknown,
->(
+export const useAddTagToHighlight = <TError = HTTPValidationError, TContext = unknown>(
   options?: {
     mutation?: UseMutationOptions<
-      Awaited<ReturnType<typeof addTagToHighlightApiV1BooksBookIdHighlightHighlightIdTagPost>>,
+      Awaited<ReturnType<typeof addTagToHighlight>>,
       TError,
       { bookId: number; highlightId: number; data: TagAssociationRequest },
       TContext
@@ -741,15 +679,12 @@ export const useAddTagToHighlightApiV1BooksBookIdHighlightHighlightIdTagPost = <
   },
   queryClient?: QueryClient
 ): UseMutationResult<
-  Awaited<ReturnType<typeof addTagToHighlightApiV1BooksBookIdHighlightHighlightIdTagPost>>,
+  Awaited<ReturnType<typeof addTagToHighlight>>,
   TError,
   { bookId: number; highlightId: number; data: TagAssociationRequest },
   TContext
 > => {
-  return useMutation(
-    getAddTagToHighlightApiV1BooksBookIdHighlightHighlightIdTagPostMutationOptions(options),
-    queryClient
-  );
+  return useMutation(getAddTagToHighlightMutationOptions(options), queryClient);
 };
 /**
  * Remove a tag from a highlight.
@@ -766,7 +701,7 @@ export const useAddTagToHighlightApiV1BooksBookIdHighlightHighlightIdTagPost = <
  *     HTTPException: If highlight not found or removal fails
  * @summary Remove Tag From Highlight
  */
-export const removeTagFromHighlightApiV1BooksBookIdHighlightHighlightIdTagTagIdDelete = (
+export const removeTagFromHighlight = (
   bookId: number,
   highlightId: number,
   tagId: number,
@@ -779,73 +714,54 @@ export const removeTagFromHighlightApiV1BooksBookIdHighlightHighlightIdTagTagIdD
   });
 };
 
-export const getRemoveTagFromHighlightApiV1BooksBookIdHighlightHighlightIdTagTagIdDeleteMutationOptions =
-  <TError = HTTPValidationError, TContext = unknown>(options?: {
-    mutation?: UseMutationOptions<
-      Awaited<
-        ReturnType<typeof removeTagFromHighlightApiV1BooksBookIdHighlightHighlightIdTagTagIdDelete>
-      >,
-      TError,
-      { bookId: number; highlightId: number; tagId: number },
-      TContext
-    >;
-  }): UseMutationOptions<
-    Awaited<
-      ReturnType<typeof removeTagFromHighlightApiV1BooksBookIdHighlightHighlightIdTagTagIdDelete>
-    >,
+export const getRemoveTagFromHighlightMutationOptions = <
+  TError = HTTPValidationError,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof removeTagFromHighlight>>,
     TError,
     { bookId: number; highlightId: number; tagId: number },
     TContext
-  > => {
-    const mutationKey = [
-      'removeTagFromHighlightApiV1BooksBookIdHighlightHighlightIdTagTagIdDelete',
-    ];
-    const { mutation: mutationOptions } = options
-      ? options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey
-        ? options
-        : { ...options, mutation: { ...options.mutation, mutationKey } }
-      : { mutation: { mutationKey } };
+  >;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof removeTagFromHighlight>>,
+  TError,
+  { bookId: number; highlightId: number; tagId: number },
+  TContext
+> => {
+  const mutationKey = ['removeTagFromHighlight'];
+  const { mutation: mutationOptions } = options
+    ? options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey } };
 
-    const mutationFn: MutationFunction<
-      Awaited<
-        ReturnType<typeof removeTagFromHighlightApiV1BooksBookIdHighlightHighlightIdTagTagIdDelete>
-      >,
-      { bookId: number; highlightId: number; tagId: number }
-    > = (props) => {
-      const { bookId, highlightId, tagId } = props ?? {};
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof removeTagFromHighlight>>,
+    { bookId: number; highlightId: number; tagId: number }
+  > = (props) => {
+    const { bookId, highlightId, tagId } = props ?? {};
 
-      return removeTagFromHighlightApiV1BooksBookIdHighlightHighlightIdTagTagIdDelete(
-        bookId,
-        highlightId,
-        tagId
-      );
-    };
-
-    return { mutationFn, ...mutationOptions };
+    return removeTagFromHighlight(bookId, highlightId, tagId);
   };
 
-export type RemoveTagFromHighlightApiV1BooksBookIdHighlightHighlightIdTagTagIdDeleteMutationResult =
-  NonNullable<
-    Awaited<
-      ReturnType<typeof removeTagFromHighlightApiV1BooksBookIdHighlightHighlightIdTagTagIdDelete>
-    >
-  >;
+  return { mutationFn, ...mutationOptions };
+};
 
-export type RemoveTagFromHighlightApiV1BooksBookIdHighlightHighlightIdTagTagIdDeleteMutationError =
-  HTTPValidationError;
+export type RemoveTagFromHighlightMutationResult = NonNullable<
+  Awaited<ReturnType<typeof removeTagFromHighlight>>
+>;
+
+export type RemoveTagFromHighlightMutationError = HTTPValidationError;
 
 /**
  * @summary Remove Tag From Highlight
  */
-export const useRemoveTagFromHighlightApiV1BooksBookIdHighlightHighlightIdTagTagIdDelete = <
-  TError = HTTPValidationError,
-  TContext = unknown,
->(
+export const useRemoveTagFromHighlight = <TError = HTTPValidationError, TContext = unknown>(
   options?: {
     mutation?: UseMutationOptions<
-      Awaited<
-        ReturnType<typeof removeTagFromHighlightApiV1BooksBookIdHighlightHighlightIdTagTagIdDelete>
-      >,
+      Awaited<ReturnType<typeof removeTagFromHighlight>>,
       TError,
       { bookId: number; highlightId: number; tagId: number },
       TContext
@@ -853,17 +769,10 @@ export const useRemoveTagFromHighlightApiV1BooksBookIdHighlightHighlightIdTagTag
   },
   queryClient?: QueryClient
 ): UseMutationResult<
-  Awaited<
-    ReturnType<typeof removeTagFromHighlightApiV1BooksBookIdHighlightHighlightIdTagTagIdDelete>
-  >,
+  Awaited<ReturnType<typeof removeTagFromHighlight>>,
   TError,
   { bookId: number; highlightId: number; tagId: number },
   TContext
 > => {
-  return useMutation(
-    getRemoveTagFromHighlightApiV1BooksBookIdHighlightHighlightIdTagTagIdDeleteMutationOptions(
-      options
-    ),
-    queryClient
-  );
+  return useMutation(getRemoveTagFromHighlightMutationOptions(options), queryClient);
 };

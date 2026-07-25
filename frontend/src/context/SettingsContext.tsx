@@ -1,5 +1,5 @@
 import type { AppSettingsResponse, FeatureFlags } from '@/api/generated/model';
-import { getAppSettingsApiV1SettingsGet } from '@/api/generated/settings/settings';
+import { getAppSettings } from '@/api/generated/settings/settings';
 import { createContext, ReactNode, useContext, useEffect, useState } from 'react';
 
 interface SettingsContextType {
@@ -18,7 +18,7 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     const fetchSettings = async () => {
       try {
-        const settingsData = await getAppSettingsApiV1SettingsGet();
+        const settingsData = await getAppSettings();
         setSettings(settingsData);
       } catch (error) {
         console.error('Failed to fetch app settings:', error);

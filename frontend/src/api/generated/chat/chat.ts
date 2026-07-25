@@ -25,10 +25,7 @@ import { axiosInstance } from '../../axios-instance.ts';
  * Start a new quiz session for a chapter.
  * @summary Create Quiz Session
  */
-export const createQuizSessionApiV1ChaptersChapterIdQuizSessionsPost = (
-  chapterId: number,
-  signal?: AbortSignal
-) => {
+export const createQuizSession = (chapterId: number, signal?: AbortSignal) => {
   return axiosInstance<CreateChatSessionResponse>({
     url: `/api/v1/chapters/${chapterId}/quiz-sessions`,
     method: 'POST',
@@ -36,23 +33,23 @@ export const createQuizSessionApiV1ChaptersChapterIdQuizSessionsPost = (
   });
 };
 
-export const getCreateQuizSessionApiV1ChaptersChapterIdQuizSessionsPostMutationOptions = <
+export const getCreateQuizSessionMutationOptions = <
   TError = HTTPValidationError,
   TContext = unknown,
 >(options?: {
   mutation?: UseMutationOptions<
-    Awaited<ReturnType<typeof createQuizSessionApiV1ChaptersChapterIdQuizSessionsPost>>,
+    Awaited<ReturnType<typeof createQuizSession>>,
     TError,
     { chapterId: number },
     TContext
   >;
 }): UseMutationOptions<
-  Awaited<ReturnType<typeof createQuizSessionApiV1ChaptersChapterIdQuizSessionsPost>>,
+  Awaited<ReturnType<typeof createQuizSession>>,
   TError,
   { chapterId: number },
   TContext
 > => {
-  const mutationKey = ['createQuizSessionApiV1ChaptersChapterIdQuizSessionsPost'];
+  const mutationKey = ['createQuizSession'];
   const { mutation: mutationOptions } = options
     ? options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey
       ? options
@@ -60,34 +57,30 @@ export const getCreateQuizSessionApiV1ChaptersChapterIdQuizSessionsPostMutationO
     : { mutation: { mutationKey } };
 
   const mutationFn: MutationFunction<
-    Awaited<ReturnType<typeof createQuizSessionApiV1ChaptersChapterIdQuizSessionsPost>>,
+    Awaited<ReturnType<typeof createQuizSession>>,
     { chapterId: number }
   > = (props) => {
     const { chapterId } = props ?? {};
 
-    return createQuizSessionApiV1ChaptersChapterIdQuizSessionsPost(chapterId);
+    return createQuizSession(chapterId);
   };
 
   return { mutationFn, ...mutationOptions };
 };
 
-export type CreateQuizSessionApiV1ChaptersChapterIdQuizSessionsPostMutationResult = NonNullable<
-  Awaited<ReturnType<typeof createQuizSessionApiV1ChaptersChapterIdQuizSessionsPost>>
+export type CreateQuizSessionMutationResult = NonNullable<
+  Awaited<ReturnType<typeof createQuizSession>>
 >;
 
-export type CreateQuizSessionApiV1ChaptersChapterIdQuizSessionsPostMutationError =
-  HTTPValidationError;
+export type CreateQuizSessionMutationError = HTTPValidationError;
 
 /**
  * @summary Create Quiz Session
  */
-export const useCreateQuizSessionApiV1ChaptersChapterIdQuizSessionsPost = <
-  TError = HTTPValidationError,
-  TContext = unknown,
->(
+export const useCreateQuizSession = <TError = HTTPValidationError, TContext = unknown>(
   options?: {
     mutation?: UseMutationOptions<
-      Awaited<ReturnType<typeof createQuizSessionApiV1ChaptersChapterIdQuizSessionsPost>>,
+      Awaited<ReturnType<typeof createQuizSession>>,
       TError,
       { chapterId: number },
       TContext
@@ -95,21 +88,18 @@ export const useCreateQuizSessionApiV1ChaptersChapterIdQuizSessionsPost = <
   },
   queryClient?: QueryClient
 ): UseMutationResult<
-  Awaited<ReturnType<typeof createQuizSessionApiV1ChaptersChapterIdQuizSessionsPost>>,
+  Awaited<ReturnType<typeof createQuizSession>>,
   TError,
   { chapterId: number },
   TContext
 > => {
-  return useMutation(
-    getCreateQuizSessionApiV1ChaptersChapterIdQuizSessionsPostMutationOptions(options),
-    queryClient
-  );
+  return useMutation(getCreateQuizSessionMutationOptions(options), queryClient);
 };
 /**
  * Send a message to an existing quiz session.
  * @summary Send Quiz Message
  */
-export const sendQuizMessageApiV1QuizSessionsSessionIdMessagesPost = (
+export const sendQuizMessage = (
   sessionId: number,
   sendChatMessageRequest: SendChatMessageRequest,
   signal?: AbortSignal
@@ -123,23 +113,23 @@ export const sendQuizMessageApiV1QuizSessionsSessionIdMessagesPost = (
   });
 };
 
-export const getSendQuizMessageApiV1QuizSessionsSessionIdMessagesPostMutationOptions = <
+export const getSendQuizMessageMutationOptions = <
   TError = HTTPValidationError,
   TContext = unknown,
 >(options?: {
   mutation?: UseMutationOptions<
-    Awaited<ReturnType<typeof sendQuizMessageApiV1QuizSessionsSessionIdMessagesPost>>,
+    Awaited<ReturnType<typeof sendQuizMessage>>,
     TError,
     { sessionId: number; data: SendChatMessageRequest },
     TContext
   >;
 }): UseMutationOptions<
-  Awaited<ReturnType<typeof sendQuizMessageApiV1QuizSessionsSessionIdMessagesPost>>,
+  Awaited<ReturnType<typeof sendQuizMessage>>,
   TError,
   { sessionId: number; data: SendChatMessageRequest },
   TContext
 > => {
-  const mutationKey = ['sendQuizMessageApiV1QuizSessionsSessionIdMessagesPost'];
+  const mutationKey = ['sendQuizMessage'];
   const { mutation: mutationOptions } = options
     ? options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey
       ? options
@@ -147,35 +137,30 @@ export const getSendQuizMessageApiV1QuizSessionsSessionIdMessagesPostMutationOpt
     : { mutation: { mutationKey } };
 
   const mutationFn: MutationFunction<
-    Awaited<ReturnType<typeof sendQuizMessageApiV1QuizSessionsSessionIdMessagesPost>>,
+    Awaited<ReturnType<typeof sendQuizMessage>>,
     { sessionId: number; data: SendChatMessageRequest }
   > = (props) => {
     const { sessionId, data } = props ?? {};
 
-    return sendQuizMessageApiV1QuizSessionsSessionIdMessagesPost(sessionId, data);
+    return sendQuizMessage(sessionId, data);
   };
 
   return { mutationFn, ...mutationOptions };
 };
 
-export type SendQuizMessageApiV1QuizSessionsSessionIdMessagesPostMutationResult = NonNullable<
-  Awaited<ReturnType<typeof sendQuizMessageApiV1QuizSessionsSessionIdMessagesPost>>
+export type SendQuizMessageMutationResult = NonNullable<
+  Awaited<ReturnType<typeof sendQuizMessage>>
 >;
-export type SendQuizMessageApiV1QuizSessionsSessionIdMessagesPostMutationBody =
-  SendChatMessageRequest;
-export type SendQuizMessageApiV1QuizSessionsSessionIdMessagesPostMutationError =
-  HTTPValidationError;
+export type SendQuizMessageMutationBody = SendChatMessageRequest;
+export type SendQuizMessageMutationError = HTTPValidationError;
 
 /**
  * @summary Send Quiz Message
  */
-export const useSendQuizMessageApiV1QuizSessionsSessionIdMessagesPost = <
-  TError = HTTPValidationError,
-  TContext = unknown,
->(
+export const useSendQuizMessage = <TError = HTTPValidationError, TContext = unknown>(
   options?: {
     mutation?: UseMutationOptions<
-      Awaited<ReturnType<typeof sendQuizMessageApiV1QuizSessionsSessionIdMessagesPost>>,
+      Awaited<ReturnType<typeof sendQuizMessage>>,
       TError,
       { sessionId: number; data: SendChatMessageRequest },
       TContext
@@ -183,24 +168,18 @@ export const useSendQuizMessageApiV1QuizSessionsSessionIdMessagesPost = <
   },
   queryClient?: QueryClient
 ): UseMutationResult<
-  Awaited<ReturnType<typeof sendQuizMessageApiV1QuizSessionsSessionIdMessagesPost>>,
+  Awaited<ReturnType<typeof sendQuizMessage>>,
   TError,
   { sessionId: number; data: SendChatMessageRequest },
   TContext
 > => {
-  return useMutation(
-    getSendQuizMessageApiV1QuizSessionsSessionIdMessagesPostMutationOptions(options),
-    queryClient
-  );
+  return useMutation(getSendQuizMessageMutationOptions(options), queryClient);
 };
 /**
  * Start a chat session for a chapter.
  * @summary Create Chat Session
  */
-export const createChatSessionApiV1ChaptersChapterIdChatSessionsPost = (
-  chapterId: number,
-  signal?: AbortSignal
-) => {
+export const createChatSession = (chapterId: number, signal?: AbortSignal) => {
   return axiosInstance<CreateChatSessionResponse>({
     url: `/api/v1/chapters/${chapterId}/chat-sessions`,
     method: 'POST',
@@ -208,23 +187,23 @@ export const createChatSessionApiV1ChaptersChapterIdChatSessionsPost = (
   });
 };
 
-export const getCreateChatSessionApiV1ChaptersChapterIdChatSessionsPostMutationOptions = <
+export const getCreateChatSessionMutationOptions = <
   TError = HTTPValidationError,
   TContext = unknown,
 >(options?: {
   mutation?: UseMutationOptions<
-    Awaited<ReturnType<typeof createChatSessionApiV1ChaptersChapterIdChatSessionsPost>>,
+    Awaited<ReturnType<typeof createChatSession>>,
     TError,
     { chapterId: number },
     TContext
   >;
 }): UseMutationOptions<
-  Awaited<ReturnType<typeof createChatSessionApiV1ChaptersChapterIdChatSessionsPost>>,
+  Awaited<ReturnType<typeof createChatSession>>,
   TError,
   { chapterId: number },
   TContext
 > => {
-  const mutationKey = ['createChatSessionApiV1ChaptersChapterIdChatSessionsPost'];
+  const mutationKey = ['createChatSession'];
   const { mutation: mutationOptions } = options
     ? options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey
       ? options
@@ -232,34 +211,30 @@ export const getCreateChatSessionApiV1ChaptersChapterIdChatSessionsPostMutationO
     : { mutation: { mutationKey } };
 
   const mutationFn: MutationFunction<
-    Awaited<ReturnType<typeof createChatSessionApiV1ChaptersChapterIdChatSessionsPost>>,
+    Awaited<ReturnType<typeof createChatSession>>,
     { chapterId: number }
   > = (props) => {
     const { chapterId } = props ?? {};
 
-    return createChatSessionApiV1ChaptersChapterIdChatSessionsPost(chapterId);
+    return createChatSession(chapterId);
   };
 
   return { mutationFn, ...mutationOptions };
 };
 
-export type CreateChatSessionApiV1ChaptersChapterIdChatSessionsPostMutationResult = NonNullable<
-  Awaited<ReturnType<typeof createChatSessionApiV1ChaptersChapterIdChatSessionsPost>>
+export type CreateChatSessionMutationResult = NonNullable<
+  Awaited<ReturnType<typeof createChatSession>>
 >;
 
-export type CreateChatSessionApiV1ChaptersChapterIdChatSessionsPostMutationError =
-  HTTPValidationError;
+export type CreateChatSessionMutationError = HTTPValidationError;
 
 /**
  * @summary Create Chat Session
  */
-export const useCreateChatSessionApiV1ChaptersChapterIdChatSessionsPost = <
-  TError = HTTPValidationError,
-  TContext = unknown,
->(
+export const useCreateChatSession = <TError = HTTPValidationError, TContext = unknown>(
   options?: {
     mutation?: UseMutationOptions<
-      Awaited<ReturnType<typeof createChatSessionApiV1ChaptersChapterIdChatSessionsPost>>,
+      Awaited<ReturnType<typeof createChatSession>>,
       TError,
       { chapterId: number },
       TContext
@@ -267,21 +242,18 @@ export const useCreateChatSessionApiV1ChaptersChapterIdChatSessionsPost = <
   },
   queryClient?: QueryClient
 ): UseMutationResult<
-  Awaited<ReturnType<typeof createChatSessionApiV1ChaptersChapterIdChatSessionsPost>>,
+  Awaited<ReturnType<typeof createChatSession>>,
   TError,
   { chapterId: number },
   TContext
 > => {
-  return useMutation(
-    getCreateChatSessionApiV1ChaptersChapterIdChatSessionsPostMutationOptions(options),
-    queryClient
-  );
+  return useMutation(getCreateChatSessionMutationOptions(options), queryClient);
 };
 /**
  * Send a message to an existing chat session.
  * @summary Send Chat Message
  */
-export const sendChatMessageApiV1ChatSessionsSessionIdMessagesPost = (
+export const sendChatMessage = (
   sessionId: number,
   sendChatMessageRequest: SendChatMessageRequest,
   signal?: AbortSignal
@@ -295,23 +267,23 @@ export const sendChatMessageApiV1ChatSessionsSessionIdMessagesPost = (
   });
 };
 
-export const getSendChatMessageApiV1ChatSessionsSessionIdMessagesPostMutationOptions = <
+export const getSendChatMessageMutationOptions = <
   TError = HTTPValidationError,
   TContext = unknown,
 >(options?: {
   mutation?: UseMutationOptions<
-    Awaited<ReturnType<typeof sendChatMessageApiV1ChatSessionsSessionIdMessagesPost>>,
+    Awaited<ReturnType<typeof sendChatMessage>>,
     TError,
     { sessionId: number; data: SendChatMessageRequest },
     TContext
   >;
 }): UseMutationOptions<
-  Awaited<ReturnType<typeof sendChatMessageApiV1ChatSessionsSessionIdMessagesPost>>,
+  Awaited<ReturnType<typeof sendChatMessage>>,
   TError,
   { sessionId: number; data: SendChatMessageRequest },
   TContext
 > => {
-  const mutationKey = ['sendChatMessageApiV1ChatSessionsSessionIdMessagesPost'];
+  const mutationKey = ['sendChatMessage'];
   const { mutation: mutationOptions } = options
     ? options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey
       ? options
@@ -319,35 +291,30 @@ export const getSendChatMessageApiV1ChatSessionsSessionIdMessagesPostMutationOpt
     : { mutation: { mutationKey } };
 
   const mutationFn: MutationFunction<
-    Awaited<ReturnType<typeof sendChatMessageApiV1ChatSessionsSessionIdMessagesPost>>,
+    Awaited<ReturnType<typeof sendChatMessage>>,
     { sessionId: number; data: SendChatMessageRequest }
   > = (props) => {
     const { sessionId, data } = props ?? {};
 
-    return sendChatMessageApiV1ChatSessionsSessionIdMessagesPost(sessionId, data);
+    return sendChatMessage(sessionId, data);
   };
 
   return { mutationFn, ...mutationOptions };
 };
 
-export type SendChatMessageApiV1ChatSessionsSessionIdMessagesPostMutationResult = NonNullable<
-  Awaited<ReturnType<typeof sendChatMessageApiV1ChatSessionsSessionIdMessagesPost>>
+export type SendChatMessageMutationResult = NonNullable<
+  Awaited<ReturnType<typeof sendChatMessage>>
 >;
-export type SendChatMessageApiV1ChatSessionsSessionIdMessagesPostMutationBody =
-  SendChatMessageRequest;
-export type SendChatMessageApiV1ChatSessionsSessionIdMessagesPostMutationError =
-  HTTPValidationError;
+export type SendChatMessageMutationBody = SendChatMessageRequest;
+export type SendChatMessageMutationError = HTTPValidationError;
 
 /**
  * @summary Send Chat Message
  */
-export const useSendChatMessageApiV1ChatSessionsSessionIdMessagesPost = <
-  TError = HTTPValidationError,
-  TContext = unknown,
->(
+export const useSendChatMessage = <TError = HTTPValidationError, TContext = unknown>(
   options?: {
     mutation?: UseMutationOptions<
-      Awaited<ReturnType<typeof sendChatMessageApiV1ChatSessionsSessionIdMessagesPost>>,
+      Awaited<ReturnType<typeof sendChatMessage>>,
       TError,
       { sessionId: number; data: SendChatMessageRequest },
       TContext
@@ -355,13 +322,10 @@ export const useSendChatMessageApiV1ChatSessionsSessionIdMessagesPost = <
   },
   queryClient?: QueryClient
 ): UseMutationResult<
-  Awaited<ReturnType<typeof sendChatMessageApiV1ChatSessionsSessionIdMessagesPost>>,
+  Awaited<ReturnType<typeof sendChatMessage>>,
   TError,
   { sessionId: number; data: SendChatMessageRequest },
   TContext
 > => {
-  return useMutation(
-    getSendChatMessageApiV1ChatSessionsSessionIdMessagesPostMutationOptions(options),
-    queryClient
-  );
+  return useMutation(getSendChatMessageMutationOptions(options), queryClient);
 };

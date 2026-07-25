@@ -5,4 +5,6 @@
  * OpenAPI spec version: 0.1.0
  */
 
-export type ApiRootApiV1Get200 = { [key: string]: unknown };
+export interface BodyUploadBookEpub {
+  epub: Blob;
+}

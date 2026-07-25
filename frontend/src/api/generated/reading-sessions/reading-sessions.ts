@@ -21,7 +21,7 @@ import type {
 import { useMutation, useQuery } from '@tanstack/react-query';
 
 import type {
-  GetBookReadingSessionsApiV1BooksBookIdReadingSessionsGetParams,
+  GetBookReadingSessionsParams,
   HTTPValidationError,
   PaginatedResponseReadingSession,
   ReadingSessionAISummaryResponse,
@@ -58,7 +58,7 @@ const withQueryKey = <T extends object, K>(query: T, queryKey: K): T & { queryKe
  *     ReadingSessionUploadResponse with upload statistics
  * @summary Upload Reading Sessions
  */
-export const uploadReadingSessionsApiV1ReadingSessionsUploadPost = (
+export const uploadReadingSessions = (
   readingSessionUploadRequest: ReadingSessionUploadRequest,
   signal?: AbortSignal
 ) => {
@@ -71,23 +71,23 @@ export const uploadReadingSessionsApiV1ReadingSessionsUploadPost = (
   });
 };
 
-export const getUploadReadingSessionsApiV1ReadingSessionsUploadPostMutationOptions = <
+export const getUploadReadingSessionsMutationOptions = <
   TError = HTTPValidationError,
   TContext = unknown,
 >(options?: {
   mutation?: UseMutationOptions<
-    Awaited<ReturnType<typeof uploadReadingSessionsApiV1ReadingSessionsUploadPost>>,
+    Awaited<ReturnType<typeof uploadReadingSessions>>,
     TError,
     { data: ReadingSessionUploadRequest },
     TContext
   >;
 }): UseMutationOptions<
-  Awaited<ReturnType<typeof uploadReadingSessionsApiV1ReadingSessionsUploadPost>>,
+  Awaited<ReturnType<typeof uploadReadingSessions>>,
   TError,
   { data: ReadingSessionUploadRequest },
   TContext
 > => {
-  const mutationKey = ['uploadReadingSessionsApiV1ReadingSessionsUploadPost'];
+  const mutationKey = ['uploadReadingSessions'];
   const { mutation: mutationOptions } = options
     ? options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey
       ? options
@@ -95,34 +95,30 @@ export const getUploadReadingSessionsApiV1ReadingSessionsUploadPostMutationOptio
     : { mutation: { mutationKey } };
 
   const mutationFn: MutationFunction<
-    Awaited<ReturnType<typeof uploadReadingSessionsApiV1ReadingSessionsUploadPost>>,
+    Awaited<ReturnType<typeof uploadReadingSessions>>,
     { data: ReadingSessionUploadRequest }
   > = (props) => {
     const { data } = props ?? {};
 
-    return uploadReadingSessionsApiV1ReadingSessionsUploadPost(data);
+    return uploadReadingSessions(data);
   };
 
   return { mutationFn, ...mutationOptions };
 };
 
-export type UploadReadingSessionsApiV1ReadingSessionsUploadPostMutationResult = NonNullable<
-  Awaited<ReturnType<typeof uploadReadingSessionsApiV1ReadingSessionsUploadPost>>
+export type UploadReadingSessionsMutationResult = NonNullable<
+  Awaited<ReturnType<typeof uploadReadingSessions>>
 >;
-export type UploadReadingSessionsApiV1ReadingSessionsUploadPostMutationBody =
-  ReadingSessionUploadRequest;
-export type UploadReadingSessionsApiV1ReadingSessionsUploadPostMutationError = HTTPValidationError;
+export type UploadReadingSessionsMutationBody = ReadingSessionUploadRequest;
+export type UploadReadingSessionsMutationError = HTTPValidationError;
 
 /**
  * @summary Upload Reading Sessions
  */
-export const useUploadReadingSessionsApiV1ReadingSessionsUploadPost = <
-  TError = HTTPValidationError,
-  TContext = unknown,
->(
+export const useUploadReadingSessions = <TError = HTTPValidationError, TContext = unknown>(
   options?: {
     mutation?: UseMutationOptions<
-      Awaited<ReturnType<typeof uploadReadingSessionsApiV1ReadingSessionsUploadPost>>,
+      Awaited<ReturnType<typeof uploadReadingSessions>>,
       TError,
       { data: ReadingSessionUploadRequest },
       TContext
@@ -130,15 +126,12 @@ export const useUploadReadingSessionsApiV1ReadingSessionsUploadPost = <
   },
   queryClient?: QueryClient
 ): UseMutationResult<
-  Awaited<ReturnType<typeof uploadReadingSessionsApiV1ReadingSessionsUploadPost>>,
+  Awaited<ReturnType<typeof uploadReadingSessions>>,
   TError,
   { data: ReadingSessionUploadRequest },
   TContext
 > => {
-  return useMutation(
-    getUploadReadingSessionsApiV1ReadingSessionsUploadPostMutationOptions(options),
-    queryClient
-  );
+  return useMutation(getUploadReadingSessionsMutationOptions(options), queryClient);
 };
 /**
  * Get reading sessions for a specific book.
@@ -154,9 +147,9 @@ export const useUploadReadingSessionsApiV1ReadingSessionsUploadPost = <
  *     PaginatedResponse with sessions list
  * @summary Get Book Reading Sessions
  */
-export const getBookReadingSessionsApiV1BooksBookIdReadingSessionsGet = (
+export const getBookReadingSessions = (
   bookId: number,
-  params?: GetBookReadingSessionsApiV1BooksBookIdReadingSessionsGetParams,
+  params?: GetBookReadingSessionsParams,
   signal?: AbortSignal
 ) => {
   return axiosInstance<PaginatedResponseReadingSession>({
@@ -167,121 +160,98 @@ export const getBookReadingSessionsApiV1BooksBookIdReadingSessionsGet = (
   });
 };
 
-export const getGetBookReadingSessionsApiV1BooksBookIdReadingSessionsGetQueryKey = (
+export const getGetBookReadingSessionsQueryKey = (
   bookId: number,
-  params?: GetBookReadingSessionsApiV1BooksBookIdReadingSessionsGetParams
+  params?: GetBookReadingSessionsParams
 ) => {
   return [`/api/v1/books/${bookId}/reading_sessions`, ...(params ? [params] : [])] as const;
 };
 
-export const getGetBookReadingSessionsApiV1BooksBookIdReadingSessionsGetQueryOptions = <
-  TData = Awaited<ReturnType<typeof getBookReadingSessionsApiV1BooksBookIdReadingSessionsGet>>,
+export const getGetBookReadingSessionsQueryOptions = <
+  TData = Awaited<ReturnType<typeof getBookReadingSessions>>,
   TError = HTTPValidationError,
 >(
   bookId: number,
-  params?: GetBookReadingSessionsApiV1BooksBookIdReadingSessionsGetParams,
+  params?: GetBookReadingSessionsParams,
   options?: {
     query?: Partial<
-      UseQueryOptions<
-        Awaited<ReturnType<typeof getBookReadingSessionsApiV1BooksBookIdReadingSessionsGet>>,
-        TError,
-        TData
-      >
+      UseQueryOptions<Awaited<ReturnType<typeof getBookReadingSessions>>, TError, TData>
     >;
   }
 ) => {
   const { query: queryOptions } = options ?? {};
 
-  const queryKey =
-    queryOptions?.queryKey ??
-    getGetBookReadingSessionsApiV1BooksBookIdReadingSessionsGetQueryKey(bookId, params);
+  const queryKey = queryOptions?.queryKey ?? getGetBookReadingSessionsQueryKey(bookId, params);
 
-  const queryFn: QueryFunction<
-    Awaited<ReturnType<typeof getBookReadingSessionsApiV1BooksBookIdReadingSessionsGet>>
-  > = ({ signal }) =>
-    getBookReadingSessionsApiV1BooksBookIdReadingSessionsGet(bookId, params, signal);
+  const queryFn: QueryFunction<Awaited<ReturnType<typeof getBookReadingSessions>>> = ({ signal }) =>
+    getBookReadingSessions(bookId, params, signal);
 
   return {
     queryKey,
     queryFn,
     enabled: bookId !== null && bookId !== undefined,
     ...queryOptions,
-  } as UseQueryOptions<
-    Awaited<ReturnType<typeof getBookReadingSessionsApiV1BooksBookIdReadingSessionsGet>>,
-    TError,
-    TData
-  > & { queryKey: DataTag<QueryKey, TData, TError> };
+  } as UseQueryOptions<Awaited<ReturnType<typeof getBookReadingSessions>>, TError, TData> & {
+    queryKey: DataTag<QueryKey, TData, TError>;
+  };
 };
 
-export type GetBookReadingSessionsApiV1BooksBookIdReadingSessionsGetQueryResult = NonNullable<
-  Awaited<ReturnType<typeof getBookReadingSessionsApiV1BooksBookIdReadingSessionsGet>>
+export type GetBookReadingSessionsQueryResult = NonNullable<
+  Awaited<ReturnType<typeof getBookReadingSessions>>
 >;
-export type GetBookReadingSessionsApiV1BooksBookIdReadingSessionsGetQueryError =
-  HTTPValidationError;
+export type GetBookReadingSessionsQueryError = HTTPValidationError;
 
-export function useGetBookReadingSessionsApiV1BooksBookIdReadingSessionsGet<
-  TData = Awaited<ReturnType<typeof getBookReadingSessionsApiV1BooksBookIdReadingSessionsGet>>,
+export function useGetBookReadingSessions<
+  TData = Awaited<ReturnType<typeof getBookReadingSessions>>,
   TError = HTTPValidationError,
 >(
   bookId: number,
-  params: undefined | GetBookReadingSessionsApiV1BooksBookIdReadingSessionsGetParams,
+  params: undefined | GetBookReadingSessionsParams,
   options: {
     query: Partial<
-      UseQueryOptions<
-        Awaited<ReturnType<typeof getBookReadingSessionsApiV1BooksBookIdReadingSessionsGet>>,
-        TError,
-        TData
-      >
+      UseQueryOptions<Awaited<ReturnType<typeof getBookReadingSessions>>, TError, TData>
     > &
       Pick<
         DefinedInitialDataOptions<
-          Awaited<ReturnType<typeof getBookReadingSessionsApiV1BooksBookIdReadingSessionsGet>>,
+          Awaited<ReturnType<typeof getBookReadingSessions>>,
           TError,
-          Awaited<ReturnType<typeof getBookReadingSessionsApiV1BooksBookIdReadingSessionsGet>>
+          Awaited<ReturnType<typeof getBookReadingSessions>>
         >,
         'initialData'
       >;
   },
   queryClient?: QueryClient
 ): DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
-export function useGetBookReadingSessionsApiV1BooksBookIdReadingSessionsGet<
-  TData = Awaited<ReturnType<typeof getBookReadingSessionsApiV1BooksBookIdReadingSessionsGet>>,
+export function useGetBookReadingSessions<
+  TData = Awaited<ReturnType<typeof getBookReadingSessions>>,
   TError = HTTPValidationError,
 >(
   bookId: number,
-  params?: GetBookReadingSessionsApiV1BooksBookIdReadingSessionsGetParams,
+  params?: GetBookReadingSessionsParams,
   options?: {
     query?: Partial<
-      UseQueryOptions<
-        Awaited<ReturnType<typeof getBookReadingSessionsApiV1BooksBookIdReadingSessionsGet>>,
-        TError,
-        TData
-      >
+      UseQueryOptions<Awaited<ReturnType<typeof getBookReadingSessions>>, TError, TData>
     > &
       Pick<
         UndefinedInitialDataOptions<
-          Awaited<ReturnType<typeof getBookReadingSessionsApiV1BooksBookIdReadingSessionsGet>>,
+          Awaited<ReturnType<typeof getBookReadingSessions>>,
           TError,
-          Awaited<ReturnType<typeof getBookReadingSessionsApiV1BooksBookIdReadingSessionsGet>>
+          Awaited<ReturnType<typeof getBookReadingSessions>>
         >,
         'initialData'
       >;
   },
   queryClient?: QueryClient
 ): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
-export function useGetBookReadingSessionsApiV1BooksBookIdReadingSessionsGet<
-  TData = Awaited<ReturnType<typeof getBookReadingSessionsApiV1BooksBookIdReadingSessionsGet>>,
+export function useGetBookReadingSessions<
+  TData = Awaited<ReturnType<typeof getBookReadingSessions>>,
   TError = HTTPValidationError,
 >(
   bookId: number,
-  params?: GetBookReadingSessionsApiV1BooksBookIdReadingSessionsGetParams,
+  params?: GetBookReadingSessionsParams,
   options?: {
     query?: Partial<
-      UseQueryOptions<
-        Awaited<ReturnType<typeof getBookReadingSessionsApiV1BooksBookIdReadingSessionsGet>>,
-        TError,
-        TData
-      >
+      UseQueryOptions<Awaited<ReturnType<typeof getBookReadingSessions>>, TError, TData>
     >;
   },
   queryClient?: QueryClient
@@ -290,28 +260,20 @@ export function useGetBookReadingSessionsApiV1BooksBookIdReadingSessionsGet<
  * @summary Get Book Reading Sessions
  */
 
-export function useGetBookReadingSessionsApiV1BooksBookIdReadingSessionsGet<
-  TData = Awaited<ReturnType<typeof getBookReadingSessionsApiV1BooksBookIdReadingSessionsGet>>,
+export function useGetBookReadingSessions<
+  TData = Awaited<ReturnType<typeof getBookReadingSessions>>,
   TError = HTTPValidationError,
 >(
   bookId: number,
-  params?: GetBookReadingSessionsApiV1BooksBookIdReadingSessionsGetParams,
+  params?: GetBookReadingSessionsParams,
   options?: {
     query?: Partial<
-      UseQueryOptions<
-        Awaited<ReturnType<typeof getBookReadingSessionsApiV1BooksBookIdReadingSessionsGet>>,
-        TError,
-        TData
-      >
+      UseQueryOptions<Awaited<ReturnType<typeof getBookReadingSessions>>, TError, TData>
     >;
   },
   queryClient?: QueryClient
 ): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
-  const queryOptions = getGetBookReadingSessionsApiV1BooksBookIdReadingSessionsGetQueryOptions(
-    bookId,
-    params,
-    options
-  );
+  const queryOptions = getGetBookReadingSessionsQueryOptions(bookId, params, options);
 
   const query = useQuery(queryOptions, queryClient) as UseQueryResult<TData, TError> & {
     queryKey: DataTag<QueryKey, TData, TError>;
@@ -339,10 +301,7 @@ export function useGetBookReadingSessionsApiV1BooksBookIdReadingSessionsGet<
  *     HTTPException 500: For unexpected errors
  * @summary Get Reading Session Ai Summary
  */
-export const getReadingSessionAiSummaryApiV1ReadingSessionIdAiSummaryGet = (
-  readingSessionId: number,
-  signal?: AbortSignal
-) => {
+export const getReadingSessionAiSummary = (readingSessionId: number, signal?: AbortSignal) => {
   return axiosInstance<ReadingSessionAISummaryResponse>({
     url: `/api/v1/${readingSessionId}/ai_summary`,
     method: 'GET',
@@ -350,116 +309,93 @@ export const getReadingSessionAiSummaryApiV1ReadingSessionIdAiSummaryGet = (
   });
 };
 
-export const getGetReadingSessionAiSummaryApiV1ReadingSessionIdAiSummaryGetQueryKey = (
-  readingSessionId: number
-) => {
+export const getGetReadingSessionAiSummaryQueryKey = (readingSessionId: number) => {
   return [`/api/v1/${readingSessionId}/ai_summary`] as const;
 };
 
-export const getGetReadingSessionAiSummaryApiV1ReadingSessionIdAiSummaryGetQueryOptions = <
-  TData = Awaited<ReturnType<typeof getReadingSessionAiSummaryApiV1ReadingSessionIdAiSummaryGet>>,
+export const getGetReadingSessionAiSummaryQueryOptions = <
+  TData = Awaited<ReturnType<typeof getReadingSessionAiSummary>>,
   TError = HTTPValidationError,
 >(
   readingSessionId: number,
   options?: {
     query?: Partial<
-      UseQueryOptions<
-        Awaited<ReturnType<typeof getReadingSessionAiSummaryApiV1ReadingSessionIdAiSummaryGet>>,
-        TError,
-        TData
-      >
+      UseQueryOptions<Awaited<ReturnType<typeof getReadingSessionAiSummary>>, TError, TData>
     >;
   }
 ) => {
   const { query: queryOptions } = options ?? {};
 
   const queryKey =
-    queryOptions?.queryKey ??
-    getGetReadingSessionAiSummaryApiV1ReadingSessionIdAiSummaryGetQueryKey(readingSessionId);
+    queryOptions?.queryKey ?? getGetReadingSessionAiSummaryQueryKey(readingSessionId);
 
-  const queryFn: QueryFunction<
-    Awaited<ReturnType<typeof getReadingSessionAiSummaryApiV1ReadingSessionIdAiSummaryGet>>
-  > = ({ signal }) =>
-    getReadingSessionAiSummaryApiV1ReadingSessionIdAiSummaryGet(readingSessionId, signal);
+  const queryFn: QueryFunction<Awaited<ReturnType<typeof getReadingSessionAiSummary>>> = ({
+    signal,
+  }) => getReadingSessionAiSummary(readingSessionId, signal);
 
   return {
     queryKey,
     queryFn,
     enabled: readingSessionId !== null && readingSessionId !== undefined,
     ...queryOptions,
-  } as UseQueryOptions<
-    Awaited<ReturnType<typeof getReadingSessionAiSummaryApiV1ReadingSessionIdAiSummaryGet>>,
-    TError,
-    TData
-  > & { queryKey: DataTag<QueryKey, TData, TError> };
+  } as UseQueryOptions<Awaited<ReturnType<typeof getReadingSessionAiSummary>>, TError, TData> & {
+    queryKey: DataTag<QueryKey, TData, TError>;
+  };
 };
 
-export type GetReadingSessionAiSummaryApiV1ReadingSessionIdAiSummaryGetQueryResult = NonNullable<
-  Awaited<ReturnType<typeof getReadingSessionAiSummaryApiV1ReadingSessionIdAiSummaryGet>>
+export type GetReadingSessionAiSummaryQueryResult = NonNullable<
+  Awaited<ReturnType<typeof getReadingSessionAiSummary>>
 >;
-export type GetReadingSessionAiSummaryApiV1ReadingSessionIdAiSummaryGetQueryError =
-  HTTPValidationError;
+export type GetReadingSessionAiSummaryQueryError = HTTPValidationError;
 
-export function useGetReadingSessionAiSummaryApiV1ReadingSessionIdAiSummaryGet<
-  TData = Awaited<ReturnType<typeof getReadingSessionAiSummaryApiV1ReadingSessionIdAiSummaryGet>>,
+export function useGetReadingSessionAiSummary<
+  TData = Awaited<ReturnType<typeof getReadingSessionAiSummary>>,
   TError = HTTPValidationError,
 >(
   readingSessionId: number,
   options: {
     query: Partial<
-      UseQueryOptions<
-        Awaited<ReturnType<typeof getReadingSessionAiSummaryApiV1ReadingSessionIdAiSummaryGet>>,
-        TError,
-        TData
-      >
+      UseQueryOptions<Awaited<ReturnType<typeof getReadingSessionAiSummary>>, TError, TData>
     > &
       Pick<
         DefinedInitialDataOptions<
-          Awaited<ReturnType<typeof getReadingSessionAiSummaryApiV1ReadingSessionIdAiSummaryGet>>,
+          Awaited<ReturnType<typeof getReadingSessionAiSummary>>,
           TError,
-          Awaited<ReturnType<typeof getReadingSessionAiSummaryApiV1ReadingSessionIdAiSummaryGet>>
+          Awaited<ReturnType<typeof getReadingSessionAiSummary>>
         >,
         'initialData'
       >;
   },
   queryClient?: QueryClient
 ): DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
-export function useGetReadingSessionAiSummaryApiV1ReadingSessionIdAiSummaryGet<
-  TData = Awaited<ReturnType<typeof getReadingSessionAiSummaryApiV1ReadingSessionIdAiSummaryGet>>,
+export function useGetReadingSessionAiSummary<
+  TData = Awaited<ReturnType<typeof getReadingSessionAiSummary>>,
   TError = HTTPValidationError,
 >(
   readingSessionId: number,
   options?: {
     query?: Partial<
-      UseQueryOptions<
-        Awaited<ReturnType<typeof getReadingSessionAiSummaryApiV1ReadingSessionIdAiSummaryGet>>,
-        TError,
-        TData
-      >
+      UseQueryOptions<Awaited<ReturnType<typeof getReadingSessionAiSummary>>, TError, TData>
     > &
       Pick<
         UndefinedInitialDataOptions<
-          Awaited<ReturnType<typeof getReadingSessionAiSummaryApiV1ReadingSessionIdAiSummaryGet>>,
+          Awaited<ReturnType<typeof getReadingSessionAiSummary>>,
           TError,
-          Awaited<ReturnType<typeof getReadingSessionAiSummaryApiV1ReadingSessionIdAiSummaryGet>>
+          Awaited<ReturnType<typeof getReadingSessionAiSummary>>
         >,
         'initialData'
       >;
   },
   queryClient?: QueryClient
 ): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
-export function useGetReadingSessionAiSummaryApiV1ReadingSessionIdAiSummaryGet<
-  TData = Awaited<ReturnType<typeof getReadingSessionAiSummaryApiV1ReadingSessionIdAiSummaryGet>>,
+export function useGetReadingSessionAiSummary<
+  TData = Awaited<ReturnType<typeof getReadingSessionAiSummary>>,
   TError = HTTPValidationError,
 >(
   readingSessionId: number,
   options?: {
     query?: Partial<
-      UseQueryOptions<
-        Awaited<ReturnType<typeof getReadingSessionAiSummaryApiV1ReadingSessionIdAiSummaryGet>>,
-        TError,
-        TData
-      >
+      UseQueryOptions<Awaited<ReturnType<typeof getReadingSessionAiSummary>>, TError, TData>
     >;
   },
   queryClient?: QueryClient
@@ -468,26 +404,19 @@ export function useGetReadingSessionAiSummaryApiV1ReadingSessionIdAiSummaryGet<
  * @summary Get Reading Session Ai Summary
  */
 
-export function useGetReadingSessionAiSummaryApiV1ReadingSessionIdAiSummaryGet<
-  TData = Awaited<ReturnType<typeof getReadingSessionAiSummaryApiV1ReadingSessionIdAiSummaryGet>>,
+export function useGetReadingSessionAiSummary<
+  TData = Awaited<ReturnType<typeof getReadingSessionAiSummary>>,
   TError = HTTPValidationError,
 >(
   readingSessionId: number,
   options?: {
     query?: Partial<
-      UseQueryOptions<
-        Awaited<ReturnType<typeof getReadingSessionAiSummaryApiV1ReadingSessionIdAiSummaryGet>>,
-        TError,
-        TData
-      >
+      UseQueryOptions<Awaited<ReturnType<typeof getReadingSessionAiSummary>>, TError, TData>
     >;
   },
   queryClient?: QueryClient
 ): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
-  const queryOptions = getGetReadingSessionAiSummaryApiV1ReadingSessionIdAiSummaryGetQueryOptions(
-    readingSessionId,
-    options
-  );
+  const queryOptions = getGetReadingSessionAiSummaryQueryOptions(readingSessionId, options);
 
   const query = useQuery(queryOptions, queryClient) as UseQueryResult<TData, TError> & {
     queryKey: DataTag<QueryKey, TData, TError>;

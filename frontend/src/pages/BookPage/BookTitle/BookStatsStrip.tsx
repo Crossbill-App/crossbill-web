@@ -1,5 +1,5 @@
 import type { BookDetails } from '@/api/generated/model';
-import { useGetBookReadingSessionsApiV1BooksBookIdReadingSessionsGet } from '@/api/generated/reading-sessions/reading-sessions';
+import { useGetBookReadingSessions } from '@/api/generated/reading-sessions/reading-sessions';
 import { formatDate } from '@/utils/date';
 import { Box, Typography } from '@mui/material';
 
@@ -8,10 +8,7 @@ interface BookStatsStripProps {
 }
 
 export const BookStatsStrip = ({ book }: BookStatsStripProps) => {
-  const { data: sessionsData } = useGetBookReadingSessionsApiV1BooksBookIdReadingSessionsGet(
-    book.id,
-    { limit: 1 }
-  );
+  const { data: sessionsData } = useGetBookReadingSessions(book.id, { limit: 1 });
 
   // Count highlights across all chapters
   const highlightCount = book.chapters.reduce((sum, chapter) => sum + chapter.highlights.length, 0);

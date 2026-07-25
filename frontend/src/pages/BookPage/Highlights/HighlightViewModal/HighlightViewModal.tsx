@@ -1,5 +1,4 @@
-import { getGetBookDetailsApiV1BooksBookIdGetQueryKey } from '@/api/generated/books/books.ts';
-import { useDeleteHighlightsApiV1BooksBookIdHighlightDelete } from '@/api/generated/highlights/highlights.ts';
+import { useDeleteHighlights } from '@/api/generated/highlights/highlights.ts';
 import type { Bookmark, Highlight, TagInBook } from '@/api/generated/model';
 import { FadeInOut } from '@/components/animations/FadeInOut.tsx';
 import { CommonDialog } from '@/components/dialogs/CommonDialog.tsx';
@@ -9,10 +8,10 @@ import { ConfirmationDialog } from '@/components/dialogs/ConfirmationDialog.tsx'
 import { ProgressBar } from '@/components/dialogs/ProgressBar.tsx';
 import { useModalHorizontalNavigation } from '@/components/dialogs/useModalHorizontalNavigation.ts';
 import { TagInput } from '@/components/inputs/TagInput.tsx';
-import { useBookMutationHelpers } from '@/hooks/useBookMutationHelpers.ts';
+import { useMutationErrorHandler } from '@/hooks/useMutationErrorHandler.ts';
+import { useCacheEvents } from '@/lib/cacheEvents.ts';
 import { useImmediateTagMutation } from '@/pages/BookPage/Highlights/HighlightViewModal/hooks/useImmediateTagMutation.ts';
 import { Box, Button, Stack } from '@mui/material';
-import { useQueryClient } from '@tanstack/react-query';
 import { useState } from 'react';
 import { HighlightContent } from '../../common/HighlightContent.tsx';
 import { HighlightTabs } from './components/HighlightTabs.tsx';
@@ -42,8 +41,8 @@ export const HighlightViewModal = ({
   currentIndex = 0,
   onNavigate,
 }: HighlightViewModalProps) => {
-  const queryClient = useQueryClient();
-  const { mutationErrorHandler, invalidateBookAndTags } = useBookMutationHelpers(bookId);
+  const cache = useCacheEvents();
+  const mutationErrorHandler = useMutationErrorHandler();
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
   const [labelAnchorEl, setLabelAnchorEl] = useState<HTMLElement | null>(null);
 
@@ -63,13 +62,10 @@ export const HighlightViewModal = ({
       onNavigate,
     });
 
-  const deleteHighlightMutation = useDeleteHighlightsApiV1BooksBookIdHighlightDelete({
+  const deleteHighlightMutation = useDeleteHighlights({
     mutation: {
       onSuccess: () => {
-        void queryClient.refetchQueries({
-          queryKey: getGetBookDetailsApiV1BooksBookIdGetQueryKey(bookId),
-          exact: true,
-        });
+        cache.bookChanged(bookId);
         onClose();
       },
       onError: mutationErrorHandler('delete highlight'),
@@ -89,7 +85,7 @@ export const HighlightViewModal = ({
   };
 
   const handleClose = () => {
-    invalidateBookAndTags();
+    cache.tagsChanged(bookId);
     onClose(highlight.id);
   };
 

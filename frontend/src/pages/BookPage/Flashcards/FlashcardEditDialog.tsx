@@ -1,13 +1,14 @@
-import { useUpdateFlashcardApiV1FlashcardsFlashcardIdPut } from '@/api/generated/flashcards/flashcards.ts';
+import { useUpdateFlashcard } from '@/api/generated/flashcards/flashcards.ts';
 import { CommonDialog } from '@/components/dialogs/CommonDialog.tsx';
 import type { FlashcardWithContext } from '@/components/features/flashcards/FlashcardChapterList.tsx';
 import { RHFTextField } from '@/components/inputs/RHFTextField.tsx';
-import { useBookMutationHelpers } from '@/hooks/useBookMutationHelpers.ts';
+import { useMutationErrorHandler } from '@/hooks/useMutationErrorHandler.ts';
 import { HighlightContent } from '@/pages/BookPage/common/HighlightContent.tsx';
 import { Box, Button, Typography } from '@mui/material';
 import { useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 
+import { useCacheEvents } from '@/lib/cacheEvents.ts';
 import type { FlashcardFormValues } from './CreateFlashcardForm.tsx';
 
 interface FlashcardEditDialogProps {
@@ -23,7 +24,8 @@ export const FlashcardEditDialog = ({
   open,
   onClose,
 }: FlashcardEditDialogProps) => {
-  const { mutationErrorHandler, invalidateBookDetails } = useBookMutationHelpers(bookId);
+  const mutationErrorHandler = useMutationErrorHandler();
+  const cache = useCacheEvents();
 
   const {
     control,
@@ -40,10 +42,10 @@ export const FlashcardEditDialog = ({
     reset({ question: flashcard.question, answer: flashcard.answer });
   }, [flashcard, reset]);
 
-  const updateMutation = useUpdateFlashcardApiV1FlashcardsFlashcardIdPut({
+  const updateMutation = useUpdateFlashcard({
     mutation: {
       onSuccess: () => {
-        invalidateBookDetails();
+        cache.flashcardsChanged(bookId);
         onClose();
       },
       onError: mutationErrorHandler('update flashcard'),

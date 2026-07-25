@@ -5,4 +5,4 @@
  * OpenAPI spec version: 0.1.0
  */
 
-export type LogoutApiV1AuthLogoutPost200 = { [key: string]: string };
+export type Health200 = { [key: string]: string };

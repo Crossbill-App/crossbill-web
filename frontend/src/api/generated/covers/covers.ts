@@ -43,99 +43,86 @@ const withQueryKey = <T extends object, K>(query: T, queryKey: K): T & { queryKe
  * Cover filenames are UUIDs, making enumeration infeasible.
  * @summary Get Cover
  */
-export const getCoverApiV1CoversFilenameGet = (filename: string, signal?: AbortSignal) => {
+export const getCover = (filename: string, signal?: AbortSignal) => {
   return axiosInstance<void>({ url: `/api/v1/covers/${filename}`, method: 'GET', signal });
 };
 
-export const getGetCoverApiV1CoversFilenameGetQueryKey = (filename: string) => {
+export const getGetCoverQueryKey = (filename: string) => {
   return [`/api/v1/covers/${filename}`] as const;
 };
 
-export const getGetCoverApiV1CoversFilenameGetQueryOptions = <
-  TData = Awaited<ReturnType<typeof getCoverApiV1CoversFilenameGet>>,
+export const getGetCoverQueryOptions = <
+  TData = Awaited<ReturnType<typeof getCover>>,
   TError = HTTPValidationError,
 >(
   filename: string,
   options?: {
-    query?: Partial<
-      UseQueryOptions<Awaited<ReturnType<typeof getCoverApiV1CoversFilenameGet>>, TError, TData>
-    >;
+    query?: Partial<UseQueryOptions<Awaited<ReturnType<typeof getCover>>, TError, TData>>;
   }
 ) => {
   const { query: queryOptions } = options ?? {};
 
-  const queryKey = queryOptions?.queryKey ?? getGetCoverApiV1CoversFilenameGetQueryKey(filename);
+  const queryKey = queryOptions?.queryKey ?? getGetCoverQueryKey(filename);
 
-  const queryFn: QueryFunction<Awaited<ReturnType<typeof getCoverApiV1CoversFilenameGet>>> = ({
-    signal,
-  }) => getCoverApiV1CoversFilenameGet(filename, signal);
+  const queryFn: QueryFunction<Awaited<ReturnType<typeof getCover>>> = ({ signal }) =>
+    getCover(filename, signal);
 
   return {
     queryKey,
     queryFn,
     enabled: filename !== null && filename !== undefined,
     ...queryOptions,
-  } as UseQueryOptions<
-    Awaited<ReturnType<typeof getCoverApiV1CoversFilenameGet>>,
-    TError,
-    TData
-  > & { queryKey: DataTag<QueryKey, TData, TError> };
+  } as UseQueryOptions<Awaited<ReturnType<typeof getCover>>, TError, TData> & {
+    queryKey: DataTag<QueryKey, TData, TError>;
+  };
 };
 
-export type GetCoverApiV1CoversFilenameGetQueryResult = NonNullable<
-  Awaited<ReturnType<typeof getCoverApiV1CoversFilenameGet>>
->;
-export type GetCoverApiV1CoversFilenameGetQueryError = HTTPValidationError;
+export type GetCoverQueryResult = NonNullable<Awaited<ReturnType<typeof getCover>>>;
+export type GetCoverQueryError = HTTPValidationError;
 
-export function useGetCoverApiV1CoversFilenameGet<
-  TData = Awaited<ReturnType<typeof getCoverApiV1CoversFilenameGet>>,
+export function useGetCover<
+  TData = Awaited<ReturnType<typeof getCover>>,
   TError = HTTPValidationError,
 >(
   filename: string,
   options: {
-    query: Partial<
-      UseQueryOptions<Awaited<ReturnType<typeof getCoverApiV1CoversFilenameGet>>, TError, TData>
-    > &
+    query: Partial<UseQueryOptions<Awaited<ReturnType<typeof getCover>>, TError, TData>> &
       Pick<
         DefinedInitialDataOptions<
-          Awaited<ReturnType<typeof getCoverApiV1CoversFilenameGet>>,
+          Awaited<ReturnType<typeof getCover>>,
           TError,
-          Awaited<ReturnType<typeof getCoverApiV1CoversFilenameGet>>
+          Awaited<ReturnType<typeof getCover>>
         >,
         'initialData'
       >;
   },
   queryClient?: QueryClient
 ): DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
-export function useGetCoverApiV1CoversFilenameGet<
-  TData = Awaited<ReturnType<typeof getCoverApiV1CoversFilenameGet>>,
+export function useGetCover<
+  TData = Awaited<ReturnType<typeof getCover>>,
   TError = HTTPValidationError,
 >(
   filename: string,
   options?: {
-    query?: Partial<
-      UseQueryOptions<Awaited<ReturnType<typeof getCoverApiV1CoversFilenameGet>>, TError, TData>
-    > &
+    query?: Partial<UseQueryOptions<Awaited<ReturnType<typeof getCover>>, TError, TData>> &
       Pick<
         UndefinedInitialDataOptions<
-          Awaited<ReturnType<typeof getCoverApiV1CoversFilenameGet>>,
+          Awaited<ReturnType<typeof getCover>>,
           TError,
-          Awaited<ReturnType<typeof getCoverApiV1CoversFilenameGet>>
+          Awaited<ReturnType<typeof getCover>>
         >,
         'initialData'
       >;
   },
   queryClient?: QueryClient
 ): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
-export function useGetCoverApiV1CoversFilenameGet<
-  TData = Awaited<ReturnType<typeof getCoverApiV1CoversFilenameGet>>,
+export function useGetCover<
+  TData = Awaited<ReturnType<typeof getCover>>,
   TError = HTTPValidationError,
 >(
   filename: string,
   options?: {
-    query?: Partial<
-      UseQueryOptions<Awaited<ReturnType<typeof getCoverApiV1CoversFilenameGet>>, TError, TData>
-    >;
+    query?: Partial<UseQueryOptions<Awaited<ReturnType<typeof getCover>>, TError, TData>>;
   },
   queryClient?: QueryClient
 ): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
@@ -143,19 +130,17 @@ export function useGetCoverApiV1CoversFilenameGet<
  * @summary Get Cover
  */
 
-export function useGetCoverApiV1CoversFilenameGet<
-  TData = Awaited<ReturnType<typeof getCoverApiV1CoversFilenameGet>>,
+export function useGetCover<
+  TData = Awaited<ReturnType<typeof getCover>>,
   TError = HTTPValidationError,
 >(
   filename: string,
   options?: {
-    query?: Partial<
-      UseQueryOptions<Awaited<ReturnType<typeof getCoverApiV1CoversFilenameGet>>, TError, TData>
-    >;
+    query?: Partial<UseQueryOptions<Awaited<ReturnType<typeof getCover>>, TError, TData>>;
   },
   queryClient?: QueryClient
 ): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
-  const queryOptions = getGetCoverApiV1CoversFilenameGetQueryOptions(filename, options);
+  const queryOptions = getGetCoverQueryOptions(filename, options);
 
   const query = useQuery(queryOptions, queryClient) as UseQueryResult<TData, TError> & {
     queryKey: DataTag<QueryKey, TData, TError>;

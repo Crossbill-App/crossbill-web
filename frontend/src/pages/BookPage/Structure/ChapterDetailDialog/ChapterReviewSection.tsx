@@ -3,12 +3,13 @@ import type {
   CollectionResponseChapterPrereadingResponse,
 } from '@/api/generated/model';
 import {
-  getGetBookPrereadingApiV1BooksBookIdPrereadingGetQueryKey,
-  useGenerateChapterPrereadingApiV1ChaptersChapterIdPrereadingGeneratePost,
-  useUpdatePrereadingAnswersApiV1ChaptersChapterIdPrereadingAnswersPut,
+  getGetBookPrereadingQueryKey,
+  useGenerateChapterPrereading,
+  useUpdatePrereadingAnswers,
 } from '@/api/generated/prereading/prereading';
 import { AIActionButton } from '@/components/buttons/AIActionButton.tsx';
 import { AIFeature } from '@/components/features/AIFeature.tsx';
+import { useCacheEvents } from '@/lib/cacheEvents.ts';
 import { Box, CircularProgress, Stack, TextField, Typography } from '@mui/material';
 import { useQueryClient } from '@tanstack/react-query';
 import { useCallback, useMemo, useState } from 'react';
@@ -30,6 +31,7 @@ export const ChapterReviewSection = ({
   onStartChat,
 }: ChapterReviewSectionProps) => {
   const queryClient = useQueryClient();
+  const cache = useCacheEvents();
 
   // Local edits keyed by chapterId so they reset when switching chapters
   const [localEdits, setLocalEdits] = useState<Record<number, Record<number, string>>>({});
@@ -47,40 +49,36 @@ export const ChapterReviewSection = ({
     ...(localEdits[chapterId] ?? {}),
   };
 
-  const { mutate: generate, isPending } =
-    useGenerateChapterPrereadingApiV1ChaptersChapterIdPrereadingGeneratePost({
-      mutation: {
-        onSuccess: () => {
-          void queryClient.invalidateQueries({
-            queryKey: getGetBookPrereadingApiV1BooksBookIdPrereadingGetQueryKey(bookId),
-          });
-        },
+  const { mutate: generate, isPending } = useGenerateChapterPrereading({
+    mutation: {
+      onSuccess: () => {
+        cache.prereadingChanged(bookId);
       },
-    });
+    },
+  });
 
-  const queryKey = getGetBookPrereadingApiV1BooksBookIdPrereadingGetQueryKey(bookId);
+  const queryKey = getGetBookPrereadingQueryKey(bookId);
 
-  const { mutate: saveAnswers } =
-    useUpdatePrereadingAnswersApiV1ChaptersChapterIdPrereadingAnswersPut({
-      mutation: {
-        onSuccess: (updatedChapter) => {
-          queryClient.setQueryData<CollectionResponseChapterPrereadingResponse>(queryKey, (old) => {
-            if (!old) return old;
-            return {
-              ...old,
-              items: old.items.map((item) =>
-                item.chapter_id === updatedChapter.chapter_id
-                  ? { ...item, questions: updatedChapter.questions }
-                  : item
-              ),
-            };
-          });
-          setLocalEdits((prev) =>
-            Object.fromEntries(Object.entries(prev).filter(([key]) => Number(key) !== chapterId))
-          );
-        },
+  const { mutate: saveAnswers } = useUpdatePrereadingAnswers({
+    mutation: {
+      onSuccess: (updatedChapter) => {
+        queryClient.setQueryData<CollectionResponseChapterPrereadingResponse>(queryKey, (old) => {
+          if (!old) return old;
+          return {
+            ...old,
+            items: old.items.map((item) =>
+              item.chapter_id === updatedChapter.chapter_id
+                ? { ...item, questions: updatedChapter.questions }
+                : item
+            ),
+          };
+        });
+        setLocalEdits((prev) =>
+          Object.fromEntries(Object.entries(prev).filter(([key]) => Number(key) !== chapterId))
+        );
       },
-    });
+    },
+  });
 
   const saveNow = useCallback(
     (answersToSave: Record<number, string>) => {

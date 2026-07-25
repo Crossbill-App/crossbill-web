@@ -1,14 +1,14 @@
-import { useUpdateFlashcardApiV1FlashcardsFlashcardIdPut } from '@/api/generated/flashcards/flashcards.ts';
-import { useBookMutationHelpers } from '@/hooks/useBookMutationHelpers.ts';
-import { useQueryClient, type QueryKey } from '@tanstack/react-query';
+import { useUpdateFlashcard } from '@/api/generated/flashcards/flashcards.ts';
+import { useMutationErrorHandler } from '@/hooks/useMutationErrorHandler.ts';
+import { useCacheEvents } from '@/lib/cacheEvents.ts';
 import { useState } from 'react';
 
 interface UseFlashcardMutationsOptions {
   bookId: number;
   /** Source-specific create call (e.g. POST to a highlight's or note's flashcards). */
   createFlashcard: (question: string, answer: string) => Promise<unknown>;
-  /** Query keys to invalidate in addition to the book details query. */
-  additionalInvalidateKeys?: QueryKey[];
+  /** Set when the cards belong to a note, whose detail embeds its own card list. */
+  noteId?: number;
 }
 
 /**
@@ -19,20 +19,15 @@ interface UseFlashcardMutationsOptions {
 export const useFlashcardMutations = ({
   bookId,
   createFlashcard,
-  additionalInvalidateKeys = [],
+  noteId,
 }: UseFlashcardMutationsOptions) => {
-  const queryClient = useQueryClient();
-  const { mutationErrorHandler, invalidateBookDetails } = useBookMutationHelpers(bookId);
+  const cache = useCacheEvents();
+  const mutationErrorHandler = useMutationErrorHandler();
   const [isProcessing, setIsProcessing] = useState(false);
 
-  const invalidateFlashcardQueries = () => {
-    invalidateBookDetails();
-    for (const queryKey of additionalInvalidateKeys) {
-      void queryClient.invalidateQueries({ queryKey });
-    }
-  };
+  const invalidateFlashcardQueries = () => cache.flashcardsChanged(bookId, noteId);
 
-  const updateFlashcardMutation = useUpdateFlashcardApiV1FlashcardsFlashcardIdPut({
+  const updateFlashcardMutation = useUpdateFlashcard({
     mutation: {
       onSuccess: invalidateFlashcardQueries,
       onError: mutationErrorHandler('update flashcard'),

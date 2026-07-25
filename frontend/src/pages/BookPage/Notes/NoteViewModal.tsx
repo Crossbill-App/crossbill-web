@@ -1,9 +1,5 @@
 import type { Highlight } from '@/api/generated/model';
-import {
-  getGetNotesForBookApiV1BooksBookIdNotesGetQueryKey,
-  useDeleteNoteApiV1NotesNoteIdDelete,
-  useGetNoteApiV1NotesNoteIdGet,
-} from '@/api/generated/notes/notes.ts';
+import { useDeleteNote, useGetNote } from '@/api/generated/notes/notes.ts';
 import { FadeInOut } from '@/components/animations/FadeInOut.tsx';
 import { Spinner } from '@/components/animations/Spinner.tsx';
 import { CommonDialog } from '@/components/dialogs/CommonDialog.tsx';
@@ -13,12 +9,12 @@ import { ConfirmationDialog } from '@/components/dialogs/ConfirmationDialog.tsx'
 import { ProgressBar } from '@/components/dialogs/ProgressBar.tsx';
 import { useModalHorizontalNavigation } from '@/components/dialogs/useModalHorizontalNavigation.ts';
 import { useSnackbar } from '@/context/SnackbarContext.tsx';
-import { useBookMutationHelpers } from '@/hooks/useBookMutationHelpers.ts';
+import { useMutationErrorHandler } from '@/hooks/useMutationErrorHandler.ts';
+import { useCacheEvents } from '@/lib/cacheEvents.ts';
 import { useBookPage } from '@/pages/BookPage/BookPageContext';
 import { markdownStyles } from '@/theme/theme';
 import { copyUrlWithSearchParam } from '@/utils/clipboard.ts';
 import { Box, Button, Chip, Stack, Typography, useTheme } from '@mui/material';
-import { useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from '@tanstack/react-router';
 import { useMemo, useRef, useState } from 'react';
 import ReactMarkdown from 'react-markdown';
@@ -58,8 +54,8 @@ export const NoteViewModal = ({
   const theme = useTheme();
   const { book } = useBookPage();
   const { showSnackbar } = useSnackbar();
-  const { mutationErrorHandler } = useBookMutationHelpers(book.id);
-  const queryClient = useQueryClient();
+  const mutationErrorHandler = useMutationErrorHandler();
+  const cache = useCacheEvents();
   const navigate = useNavigate();
 
   // Navigating to another route drops the `noteId` param, so the note modal
@@ -103,14 +99,13 @@ export const NoteViewModal = ({
       onNavigate: isEditing ? undefined : onNavigate,
     });
 
-  const { data: activeNote, isLoading, isError } = useGetNoteApiV1NotesNoteIdGet(noteId);
+  const { data: activeNote, isLoading, isError } = useGetNote(noteId);
 
-  const deleteMutation = useDeleteNoteApiV1NotesNoteIdDelete({
+  const deleteMutation = useDeleteNote({
     mutation: {
       onSuccess: () => {
-        void queryClient.invalidateQueries({
-          queryKey: getGetNotesForBookApiV1BooksBookIdNotesGetQueryKey(book.id),
-        });
+        // No note id: the note is gone, so refetching its detail would 404.
+        cache.noteChanged(book.id);
         setDeleteConfirmOpen(false);
         onClose();
       },

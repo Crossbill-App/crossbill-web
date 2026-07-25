@@ -22,7 +22,7 @@ import { useMutation, useQuery } from '@tanstack/react-query';
 
 import type {
   CollectionResponseNoteWithLinks,
-  GetNotesForBookApiV1BooksBookIdNotesGetParams,
+  GetNotesForBookParams,
   HTTPValidationError,
   NoteCreateRequest,
   NoteCreateResponse,
@@ -52,10 +52,7 @@ const withQueryKey = <T extends object, K>(query: T, queryKey: K): T & { queryKe
 /**
  * @summary Create Note
  */
-export const createNoteApiV1NotesPost = (
-  noteCreateRequest: NoteCreateRequest,
-  signal?: AbortSignal
-) => {
+export const createNote = (noteCreateRequest: NoteCreateRequest, signal?: AbortSignal) => {
   return axiosInstance<NoteCreateResponse>({
     url: `/api/v1/notes`,
     method: 'POST',
@@ -65,23 +62,23 @@ export const createNoteApiV1NotesPost = (
   });
 };
 
-export const getCreateNoteApiV1NotesPostMutationOptions = <
+export const getCreateNoteMutationOptions = <
   TError = HTTPValidationError,
   TContext = unknown,
 >(options?: {
   mutation?: UseMutationOptions<
-    Awaited<ReturnType<typeof createNoteApiV1NotesPost>>,
+    Awaited<ReturnType<typeof createNote>>,
     TError,
     { data: NoteCreateRequest },
     TContext
   >;
 }): UseMutationOptions<
-  Awaited<ReturnType<typeof createNoteApiV1NotesPost>>,
+  Awaited<ReturnType<typeof createNote>>,
   TError,
   { data: NoteCreateRequest },
   TContext
 > => {
-  const mutationKey = ['createNoteApiV1NotesPost'];
+  const mutationKey = ['createNote'];
   const { mutation: mutationOptions } = options
     ? options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey
       ? options
@@ -89,30 +86,28 @@ export const getCreateNoteApiV1NotesPostMutationOptions = <
     : { mutation: { mutationKey } };
 
   const mutationFn: MutationFunction<
-    Awaited<ReturnType<typeof createNoteApiV1NotesPost>>,
+    Awaited<ReturnType<typeof createNote>>,
     { data: NoteCreateRequest }
   > = (props) => {
     const { data } = props ?? {};
 
-    return createNoteApiV1NotesPost(data);
+    return createNote(data);
   };
 
   return { mutationFn, ...mutationOptions };
 };
 
-export type CreateNoteApiV1NotesPostMutationResult = NonNullable<
-  Awaited<ReturnType<typeof createNoteApiV1NotesPost>>
->;
-export type CreateNoteApiV1NotesPostMutationBody = NoteCreateRequest;
-export type CreateNoteApiV1NotesPostMutationError = HTTPValidationError;
+export type CreateNoteMutationResult = NonNullable<Awaited<ReturnType<typeof createNote>>>;
+export type CreateNoteMutationBody = NoteCreateRequest;
+export type CreateNoteMutationError = HTTPValidationError;
 
 /**
  * @summary Create Note
  */
-export const useCreateNoteApiV1NotesPost = <TError = HTTPValidationError, TContext = unknown>(
+export const useCreateNote = <TError = HTTPValidationError, TContext = unknown>(
   options?: {
     mutation?: UseMutationOptions<
-      Awaited<ReturnType<typeof createNoteApiV1NotesPost>>,
+      Awaited<ReturnType<typeof createNote>>,
       TError,
       { data: NoteCreateRequest },
       TContext
@@ -120,107 +115,94 @@ export const useCreateNoteApiV1NotesPost = <TError = HTTPValidationError, TConte
   },
   queryClient?: QueryClient
 ): UseMutationResult<
-  Awaited<ReturnType<typeof createNoteApiV1NotesPost>>,
+  Awaited<ReturnType<typeof createNote>>,
   TError,
   { data: NoteCreateRequest },
   TContext
 > => {
-  return useMutation(getCreateNoteApiV1NotesPostMutationOptions(options), queryClient);
+  return useMutation(getCreateNoteMutationOptions(options), queryClient);
 };
 /**
  * @summary Get Note
  */
-export const getNoteApiV1NotesNoteIdGet = (noteId: number, signal?: AbortSignal) => {
+export const getNote = (noteId: number, signal?: AbortSignal) => {
   return axiosInstance<NoteWithLinks>({ url: `/api/v1/notes/${noteId}`, method: 'GET', signal });
 };
 
-export const getGetNoteApiV1NotesNoteIdGetQueryKey = (noteId: number) => {
+export const getGetNoteQueryKey = (noteId: number) => {
   return [`/api/v1/notes/${noteId}`] as const;
 };
 
-export const getGetNoteApiV1NotesNoteIdGetQueryOptions = <
-  TData = Awaited<ReturnType<typeof getNoteApiV1NotesNoteIdGet>>,
+export const getGetNoteQueryOptions = <
+  TData = Awaited<ReturnType<typeof getNote>>,
   TError = HTTPValidationError,
 >(
   noteId: number,
-  options?: {
-    query?: Partial<
-      UseQueryOptions<Awaited<ReturnType<typeof getNoteApiV1NotesNoteIdGet>>, TError, TData>
-    >;
-  }
+  options?: { query?: Partial<UseQueryOptions<Awaited<ReturnType<typeof getNote>>, TError, TData>> }
 ) => {
   const { query: queryOptions } = options ?? {};
 
-  const queryKey = queryOptions?.queryKey ?? getGetNoteApiV1NotesNoteIdGetQueryKey(noteId);
+  const queryKey = queryOptions?.queryKey ?? getGetNoteQueryKey(noteId);
 
-  const queryFn: QueryFunction<Awaited<ReturnType<typeof getNoteApiV1NotesNoteIdGet>>> = ({
-    signal,
-  }) => getNoteApiV1NotesNoteIdGet(noteId, signal);
+  const queryFn: QueryFunction<Awaited<ReturnType<typeof getNote>>> = ({ signal }) =>
+    getNote(noteId, signal);
 
   return {
     queryKey,
     queryFn,
     enabled: noteId !== null && noteId !== undefined,
     ...queryOptions,
-  } as UseQueryOptions<Awaited<ReturnType<typeof getNoteApiV1NotesNoteIdGet>>, TError, TData> & {
+  } as UseQueryOptions<Awaited<ReturnType<typeof getNote>>, TError, TData> & {
     queryKey: DataTag<QueryKey, TData, TError>;
   };
 };
 
-export type GetNoteApiV1NotesNoteIdGetQueryResult = NonNullable<
-  Awaited<ReturnType<typeof getNoteApiV1NotesNoteIdGet>>
->;
-export type GetNoteApiV1NotesNoteIdGetQueryError = HTTPValidationError;
+export type GetNoteQueryResult = NonNullable<Awaited<ReturnType<typeof getNote>>>;
+export type GetNoteQueryError = HTTPValidationError;
 
-export function useGetNoteApiV1NotesNoteIdGet<
-  TData = Awaited<ReturnType<typeof getNoteApiV1NotesNoteIdGet>>,
+export function useGetNote<
+  TData = Awaited<ReturnType<typeof getNote>>,
   TError = HTTPValidationError,
 >(
   noteId: number,
   options: {
-    query: Partial<
-      UseQueryOptions<Awaited<ReturnType<typeof getNoteApiV1NotesNoteIdGet>>, TError, TData>
-    > &
+    query: Partial<UseQueryOptions<Awaited<ReturnType<typeof getNote>>, TError, TData>> &
       Pick<
         DefinedInitialDataOptions<
-          Awaited<ReturnType<typeof getNoteApiV1NotesNoteIdGet>>,
+          Awaited<ReturnType<typeof getNote>>,
           TError,
-          Awaited<ReturnType<typeof getNoteApiV1NotesNoteIdGet>>
+          Awaited<ReturnType<typeof getNote>>
         >,
         'initialData'
       >;
   },
   queryClient?: QueryClient
 ): DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
-export function useGetNoteApiV1NotesNoteIdGet<
-  TData = Awaited<ReturnType<typeof getNoteApiV1NotesNoteIdGet>>,
+export function useGetNote<
+  TData = Awaited<ReturnType<typeof getNote>>,
   TError = HTTPValidationError,
 >(
   noteId: number,
   options?: {
-    query?: Partial<
-      UseQueryOptions<Awaited<ReturnType<typeof getNoteApiV1NotesNoteIdGet>>, TError, TData>
-    > &
+    query?: Partial<UseQueryOptions<Awaited<ReturnType<typeof getNote>>, TError, TData>> &
       Pick<
         UndefinedInitialDataOptions<
-          Awaited<ReturnType<typeof getNoteApiV1NotesNoteIdGet>>,
+          Awaited<ReturnType<typeof getNote>>,
           TError,
-          Awaited<ReturnType<typeof getNoteApiV1NotesNoteIdGet>>
+          Awaited<ReturnType<typeof getNote>>
         >,
         'initialData'
       >;
   },
   queryClient?: QueryClient
 ): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
-export function useGetNoteApiV1NotesNoteIdGet<
-  TData = Awaited<ReturnType<typeof getNoteApiV1NotesNoteIdGet>>,
+export function useGetNote<
+  TData = Awaited<ReturnType<typeof getNote>>,
   TError = HTTPValidationError,
 >(
   noteId: number,
   options?: {
-    query?: Partial<
-      UseQueryOptions<Awaited<ReturnType<typeof getNoteApiV1NotesNoteIdGet>>, TError, TData>
-    >;
+    query?: Partial<UseQueryOptions<Awaited<ReturnType<typeof getNote>>, TError, TData>>;
   },
   queryClient?: QueryClient
 ): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
@@ -228,19 +210,17 @@ export function useGetNoteApiV1NotesNoteIdGet<
  * @summary Get Note
  */
 
-export function useGetNoteApiV1NotesNoteIdGet<
-  TData = Awaited<ReturnType<typeof getNoteApiV1NotesNoteIdGet>>,
+export function useGetNote<
+  TData = Awaited<ReturnType<typeof getNote>>,
   TError = HTTPValidationError,
 >(
   noteId: number,
   options?: {
-    query?: Partial<
-      UseQueryOptions<Awaited<ReturnType<typeof getNoteApiV1NotesNoteIdGet>>, TError, TData>
-    >;
+    query?: Partial<UseQueryOptions<Awaited<ReturnType<typeof getNote>>, TError, TData>>;
   },
   queryClient?: QueryClient
 ): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
-  const queryOptions = getGetNoteApiV1NotesNoteIdGetQueryOptions(noteId, options);
+  const queryOptions = getGetNoteQueryOptions(noteId, options);
 
   const query = useQuery(queryOptions, queryClient) as UseQueryResult<TData, TError> & {
     queryKey: DataTag<QueryKey, TData, TError>;
@@ -252,7 +232,7 @@ export function useGetNoteApiV1NotesNoteIdGet<
 /**
  * @summary Update Note
  */
-export const updateNoteApiV1NotesNoteIdPut = (
+export const updateNote = (
   noteId: number,
   noteUpdateRequest: NoteUpdateRequest,
   signal?: AbortSignal
@@ -266,23 +246,23 @@ export const updateNoteApiV1NotesNoteIdPut = (
   });
 };
 
-export const getUpdateNoteApiV1NotesNoteIdPutMutationOptions = <
+export const getUpdateNoteMutationOptions = <
   TError = HTTPValidationError,
   TContext = unknown,
 >(options?: {
   mutation?: UseMutationOptions<
-    Awaited<ReturnType<typeof updateNoteApiV1NotesNoteIdPut>>,
+    Awaited<ReturnType<typeof updateNote>>,
     TError,
     { noteId: number; data: NoteUpdateRequest },
     TContext
   >;
 }): UseMutationOptions<
-  Awaited<ReturnType<typeof updateNoteApiV1NotesNoteIdPut>>,
+  Awaited<ReturnType<typeof updateNote>>,
   TError,
   { noteId: number; data: NoteUpdateRequest },
   TContext
 > => {
-  const mutationKey = ['updateNoteApiV1NotesNoteIdPut'];
+  const mutationKey = ['updateNote'];
   const { mutation: mutationOptions } = options
     ? options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey
       ? options
@@ -290,30 +270,28 @@ export const getUpdateNoteApiV1NotesNoteIdPutMutationOptions = <
     : { mutation: { mutationKey } };
 
   const mutationFn: MutationFunction<
-    Awaited<ReturnType<typeof updateNoteApiV1NotesNoteIdPut>>,
+    Awaited<ReturnType<typeof updateNote>>,
     { noteId: number; data: NoteUpdateRequest }
   > = (props) => {
     const { noteId, data } = props ?? {};
 
-    return updateNoteApiV1NotesNoteIdPut(noteId, data);
+    return updateNote(noteId, data);
   };
 
   return { mutationFn, ...mutationOptions };
 };
 
-export type UpdateNoteApiV1NotesNoteIdPutMutationResult = NonNullable<
-  Awaited<ReturnType<typeof updateNoteApiV1NotesNoteIdPut>>
->;
-export type UpdateNoteApiV1NotesNoteIdPutMutationBody = NoteUpdateRequest;
-export type UpdateNoteApiV1NotesNoteIdPutMutationError = HTTPValidationError;
+export type UpdateNoteMutationResult = NonNullable<Awaited<ReturnType<typeof updateNote>>>;
+export type UpdateNoteMutationBody = NoteUpdateRequest;
+export type UpdateNoteMutationError = HTTPValidationError;
 
 /**
  * @summary Update Note
  */
-export const useUpdateNoteApiV1NotesNoteIdPut = <TError = HTTPValidationError, TContext = unknown>(
+export const useUpdateNote = <TError = HTTPValidationError, TContext = unknown>(
   options?: {
     mutation?: UseMutationOptions<
-      Awaited<ReturnType<typeof updateNoteApiV1NotesNoteIdPut>>,
+      Awaited<ReturnType<typeof updateNote>>,
       TError,
       { noteId: number; data: NoteUpdateRequest },
       TContext
@@ -321,17 +299,17 @@ export const useUpdateNoteApiV1NotesNoteIdPut = <TError = HTTPValidationError, T
   },
   queryClient?: QueryClient
 ): UseMutationResult<
-  Awaited<ReturnType<typeof updateNoteApiV1NotesNoteIdPut>>,
+  Awaited<ReturnType<typeof updateNote>>,
   TError,
   { noteId: number; data: NoteUpdateRequest },
   TContext
 > => {
-  return useMutation(getUpdateNoteApiV1NotesNoteIdPutMutationOptions(options), queryClient);
+  return useMutation(getUpdateNoteMutationOptions(options), queryClient);
 };
 /**
  * @summary Delete Note
  */
-export const deleteNoteApiV1NotesNoteIdDelete = (noteId: number, signal?: AbortSignal) => {
+export const deleteNote = (noteId: number, signal?: AbortSignal) => {
   return axiosInstance<SuccessResponse>({
     url: `/api/v1/notes/${noteId}`,
     method: 'DELETE',
@@ -339,57 +317,51 @@ export const deleteNoteApiV1NotesNoteIdDelete = (noteId: number, signal?: AbortS
   });
 };
 
-export const getDeleteNoteApiV1NotesNoteIdDeleteMutationOptions = <
+export const getDeleteNoteMutationOptions = <
   TError = HTTPValidationError,
   TContext = unknown,
 >(options?: {
   mutation?: UseMutationOptions<
-    Awaited<ReturnType<typeof deleteNoteApiV1NotesNoteIdDelete>>,
+    Awaited<ReturnType<typeof deleteNote>>,
     TError,
     { noteId: number },
     TContext
   >;
 }): UseMutationOptions<
-  Awaited<ReturnType<typeof deleteNoteApiV1NotesNoteIdDelete>>,
+  Awaited<ReturnType<typeof deleteNote>>,
   TError,
   { noteId: number },
   TContext
 > => {
-  const mutationKey = ['deleteNoteApiV1NotesNoteIdDelete'];
+  const mutationKey = ['deleteNote'];
   const { mutation: mutationOptions } = options
     ? options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey
       ? options
       : { ...options, mutation: { ...options.mutation, mutationKey } }
     : { mutation: { mutationKey } };
 
-  const mutationFn: MutationFunction<
-    Awaited<ReturnType<typeof deleteNoteApiV1NotesNoteIdDelete>>,
-    { noteId: number }
-  > = (props) => {
+  const mutationFn: MutationFunction<Awaited<ReturnType<typeof deleteNote>>, { noteId: number }> = (
+    props
+  ) => {
     const { noteId } = props ?? {};
 
-    return deleteNoteApiV1NotesNoteIdDelete(noteId);
+    return deleteNote(noteId);
   };
 
   return { mutationFn, ...mutationOptions };
 };
 
-export type DeleteNoteApiV1NotesNoteIdDeleteMutationResult = NonNullable<
-  Awaited<ReturnType<typeof deleteNoteApiV1NotesNoteIdDelete>>
->;
+export type DeleteNoteMutationResult = NonNullable<Awaited<ReturnType<typeof deleteNote>>>;
 
-export type DeleteNoteApiV1NotesNoteIdDeleteMutationError = HTTPValidationError;
+export type DeleteNoteMutationError = HTTPValidationError;
 
 /**
  * @summary Delete Note
  */
-export const useDeleteNoteApiV1NotesNoteIdDelete = <
-  TError = HTTPValidationError,
-  TContext = unknown,
->(
+export const useDeleteNote = <TError = HTTPValidationError, TContext = unknown>(
   options?: {
     mutation?: UseMutationOptions<
-      Awaited<ReturnType<typeof deleteNoteApiV1NotesNoteIdDelete>>,
+      Awaited<ReturnType<typeof deleteNote>>,
       TError,
       { noteId: number },
       TContext
@@ -397,19 +369,19 @@ export const useDeleteNoteApiV1NotesNoteIdDelete = <
   },
   queryClient?: QueryClient
 ): UseMutationResult<
-  Awaited<ReturnType<typeof deleteNoteApiV1NotesNoteIdDelete>>,
+  Awaited<ReturnType<typeof deleteNote>>,
   TError,
   { noteId: number },
   TContext
 > => {
-  return useMutation(getDeleteNoteApiV1NotesNoteIdDeleteMutationOptions(options), queryClient);
+  return useMutation(getDeleteNoteMutationOptions(options), queryClient);
 };
 /**
  * @summary Get Notes For Book
  */
-export const getNotesForBookApiV1BooksBookIdNotesGet = (
+export const getNotesForBook = (
   bookId: number,
-  params?: GetNotesForBookApiV1BooksBookIdNotesGetParams,
+  params?: GetNotesForBookParams,
   signal?: AbortSignal
 ) => {
   return axiosInstance<CollectionResponseNoteWithLinks>({
@@ -420,119 +392,86 @@ export const getNotesForBookApiV1BooksBookIdNotesGet = (
   });
 };
 
-export const getGetNotesForBookApiV1BooksBookIdNotesGetQueryKey = (
-  bookId: number,
-  params?: GetNotesForBookApiV1BooksBookIdNotesGetParams
-) => {
+export const getGetNotesForBookQueryKey = (bookId: number, params?: GetNotesForBookParams) => {
   return [`/api/v1/books/${bookId}/notes`, ...(params ? [params] : [])] as const;
 };
 
-export const getGetNotesForBookApiV1BooksBookIdNotesGetQueryOptions = <
-  TData = Awaited<ReturnType<typeof getNotesForBookApiV1BooksBookIdNotesGet>>,
+export const getGetNotesForBookQueryOptions = <
+  TData = Awaited<ReturnType<typeof getNotesForBook>>,
   TError = HTTPValidationError,
 >(
   bookId: number,
-  params?: GetNotesForBookApiV1BooksBookIdNotesGetParams,
+  params?: GetNotesForBookParams,
   options?: {
-    query?: Partial<
-      UseQueryOptions<
-        Awaited<ReturnType<typeof getNotesForBookApiV1BooksBookIdNotesGet>>,
-        TError,
-        TData
-      >
-    >;
+    query?: Partial<UseQueryOptions<Awaited<ReturnType<typeof getNotesForBook>>, TError, TData>>;
   }
 ) => {
   const { query: queryOptions } = options ?? {};
 
-  const queryKey =
-    queryOptions?.queryKey ?? getGetNotesForBookApiV1BooksBookIdNotesGetQueryKey(bookId, params);
+  const queryKey = queryOptions?.queryKey ?? getGetNotesForBookQueryKey(bookId, params);
 
-  const queryFn: QueryFunction<
-    Awaited<ReturnType<typeof getNotesForBookApiV1BooksBookIdNotesGet>>
-  > = ({ signal }) => getNotesForBookApiV1BooksBookIdNotesGet(bookId, params, signal);
+  const queryFn: QueryFunction<Awaited<ReturnType<typeof getNotesForBook>>> = ({ signal }) =>
+    getNotesForBook(bookId, params, signal);
 
   return {
     queryKey,
     queryFn,
     enabled: bookId !== null && bookId !== undefined,
     ...queryOptions,
-  } as UseQueryOptions<
-    Awaited<ReturnType<typeof getNotesForBookApiV1BooksBookIdNotesGet>>,
-    TError,
-    TData
-  > & { queryKey: DataTag<QueryKey, TData, TError> };
+  } as UseQueryOptions<Awaited<ReturnType<typeof getNotesForBook>>, TError, TData> & {
+    queryKey: DataTag<QueryKey, TData, TError>;
+  };
 };
 
-export type GetNotesForBookApiV1BooksBookIdNotesGetQueryResult = NonNullable<
-  Awaited<ReturnType<typeof getNotesForBookApiV1BooksBookIdNotesGet>>
->;
-export type GetNotesForBookApiV1BooksBookIdNotesGetQueryError = HTTPValidationError;
+export type GetNotesForBookQueryResult = NonNullable<Awaited<ReturnType<typeof getNotesForBook>>>;
+export type GetNotesForBookQueryError = HTTPValidationError;
 
-export function useGetNotesForBookApiV1BooksBookIdNotesGet<
-  TData = Awaited<ReturnType<typeof getNotesForBookApiV1BooksBookIdNotesGet>>,
+export function useGetNotesForBook<
+  TData = Awaited<ReturnType<typeof getNotesForBook>>,
   TError = HTTPValidationError,
 >(
   bookId: number,
-  params: undefined | GetNotesForBookApiV1BooksBookIdNotesGetParams,
+  params: undefined | GetNotesForBookParams,
   options: {
-    query: Partial<
-      UseQueryOptions<
-        Awaited<ReturnType<typeof getNotesForBookApiV1BooksBookIdNotesGet>>,
-        TError,
-        TData
-      >
-    > &
+    query: Partial<UseQueryOptions<Awaited<ReturnType<typeof getNotesForBook>>, TError, TData>> &
       Pick<
         DefinedInitialDataOptions<
-          Awaited<ReturnType<typeof getNotesForBookApiV1BooksBookIdNotesGet>>,
+          Awaited<ReturnType<typeof getNotesForBook>>,
           TError,
-          Awaited<ReturnType<typeof getNotesForBookApiV1BooksBookIdNotesGet>>
+          Awaited<ReturnType<typeof getNotesForBook>>
         >,
         'initialData'
       >;
   },
   queryClient?: QueryClient
 ): DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
-export function useGetNotesForBookApiV1BooksBookIdNotesGet<
-  TData = Awaited<ReturnType<typeof getNotesForBookApiV1BooksBookIdNotesGet>>,
+export function useGetNotesForBook<
+  TData = Awaited<ReturnType<typeof getNotesForBook>>,
   TError = HTTPValidationError,
 >(
   bookId: number,
-  params?: GetNotesForBookApiV1BooksBookIdNotesGetParams,
+  params?: GetNotesForBookParams,
   options?: {
-    query?: Partial<
-      UseQueryOptions<
-        Awaited<ReturnType<typeof getNotesForBookApiV1BooksBookIdNotesGet>>,
-        TError,
-        TData
-      >
-    > &
+    query?: Partial<UseQueryOptions<Awaited<ReturnType<typeof getNotesForBook>>, TError, TData>> &
       Pick<
         UndefinedInitialDataOptions<
-          Awaited<ReturnType<typeof getNotesForBookApiV1BooksBookIdNotesGet>>,
+          Awaited<ReturnType<typeof getNotesForBook>>,
           TError,
-          Awaited<ReturnType<typeof getNotesForBookApiV1BooksBookIdNotesGet>>
+          Awaited<ReturnType<typeof getNotesForBook>>
         >,
         'initialData'
       >;
   },
   queryClient?: QueryClient
 ): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
-export function useGetNotesForBookApiV1BooksBookIdNotesGet<
-  TData = Awaited<ReturnType<typeof getNotesForBookApiV1BooksBookIdNotesGet>>,
+export function useGetNotesForBook<
+  TData = Awaited<ReturnType<typeof getNotesForBook>>,
   TError = HTTPValidationError,
 >(
   bookId: number,
-  params?: GetNotesForBookApiV1BooksBookIdNotesGetParams,
+  params?: GetNotesForBookParams,
   options?: {
-    query?: Partial<
-      UseQueryOptions<
-        Awaited<ReturnType<typeof getNotesForBookApiV1BooksBookIdNotesGet>>,
-        TError,
-        TData
-      >
-    >;
+    query?: Partial<UseQueryOptions<Awaited<ReturnType<typeof getNotesForBook>>, TError, TData>>;
   },
   queryClient?: QueryClient
 ): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
@@ -540,28 +479,18 @@ export function useGetNotesForBookApiV1BooksBookIdNotesGet<
  * @summary Get Notes For Book
  */
 
-export function useGetNotesForBookApiV1BooksBookIdNotesGet<
-  TData = Awaited<ReturnType<typeof getNotesForBookApiV1BooksBookIdNotesGet>>,
+export function useGetNotesForBook<
+  TData = Awaited<ReturnType<typeof getNotesForBook>>,
   TError = HTTPValidationError,
 >(
   bookId: number,
-  params?: GetNotesForBookApiV1BooksBookIdNotesGetParams,
+  params?: GetNotesForBookParams,
   options?: {
-    query?: Partial<
-      UseQueryOptions<
-        Awaited<ReturnType<typeof getNotesForBookApiV1BooksBookIdNotesGet>>,
-        TError,
-        TData
-      >
-    >;
+    query?: Partial<UseQueryOptions<Awaited<ReturnType<typeof getNotesForBook>>, TError, TData>>;
   },
   queryClient?: QueryClient
 ): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
-  const queryOptions = getGetNotesForBookApiV1BooksBookIdNotesGetQueryOptions(
-    bookId,
-    params,
-    options
-  );
+  const queryOptions = getGetNotesForBookQueryOptions(bookId, params, options);
 
   const query = useQuery(queryOptions, queryClient) as UseQueryResult<TData, TError> & {
     queryKey: DataTag<QueryKey, TData, TError>;

@@ -1,12 +1,12 @@
-import { useDeleteBookApiV1BooksBookIdDelete } from '@/api/generated/books/books.ts';
+import { useDeleteBook } from '@/api/generated/books/books.ts';
 import { BookDetails } from '@/api/generated/model';
 import { BookCover } from '@/components/BookCover.tsx';
 import { CommonDialog } from '@/components/dialogs/CommonDialog.tsx';
 import { ConfirmationDialog } from '@/components/dialogs/ConfirmationDialog.tsx';
-import { useBookMutationHelpers } from '@/hooks/useBookMutationHelpers.ts';
+import { useMutationErrorHandler } from '@/hooks/useMutationErrorHandler.ts';
+import { useCacheEvents } from '@/lib/cacheEvents.ts';
 import { DeleteIcon } from '@/theme/Icons.tsx';
 import { Box, Button, Typography } from '@mui/material';
-import { useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from '@tanstack/react-router';
 import { useState } from 'react';
 
@@ -17,20 +17,15 @@ interface BookEditModalProps {
 }
 
 export const BookEditModal = ({ book, open, onClose }: BookEditModalProps) => {
-  const queryClient = useQueryClient();
+  const cache = useCacheEvents();
   const navigate = useNavigate();
-  const { mutationErrorHandler } = useBookMutationHelpers(book.id);
+  const mutationErrorHandler = useMutationErrorHandler();
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
 
-  const deleteBookMutation = useDeleteBookApiV1BooksBookIdDelete({
+  const deleteBookMutation = useDeleteBook({
     mutation: {
-      onSuccess: async () => {
-        // Refetch the books list query and wait for it to complete
-        await queryClient.refetchQueries({
-          queryKey: ['/api/v1/books'],
-          exact: true,
-        });
-        // Close modal and navigate to landing page after refetch is complete
+      onSuccess: () => {
+        cache.booksListChanged();
         onClose();
         navigate({ to: '/' });
       },

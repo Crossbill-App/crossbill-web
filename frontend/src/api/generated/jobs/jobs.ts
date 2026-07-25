@@ -43,10 +43,7 @@ const withQueryKey = <T extends object, K>(query: T, queryKey: K): T & { queryKe
  * Enqueue prereading generation for all chapters of a book.
  * @summary Enqueue Book Prereading
  */
-export const enqueueBookPrereadingApiV1JobsBooksBookIdPrereadingPost = (
-  bookId: number,
-  signal?: AbortSignal
-) => {
+export const enqueueBookPrereading = (bookId: number, signal?: AbortSignal) => {
   return axiosInstance<JobBatchResponse>({
     url: `/api/v1/jobs/books/${bookId}/prereading`,
     method: 'POST',
@@ -54,23 +51,23 @@ export const enqueueBookPrereadingApiV1JobsBooksBookIdPrereadingPost = (
   });
 };
 
-export const getEnqueueBookPrereadingApiV1JobsBooksBookIdPrereadingPostMutationOptions = <
+export const getEnqueueBookPrereadingMutationOptions = <
   TError = HTTPValidationError,
   TContext = unknown,
 >(options?: {
   mutation?: UseMutationOptions<
-    Awaited<ReturnType<typeof enqueueBookPrereadingApiV1JobsBooksBookIdPrereadingPost>>,
+    Awaited<ReturnType<typeof enqueueBookPrereading>>,
     TError,
     { bookId: number },
     TContext
   >;
 }): UseMutationOptions<
-  Awaited<ReturnType<typeof enqueueBookPrereadingApiV1JobsBooksBookIdPrereadingPost>>,
+  Awaited<ReturnType<typeof enqueueBookPrereading>>,
   TError,
   { bookId: number },
   TContext
 > => {
-  const mutationKey = ['enqueueBookPrereadingApiV1JobsBooksBookIdPrereadingPost'];
+  const mutationKey = ['enqueueBookPrereading'];
   const { mutation: mutationOptions } = options
     ? options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey
       ? options
@@ -78,34 +75,30 @@ export const getEnqueueBookPrereadingApiV1JobsBooksBookIdPrereadingPostMutationO
     : { mutation: { mutationKey } };
 
   const mutationFn: MutationFunction<
-    Awaited<ReturnType<typeof enqueueBookPrereadingApiV1JobsBooksBookIdPrereadingPost>>,
+    Awaited<ReturnType<typeof enqueueBookPrereading>>,
     { bookId: number }
   > = (props) => {
     const { bookId } = props ?? {};
 
-    return enqueueBookPrereadingApiV1JobsBooksBookIdPrereadingPost(bookId);
+    return enqueueBookPrereading(bookId);
   };
 
   return { mutationFn, ...mutationOptions };
 };
 
-export type EnqueueBookPrereadingApiV1JobsBooksBookIdPrereadingPostMutationResult = NonNullable<
-  Awaited<ReturnType<typeof enqueueBookPrereadingApiV1JobsBooksBookIdPrereadingPost>>
+export type EnqueueBookPrereadingMutationResult = NonNullable<
+  Awaited<ReturnType<typeof enqueueBookPrereading>>
 >;
 
-export type EnqueueBookPrereadingApiV1JobsBooksBookIdPrereadingPostMutationError =
-  HTTPValidationError;
+export type EnqueueBookPrereadingMutationError = HTTPValidationError;
 
 /**
  * @summary Enqueue Book Prereading
  */
-export const useEnqueueBookPrereadingApiV1JobsBooksBookIdPrereadingPost = <
-  TError = HTTPValidationError,
-  TContext = unknown,
->(
+export const useEnqueueBookPrereading = <TError = HTTPValidationError, TContext = unknown>(
   options?: {
     mutation?: UseMutationOptions<
-      Awaited<ReturnType<typeof enqueueBookPrereadingApiV1JobsBooksBookIdPrereadingPost>>,
+      Awaited<ReturnType<typeof enqueueBookPrereading>>,
       TError,
       { bookId: number },
       TContext
@@ -113,24 +106,18 @@ export const useEnqueueBookPrereadingApiV1JobsBooksBookIdPrereadingPost = <
   },
   queryClient?: QueryClient
 ): UseMutationResult<
-  Awaited<ReturnType<typeof enqueueBookPrereadingApiV1JobsBooksBookIdPrereadingPost>>,
+  Awaited<ReturnType<typeof enqueueBookPrereading>>,
   TError,
   { bookId: number },
   TContext
 > => {
-  return useMutation(
-    getEnqueueBookPrereadingApiV1JobsBooksBookIdPrereadingPostMutationOptions(options),
-    queryClient
-  );
+  return useMutation(getEnqueueBookPrereadingMutationOptions(options), queryClient);
 };
 /**
  * Get the active prereading batch for a book, if any.
  * @summary Get Active Book Prereading Batch
  */
-export const getActiveBookPrereadingBatchApiV1JobsBooksBookIdPrereadingGet = (
-  bookId: number,
-  signal?: AbortSignal
-) => {
+export const getActiveBookPrereadingBatch = (bookId: number, signal?: AbortSignal) => {
   return axiosInstance<JobBatchResponse | null>({
     url: `/api/v1/jobs/books/${bookId}/prereading`,
     method: 'GET',
@@ -138,115 +125,92 @@ export const getActiveBookPrereadingBatchApiV1JobsBooksBookIdPrereadingGet = (
   });
 };
 
-export const getGetActiveBookPrereadingBatchApiV1JobsBooksBookIdPrereadingGetQueryKey = (
-  bookId: number
-) => {
+export const getGetActiveBookPrereadingBatchQueryKey = (bookId: number) => {
   return [`/api/v1/jobs/books/${bookId}/prereading`] as const;
 };
 
-export const getGetActiveBookPrereadingBatchApiV1JobsBooksBookIdPrereadingGetQueryOptions = <
-  TData = Awaited<ReturnType<typeof getActiveBookPrereadingBatchApiV1JobsBooksBookIdPrereadingGet>>,
+export const getGetActiveBookPrereadingBatchQueryOptions = <
+  TData = Awaited<ReturnType<typeof getActiveBookPrereadingBatch>>,
   TError = HTTPValidationError,
 >(
   bookId: number,
   options?: {
     query?: Partial<
-      UseQueryOptions<
-        Awaited<ReturnType<typeof getActiveBookPrereadingBatchApiV1JobsBooksBookIdPrereadingGet>>,
-        TError,
-        TData
-      >
+      UseQueryOptions<Awaited<ReturnType<typeof getActiveBookPrereadingBatch>>, TError, TData>
     >;
   }
 ) => {
   const { query: queryOptions } = options ?? {};
 
-  const queryKey =
-    queryOptions?.queryKey ??
-    getGetActiveBookPrereadingBatchApiV1JobsBooksBookIdPrereadingGetQueryKey(bookId);
+  const queryKey = queryOptions?.queryKey ?? getGetActiveBookPrereadingBatchQueryKey(bookId);
 
-  const queryFn: QueryFunction<
-    Awaited<ReturnType<typeof getActiveBookPrereadingBatchApiV1JobsBooksBookIdPrereadingGet>>
-  > = ({ signal }) => getActiveBookPrereadingBatchApiV1JobsBooksBookIdPrereadingGet(bookId, signal);
+  const queryFn: QueryFunction<Awaited<ReturnType<typeof getActiveBookPrereadingBatch>>> = ({
+    signal,
+  }) => getActiveBookPrereadingBatch(bookId, signal);
 
   return {
     queryKey,
     queryFn,
     enabled: bookId !== null && bookId !== undefined,
     ...queryOptions,
-  } as UseQueryOptions<
-    Awaited<ReturnType<typeof getActiveBookPrereadingBatchApiV1JobsBooksBookIdPrereadingGet>>,
-    TError,
-    TData
-  > & { queryKey: DataTag<QueryKey, TData, TError> };
+  } as UseQueryOptions<Awaited<ReturnType<typeof getActiveBookPrereadingBatch>>, TError, TData> & {
+    queryKey: DataTag<QueryKey, TData, TError>;
+  };
 };
 
-export type GetActiveBookPrereadingBatchApiV1JobsBooksBookIdPrereadingGetQueryResult = NonNullable<
-  Awaited<ReturnType<typeof getActiveBookPrereadingBatchApiV1JobsBooksBookIdPrereadingGet>>
+export type GetActiveBookPrereadingBatchQueryResult = NonNullable<
+  Awaited<ReturnType<typeof getActiveBookPrereadingBatch>>
 >;
-export type GetActiveBookPrereadingBatchApiV1JobsBooksBookIdPrereadingGetQueryError =
-  HTTPValidationError;
+export type GetActiveBookPrereadingBatchQueryError = HTTPValidationError;
 
-export function useGetActiveBookPrereadingBatchApiV1JobsBooksBookIdPrereadingGet<
-  TData = Awaited<ReturnType<typeof getActiveBookPrereadingBatchApiV1JobsBooksBookIdPrereadingGet>>,
+export function useGetActiveBookPrereadingBatch<
+  TData = Awaited<ReturnType<typeof getActiveBookPrereadingBatch>>,
   TError = HTTPValidationError,
 >(
   bookId: number,
   options: {
     query: Partial<
-      UseQueryOptions<
-        Awaited<ReturnType<typeof getActiveBookPrereadingBatchApiV1JobsBooksBookIdPrereadingGet>>,
-        TError,
-        TData
-      >
+      UseQueryOptions<Awaited<ReturnType<typeof getActiveBookPrereadingBatch>>, TError, TData>
     > &
       Pick<
         DefinedInitialDataOptions<
-          Awaited<ReturnType<typeof getActiveBookPrereadingBatchApiV1JobsBooksBookIdPrereadingGet>>,
+          Awaited<ReturnType<typeof getActiveBookPrereadingBatch>>,
           TError,
-          Awaited<ReturnType<typeof getActiveBookPrereadingBatchApiV1JobsBooksBookIdPrereadingGet>>
+          Awaited<ReturnType<typeof getActiveBookPrereadingBatch>>
         >,
         'initialData'
       >;
   },
   queryClient?: QueryClient
 ): DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
-export function useGetActiveBookPrereadingBatchApiV1JobsBooksBookIdPrereadingGet<
-  TData = Awaited<ReturnType<typeof getActiveBookPrereadingBatchApiV1JobsBooksBookIdPrereadingGet>>,
+export function useGetActiveBookPrereadingBatch<
+  TData = Awaited<ReturnType<typeof getActiveBookPrereadingBatch>>,
   TError = HTTPValidationError,
 >(
   bookId: number,
   options?: {
     query?: Partial<
-      UseQueryOptions<
-        Awaited<ReturnType<typeof getActiveBookPrereadingBatchApiV1JobsBooksBookIdPrereadingGet>>,
-        TError,
-        TData
-      >
+      UseQueryOptions<Awaited<ReturnType<typeof getActiveBookPrereadingBatch>>, TError, TData>
     > &
       Pick<
         UndefinedInitialDataOptions<
-          Awaited<ReturnType<typeof getActiveBookPrereadingBatchApiV1JobsBooksBookIdPrereadingGet>>,
+          Awaited<ReturnType<typeof getActiveBookPrereadingBatch>>,
           TError,
-          Awaited<ReturnType<typeof getActiveBookPrereadingBatchApiV1JobsBooksBookIdPrereadingGet>>
+          Awaited<ReturnType<typeof getActiveBookPrereadingBatch>>
         >,
         'initialData'
       >;
   },
   queryClient?: QueryClient
 ): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
-export function useGetActiveBookPrereadingBatchApiV1JobsBooksBookIdPrereadingGet<
-  TData = Awaited<ReturnType<typeof getActiveBookPrereadingBatchApiV1JobsBooksBookIdPrereadingGet>>,
+export function useGetActiveBookPrereadingBatch<
+  TData = Awaited<ReturnType<typeof getActiveBookPrereadingBatch>>,
   TError = HTTPValidationError,
 >(
   bookId: number,
   options?: {
     query?: Partial<
-      UseQueryOptions<
-        Awaited<ReturnType<typeof getActiveBookPrereadingBatchApiV1JobsBooksBookIdPrereadingGet>>,
-        TError,
-        TData
-      >
+      UseQueryOptions<Awaited<ReturnType<typeof getActiveBookPrereadingBatch>>, TError, TData>
     >;
   },
   queryClient?: QueryClient
@@ -255,26 +219,19 @@ export function useGetActiveBookPrereadingBatchApiV1JobsBooksBookIdPrereadingGet
  * @summary Get Active Book Prereading Batch
  */
 
-export function useGetActiveBookPrereadingBatchApiV1JobsBooksBookIdPrereadingGet<
-  TData = Awaited<ReturnType<typeof getActiveBookPrereadingBatchApiV1JobsBooksBookIdPrereadingGet>>,
+export function useGetActiveBookPrereadingBatch<
+  TData = Awaited<ReturnType<typeof getActiveBookPrereadingBatch>>,
   TError = HTTPValidationError,
 >(
   bookId: number,
   options?: {
     query?: Partial<
-      UseQueryOptions<
-        Awaited<ReturnType<typeof getActiveBookPrereadingBatchApiV1JobsBooksBookIdPrereadingGet>>,
-        TError,
-        TData
-      >
+      UseQueryOptions<Awaited<ReturnType<typeof getActiveBookPrereadingBatch>>, TError, TData>
     >;
   },
   queryClient?: QueryClient
 ): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
-  const queryOptions = getGetActiveBookPrereadingBatchApiV1JobsBooksBookIdPrereadingGetQueryOptions(
-    bookId,
-    options
-  );
+  const queryOptions = getGetActiveBookPrereadingBatchQueryOptions(bookId, options);
 
   const query = useQuery(queryOptions, queryClient) as UseQueryResult<TData, TError> & {
     queryKey: DataTag<QueryKey, TData, TError>;
@@ -287,7 +244,7 @@ export function useGetActiveBookPrereadingBatchApiV1JobsBooksBookIdPrereadingGet
  * Get job batch status.
  * @summary Get Job Batch
  */
-export const getJobBatchApiV1JobsBatchesBatchIdGet = (batchId: number, signal?: AbortSignal) => {
+export const getJobBatch = (batchId: number, signal?: AbortSignal) => {
   return axiosInstance<JobBatchResponse>({
     url: `/api/v1/jobs/batches/${batchId}`,
     method: 'GET',
@@ -295,112 +252,82 @@ export const getJobBatchApiV1JobsBatchesBatchIdGet = (batchId: number, signal?: 
   });
 };
 
-export const getGetJobBatchApiV1JobsBatchesBatchIdGetQueryKey = (batchId: number) => {
+export const getGetJobBatchQueryKey = (batchId: number) => {
   return [`/api/v1/jobs/batches/${batchId}`] as const;
 };
 
-export const getGetJobBatchApiV1JobsBatchesBatchIdGetQueryOptions = <
-  TData = Awaited<ReturnType<typeof getJobBatchApiV1JobsBatchesBatchIdGet>>,
+export const getGetJobBatchQueryOptions = <
+  TData = Awaited<ReturnType<typeof getJobBatch>>,
   TError = HTTPValidationError,
 >(
   batchId: number,
   options?: {
-    query?: Partial<
-      UseQueryOptions<
-        Awaited<ReturnType<typeof getJobBatchApiV1JobsBatchesBatchIdGet>>,
-        TError,
-        TData
-      >
-    >;
+    query?: Partial<UseQueryOptions<Awaited<ReturnType<typeof getJobBatch>>, TError, TData>>;
   }
 ) => {
   const { query: queryOptions } = options ?? {};
 
-  const queryKey =
-    queryOptions?.queryKey ?? getGetJobBatchApiV1JobsBatchesBatchIdGetQueryKey(batchId);
+  const queryKey = queryOptions?.queryKey ?? getGetJobBatchQueryKey(batchId);
 
-  const queryFn: QueryFunction<
-    Awaited<ReturnType<typeof getJobBatchApiV1JobsBatchesBatchIdGet>>
-  > = ({ signal }) => getJobBatchApiV1JobsBatchesBatchIdGet(batchId, signal);
+  const queryFn: QueryFunction<Awaited<ReturnType<typeof getJobBatch>>> = ({ signal }) =>
+    getJobBatch(batchId, signal);
 
   return {
     queryKey,
     queryFn,
     enabled: batchId !== null && batchId !== undefined,
     ...queryOptions,
-  } as UseQueryOptions<
-    Awaited<ReturnType<typeof getJobBatchApiV1JobsBatchesBatchIdGet>>,
-    TError,
-    TData
-  > & { queryKey: DataTag<QueryKey, TData, TError> };
+  } as UseQueryOptions<Awaited<ReturnType<typeof getJobBatch>>, TError, TData> & {
+    queryKey: DataTag<QueryKey, TData, TError>;
+  };
 };
 
-export type GetJobBatchApiV1JobsBatchesBatchIdGetQueryResult = NonNullable<
-  Awaited<ReturnType<typeof getJobBatchApiV1JobsBatchesBatchIdGet>>
->;
-export type GetJobBatchApiV1JobsBatchesBatchIdGetQueryError = HTTPValidationError;
+export type GetJobBatchQueryResult = NonNullable<Awaited<ReturnType<typeof getJobBatch>>>;
+export type GetJobBatchQueryError = HTTPValidationError;
 
-export function useGetJobBatchApiV1JobsBatchesBatchIdGet<
-  TData = Awaited<ReturnType<typeof getJobBatchApiV1JobsBatchesBatchIdGet>>,
+export function useGetJobBatch<
+  TData = Awaited<ReturnType<typeof getJobBatch>>,
   TError = HTTPValidationError,
 >(
   batchId: number,
   options: {
-    query: Partial<
-      UseQueryOptions<
-        Awaited<ReturnType<typeof getJobBatchApiV1JobsBatchesBatchIdGet>>,
-        TError,
-        TData
-      >
-    > &
+    query: Partial<UseQueryOptions<Awaited<ReturnType<typeof getJobBatch>>, TError, TData>> &
       Pick<
         DefinedInitialDataOptions<
-          Awaited<ReturnType<typeof getJobBatchApiV1JobsBatchesBatchIdGet>>,
+          Awaited<ReturnType<typeof getJobBatch>>,
           TError,
-          Awaited<ReturnType<typeof getJobBatchApiV1JobsBatchesBatchIdGet>>
+          Awaited<ReturnType<typeof getJobBatch>>
         >,
         'initialData'
       >;
   },
   queryClient?: QueryClient
 ): DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
-export function useGetJobBatchApiV1JobsBatchesBatchIdGet<
-  TData = Awaited<ReturnType<typeof getJobBatchApiV1JobsBatchesBatchIdGet>>,
+export function useGetJobBatch<
+  TData = Awaited<ReturnType<typeof getJobBatch>>,
   TError = HTTPValidationError,
 >(
   batchId: number,
   options?: {
-    query?: Partial<
-      UseQueryOptions<
-        Awaited<ReturnType<typeof getJobBatchApiV1JobsBatchesBatchIdGet>>,
-        TError,
-        TData
-      >
-    > &
+    query?: Partial<UseQueryOptions<Awaited<ReturnType<typeof getJobBatch>>, TError, TData>> &
       Pick<
         UndefinedInitialDataOptions<
-          Awaited<ReturnType<typeof getJobBatchApiV1JobsBatchesBatchIdGet>>,
+          Awaited<ReturnType<typeof getJobBatch>>,
           TError,
-          Awaited<ReturnType<typeof getJobBatchApiV1JobsBatchesBatchIdGet>>
+          Awaited<ReturnType<typeof getJobBatch>>
         >,
         'initialData'
       >;
   },
   queryClient?: QueryClient
 ): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
-export function useGetJobBatchApiV1JobsBatchesBatchIdGet<
-  TData = Awaited<ReturnType<typeof getJobBatchApiV1JobsBatchesBatchIdGet>>,
+export function useGetJobBatch<
+  TData = Awaited<ReturnType<typeof getJobBatch>>,
   TError = HTTPValidationError,
 >(
   batchId: number,
   options?: {
-    query?: Partial<
-      UseQueryOptions<
-        Awaited<ReturnType<typeof getJobBatchApiV1JobsBatchesBatchIdGet>>,
-        TError,
-        TData
-      >
-    >;
+    query?: Partial<UseQueryOptions<Awaited<ReturnType<typeof getJobBatch>>, TError, TData>>;
   },
   queryClient?: QueryClient
 ): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
@@ -408,23 +335,17 @@ export function useGetJobBatchApiV1JobsBatchesBatchIdGet<
  * @summary Get Job Batch
  */
 
-export function useGetJobBatchApiV1JobsBatchesBatchIdGet<
-  TData = Awaited<ReturnType<typeof getJobBatchApiV1JobsBatchesBatchIdGet>>,
+export function useGetJobBatch<
+  TData = Awaited<ReturnType<typeof getJobBatch>>,
   TError = HTTPValidationError,
 >(
   batchId: number,
   options?: {
-    query?: Partial<
-      UseQueryOptions<
-        Awaited<ReturnType<typeof getJobBatchApiV1JobsBatchesBatchIdGet>>,
-        TError,
-        TData
-      >
-    >;
+    query?: Partial<UseQueryOptions<Awaited<ReturnType<typeof getJobBatch>>, TError, TData>>;
   },
   queryClient?: QueryClient
 ): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
-  const queryOptions = getGetJobBatchApiV1JobsBatchesBatchIdGetQueryOptions(batchId, options);
+  const queryOptions = getGetJobBatchQueryOptions(batchId, options);
 
   const query = useQuery(queryOptions, queryClient) as UseQueryResult<TData, TError> & {
     queryKey: DataTag<QueryKey, TData, TError>;
@@ -437,10 +358,7 @@ export function useGetJobBatchApiV1JobsBatchesBatchIdGet<
  * Cancel a job batch and abort all pending/active jobs.
  * @summary Cancel Job Batch
  */
-export const cancelJobBatchApiV1JobsBatchesBatchIdDelete = (
-  batchId: number,
-  signal?: AbortSignal
-) => {
+export const cancelJobBatch = (batchId: number, signal?: AbortSignal) => {
   return axiosInstance<JobBatchResponse>({
     url: `/api/v1/jobs/batches/${batchId}`,
     method: 'DELETE',
@@ -448,23 +366,23 @@ export const cancelJobBatchApiV1JobsBatchesBatchIdDelete = (
   });
 };
 
-export const getCancelJobBatchApiV1JobsBatchesBatchIdDeleteMutationOptions = <
+export const getCancelJobBatchMutationOptions = <
   TError = HTTPValidationError,
   TContext = unknown,
 >(options?: {
   mutation?: UseMutationOptions<
-    Awaited<ReturnType<typeof cancelJobBatchApiV1JobsBatchesBatchIdDelete>>,
+    Awaited<ReturnType<typeof cancelJobBatch>>,
     TError,
     { batchId: number },
     TContext
   >;
 }): UseMutationOptions<
-  Awaited<ReturnType<typeof cancelJobBatchApiV1JobsBatchesBatchIdDelete>>,
+  Awaited<ReturnType<typeof cancelJobBatch>>,
   TError,
   { batchId: number },
   TContext
 > => {
-  const mutationKey = ['cancelJobBatchApiV1JobsBatchesBatchIdDelete'];
+  const mutationKey = ['cancelJobBatch'];
   const { mutation: mutationOptions } = options
     ? options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey
       ? options
@@ -472,33 +390,28 @@ export const getCancelJobBatchApiV1JobsBatchesBatchIdDeleteMutationOptions = <
     : { mutation: { mutationKey } };
 
   const mutationFn: MutationFunction<
-    Awaited<ReturnType<typeof cancelJobBatchApiV1JobsBatchesBatchIdDelete>>,
+    Awaited<ReturnType<typeof cancelJobBatch>>,
     { batchId: number }
   > = (props) => {
     const { batchId } = props ?? {};
 
-    return cancelJobBatchApiV1JobsBatchesBatchIdDelete(batchId);
+    return cancelJobBatch(batchId);
   };
 
   return { mutationFn, ...mutationOptions };
 };
 
-export type CancelJobBatchApiV1JobsBatchesBatchIdDeleteMutationResult = NonNullable<
-  Awaited<ReturnType<typeof cancelJobBatchApiV1JobsBatchesBatchIdDelete>>
->;
+export type CancelJobBatchMutationResult = NonNullable<Awaited<ReturnType<typeof cancelJobBatch>>>;
 
-export type CancelJobBatchApiV1JobsBatchesBatchIdDeleteMutationError = HTTPValidationError;
+export type CancelJobBatchMutationError = HTTPValidationError;
 
 /**
  * @summary Cancel Job Batch
  */
-export const useCancelJobBatchApiV1JobsBatchesBatchIdDelete = <
-  TError = HTTPValidationError,
-  TContext = unknown,
->(
+export const useCancelJobBatch = <TError = HTTPValidationError, TContext = unknown>(
   options?: {
     mutation?: UseMutationOptions<
-      Awaited<ReturnType<typeof cancelJobBatchApiV1JobsBatchesBatchIdDelete>>,
+      Awaited<ReturnType<typeof cancelJobBatch>>,
       TError,
       { batchId: number },
       TContext
@@ -506,13 +419,10 @@ export const useCancelJobBatchApiV1JobsBatchesBatchIdDelete = <
   },
   queryClient?: QueryClient
 ): UseMutationResult<
-  Awaited<ReturnType<typeof cancelJobBatchApiV1JobsBatchesBatchIdDelete>>,
+  Awaited<ReturnType<typeof cancelJobBatch>>,
   TError,
   { batchId: number },
   TContext
 > => {
-  return useMutation(
-    getCancelJobBatchApiV1JobsBatchesBatchIdDeleteMutationOptions(options),
-    queryClient
-  );
+  return useMutation(getCancelJobBatchMutationOptions(options), queryClient);
 };

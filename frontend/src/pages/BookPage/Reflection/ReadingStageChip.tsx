@@ -1,5 +1,6 @@
-import { useUpdateReadingStageApiV1BooksBookIdReadingStagePut } from '@/api/generated/books/books.ts';
-import { useBookMutationHelpers } from '@/hooks/useBookMutationHelpers.ts';
+import { useUpdateReadingStage } from '@/api/generated/books/books.ts';
+import { useMutationErrorHandler } from '@/hooks/useMutationErrorHandler.ts';
+import { useCacheEvents } from '@/lib/cacheEvents.ts';
 import { Chip, Menu, MenuItem } from '@mui/material';
 import { useState } from 'react';
 import { READING_STAGE_LABELS, READING_STAGES, type ReadingStageValue } from './readingStages';
@@ -11,11 +12,12 @@ interface ReadingStageChipProps {
 
 export const ReadingStageChip = ({ bookId, readingStage }: ReadingStageChipProps) => {
   const [anchorEl, setAnchorEl] = useState<HTMLElement | null>(null);
-  const { invalidateBookDetails, mutationErrorHandler } = useBookMutationHelpers(bookId);
+  const mutationErrorHandler = useMutationErrorHandler();
+  const cache = useCacheEvents();
 
-  const { mutate: updateStage, isPending } = useUpdateReadingStageApiV1BooksBookIdReadingStagePut({
+  const { mutate: updateStage, isPending } = useUpdateReadingStage({
     mutation: {
-      onSuccess: () => invalidateBookDetails(),
+      onSuccess: () => cache.bookChanged(bookId),
       onError: mutationErrorHandler('update reading stage'),
     },
   });

@@ -5,7 +5,7 @@
  * OpenAPI spec version: 0.1.0
  */
 
-export type GetBookReadingSessionsApiV1BooksBookIdReadingSessionsGetParams = {
+export type GetBookReadingSessionsParams = {
   /**
    * Maximum sessions to return
    * @minimum 1
