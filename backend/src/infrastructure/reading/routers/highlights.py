@@ -4,9 +4,6 @@ from typing import Annotated
 
 from fastapi import APIRouter, Depends, Query, status
 
-from src.application.learning.use_cases.flashcards.create_flashcard_for_highlight_use_case import (
-    CreateFlashcardForHighlightUseCase,
-)
 from src.application.reading.use_cases.highlights.highlight_delete_use_case import (
     HighlightDeleteUseCase,
 )
@@ -61,8 +58,6 @@ from src.infrastructure.common.schemas import CollectionResponse
 from src.infrastructure.identity.dependencies import get_current_user
 from src.infrastructure.learning.schemas import (
     Flashcard,
-    FlashcardCreateRequest,
-    FlashcardCreateResponse,
 )
 from src.infrastructure.reading.repositories import TagRepository
 from src.infrastructure.reading.schema_mappers import map_chapters_to_schemas
@@ -217,58 +212,6 @@ async def delete_tag_group(
     success = await use_case.delete_group(tag_group_id, current_user.id.value)
     if not success:
         raise TagGroupNotFoundError(tag_group_id)
-
-
-@router.post(
-    "/highlights/{highlight_id}/flashcards",
-    response_model=FlashcardCreateResponse,
-    status_code=status.HTTP_201_CREATED,
-)
-async def create_flashcard_for_highlight(
-    highlight_id: int,
-    request: FlashcardCreateRequest,
-    current_user: Annotated[User, Depends(get_current_user)],
-    use_case: CreateFlashcardForHighlightUseCase = Depends(
-        inject_use_case(container.learning.create_flashcard_for_highlight_use_case)
-    ),
-) -> FlashcardCreateResponse:
-    """
-    Create a flashcard for a highlight.
-
-    Creates a flashcard that is associated with a specific highlight.
-    The flashcard will also be linked to the highlight's book.
-
-    Args:
-        highlight_id: ID of the highlight
-        request: Request containing question and answer
-        use_case: FlashcardUseCase injected via dependency container
-
-    Returns:
-        Created flashcard
-
-    Raises:
-        HTTPException: If highlight not found or creation fails
-    """
-    flashcard_entity = await use_case.create_flashcard(
-        highlight_id=highlight_id,
-        user_id=current_user.id.value,
-        question=request.question,
-        answer=request.answer,
-    )
-    # Manually construct Pydantic schema from domain entity
-    flashcard = Flashcard(
-        id=flashcard_entity.id.value,
-        user_id=flashcard_entity.user_id.value,
-        book_id=flashcard_entity.book_id.value,
-        highlight_id=flashcard_entity.highlight_id.value if flashcard_entity.highlight_id else None,
-        question=flashcard_entity.question,
-        answer=flashcard_entity.answer,
-    )
-    return FlashcardCreateResponse(
-        success=True,
-        message="Flashcard created successfully",
-        flashcard=flashcard,
-    )
 
 
 @router.get(

@@ -45,6 +45,7 @@ from src.infrastructure.learning.routers import (
     ai_note_flashcard_suggestions,
     chat_sessions,
     flashcards,
+    highlight_flashcards,
     note_flashcards,
 )
 from src.infrastructure.learning.routers import book_flashcards as learning_books
@@ -401,6 +402,7 @@ app.include_router(learning_books.router, prefix=settings.API_V1_PREFIX)
 app.include_router(flashcards.router, prefix=settings.API_V1_PREFIX)
 app.include_router(ai_flashcard_suggestions.router, prefix=settings.API_V1_PREFIX)
 app.include_router(ai_chapter_flashcard_suggestions.router, prefix=settings.API_V1_PREFIX)
+app.include_router(highlight_flashcards.router, prefix=settings.API_V1_PREFIX)
 app.include_router(note_flashcards.router, prefix=settings.API_V1_PREFIX)
 app.include_router(ai_note_flashcard_suggestions.router, prefix=settings.API_V1_PREFIX)
 app.include_router(chat_sessions.router, prefix=settings.API_V1_PREFIX)
