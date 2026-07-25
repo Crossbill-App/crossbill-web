@@ -7,7 +7,7 @@ from src.application.notes.protocols.note_repository import NoteRepositoryProtoc
 from src.application.notes.use_cases.dtos import NoteWithLinkedEntities
 from src.application.notes.use_cases.helpers import hydrate_note_links, parse_note_kind
 from src.application.reading.protocols.highlight_repository import HighlightRepositoryProtocol
-from src.application.reading.protocols.tag_repository import (
+from src.application.tagging.protocols.tag_repository import (
     TagRepositoryProtocol,
 )
 from src.domain.common.value_objects import BookId, ChapterId, HighlightId, TagId, UserId

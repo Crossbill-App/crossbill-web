@@ -36,7 +36,6 @@ from src.infrastructure.reading.repositories import (
     BookmarkRepository,
     HighlightRepository,
     HighlightStyleRepository,
-    TagRepository,
 )
 from src.infrastructure.reading.repositories.chapter_prereading_repository import (
     ChapterPrereadingRepository,
@@ -47,6 +46,7 @@ from src.infrastructure.reading.repositories.reading_session_repository import (
 from src.infrastructure.reflection.repositories.book_reflection_repository import (
     BookReflectionRepository,
 )
+from src.infrastructure.tagging.repositories import TagRepository
 
 
 def _create_s3_file_repository(settings: Any) -> S3FileRepository:  # noqa: ANN401

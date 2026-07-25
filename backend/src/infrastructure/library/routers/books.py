@@ -35,9 +35,8 @@ from src.infrastructure.reading.schema_mappers import map_chapters_to_schemas
 from src.infrastructure.reading.schemas import (
     BookDetails,
     Bookmark,
-    TagGroupInBook,
-    TagInBook,
 )
+from src.infrastructure.tagging.schemas import TagGroupInBook, TagInBook
 
 router = APIRouter(prefix="/books", tags=["books"])
 

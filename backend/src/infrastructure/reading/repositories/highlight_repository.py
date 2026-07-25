@@ -10,13 +10,14 @@ from datetime import UTC, datetime
 
 from sqlalchemy import delete, func, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.orm import joinedload
+from sqlalchemy.orm import joinedload, selectinload
 
 from src.domain.common.value_objects import (
     BookId,
     ContentHash,
     HighlightId,
     ReadingSessionId,
+    TagId,
     UserId,
 )
 from src.domain.common.value_objects.position import Position
@@ -31,10 +32,11 @@ from src.infrastructure.learning.orm.flashcard_model import Flashcard as Flashca
 from src.infrastructure.library.mappers.book_mapper import BookMapper
 from src.infrastructure.library.mappers.chapter_mapper import ChapterMapper
 from src.infrastructure.reading.mappers.highlight_mapper import HighlightMapper
-from src.infrastructure.reading.mappers.tag_mapper import TagMapper
 from src.infrastructure.reading.orm.associations import reading_session_highlights
 from src.infrastructure.reading.orm.bookmark_model import Bookmark as BookmarkORM
 from src.infrastructure.reading.orm.highlight_model import Highlight as HighlightORM
+from src.infrastructure.tagging.mappers.tag_mapper import TagMapper
+from src.infrastructure.tagging.orm.tag_model import Tag as TagORM
 
 logger = logging.getLogger(__name__)
 
@@ -530,3 +532,93 @@ class HighlightRepository:
             grouped[session_id].append(highlight)
 
         return grouped
+
+    # Tag-Highlight association methods
+
+    async def add_tag_to_highlight(
+        self, highlight_id: HighlightId, tag_id: TagId, user_id: UserId
+    ) -> bool:
+        """
+        Add a tag to a highlight (manages the many-to-many association).
+
+        Args:
+            highlight_id: The highlight ID
+            tag_id: The tag ID
+            user_id: The user ID for authorization check
+
+        Returns:
+            True if added, False if already associated or not found
+        """
+        # Verify ownership and get ORM models
+        result = await self.db.execute(
+            select(HighlightORM)
+            .options(selectinload(HighlightORM.tags))
+            .where(
+                HighlightORM.id == highlight_id.value,
+                HighlightORM.user_id == user_id.value,
+            )
+        )
+        highlight_orm = result.scalar_one_or_none()
+
+        result = await self.db.execute(
+            select(TagORM).where(
+                TagORM.id == tag_id.value,
+                TagORM.user_id == user_id.value,
+            )
+        )
+        tag_orm = result.scalar_one_or_none()
+
+        if not highlight_orm or not tag_orm:
+            return False
+
+        # Add association if not already present
+        if tag_orm not in highlight_orm.tags:
+            highlight_orm.tags.append(tag_orm)
+            await self.db.commit()
+            return True
+
+        return False
+
+    async def remove_tag_from_highlight(
+        self, highlight_id: HighlightId, tag_id: TagId, user_id: UserId
+    ) -> bool:
+        """
+        Remove a tag from a highlight (removes the many-to-many association).
+
+        Args:
+            highlight_id: The highlight ID
+            tag_id: The tag ID
+            user_id: The user ID for authorization check
+
+        Returns:
+            True if removed, False if not found or not associated
+        """
+        # Verify ownership and get ORM models
+        result = await self.db.execute(
+            select(HighlightORM)
+            .options(selectinload(HighlightORM.tags))
+            .where(
+                HighlightORM.id == highlight_id.value,
+                HighlightORM.user_id == user_id.value,
+            )
+        )
+        highlight_orm = result.scalar_one_or_none()
+
+        result = await self.db.execute(
+            select(TagORM).where(
+                TagORM.id == tag_id.value,
+                TagORM.user_id == user_id.value,
+            )
+        )
+        tag_orm = result.scalar_one_or_none()
+
+        if not highlight_orm or not tag_orm:
+            return False
+
+        # Remove association if present
+        if tag_orm in highlight_orm.tags:
+            highlight_orm.tags.remove(tag_orm)
+            await self.db.commit()
+            return True
+
+        return False

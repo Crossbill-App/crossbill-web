@@ -5,7 +5,7 @@ from sqlalchemy import inspect
 from src.domain.common.value_objects.ids import BookId, TagId, UserId
 from src.domain.tagging.entities.tag import Tag
 from src.infrastructure.common.mappers import orm_id
-from src.infrastructure.reading.orm.tag_model import Tag as TagORM
+from src.infrastructure.tagging.orm.tag_model import Tag as TagORM
 
 
 class TagMapper:

@@ -7,17 +7,20 @@ from sqlalchemy import DateTime, ForeignKey, String, UniqueConstraint, func
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from src.database import Base
+
+# The highlight association is owned by the reading module, which defines the
+# link table; tags only mirror the relationship back.
 from src.infrastructure.reading.orm.associations import highlight_tags
 
 if TYPE_CHECKING:
     from src.infrastructure.identity.orm.user_model import User
     from src.infrastructure.library.orm.book_model import Book
     from src.infrastructure.reading.orm.highlight_model import Highlight
-    from src.infrastructure.reading.orm.tag_group_model import TagGroup
+    from src.infrastructure.tagging.orm.tag_group_model import TagGroup
 
 
 class Tag(Base):
-    """Tag model for categorizing highlights within a book."""
+    """Tag model for categorizing content within a book (highlights, notes)."""
 
     __tablename__ = "tags"
 

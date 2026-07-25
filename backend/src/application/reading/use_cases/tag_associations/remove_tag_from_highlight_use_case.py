@@ -7,9 +7,6 @@ import structlog
 from src.application.reading.protocols.highlight_repository import (
     HighlightRepositoryProtocol,
 )
-from src.application.reading.protocols.tag_repository import (
-    TagRepositoryProtocol,
-)
 from src.application.reading.services.label_resolution_service import LabelResolutionService
 from src.domain.common.value_objects.ids import HighlightId, TagId, UserId
 from src.domain.learning.entities.flashcard import Flashcard
@@ -27,11 +24,9 @@ class RemoveTagFromHighlightUseCase:
     def __init__(
         self,
         highlight_repository: HighlightRepositoryProtocol,
-        tag_repository: TagRepositoryProtocol,
         label_resolution_service: LabelResolutionService | None = None,
     ) -> None:
         self.highlight_repository = highlight_repository
-        self.tag_repository = tag_repository
         self.label_resolution_service = label_resolution_service
 
     async def remove_tag(
@@ -61,7 +56,7 @@ class RemoveTagFromHighlightUseCase:
             raise HighlightNotFoundError(highlight_id)
 
         # Remove association via repository
-        removed = await self.tag_repository.remove_tag_from_highlight(
+        removed = await self.highlight_repository.remove_tag_from_highlight(
             highlight_id_vo, tag_id_vo, user_id_vo
         )
         if removed:

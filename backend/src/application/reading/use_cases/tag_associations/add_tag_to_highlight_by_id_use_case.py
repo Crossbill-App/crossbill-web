@@ -7,10 +7,10 @@ import structlog
 from src.application.reading.protocols.highlight_repository import (
     HighlightRepositoryProtocol,
 )
-from src.application.reading.protocols.tag_repository import (
+from src.application.reading.services.label_resolution_service import LabelResolutionService
+from src.application.tagging.protocols.tag_repository import (
     TagRepositoryProtocol,
 )
-from src.application.reading.services.label_resolution_service import LabelResolutionService
 from src.domain.common.value_objects.ids import HighlightId, TagId, UserId
 from src.domain.learning.entities.flashcard import Flashcard
 from src.domain.reading.entities.highlight import Highlight
@@ -69,7 +69,7 @@ class AddTagToHighlightByIdUseCase:
         highlight.add_tag(tag.id, tag.book_id)
 
         # Persist association via repository
-        added = await self.tag_repository.add_tag_to_highlight(
+        added = await self.highlight_repository.add_tag_to_highlight(
             highlight_id_vo, tag_id_vo, user_id_vo
         )
         if added:

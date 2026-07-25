@@ -30,16 +30,6 @@ from src.infrastructure.reading.schemas.reading_session_schemas import (
     ReadingSessionUploadResponse,
     ReadingSessionUploadSessionItem,
 )
-from src.infrastructure.reading.schemas.tag_schemas import (
-    Tag,
-    TagAssociationRequest,
-    TagCreateRequest,
-    TagGroup,
-    TagGroupCreateRequest,
-    TagGroupInBook,
-    TagInBook,
-    TagUpdateRequest,
-)
 
 __all__ = [
     "BookDetails",
@@ -66,12 +56,4 @@ __all__ = [
     "ReadingSessionUploadRequest",
     "ReadingSessionUploadResponse",
     "ReadingSessionUploadSessionItem",
-    "Tag",
-    "TagAssociationRequest",
-    "TagCreateRequest",
-    "TagGroup",
-    "TagGroupCreateRequest",
-    "TagGroupInBook",
-    "TagInBook",
-    "TagUpdateRequest",
 ]

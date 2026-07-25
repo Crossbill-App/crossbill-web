@@ -13,28 +13,28 @@ from src.application.reading.use_cases.tag_associations.add_tag_to_highlight_by_
 from src.application.reading.use_cases.tag_associations.remove_tag_from_highlight_use_case import (
     RemoveTagFromHighlightUseCase,
 )
-from src.application.reading.use_cases.tag_groups.create_tag_group_use_case import (
+from src.application.tagging.use_cases.tag_groups.create_tag_group_use_case import (
     CreateTagGroupUseCase,
 )
-from src.application.reading.use_cases.tag_groups.delete_tag_group_use_case import (
+from src.application.tagging.use_cases.tag_groups.delete_tag_group_use_case import (
     DeleteTagGroupUseCase,
 )
-from src.application.reading.use_cases.tag_groups.update_tag_group_association_use_case import (
+from src.application.tagging.use_cases.tag_groups.update_tag_group_association_use_case import (
     UpdateTagGroupAssociationUseCase,
 )
-from src.application.reading.use_cases.tag_groups.update_tag_group_use_case import (
+from src.application.tagging.use_cases.tag_groups.update_tag_group_use_case import (
     UpdateTagGroupUseCase,
 )
-from src.application.reading.use_cases.tags.create_tag_use_case import (
+from src.application.tagging.use_cases.tags.create_tag_use_case import (
     CreateTagUseCase,
 )
-from src.application.reading.use_cases.tags.delete_tag_use_case import (
+from src.application.tagging.use_cases.tags.delete_tag_use_case import (
     DeleteTagUseCase,
 )
-from src.application.reading.use_cases.tags.get_tags_for_book_use_case import (
+from src.application.tagging.use_cases.tags.get_tags_for_book_use_case import (
     GetTagsForBookUseCase,
 )
-from src.application.reading.use_cases.tags.update_tag_name_use_case import (
+from src.application.tagging.use_cases.tags.update_tag_name_use_case import (
     UpdateTagNameUseCase,
 )
 from src.core import container
@@ -49,10 +49,12 @@ from src.infrastructure.identity.dependencies import get_current_user
 from src.infrastructure.learning.schemas import (
     Flashcard,
 )
-from src.infrastructure.reading.repositories import TagRepository
 from src.infrastructure.reading.schemas import (
     Highlight,
     HighlightLabel,
+)
+from src.infrastructure.tagging.repositories import TagRepository
+from src.infrastructure.tagging.schemas import (
     Tag,
     TagAssociationRequest,
     TagCreateRequest,
@@ -74,10 +76,10 @@ async def create_or_update_tag_group(
     request: TagGroupCreateRequest,
     current_user: Annotated[User, Depends(get_current_user)],
     create_use_case: CreateTagGroupUseCase = Depends(
-        inject_use_case(container.reading.create_tag_group_use_case)
+        inject_use_case(container.tagging.create_tag_group_use_case)
     ),
     update_use_case: UpdateTagGroupUseCase = Depends(
-        inject_use_case(container.reading.update_tag_group_use_case)
+        inject_use_case(container.tagging.update_tag_group_use_case)
     ),
 ) -> TagGroup:
     """
@@ -125,7 +127,7 @@ async def delete_tag_group(
     tag_group_id: int,
     current_user: Annotated[User, Depends(get_current_user)],
     use_case: DeleteTagGroupUseCase = Depends(
-        inject_use_case(container.reading.delete_tag_group_use_case)
+        inject_use_case(container.tagging.delete_tag_group_use_case)
     ),
 ) -> None:
     """
@@ -151,7 +153,7 @@ async def get_tags(
     book_id: int,
     current_user: Annotated[User, Depends(get_current_user)],
     use_case: GetTagsForBookUseCase = Depends(
-        inject_use_case(container.reading.get_tags_for_book_use_case)
+        inject_use_case(container.tagging.get_tags_for_book_use_case)
     ),
 ) -> CollectionResponse[Tag]:
     """
@@ -189,7 +191,7 @@ async def create_tag(
     book_id: int,
     request: TagCreateRequest,
     current_user: Annotated[User, Depends(get_current_user)],
-    use_case: CreateTagUseCase = Depends(inject_use_case(container.reading.create_tag_use_case)),
+    use_case: CreateTagUseCase = Depends(inject_use_case(container.tagging.create_tag_use_case)),
 ) -> Tag:
     """
     Create a new tag for a book.
@@ -221,7 +223,7 @@ async def delete_tag(
     book_id: int,
     tag_id: int,
     current_user: Annotated[User, Depends(get_current_user)],
-    use_case: DeleteTagUseCase = Depends(inject_use_case(container.reading.delete_tag_use_case)),
+    use_case: DeleteTagUseCase = Depends(inject_use_case(container.tagging.delete_tag_use_case)),
 ) -> None:
     """
     Delete a tag from a book.
@@ -252,10 +254,10 @@ async def update_tag(
     db: DatabaseSession,
     current_user: Annotated[User, Depends(get_current_user)],
     tag_use_case: UpdateTagNameUseCase = Depends(
-        inject_use_case(container.reading.update_tag_name_use_case)
+        inject_use_case(container.tagging.update_tag_name_use_case)
     ),
     group_use_case: UpdateTagGroupAssociationUseCase = Depends(
-        inject_use_case(container.reading.update_tag_group_association_use_case)
+        inject_use_case(container.tagging.update_tag_group_association_use_case)
     ),
 ) -> Tag:
     """

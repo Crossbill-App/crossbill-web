@@ -62,8 +62,8 @@ from src.infrastructure.reading.routers import (
     highlights,
     reading_sessions,
 )
-from src.infrastructure.reading.routers import tags as reading_tags
 from src.infrastructure.reflection.routers import book_reflections as reflection_router
+from src.infrastructure.tagging.routers import tags as tagging_tags
 
 settings = get_settings()
 
@@ -393,7 +393,7 @@ app.include_router(library_covers.router, prefix=settings.API_V1_PREFIX)
 
 # Reading
 app.include_router(highlights.router, prefix=settings.API_V1_PREFIX)
-app.include_router(reading_tags.router, prefix=settings.API_V1_PREFIX)
+app.include_router(tagging_tags.router, prefix=settings.API_V1_PREFIX)
 app.include_router(reading_sessions.router, prefix=settings.API_V1_PREFIX)
 app.include_router(bookmarks.router, prefix=settings.API_V1_PREFIX)
 app.include_router(chapter_prereading.router, prefix=settings.API_V1_PREFIX)

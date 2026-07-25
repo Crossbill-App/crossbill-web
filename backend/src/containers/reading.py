@@ -66,30 +66,6 @@ from src.application.reading.use_cases.tag_associations.add_tag_to_highlight_by_
 from src.application.reading.use_cases.tag_associations.remove_tag_from_highlight_use_case import (
     RemoveTagFromHighlightUseCase,
 )
-from src.application.reading.use_cases.tag_groups.create_tag_group_use_case import (
-    CreateTagGroupUseCase,
-)
-from src.application.reading.use_cases.tag_groups.delete_tag_group_use_case import (
-    DeleteTagGroupUseCase,
-)
-from src.application.reading.use_cases.tag_groups.update_tag_group_association_use_case import (
-    UpdateTagGroupAssociationUseCase,
-)
-from src.application.reading.use_cases.tag_groups.update_tag_group_use_case import (
-    UpdateTagGroupUseCase,
-)
-from src.application.reading.use_cases.tags.create_tag_use_case import (
-    CreateTagUseCase,
-)
-from src.application.reading.use_cases.tags.delete_tag_use_case import (
-    DeleteTagUseCase,
-)
-from src.application.reading.use_cases.tags.get_tags_for_book_use_case import (
-    GetTagsForBookUseCase,
-)
-from src.application.reading.use_cases.tags.update_tag_name_use_case import (
-    UpdateTagNameUseCase,
-)
 
 
 class ReadingContainer(containers.DeclarativeContainer):
@@ -152,46 +128,6 @@ class ReadingContainer(containers.DeclarativeContainer):
         highlight_style_repository=highlight_style_repository,
     )
 
-    # Tags
-    create_tag_use_case = providers.Factory(
-        CreateTagUseCase,
-        tag_repository=tag_repository,
-        book_repository=book_repository,
-    )
-    delete_tag_use_case = providers.Factory(
-        DeleteTagUseCase,
-        tag_repository=tag_repository,
-    )
-    update_tag_name_use_case = providers.Factory(
-        UpdateTagNameUseCase,
-        tag_repository=tag_repository,
-    )
-    get_tags_for_book_use_case = providers.Factory(
-        GetTagsForBookUseCase,
-        tag_repository=tag_repository,
-        book_repository=book_repository,
-    )
-
-    # Tag groups
-    create_tag_group_use_case = providers.Factory(
-        CreateTagGroupUseCase,
-        tag_repository=tag_repository,
-        book_repository=book_repository,
-    )
-    update_tag_group_use_case = providers.Factory(
-        UpdateTagGroupUseCase,
-        tag_repository=tag_repository,
-        book_repository=book_repository,
-    )
-    delete_tag_group_use_case = providers.Factory(
-        DeleteTagGroupUseCase,
-        tag_repository=tag_repository,
-    )
-    update_tag_group_association_use_case = providers.Factory(
-        UpdateTagGroupAssociationUseCase,
-        tag_repository=tag_repository,
-    )
-
     # Tag associations
     add_tag_to_highlight_by_id_use_case = providers.Factory(
         AddTagToHighlightByIdUseCase,
@@ -208,7 +144,6 @@ class ReadingContainer(containers.DeclarativeContainer):
     remove_tag_from_highlight_use_case = providers.Factory(
         RemoveTagFromHighlightUseCase,
         highlight_repository=highlight_repository,
-        tag_repository=tag_repository,
         label_resolution_service=label_resolution_service,
     )
 

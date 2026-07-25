@@ -4,7 +4,7 @@ import structlog
 
 from src.application.common.ownership import require_book
 from src.application.library.protocols.book_repository import BookRepositoryProtocol
-from src.application.reading.protocols.tag_repository import (
+from src.application.tagging.protocols.tag_repository import (
     TagRepositoryProtocol,
 )
 from src.domain.common.value_objects.ids import BookId, UserId

@@ -17,8 +17,8 @@ if TYPE_CHECKING:
     from src.infrastructure.reading.orm.highlight_model import Highlight
     from src.infrastructure.reading.orm.highlight_style_model import HighlightStyle
     from src.infrastructure.reading.orm.reading_session_model import ReadingSession
-    from src.infrastructure.reading.orm.tag_group_model import TagGroup
-    from src.infrastructure.reading.orm.tag_model import Tag
+    from src.infrastructure.tagging.orm.tag_group_model import TagGroup
+    from src.infrastructure.tagging.orm.tag_model import Tag
 
 
 class Book(Base):

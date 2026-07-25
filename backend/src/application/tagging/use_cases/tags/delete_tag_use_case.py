@@ -3,7 +3,7 @@
 import structlog
 
 from src.application.common.ownership import require_belongs_to_book
-from src.application.reading.protocols.tag_repository import (
+from src.application.tagging.protocols.tag_repository import (
     TagRepositoryProtocol,
 )
 from src.domain.common.value_objects.ids import BookId, TagId, UserId

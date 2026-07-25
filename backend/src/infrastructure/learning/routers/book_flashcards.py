@@ -23,8 +23,8 @@ from src.infrastructure.learning.schemas import (
 from src.infrastructure.reading.schemas import (
     HighlightLabel,
     HighlightResponseBase,
-    TagInBook,
 )
+from src.infrastructure.tagging.schemas import TagInBook
 
 router = APIRouter(prefix="/books", tags=["flashcards"])
 

@@ -1,7 +1,13 @@
 from typing import Protocol
 
 from src.domain.common.value_objects import ContentHash
-from src.domain.common.value_objects.ids import BookId, HighlightId, ReadingSessionId, UserId
+from src.domain.common.value_objects.ids import (
+    BookId,
+    HighlightId,
+    ReadingSessionId,
+    TagId,
+    UserId,
+)
 from src.domain.common.value_objects.position import Position
 from src.domain.learning.entities import Flashcard
 from src.domain.library.entities.book import Book
@@ -60,3 +66,13 @@ class HighlightRepositoryProtocol(Protocol):
         user_id: UserId,
         book_id: BookId,
     ) -> int: ...
+
+    # Tag associations (owned by reading; tags themselves live in the tagging module)
+
+    async def add_tag_to_highlight(
+        self, highlight_id: HighlightId, tag_id: TagId, user_id: UserId
+    ) -> bool: ...
+
+    async def remove_tag_from_highlight(
+        self, highlight_id: HighlightId, tag_id: TagId, user_id: UserId
+    ) -> bool: ...

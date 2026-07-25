@@ -11,11 +11,11 @@ from src.application.reading.protocols.highlight_repository import HighlightRepo
 from src.application.reading.protocols.reading_session_repository import (
     ReadingSessionRepositoryProtocol,
 )
-from src.application.reading.protocols.tag_repository import (
+from src.application.reading.services.label_resolution_service import LabelResolutionService
+from src.application.tagging.protocols.tag_repository import (
     TagRepositoryProtocol,
 )
-from src.application.reading.services.label_resolution_service import LabelResolutionService
-from src.application.reading.use_cases.tags.get_tags_for_book_use_case import (
+from src.application.tagging.use_cases.tags.get_tags_for_book_use_case import (
     GetTagsForBookUseCase,
 )
 from src.domain.common.value_objects import BookId, UserId

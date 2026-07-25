@@ -18,7 +18,7 @@ from src.infrastructure.library.orm.chapter_model import Chapter as ChapterORM
 from src.infrastructure.notes.mappers.note_mapper import NoteMapper
 from src.infrastructure.notes.orm.note_model import Note as NoteORM
 from src.infrastructure.reading.orm.highlight_model import Highlight as HighlightORM
-from src.infrastructure.reading.orm.tag_model import Tag as TagORM
+from src.infrastructure.tagging.orm.tag_model import Tag as TagORM
 
 
 class NoteRepository(BaseRepository[Note, NoteORM]):

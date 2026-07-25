@@ -11,8 +11,8 @@ from src.infrastructure.reading.schemas import (
     ChapterWithHighlights,
     Highlight,
     HighlightLabel,
-    TagInBook,
 )
+from src.infrastructure.tagging.schemas import TagInBook
 
 
 def map_chapters_to_schemas(
