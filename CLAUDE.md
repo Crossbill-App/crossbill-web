@@ -137,8 +137,23 @@ This backend follows DDD (Domain-Driven Design) with hexagonal architecture and 
 5. **Domain Services**
    - Domain services live in the domain layer, NOT the application layer
    - They encapsulate domain logic that doesn't belong to a single entity
+   - Exception: services that compose data *across* domain modules for views (read-model
+     assembly, e.g. `HighlightGroupingService`, `BookDetailsAggregation`) are application
+     services, not domain services — they live in the application layer
 
-6. **Domain Exceptions**
+6. **Module Boundaries (enforced by import-linter)**
+   - The backend is a single bounded context; the directories under `src/domain/` are
+     modules within it (`library`, `reading`, `notes`, `learning`, `tagging`, ...)
+   - **Domain layer is strict**: a domain module may import only from itself and
+     `src/domain/common/`. Reference another module's aggregates by ID
+     (e.g. `tag_ids: list[int]`, `note_id: NoteId`), never by importing its entities
+   - **Application layer is relaxed**: use cases may import other modules' repository
+     protocols and entities to compose read models — that is the application layer's job
+   - Contracts are defined in `backend/pyproject.toml` under `[tool.importlinter]` and run
+     via `uv run lint-imports` (in CI and in the post-edit hook). When adding a new domain
+     module, add it to the `domain-module-independence` contract's module list
+
+7. **Domain Exceptions**
    - Base exceptions live in `backend/src/domain/common/exceptions.py` (`DomainError`, `EntityNotFoundError`, `ValidationError`, etc.)
    - Each subdomain defines specific subclasses in its own `exceptions.py` (e.g., `domain/reading/exceptions.py`, `domain/learning/exceptions.py`)
    - **Always use specific NotFound subclasses** (e.g., `BookNotFoundError`, `ChapterNotFoundError`) instead of raising `EntityNotFoundError` directly with a string entity type

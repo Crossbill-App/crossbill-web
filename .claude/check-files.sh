@@ -6,6 +6,8 @@ set -euo pipefail
 
 PROJECT_ROOT="/home/tuomas/Code/crossbill/crossbill-web"
 
+python_checked=0
+
 for file in $CLAUDE_FILE_PATHS; do
     # Skip if file doesn't exist
     [[ -f "$file" ]] || continue
@@ -13,6 +15,7 @@ for file in $CLAUDE_FILE_PATHS; do
     case "$file" in
         *.py)
             echo "━━━ Checking Python: $file ━━━"
+            python_checked=1
 
             # Run ruff (formatter) - keeps files matching CI's `ruff format --check`
             cd "$PROJECT_ROOT/backend" && uv run ruff format "$file" 2>&1 | head -5
@@ -77,3 +80,14 @@ except Exception as e:
             ;;
     esac
 done
+
+# Import-linter works on the whole import graph, so run it once per invocation
+if [[ "$python_checked" -eq 1 ]]; then
+    echo "Running import-linter..."
+    if output=$(cd "$PROJECT_ROOT/backend" && uv run lint-imports 2>&1); then
+        echo "✓ Import-linter: all contracts kept"
+    else
+        echo "⚠ Import-linter: broken contracts"
+        echo "$output" | sed -n '/Broken contracts/,$p' | head -40
+    fi
+fi

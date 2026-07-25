@@ -54,9 +54,6 @@ async def create_bookmark(
     """
     bookmark = await use_case.create_bookmark(book_id, request.highlight_id, current_user.id.value)
 
-    # Manually construct schema from domain entity
-    # created_at is always set for persisted bookmarks
-    assert bookmark.created_at is not None
     return Bookmark(
         id=bookmark.id.value,
         book_id=bookmark.book_id.value,
@@ -123,17 +120,13 @@ async def get_bookmarks(
     """
     bookmarks = await use_case.get_bookmarks_by_book(book_id, current_user.id.value)
 
-    # Manually construct schemas from domain entities
-    # created_at is always set for persisted bookmarks
-    bookmark_schemas = []
-    for b in bookmarks:
-        assert b.created_at is not None
-        bookmark_schemas.append(
-            Bookmark(
-                id=b.id.value,
-                book_id=b.book_id.value,
-                highlight_id=b.highlight_id.value,
-                created_at=b.created_at,
-            )
+    bookmark_schemas = [
+        Bookmark(
+            id=b.id.value,
+            book_id=b.book_id.value,
+            highlight_id=b.highlight_id.value,
+            created_at=b.created_at,
         )
+        for b in bookmarks
+    ]
     return CollectionResponse[Bookmark](items=bookmark_schemas)

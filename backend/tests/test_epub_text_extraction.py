@@ -9,7 +9,8 @@ from lxml import etree  # pyright: ignore[reportAttributeAccessIssue]
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.config import EPUBS_DIR
-from src.domain.library.exceptions import XPointNavigationError, XPointParseError
+from src.domain.common.exceptions import XPointParseError
+from src.domain.library.exceptions import XPointNavigationError
 from src.infrastructure.library.services.epub_parser_service import EpubParserService
 from src.infrastructure.library.services.epub_text_extraction_service import (
     EpubTextExtractionService,

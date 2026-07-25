@@ -2,8 +2,8 @@
 
 import pytest
 
+from src.domain.common.exceptions import XPointParseError
 from src.domain.common.value_objects.xpoint import XPoint, XPointRange
-from src.domain.library.exceptions import XPointParseError
 
 
 class TestXPoint:

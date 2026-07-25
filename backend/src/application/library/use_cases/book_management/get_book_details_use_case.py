@@ -4,12 +4,17 @@ import logging
 
 from src.application.common.ownership import require_book
 from src.application.learning.protocols.flashcard_repository import FlashcardRepositoryProtocol
+from src.application.library.dtos import BookDetailsAggregation
 from src.application.library.protocols.book_repository import BookRepositoryProtocol
 from src.application.library.protocols.chapter_repository import ChapterRepositoryProtocol
 from src.application.reading.protocols.bookmark_repository import BookmarkRepositoryProtocol
 from src.application.reading.protocols.highlight_repository import HighlightRepositoryProtocol
 from src.application.reading.protocols.reading_session_repository import (
     ReadingSessionRepositoryProtocol,
+)
+from src.application.reading.services.highlight_grouping_service import (
+    ChapterWithHighlights,
+    HighlightGroupingService,
 )
 from src.application.reading.services.label_resolution_service import LabelResolutionService
 from src.application.tagging.protocols.tag_repository import (
@@ -19,13 +24,7 @@ from src.application.tagging.use_cases.tags.get_tags_for_book_use_case import (
     GetTagsForBookUseCase,
 )
 from src.domain.common.value_objects import BookId, UserId
-from src.domain.library.services.book_details_aggregator import BookDetailsAggregation
-from src.domain.reading.services.highlight_grouping_service import (
-    ChapterWithHighlights,
-    HighlightGroupingService,
-)
 from src.domain.reading.services.highlight_style_resolver import ResolvedLabel
-from src.domain.tagging.entities.tag import Tag
 
 logger = logging.getLogger(__name__)
 
@@ -104,7 +103,7 @@ class GetBookDetailsUseCase:
 
         # Merge: ensure every chapter appears, even those without highlights
         grouped_by_id = {g.chapter_id: g for g in grouped}
-        merged: list[ChapterWithHighlights[Tag]] = []
+        merged: list[ChapterWithHighlights] = []
         for ch in all_chapters:
             if ch.id.value in grouped_by_id:
                 existing = grouped_by_id.pop(ch.id.value)

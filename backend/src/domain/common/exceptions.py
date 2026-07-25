@@ -105,6 +105,19 @@ class AuthorizationError(DomainError):
         super().__init__(message, details)
 
 
+class XPointParseError(ValidationError):
+    """Invalid xpoint format."""
+
+    def __init__(self, xpoint: str, reason: str) -> None:
+        super().__init__(
+            f"Invalid xpoint '{xpoint}': {reason}",
+            field="xpoint",
+            value=xpoint,
+        )
+        self.xpoint = xpoint
+        self.reason = reason
+
+
 class InvariantViolationError(BusinessRuleViolationError):
     """
     Raised when an aggregate invariant is violated.
