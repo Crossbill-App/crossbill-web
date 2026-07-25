@@ -1,7 +1,4 @@
-import {
-  useGetTagsApiV1BooksBookIdTagsGet,
-  useSearchBookHighlightsApiV1BooksBookIdHighlightsGet,
-} from '@/api/generated/highlights/highlights.ts';
+import { useSearchBookHighlightsApiV1BooksBookIdHighlightsGet } from '@/api/generated/highlights/highlights.ts';
 import type {
   Bookmark,
   ChapterWithHighlights,
@@ -9,6 +6,7 @@ import type {
   TagGroupInBook,
   TagInBook,
 } from '@/api/generated/model';
+import { useGetTagsApiV1BooksBookIdTagsGet } from '@/api/generated/tags/tags.ts';
 import { scrollToElementWithHighlight } from '@/components/animations/scrollUtils';
 import { ContentWithSidebar } from '@/components/layout/Layouts.tsx';
 import { useBookPage } from '@/pages/BookPage/BookPageContext';

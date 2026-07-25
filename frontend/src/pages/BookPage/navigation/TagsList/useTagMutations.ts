@@ -1,10 +1,10 @@
 import { getGetBookDetailsApiV1BooksBookIdGetQueryKey } from '@/api/generated/books/books.ts';
-import {
-  useCreateOrUpdateTagGroupApiV1HighlightsTagGroupPost,
-  useDeleteTagGroupApiV1HighlightsTagGroupTagGroupIdDelete,
-  useUpdateTagApiV1BooksBookIdTagTagIdPost,
-} from '@/api/generated/highlights/highlights.ts';
 import { TagInBook } from '@/api/generated/model';
+import {
+  useCreateOrUpdateTagGroupApiV1TagGroupsPost,
+  useDeleteTagGroupApiV1TagGroupsTagGroupIdDelete,
+  useUpdateTagApiV1BooksBookIdTagTagIdPost,
+} from '@/api/generated/tags/tags.ts';
 import { useBookMutationHelpers } from '@/hooks/useBookMutationHelpers.ts';
 import { useQueryClient } from '@tanstack/react-query';
 import { useState } from 'react';
@@ -75,14 +75,14 @@ export const useTagMutations = (bookId: number) => {
     },
   });
 
-  const createOrUpdateGroupMutation = useCreateOrUpdateTagGroupApiV1HighlightsTagGroupPost({
+  const createOrUpdateGroupMutation = useCreateOrUpdateTagGroupApiV1TagGroupsPost({
     mutation: {
       onSuccess: () => invalidateBookAndTags(),
       onError: mutationErrorHandler('save tag group'),
     },
   });
 
-  const deleteGroupMutation = useDeleteTagGroupApiV1HighlightsTagGroupTagGroupIdDelete({
+  const deleteGroupMutation = useDeleteTagGroupApiV1TagGroupsTagGroupIdDelete({
     mutation: {
       onSuccess: () => invalidateBookAndTags(),
       onError: mutationErrorHandler('delete tag group'),

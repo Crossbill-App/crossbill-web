@@ -1,8 +1,8 @@
+import type { TagInBook } from '@/api/generated/model';
 import {
   useAddTagToHighlightApiV1BooksBookIdHighlightHighlightIdTagPost,
   useRemoveTagFromHighlightApiV1BooksBookIdHighlightHighlightIdTagTagIdDelete,
-} from '@/api/generated/highlights/highlights.ts';
-import type { TagInBook } from '@/api/generated/model';
+} from '@/api/generated/tags/tags.ts';
 import { useBookMutationHelpers } from '@/hooks/useBookMutationHelpers.ts';
 import { filter, map } from 'lodash';
 import { useEffect, useState } from 'react';

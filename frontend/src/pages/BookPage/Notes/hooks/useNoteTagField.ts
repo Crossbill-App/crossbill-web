@@ -1,5 +1,5 @@
-import { useCreateTagApiV1BooksBookIdTagPost } from '@/api/generated/highlights/highlights.ts';
 import type { TagInBook } from '@/api/generated/model';
+import { useCreateTagApiV1BooksBookIdTagPost } from '@/api/generated/tags/tags.ts';
 import { useBookMutationHelpers } from '@/hooks/useBookMutationHelpers.ts';
 
 /**

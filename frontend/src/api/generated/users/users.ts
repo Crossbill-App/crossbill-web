@@ -242,6 +242,9 @@ export function useGetMeApiV1UsersMeGet<
  *
  * - To change email: provide `email` field
  * - To change password: provide both `current_password` and `new_password` fields
+ *
+ * Changing the password signs every session out, this one included, so clients
+ * should send the user back to the login screen afterwards.
  * @summary Update Me
  */
 export const updateMeApiV1UsersMePost = (
