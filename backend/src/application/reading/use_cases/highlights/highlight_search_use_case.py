@@ -14,6 +14,7 @@ from src.domain.reading.services.highlight_grouping_service import (
     HighlightGroupingService,
 )
 from src.domain.reading.services.highlight_style_resolver import ResolvedLabel
+from src.domain.tagging.entities.tag import Tag
 
 
 class HighlightSearchUseCase:
@@ -30,7 +31,7 @@ class HighlightSearchUseCase:
 
     async def search_book_highlights(
         self, book_id: int, user_id: int, search_text: str, limit: int = 100
-    ) -> tuple[list[ChapterWithHighlights], int, dict[int, ResolvedLabel]]:
+    ) -> tuple[list[ChapterWithHighlights[Tag]], int, dict[int, ResolvedLabel]]:
         """
         Search for highlights within a specific book using full-text search.
 

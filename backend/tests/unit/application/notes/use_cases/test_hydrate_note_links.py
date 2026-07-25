@@ -18,7 +18,7 @@ from src.domain.common.value_objects import (
 from src.domain.library.entities.chapter import Chapter
 from src.domain.notes.entities.note import Note
 from src.domain.reading.entities.highlight import Highlight
-from src.domain.reading.entities.tag import Tag
+from src.domain.tagging.entities.tag import Tag
 
 USER_ID = UserId(1)
 BOOK_ID = BookId(10)

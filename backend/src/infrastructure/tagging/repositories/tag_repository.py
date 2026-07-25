@@ -2,35 +2,33 @@
 
 from sqlalchemy import or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.orm import selectinload
 
 from src.domain.common.value_objects.ids import (
     BookId,
-    HighlightId,
     TagGroupId,
-    TagId,
     UserId,
 )
-from src.domain.reading.entities.tag import Tag
-from src.domain.reading.entities.tag_group import TagGroup
+from src.domain.tagging.entities.tag import Tag
+from src.domain.tagging.entities.tag_group import TagGroup
 from src.infrastructure.common.repositories import BaseRepository
 from src.infrastructure.notes.orm.associations import note_tags
-from src.infrastructure.reading.mappers.tag_group_mapper import (
-    TagGroupMapper,
-)
-from src.infrastructure.reading.mappers.tag_mapper import TagMapper
 from src.infrastructure.reading.orm.associations import highlight_tags
 from src.infrastructure.reading.orm.highlight_model import Highlight as HighlightORM
-from src.infrastructure.reading.orm.tag_group_model import TagGroup as TagGroupORM
-from src.infrastructure.reading.orm.tag_model import Tag as TagORM
+from src.infrastructure.tagging.mappers.tag_group_mapper import (
+    TagGroupMapper,
+)
+from src.infrastructure.tagging.mappers.tag_mapper import TagMapper
+from src.infrastructure.tagging.orm.tag_group_model import TagGroup as TagGroupORM
+from src.infrastructure.tagging.orm.tag_model import Tag as TagORM
 
 
 class TagRepository(BaseRepository[Tag, TagORM]):
     """Repository for Tag and TagGroup domain entities.
 
     Plain ``Tag`` CRUD (``find_by_id``, ``find_by_ids``, ``save``, ``delete``)
-    is inherited from :class:`BaseRepository`; the TagGroup and tag-highlight
-    association helpers below are bespoke.
+    is inherited from :class:`BaseRepository`; the TagGroup helpers below are
+    bespoke. Tag-to-highlight and tag-to-note associations are owned by the
+    modules holding them, so those repositories manage the link rows.
     """
 
     def __init__(self, db: AsyncSession) -> None:
@@ -206,96 +204,6 @@ class TagRepository(BaseRepository[Tag, TagORM]):
         await self.db.delete(group_orm)
         await self.db.commit()
         return True
-
-    # Tag-Highlight association methods
-
-    async def add_tag_to_highlight(
-        self, highlight_id: HighlightId, tag_id: TagId, user_id: UserId
-    ) -> bool:
-        """
-        Add a tag to a highlight (manages the many-to-many association).
-
-        Args:
-            highlight_id: The highlight ID
-            tag_id: The tag ID
-            user_id: The user ID for authorization check
-
-        Returns:
-            True if added, False if already associated or not found
-        """
-        # Verify ownership and get ORM models
-        result = await self.db.execute(
-            select(HighlightORM)
-            .options(selectinload(HighlightORM.tags))
-            .where(
-                HighlightORM.id == highlight_id.value,
-                HighlightORM.user_id == user_id.value,
-            )
-        )
-        highlight_orm = result.scalar_one_or_none()
-
-        result = await self.db.execute(
-            select(TagORM).where(
-                TagORM.id == tag_id.value,
-                TagORM.user_id == user_id.value,
-            )
-        )
-        tag_orm = result.scalar_one_or_none()
-
-        if not highlight_orm or not tag_orm:
-            return False
-
-        # Add association if not already present
-        if tag_orm not in highlight_orm.tags:
-            highlight_orm.tags.append(tag_orm)
-            await self.db.commit()
-            return True
-
-        return False
-
-    async def remove_tag_from_highlight(
-        self, highlight_id: HighlightId, tag_id: TagId, user_id: UserId
-    ) -> bool:
-        """
-        Remove a tag from a highlight (removes the many-to-many association).
-
-        Args:
-            highlight_id: The highlight ID
-            tag_id: The tag ID
-            user_id: The user ID for authorization check
-
-        Returns:
-            True if removed, False if not found or not associated
-        """
-        # Verify ownership and get ORM models
-        result = await self.db.execute(
-            select(HighlightORM)
-            .options(selectinload(HighlightORM.tags))
-            .where(
-                HighlightORM.id == highlight_id.value,
-                HighlightORM.user_id == user_id.value,
-            )
-        )
-        highlight_orm = result.scalar_one_or_none()
-
-        result = await self.db.execute(
-            select(TagORM).where(
-                TagORM.id == tag_id.value,
-                TagORM.user_id == user_id.value,
-            )
-        )
-        tag_orm = result.scalar_one_or_none()
-
-        if not highlight_orm or not tag_orm:
-            return False
-
-        # Remove association if present
-        if tag_orm in highlight_orm.tags:
-            highlight_orm.tags.remove(tag_orm)
-            await self.db.commit()
-            return True
-
-        return False
 
     async def check_group_exists(self, group_id: TagGroupId) -> bool:
         """

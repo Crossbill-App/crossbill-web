@@ -8,7 +8,7 @@ from src.application.library.protocols.chapter_repository import ChapterReposito
 from src.application.notes.protocols.note_repository import NoteRepositoryProtocol
 from src.application.notes.use_cases.helpers import parse_note_kind, validate_link_targets
 from src.application.reading.protocols.highlight_repository import HighlightRepositoryProtocol
-from src.application.reading.protocols.tag_repository import (
+from src.application.tagging.protocols.tag_repository import (
     TagRepositoryProtocol,
 )
 from src.domain.common.value_objects import BookId, UserId

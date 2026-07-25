@@ -34,10 +34,10 @@ from src.infrastructure.reading.orm.chapter_prereading_content_model import (
 from src.infrastructure.reading.orm.highlight_model import Highlight
 from src.infrastructure.reading.orm.highlight_style_model import HighlightStyle
 from src.infrastructure.reading.orm.reading_session_model import ReadingSession
-from src.infrastructure.reading.orm.tag_group_model import TagGroup
-from src.infrastructure.reading.orm.tag_model import Tag
 from src.infrastructure.reflection.orm.associations import book_reflection_notes
 from src.infrastructure.reflection.orm.book_reflection_model import BookReflection
+from src.infrastructure.tagging.orm.tag_group_model import TagGroup
+from src.infrastructure.tagging.orm.tag_model import Tag
 
 __all__ = [
     "AIChatSession",

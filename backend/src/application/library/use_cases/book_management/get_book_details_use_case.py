@@ -11,11 +11,11 @@ from src.application.reading.protocols.highlight_repository import HighlightRepo
 from src.application.reading.protocols.reading_session_repository import (
     ReadingSessionRepositoryProtocol,
 )
-from src.application.reading.protocols.tag_repository import (
+from src.application.reading.services.label_resolution_service import LabelResolutionService
+from src.application.tagging.protocols.tag_repository import (
     TagRepositoryProtocol,
 )
-from src.application.reading.services.label_resolution_service import LabelResolutionService
-from src.application.reading.use_cases.tags.get_tags_for_book_use_case import (
+from src.application.tagging.use_cases.tags.get_tags_for_book_use_case import (
     GetTagsForBookUseCase,
 )
 from src.domain.common.value_objects import BookId, UserId
@@ -25,6 +25,7 @@ from src.domain.reading.services.highlight_grouping_service import (
     HighlightGroupingService,
 )
 from src.domain.reading.services.highlight_style_resolver import ResolvedLabel
+from src.domain.tagging.entities.tag import Tag
 
 logger = logging.getLogger(__name__)
 
@@ -103,7 +104,7 @@ class GetBookDetailsUseCase:
 
         # Merge: ensure every chapter appears, even those without highlights
         grouped_by_id = {g.chapter_id: g for g in grouped}
-        merged: list[ChapterWithHighlights] = []
+        merged: list[ChapterWithHighlights[Tag]] = []
         for ch in all_chapters:
             if ch.id.value in grouped_by_id:
                 existing = grouped_by_id.pop(ch.id.value)

@@ -18,7 +18,7 @@ if TYPE_CHECKING:
     from src.infrastructure.library.orm.book_model import Book
     from src.infrastructure.library.orm.chapter_model import Chapter
     from src.infrastructure.reading.orm.highlight_model import Highlight
-    from src.infrastructure.reading.orm.tag_model import Tag
+    from src.infrastructure.tagging.orm.tag_model import Tag
 
 
 class Note(Base):

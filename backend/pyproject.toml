@@ -167,6 +167,8 @@ source_modules = [
     "src.infrastructure.reading.routers",
     "src.infrastructure.reading.schemas",
     "src.infrastructure.reading.services",
+    "src.infrastructure.tagging.routers",
+    "src.infrastructure.tagging.schemas",
 ]
 forbidden_modules = ["src.models", "src.infrastructure.jobs.orm"]
 

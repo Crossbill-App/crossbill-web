@@ -6,7 +6,7 @@ from src.domain.learning.entities.flashcard import Flashcard
 from src.domain.library.entities.chapter import Chapter
 from src.domain.notes.entities.note import Note
 from src.domain.reading.entities.highlight import Highlight
-from src.domain.reading.entities.tag import Tag
+from src.domain.tagging.entities.tag import Tag
 
 
 @dataclass

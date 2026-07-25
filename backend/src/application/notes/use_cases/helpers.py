@@ -5,7 +5,7 @@ from collections.abc import Callable
 from src.application.library.protocols.chapter_repository import ChapterRepositoryProtocol
 from src.application.notes.use_cases.dtos import NoteWithLinkedEntities
 from src.application.reading.protocols.highlight_repository import HighlightRepositoryProtocol
-from src.application.reading.protocols.tag_repository import (
+from src.application.tagging.protocols.tag_repository import (
     TagRepositoryProtocol,
 )
 from src.domain.common.exceptions import EntityNotFoundError, ValidationError
@@ -15,8 +15,8 @@ from src.domain.notes.exceptions import NoteLinkBookMismatchError
 from src.domain.reading.exceptions import (
     ChapterNotFoundError,
     HighlightNotFoundError,
-    TagNotFoundError,
 )
+from src.domain.tagging.exceptions import TagNotFoundError
 
 
 def parse_note_kind(kind: str | None) -> NoteKind | None:

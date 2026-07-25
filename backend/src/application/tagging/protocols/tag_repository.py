@@ -4,13 +4,12 @@ from typing import Protocol
 
 from src.domain.common.value_objects.ids import (
     BookId,
-    HighlightId,
     TagGroupId,
     TagId,
     UserId,
 )
-from src.domain.reading.entities.tag import Tag
-from src.domain.reading.entities.tag_group import TagGroup
+from src.domain.tagging.entities.tag import Tag
+from src.domain.tagging.entities.tag_group import TagGroup
 
 
 class TagRepositoryProtocol(Protocol):
@@ -45,13 +44,3 @@ class TagRepositoryProtocol(Protocol):
     async def delete_group(self, group_id: TagGroupId) -> bool: ...
 
     async def check_group_exists(self, group_id: TagGroupId) -> bool: ...
-
-    # Tag-Highlight association methods
-
-    async def add_tag_to_highlight(
-        self, highlight_id: HighlightId, tag_id: TagId, user_id: UserId
-    ) -> bool: ...
-
-    async def remove_tag_from_highlight(
-        self, highlight_id: HighlightId, tag_id: TagId, user_id: UserId
-    ) -> bool: ...

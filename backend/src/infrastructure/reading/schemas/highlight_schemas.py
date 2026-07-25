@@ -7,7 +7,7 @@ from pydantic import BaseModel, Field, model_validator
 
 from src.infrastructure.common.schemas.position_schemas import PositionResponse
 from src.infrastructure.reading.schemas.bookmark_schemas import Bookmark
-from src.infrastructure.reading.schemas.tag_schemas import (
+from src.infrastructure.tagging.schemas.tag_schemas import (
     TagGroupInBook,
     TagInBook,
 )

@@ -5,7 +5,7 @@ Use case for updating a tag's group association.
 import structlog
 
 from src.application.common.ownership import require_belongs_to_book
-from src.application.reading.protocols.tag_repository import (
+from src.application.tagging.protocols.tag_repository import (
     TagRepositoryProtocol,
 )
 from src.domain.common.value_objects.ids import (
@@ -14,8 +14,8 @@ from src.domain.common.value_objects.ids import (
     TagId,
     UserId,
 )
-from src.domain.reading.entities.tag import Tag
-from src.domain.reading.exceptions import TagGroupNotFoundError, TagNotFoundError
+from src.domain.tagging.entities.tag import Tag
+from src.domain.tagging.exceptions import TagGroupNotFoundError, TagNotFoundError
 
 logger = structlog.get_logger(__name__)
 

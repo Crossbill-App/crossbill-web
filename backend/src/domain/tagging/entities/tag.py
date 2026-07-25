@@ -1,5 +1,5 @@
 """
-Tag entity for categorizing highlights.
+Tag entity for categorizing book content.
 """
 
 from dataclasses import dataclass
@@ -17,7 +17,7 @@ from src.domain.common.value_objects.ids import (
 @dataclass
 class Tag(Entity[TagId]):
     """
-    Tag for categorizing highlights within a book.
+    Tag for categorizing content within a book (highlights, notes).
 
     Business Rules:
     - Tag names are scoped per book per user

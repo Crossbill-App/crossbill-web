@@ -9,6 +9,7 @@ from src.containers.notes import NotesContainer
 from src.containers.reading import ReadingContainer
 from src.containers.reflection import ReflectionContainer
 from src.containers.shared import SharedContainer
+from src.containers.tagging import TaggingContainer
 from src.database import current_db_session
 
 
@@ -50,6 +51,12 @@ class RootContainer(containers.DeclarativeContainer):
         ai_service=shared.ai_service,
     )
 
+    tagging = providers.Container(
+        TaggingContainer,
+        tag_repository=shared.tag_repository,
+        book_repository=shared.book_repository,
+    )
+
     library = providers.Container(
         LibraryContainer,
         book_repository=shared.book_repository,
@@ -65,7 +72,7 @@ class RootContainer(containers.DeclarativeContainer):
         epub_parser_service=shared.epub_parser_service,
         epub_position_index_service=shared.epub_position_index_service,
         cover_image_service=shared.cover_image_service,
-        get_tags_for_book_use_case=reading.get_tags_for_book_use_case,
+        get_tags_for_book_use_case=tagging.get_tags_for_book_use_case,
     )
 
     learning = providers.Container(
