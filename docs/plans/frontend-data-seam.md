@@ -12,93 +12,140 @@ from the same premises.
 ## The problem, measured
 
 26 cache operations — `invalidateQueries`, `setQueryData`, `refetchQueries`,
-`cancelQueries` — spread across 16 files, with no shared vocabulary:
+`cancelQueries` — spread across 16 files, with no shared vocabulary.
 
-1. **"A note changed" is written three times.** `NoteEditorForm.tsx`, `NoteViewModal.tsx`
-   and `hooks/useNoteLinks.ts` each independently invalidate
-   `getGetNotesForBook…QueryKey(bookId)` *and* `getGetNote…QueryKey(noteId)`. Nothing
-   enforces the pair. A fourth note mutation that invalidates only the first ships a
-   stale list, and there is no test to catch it.
+**A hand-written query key has already drifted, and it is a live bug.**
+`BookEditModal.tsx` refetches the books list after deleting a book:
+
+```ts
+await queryClient.refetchQueries({ queryKey: ['/api/v1/books'], exact: true });
+```
+
+`getGetBooksQueryKey()` returns `` [`/api/v1/books/`] `` — with a trailing slash — and
+`LandingPage` calls `useGetBooks({ search, offset, limit })`, so the real key is
+`` [`/api/v1/books/`, { search, offset, limit }] ``. The literal matches neither: wrong
+path, and `exact: true` against a two-element key. Combined with the 5-minute `staleTime`
+in `lib/queryClient.ts`, **a deleted book keeps appearing in the list for up to five
+minutes.** This is precisely the failure the seam prevents: a key written by hand, never
+checked against the generated one, silently matching nothing.
+
+The rest:
+
+1. **"A note changed" is written twice**, in `NoteEditorForm.tsx` and
+   `hooks/useNoteLinks.ts`, each invalidating `getGetNotesForBookQueryKey(bookId)` *and*
+   `getGetNoteQueryKey(noteId)` with nothing enforcing the pair. (`NoteViewModal.tsx`
+   invalidates only the list — correctly, since it deletes the note and refetching a
+   removed note's detail would 404. It is a different event, not a third copy.)
 2. **Cache keys travel as props.** `additionalInvalidateKeys` originates in
    `NoteFlashcardSection.tsx` and is threaded through `FlashcardSection` →
    `FlashcardListCard` → `useFlashcardMutations`. A leaf presentational component holds a
    React Query key because no other channel exists.
-3. **`getGetBookDetails…QueryKey` appears in four files**, one of which edits that cache
+3. **`getGetBookDetailsQueryKey` appears in four files**, one of which edits that cache
    entry by hand through an untyped cast (`old as { tags: TagInBook[] }`).
-
-That is the whole case. It is a correctness risk with a small, cheap fix.
 
 ## Design
 
-One module, `src/data/cache.ts`, exposing invalidation as **entity events** rather than
-query keys:
+One module, `src/lib/cacheEvents.ts`, next to the `queryClient` it acts on. It exposes
+invalidation as **entity events** rather than query keys.
 
-```ts
-const cache = useCacheEvents();
+The vocabulary is read off the existing call sites, not invented — every event below
+exists because some mutation already performs exactly that set of invalidations:
 
-cache.noteChanged(bookId, noteId);            // notes-for-book + note detail
-cache.tagsChanged(bookId);                    // book details + book tags
-cache.flashcardsChanged(bookId, { noteId });  // book details + the owning entity
-cache.prereadingChanged(bookId, chapterId);
-cache.bookChanged(bookId);
-```
+| Event | Invalidates | Replaces |
+| --- | --- | --- |
+| `bookChanged(bookId)` | book details | `invalidateBookDetails` (8 callers) |
+| `tagsChanged(bookId)` | book details, book tags | `invalidateBookAndTags` |
+| `noteChanged(bookId, noteId)` | notes-for-book, note detail | `NoteEditorForm`, `useNoteLinks` |
+| `noteDeleted(bookId)` | notes-for-book | `NoteViewModal` |
+| `booksListChanged()` | books list, recently-viewed | `BookEditModal` (**the bug**), `BookPage` |
+| `prereadingChanged(bookId)` | book prereading | `ChapterReviewSection`, `ChapterToolbar` |
+| `prereadingBatchChanged(bookId)` | book prereading, active batch | `BatchPrereadingToolbar` (on finish) |
+| `prereadingBatchStarted(bookId)` | active batch | `BatchPrereadingToolbar` (on enqueue) |
+| `highlightLabelsChanged(bookId)` | book highlight labels | `LabelEditorPopover` |
+| `flashcardsChanged(bookId, owner)` | book details, owner's detail | `useFlashcardMutations`, `FlashcardListCard` |
 
-It owns the nine query-key getters the app currently reaches for directly, and absorbs
-`useBookMutationHelpers` (whose `invalidateBookDetails` / `invalidateBookAndTags` are the
-same idea, applied to two cases out of ten). `mutationErrorHandler` moves across with it.
+`owner` is `{ noteId } | { highlightId } | { chapterId } | undefined`. That parameter is
+what retires `additionalInvalidateKeys`: the caller names the entity that owns the
+flashcard instead of passing a query key, and the prop disappears from four modules.
 
-`flashcardsChanged` is what retires `additionalInvalidateKeys`: the caller names the
-entity that owns the flashcard, and the prop disappears from four modules.
+The module absorbs `useBookMutationHelpers` — its `invalidateBookDetails` /
+`invalidateBookAndTags` are two of the ten events above — and `mutationErrorHandler` moves
+across with it.
 
 **Not in scope:** wrapping the 48 generated hooks. Components keep importing them
 directly. This module is about *invalidation*, not about hiding the client.
 
+### What deliberately stays put
+
+Four things use the query cache for something that is not invalidation. Moving them behind
+an event vocabulary would misrepresent what they do:
+
+- **`useTagMutations`** — `cancelQueries` + `setQueryData` + rollback on book details.
+  Optimistic update machinery. Only its `onSuccess` invalidation becomes `tagsChanged`.
+- **`useNoteModals`** — `setQueryData(noteKey, note)` seeds the detail cache from a list
+  item so the modal opens without a fetch. Cache seeding, not invalidation.
+- **`ReflectionPage`, `ChapterReviewSection`** — `setQueryData` write-through with the
+  server's response after a save.
+- **`BatchPrereadingToolbar`** — `refetchInterval` predicate reading
+  `query.state.data?.status`. Polling.
+
+The lint rule below therefore covers `invalidateQueries` and `refetchQueries` only.
+Banning `setQueryData` would flag all four of these, and they have nowhere better to live.
+
 ### Lint rule
 
-One rule, narrow enough to be true:
-
 ```js
-// error outside src/data/cache.ts
+// error everywhere except src/lib/cacheEvents.ts
 'no-restricted-syntax': [
   'error',
-  { selector: "CallExpression[callee.property.name=/^(invalidateQueries|setQueryData|refetchQueries)$/]",
-    message: 'Express the change as an event in @/data/cache.ts instead.' },
+  { selector: "CallExpression[callee.property.name=/^(invalidateQueries|refetchQueries)$/]",
+    message: 'Express the change as an event in @/lib/cacheEvents.ts instead.' },
 ]
 ```
 
-That enforces the invariant that matters. The originally-planned ban on importing
-`@/api/generated` is dropped — it only made sense when every hook was wrapped.
+This is what stops the `BookEditModal` failure recurring: with no way to call
+`invalidateQueries` outside one file, there is nowhere left to hand-write a key.
+
+The originally-planned ban on importing `@/api/generated` is dropped — it only made sense
+when every hook was wrapped.
 
 ## Sequence
 
-Small enough for two PRs.
+Three commits, one PR.
 
-**1 — `cache.ts` + notes.** Write the module, reimplement `useBookMutationHelpers` on top
-of it, and convert the three note mutation sites. This is the step that proves the design:
-if `noteChanged` can't express all three, the shape is wrong.
+**1 — Fix the books-list bug on its own.** Replace the hand-written literal in
+`BookEditModal` with `getGetBooksQueryKey()` and `getGetRecentlyViewedBooksQueryKey()`,
+switching `refetchQueries({ exact: true })` to `invalidateQueries`. Prefix matching then
+covers the paginated key, and marking the list stale is enough — `LandingPage` refetches on
+mount, so the `await` before `navigate` is no longer load-bearing. Separate commit because
+it is the one behaviour change in this work, and it should be reviewable and revertable
+without the refactor around it.
 
-**2 — everything else.** The remaining 13 files, plus deleting `additionalInvalidateKeys`
-from `NoteFlashcardSection` → `FlashcardSection` → `FlashcardListCard` →
-`useFlashcardMutations`. Turn the lint rule on.
+**2 — `cacheEvents.ts` + notes.** Write the module, reimplement `useBookMutationHelpers` on
+top of it, convert the three note sites. This step proves the design: if `noteChanged` and
+`noteDeleted` cannot express all three without an escape hatch, the vocabulary is wrong and
+better to find out at three sites than at sixteen.
 
-Two exceptions get an explicit decision rather than a mechanical move:
-
-- **`useTagMutations`'s optimistic update** does `cancelQueries` + `setQueryData` +
-  rollback on the book-details entry. That is optimistic-update machinery, not
-  invalidation, and it should stay where it is. `cache.ts` covers its `onSuccess`
-  invalidation only.
-- **`BatchPrereadingToolbar`** reads `query.state.data?.status` inside a `refetchInterval`
-  predicate. Polling is not invalidation; leave it alone.
+**3 — The remaining 13 files, then turn the lint rule on.** Includes deleting
+`additionalInvalidateKeys` from `NoteFlashcardSection` → `FlashcardSection` →
+`FlashcardListCard` → `useFlashcardMutations`.
 
 ## Verification
 
-`npx tsc --noEmit` and `npm run lint` per PR, plus a manual smoke of the touched tab.
+`npx tsc --noEmit` and `npm run lint` throughout.
 
-There is no frontend test infrastructure, so the review property is: **for each converted
-mutation, the set of query keys invalidated is unchanged, key for key.** That is readable
-in the diff as long as mechanical conversion and behaviour changes stay in separate
-commits. Where an event deliberately invalidates *more* than the site it replaces —
-likely for the two incomplete note sites — say so in the commit message.
+There is no frontend test infrastructure, so the review property is: **for commits 2 and 3,
+the set of query keys invalidated per mutation is unchanged, key for key.** That is
+readable in the diff as long as commit 1 carries the only behaviour change. If any event
+turns out to invalidate more than the site it replaces, say so in the commit message rather
+than letting it pass as mechanical.
+
+Two things worth checking by hand, since nothing else will:
+
+- **Delete a book** and confirm it leaves the list immediately — the bug fix in commit 1,
+  which is invisible to `tsc`.
+- **Generate prereading for a book** and watch the batch toolbar, since it is the only
+  place where polling and invalidation interact.
 
 ## Why this is small
 
