@@ -4,11 +4,12 @@ from src.application.learning.protocols.flashcard_repository import FlashcardRep
 from src.application.library.protocols.chapter_repository import ChapterRepositoryProtocol
 from src.application.notes.protocols.note_repository import NoteRepositoryProtocol
 from src.application.notes.use_cases.dtos import NoteWithLinkedEntities
+from src.application.notes.use_cases.helpers import hydrate_note_links
 from src.application.reading.protocols.highlight_repository import HighlightRepositoryProtocol
 from src.application.reading.protocols.tag_repository import (
     TagRepositoryProtocol,
 )
-from src.domain.common.value_objects import ChapterId, HighlightId, NoteId, TagId, UserId
+from src.domain.common.value_objects import NoteId, UserId
 from src.domain.notes.exceptions import NoteNotFoundError
 
 
@@ -35,33 +36,15 @@ class GetNoteUseCase:
         if not note:
             raise NoteNotFoundError(note_id)
 
-        chapters = []
-        for chapter_id in note.chapter_ids:
-            chapter = await self.chapter_repository.find_by_id(ChapterId(chapter_id), user_id_vo)
-            if chapter:
-                chapters.append(chapter)
-
-        highlights = []
-        for highlight_id in note.highlight_ids:
-            highlight = await self.highlight_repository.find_by_id(
-                HighlightId(highlight_id), user_id_vo
-            )
-            # Soft-deleted highlights keep their link rows but are hidden from display
-            if highlight and highlight.deleted_at is None:
-                highlights.append(highlight)
-
-        tags = []
-        for tag_id in note.tag_ids:
-            tag = await self.tag_repository.find_by_id(TagId(tag_id), user_id_vo)
-            if tag:
-                tags.append(tag)
-
-        flashcards = await self.flashcard_repository.find_by_note(NoteId(note_id), user_id_vo)
-
-        return NoteWithLinkedEntities(
-            note=note,
-            chapters=chapters,
-            highlights=highlights,
-            tags=tags,
-            flashcards=flashcards,
+        (hydrated,) = await hydrate_note_links(
+            [note],
+            user_id_vo,
+            chapter_repository=self.chapter_repository,
+            highlight_repository=self.highlight_repository,
+            tag_repository=self.tag_repository,
         )
+        # Flashcards are only loaded for the detail view, not for list responses.
+        hydrated.flashcards = await self.flashcard_repository.find_by_note(
+            NoteId(note_id), user_id_vo
+        )
+        return hydrated
