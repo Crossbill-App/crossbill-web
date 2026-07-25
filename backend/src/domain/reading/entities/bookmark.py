@@ -1,7 +1,7 @@
 """Bookmark entity for tracking reading progress."""
 
-from dataclasses import dataclass
-from datetime import datetime
+from dataclasses import dataclass, field
+from datetime import UTC, datetime
 
 from src.domain.common.entity import Entity
 from src.domain.common.value_objects.ids import BookId, BookmarkId, HighlightId
@@ -21,7 +21,7 @@ class Bookmark(Entity[BookmarkId]):
     id: BookmarkId
     book_id: BookId
     highlight_id: HighlightId
-    created_at: datetime | None = None
+    created_at: datetime = field(default_factory=lambda: datetime.now(UTC))
 
     def __post_init__(self) -> None:
         """Validate invariants."""
