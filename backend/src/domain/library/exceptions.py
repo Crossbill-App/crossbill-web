@@ -10,19 +10,6 @@ class CoverNotFoundError(EntityNotFoundError):
         super().__init__("Cover", filename)
 
 
-class XPointParseError(ValidationError):
-    """Invalid xpoint format."""
-
-    def __init__(self, xpoint: str, reason: str) -> None:
-        super().__init__(
-            f"Invalid xpoint '{xpoint}': {reason}",
-            field="xpoint",
-            value=xpoint,
-        )
-        self.xpoint = xpoint
-        self.reason = reason
-
-
 class XPointNavigationError(ValidationError):
     """Could not navigate to xpoint location in EPUB."""
 
