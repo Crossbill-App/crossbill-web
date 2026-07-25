@@ -36,9 +36,16 @@ services:
       ADMIN_USERNAME: ${ADMIN_USERNAME}
       ADMIN_PASSWORD: ${ADMIN_PASSWORD}
       CORS_ORIGINS: '["https://yourdomain.com"]'
-      # Set to 1 if a reverse proxy terminates TLS in front of this container,
-      # so per-IP rate limiting keys on the real client instead of the proxy.
+      # Set to 1 if an *appending* reverse proxy (nginx, Caddy) terminates TLS in
+      # front of this container, so per-IP rate limiting keys on the real client
+      # instead of the proxy. Behind a proxy that rewrites X-Forwarded-For and
+      # reports the client in X-Real-IP (Railway, nginx) leave this at 0 and set
+      # TRUSTED_PROXY_CIDRS to the address it connects from — see .env.example.
       TRUSTED_PROXY_HOPS: ${TRUSTED_PROXY_HOPS:-0}
+      TRUSTED_PROXY_CIDRS: ${TRUSTED_PROXY_CIDRS:-[]}
+      # Temporarily set true to log each request's peer and headers, to check the
+      # two settings above against what your proxy actually sends.
+      LOG_PROXY_CHAIN: ${LOG_PROXY_CHAIN:-false}
       SECRET_KEY: ${SECRET_KEY}
       ACCESS_TOKEN_EXPIRE_MINUTES: 15
       REFRESH_TOKEN_EXPIRE_DAYS: 30

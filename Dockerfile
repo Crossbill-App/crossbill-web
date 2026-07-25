@@ -69,8 +69,11 @@ ENV PYTHONUNBUFFERED=1
 ENV PORT=8000
 
 # Run database migrations and start uvicorn.
-# Note: no --forwarded-allow-ips='*'. That makes uvicorn overwrite the peer
-# address with the *leftmost* X-Forwarded-For entry, which the caller controls,
-# so every request could mint its own rate-limit bucket. The app resolves the
-# real client itself from TRUSTED_PROXY_HOPS — set that to 1 behind Railway.
-CMD ["sh", "-c", "alembic upgrade head && uvicorn src.main:app --host 0.0.0.0 --port ${PORT} --proxy-headers"]
+# Note: no --proxy-headers. It makes uvicorn rewrite the peer address from
+# X-Forwarded-For, and the app's own resolution depends on that peer being the
+# real TCP peer to decide whether any header may be believed at all — see
+# src/infrastructure/common/client_ip.py. Nothing else here reads the peer, and
+# the flag would honour FORWARDED_ALLOW_IPS from the environment, so leaving it
+# on means a stray env var can hand callers their own rate-limit bucket.
+# Configure the trusted proxy in .env instead.
+CMD ["sh", "-c", "alembic upgrade head && uvicorn src.main:app --host 0.0.0.0 --port ${PORT}"]

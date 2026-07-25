@@ -30,7 +30,7 @@ from src.domain.common.exceptions import (
     EntityNotFoundError,
     ValidationError,
 )
-from src.infrastructure.common.client_ip import client_ip, client_ip_from_scope
+from src.infrastructure.common.client_ip import client_ip, client_ip_from_scope, proxy_chain
 from src.infrastructure.common.rate_limit import RateLimitMiddleware, limiter
 from src.infrastructure.common.routers import settings as settings_router
 from src.infrastructure.identity.repositories.user_repository import UserRepository
@@ -223,6 +223,9 @@ class RequestIdAndLoggingMiddleware:
             path=path,
             client_host=client_host,
         )
+
+        if settings.LOG_PROXY_CHAIN:
+            logger.info("proxy_chain", path=path, **proxy_chain(scope, resolved=client_host))
 
         start_time = time.time()
         status_code = 500
