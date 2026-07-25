@@ -7,14 +7,13 @@ Provides full-text search within a specific book's highlights.
 from src.application.common.ownership import require_book
 from src.application.reading.protocols.book_repository import BookRepositoryProtocol
 from src.application.reading.protocols.highlight_repository import HighlightRepositoryProtocol
-from src.application.reading.services.label_resolution_service import LabelResolutionService
-from src.domain.common.value_objects import BookId, UserId
-from src.domain.reading.services.highlight_grouping_service import (
+from src.application.reading.services.highlight_grouping_service import (
     ChapterWithHighlights,
     HighlightGroupingService,
 )
+from src.application.reading.services.label_resolution_service import LabelResolutionService
+from src.domain.common.value_objects import BookId, UserId
 from src.domain.reading.services.highlight_style_resolver import ResolvedLabel
-from src.domain.tagging.entities.tag import Tag
 
 
 class HighlightSearchUseCase:
@@ -31,7 +30,7 @@ class HighlightSearchUseCase:
 
     async def search_book_highlights(
         self, book_id: int, user_id: int, search_text: str, limit: int = 100
-    ) -> tuple[list[ChapterWithHighlights[Tag]], int, dict[int, ResolvedLabel]]:
+    ) -> tuple[list[ChapterWithHighlights], int, dict[int, ResolvedLabel]]:
         """
         Search for highlights within a specific book using full-text search.
 

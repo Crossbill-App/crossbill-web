@@ -4,9 +4,9 @@ import boto3
 from dependency_injector import containers, providers
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from src.application.reading.services.highlight_grouping_service import HighlightGroupingService
 from src.application.reading.services.label_resolution_service import LabelResolutionService
 from src.domain.reading.services.deduplication_service import HighlightDeduplicationService
-from src.domain.reading.services.highlight_grouping_service import HighlightGroupingService
 from src.domain.reading.services.highlight_style_resolver import HighlightStyleResolver
 from src.infrastructure.ai.ai_service import AIService
 from src.infrastructure.ai.repositories.ai_usage_repository import AIUsageRepository

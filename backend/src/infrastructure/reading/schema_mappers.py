@@ -2,9 +2,10 @@
 
 from datetime import UTC, datetime
 
-from src.domain.reading.services import ChapterWithHighlights as DomainChapterWithHighlights
+from src.application.reading.services.highlight_grouping_service import (
+    ChapterWithHighlights as DomainChapterWithHighlights,
+)
 from src.domain.reading.services.highlight_style_resolver import ResolvedLabel
-from src.domain.tagging.entities.tag import Tag as DomainTag
 from src.infrastructure.common.schemas.position_schemas import PositionResponse
 from src.infrastructure.learning.schemas import Flashcard
 from src.infrastructure.reading.schemas import (
@@ -16,7 +17,7 @@ from src.infrastructure.tagging.schemas import TagInBook
 
 
 def map_chapters_to_schemas(
-    chapters_grouped: list[DomainChapterWithHighlights[DomainTag]],
+    chapters_grouped: list[DomainChapterWithHighlights],
     labels: dict[int, ResolvedLabel] | None = None,
 ) -> list[ChapterWithHighlights]:
     """

@@ -3,6 +3,7 @@ from typing import Annotated
 from fastapi import APIRouter, Depends, Query
 from starlette import status
 
+from src.application.library.dtos import BookDetailsAggregation
 from src.application.library.use_cases.book_management.delete_book_use_case import (
     DeleteBookUseCase,
 )
@@ -20,7 +21,6 @@ from src.application.library.use_cases.book_queries.get_recently_viewed_books_us
 )
 from src.core import container
 from src.domain.identity import User
-from src.domain.library.services.book_details_aggregator import BookDetailsAggregation
 from src.domain.reading.services.highlight_style_resolver import ResolvedLabel
 from src.infrastructure.common.di import inject_use_case
 from src.infrastructure.common.schemas import CollectionResponse, PaginatedResponse
