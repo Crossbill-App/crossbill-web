@@ -4,6 +4,7 @@ import logging
 import sys
 from collections.abc import Callable
 from functools import lru_cache
+from ipaddress import IPv4Network, IPv6Network
 from pathlib import Path
 from typing import Any, Literal
 
@@ -48,12 +49,25 @@ class Settings(BaseSettings):
     RATE_LIMIT_ENABLED: bool = True
     RATE_LIMIT_DEFAULT: str = "300/minute"
 
-    # Number of reverse proxies in front of the app that append to
-    # X-Forwarded-For. 0 means the app is directly exposed and the header is
-    # ignored entirely; anything else would let callers pick their own
-    # rate-limit bucket. Set to 1 behind a single edge proxy (Railway,
-    # Cloudflare, nginx), 2 behind two chained proxies, and so on.
+    # Number of reverse proxies in front of the app that APPEND to
+    # X-Forwarded-For, as nginx and friends do. 0 means the header is ignored
+    # entirely; anything else would let callers pick their own rate-limit
+    # bucket. Consulted only after TRUSTED_PROXY_CIDRS fails to name a client —
+    # a proxy that rewrites the header rather than appending to it cannot be
+    # read with a hop count at all.
     TRUSTED_PROXY_HOPS: int = 0
+
+    # CIDRs of the proxy that opens the connection to this app. Matched against
+    # the TCP peer address, which the caller cannot influence — unlike any
+    # header — so a match is proof that the request passed through that proxy
+    # and the client it names in X-Real-IP is the proxy's own statement.
+    #
+    # On Railway the peer is its internal proxy, so set '["100.64.0.0/10"]'.
+    # Railway documents X-Real-IP as the single source of truth for the
+    # connecting IP and substitutes Cf-Connecting-IP when the request came from
+    # trusted Cloudflare infrastructure, so trusting the peer inherits that
+    # validation rather than duplicating it. Empty disables the mechanism.
+    TRUSTED_PROXY_CIDRS: list[IPv4Network | IPv6Network] = []
 
     # Admin setup (for first-time initialization on a fresh deployment)
     ADMIN_USERNAME: str = "admin"
