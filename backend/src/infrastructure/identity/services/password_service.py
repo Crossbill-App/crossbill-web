@@ -39,23 +39,9 @@ def _hash_sync(plain_password: str) -> str:
 
 def _verify_sync(plain_password: str, hashed_password: str) -> bool:
     try:
-        peppered_matches = password_hash.verify(plain_password + PASSWORD_PEPPER, hashed_password)
-
-        if not PASSWORD_PEPPER:
-            # With no pepper configured the legacy attempt below is byte-for-byte
-            # the one just made; repeating it would only double the cost.
-            return peppered_matches
-
-        # Fallback to non-peppered for backward compatibility (DEPRECATED).
-        # This allows existing users to login and change their password.
-        #
-        # Deliberately not short-circuited on peppered_matches: returning early
-        # would make a peppered hash cost one verification and a legacy hash two,
-        # and that ~30ms gap is measurable from outside. Cost per call is
-        # therefore constant, and bounded by the hashing pool in the callers below.
-        legacy_matches = password_hash.verify(plain_password, hashed_password)
-        return peppered_matches or legacy_matches
+        return password_hash.verify(plain_password + PASSWORD_PEPPER, hashed_password)
     except UnknownHashError:
+        # A stored hash we cannot parse is a failed login, not a 500.
         return False
 
 
@@ -66,13 +52,10 @@ async def hash_password(plain_password: str) -> str:
 
 
 async def verify_password(plain_password: str, hashed_password: str) -> bool:
-    """Verify a plain password against a hashed password.
+    """Verify a plain password against a peppered hash.
 
-    Tries with pepper first (current standard), then falls back to non-peppered
-    for backward compatibility with existing passwords.
-
-    DEPRECATED: Non-peppered password verification will be removed in a future release.
-    Users should change their passwords to migrate to peppered hashes.
+    Exactly one verification runs, so the cost is the same whether the password
+    matches or not.
     """
     loop = asyncio.get_running_loop()
     return await loop.run_in_executor(_hash_pool, _verify_sync, plain_password, hashed_password)

@@ -59,64 +59,30 @@ async def test_concurrent_hashing_is_capped(monkeypatch: pytest.MonkeyPatch) -> 
     assert peak <= get_settings().PASSWORD_HASH_CONCURRENCY
 
 
-def _count_verify_calls(monkeypatch: pytest.MonkeyPatch) -> list[int]:
-    """Replace the underlying hash comparison with an always-failing counter."""
-    calls = [0]
+@pytest.fixture
+def recorded_verifies(monkeypatch: pytest.MonkeyPatch) -> list[str]:
+    """Record the passwords handed to the hash comparison, which always fails."""
+    seen: list[str] = []
 
-    def counting_verify(_password: str, _hash: str) -> bool:
-        calls[0] += 1
+    def recording_verify(password: str, _hash: str) -> bool:
+        seen.append(password)
         return False
 
-    monkeypatch.setattr(password_service.password_hash, "verify", counting_verify)
-    return calls
+    monkeypatch.setattr(password_service.password_hash, "verify", recording_verify)
+    return seen
 
 
-async def test_failed_verification_hashes_once_when_no_pepper_is_set(
-    monkeypatch: pytest.MonkeyPatch,
+@pytest.mark.parametrize("pepper", ["", "pepper"])
+async def test_verification_costs_exactly_one_hash(
+    monkeypatch: pytest.MonkeyPatch, recorded_verifies: list[str], pepper: str
 ) -> None:
-    """Without a pepper the legacy fallback is identical to the first attempt."""
-    monkeypatch.setattr(password_service, "PASSWORD_PEPPER", "")
-    calls = _count_verify_calls(monkeypatch)
+    """Every login pays one Argon2 verification, peppered or not."""
+    monkeypatch.setattr(password_service, "PASSWORD_PEPPER", pepper)
 
     assert not await password_service.verify_password("password", "hash")
-    assert calls[0] == 1
+    assert recorded_verifies == ["password" + pepper]
 
 
-async def test_failed_verification_still_tries_legacy_hash_when_peppered(
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    monkeypatch.setattr(password_service, "PASSWORD_PEPPER", "pepper")
-    calls = _count_verify_calls(monkeypatch)
-
-    assert not await password_service.verify_password("password", "hash")
-    assert calls[0] == 2
-
-
-async def test_peppered_success_costs_the_same_as_failure(
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    """A short circuit on the peppered hit would leak which hashes are legacy."""
-    monkeypatch.setattr(password_service, "PASSWORD_PEPPER", "pepper")
-    calls = [0]
-
-    def verify_peppered_only(password: str, _hash: str) -> bool:
-        calls[0] += 1
-        return password == "passwordpepper"
-
-    monkeypatch.setattr(password_service.password_hash, "verify", verify_peppered_only)
-
-    assert await password_service.verify_password("password", "hash")
-    assert calls[0] == 2
-
-
-async def test_legacy_hash_still_verifies_when_peppered(
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    monkeypatch.setattr(password_service, "PASSWORD_PEPPER", "pepper")
-
-    def verify_unpeppered_only(password: str, _hash: str) -> bool:
-        return password == "password"
-
-    monkeypatch.setattr(password_service.password_hash, "verify", verify_unpeppered_only)
-
-    assert await password_service.verify_password("password", "hash")
+async def test_unparseable_stored_hash_is_a_failed_login() -> None:
+    """A hash pwdlib cannot read must not turn a login into a 500."""
+    assert not await password_service.verify_password("password", "not-a-hash")
