@@ -1,15 +1,15 @@
 """Password hashing and verification service.
 
 Argon2id is deliberately expensive: the recommended parameters allocate 64 MiB
-and burn tens of milliseconds per call. Running that inline on the event loop
-stalls every other request for the duration, so an unauthenticated caller could
-wedge the whole app with a trickle of bad logins. Hashing therefore happens on a
-worker thread, and a semaphore caps how many run at once so the memory cost
-stays bounded no matter how many requests arrive together.
+and burn ~100 ms of CPU per call. Running that inline on the event loop stalls
+every other request for the duration, so hashing runs on its own small thread
+pool instead. The pool size is the ceiling on how much memory and CPU a burst of
+logins can pin down at once, and keeping the pool separate from asyncio's default
+executor means bulk file work cannot crowd out a login, or the reverse.
 """
 
 import asyncio
-from weakref import WeakKeyDictionary
+from concurrent.futures import ThreadPoolExecutor
 
 from pwdlib import PasswordHash
 from pwdlib.exceptions import UnknownHashError
@@ -25,21 +25,12 @@ password_hash = PasswordHash.recommended()
 # A fake string like "abc123" would cause pwdlib to raise UnknownHashError.
 DUMMY_HASH = password_hash.hash("dummy_password_for_timing_attack_prevention")
 
-# Keyed by event loop: asyncio primitives bind to the first loop that uses them,
-# and the test suite runs each case on a fresh loop.
-_concurrency_guards: WeakKeyDictionary[asyncio.AbstractEventLoop, asyncio.Semaphore] = (
-    WeakKeyDictionary()
+# Threads are created on demand, so an idle pool costs nothing. Unlike an asyncio
+# semaphore, the pool is not bound to an event loop, so the same one serves the
+# app, the worker and every test case.
+_hash_pool = ThreadPoolExecutor(
+    max_workers=settings.PASSWORD_HASH_CONCURRENCY, thread_name_prefix="argon2"
 )
-
-
-def _concurrency_guard() -> asyncio.Semaphore:
-    """Get the hashing semaphore for the running event loop."""
-    loop = asyncio.get_running_loop()
-    guard = _concurrency_guards.get(loop)
-    if guard is None:
-        guard = asyncio.Semaphore(settings.PASSWORD_HASH_CONCURRENCY)
-        _concurrency_guards[loop] = guard
-    return guard
 
 
 def _hash_sync(plain_password: str) -> str:
@@ -48,43 +39,26 @@ def _hash_sync(plain_password: str) -> str:
 
 def _verify_sync(plain_password: str, hashed_password: str) -> bool:
     try:
-        peppered_matches = password_hash.verify(plain_password + PASSWORD_PEPPER, hashed_password)
-
-        if not PASSWORD_PEPPER:
-            # With no pepper configured the legacy attempt below is byte-for-byte
-            # the one just made; repeating it would only double the cost.
-            return peppered_matches
-
-        # Fallback to non-peppered for backward compatibility (DEPRECATED).
-        # This allows existing users to login and change their password.
-        #
-        # Deliberately not short-circuited on peppered_matches: returning early
-        # would make a peppered hash cost one verification and a legacy hash two,
-        # and that ~30ms gap is measurable from outside. Cost per call is
-        # therefore constant, and bounded by the semaphore in the callers below.
-        legacy_matches = password_hash.verify(plain_password, hashed_password)
-        return peppered_matches or legacy_matches
+        return password_hash.verify(plain_password + PASSWORD_PEPPER, hashed_password)
     except UnknownHashError:
+        # A stored hash we cannot parse is a failed login, not a 500.
         return False
 
 
 async def hash_password(plain_password: str) -> str:
     """Hash a plain password for storage with pepper."""
-    async with _concurrency_guard():
-        return await asyncio.to_thread(_hash_sync, plain_password)
+    loop = asyncio.get_running_loop()
+    return await loop.run_in_executor(_hash_pool, _hash_sync, plain_password)
 
 
 async def verify_password(plain_password: str, hashed_password: str) -> bool:
-    """Verify a plain password against a hashed password.
+    """Verify a plain password against a peppered hash.
 
-    Tries with pepper first (current standard), then falls back to non-peppered
-    for backward compatibility with existing passwords.
-
-    DEPRECATED: Non-peppered password verification will be removed in a future release.
-    Users should change their passwords to migrate to peppered hashes.
+    Exactly one verification runs, so the cost is the same whether the password
+    matches or not.
     """
-    async with _concurrency_guard():
-        return await asyncio.to_thread(_verify_sync, plain_password, hashed_password)
+    loop = asyncio.get_running_loop()
+    return await loop.run_in_executor(_hash_pool, _verify_sync, plain_password, hashed_password)
 
 
 def get_dummy_hash() -> str:

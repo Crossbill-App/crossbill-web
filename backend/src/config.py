@@ -85,10 +85,10 @@ class Settings(BaseSettings):
     COOKIE_SECURE: bool = True
     PASSWORD_PEPPER: str = ""
 
-    # How many Argon2id hashes may run concurrently. Each costs ~64 MiB, so this
-    # is the ceiling on memory an unauthenticated flood of logins can pin down.
-    # Raise it only if the host has memory and cores to spare.
-    PASSWORD_HASH_CONCURRENCY: int = 2
+    # Size of the thread pool that runs Argon2id. Each hash costs ~64 MiB and
+    # ~100 ms of CPU, so this is the ceiling on what a burst of logins can pin
+    # down. Raise it only if the host has memory and cores to spare.
+    PASSWORD_HASH_CONCURRENCY: int = Field(default=2, ge=1)
 
     # Registration. Defaults to closed: a deployment that never sets this is
     # almost always a single-user install on the public internet, and the wrong
@@ -166,15 +166,6 @@ class Settings(BaseSettings):
         """Reject a negative proxy-hop count, which would index the wrong entry."""
         if value < 0:
             msg = "TRUSTED_PROXY_HOPS must be 0 or greater"
-            raise ValueError(msg)
-        return value
-
-    @field_validator("PASSWORD_HASH_CONCURRENCY", mode="after")
-    @classmethod
-    def validate_password_hash_concurrency(cls, value: int) -> int:
-        """Require at least one hashing slot, or no login could ever complete."""
-        if value < 1:
-            msg = "PASSWORD_HASH_CONCURRENCY must be at least 1"
             raise ValueError(msg)
         return value
 
