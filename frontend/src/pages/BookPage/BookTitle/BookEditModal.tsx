@@ -1,4 +1,8 @@
-import { useDeleteBook } from '@/api/generated/books/books.ts';
+import {
+  getGetBooksQueryKey,
+  getGetRecentlyViewedBooksQueryKey,
+  useDeleteBook,
+} from '@/api/generated/books/books.ts';
 import { BookDetails } from '@/api/generated/model';
 import { BookCover } from '@/components/BookCover.tsx';
 import { CommonDialog } from '@/components/dialogs/CommonDialog.tsx';
@@ -24,13 +28,10 @@ export const BookEditModal = ({ book, open, onClose }: BookEditModalProps) => {
 
   const deleteBookMutation = useDeleteBook({
     mutation: {
-      onSuccess: async () => {
-        // Refetch the books list query and wait for it to complete
-        await queryClient.refetchQueries({
-          queryKey: ['/api/v1/books'],
-          exact: true,
-        });
-        // Close modal and navigate to landing page after refetch is complete
+      onSuccess: () => {
+        // Prefix match, so the paginated/search variants of the list are covered too.
+        void queryClient.invalidateQueries({ queryKey: getGetBooksQueryKey() });
+        void queryClient.invalidateQueries({ queryKey: getGetRecentlyViewedBooksQueryKey() });
         onClose();
         navigate({ to: '/' });
       },
