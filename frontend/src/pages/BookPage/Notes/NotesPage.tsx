@@ -16,9 +16,9 @@ import { FilterFab } from '../common/FilterFab.tsx';
 import { FilterDrawer, type FilterTab } from '../navigation/FilterDrawer.tsx';
 import { TagsList } from '../navigation/TagsList/TagsList.tsx';
 import { NoteCard } from './NoteCard';
-import { NoteModals } from './NoteModals';
+import { NoteDialogs } from './NoteDialogs';
 import { NoteKindFilter } from './components/NoteKindFilter';
-import { useNoteModals } from './hooks/useNoteModals';
+import { useNoteDialogs } from './hooks/useNoteDialogs';
 import {
   DEFAULT_NOTE_KINDS,
   type NoteKindValue,
@@ -46,7 +46,7 @@ export const NotesPage = () => {
   // so the generated GET hook's `data` is the payload itself, not an AxiosResponse.
   const notes = data?.items ?? [];
   const visibleNotes = notes.filter((note) => selectedKinds.includes(noteKindOf(note.kind)));
-  const noteModals = useNoteModals({ allNotes: visibleNotes });
+  const noteDialogs = useNoteDialogs({ allNotes: visibleNotes });
 
   const handleKindsChange = (next: NoteKindValue[]) => {
     void navigate({
@@ -104,7 +104,7 @@ export const NotesPage = () => {
         )}
 
       <Box sx={{ display: 'flex', justifyContent: 'flex-end', mb: 2 }}>
-        <Button variant="contained" startIcon={<AddIcon />} onClick={noteModals.openCreate}>
+        <Button variant="contained" startIcon={<AddIcon />} onClick={noteDialogs.openCreate}>
           New note
         </Button>
       </Box>
@@ -122,7 +122,7 @@ export const NotesPage = () => {
       <CardList>
         {visibleNotes.map((note) => (
           <li key={note.id}>
-            <NoteCard note={note} onClick={() => noteModals.openView(note)} />
+            <NoteCard note={note} onClick={() => noteDialogs.openView(note)} />
           </li>
         ))}
       </CardList>
@@ -144,7 +144,7 @@ export const NotesPage = () => {
         />
       )}
 
-      <NoteModals controller={noteModals} />
+      <NoteDialogs controller={noteDialogs} />
     </MiddleContentColumn>
   );
 };

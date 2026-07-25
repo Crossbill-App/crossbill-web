@@ -4,9 +4,9 @@ import { EmptyStateText } from '@/components/EmptyStateText.tsx';
 import { UnlinkButton } from '@/components/buttons/UnlinkButton.tsx';
 import { DialogToolbar } from '@/components/dialogs/DialogToolbar.tsx';
 import { NoteCard } from '@/pages/BookPage/Notes/NoteCard';
-import { NoteModals } from '@/pages/BookPage/Notes/NoteModals';
+import { NoteDialogs } from '@/pages/BookPage/Notes/NoteDialogs';
 import { NotePickerDialog } from '@/pages/BookPage/Notes/components/NotePickerDialog.tsx';
-import { useNoteModals } from '@/pages/BookPage/Notes/hooks/useNoteModals';
+import { useNoteDialogs } from '@/pages/BookPage/Notes/hooks/useNoteDialogs';
 import { AddIcon, LinkIcon } from '@/theme/Icons.tsx';
 import { Box, Button } from '@mui/material';
 import { compact, includes } from 'lodash';
@@ -35,7 +35,7 @@ export const ReflectionNotesSection = ({
   onChange,
   disabled = false,
 }: ReflectionNotesSectionProps) => {
-  const noteModals = useNoteModals({ syncToUrl: false });
+  const noteDialogs = useNoteDialogs({ syncToUrl: false });
   const [pickerOpen, setPickerOpen] = useState(false);
 
   const notesById = new Map(allNotes.map((note) => [note.id, note]));
@@ -72,7 +72,7 @@ export const ReflectionNotesSection = ({
           variant="outlined"
           size="small"
           startIcon={<AddIcon />}
-          onClick={noteModals.openCreate}
+          onClick={noteDialogs.openCreate}
           disabled={disabled}
         >
           Add note
@@ -84,7 +84,7 @@ export const ReflectionNotesSection = ({
           <li key={note.id}>
             <NoteCard
               note={note}
-              onClick={() => noteModals.openView(note)}
+              onClick={() => noteDialogs.openView(note)}
               action={
                 <UnlinkButton
                   title="Unlink note"
@@ -96,7 +96,7 @@ export const ReflectionNotesSection = ({
           </li>
         ))}
       </CardList>
-      <NoteModals controller={noteModals} onCreated={handleCreated} />
+      <NoteDialogs controller={noteDialogs} onCreated={handleCreated} />
       <NotePickerDialog
         open={pickerOpen}
         onClose={() => setPickerOpen(false)}

@@ -23,7 +23,7 @@ interface NoteTabsProps {
  * Tabs for a note's secondary content: linked highlights, linked chapters and
  * the note's flashcards. The Highlights tab reuses the shared `HighlightCard`;
  * the Chapters tab lists clickable rows — mirroring the tabbed composition of
- * `HighlightViewModal` and `ChapterDetailDialog`.
+ * `HighlightViewDialog` and `ChapterDetailDialog`.
  */
 export const NoteTabs = ({
   note,

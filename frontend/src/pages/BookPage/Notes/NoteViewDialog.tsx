@@ -7,7 +7,7 @@ import { CommonDialogHorizontalNavigation } from '@/components/dialogs/CommonDia
 import { CommonDialogTitle } from '@/components/dialogs/CommonDialogTitle.tsx';
 import { ConfirmationDialog } from '@/components/dialogs/ConfirmationDialog.tsx';
 import { ProgressBar } from '@/components/dialogs/ProgressBar.tsx';
-import { useModalHorizontalNavigation } from '@/components/dialogs/useModalHorizontalNavigation.ts';
+import { useDialogHorizontalNavigation } from '@/components/dialogs/useDialogHorizontalNavigation.ts';
 import { useSnackbar } from '@/context/SnackbarContext.tsx';
 import { useMutationErrorHandler } from '@/hooks/useMutationErrorHandler.ts';
 import { useCacheEvents } from '@/lib/cacheEvents.ts';
@@ -25,7 +25,7 @@ import { NoteToolbar } from './components/NoteToolbar';
 import { useNoteLinks } from './hooks/useNoteLinks';
 import { NOTE_KIND_LABELS, type NoteKindValue } from './noteKinds';
 
-interface NoteViewModalProps {
+interface NoteViewDialogProps {
   /** Note to display; its full detail (with linked summaries) is fetched by id. */
   noteId: number;
   onClose: () => void;
@@ -41,16 +41,16 @@ interface NoteViewModalProps {
  * clicking Edit swaps the same dialog to the note editor form.
  *
  * Opened by note id (deep-linkable via the `noteId` URL param). Stays mounted
- * across prev/next navigation (mirroring the highlight modal), so transient
+ * across prev/next navigation (mirroring the highlight dialog), so transient
  * state is reset explicitly when the viewed note changes.
  */
-export const NoteViewModal = ({
+export const NoteViewDialog = ({
   noteId,
   onClose,
   currentIndex,
   totalCount,
   onNavigate,
-}: NoteViewModalProps) => {
+}: NoteViewDialogProps) => {
   const theme = useTheme();
   const { book } = useBookPage();
   const { showSnackbar } = useSnackbar();
@@ -58,8 +58,8 @@ export const NoteViewModal = ({
   const cache = useCacheEvents();
   const navigate = useNavigate();
 
-  // Navigating to another route drops the `noteId` param, so the note modal
-  // closes naturally as the target entity's deep link opens its modal there.
+  // Navigating to another route drops the `noteId` param, so the note dialog
+  // closes naturally as the target entity's deep link opens its dialog there.
   const handleOpenHighlight = (highlightId: number) => {
     void navigate({
       to: '/book/$bookId/highlights',
@@ -81,7 +81,7 @@ export const NoteViewModal = ({
   const formRef = useRef<NoteEditorFormHandle>(null);
   const [formStatus, setFormStatus] = useState({ isSaving: false, canSave: false });
 
-  // The modal stays mounted while navigating between notes, so transient
+  // The dialog stays mounted while navigating between notes, so transient
   // state must be reset explicitly when the viewed note changes.
   const [prevNoteId, setPrevNoteId] = useState(noteId);
   if (prevNoteId !== noteId) {
@@ -91,7 +91,7 @@ export const NoteViewModal = ({
   }
 
   const { hasNavigation, hasPrevious, hasNext, handlePrevious, handleNext, swipeHandlers } =
-    useModalHorizontalNavigation({
+    useDialogHorizontalNavigation({
       open: true,
       currentIndex: currentIndex ?? 0,
       totalCount: totalCount ?? 1,

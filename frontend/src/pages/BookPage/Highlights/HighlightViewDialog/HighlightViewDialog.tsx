@@ -1,16 +1,17 @@
 import { useDeleteHighlights } from '@/api/generated/highlights/highlights.ts';
-import type { Bookmark, Highlight, TagInBook } from '@/api/generated/model';
+import type { Bookmark, TagInBook } from '@/api/generated/model';
 import { FadeInOut } from '@/components/animations/FadeInOut.tsx';
 import { CommonDialog } from '@/components/dialogs/CommonDialog.tsx';
 import { CommonDialogHorizontalNavigation } from '@/components/dialogs/CommonDialogHorizontalNavigation.tsx';
 import { CommonDialogTitle } from '@/components/dialogs/CommonDialogTitle.tsx';
 import { ConfirmationDialog } from '@/components/dialogs/ConfirmationDialog.tsx';
 import { ProgressBar } from '@/components/dialogs/ProgressBar.tsx';
-import { useModalHorizontalNavigation } from '@/components/dialogs/useModalHorizontalNavigation.ts';
+import { useDialogHorizontalNavigation } from '@/components/dialogs/useDialogHorizontalNavigation.ts';
 import { TagInput } from '@/components/inputs/TagInput.tsx';
 import { useMutationErrorHandler } from '@/hooks/useMutationErrorHandler.ts';
 import { useCacheEvents } from '@/lib/cacheEvents.ts';
-import { useImmediateTagMutation } from '@/pages/BookPage/Highlights/HighlightViewModal/hooks/useImmediateTagMutation.ts';
+import { useImmediateTagMutation } from '@/pages/BookPage/Highlights/HighlightViewDialog/hooks/useImmediateTagMutation.ts';
+import type { HighlightDialogController } from '@/pages/BookPage/Highlights/hooks/useHighlightDialog.ts';
 import { Box, Button, Stack } from '@mui/material';
 import { useState } from 'react';
 import { HighlightContent } from '../../common/HighlightContent.tsx';
@@ -18,33 +19,27 @@ import { HighlightTabs } from './components/HighlightTabs.tsx';
 import { LabelEditorPopover } from './components/LabelEditorPopover.tsx';
 import { Toolbar } from './components/Toolbar.tsx';
 
-export interface HighlightViewModalProps {
-  highlight: Highlight;
+export interface HighlightViewDialogProps {
+  controller: HighlightDialogController;
   bookId: number;
-  open: boolean;
-  onClose: (lastViewedHighlightId?: number) => void;
   availableTags: TagInBook[];
   bookmarksByHighlightId: Record<number, Bookmark>;
-  allHighlights?: Highlight[];
-  currentIndex?: number;
-  onNavigate?: (newIndex: number) => void;
 }
 
-export const HighlightViewModal = ({
-  highlight,
+export const HighlightViewDialog = ({
+  controller,
   bookId,
-  open,
-  onClose,
   availableTags,
   bookmarksByHighlightId,
-  allHighlights,
-  currentIndex = 0,
-  onNavigate,
-}: HighlightViewModalProps) => {
+}: HighlightViewDialogProps) => {
   const cache = useCacheEvents();
   const mutationErrorHandler = useMutationErrorHandler();
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
   const [labelAnchorEl, setLabelAnchorEl] = useState<HTMLElement | null>(null);
+
+  // Callers render this dialog only while a highlight is active
+  const highlight = controller.activeItem!;
+  const open = controller.activeId !== null;
 
   const currentBookmark = bookmarksByHighlightId[highlight.id] ?? undefined;
 
@@ -55,18 +50,18 @@ export const HighlightViewModal = ({
   });
 
   const { hasNavigation, hasPrevious, hasNext, handlePrevious, handleNext, swipeHandlers } =
-    useModalHorizontalNavigation({
+    useDialogHorizontalNavigation({
       open,
-      currentIndex,
-      totalCount: allHighlights?.length ?? 1,
-      onNavigate,
+      currentIndex: controller.activeIndex,
+      totalCount: controller.totalCount,
+      onNavigate: controller.navigateToIndex,
     });
 
   const deleteHighlightMutation = useDeleteHighlights({
     mutation: {
       onSuccess: () => {
         cache.bookChanged(bookId);
-        onClose();
+        controller.close();
       },
       onError: mutationErrorHandler('delete highlight'),
     },
@@ -86,7 +81,7 @@ export const HighlightViewModal = ({
 
   const handleClose = () => {
     cache.tagsChanged(bookId);
-    onClose(highlight.id);
+    controller.close(highlight.id);
   };
 
   const handleLabelClick = (event: React.MouseEvent<HTMLElement>) => {
@@ -132,8 +127,8 @@ export const HighlightViewModal = ({
       isLoading={isLoading}
       title={title}
       headerElement={
-        hasNavigation && allHighlights ? (
-          <ProgressBar currentIndex={currentIndex} totalCount={allHighlights.length} />
+        hasNavigation ? (
+          <ProgressBar currentIndex={controller.activeIndex} totalCount={controller.totalCount} />
         ) : undefined
       }
       footerActions={

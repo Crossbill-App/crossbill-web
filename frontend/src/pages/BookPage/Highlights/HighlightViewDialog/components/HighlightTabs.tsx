@@ -12,7 +12,7 @@ interface HighlightTabsProps {
 
 /**
  * Tabs for a highlight's secondary content: linked notes and flashcards —
- * mirroring the tabbed composition of `NoteViewModal` and `ChapterDetailDialog`.
+ * mirroring the tabbed composition of `NoteViewDialog` and `ChapterDetailDialog`.
  */
 export const HighlightTabs = ({ highlight, bookId, disabled = false }: HighlightTabsProps) => {
   const { data, isLoading } = useGetNotesForBook(bookId, {

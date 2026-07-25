@@ -2,8 +2,8 @@ import type { Bookmark, ChapterWithHighlights, TagInBook } from '@/api/generated
 import { CardList } from '@/components/CardList.tsx';
 import { EmptyStateText } from '@/components/EmptyStateText.tsx';
 import { HighlightCard } from '@/components/cards/HighlightCard.tsx';
-import { HighlightViewModal } from '@/pages/BookPage/Highlights/HighlightViewModal/HighlightViewModal.tsx';
-import { useHighlightModal } from '@/pages/BookPage/Highlights/hooks/useHighlightModal.ts';
+import { HighlightViewDialog } from '@/pages/BookPage/Highlights/HighlightViewDialog/HighlightViewDialog.tsx';
+import { useHighlightDialog } from '@/pages/BookPage/Highlights/hooks/useHighlightDialog.ts';
 
 interface HighlightsSectionProps {
   chapter: ChapterWithHighlights;
@@ -20,13 +20,11 @@ export const HighlightsSection = ({
 }: HighlightsSectionProps) => {
   const highlights = chapter.highlights;
 
-  const {
-    currentHighlight,
-    currentHighlightIndex,
-    handleOpenHighlight,
-    handleCloseHighlight,
-    handleModalNavigate,
-  } = useHighlightModal({ allHighlights: highlights, isMobile: false, syncToUrl: false });
+  const highlightDialog = useHighlightDialog({
+    allHighlights: highlights,
+    isMobile: false,
+    syncToUrl: false,
+  });
 
   if (highlights.length === 0) {
     return <EmptyStateText>No highlights in this chapter yet.</EmptyStateText>;
@@ -40,23 +38,18 @@ export const HighlightsSection = ({
             <HighlightCard
               highlight={highlight}
               bookmark={bookmarksByHighlightId[highlight.id]}
-              onOpenModal={handleOpenHighlight}
+              onOpenModal={highlightDialog.open}
             />
           </li>
         ))}
       </CardList>
 
-      {currentHighlight && (
-        <HighlightViewModal
-          highlight={currentHighlight}
+      {highlightDialog.activeItem && (
+        <HighlightViewDialog
+          controller={highlightDialog}
           bookId={bookId}
-          open={true}
-          onClose={handleCloseHighlight}
           availableTags={availableTags}
           bookmarksByHighlightId={bookmarksByHighlightId}
-          allHighlights={highlights}
-          currentIndex={currentHighlightIndex}
-          onNavigate={handleModalNavigate}
         />
       )}
     </>

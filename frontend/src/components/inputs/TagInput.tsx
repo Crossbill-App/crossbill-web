@@ -134,7 +134,7 @@ export interface TagInputProps extends BaseTagInputProps {
 
 /**
  * Book-tag flavour of {@link TagAutocomplete}: a labelled multi-select over the
- * book's `TagInBook` list. Shared by the highlight modal and the note editor.
+ * book's `TagInBook` list. Shared by the highlight dialog and the note editor.
  */
 export const TagInput = ({
   value,
