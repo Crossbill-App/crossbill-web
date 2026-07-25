@@ -62,14 +62,11 @@ from src.infrastructure.reading.schemas import (
     TagUpdateRequest,
 )
 
-# Paths are absolute and deliberately unchanged from when these routes lived in the
-# highlights router, so that generated clients see only a change of OpenAPI tag. That
-# is why the tag group routes still sit under /highlights.
 router = APIRouter(prefix="", tags=["tags"])
 
 
 @router.post(
-    "/highlights/tag_group",
+    "/tag-groups",
     response_model=TagGroup,
     status_code=status.HTTP_200_OK,
 )
@@ -121,7 +118,7 @@ async def create_or_update_tag_group(
 
 
 @router.delete(
-    "/highlights/tag_group/{tag_group_id}",
+    "/tag-groups/{tag_group_id}",
     status_code=status.HTTP_204_NO_CONTENT,
 )
 async def delete_tag_group(
