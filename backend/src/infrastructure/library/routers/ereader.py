@@ -184,7 +184,7 @@ async def upload_book_epub(
     response_model=CollectionResponse[EreaderChapterPrereadingItem],
     status_code=status.HTTP_200_OK,
 )
-async def get_book_prereading(
+async def get_ereader_book_prereading(
     client_book_id: str,
     current_user: Annotated[User, Depends(get_current_user)],
     use_case: GetEreaderBookPrereadingUseCase = Depends(
