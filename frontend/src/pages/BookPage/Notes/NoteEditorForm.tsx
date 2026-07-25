@@ -1,16 +1,11 @@
 import type { Note, NoteWithLinks, TagInBook } from '@/api/generated/model';
-import {
-  getGetNoteQueryKey,
-  getGetNotesForBookQueryKey,
-  useCreateNote,
-  useUpdateNote,
-} from '@/api/generated/notes/notes.ts';
+import { useCreateNote, useUpdateNote } from '@/api/generated/notes/notes.ts';
 import { RHFTextField } from '@/components/inputs/RHFTextField.tsx';
 import { TagInput } from '@/components/inputs/TagInput.tsx';
 import { useBookMutationHelpers } from '@/hooks/useBookMutationHelpers.ts';
+import { useCacheEvents } from '@/lib/cacheEvents.ts';
 import { useBookPage } from '@/pages/BookPage/BookPageContext';
 import { Autocomplete, Box, MenuItem, TextField, Typography } from '@mui/material';
-import { useQueryClient } from '@tanstack/react-query';
 import { forwardRef, useEffect, useImperativeHandle, type ReactNode } from 'react';
 import { Controller, useForm } from 'react-hook-form';
 
@@ -88,7 +83,7 @@ export const NoteEditorForm = forwardRef<NoteEditorFormHandle, NoteEditorFormPro
   ) {
     const { book } = useBookPage();
     const { mutationErrorHandler } = useBookMutationHelpers(book.id);
-    const queryClient = useQueryClient();
+    const cache = useCacheEvents();
 
     const chapterOptions: ChapterOption[] = book.chapters.map((chapter) => ({
       id: chapter.id,
@@ -123,17 +118,9 @@ export const NoteEditorForm = forwardRef<NoteEditorFormHandle, NoteEditorFormPro
       // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [open, note]);
 
-    const invalidateNotes = () => {
-      void queryClient.invalidateQueries({
-        queryKey: getGetNotesForBookQueryKey(book.id),
-      });
-      // Refresh the single-note detail so the view dialog reflects edits immediately.
-      if (note) {
-        void queryClient.invalidateQueries({
-          queryKey: getGetNoteQueryKey(note.id),
-        });
-      }
-    };
+    // `note` is undefined when creating, so the detail query is only refreshed
+    // when editing an existing note — the view dialog then reflects edits at once.
+    const invalidateNotes = () => cache.noteChanged(book.id, note?.id);
 
     const { resolveTags, isCreating: isCreatingTag } = useNoteTagField(book.id);
 

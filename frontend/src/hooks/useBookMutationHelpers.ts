@@ -1,19 +1,20 @@
-import { getGetBookDetailsQueryKey } from '@/api/generated/books/books.ts';
-import { getGetTagsQueryKey } from '@/api/generated/tags/tags.ts';
 import { useSnackbar } from '@/context/SnackbarContext.tsx';
-import { useQueryClient } from '@tanstack/react-query';
+import { useCacheEvents } from '@/lib/cacheEvents.ts';
 
 /**
  * Shared feedback + cache-invalidation helpers for book-scoped mutations.
  *
  * Dedupes the hand-rolled `console.error(...) + showSnackbar('Failed to ...')`
- * onError blocks and the "invalidate book details (+ tags)" invalidation pairs
- * that were pasted across the book feature tabs. Caching strategies themselves
- * are intentionally left with their call sites.
+ * onError blocks that were pasted across the book feature tabs.
+ *
+ * The two invalidation helpers now delegate to `useCacheEvents`, which owns the
+ * query keys. They are kept as a thin shim so existing callers keep working;
+ * new code should use `useCacheEvents` directly, and the callers here move over
+ * as they are touched.
  */
 export const useBookMutationHelpers = (bookId: number) => {
-  const queryClient = useQueryClient();
   const { showSnackbar } = useSnackbar();
+  const cache = useCacheEvents();
 
   /**
    * Build a mutation `onError` handler that logs the failure and shows the
@@ -29,20 +30,11 @@ export const useBookMutationHelpers = (bookId: number) => {
     showSnackbar(`Failed to ${actionLabel}. Please try again.`, 'error');
   };
 
-  /** Invalidate the book details query. */
-  const invalidateBookDetails = () => {
-    void queryClient.invalidateQueries({
-      queryKey: getGetBookDetailsQueryKey(bookId),
-    });
-  };
+  /** @deprecated Use `useCacheEvents().bookChanged(bookId)`. */
+  const invalidateBookDetails = () => cache.bookChanged(bookId);
 
-  /** Invalidate the book details query and the book's tags query. */
-  const invalidateBookAndTags = () => {
-    invalidateBookDetails();
-    void queryClient.invalidateQueries({
-      queryKey: getGetTagsQueryKey(bookId),
-    });
-  };
+  /** @deprecated Use `useCacheEvents().tagsChanged(bookId)`. */
+  const invalidateBookAndTags = () => cache.tagsChanged(bookId);
 
   return { mutationErrorHandler, invalidateBookDetails, invalidateBookAndTags };
 };
