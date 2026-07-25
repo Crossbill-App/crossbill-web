@@ -86,10 +86,14 @@ carried over unchanged, so operationIds are identical and only the tag differs. 
 by diffing the OpenAPI operation table: no routes added or removed, no operationId
 changed, exactly eight tag flips. 517 tests pass.
 
-One wart left deliberately: the two tag-group routes still sit under `/highlights/tag_group`,
-which now reads oddly in a tags router. Renaming them to `/tag-groups` would change their
-operationIds and break callers, so it is a separate decision rather than something
-smuggled into a move.
+The two tag-group routes then moved from `/highlights/tag_group` to `/tag-groups`, since
+that prefix only made sense while they lived in the highlights router. That one *does*
+change operationIds, so it was kept as its own commit: two hooks renamed, no schema
+touched.
+
+The generated client has since been regenerated, so `src/api/generated/tags/tags.ts`
+exists and eight frontend files import from it. `generated/highlights/highlights.ts` is
+down 940 lines to the three operations the highlights router still serves.
 
 The bounded-context question remains open and is *not a prerequisite for this migration*.
 `src/data/tags.ts` behaves identically wherever Tag ends up in the domain.
