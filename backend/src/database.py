@@ -105,8 +105,7 @@ async def get_db(
 # The session the DI container should build repositories against. A ContextVar
 # rather than a module global: every request runs in its own asyncio task, which
 # carries its own copy of the context, so concurrent requests cannot see each
-# other's binding. Sync dependencies dispatched to the threadpool inherit a copy
-# of the caller's context, so they are covered too.
+# other's binding.
 _request_db_session: ContextVar[AsyncSession] = ContextVar("request_db_session")
 
 
