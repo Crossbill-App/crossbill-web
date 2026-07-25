@@ -60,7 +60,7 @@ const GIST_LENGTH_GUIDE = 200;
 
 /**
  * The note create/edit form fields plus mutations, without a dialog shell.
- * Shared by `NoteEditorDialog` (create + standalone edit) and `NoteViewModal`'s
+ * Shared by `NoteEditorDialog` (create + standalone edit) and `NoteViewDialog`'s
  * in-place edit mode. The host renders the footer buttons and triggers save via
  * the imperative `submit` handle.
  */

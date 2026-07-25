@@ -5,10 +5,10 @@ import { Spinner } from '@/components/animations/Spinner.tsx';
 import { UnlinkButton } from '@/components/buttons/UnlinkButton.tsx';
 import { DialogToolbar } from '@/components/dialogs/DialogToolbar.tsx';
 import { NoteCard } from '@/pages/BookPage/Notes/NoteCard';
-import { NoteModals } from '@/pages/BookPage/Notes/NoteModals';
+import { NoteDialogs } from '@/pages/BookPage/Notes/NoteDialogs';
 import { NotePickerDialog } from '@/pages/BookPage/Notes/components/NotePickerDialog.tsx';
+import { useNoteDialogs } from '@/pages/BookPage/Notes/hooks/useNoteDialogs';
 import { useNoteLinks } from '@/pages/BookPage/Notes/hooks/useNoteLinks';
-import { useNoteModals } from '@/pages/BookPage/Notes/hooks/useNoteModals';
 import { AddIcon, LinkIcon } from '@/theme/Icons.tsx';
 import { Box, Button } from '@mui/material';
 import { useState } from 'react';
@@ -40,7 +40,7 @@ export const LinkedNotesSection = ({
   isLoading,
   disabled = false,
 }: LinkedNotesSectionProps) => {
-  const noteModals = useNoteModals({ syncToUrl: false });
+  const noteDialogs = useNoteDialogs({ syncToUrl: false });
   const [pickerOpen, setPickerOpen] = useState(false);
   const noteLinks = useNoteLinks({ bookId });
 
@@ -81,7 +81,7 @@ export const LinkedNotesSection = ({
           variant="outlined"
           size="small"
           startIcon={<AddIcon />}
-          onClick={noteModals.openCreate}
+          onClick={noteDialogs.openCreate}
           disabled={isDisabled}
         >
           Add note
@@ -96,7 +96,7 @@ export const LinkedNotesSection = ({
           <li key={note.id}>
             <NoteCard
               note={note}
-              onClick={() => noteModals.openView(note)}
+              onClick={() => noteDialogs.openView(note)}
               action={
                 <UnlinkButton
                   title={`Unlink from ${target.kind}`}
@@ -108,8 +108,8 @@ export const LinkedNotesSection = ({
           </li>
         ))}
       </CardList>
-      <NoteModals
-        controller={noteModals}
+      <NoteDialogs
+        controller={noteDialogs}
         initialChapterIds={initialChapterIds}
         initialHighlightIds={target.kind === 'highlight' ? [target.id] : undefined}
       />

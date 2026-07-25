@@ -17,7 +17,7 @@ interface HighlightFlashcardSectionProps {
 
 /**
  * Wires the shared FlashcardSection to a highlight's cards and endpoints.
- * Rendered inside the highlight modal's Flashcards tab, so it is always visible.
+ * Rendered inside the highlight dialog's Flashcards tab, so it is always visible.
  */
 export const HighlightFlashcardSection = ({
   highlight,

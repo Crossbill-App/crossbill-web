@@ -1,6 +1,7 @@
 import type { ChapterPrereadingResponse, ChapterWithHighlights } from '@/api/generated/model';
 import { useGetNotesForBook } from '@/api/generated/notes/notes.ts';
 import { useGetBookPrereading } from '@/api/generated/prereading/prereading';
+import { useUrlEntityDialog } from '@/components/dialogs/useUrlEntityDialog.ts';
 import { useBookPage } from '@/pages/BookPage/BookPageContext';
 import { Box, Typography } from '@mui/material';
 import { keyBy } from 'lodash';
@@ -8,7 +9,6 @@ import { useMemo } from 'react';
 import { BatchPrereadingToolbar } from './BatchPrereadingToolbar';
 import { ChapterAccordion } from './ChapterAccordion';
 import { ChapterDetailDialog } from './ChapterDetailDialog/ChapterDetailDialog.tsx';
-import { useChapterDetailsModal } from './hooks/useChapterDetailsModal.ts';
 
 export const StructurePage = () => {
   const { book } = useBookPage();
@@ -70,13 +70,10 @@ export const StructurePage = () => {
     return result;
   }, [childrenByParentId]);
 
-  const {
-    selectedChapter,
-    selectedChapterIndex,
-    handleChapterClick,
-    handleDialogClose,
-    handleDialogNavigate,
-  } = useChapterDetailsModal({ leafChapters });
+  const chapterDialog = useUrlEntityDialog<ChapterWithHighlights>({
+    param: 'chapterId',
+    items: leafChapters,
+  });
 
   // Compute bookmarks map
   const bookmarksByHighlightId = useMemo(
@@ -126,20 +123,15 @@ export const StructurePage = () => {
             isRead={chapterIsRead}
             isCurrent={chapterIsCurrent}
             readingPosition={readingPosition}
-            onChapterClick={handleChapterClick}
+            onChapterClick={chapterDialog.open}
           />
         );
       })}
 
-      {selectedChapter && (
+      {chapterDialog.activeItem && (
         <ChapterDetailDialog
-          open={true}
-          onClose={handleDialogClose}
-          chapter={selectedChapter}
+          controller={chapterDialog}
           bookId={book.id}
-          allLeafChapters={leafChapters}
-          currentIndex={selectedChapterIndex ?? 0}
-          onNavigate={handleDialogNavigate}
           prereadingByChapterId={prereadingByChapterId}
           bookmarksByHighlightId={bookmarksByHighlightId}
           availableTags={book.tags}

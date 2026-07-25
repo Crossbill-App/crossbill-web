@@ -13,9 +13,10 @@ import { CommonDialogTitle } from '@/components/dialogs/CommonDialogTitle.tsx';
 import { DialogTabs, type DialogTabItem } from '@/components/dialogs/DialogTabs.tsx';
 import { ProgressBar } from '@/components/dialogs/ProgressBar.tsx';
 import {
-  useModalHorizontalNavigation,
-  useModalSwipeNavigation,
-} from '@/components/dialogs/useModalHorizontalNavigation.ts';
+  useDialogHorizontalNavigation,
+  useDialogSwipeNavigation,
+} from '@/components/dialogs/useDialogHorizontalNavigation.ts';
+import type { UrlEntityDialogController } from '@/components/dialogs/useUrlEntityDialog.ts';
 import { LinkedNotesSection } from '@/pages/BookPage/Notes/components/LinkedNotesSection.tsx';
 import { NoteEditorDialog } from '@/pages/BookPage/Notes/NoteEditorDialog';
 import { Box, Button } from '@mui/material';
@@ -31,13 +32,8 @@ import { HighlightsSection } from './HighlightsSection.tsx';
 import { PrereadingSummarySection } from './PrereadingSummarySection.tsx';
 
 interface ChapterDetailDialogProps {
-  open: boolean;
-  onClose: () => void;
-  chapter: ChapterWithHighlights;
+  controller: UrlEntityDialogController<ChapterWithHighlights>;
   bookId: number;
-  allLeafChapters: ChapterWithHighlights[];
-  currentIndex: number;
-  onNavigate: (newIndex: number) => void;
   prereadingByChapterId: Record<number, ChapterPrereadingResponse>;
   bookmarksByHighlightId: Record<number, Bookmark>;
   availableTags: TagInBook[];
@@ -45,13 +41,8 @@ interface ChapterDetailDialogProps {
 }
 
 export const ChapterDetailDialog = ({
-  open,
-  onClose,
-  chapter,
+  controller,
   bookId,
-  allLeafChapters,
-  currentIndex,
-  onNavigate,
   prereadingByChapterId,
   bookmarksByHighlightId,
   availableTags,
@@ -64,24 +55,28 @@ export const ChapterDetailDialog = ({
   const [activeTab, setActiveTab] = useState(0);
   const [chatNoteBody, setChatNoteBody] = useState<string | null>(null);
 
+  // Callers render this dialog only while a chapter is active
+  const chapter = controller.activeItem!;
+  const { activeIndex, totalCount, navigateToIndex } = controller;
+
   const { hasNavigation, hasPrevious, hasNext, handlePrevious, handleNext } =
-    useModalHorizontalNavigation({
-      open,
-      currentIndex,
-      totalCount: allLeafChapters.length,
-      onNavigate,
+    useDialogHorizontalNavigation({
+      open: controller.activeId !== null,
+      currentIndex: activeIndex,
+      totalCount,
+      onNavigate: navigateToIndex,
     });
 
-  const { swipeHandlers: summarySwipeHandlers } = useModalSwipeNavigation({
-    currentIndex,
-    totalCount: allLeafChapters.length,
-    onNavigate,
+  const { swipeHandlers: summarySwipeHandlers } = useDialogSwipeNavigation({
+    currentIndex: activeIndex,
+    totalCount,
+    onNavigate: navigateToIndex,
   });
 
-  const { swipeHandlers: tabSwipeHandlers } = useModalSwipeNavigation({
-    currentIndex,
-    totalCount: allLeafChapters.length,
-    onNavigate,
+  const { swipeHandlers: tabSwipeHandlers } = useDialogSwipeNavigation({
+    currentIndex: activeIndex,
+    totalCount,
+    onNavigate: navigateToIndex,
   });
 
   const prereadingSummary = prereadingByChapterId[chapter.id];
@@ -179,18 +174,18 @@ export const ChapterDetailDialog = ({
   return (
     <>
       <CommonDialog
-        open={open}
-        onClose={onClose}
+        open={controller.activeId !== null}
+        onClose={controller.close}
         maxWidth="md"
         title={title}
         headerElement={
           hasNavigation ? (
-            <ProgressBar currentIndex={currentIndex} totalCount={allLeafChapters.length} />
+            <ProgressBar currentIndex={activeIndex} totalCount={totalCount} />
           ) : undefined
         }
         footerActions={
           <Box sx={{ display: 'flex', justifyContent: 'flex-end', width: '100%' }}>
-            <Button onClick={onClose}>Close</Button>
+            <Button onClick={controller.close}>Close</Button>
           </Box>
         }
       >

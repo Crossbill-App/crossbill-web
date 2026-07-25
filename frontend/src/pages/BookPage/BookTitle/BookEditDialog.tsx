@@ -10,13 +10,13 @@ import { Box, Button, Typography } from '@mui/material';
 import { useNavigate } from '@tanstack/react-router';
 import { useState } from 'react';
 
-interface BookEditModalProps {
+interface BookEditDialogProps {
   book: BookDetails;
   open: boolean;
   onClose: () => void;
 }
 
-export const BookEditModal = ({ book, open, onClose }: BookEditModalProps) => {
+export const BookEditDialog = ({ book, open, onClose }: BookEditDialogProps) => {
   const cache = useCacheEvents();
   const navigate = useNavigate();
   const mutationErrorHandler = useMutationErrorHandler();

@@ -12,7 +12,7 @@ import { ContentWithSidebar } from '@/components/layout/Layouts.tsx';
 import { useBookPage } from '@/pages/BookPage/BookPageContext';
 import { ListSearchSortHeader } from '@/pages/BookPage/common/ListSearchSortHeader.tsx';
 import { useBookTabFilters } from '@/pages/BookPage/common/useBookTabFilters.ts';
-import { useHighlightModal } from '@/pages/BookPage/Highlights/hooks/useHighlightModal.ts';
+import { useHighlightDialog } from '@/pages/BookPage/Highlights/hooks/useHighlightDialog.ts';
 import { Box, Divider } from '@mui/material';
 import { useNavigate, useSearch } from '@tanstack/react-router';
 import { keyBy } from 'lodash';
@@ -25,7 +25,7 @@ import { FilterDrawer, type FilterTab } from '../navigation/FilterDrawer.tsx';
 import { HighlightLabelsList } from '../navigation/HighlightLabelsList.tsx';
 import { TagsList } from '../navigation/TagsList/TagsList.tsx';
 import { HighlightsList, type ChapterData } from './HighlightsList.tsx';
-import { HighlightViewModal } from './HighlightViewModal';
+import { HighlightViewDialog } from './HighlightViewDialog';
 
 export const HighlightsPage = () => {
   const { book, isDesktop, leftSidebarEl, fabContainerEl } = useBookPage();
@@ -47,7 +47,7 @@ export const HighlightsPage = () => {
     setSelectedLabelId(urlLabelId);
   }, [urlLabelId]);
 
-  // Fetch available tags for the highlight modal
+  // Fetch available tags for the highlight dialog
   const { data: tagsResponse } = useGetTags(book.id);
 
   const handleLabelClick = useCallback(
@@ -117,14 +117,7 @@ export const HighlightsPage = () => {
     return chapters.flatMap((chapter) => chapter.highlights);
   }, [chapters]);
 
-  const {
-    openHighlightId,
-    currentHighlight,
-    currentHighlightIndex,
-    handleOpenHighlight,
-    handleCloseHighlight,
-    handleModalNavigate,
-  } = useHighlightModal({ allHighlights, isMobile: !isDesktop });
+  const highlightDialog = useHighlightDialog({ allHighlights, isMobile: !isDesktop });
 
   const tags = book.tags;
 
@@ -197,7 +190,7 @@ export const HighlightsPage = () => {
               isLoading={bookSearch.isSearching}
               emptyMessage={emptyMessage}
               animationKey="chapters-highlights"
-              onOpenHighlight={handleOpenHighlight}
+              onOpenHighlight={highlightDialog.open}
             />
           </Box>
           <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
@@ -229,7 +222,7 @@ export const HighlightsPage = () => {
             isLoading={bookSearch.isSearching}
             emptyMessage={emptyMessage}
             animationKey="chapters-highlights"
-            onOpenHighlight={handleOpenHighlight}
+            onOpenHighlight={highlightDialog.open}
           />
 
           {fabContainerEl &&
@@ -246,18 +239,13 @@ export const HighlightsPage = () => {
         </>
       )}
 
-      {/* Highlight modal */}
-      {currentHighlight && (
-        <HighlightViewModal
-          highlight={currentHighlight}
+      {/* Highlight dialog */}
+      {highlightDialog.activeItem && (
+        <HighlightViewDialog
+          controller={highlightDialog}
           bookId={book.id}
-          open={!!openHighlightId}
-          onClose={handleCloseHighlight}
           availableTags={tagsResponse?.items || []}
           bookmarksByHighlightId={bookmarksByHighlightId}
-          allHighlights={allHighlights}
-          currentIndex={currentHighlightIndex}
-          onNavigate={handleModalNavigate}
         />
       )}
     </>

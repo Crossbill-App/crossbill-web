@@ -4,7 +4,7 @@ import { ReadingStageChip } from '@/pages/BookPage/Reflection/ReadingStageChip.t
 import { EditIcon } from '@/theme/Icons.tsx';
 import { Box, Button, LinearProgress, Tooltip, Typography } from '@mui/material';
 import { useState } from 'react';
-import { BookEditModal } from './BookEditModal.tsx';
+import { BookEditDialog } from './BookEditDialog.tsx';
 import { BookStatsStrip } from './BookStatsStrip.tsx';
 
 export interface BookTitleProps {
@@ -12,10 +12,10 @@ export interface BookTitleProps {
 }
 
 export const BookTitle = ({ book }: BookTitleProps) => {
-  const [editModalOpen, setEditModalOpen] = useState(false);
+  const [editDialogOpen, setEditDialogOpen] = useState(false);
 
   const handleEdit = () => {
-    setEditModalOpen(true);
+    setEditDialogOpen(true);
   };
 
   const progress =
@@ -130,8 +130,8 @@ export const BookTitle = ({ book }: BookTitleProps) => {
         </Box>
       </Box>
 
-      {/* Edit Modal */}
-      <BookEditModal book={book} open={editModalOpen} onClose={() => setEditModalOpen(false)} />
+      {/* Edit dialog */}
+      <BookEditDialog book={book} open={editDialogOpen} onClose={() => setEditDialogOpen(false)} />
     </>
   );
 };

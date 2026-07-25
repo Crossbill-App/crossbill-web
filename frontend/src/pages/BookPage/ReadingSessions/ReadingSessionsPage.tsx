@@ -3,8 +3,11 @@ import { useGetBookReadingSessions } from '@/api/generated/reading-sessions/read
 import { useGetTags } from '@/api/generated/tags/tags';
 import { Spinner } from '@/components/animations/Spinner.tsx';
 import { useBookPage } from '@/pages/BookPage/BookPageContext';
-import { HighlightViewModal } from '@/pages/BookPage/Highlights/HighlightViewModal/HighlightViewModal';
-import { useHighlightModal } from '@/pages/BookPage/Highlights/hooks/useHighlightModal';
+import { HighlightViewDialog } from '@/pages/BookPage/Highlights/HighlightViewDialog/HighlightViewDialog';
+import {
+  useHighlightDialog,
+  type HighlightDialogController,
+} from '@/pages/BookPage/Highlights/hooks/useHighlightDialog';
 import { Alert, Box, Pagination } from '@mui/material';
 import { useNavigate, useSearch } from '@tanstack/react-router';
 import { keyBy } from 'lodash';
@@ -43,27 +46,23 @@ export const ReadingSessionsPage = () => {
 
   const sessionHighlights = useMemo(() => activeSession?.highlights || [], [activeSession]);
 
-  const {
-    openHighlightId,
-    currentHighlight,
-    currentHighlightIndex,
-    handleOpenHighlight,
-    handleCloseHighlight,
-    handleModalNavigate,
-  } = useHighlightModal({
+  const highlightDialog = useHighlightDialog({
     allHighlights: sessionHighlights,
     isMobile: !isDesktop,
     syncToUrl: false,
   });
 
-  const handleOpenSessionHighlight = (sessionId: number, highlightId: number) => {
-    setActiveSessionId(sessionId);
-    handleOpenHighlight(highlightId);
+  const controller: HighlightDialogController = {
+    ...highlightDialog,
+    close: (lastViewedHighlightId?: number) => {
+      highlightDialog.close(lastViewedHighlightId);
+      setActiveSessionId(null);
+    },
   };
 
-  const handleCloseModal = (lastViewedHighlightId?: number) => {
-    handleCloseHighlight(lastViewedHighlightId);
-    setActiveSessionId(null);
+  const handleOpenSessionHighlight = (sessionId: number, highlightId: number) => {
+    setActiveSessionId(sessionId);
+    highlightDialog.open(highlightId);
   };
 
   const handlePageChange = (_event: React.ChangeEvent<unknown>, value: number) => {
@@ -114,17 +113,12 @@ export const ReadingSessionsPage = () => {
         )}
       </Box>
 
-      {currentHighlight && (
-        <HighlightViewModal
-          highlight={currentHighlight}
+      {controller.activeItem && (
+        <HighlightViewDialog
+          controller={controller}
           bookId={book.id}
-          open={!!openHighlightId}
-          onClose={handleCloseModal}
           availableTags={tagsResponse?.items || []}
           bookmarksByHighlightId={bookmarksByHighlightId}
-          allHighlights={sessionHighlights}
-          currentIndex={currentHighlightIndex}
-          onNavigate={handleModalNavigate}
         />
       )}
     </>

@@ -1,22 +1,22 @@
 import { useCallback, useEffect, useRef } from 'react';
 import { useSwipeable } from 'react-swipeable';
 
-// Module-level stack to track active navigation modals.
-// Only the topmost modal should handle keyboard navigation.
+// Module-level stack to track active navigation dialogs.
+// Only the topmost dialog should handle keyboard navigation.
 let activeNavigationStack: symbol[] = [];
 
-interface UseModalHorizontalNavigationOptions {
+interface UseDialogHorizontalNavigationOptions {
   open: boolean;
   currentIndex: number;
   totalCount: number;
   onNavigate?: (newIndex: number) => void;
 }
 
-export const useModalSwipeNavigation = ({
+export const useDialogSwipeNavigation = ({
   currentIndex,
   totalCount,
   onNavigate,
-}: Omit<UseModalHorizontalNavigationOptions, 'open'>) => {
+}: Omit<UseDialogHorizontalNavigationOptions, 'open'>) => {
   const hasNavigation = totalCount > 1 && onNavigate;
   const hasPrevious = hasNavigation && currentIndex > 0;
   const hasNext = hasNavigation && currentIndex < totalCount - 1;
@@ -49,12 +49,12 @@ export const useModalSwipeNavigation = ({
   };
 };
 
-export const useModalHorizontalNavigation = ({
+export const useDialogHorizontalNavigation = ({
   open,
   currentIndex,
   totalCount,
   onNavigate,
-}: UseModalHorizontalNavigationOptions) => {
+}: UseDialogHorizontalNavigationOptions) => {
   const hasNavigation = totalCount > 1 && onNavigate;
   const hasPrevious = hasNavigation && currentIndex > 0;
   const hasNext = hasNavigation && currentIndex < totalCount - 1;
@@ -73,7 +73,7 @@ export const useModalHorizontalNavigation = ({
     }
   }, [currentIndex, hasNext, onNavigate]);
 
-  // Register/unregister this modal on the navigation stack
+  // Register/unregister this dialog on the navigation stack
   useEffect(() => {
     if (!open || !hasNavigation) return;
 
@@ -89,7 +89,7 @@ export const useModalHorizontalNavigation = ({
     if (!open || !hasNavigation) return;
 
     const handleKeyDown = (e: KeyboardEvent) => {
-      // Only respond to keyboard events if this is the topmost navigation modal
+      // Only respond to keyboard events if this is the topmost navigation dialog
       if (activeNavigationStack[activeNavigationStack.length - 1] !== idRef.current) return;
 
       const target = e.target as HTMLElement;
@@ -117,7 +117,7 @@ export const useModalHorizontalNavigation = ({
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [open, hasNavigation, hasPrevious, hasNext, handlePrevious, handleNext]);
 
-  const { swipeHandlers } = useModalSwipeNavigation({
+  const { swipeHandlers } = useDialogSwipeNavigation({
     currentIndex,
     totalCount,
     onNavigate,
