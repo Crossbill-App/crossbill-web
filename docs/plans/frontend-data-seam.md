@@ -81,9 +81,18 @@ endpoints into a `tags=["tags"]` router — which can stay under `reading/` — 
 `generated/tags/tags.ts` without deciding where Tag belongs in the domain. It is a
 router-file change, not a domain move.
 
-That decision is therefore *not a prerequisite for this migration*. `src/data/tags.ts`
-exists and behaves identically whether its endpoints come from `highlights.ts` or
-`tags.ts`; only its import lines differ. Sequence the backend question independently.
+*Done.* The eight moved to `reading/routers/tags.py` with paths and handler names
+carried over unchanged, so operationIds are identical and only the tag differs. Verified
+by diffing the OpenAPI operation table: no routes added or removed, no operationId
+changed, exactly eight tag flips. 517 tests pass.
+
+One wart left deliberately: the two tag-group routes still sit under `/highlights/tag_group`,
+which now reads oddly in a tags router. Renaming them to `/tag-groups` would change their
+operationIds and break callers, so it is a separate decision rather than something
+smuggled into a move.
+
+The bounded-context question remains open and is *not a prerequisite for this migration*.
+`src/data/tags.ts` behaves identically wherever Tag ends up in the domain.
 
 ### Evidence for the open backend question
 
