@@ -126,6 +126,22 @@ source_modules = ["src.domain"]
 forbidden_modules = ["src.application", "src.infrastructure", "src.containers"]
 
 [[tool.importlinter.contracts]]
+id = "domain-module-independence"
+name = "Domain modules must not import each other (src.domain.common is shared)"
+type = "independence"
+modules = [
+    "src.domain.ai",
+    "src.domain.identity",
+    "src.domain.jobs",
+    "src.domain.learning",
+    "src.domain.library",
+    "src.domain.notes",
+    "src.domain.reading",
+    "src.domain.reflection",
+    "src.domain.tagging",
+]
+
+[[tool.importlinter.contracts]]
 id = "application-no-infra"
 name = "Application layer must not directly import infrastructure"
 type = "forbidden"
