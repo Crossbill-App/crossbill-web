@@ -9,16 +9,19 @@ overridden by them.
 
 from slowapi import Limiter
 from slowapi.middleware import _ASGIMiddlewareResponder  # pyright: ignore[reportPrivateUsage]
-from slowapi.util import get_remote_address
 from starlette.datastructures import MutableHeaders
 from starlette.types import ASGIApp, Message, Receive, Scope, Send
 
 from src.config import get_settings
+from src.infrastructure.common.client_ip import client_ip
 
 _settings = get_settings()
 
+# Deliberately not slowapi's get_remote_address: that reads request.client.host,
+# which uvicorn rewrites from a client-supplied X-Forwarded-For entry whenever
+# proxy headers are trusted. See src/infrastructure/common/client_ip.py.
 limiter = Limiter(
-    key_func=get_remote_address,
+    key_func=client_ip,
     default_limits=[_settings.RATE_LIMIT_DEFAULT],
     enabled=_settings.RATE_LIMIT_ENABLED,
     headers_enabled=True,

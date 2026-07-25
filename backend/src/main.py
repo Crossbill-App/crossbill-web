@@ -30,6 +30,7 @@ from src.domain.common.exceptions import (
     EntityNotFoundError,
     ValidationError,
 )
+from src.infrastructure.common.client_ip import client_ip, client_ip_from_scope
 from src.infrastructure.common.rate_limit import RateLimitMiddleware, limiter
 from src.infrastructure.common.routers import settings as settings_router
 from src.infrastructure.identity.repositories.user_repository import UserRepository
@@ -96,7 +97,7 @@ async def _initialize_admin_password() -> None:
             return
 
         # Hash password and update domain entity
-        hashed = hash_password(settings.ADMIN_PASSWORD)
+        hashed = await hash_password(settings.ADMIN_PASSWORD)
         admin_user.update_password(hashed)
 
         # Save via repository
@@ -183,7 +184,7 @@ async def rate_limit_handler(request: Request, exc: RateLimitExceeded) -> JSONRe
     logger.warning(
         "rate_limit_exceeded",
         path=request.url.path,
-        client_host=request.client.host if request.client else None,
+        client_host=client_ip(request),
     )
     return JSONResponse(
         status_code=429,
@@ -212,8 +213,7 @@ class RequestIdAndLoggingMiddleware:
         structlog.contextvars.clear_contextvars()
         structlog.contextvars.bind_contextvars(request_id=request_id)
 
-        client = scope.get("client")
-        client_host = client[0] if client else None
+        client_host = client_ip_from_scope(scope)
         method = scope.get("method")
         path = scope.get("path")
 

@@ -36,13 +36,18 @@ class AuthenticateUserUseCase:
     async def authenticate(self, email: str, password: str) -> tuple[User, TokenPairWithMetadata]:
         user = await self.user_repository.find_by_email(email)
 
-        if not user:
-            self.password_service.verify_password(password, self.password_service.get_dummy_hash())
-            raise InvalidCredentialsError
+        # Verify exactly one hash on every path — the stored one when there is
+        # a usable account, a dummy otherwise. Skipping the work for an unknown
+        # address, or for a user with no password set, would make "this account
+        # exists" readable from the response time alone.
+        stored_hash = (
+            user.hashed_password
+            if user is not None and user.hashed_password
+            else self.password_service.get_dummy_hash()
+        )
+        password_matches = await self.password_service.verify_password(password, stored_hash)
 
-        if not user.hashed_password or not self.password_service.verify_password(
-            password, user.hashed_password
-        ):
+        if user is None or not user.hashed_password or not password_matches:
             raise InvalidCredentialsError
 
         family_id = str(uuid.uuid4())

@@ -1,4 +1,15 @@
-"""Password hashing and verification service."""
+"""Password hashing and verification service.
+
+Argon2id is deliberately expensive: the recommended parameters allocate 64 MiB
+and burn tens of milliseconds per call. Running that inline on the event loop
+stalls every other request for the duration, so an unauthenticated caller could
+wedge the whole app with a trickle of bad logins. Hashing therefore happens on a
+worker thread, and a semaphore caps how many run at once so the memory cost
+stays bounded no matter how many requests arrive together.
+"""
+
+import asyncio
+from weakref import WeakKeyDictionary
 
 from pwdlib import PasswordHash
 from pwdlib.exceptions import UnknownHashError
@@ -14,14 +25,56 @@ password_hash = PasswordHash.recommended()
 # A fake string like "abc123" would cause pwdlib to raise UnknownHashError.
 DUMMY_HASH = password_hash.hash("dummy_password_for_timing_attack_prevention")
 
+# Keyed by event loop: asyncio primitives bind to the first loop that uses them,
+# and the test suite runs each case on a fresh loop.
+_concurrency_guards: WeakKeyDictionary[asyncio.AbstractEventLoop, asyncio.Semaphore] = (
+    WeakKeyDictionary()
+)
 
-def hash_password(plain_password: str) -> str:
+
+def _concurrency_guard() -> asyncio.Semaphore:
+    """Get the hashing semaphore for the running event loop."""
+    loop = asyncio.get_running_loop()
+    guard = _concurrency_guards.get(loop)
+    if guard is None:
+        guard = asyncio.Semaphore(settings.PASSWORD_HASH_CONCURRENCY)
+        _concurrency_guards[loop] = guard
+    return guard
+
+
+def _hash_sync(plain_password: str) -> str:
+    return password_hash.hash(plain_password + PASSWORD_PEPPER)
+
+
+def _verify_sync(plain_password: str, hashed_password: str) -> bool:
+    try:
+        peppered_matches = password_hash.verify(plain_password + PASSWORD_PEPPER, hashed_password)
+
+        if not PASSWORD_PEPPER:
+            # With no pepper configured the legacy attempt below is byte-for-byte
+            # the one just made; repeating it would only double the cost.
+            return peppered_matches
+
+        # Fallback to non-peppered for backward compatibility (DEPRECATED).
+        # This allows existing users to login and change their password.
+        #
+        # Deliberately not short-circuited on peppered_matches: returning early
+        # would make a peppered hash cost one verification and a legacy hash two,
+        # and that ~30ms gap is measurable from outside. Cost per call is
+        # therefore constant, and bounded by the semaphore in the callers below.
+        legacy_matches = password_hash.verify(plain_password, hashed_password)
+        return peppered_matches or legacy_matches
+    except UnknownHashError:
+        return False
+
+
+async def hash_password(plain_password: str) -> str:
     """Hash a plain password for storage with pepper."""
-    peppered_password = plain_password + PASSWORD_PEPPER
-    return password_hash.hash(peppered_password)
+    async with _concurrency_guard():
+        return await asyncio.to_thread(_hash_sync, plain_password)
 
 
-def verify_password(plain_password: str, hashed_password: str) -> bool:
+async def verify_password(plain_password: str, hashed_password: str) -> bool:
     """Verify a plain password against a hashed password.
 
     Tries with pepper first (current standard), then falls back to non-peppered
@@ -30,17 +83,8 @@ def verify_password(plain_password: str, hashed_password: str) -> bool:
     DEPRECATED: Non-peppered password verification will be removed in a future release.
     Users should change their passwords to migrate to peppered hashes.
     """
-    try:
-        # Try with pepper first (current standard)
-        peppered_password = plain_password + PASSWORD_PEPPER
-        if password_hash.verify(peppered_password, hashed_password):
-            return True
-
-        # Fallback to non-peppered for backward compatibility (DEPRECATED)
-        # This allows existing users to login and change their password
-        return password_hash.verify(plain_password, hashed_password)
-    except UnknownHashError:
-        return False
+    async with _concurrency_guard():
+        return await asyncio.to_thread(_verify_sync, plain_password, hashed_password)
 
 
 def get_dummy_hash() -> str:

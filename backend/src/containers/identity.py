@@ -50,6 +50,7 @@ class IdentityContainer(containers.DeclarativeContainer):
         UpdateUserUseCase,
         user_repository=user_repository,
         password_service=password_service,
+        refresh_token_repository=refresh_token_repository,
     )
     logout_use_case = providers.Factory(
         LogoutUseCase,

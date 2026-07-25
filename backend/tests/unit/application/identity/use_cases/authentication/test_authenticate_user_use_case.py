@@ -11,6 +11,7 @@ from src.application.identity.use_cases.authentication.authenticate_user_use_cas
 )
 from src.domain.common.value_objects.ids import UserId
 from src.domain.identity.entities.user import User
+from src.domain.identity.exceptions import InvalidCredentialsError
 
 
 def _make_user(user_id: int = 1) -> User:
@@ -42,7 +43,11 @@ class TestAuthenticateUserUseCase:
 
     @pytest.fixture
     def password_service(self) -> MagicMock:
-        return MagicMock()
+        # Hashing is awaited (it runs on a worker thread); get_dummy_hash is not.
+        service = MagicMock()
+        service.hash_password = AsyncMock(return_value="hashed")
+        service.verify_password = AsyncMock(return_value=False)
+        return service
 
     @pytest.fixture
     def token_service(self) -> MagicMock:
@@ -104,3 +109,50 @@ class TestAuthenticateUserUseCase:
         assert saved_token.jti == "test-jti"
         assert saved_token.family_id == "test-family"
         assert saved_token.user_id == UserId(1)
+
+    async def test_unknown_email_still_verifies_a_hash(
+        self,
+        use_case: AuthenticateUserUseCase,
+        user_repository: AsyncMock,
+        password_service: MagicMock,
+    ) -> None:
+        """Skipping the hash would make account existence readable from latency."""
+        user_repository.find_by_email.return_value = None
+
+        with pytest.raises(InvalidCredentialsError):
+            await use_case.authenticate("nobody@example.com", "password")
+
+        password_service.verify_password.assert_awaited_once_with(
+            "password", password_service.get_dummy_hash()
+        )
+
+    async def test_wrong_password_verifies_the_same_number_of_hashes(
+        self,
+        use_case: AuthenticateUserUseCase,
+        user_repository: AsyncMock,
+        password_service: MagicMock,
+    ) -> None:
+        user_repository.find_by_email.return_value = _make_user()
+
+        with pytest.raises(InvalidCredentialsError):
+            await use_case.authenticate("test@example.com", "wrong")
+
+        password_service.verify_password.assert_awaited_once_with("wrong", "hashed")
+
+    async def test_user_without_a_password_still_verifies_a_hash(
+        self,
+        use_case: AuthenticateUserUseCase,
+        user_repository: AsyncMock,
+        password_service: MagicMock,
+    ) -> None:
+        """A passwordless account must not be a fast path either."""
+        user = _make_user()
+        user.hashed_password = None
+        user_repository.find_by_email.return_value = user
+
+        with pytest.raises(InvalidCredentialsError):
+            await use_case.authenticate("test@example.com", "password")
+
+        password_service.verify_password.assert_awaited_once_with(
+            "password", password_service.get_dummy_hash()
+        )

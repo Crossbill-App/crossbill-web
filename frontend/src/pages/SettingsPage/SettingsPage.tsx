@@ -96,6 +96,7 @@ const EMPTY_PASSWORD_FORM: PasswordFormValues = {
 
 const PasswordForm = () => {
   const [success, setSuccess] = useState(false);
+  const { logout } = useAuth();
 
   const {
     control,
@@ -120,6 +121,10 @@ const PasswordForm = () => {
       });
       setSuccess(true);
       reset(EMPTY_PASSWORD_FORM);
+      // The server revokes every session on a password change, this one
+      // included. Sign out now rather than let the access token expire into a
+      // confusing failure a few minutes from now.
+      await logout();
     } catch {
       setError('root', {
         message: 'Failed to update password. Check your current password.',

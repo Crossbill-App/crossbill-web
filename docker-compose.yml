@@ -36,6 +36,9 @@ services:
       ADMIN_USERNAME: ${ADMIN_USERNAME}
       ADMIN_PASSWORD: ${ADMIN_PASSWORD}
       CORS_ORIGINS: '["https://yourdomain.com"]'
+      # Set to 1 if a reverse proxy terminates TLS in front of this container,
+      # so per-IP rate limiting keys on the real client instead of the proxy.
+      TRUSTED_PROXY_HOPS: ${TRUSTED_PROXY_HOPS:-0}
       SECRET_KEY: ${SECRET_KEY}
       ACCESS_TOKEN_EXPIRE_MINUTES: 15
       REFRESH_TOKEN_EXPIRE_DAYS: 30

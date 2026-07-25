@@ -53,6 +53,21 @@ class RefreshTokenRepository:
         await self.db.execute(stmt)
         await self.db.commit()
 
+    async def revoke_all_for_user(
+        self, user_id: UserId, except_family_id: str | None = None
+    ) -> None:
+        """Revoke every live refresh token for a user, optionally sparing one family."""
+        conditions = [
+            RefreshTokenORM.user_id == user_id.value,
+            RefreshTokenORM.revoked_at.is_(None),
+        ]
+        if except_family_id is not None:
+            conditions.append(RefreshTokenORM.family_id != except_family_id)
+
+        stmt = update(RefreshTokenORM).where(*conditions).values(revoked_at=datetime.now(UTC))
+        await self.db.execute(stmt)
+        await self.db.commit()
+
     async def delete_expired_for_user(self, user_id: UserId) -> None:
         stmt = delete(RefreshTokenORM).where(
             RefreshTokenORM.user_id == user_id.value,

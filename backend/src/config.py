@@ -8,7 +8,7 @@ from pathlib import Path
 from typing import Any, Literal
 
 import structlog
-from pydantic import computed_field, field_validator, model_validator
+from pydantic import AliasChoices, Field, computed_field, field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 # Path constants - calculated once at module load
@@ -48,6 +48,13 @@ class Settings(BaseSettings):
     RATE_LIMIT_ENABLED: bool = True
     RATE_LIMIT_DEFAULT: str = "300/minute"
 
+    # Number of reverse proxies in front of the app that append to
+    # X-Forwarded-For. 0 means the app is directly exposed and the header is
+    # ignored entirely; anything else would let callers pick their own
+    # rate-limit bucket. Set to 1 behind a single edge proxy (Railway,
+    # Cloudflare, nginx), 2 behind two chained proxies, and so on.
+    TRUSTED_PROXY_HOPS: int = 0
+
     # Admin setup (for first-time initialization on a fresh deployment)
     ADMIN_USERNAME: str = "admin"
     ADMIN_PASSWORD: str = ""
@@ -59,8 +66,21 @@ class Settings(BaseSettings):
     COOKIE_SECURE: bool = True
     PASSWORD_PEPPER: str = ""
 
-    # Registration
-    ALLOW_USER_REGISTRATIONS: bool = True
+    # How many Argon2id hashes may run concurrently. Each costs ~64 MiB, so this
+    # is the ceiling on memory an unauthenticated flood of logins can pin down.
+    # Raise it only if the host has memory and cores to spare.
+    PASSWORD_HASH_CONCURRENCY: int = 2
+
+    # Registration. Defaults to closed: a deployment that never sets this is
+    # almost always a single-user install on the public internet, and the wrong
+    # default here silently hands out accounts.
+    # ALLOW_USER_REGISTRATION (singular) is accepted too — .env.example shipped
+    # that spelling for a while, and reading only the plural name meant anyone
+    # who followed it set a variable nothing consumed.
+    ALLOW_USER_REGISTRATIONS: bool = Field(
+        default=False,
+        validation_alias=AliasChoices("ALLOW_USER_REGISTRATIONS", "ALLOW_USER_REGISTRATION"),
+    )
 
     # Reading sessions
     MINIMUM_READING_SESSION_DURATION: int = 120
@@ -120,6 +140,24 @@ class Settings(BaseSettings):
     def strip_admin_password(cls, value: str) -> str:
         """Strip whitespace from admin password."""
         return value.strip()
+
+    @field_validator("TRUSTED_PROXY_HOPS", mode="after")
+    @classmethod
+    def validate_trusted_proxy_hops(cls, value: int) -> int:
+        """Reject a negative proxy-hop count, which would index the wrong entry."""
+        if value < 0:
+            msg = "TRUSTED_PROXY_HOPS must be 0 or greater"
+            raise ValueError(msg)
+        return value
+
+    @field_validator("PASSWORD_HASH_CONCURRENCY", mode="after")
+    @classmethod
+    def validate_password_hash_concurrency(cls, value: int) -> int:
+        """Require at least one hashing slot, or no login could ever complete."""
+        if value < 1:
+            msg = "PASSWORD_HASH_CONCURRENCY must be at least 1"
+            raise ValueError(msg)
+        return value
 
     @model_validator(mode="after")
     def validate_jwt_secret_keys(self) -> "Settings":

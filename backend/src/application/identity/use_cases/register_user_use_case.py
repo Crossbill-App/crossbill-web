@@ -38,7 +38,7 @@ class RegisterUserUseCase:
         if not is_user_registrations_enabled():
             raise RegistrationDisabledError
 
-        hashed_password = self.password_service.hash_password(password)
+        hashed_password = await self.password_service.hash_password(password)
 
         user = User.create(email=email, hashed_password=hashed_password)
         user = await self.user_repository.save(user)
