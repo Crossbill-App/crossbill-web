@@ -12,8 +12,6 @@ import { CardList } from '@/components/CardList.tsx';
 import { AIFeature } from '@/components/features/AIFeature.tsx';
 import type { FlashcardWithContext } from '@/components/features/flashcards/FlashcardChapterList.tsx';
 import { useSnackbar } from '@/context/SnackbarContext.tsx';
-import { useMutationErrorHandler } from '@/hooks/useMutationErrorHandler.ts';
-import { useCacheEvents } from '@/lib/cacheEvents.ts';
 import {
   CreateFlashcardForm,
   type FlashcardFormValues,
@@ -21,6 +19,7 @@ import {
 import { FlashcardEditDialog } from '@/pages/BookPage/Flashcards/FlashcardEditDialog.tsx';
 import { FlashcardListCard } from '@/pages/BookPage/Flashcards/FlashcardListCard.tsx';
 import { FlashcardSuggestions } from '@/pages/BookPage/Flashcards/FlashcardSuggestions.tsx';
+import { useFlashcardMutations } from '@/pages/BookPage/Flashcards/hooks/useFlashcardMutations.ts';
 import { flatMap } from 'lodash';
 import { useCallback, useMemo, useState } from 'react';
 
@@ -30,41 +29,6 @@ interface FlashcardsSectionProps {
   prereadingSummary?: ChapterPrereadingResponse;
   bookFlashcards?: Flashcard[];
 }
-
-const useFlashcardMutations = (bookId: number, chapterId: number) => {
-  const mutationErrorHandler = useMutationErrorHandler();
-  const cache = useCacheEvents();
-  const [isProcessing, setIsProcessing] = useState(false);
-
-  const createFlashcardMutation = useCreateFlashcardForBook({
-    mutation: {
-      onSuccess: () => cache.flashcardsChanged(bookId),
-      onError: mutationErrorHandler('create flashcard'),
-    },
-  });
-
-  const saveFlashcard = async (question: string, answer: string): Promise<boolean> => {
-    if (!question.trim() || !answer.trim()) return false;
-
-    setIsProcessing(true);
-    try {
-      await createFlashcardMutation.mutateAsync({
-        bookId,
-        data: { question: question.trim(), answer: answer.trim(), chapter_id: chapterId },
-      });
-      return true;
-    } catch {
-      return false;
-    } finally {
-      setIsProcessing(false);
-    }
-  };
-
-  return {
-    isProcessing,
-    saveFlashcard,
-  };
-};
 
 const useAIFlashcardSuggestions = (
   chapterId: number,
@@ -109,7 +73,15 @@ export const FlashcardsSection = ({
 }: FlashcardsSectionProps) => {
   const [editingFlashcard, setEditingFlashcard] = useState<FlashcardWithContext | null>(null);
   const { showSnackbar } = useSnackbar();
-  const { isProcessing, saveFlashcard } = useFlashcardMutations(bookId, chapter.id);
+  const createFlashcardMutation = useCreateFlashcardForBook();
+  const { isProcessing, saveFlashcard } = useFlashcardMutations({
+    bookId,
+    createFlashcard: (question, answer) =>
+      createFlashcardMutation.mutateAsync({
+        bookId,
+        data: { question, answer, chapter_id: chapter.id },
+      }),
+  });
   const { isLoading, suggestions, fetchSuggestions, removeSuggestion } = useAIFlashcardSuggestions(
     chapter.id,
     showSnackbar
