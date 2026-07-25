@@ -5,7 +5,11 @@ from ipaddress import ip_network
 import pytest
 
 from src.config import get_settings
-from src.infrastructure.common.client_ip import UNKNOWN_CLIENT, client_ip_from_scope
+from src.infrastructure.common.client_ip import (
+    UNKNOWN_CLIENT,
+    client_ip_from_scope,
+    proxy_chain,
+)
 
 # The chain observed in production: Railway's internal proxy is the peer, its
 # Oslo PoP and the Cloudflare egress in front of it fill X-Forwarded-For, and the
@@ -199,3 +203,75 @@ def test_trusted_proxy_resolves_an_ipv6_client(monkeypatch: pytest.MonkeyPatch) 
     scope = _scope(real_ip="2001:14ba:a086:1900::1", peer=RAILWAY_PEER)
 
     assert client_ip_from_scope(scope) == "2001:14ba:a086:1900::1"
+
+
+def test_proxy_chain_reports_the_peer_and_every_routing_header(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Reported by exclusion: an unfamiliar platform's header cannot be listed
+    in advance, which is exactly what the diagnostic is for."""
+    _set_hops(monkeypatch, 0)
+    _trust_proxy(monkeypatch)
+    scope = _scope(
+        peer=RAILWAY_PEER,
+        headers=[
+            (b"x-forwarded-for", RAILWAY_CHAIN.encode()),
+            (b"x-real-ip", BROWSER.encode()),
+            (b"x-railway-edge", b"osl1"),
+            (b"cf-ray", b"a209b0ef0b3470d7-ARN"),
+        ],
+    )
+
+    chain = proxy_chain(scope, resolved=BROWSER)
+
+    assert chain["peer"] == RAILWAY_PEER
+    assert chain["peer_trusted"] is True
+    assert chain["resolved"] == BROWSER
+    assert chain["header_x_forwarded_for"] == RAILWAY_CHAIN
+    assert chain["header_x_railway_edge"] == "osl1"
+    assert chain["header_cf_ray"] == "a209b0ef0b3470d7-ARN"
+
+
+def test_proxy_chain_keeps_credentials_out_of_the_log() -> None:
+    scope = _scope(
+        headers=[
+            (b"authorization", b"Bearer sometoken"),
+            (b"cookie", b"session=secret"),
+            (b"x-real-ip", BROWSER.encode()),
+        ]
+    )
+
+    chain = proxy_chain(scope, resolved="10.0.0.1")
+
+    assert "header_authorization" not in chain
+    assert "header_cookie" not in chain
+    assert chain["header_x_real_ip"] == BROWSER
+
+
+def test_proxy_chain_reports_repeated_headers_separately(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Resolution refuses to guess which line came from the proxy, so the
+    diagnostic must not collapse them either."""
+    _set_hops(monkeypatch, 1)
+    scope = _scope(
+        headers=[
+            (b"x-forwarded-for", b"1.2.3.4"),
+            (b"x-forwarded-for", b"203.0.113.9"),
+        ]
+    )
+
+    chain = proxy_chain(scope, resolved=client_ip_from_scope(scope))
+
+    assert chain["header_x_forwarded_for"] == ["1.2.3.4", "203.0.113.9"]
+    assert chain["resolved"] == "10.0.0.1"
+
+
+def test_proxy_chain_marks_an_untrusted_peer(monkeypatch: pytest.MonkeyPatch) -> None:
+    _set_hops(monkeypatch, 0)
+    _trust_proxy(monkeypatch)
+    scope = _scope(real_ip=BROWSER, peer="203.0.113.99")
+
+    chain = proxy_chain(scope, resolved="203.0.113.99")
+
+    assert chain["peer_trusted"] is False

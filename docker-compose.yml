@@ -43,6 +43,9 @@ services:
       # TRUSTED_PROXY_CIDRS to the address it connects from — see .env.example.
       TRUSTED_PROXY_HOPS: ${TRUSTED_PROXY_HOPS:-0}
       TRUSTED_PROXY_CIDRS: ${TRUSTED_PROXY_CIDRS:-[]}
+      # Temporarily set true to log each request's peer and headers, to check the
+      # two settings above against what your proxy actually sends.
+      LOG_PROXY_CHAIN: ${LOG_PROXY_CHAIN:-false}
       SECRET_KEY: ${SECRET_KEY}
       ACCESS_TOKEN_EXPIRE_MINUTES: 15
       REFRESH_TOKEN_EXPIRE_DAYS: 30

@@ -69,6 +69,11 @@ class Settings(BaseSettings):
     # validation rather than duplicating it. Empty disables the mechanism.
     TRUSTED_PROXY_CIDRS: list[IPv4Network | IPv6Network] = []
 
+    # Log the peer address and headers of every request, so the settings above
+    # can be matched to what a deployment's proxy actually sends rather than
+    # what it documents. Verbose: turn it off once confirmed.
+    LOG_PROXY_CHAIN: bool = False
+
     # Admin setup (for first-time initialization on a fresh deployment)
     ADMIN_USERNAME: str = "admin"
     ADMIN_PASSWORD: str = ""

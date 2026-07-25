@@ -31,6 +31,9 @@ UNKNOWN_CLIENT = "unknown"
 # Cloudflare needs no separate handling here.
 CLIENT_HEADER = "x-real-ip"
 
+# Credential-bearing headers, kept out of the routing diagnostic below.
+_REDACTED_HEADERS = frozenset({"authorization", "cookie", "proxy-authorization"})
+
 
 def _within(address: str, networks: Sequence[IPv4Network | IPv6Network]) -> bool:
     try:
@@ -117,3 +120,29 @@ def client_ip_from_scope(scope: Scope) -> str:
 def client_ip(request: Request) -> str:
     """Resolve the originating client IP for a request (slowapi key function)."""
     return client_ip_from_scope(request.scope)
+
+
+def proxy_chain(scope: Scope, resolved: str) -> dict[str, object]:
+    """Describe how a request was routed, for matching config to a deployment.
+
+    Takes the already-resolved client so the diagnostic cannot disagree with the
+    resolution it exists to explain. Reports headers by exclusion rather than by
+    allowlist: the header that names the client is exactly what an unfamiliar
+    platform has to be inspected for, and an allowlist cannot list it in advance.
+    """
+    peer = _peer(scope)
+    chain: dict[str, object] = {
+        "peer": peer,
+        "peer_trusted": bool(peer and _within(peer, get_settings().TRUSTED_PROXY_CIDRS)),
+        "resolved": resolved,
+    }
+
+    headers = Headers(scope=scope)
+    for name in dict.fromkeys(headers.keys()):
+        if name in _REDACTED_HEADERS:
+            continue
+        # A header sent twice is reported as a list, because resolution refuses
+        # to believe repeated headers and that has to be visible here.
+        values = headers.getlist(name)
+        chain[f"header_{name.replace('-', '_')}"] = values[0] if len(values) == 1 else values
+    return chain
