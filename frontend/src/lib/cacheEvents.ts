@@ -1,5 +1,12 @@
-import { getGetBookDetailsQueryKey } from '@/api/generated/books/books.ts';
+import {
+  getGetBookDetailsQueryKey,
+  getGetBooksQueryKey,
+  getGetRecentlyViewedBooksQueryKey,
+} from '@/api/generated/books/books.ts';
+import { getGetBookHighlightLabelsQueryKey } from '@/api/generated/highlight-labels/highlight-labels.ts';
+import { getGetActiveBookPrereadingBatchQueryKey } from '@/api/generated/jobs/jobs.ts';
 import { getGetNoteQueryKey, getGetNotesForBookQueryKey } from '@/api/generated/notes/notes.ts';
+import { getGetBookPrereadingQueryKey } from '@/api/generated/prereading/prereading.ts';
 import { getGetTagsQueryKey } from '@/api/generated/tags/tags.ts';
 import { useQueryClient, type QueryKey } from '@tanstack/react-query';
 import { useMemo } from 'react';
@@ -34,6 +41,13 @@ export const useCacheEvents = () => {
       /** A book's own record changed — title, reading stage, cover, highlights. */
       bookChanged: (bookId: number) => invalidate(getGetBookDetailsQueryKey(bookId)),
 
+      /** A book was opened, which reorders the recently-viewed list. */
+      bookViewed: () => invalidate(getGetRecentlyViewedBooksQueryKey()),
+
+      /** A book was added or removed, so every listing of books is affected. */
+      booksListChanged: () =>
+        invalidate(getGetBooksQueryKey(), getGetRecentlyViewedBooksQueryKey()),
+
       /** A tag or tag group changed. Book details carries the book's tag list too. */
       tagsChanged: (bookId: number) =>
         invalidate(getGetBookDetailsQueryKey(bookId), getGetTagsQueryKey(bookId)),
@@ -50,6 +64,38 @@ export const useCacheEvents = () => {
           getGetNotesForBookQueryKey(bookId),
           ...(noteId === undefined ? [] : [getGetNoteQueryKey(noteId)])
         ),
+
+      /**
+       * A flashcard was created, edited or deleted.
+       *
+       * Cards are counted in book details wherever they came from. Pass `noteId`
+       * for a card belonging to a note, whose detail embeds its own card list.
+       * Highlight- and chapter-sourced cards need no second key: their views read
+       * from book details.
+       */
+      flashcardsChanged: (bookId: number, noteId?: number) =>
+        invalidate(
+          getGetBookDetailsQueryKey(bookId),
+          ...(noteId === undefined ? [] : [getGetNoteQueryKey(noteId)])
+        ),
+
+      /** Prereading content was generated or answered for a chapter. */
+      prereadingChanged: (bookId: number) => invalidate(getGetBookPrereadingQueryKey(bookId)),
+
+      /** A batch prereading job reached a terminal state, so its output is ready. */
+      prereadingBatchFinished: (bookId: number) =>
+        invalidate(
+          getGetBookPrereadingQueryKey(bookId),
+          getGetActiveBookPrereadingBatchQueryKey(bookId)
+        ),
+
+      /** A batch prereading job was cancelled; no new prereading content exists. */
+      prereadingBatchCancelled: (bookId: number) =>
+        invalidate(getGetActiveBookPrereadingBatchQueryKey(bookId)),
+
+      /** A highlight label was renamed or recoloured. Book details embeds labels. */
+      highlightLabelsChanged: (bookId: number) =>
+        invalidate(getGetBookDetailsQueryKey(bookId), getGetBookHighlightLabelsQueryKey(bookId)),
     };
   }, [queryClient]);
 };

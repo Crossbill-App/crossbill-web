@@ -1,6 +1,7 @@
 import type { TagInBook } from '@/api/generated/model';
 import { useAddTagToHighlight, useRemoveTagFromHighlight } from '@/api/generated/tags/tags.ts';
-import { useBookMutationHelpers } from '@/hooks/useBookMutationHelpers.ts';
+import { useMutationErrorHandler } from '@/hooks/useMutationErrorHandler.ts';
+import { useCacheEvents } from '@/lib/cacheEvents.ts';
 import { filter, map } from 'lodash';
 import { useEffect, useState } from 'react';
 
@@ -52,7 +53,8 @@ export const useImmediateTagMutation = ({
   highlightId,
   initialTags,
 }: UseImmediateTagMutationParams): UseImmediateTagMutationReturn => {
-  const { mutationErrorHandler, invalidateBookAndTags } = useBookMutationHelpers(bookId);
+  const mutationErrorHandler = useMutationErrorHandler();
+  const cache = useCacheEvents();
   const [currentTags, setCurrentTags] = useState<TagInBook[]>(initialTags);
   const [isProcessing, setIsProcessing] = useState(false);
 
@@ -64,7 +66,7 @@ export const useImmediateTagMutation = ({
     mutation: {
       onSuccess: (data: { tags: TagInBook[] }) => {
         setCurrentTags(data.tags);
-        invalidateBookAndTags();
+        cache.tagsChanged(bookId);
       },
       onError: mutationErrorHandler('add tag'),
     },
@@ -74,7 +76,7 @@ export const useImmediateTagMutation = ({
     mutation: {
       onSuccess: (data: { tags: TagInBook[] }) => {
         setCurrentTags(data.tags);
-        invalidateBookAndTags();
+        cache.tagsChanged(bookId);
       },
       onError: mutationErrorHandler('remove tag'),
     },

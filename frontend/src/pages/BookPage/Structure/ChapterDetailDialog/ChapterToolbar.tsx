@@ -1,13 +1,10 @@
-import {
-  getGetBookPrereadingQueryKey,
-  useGenerateChapterPrereading,
-} from '@/api/generated/prereading/prereading';
+import { useGenerateChapterPrereading } from '@/api/generated/prereading/prereading';
 import { IconButtonWithTooltip } from '@/components/buttons/IconButtonWithTooltip.tsx';
 import { DialogToolbar } from '@/components/dialogs/DialogToolbar.tsx';
 import { AIFeature } from '@/components/features/AIFeature.tsx';
+import { useCacheEvents } from '@/lib/cacheEvents.ts';
 import { AIIcon, RegenerateIcon } from '@/theme/Icons.tsx';
 import { CircularProgress } from '@mui/material';
-import { useQueryClient } from '@tanstack/react-query';
 
 interface ChapterToolbarProps {
   chapterId: number;
@@ -16,14 +13,12 @@ interface ChapterToolbarProps {
 }
 
 export const ChapterToolbar = ({ chapterId, bookId, hasSummary }: ChapterToolbarProps) => {
-  const queryClient = useQueryClient();
+  const cache = useCacheEvents();
 
   const { mutate: generate, isPending } = useGenerateChapterPrereading({
     mutation: {
       onSuccess: () => {
-        void queryClient.invalidateQueries({
-          queryKey: getGetBookPrereadingQueryKey(bookId),
-        });
+        cache.prereadingChanged(bookId);
       },
     },
   });

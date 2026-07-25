@@ -9,7 +9,6 @@ import {
 import { FlashcardListCard } from '@/pages/BookPage/Flashcards/FlashcardListCard.tsx';
 import { FlashcardSuggestions } from '@/pages/BookPage/Flashcards/FlashcardSuggestions.tsx';
 import { Box, Typography } from '@mui/material';
-import type { QueryKey } from '@tanstack/react-query';
 import { useState } from 'react';
 
 /**
@@ -32,22 +31,19 @@ interface FlashcardSectionProps {
   onFetchSuggestions: () => Promise<void>;
   onRemoveSuggestion: (index: number) => void;
   /** Query keys to invalidate when a card is deleted, in addition to book details. */
-  additionalInvalidateKeys?: QueryKey[];
+  /** Set when the cards belong to a note, whose detail embeds its own card list. */
+  noteId?: number;
 }
 
 interface FlashcardsListProps {
   flashcardsWithContext: FlashcardWithContext[];
   bookId: number;
   onEdit: (flashcardId: number) => void;
-  additionalInvalidateKeys?: QueryKey[];
+  /** Set when the cards belong to a note, whose detail embeds its own card list. */
+  noteId?: number;
 }
 
-const FlashcardsList = ({
-  flashcardsWithContext,
-  bookId,
-  onEdit,
-  additionalInvalidateKeys,
-}: FlashcardsListProps) => {
+const FlashcardsList = ({ flashcardsWithContext, bookId, onEdit, noteId }: FlashcardsListProps) => {
   if (flashcardsWithContext.length === 0) {
     return null;
   }
@@ -61,7 +57,7 @@ const FlashcardsList = ({
             bookId={bookId}
             onEdit={() => onEdit(flashcard.id)}
             showSourceHighlight={false}
-            additionalInvalidateKeys={additionalInvalidateKeys}
+            noteId={noteId}
           />
         </li>
       ))}
@@ -80,7 +76,7 @@ export const FlashcardSection = ({
   suggestionsLoading,
   onFetchSuggestions,
   onRemoveSuggestion,
-  additionalInvalidateKeys,
+  noteId,
 }: FlashcardSectionProps) => {
   const [editingFlashcardId, setEditingFlashcardId] = useState<number | null>(null);
 
@@ -116,7 +112,7 @@ export const FlashcardSection = ({
         flashcardsWithContext={flashcards}
         bookId={bookId}
         onEdit={setEditingFlashcardId}
-        additionalInvalidateKeys={additionalInvalidateKeys}
+        noteId={noteId}
       />
 
       <CreateFlashcardForm

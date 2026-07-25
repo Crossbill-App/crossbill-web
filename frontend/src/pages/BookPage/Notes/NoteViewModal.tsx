@@ -9,7 +9,7 @@ import { ConfirmationDialog } from '@/components/dialogs/ConfirmationDialog.tsx'
 import { ProgressBar } from '@/components/dialogs/ProgressBar.tsx';
 import { useModalHorizontalNavigation } from '@/components/dialogs/useModalHorizontalNavigation.ts';
 import { useSnackbar } from '@/context/SnackbarContext.tsx';
-import { useBookMutationHelpers } from '@/hooks/useBookMutationHelpers.ts';
+import { useMutationErrorHandler } from '@/hooks/useMutationErrorHandler.ts';
 import { useCacheEvents } from '@/lib/cacheEvents.ts';
 import { useBookPage } from '@/pages/BookPage/BookPageContext';
 import { markdownStyles } from '@/theme/theme';
@@ -54,7 +54,7 @@ export const NoteViewModal = ({
   const theme = useTheme();
   const { book } = useBookPage();
   const { showSnackbar } = useSnackbar();
-  const { mutationErrorHandler } = useBookMutationHelpers(book.id);
+  const mutationErrorHandler = useMutationErrorHandler();
   const cache = useCacheEvents();
   const navigate = useNavigate();
 

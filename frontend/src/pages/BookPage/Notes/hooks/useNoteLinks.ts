@@ -1,7 +1,7 @@
 import type { NoteUpdateRequest, NoteWithLinks } from '@/api/generated/model';
 import { useUpdateNote } from '@/api/generated/notes/notes.ts';
 import { useSnackbar } from '@/context/SnackbarContext.tsx';
-import { useBookMutationHelpers } from '@/hooks/useBookMutationHelpers.ts';
+import { useMutationErrorHandler } from '@/hooks/useMutationErrorHandler.ts';
 import { useCacheEvents } from '@/lib/cacheEvents.ts';
 
 interface UseNoteLinksOptions {
@@ -21,7 +21,7 @@ interface MutateOptions {
 export const useNoteLinks = ({ bookId }: UseNoteLinksOptions) => {
   const cache = useCacheEvents();
   const { showSnackbar } = useSnackbar();
-  const { mutationErrorHandler } = useBookMutationHelpers(bookId);
+  const mutationErrorHandler = useMutationErrorHandler();
 
   const updateNoteMutation = useUpdateNote({
     mutation: {

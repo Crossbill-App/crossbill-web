@@ -14,7 +14,7 @@ import { Spinner } from '@/components/animations/Spinner.tsx';
 import { IconButtonWithTooltip } from '@/components/buttons/IconButtonWithTooltip.tsx';
 import { MiddleContentColumn } from '@/components/layout/Layouts.tsx';
 import { SectionTitle } from '@/components/typography/SectionTitle.tsx';
-import { useBookMutationHelpers } from '@/hooks/useBookMutationHelpers.ts';
+import { useMutationErrorHandler } from '@/hooks/useMutationErrorHandler.ts';
 import { useBookPage } from '@/pages/BookPage/BookPageContext';
 import { NoteEditorDialog } from '@/pages/BookPage/Notes/NoteEditorDialog.tsx';
 import { EditIcon } from '@/theme/Icons.tsx';
@@ -69,7 +69,7 @@ export const ReflectionPage = () => {
   const { book } = useBookPage();
   const bookId = book.id;
   const queryClient = useQueryClient();
-  const { mutationErrorHandler } = useBookMutationHelpers(bookId);
+  const mutationErrorHandler = useMutationErrorHandler();
 
   const queryKey = getGetBookReflectionQueryKey(bookId);
   const { data: reflection, isLoading } = useGetBookReflection(bookId);

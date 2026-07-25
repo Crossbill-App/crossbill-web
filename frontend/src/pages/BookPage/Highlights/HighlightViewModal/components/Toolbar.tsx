@@ -2,7 +2,8 @@ import { useCreateBookmark, useDeleteBookmark } from '@/api/generated/bookmarks/
 import type { Bookmark } from '@/api/generated/model';
 import { IconButtonWithTooltip } from '@/components/buttons/IconButtonWithTooltip.tsx';
 import { DialogToolbar } from '@/components/dialogs/DialogToolbar.tsx';
-import { useBookMutationHelpers } from '@/hooks/useBookMutationHelpers.ts';
+import { useMutationErrorHandler } from '@/hooks/useMutationErrorHandler.ts';
+import { useCacheEvents } from '@/lib/cacheEvents.ts';
 import {
   BookmarkFilledIcon,
   BookmarkIcon,
@@ -92,19 +93,20 @@ const useBookmarkMutations = (
   bookId: number,
   highlightId: number
 ) => {
-  const { mutationErrorHandler, invalidateBookDetails } = useBookMutationHelpers(bookId);
+  const mutationErrorHandler = useMutationErrorHandler();
+  const cache = useCacheEvents();
   const [isProcessing, setIsProcessing] = useState(false);
 
   const createBookmarkMutation = useCreateBookmark({
     mutation: {
-      onSuccess: invalidateBookDetails,
+      onSuccess: () => cache.bookChanged(bookId),
       onError: mutationErrorHandler('create bookmark'),
     },
   });
 
   const deleteBookmarkMutation = useDeleteBookmark({
     mutation: {
-      onSuccess: invalidateBookDetails,
+      onSuccess: () => cache.bookChanged(bookId),
       onError: mutationErrorHandler('delete bookmark'),
     },
   });

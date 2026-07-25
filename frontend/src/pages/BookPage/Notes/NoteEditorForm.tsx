@@ -2,7 +2,7 @@ import type { Note, NoteWithLinks, TagInBook } from '@/api/generated/model';
 import { useCreateNote, useUpdateNote } from '@/api/generated/notes/notes.ts';
 import { RHFTextField } from '@/components/inputs/RHFTextField.tsx';
 import { TagInput } from '@/components/inputs/TagInput.tsx';
-import { useBookMutationHelpers } from '@/hooks/useBookMutationHelpers.ts';
+import { useMutationErrorHandler } from '@/hooks/useMutationErrorHandler.ts';
 import { useCacheEvents } from '@/lib/cacheEvents.ts';
 import { useBookPage } from '@/pages/BookPage/BookPageContext';
 import { Autocomplete, Box, MenuItem, TextField, Typography } from '@mui/material';
@@ -82,7 +82,7 @@ export const NoteEditorForm = forwardRef<NoteEditorFormHandle, NoteEditorFormPro
     ref
   ) {
     const { book } = useBookPage();
-    const { mutationErrorHandler } = useBookMutationHelpers(book.id);
+    const mutationErrorHandler = useMutationErrorHandler();
     const cache = useCacheEvents();
 
     const chapterOptions: ChapterOption[] = book.chapters.map((chapter) => ({

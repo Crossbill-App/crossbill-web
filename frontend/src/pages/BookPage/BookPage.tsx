@@ -1,9 +1,9 @@
-import { getGetRecentlyViewedBooksQueryKey, useGetBookDetails } from '@/api/generated/books/books';
+import { useGetBookDetails } from '@/api/generated/books/books';
 import { FadeInOut } from '@/components/animations/FadeInOut.tsx';
 import { Spinner } from '@/components/animations/Spinner.tsx';
 import { ScrollToTopButton } from '@/components/buttons/ScrollToTopButton.tsx';
 import { PageContainer } from '@/components/layout/Layouts.tsx';
-import { queryClient } from '@/lib/queryClient';
+import { useCacheEvents } from '@/lib/cacheEvents.ts';
 import { BookPageProvider } from '@/pages/BookPage/BookPageContext.tsx';
 import { BookTitle } from '@/pages/BookPage/BookTitle/BookTitle.tsx';
 import { DesktopNavLinks } from '@/pages/BookPage/navigation/DesktopNavLinks.tsx';
@@ -18,16 +18,16 @@ export const BookPage = () => {
 
   const theme = useTheme();
   const isDesktop = useMediaQuery(theme.breakpoints.up('lg'));
+  const cache = useCacheEvents();
 
   const [leftSidebarEl, setLeftSidebarEl] = useState<HTMLDivElement | null>(null);
   const [fabContainerEl, setFabContainerEl] = useState<HTMLDivElement | null>(null);
 
-  // Update recently viewed on mount
+  // Update recently viewed on mount. `cache` is memoised on the query client, so
+  // listing it as a dependency does not make this run more than once.
   useEffect(() => {
-    void queryClient.invalidateQueries({
-      queryKey: getGetRecentlyViewedBooksQueryKey(),
-    });
-  }, []);
+    cache.bookViewed();
+  }, [cache]);
 
   if (isLoading) {
     return (

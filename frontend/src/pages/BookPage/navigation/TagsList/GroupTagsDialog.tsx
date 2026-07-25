@@ -1,7 +1,8 @@
 import { TagGroupInBook, TagInBook } from '@/api/generated/model';
 import { useUpdateTag } from '@/api/generated/tags/tags.ts';
 import { CommonDialog } from '@/components/dialogs/CommonDialog.tsx';
-import { useBookMutationHelpers } from '@/hooks/useBookMutationHelpers.ts';
+import { useMutationErrorHandler } from '@/hooks/useMutationErrorHandler.ts';
+import { useCacheEvents } from '@/lib/cacheEvents.ts';
 import {
   Box,
   Button,
@@ -34,7 +35,8 @@ export const GroupTagsDialog = ({
   open,
   onClose,
 }: GroupTagsDialogProps) => {
-  const { mutationErrorHandler, invalidateBookAndTags } = useBookMutationHelpers(bookId);
+  const mutationErrorHandler = useMutationErrorHandler();
+  const cache = useCacheEvents();
   const updateMutation = useUpdateTag();
 
   const [orderedTags, setOrderedTags] = useState<TagInBook[]>([]);
@@ -101,7 +103,7 @@ export const GroupTagsDialog = ({
           })
         )
       );
-      invalidateBookAndTags();
+      cache.tagsChanged(bookId);
       const firstError = results.find((result) => result.status === 'rejected');
       if (firstError) {
         mutationErrorHandler('update tags')((firstError as PromiseRejectedResult).reason);

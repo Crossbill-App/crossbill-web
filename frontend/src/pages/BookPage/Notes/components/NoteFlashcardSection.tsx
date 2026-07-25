@@ -3,7 +3,6 @@ import {
   useGetNoteFlashcardSuggestions,
 } from '@/api/generated/flashcards/flashcards.ts';
 import type { NoteWithLinks } from '@/api/generated/model';
-import { getGetNoteQueryKey } from '@/api/generated/notes/notes.ts';
 import type { FlashcardWithContext } from '@/components/features/flashcards/FlashcardChapterList.tsx';
 import { FlashcardSection } from '@/components/features/flashcards/FlashcardSection.tsx';
 import { useAIFlashcardSuggestions } from '@/pages/BookPage/Flashcards/hooks/useAIFlashcardSuggestions.ts';
@@ -25,12 +24,10 @@ export const NoteFlashcardSection = ({
   bookId,
   disabled = false,
 }: NoteFlashcardSectionProps) => {
-  const noteQueryKey = getGetNoteQueryKey(note.id);
-
   const createFlashcardMutation = useCreateFlashcardForNote();
   const { isProcessing, saveFlashcard, updateFlashcard } = useFlashcardMutations({
     bookId,
-    additionalInvalidateKeys: [noteQueryKey],
+    noteId: note.id,
     createFlashcard: (question, answer) =>
       createFlashcardMutation.mutateAsync({
         noteId: note.id,
@@ -75,7 +72,7 @@ export const NoteFlashcardSection = ({
       suggestionsLoading={isLoading}
       onFetchSuggestions={fetchSuggestions}
       onRemoveSuggestion={removeSuggestion}
-      additionalInvalidateKeys={[noteQueryKey]}
+      noteId={note.id}
     />
   );
 };

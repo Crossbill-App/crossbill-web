@@ -2,10 +2,10 @@ import { useDeleteFlashcard } from '@/api/generated/flashcards/flashcards.ts';
 import { IconButtonWithTooltip } from '@/components/buttons/IconButtonWithTooltip';
 import { ConfirmationDialog } from '@/components/dialogs/ConfirmationDialog.tsx';
 import { FlashcardWithContext } from '@/components/features/flashcards/FlashcardChapterList.tsx';
-import { useBookMutationHelpers } from '@/hooks/useBookMutationHelpers.ts';
+import { useMutationErrorHandler } from '@/hooks/useMutationErrorHandler.ts';
+import { useCacheEvents } from '@/lib/cacheEvents.ts';
 import { FlashcardCard } from '@/pages/BookPage/Flashcards/FlashcardCard.tsx';
 import { DeleteIcon, EditIcon } from '@/theme/Icons.tsx';
-import { useQueryClient, type QueryKey } from '@tanstack/react-query';
 import { useState } from 'react';
 
 export interface FlashcardListCardProps {
@@ -13,8 +13,8 @@ export interface FlashcardListCardProps {
   bookId: number;
   onEdit: () => void;
   showSourceHighlight?: boolean;
-  /** Query keys to invalidate on delete, in addition to the book details query. */
-  additionalInvalidateKeys?: QueryKey[];
+  /** Set when the card belongs to a note, whose detail embeds its own card list. */
+  noteId?: number;
 }
 
 export const FlashcardListCard = ({
@@ -22,20 +22,17 @@ export const FlashcardListCard = ({
   bookId,
   onEdit,
   showSourceHighlight = true,
-  additionalInvalidateKeys = [],
+  noteId,
 }: FlashcardListCardProps) => {
   const [isDeleting, setIsDeleting] = useState(false);
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
-  const queryClient = useQueryClient();
-  const { mutationErrorHandler, invalidateBookDetails } = useBookMutationHelpers(bookId);
+  const cache = useCacheEvents();
+  const mutationErrorHandler = useMutationErrorHandler();
 
   const deleteMutation = useDeleteFlashcard({
     mutation: {
       onSuccess: () => {
-        invalidateBookDetails();
-        for (const queryKey of additionalInvalidateKeys) {
-          void queryClient.invalidateQueries({ queryKey });
-        }
+        cache.flashcardsChanged(bookId, noteId);
       },
       onError: mutationErrorHandler('delete flashcard'),
     },

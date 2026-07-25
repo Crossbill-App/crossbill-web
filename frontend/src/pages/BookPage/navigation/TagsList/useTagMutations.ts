@@ -5,13 +5,15 @@ import {
   useDeleteTagGroup,
   useUpdateTag,
 } from '@/api/generated/tags/tags.ts';
-import { useBookMutationHelpers } from '@/hooks/useBookMutationHelpers.ts';
+import { useMutationErrorHandler } from '@/hooks/useMutationErrorHandler.ts';
+import { useCacheEvents } from '@/lib/cacheEvents.ts';
 import { useQueryClient } from '@tanstack/react-query';
 import { useState } from 'react';
 
 export const useTagMutations = (bookId: number) => {
   const queryClient = useQueryClient();
-  const { mutationErrorHandler, invalidateBookAndTags } = useBookMutationHelpers(bookId);
+  const mutationErrorHandler = useMutationErrorHandler();
+  const cache = useCacheEvents();
   const [isProcessing, setIsProcessing] = useState(false);
 
   const updateTagMutation = useUpdateTag({
@@ -66,14 +68,14 @@ export const useTagMutations = (bookId: number) => {
 
   const createOrUpdateGroupMutation = useCreateOrUpdateTagGroup({
     mutation: {
-      onSuccess: () => invalidateBookAndTags(),
+      onSuccess: () => cache.tagsChanged(bookId),
       onError: mutationErrorHandler('save tag group'),
     },
   });
 
   const deleteGroupMutation = useDeleteTagGroup({
     mutation: {
-      onSuccess: () => invalidateBookAndTags(),
+      onSuccess: () => cache.tagsChanged(bookId),
       onError: mutationErrorHandler('delete tag group'),
     },
   });

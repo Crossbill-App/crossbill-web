@@ -9,6 +9,7 @@ import {
 } from '@/api/generated/prereading/prereading';
 import { AIActionButton } from '@/components/buttons/AIActionButton.tsx';
 import { AIFeature } from '@/components/features/AIFeature.tsx';
+import { useCacheEvents } from '@/lib/cacheEvents.ts';
 import { Box, CircularProgress, Stack, TextField, Typography } from '@mui/material';
 import { useQueryClient } from '@tanstack/react-query';
 import { useCallback, useMemo, useState } from 'react';
@@ -30,6 +31,7 @@ export const ChapterReviewSection = ({
   onStartChat,
 }: ChapterReviewSectionProps) => {
   const queryClient = useQueryClient();
+  const cache = useCacheEvents();
 
   // Local edits keyed by chapterId so they reset when switching chapters
   const [localEdits, setLocalEdits] = useState<Record<number, Record<number, string>>>({});
@@ -50,9 +52,7 @@ export const ChapterReviewSection = ({
   const { mutate: generate, isPending } = useGenerateChapterPrereading({
     mutation: {
       onSuccess: () => {
-        void queryClient.invalidateQueries({
-          queryKey: getGetBookPrereadingQueryKey(bookId),
-        });
+        cache.prereadingChanged(bookId);
       },
     },
   });
