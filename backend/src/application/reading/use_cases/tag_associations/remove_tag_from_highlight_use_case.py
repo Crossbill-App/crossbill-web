@@ -14,9 +14,9 @@ from src.application.reading.services.label_resolution_service import LabelResol
 from src.domain.common.value_objects.ids import HighlightId, TagId, UserId
 from src.domain.learning.entities.flashcard import Flashcard
 from src.domain.reading.entities.highlight import Highlight
-from src.domain.reading.entities.tag import Tag
 from src.domain.reading.exceptions import HighlightNotFoundError
 from src.domain.reading.services.highlight_style_resolver import ResolvedLabel
+from src.domain.tagging.entities.tag import Tag
 
 logger = structlog.get_logger(__name__)
 

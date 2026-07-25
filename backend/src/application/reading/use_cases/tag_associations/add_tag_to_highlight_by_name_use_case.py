@@ -15,9 +15,9 @@ from src.domain.common.exceptions import ValidationError
 from src.domain.common.value_objects.ids import BookId, HighlightId, TagId, UserId
 from src.domain.learning.entities.flashcard import Flashcard
 from src.domain.reading.entities.highlight import Highlight
-from src.domain.reading.entities.tag import Tag
 from src.domain.reading.exceptions import HighlightNotFoundError
 from src.domain.reading.services.highlight_style_resolver import ResolvedLabel
+from src.domain.tagging.entities.tag import Tag
 
 logger = structlog.get_logger(__name__)
 
@@ -78,7 +78,7 @@ class AddTagToHighlightByNameUseCase:
             )
 
         # Use domain entity to validate
-        highlight.add_tag(tag)
+        highlight.add_tag(tag.id, tag.book_id)
 
         # Persist association via repository
         tag = await self.tag_repository.save(tag)

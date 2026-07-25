@@ -25,6 +25,7 @@ from src.domain.reading.services.highlight_grouping_service import (
     HighlightGroupingService,
 )
 from src.domain.reading.services.highlight_style_resolver import ResolvedLabel
+from src.domain.tagging.entities.tag import Tag
 
 logger = logging.getLogger(__name__)
 
@@ -103,7 +104,7 @@ class GetBookDetailsUseCase:
 
         # Merge: ensure every chapter appears, even those without highlights
         grouped_by_id = {g.chapter_id: g for g in grouped}
-        merged: list[ChapterWithHighlights] = []
+        merged: list[ChapterWithHighlights[Tag]] = []
         for ch in all_chapters:
             if ch.id.value in grouped_by_id:
                 existing = grouped_by_id.pop(ch.id.value)

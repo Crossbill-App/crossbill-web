@@ -9,7 +9,6 @@ from __future__ import annotations
 import datetime as dt_module
 from dataclasses import dataclass, field
 from datetime import UTC
-from typing import TYPE_CHECKING
 
 from src.domain.common.aggregate_root import AggregateRoot
 from src.domain.common.exceptions import DomainError
@@ -19,13 +18,11 @@ from src.domain.common.value_objects import (
     ContentHash,
     HighlightId,
     HighlightStyleId,
+    TagId,
     UserId,
     XPointRange,
 )
 from src.domain.common.value_objects.position import Position
-
-if TYPE_CHECKING:
-    from src.domain.reading.entities.tag import Tag
 
 
 @dataclass
@@ -116,19 +113,23 @@ class Highlight(AggregateRoot[HighlightId]):
         """Associate this highlight with a chapter."""
         self.chapter_id = chapter_id
 
-    def add_tag(self, tag: Tag) -> None:
+    def add_tag(self, tag_id: TagId, tag_book_id: BookId) -> None:
         """
         Add a tag to this highlight (domain validation).
 
+        Tags are owned by the tagging module; a highlight knows only their
+        identity and the book they belong to.
+
         Args:
-            tag: The tag to add
+            tag_id: ID of the tag to add
+            tag_book_id: ID of the book the tag belongs to
 
         Raises:
             DomainError: If tag doesn't belong to same book as highlight
         """
-        if tag.book_id != self.book_id:
+        if tag_book_id != self.book_id:
             raise DomainError(
-                f"Tag {tag.id.value} does not belong to the same book as highlight {self.id.value}"
+                f"Tag {tag_id.value} does not belong to the same book as highlight {self.id.value}"
             )
 
         # Actual persistence of association happens in infrastructure layer

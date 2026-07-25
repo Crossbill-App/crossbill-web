@@ -8,7 +8,7 @@ from src.application.reading.protocols.tag_repository import (
     TagRepositoryProtocol,
 )
 from src.domain.common.value_objects.ids import BookId, UserId
-from src.domain.reading.entities.tag import Tag
+from src.domain.tagging.entities.tag import Tag
 
 logger = structlog.get_logger(__name__)
 

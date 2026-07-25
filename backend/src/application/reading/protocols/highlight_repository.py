@@ -6,7 +6,8 @@ from src.domain.common.value_objects.position import Position
 from src.domain.learning.entities import Flashcard
 from src.domain.library.entities.book import Book
 from src.domain.library.entities.chapter import Chapter
-from src.domain.reading import Highlight, Tag
+from src.domain.reading import Highlight
+from src.domain.tagging import Tag
 
 
 class HighlightRepositoryProtocol(Protocol):

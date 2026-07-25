@@ -15,8 +15,8 @@ from src.domain.notes.exceptions import NoteLinkBookMismatchError
 from src.domain.reading.exceptions import (
     ChapterNotFoundError,
     HighlightNotFoundError,
-    TagNotFoundError,
 )
+from src.domain.tagging.exceptions import TagNotFoundError
 
 
 def parse_note_kind(kind: str | None) -> NoteKind | None:

@@ -42,7 +42,7 @@ from src.database import DatabaseSession
 from src.domain.common.exceptions import ValidationError
 from src.domain.common.value_objects import TagId, UserId
 from src.domain.identity.entities.user import User
-from src.domain.reading.exceptions import TagGroupNotFoundError, TagNotFoundError
+from src.domain.tagging.exceptions import TagGroupNotFoundError, TagNotFoundError
 from src.infrastructure.common.di import inject_use_case
 from src.infrastructure.common.schemas import CollectionResponse
 from src.infrastructure.identity.dependencies import get_current_user

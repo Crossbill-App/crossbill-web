@@ -12,6 +12,7 @@ from src.domain.learning.entities.flashcard import Flashcard
 from src.domain.library.entities.book import Book
 from src.domain.reading.services.highlight_grouping_service import ChapterWithHighlights
 from src.domain.reading.services.highlight_style_resolver import ResolvedLabel
+from src.domain.tagging.entities.tag import Tag
 
 
 @dataclass
@@ -22,7 +23,7 @@ class BookDetailsAggregation:
     tags: list[Any]  # Legacy ORM models (temporary)
     tag_groups: list[Any]  # Legacy ORM models (temporary)
     bookmarks: list[Any]  # Legacy ORM models (temporary)
-    chapters_with_highlights: list[ChapterWithHighlights]
+    chapters_with_highlights: list[ChapterWithHighlights[Tag]]
     book_flashcards: list[Flashcard] = field(default_factory=list)
     reading_position: Position | None = None
     labels: dict[int, ResolvedLabel] = field(default_factory=dict)

@@ -24,7 +24,7 @@ from src.domain.learning.entities.flashcard import Flashcard
 from src.domain.library.entities.book import Book
 from src.domain.library.entities.chapter import Chapter
 from src.domain.reading.entities.highlight import Highlight
-from src.domain.reading.entities.tag import Tag
+from src.domain.tagging.entities.tag import Tag
 from src.infrastructure.common.sql import LIKE_ESCAPE_CHAR, escape_like_pattern
 from src.infrastructure.learning.mappers.flashcard_mapper import FlashcardMapper
 from src.infrastructure.learning.orm.flashcard_model import Flashcard as FlashcardORM

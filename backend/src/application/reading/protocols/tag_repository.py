@@ -9,8 +9,8 @@ from src.domain.common.value_objects.ids import (
     TagId,
     UserId,
 )
-from src.domain.reading.entities.tag import Tag
-from src.domain.reading.entities.tag_group import TagGroup
+from src.domain.tagging.entities.tag import Tag
+from src.domain.tagging.entities.tag_group import TagGroup
 
 
 class TagRepositoryProtocol(Protocol):

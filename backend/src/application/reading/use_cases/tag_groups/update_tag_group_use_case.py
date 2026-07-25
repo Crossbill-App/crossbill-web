@@ -10,8 +10,8 @@ from src.application.reading.protocols.tag_repository import (
     TagRepositoryProtocol,
 )
 from src.domain.common.value_objects.ids import BookId, TagGroupId, UserId
-from src.domain.reading.entities.tag_group import TagGroup
-from src.domain.reading.exceptions import (
+from src.domain.tagging.entities.tag_group import TagGroup
+from src.domain.tagging.exceptions import (
     DuplicateTagGroupNameError,
     TagGroupNotFoundError,
 )
