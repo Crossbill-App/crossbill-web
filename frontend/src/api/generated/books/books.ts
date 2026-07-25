@@ -24,8 +24,8 @@ import type {
   BookDetails,
   BookReadingStageUpdateRequest,
   CollectionResponseBookWithHighlightCount,
-  GetBooksApiV1BooksGetParams,
-  GetRecentlyViewedBooksApiV1BooksRecentlyViewedGetParams,
+  GetBooksParams,
+  GetRecentlyViewedBooksParams,
   HTTPValidationError,
   PaginatedResponseBookWithHighlightCount,
 } from '../model';
@@ -62,10 +62,7 @@ const withQueryKey = <T extends object, K>(query: T, queryKey: K): T & { queryKe
  *     HTTPException: If fetching books fails due to server error
  * @summary Get Books
  */
-export const getBooksApiV1BooksGet = (
-  params?: GetBooksApiV1BooksGetParams,
-  signal?: AbortSignal
-) => {
+export const getBooks = (params?: GetBooksParams, signal?: AbortSignal) => {
   return axiosInstance<PaginatedResponseBookWithHighlightCount>({
     url: `/api/v1/books/`,
     method: 'GET',
@@ -74,89 +71,79 @@ export const getBooksApiV1BooksGet = (
   });
 };
 
-export const getGetBooksApiV1BooksGetQueryKey = (params?: GetBooksApiV1BooksGetParams) => {
+export const getGetBooksQueryKey = (params?: GetBooksParams) => {
   return [`/api/v1/books/`, ...(params ? [params] : [])] as const;
 };
 
-export const getGetBooksApiV1BooksGetQueryOptions = <
-  TData = Awaited<ReturnType<typeof getBooksApiV1BooksGet>>,
+export const getGetBooksQueryOptions = <
+  TData = Awaited<ReturnType<typeof getBooks>>,
   TError = HTTPValidationError,
 >(
-  params?: GetBooksApiV1BooksGetParams,
+  params?: GetBooksParams,
   options?: {
-    query?: Partial<
-      UseQueryOptions<Awaited<ReturnType<typeof getBooksApiV1BooksGet>>, TError, TData>
-    >;
+    query?: Partial<UseQueryOptions<Awaited<ReturnType<typeof getBooks>>, TError, TData>>;
   }
 ) => {
   const { query: queryOptions } = options ?? {};
 
-  const queryKey = queryOptions?.queryKey ?? getGetBooksApiV1BooksGetQueryKey(params);
+  const queryKey = queryOptions?.queryKey ?? getGetBooksQueryKey(params);
 
-  const queryFn: QueryFunction<Awaited<ReturnType<typeof getBooksApiV1BooksGet>>> = ({ signal }) =>
-    getBooksApiV1BooksGet(params, signal);
+  const queryFn: QueryFunction<Awaited<ReturnType<typeof getBooks>>> = ({ signal }) =>
+    getBooks(params, signal);
 
   return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
-    Awaited<ReturnType<typeof getBooksApiV1BooksGet>>,
+    Awaited<ReturnType<typeof getBooks>>,
     TError,
     TData
   > & { queryKey: DataTag<QueryKey, TData, TError> };
 };
 
-export type GetBooksApiV1BooksGetQueryResult = NonNullable<
-  Awaited<ReturnType<typeof getBooksApiV1BooksGet>>
->;
-export type GetBooksApiV1BooksGetQueryError = HTTPValidationError;
+export type GetBooksQueryResult = NonNullable<Awaited<ReturnType<typeof getBooks>>>;
+export type GetBooksQueryError = HTTPValidationError;
 
-export function useGetBooksApiV1BooksGet<
-  TData = Awaited<ReturnType<typeof getBooksApiV1BooksGet>>,
+export function useGetBooks<
+  TData = Awaited<ReturnType<typeof getBooks>>,
   TError = HTTPValidationError,
 >(
-  params: undefined | GetBooksApiV1BooksGetParams,
+  params: undefined | GetBooksParams,
   options: {
-    query: Partial<
-      UseQueryOptions<Awaited<ReturnType<typeof getBooksApiV1BooksGet>>, TError, TData>
-    > &
+    query: Partial<UseQueryOptions<Awaited<ReturnType<typeof getBooks>>, TError, TData>> &
       Pick<
         DefinedInitialDataOptions<
-          Awaited<ReturnType<typeof getBooksApiV1BooksGet>>,
+          Awaited<ReturnType<typeof getBooks>>,
           TError,
-          Awaited<ReturnType<typeof getBooksApiV1BooksGet>>
+          Awaited<ReturnType<typeof getBooks>>
         >,
         'initialData'
       >;
   },
   queryClient?: QueryClient
 ): DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
-export function useGetBooksApiV1BooksGet<
-  TData = Awaited<ReturnType<typeof getBooksApiV1BooksGet>>,
+export function useGetBooks<
+  TData = Awaited<ReturnType<typeof getBooks>>,
   TError = HTTPValidationError,
 >(
-  params?: GetBooksApiV1BooksGetParams,
+  params?: GetBooksParams,
   options?: {
-    query?: Partial<
-      UseQueryOptions<Awaited<ReturnType<typeof getBooksApiV1BooksGet>>, TError, TData>
-    > &
+    query?: Partial<UseQueryOptions<Awaited<ReturnType<typeof getBooks>>, TError, TData>> &
       Pick<
         UndefinedInitialDataOptions<
-          Awaited<ReturnType<typeof getBooksApiV1BooksGet>>,
+          Awaited<ReturnType<typeof getBooks>>,
           TError,
-          Awaited<ReturnType<typeof getBooksApiV1BooksGet>>
+          Awaited<ReturnType<typeof getBooks>>
         >,
         'initialData'
       >;
   },
   queryClient?: QueryClient
 ): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
-export function useGetBooksApiV1BooksGet<
-  TData = Awaited<ReturnType<typeof getBooksApiV1BooksGet>>,
+export function useGetBooks<
+  TData = Awaited<ReturnType<typeof getBooks>>,
   TError = HTTPValidationError,
 >(
-  params?: GetBooksApiV1BooksGetParams,
+  params?: GetBooksParams,
   options?: {
-    query?: Partial<
-      UseQueryOptions<Awaited<ReturnType<typeof getBooksApiV1BooksGet>>, TError, TData>
-    >;
+    query?: Partial<UseQueryOptions<Awaited<ReturnType<typeof getBooks>>, TError, TData>>;
   },
   queryClient?: QueryClient
 ): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
@@ -164,19 +151,17 @@ export function useGetBooksApiV1BooksGet<
  * @summary Get Books
  */
 
-export function useGetBooksApiV1BooksGet<
-  TData = Awaited<ReturnType<typeof getBooksApiV1BooksGet>>,
+export function useGetBooks<
+  TData = Awaited<ReturnType<typeof getBooks>>,
   TError = HTTPValidationError,
 >(
-  params?: GetBooksApiV1BooksGetParams,
+  params?: GetBooksParams,
   options?: {
-    query?: Partial<
-      UseQueryOptions<Awaited<ReturnType<typeof getBooksApiV1BooksGet>>, TError, TData>
-    >;
+    query?: Partial<UseQueryOptions<Awaited<ReturnType<typeof getBooks>>, TError, TData>>;
   },
   queryClient?: QueryClient
 ): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
-  const queryOptions = getGetBooksApiV1BooksGetQueryOptions(params, options);
+  const queryOptions = getGetBooksQueryOptions(params, options);
 
   const query = useQuery(queryOptions, queryClient) as UseQueryResult<TData, TError> & {
     queryKey: DataTag<QueryKey, TData, TError>;
@@ -200,8 +185,8 @@ export function useGetBooksApiV1BooksGet<
  *     HTTPException: If fetching books fails due to server error
  * @summary Get Recently Viewed Books
  */
-export const getRecentlyViewedBooksApiV1BooksRecentlyViewedGet = (
-  params?: GetRecentlyViewedBooksApiV1BooksRecentlyViewedGetParams,
+export const getRecentlyViewedBooks = (
+  params?: GetRecentlyViewedBooksParams,
   signal?: AbortSignal
 ) => {
   return axiosInstance<CollectionResponseBookWithHighlightCount>({
@@ -212,108 +197,88 @@ export const getRecentlyViewedBooksApiV1BooksRecentlyViewedGet = (
   });
 };
 
-export const getGetRecentlyViewedBooksApiV1BooksRecentlyViewedGetQueryKey = (
-  params?: GetRecentlyViewedBooksApiV1BooksRecentlyViewedGetParams
-) => {
+export const getGetRecentlyViewedBooksQueryKey = (params?: GetRecentlyViewedBooksParams) => {
   return [`/api/v1/books/recently-viewed`, ...(params ? [params] : [])] as const;
 };
 
-export const getGetRecentlyViewedBooksApiV1BooksRecentlyViewedGetQueryOptions = <
-  TData = Awaited<ReturnType<typeof getRecentlyViewedBooksApiV1BooksRecentlyViewedGet>>,
+export const getGetRecentlyViewedBooksQueryOptions = <
+  TData = Awaited<ReturnType<typeof getRecentlyViewedBooks>>,
   TError = HTTPValidationError,
 >(
-  params?: GetRecentlyViewedBooksApiV1BooksRecentlyViewedGetParams,
+  params?: GetRecentlyViewedBooksParams,
   options?: {
     query?: Partial<
-      UseQueryOptions<
-        Awaited<ReturnType<typeof getRecentlyViewedBooksApiV1BooksRecentlyViewedGet>>,
-        TError,
-        TData
-      >
+      UseQueryOptions<Awaited<ReturnType<typeof getRecentlyViewedBooks>>, TError, TData>
     >;
   }
 ) => {
   const { query: queryOptions } = options ?? {};
 
-  const queryKey =
-    queryOptions?.queryKey ?? getGetRecentlyViewedBooksApiV1BooksRecentlyViewedGetQueryKey(params);
+  const queryKey = queryOptions?.queryKey ?? getGetRecentlyViewedBooksQueryKey(params);
 
-  const queryFn: QueryFunction<
-    Awaited<ReturnType<typeof getRecentlyViewedBooksApiV1BooksRecentlyViewedGet>>
-  > = ({ signal }) => getRecentlyViewedBooksApiV1BooksRecentlyViewedGet(params, signal);
+  const queryFn: QueryFunction<Awaited<ReturnType<typeof getRecentlyViewedBooks>>> = ({ signal }) =>
+    getRecentlyViewedBooks(params, signal);
 
   return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
-    Awaited<ReturnType<typeof getRecentlyViewedBooksApiV1BooksRecentlyViewedGet>>,
+    Awaited<ReturnType<typeof getRecentlyViewedBooks>>,
     TError,
     TData
   > & { queryKey: DataTag<QueryKey, TData, TError> };
 };
 
-export type GetRecentlyViewedBooksApiV1BooksRecentlyViewedGetQueryResult = NonNullable<
-  Awaited<ReturnType<typeof getRecentlyViewedBooksApiV1BooksRecentlyViewedGet>>
+export type GetRecentlyViewedBooksQueryResult = NonNullable<
+  Awaited<ReturnType<typeof getRecentlyViewedBooks>>
 >;
-export type GetRecentlyViewedBooksApiV1BooksRecentlyViewedGetQueryError = HTTPValidationError;
+export type GetRecentlyViewedBooksQueryError = HTTPValidationError;
 
-export function useGetRecentlyViewedBooksApiV1BooksRecentlyViewedGet<
-  TData = Awaited<ReturnType<typeof getRecentlyViewedBooksApiV1BooksRecentlyViewedGet>>,
+export function useGetRecentlyViewedBooks<
+  TData = Awaited<ReturnType<typeof getRecentlyViewedBooks>>,
   TError = HTTPValidationError,
 >(
-  params: undefined | GetRecentlyViewedBooksApiV1BooksRecentlyViewedGetParams,
+  params: undefined | GetRecentlyViewedBooksParams,
   options: {
     query: Partial<
-      UseQueryOptions<
-        Awaited<ReturnType<typeof getRecentlyViewedBooksApiV1BooksRecentlyViewedGet>>,
-        TError,
-        TData
-      >
+      UseQueryOptions<Awaited<ReturnType<typeof getRecentlyViewedBooks>>, TError, TData>
     > &
       Pick<
         DefinedInitialDataOptions<
-          Awaited<ReturnType<typeof getRecentlyViewedBooksApiV1BooksRecentlyViewedGet>>,
+          Awaited<ReturnType<typeof getRecentlyViewedBooks>>,
           TError,
-          Awaited<ReturnType<typeof getRecentlyViewedBooksApiV1BooksRecentlyViewedGet>>
+          Awaited<ReturnType<typeof getRecentlyViewedBooks>>
         >,
         'initialData'
       >;
   },
   queryClient?: QueryClient
 ): DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
-export function useGetRecentlyViewedBooksApiV1BooksRecentlyViewedGet<
-  TData = Awaited<ReturnType<typeof getRecentlyViewedBooksApiV1BooksRecentlyViewedGet>>,
+export function useGetRecentlyViewedBooks<
+  TData = Awaited<ReturnType<typeof getRecentlyViewedBooks>>,
   TError = HTTPValidationError,
 >(
-  params?: GetRecentlyViewedBooksApiV1BooksRecentlyViewedGetParams,
+  params?: GetRecentlyViewedBooksParams,
   options?: {
     query?: Partial<
-      UseQueryOptions<
-        Awaited<ReturnType<typeof getRecentlyViewedBooksApiV1BooksRecentlyViewedGet>>,
-        TError,
-        TData
-      >
+      UseQueryOptions<Awaited<ReturnType<typeof getRecentlyViewedBooks>>, TError, TData>
     > &
       Pick<
         UndefinedInitialDataOptions<
-          Awaited<ReturnType<typeof getRecentlyViewedBooksApiV1BooksRecentlyViewedGet>>,
+          Awaited<ReturnType<typeof getRecentlyViewedBooks>>,
           TError,
-          Awaited<ReturnType<typeof getRecentlyViewedBooksApiV1BooksRecentlyViewedGet>>
+          Awaited<ReturnType<typeof getRecentlyViewedBooks>>
         >,
         'initialData'
       >;
   },
   queryClient?: QueryClient
 ): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
-export function useGetRecentlyViewedBooksApiV1BooksRecentlyViewedGet<
-  TData = Awaited<ReturnType<typeof getRecentlyViewedBooksApiV1BooksRecentlyViewedGet>>,
+export function useGetRecentlyViewedBooks<
+  TData = Awaited<ReturnType<typeof getRecentlyViewedBooks>>,
   TError = HTTPValidationError,
 >(
-  params?: GetRecentlyViewedBooksApiV1BooksRecentlyViewedGetParams,
+  params?: GetRecentlyViewedBooksParams,
   options?: {
     query?: Partial<
-      UseQueryOptions<
-        Awaited<ReturnType<typeof getRecentlyViewedBooksApiV1BooksRecentlyViewedGet>>,
-        TError,
-        TData
-      >
+      UseQueryOptions<Awaited<ReturnType<typeof getRecentlyViewedBooks>>, TError, TData>
     >;
   },
   queryClient?: QueryClient
@@ -322,26 +287,19 @@ export function useGetRecentlyViewedBooksApiV1BooksRecentlyViewedGet<
  * @summary Get Recently Viewed Books
  */
 
-export function useGetRecentlyViewedBooksApiV1BooksRecentlyViewedGet<
-  TData = Awaited<ReturnType<typeof getRecentlyViewedBooksApiV1BooksRecentlyViewedGet>>,
+export function useGetRecentlyViewedBooks<
+  TData = Awaited<ReturnType<typeof getRecentlyViewedBooks>>,
   TError = HTTPValidationError,
 >(
-  params?: GetRecentlyViewedBooksApiV1BooksRecentlyViewedGetParams,
+  params?: GetRecentlyViewedBooksParams,
   options?: {
     query?: Partial<
-      UseQueryOptions<
-        Awaited<ReturnType<typeof getRecentlyViewedBooksApiV1BooksRecentlyViewedGet>>,
-        TError,
-        TData
-      >
+      UseQueryOptions<Awaited<ReturnType<typeof getRecentlyViewedBooks>>, TError, TData>
     >;
   },
   queryClient?: QueryClient
 ): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
-  const queryOptions = getGetRecentlyViewedBooksApiV1BooksRecentlyViewedGetQueryOptions(
-    params,
-    options
-  );
+  const queryOptions = getGetRecentlyViewedBooksQueryOptions(params, options);
 
   const query = useQuery(queryOptions, queryClient) as UseQueryResult<TData, TError> & {
     queryKey: DataTag<QueryKey, TData, TError>;
@@ -363,99 +321,86 @@ export function useGetRecentlyViewedBooksApiV1BooksRecentlyViewedGet<
  *     HTTPException: If book is not found or fetching fails
  * @summary Get Book Details
  */
-export const getBookDetailsApiV1BooksBookIdGet = (bookId: number, signal?: AbortSignal) => {
+export const getBookDetails = (bookId: number, signal?: AbortSignal) => {
   return axiosInstance<BookDetails>({ url: `/api/v1/books/${bookId}`, method: 'GET', signal });
 };
 
-export const getGetBookDetailsApiV1BooksBookIdGetQueryKey = (bookId: number) => {
+export const getGetBookDetailsQueryKey = (bookId: number) => {
   return [`/api/v1/books/${bookId}`] as const;
 };
 
-export const getGetBookDetailsApiV1BooksBookIdGetQueryOptions = <
-  TData = Awaited<ReturnType<typeof getBookDetailsApiV1BooksBookIdGet>>,
+export const getGetBookDetailsQueryOptions = <
+  TData = Awaited<ReturnType<typeof getBookDetails>>,
   TError = HTTPValidationError,
 >(
   bookId: number,
   options?: {
-    query?: Partial<
-      UseQueryOptions<Awaited<ReturnType<typeof getBookDetailsApiV1BooksBookIdGet>>, TError, TData>
-    >;
+    query?: Partial<UseQueryOptions<Awaited<ReturnType<typeof getBookDetails>>, TError, TData>>;
   }
 ) => {
   const { query: queryOptions } = options ?? {};
 
-  const queryKey = queryOptions?.queryKey ?? getGetBookDetailsApiV1BooksBookIdGetQueryKey(bookId);
+  const queryKey = queryOptions?.queryKey ?? getGetBookDetailsQueryKey(bookId);
 
-  const queryFn: QueryFunction<Awaited<ReturnType<typeof getBookDetailsApiV1BooksBookIdGet>>> = ({
-    signal,
-  }) => getBookDetailsApiV1BooksBookIdGet(bookId, signal);
+  const queryFn: QueryFunction<Awaited<ReturnType<typeof getBookDetails>>> = ({ signal }) =>
+    getBookDetails(bookId, signal);
 
   return {
     queryKey,
     queryFn,
     enabled: bookId !== null && bookId !== undefined,
     ...queryOptions,
-  } as UseQueryOptions<
-    Awaited<ReturnType<typeof getBookDetailsApiV1BooksBookIdGet>>,
-    TError,
-    TData
-  > & { queryKey: DataTag<QueryKey, TData, TError> };
+  } as UseQueryOptions<Awaited<ReturnType<typeof getBookDetails>>, TError, TData> & {
+    queryKey: DataTag<QueryKey, TData, TError>;
+  };
 };
 
-export type GetBookDetailsApiV1BooksBookIdGetQueryResult = NonNullable<
-  Awaited<ReturnType<typeof getBookDetailsApiV1BooksBookIdGet>>
->;
-export type GetBookDetailsApiV1BooksBookIdGetQueryError = HTTPValidationError;
+export type GetBookDetailsQueryResult = NonNullable<Awaited<ReturnType<typeof getBookDetails>>>;
+export type GetBookDetailsQueryError = HTTPValidationError;
 
-export function useGetBookDetailsApiV1BooksBookIdGet<
-  TData = Awaited<ReturnType<typeof getBookDetailsApiV1BooksBookIdGet>>,
+export function useGetBookDetails<
+  TData = Awaited<ReturnType<typeof getBookDetails>>,
   TError = HTTPValidationError,
 >(
   bookId: number,
   options: {
-    query: Partial<
-      UseQueryOptions<Awaited<ReturnType<typeof getBookDetailsApiV1BooksBookIdGet>>, TError, TData>
-    > &
+    query: Partial<UseQueryOptions<Awaited<ReturnType<typeof getBookDetails>>, TError, TData>> &
       Pick<
         DefinedInitialDataOptions<
-          Awaited<ReturnType<typeof getBookDetailsApiV1BooksBookIdGet>>,
+          Awaited<ReturnType<typeof getBookDetails>>,
           TError,
-          Awaited<ReturnType<typeof getBookDetailsApiV1BooksBookIdGet>>
+          Awaited<ReturnType<typeof getBookDetails>>
         >,
         'initialData'
       >;
   },
   queryClient?: QueryClient
 ): DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
-export function useGetBookDetailsApiV1BooksBookIdGet<
-  TData = Awaited<ReturnType<typeof getBookDetailsApiV1BooksBookIdGet>>,
+export function useGetBookDetails<
+  TData = Awaited<ReturnType<typeof getBookDetails>>,
   TError = HTTPValidationError,
 >(
   bookId: number,
   options?: {
-    query?: Partial<
-      UseQueryOptions<Awaited<ReturnType<typeof getBookDetailsApiV1BooksBookIdGet>>, TError, TData>
-    > &
+    query?: Partial<UseQueryOptions<Awaited<ReturnType<typeof getBookDetails>>, TError, TData>> &
       Pick<
         UndefinedInitialDataOptions<
-          Awaited<ReturnType<typeof getBookDetailsApiV1BooksBookIdGet>>,
+          Awaited<ReturnType<typeof getBookDetails>>,
           TError,
-          Awaited<ReturnType<typeof getBookDetailsApiV1BooksBookIdGet>>
+          Awaited<ReturnType<typeof getBookDetails>>
         >,
         'initialData'
       >;
   },
   queryClient?: QueryClient
 ): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
-export function useGetBookDetailsApiV1BooksBookIdGet<
-  TData = Awaited<ReturnType<typeof getBookDetailsApiV1BooksBookIdGet>>,
+export function useGetBookDetails<
+  TData = Awaited<ReturnType<typeof getBookDetails>>,
   TError = HTTPValidationError,
 >(
   bookId: number,
   options?: {
-    query?: Partial<
-      UseQueryOptions<Awaited<ReturnType<typeof getBookDetailsApiV1BooksBookIdGet>>, TError, TData>
-    >;
+    query?: Partial<UseQueryOptions<Awaited<ReturnType<typeof getBookDetails>>, TError, TData>>;
   },
   queryClient?: QueryClient
 ): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
@@ -463,19 +408,17 @@ export function useGetBookDetailsApiV1BooksBookIdGet<
  * @summary Get Book Details
  */
 
-export function useGetBookDetailsApiV1BooksBookIdGet<
-  TData = Awaited<ReturnType<typeof getBookDetailsApiV1BooksBookIdGet>>,
+export function useGetBookDetails<
+  TData = Awaited<ReturnType<typeof getBookDetails>>,
   TError = HTTPValidationError,
 >(
   bookId: number,
   options?: {
-    query?: Partial<
-      UseQueryOptions<Awaited<ReturnType<typeof getBookDetailsApiV1BooksBookIdGet>>, TError, TData>
-    >;
+    query?: Partial<UseQueryOptions<Awaited<ReturnType<typeof getBookDetails>>, TError, TData>>;
   },
   queryClient?: QueryClient
 ): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
-  const queryOptions = getGetBookDetailsApiV1BooksBookIdGetQueryOptions(bookId, options);
+  const queryOptions = getGetBookDetailsQueryOptions(bookId, options);
 
   const query = useQuery(queryOptions, queryClient) as UseQueryResult<TData, TError> & {
     queryKey: DataTag<QueryKey, TData, TError>;
@@ -498,61 +441,55 @@ export function useGetBookDetailsApiV1BooksBookIdGet<
  *     HTTPException: If book is not found or deletion fails
  * @summary Delete Book
  */
-export const deleteBookApiV1BooksBookIdDelete = (bookId: number, signal?: AbortSignal) => {
+export const deleteBook = (bookId: number, signal?: AbortSignal) => {
   return axiosInstance<void>({ url: `/api/v1/books/${bookId}`, method: 'DELETE', signal });
 };
 
-export const getDeleteBookApiV1BooksBookIdDeleteMutationOptions = <
+export const getDeleteBookMutationOptions = <
   TError = HTTPValidationError,
   TContext = unknown,
 >(options?: {
   mutation?: UseMutationOptions<
-    Awaited<ReturnType<typeof deleteBookApiV1BooksBookIdDelete>>,
+    Awaited<ReturnType<typeof deleteBook>>,
     TError,
     { bookId: number },
     TContext
   >;
 }): UseMutationOptions<
-  Awaited<ReturnType<typeof deleteBookApiV1BooksBookIdDelete>>,
+  Awaited<ReturnType<typeof deleteBook>>,
   TError,
   { bookId: number },
   TContext
 > => {
-  const mutationKey = ['deleteBookApiV1BooksBookIdDelete'];
+  const mutationKey = ['deleteBook'];
   const { mutation: mutationOptions } = options
     ? options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey
       ? options
       : { ...options, mutation: { ...options.mutation, mutationKey } }
     : { mutation: { mutationKey } };
 
-  const mutationFn: MutationFunction<
-    Awaited<ReturnType<typeof deleteBookApiV1BooksBookIdDelete>>,
-    { bookId: number }
-  > = (props) => {
+  const mutationFn: MutationFunction<Awaited<ReturnType<typeof deleteBook>>, { bookId: number }> = (
+    props
+  ) => {
     const { bookId } = props ?? {};
 
-    return deleteBookApiV1BooksBookIdDelete(bookId);
+    return deleteBook(bookId);
   };
 
   return { mutationFn, ...mutationOptions };
 };
 
-export type DeleteBookApiV1BooksBookIdDeleteMutationResult = NonNullable<
-  Awaited<ReturnType<typeof deleteBookApiV1BooksBookIdDelete>>
->;
+export type DeleteBookMutationResult = NonNullable<Awaited<ReturnType<typeof deleteBook>>>;
 
-export type DeleteBookApiV1BooksBookIdDeleteMutationError = HTTPValidationError;
+export type DeleteBookMutationError = HTTPValidationError;
 
 /**
  * @summary Delete Book
  */
-export const useDeleteBookApiV1BooksBookIdDelete = <
-  TError = HTTPValidationError,
-  TContext = unknown,
->(
+export const useDeleteBook = <TError = HTTPValidationError, TContext = unknown>(
   options?: {
     mutation?: UseMutationOptions<
-      Awaited<ReturnType<typeof deleteBookApiV1BooksBookIdDelete>>,
+      Awaited<ReturnType<typeof deleteBook>>,
       TError,
       { bookId: number },
       TContext
@@ -560,18 +497,18 @@ export const useDeleteBookApiV1BooksBookIdDelete = <
   },
   queryClient?: QueryClient
 ): UseMutationResult<
-  Awaited<ReturnType<typeof deleteBookApiV1BooksBookIdDelete>>,
+  Awaited<ReturnType<typeof deleteBook>>,
   TError,
   { bookId: number },
   TContext
 > => {
-  return useMutation(getDeleteBookApiV1BooksBookIdDeleteMutationOptions(options), queryClient);
+  return useMutation(getDeleteBookMutationOptions(options), queryClient);
 };
 /**
  * Set or clear the manual reading stage on a book.
  * @summary Update Reading Stage
  */
-export const updateReadingStageApiV1BooksBookIdReadingStagePut = (
+export const updateReadingStage = (
   bookId: number,
   bookReadingStageUpdateRequest: BookReadingStageUpdateRequest,
   signal?: AbortSignal
@@ -585,23 +522,23 @@ export const updateReadingStageApiV1BooksBookIdReadingStagePut = (
   });
 };
 
-export const getUpdateReadingStageApiV1BooksBookIdReadingStagePutMutationOptions = <
+export const getUpdateReadingStageMutationOptions = <
   TError = HTTPValidationError,
   TContext = unknown,
 >(options?: {
   mutation?: UseMutationOptions<
-    Awaited<ReturnType<typeof updateReadingStageApiV1BooksBookIdReadingStagePut>>,
+    Awaited<ReturnType<typeof updateReadingStage>>,
     TError,
     { bookId: number; data: BookReadingStageUpdateRequest },
     TContext
   >;
 }): UseMutationOptions<
-  Awaited<ReturnType<typeof updateReadingStageApiV1BooksBookIdReadingStagePut>>,
+  Awaited<ReturnType<typeof updateReadingStage>>,
   TError,
   { bookId: number; data: BookReadingStageUpdateRequest },
   TContext
 > => {
-  const mutationKey = ['updateReadingStageApiV1BooksBookIdReadingStagePut'];
+  const mutationKey = ['updateReadingStage'];
   const { mutation: mutationOptions } = options
     ? options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey
       ? options
@@ -609,34 +546,30 @@ export const getUpdateReadingStageApiV1BooksBookIdReadingStagePutMutationOptions
     : { mutation: { mutationKey } };
 
   const mutationFn: MutationFunction<
-    Awaited<ReturnType<typeof updateReadingStageApiV1BooksBookIdReadingStagePut>>,
+    Awaited<ReturnType<typeof updateReadingStage>>,
     { bookId: number; data: BookReadingStageUpdateRequest }
   > = (props) => {
     const { bookId, data } = props ?? {};
 
-    return updateReadingStageApiV1BooksBookIdReadingStagePut(bookId, data);
+    return updateReadingStage(bookId, data);
   };
 
   return { mutationFn, ...mutationOptions };
 };
 
-export type UpdateReadingStageApiV1BooksBookIdReadingStagePutMutationResult = NonNullable<
-  Awaited<ReturnType<typeof updateReadingStageApiV1BooksBookIdReadingStagePut>>
+export type UpdateReadingStageMutationResult = NonNullable<
+  Awaited<ReturnType<typeof updateReadingStage>>
 >;
-export type UpdateReadingStageApiV1BooksBookIdReadingStagePutMutationBody =
-  BookReadingStageUpdateRequest;
-export type UpdateReadingStageApiV1BooksBookIdReadingStagePutMutationError = HTTPValidationError;
+export type UpdateReadingStageMutationBody = BookReadingStageUpdateRequest;
+export type UpdateReadingStageMutationError = HTTPValidationError;
 
 /**
  * @summary Update Reading Stage
  */
-export const useUpdateReadingStageApiV1BooksBookIdReadingStagePut = <
-  TError = HTTPValidationError,
-  TContext = unknown,
->(
+export const useUpdateReadingStage = <TError = HTTPValidationError, TContext = unknown>(
   options?: {
     mutation?: UseMutationOptions<
-      Awaited<ReturnType<typeof updateReadingStageApiV1BooksBookIdReadingStagePut>>,
+      Awaited<ReturnType<typeof updateReadingStage>>,
       TError,
       { bookId: number; data: BookReadingStageUpdateRequest },
       TContext
@@ -644,13 +577,10 @@ export const useUpdateReadingStageApiV1BooksBookIdReadingStagePut = <
   },
   queryClient?: QueryClient
 ): UseMutationResult<
-  Awaited<ReturnType<typeof updateReadingStageApiV1BooksBookIdReadingStagePut>>,
+  Awaited<ReturnType<typeof updateReadingStage>>,
   TError,
   { bookId: number; data: BookReadingStageUpdateRequest },
   TContext
 > => {
-  return useMutation(
-    getUpdateReadingStageApiV1BooksBookIdReadingStagePutMutationOptions(options),
-    queryClient
-  );
+  return useMutation(getUpdateReadingStageMutationOptions(options), queryClient);
 };

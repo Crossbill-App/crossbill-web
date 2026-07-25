@@ -1,4 +1,4 @@
-import { useDeleteBookApiV1BooksBookIdDelete } from '@/api/generated/books/books.ts';
+import { useDeleteBook } from '@/api/generated/books/books.ts';
 import { BookDetails } from '@/api/generated/model';
 import { BookCover } from '@/components/BookCover.tsx';
 import { CommonDialog } from '@/components/dialogs/CommonDialog.tsx';
@@ -22,7 +22,7 @@ export const BookEditModal = ({ book, open, onClose }: BookEditModalProps) => {
   const { mutationErrorHandler } = useBookMutationHelpers(book.id);
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
 
-  const deleteBookMutation = useDeleteBookApiV1BooksBookIdDelete({
+  const deleteBookMutation = useDeleteBook({
     mutation: {
       onSuccess: async () => {
         // Refetch the books list query and wait for it to complete

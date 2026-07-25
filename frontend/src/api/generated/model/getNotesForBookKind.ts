@@ -5,11 +5,11 @@
  * OpenAPI spec version: 0.1.0
  */
 
-export type GetNotesForBookApiV1BooksBookIdNotesGetKind =
-  | (typeof GetNotesForBookApiV1BooksBookIdNotesGetKind)[keyof typeof GetNotesForBookApiV1BooksBookIdNotesGetKind]
+export type GetNotesForBookKind =
+  | (typeof GetNotesForBookKind)[keyof typeof GetNotesForBookKind]
   | null;
 
-export const GetNotesForBookApiV1BooksBookIdNotesGetKind = {
+export const GetNotesForBookKind = {
   character: 'character',
   term: 'term',
   concept: 'concept',

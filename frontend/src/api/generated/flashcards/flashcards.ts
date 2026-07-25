@@ -67,7 +67,7 @@ const withQueryKey = <T extends object, K>(query: T, queryKey: K): T & { queryKe
  *     HTTPException: If book not found or creation fails
  * @summary Create Flashcard For Book
  */
-export const createFlashcardForBookApiV1BooksBookIdFlashcardsPost = (
+export const createFlashcardForBook = (
   bookId: number,
   flashcardCreateRequest: FlashcardCreateRequest,
   signal?: AbortSignal
@@ -81,23 +81,23 @@ export const createFlashcardForBookApiV1BooksBookIdFlashcardsPost = (
   });
 };
 
-export const getCreateFlashcardForBookApiV1BooksBookIdFlashcardsPostMutationOptions = <
+export const getCreateFlashcardForBookMutationOptions = <
   TError = HTTPValidationError,
   TContext = unknown,
 >(options?: {
   mutation?: UseMutationOptions<
-    Awaited<ReturnType<typeof createFlashcardForBookApiV1BooksBookIdFlashcardsPost>>,
+    Awaited<ReturnType<typeof createFlashcardForBook>>,
     TError,
     { bookId: number; data: FlashcardCreateRequest },
     TContext
   >;
 }): UseMutationOptions<
-  Awaited<ReturnType<typeof createFlashcardForBookApiV1BooksBookIdFlashcardsPost>>,
+  Awaited<ReturnType<typeof createFlashcardForBook>>,
   TError,
   { bookId: number; data: FlashcardCreateRequest },
   TContext
 > => {
-  const mutationKey = ['createFlashcardForBookApiV1BooksBookIdFlashcardsPost'];
+  const mutationKey = ['createFlashcardForBook'];
   const { mutation: mutationOptions } = options
     ? options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey
       ? options
@@ -105,34 +105,30 @@ export const getCreateFlashcardForBookApiV1BooksBookIdFlashcardsPostMutationOpti
     : { mutation: { mutationKey } };
 
   const mutationFn: MutationFunction<
-    Awaited<ReturnType<typeof createFlashcardForBookApiV1BooksBookIdFlashcardsPost>>,
+    Awaited<ReturnType<typeof createFlashcardForBook>>,
     { bookId: number; data: FlashcardCreateRequest }
   > = (props) => {
     const { bookId, data } = props ?? {};
 
-    return createFlashcardForBookApiV1BooksBookIdFlashcardsPost(bookId, data);
+    return createFlashcardForBook(bookId, data);
   };
 
   return { mutationFn, ...mutationOptions };
 };
 
-export type CreateFlashcardForBookApiV1BooksBookIdFlashcardsPostMutationResult = NonNullable<
-  Awaited<ReturnType<typeof createFlashcardForBookApiV1BooksBookIdFlashcardsPost>>
+export type CreateFlashcardForBookMutationResult = NonNullable<
+  Awaited<ReturnType<typeof createFlashcardForBook>>
 >;
-export type CreateFlashcardForBookApiV1BooksBookIdFlashcardsPostMutationBody =
-  FlashcardCreateRequest;
-export type CreateFlashcardForBookApiV1BooksBookIdFlashcardsPostMutationError = HTTPValidationError;
+export type CreateFlashcardForBookMutationBody = FlashcardCreateRequest;
+export type CreateFlashcardForBookMutationError = HTTPValidationError;
 
 /**
  * @summary Create Flashcard For Book
  */
-export const useCreateFlashcardForBookApiV1BooksBookIdFlashcardsPost = <
-  TError = HTTPValidationError,
-  TContext = unknown,
->(
+export const useCreateFlashcardForBook = <TError = HTTPValidationError, TContext = unknown>(
   options?: {
     mutation?: UseMutationOptions<
-      Awaited<ReturnType<typeof createFlashcardForBookApiV1BooksBookIdFlashcardsPost>>,
+      Awaited<ReturnType<typeof createFlashcardForBook>>,
       TError,
       { bookId: number; data: FlashcardCreateRequest },
       TContext
@@ -140,15 +136,12 @@ export const useCreateFlashcardForBookApiV1BooksBookIdFlashcardsPost = <
   },
   queryClient?: QueryClient
 ): UseMutationResult<
-  Awaited<ReturnType<typeof createFlashcardForBookApiV1BooksBookIdFlashcardsPost>>,
+  Awaited<ReturnType<typeof createFlashcardForBook>>,
   TError,
   { bookId: number; data: FlashcardCreateRequest },
   TContext
 > => {
-  return useMutation(
-    getCreateFlashcardForBookApiV1BooksBookIdFlashcardsPostMutationOptions(options),
-    queryClient
-  );
+  return useMutation(getCreateFlashcardForBookMutationOptions(options), queryClient);
 };
 /**
  * Get all flashcards for a book with embedded highlight data.
@@ -166,10 +159,7 @@ export const useCreateFlashcardForBookApiV1BooksBookIdFlashcardsPost = <
  *     HTTPException: If book not found or fetching fails
  * @summary Get Flashcards For Book
  */
-export const getFlashcardsForBookApiV1BooksBookIdFlashcardsGet = (
-  bookId: number,
-  signal?: AbortSignal
-) => {
+export const getFlashcardsForBook = (bookId: number, signal?: AbortSignal) => {
   return axiosInstance<CollectionResponseFlashcardWithHighlight>({
     url: `/api/v1/books/${bookId}/flashcards`,
     method: 'GET',
@@ -177,111 +167,91 @@ export const getFlashcardsForBookApiV1BooksBookIdFlashcardsGet = (
   });
 };
 
-export const getGetFlashcardsForBookApiV1BooksBookIdFlashcardsGetQueryKey = (bookId: number) => {
+export const getGetFlashcardsForBookQueryKey = (bookId: number) => {
   return [`/api/v1/books/${bookId}/flashcards`] as const;
 };
 
-export const getGetFlashcardsForBookApiV1BooksBookIdFlashcardsGetQueryOptions = <
-  TData = Awaited<ReturnType<typeof getFlashcardsForBookApiV1BooksBookIdFlashcardsGet>>,
+export const getGetFlashcardsForBookQueryOptions = <
+  TData = Awaited<ReturnType<typeof getFlashcardsForBook>>,
   TError = HTTPValidationError,
 >(
   bookId: number,
   options?: {
     query?: Partial<
-      UseQueryOptions<
-        Awaited<ReturnType<typeof getFlashcardsForBookApiV1BooksBookIdFlashcardsGet>>,
-        TError,
-        TData
-      >
+      UseQueryOptions<Awaited<ReturnType<typeof getFlashcardsForBook>>, TError, TData>
     >;
   }
 ) => {
   const { query: queryOptions } = options ?? {};
 
-  const queryKey =
-    queryOptions?.queryKey ?? getGetFlashcardsForBookApiV1BooksBookIdFlashcardsGetQueryKey(bookId);
+  const queryKey = queryOptions?.queryKey ?? getGetFlashcardsForBookQueryKey(bookId);
 
-  const queryFn: QueryFunction<
-    Awaited<ReturnType<typeof getFlashcardsForBookApiV1BooksBookIdFlashcardsGet>>
-  > = ({ signal }) => getFlashcardsForBookApiV1BooksBookIdFlashcardsGet(bookId, signal);
+  const queryFn: QueryFunction<Awaited<ReturnType<typeof getFlashcardsForBook>>> = ({ signal }) =>
+    getFlashcardsForBook(bookId, signal);
 
   return {
     queryKey,
     queryFn,
     enabled: bookId !== null && bookId !== undefined,
     ...queryOptions,
-  } as UseQueryOptions<
-    Awaited<ReturnType<typeof getFlashcardsForBookApiV1BooksBookIdFlashcardsGet>>,
-    TError,
-    TData
-  > & { queryKey: DataTag<QueryKey, TData, TError> };
+  } as UseQueryOptions<Awaited<ReturnType<typeof getFlashcardsForBook>>, TError, TData> & {
+    queryKey: DataTag<QueryKey, TData, TError>;
+  };
 };
 
-export type GetFlashcardsForBookApiV1BooksBookIdFlashcardsGetQueryResult = NonNullable<
-  Awaited<ReturnType<typeof getFlashcardsForBookApiV1BooksBookIdFlashcardsGet>>
+export type GetFlashcardsForBookQueryResult = NonNullable<
+  Awaited<ReturnType<typeof getFlashcardsForBook>>
 >;
-export type GetFlashcardsForBookApiV1BooksBookIdFlashcardsGetQueryError = HTTPValidationError;
+export type GetFlashcardsForBookQueryError = HTTPValidationError;
 
-export function useGetFlashcardsForBookApiV1BooksBookIdFlashcardsGet<
-  TData = Awaited<ReturnType<typeof getFlashcardsForBookApiV1BooksBookIdFlashcardsGet>>,
+export function useGetFlashcardsForBook<
+  TData = Awaited<ReturnType<typeof getFlashcardsForBook>>,
   TError = HTTPValidationError,
 >(
   bookId: number,
   options: {
     query: Partial<
-      UseQueryOptions<
-        Awaited<ReturnType<typeof getFlashcardsForBookApiV1BooksBookIdFlashcardsGet>>,
-        TError,
-        TData
-      >
+      UseQueryOptions<Awaited<ReturnType<typeof getFlashcardsForBook>>, TError, TData>
     > &
       Pick<
         DefinedInitialDataOptions<
-          Awaited<ReturnType<typeof getFlashcardsForBookApiV1BooksBookIdFlashcardsGet>>,
+          Awaited<ReturnType<typeof getFlashcardsForBook>>,
           TError,
-          Awaited<ReturnType<typeof getFlashcardsForBookApiV1BooksBookIdFlashcardsGet>>
+          Awaited<ReturnType<typeof getFlashcardsForBook>>
         >,
         'initialData'
       >;
   },
   queryClient?: QueryClient
 ): DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
-export function useGetFlashcardsForBookApiV1BooksBookIdFlashcardsGet<
-  TData = Awaited<ReturnType<typeof getFlashcardsForBookApiV1BooksBookIdFlashcardsGet>>,
+export function useGetFlashcardsForBook<
+  TData = Awaited<ReturnType<typeof getFlashcardsForBook>>,
   TError = HTTPValidationError,
 >(
   bookId: number,
   options?: {
     query?: Partial<
-      UseQueryOptions<
-        Awaited<ReturnType<typeof getFlashcardsForBookApiV1BooksBookIdFlashcardsGet>>,
-        TError,
-        TData
-      >
+      UseQueryOptions<Awaited<ReturnType<typeof getFlashcardsForBook>>, TError, TData>
     > &
       Pick<
         UndefinedInitialDataOptions<
-          Awaited<ReturnType<typeof getFlashcardsForBookApiV1BooksBookIdFlashcardsGet>>,
+          Awaited<ReturnType<typeof getFlashcardsForBook>>,
           TError,
-          Awaited<ReturnType<typeof getFlashcardsForBookApiV1BooksBookIdFlashcardsGet>>
+          Awaited<ReturnType<typeof getFlashcardsForBook>>
         >,
         'initialData'
       >;
   },
   queryClient?: QueryClient
 ): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
-export function useGetFlashcardsForBookApiV1BooksBookIdFlashcardsGet<
-  TData = Awaited<ReturnType<typeof getFlashcardsForBookApiV1BooksBookIdFlashcardsGet>>,
+export function useGetFlashcardsForBook<
+  TData = Awaited<ReturnType<typeof getFlashcardsForBook>>,
   TError = HTTPValidationError,
 >(
   bookId: number,
   options?: {
     query?: Partial<
-      UseQueryOptions<
-        Awaited<ReturnType<typeof getFlashcardsForBookApiV1BooksBookIdFlashcardsGet>>,
-        TError,
-        TData
-      >
+      UseQueryOptions<Awaited<ReturnType<typeof getFlashcardsForBook>>, TError, TData>
     >;
   },
   queryClient?: QueryClient
@@ -290,26 +260,19 @@ export function useGetFlashcardsForBookApiV1BooksBookIdFlashcardsGet<
  * @summary Get Flashcards For Book
  */
 
-export function useGetFlashcardsForBookApiV1BooksBookIdFlashcardsGet<
-  TData = Awaited<ReturnType<typeof getFlashcardsForBookApiV1BooksBookIdFlashcardsGet>>,
+export function useGetFlashcardsForBook<
+  TData = Awaited<ReturnType<typeof getFlashcardsForBook>>,
   TError = HTTPValidationError,
 >(
   bookId: number,
   options?: {
     query?: Partial<
-      UseQueryOptions<
-        Awaited<ReturnType<typeof getFlashcardsForBookApiV1BooksBookIdFlashcardsGet>>,
-        TError,
-        TData
-      >
+      UseQueryOptions<Awaited<ReturnType<typeof getFlashcardsForBook>>, TError, TData>
     >;
   },
   queryClient?: QueryClient
 ): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
-  const queryOptions = getGetFlashcardsForBookApiV1BooksBookIdFlashcardsGetQueryOptions(
-    bookId,
-    options
-  );
+  const queryOptions = getGetFlashcardsForBookQueryOptions(bookId, options);
 
   const query = useQuery(queryOptions, queryClient) as UseQueryResult<TData, TError> & {
     queryKey: DataTag<QueryKey, TData, TError>;
@@ -333,7 +296,7 @@ export function useGetFlashcardsForBookApiV1BooksBookIdFlashcardsGet<
  *     HTTPException: If flashcard not found or update fails
  * @summary Update Flashcard
  */
-export const updateFlashcardApiV1FlashcardsFlashcardIdPut = (
+export const updateFlashcard = (
   flashcardId: number,
   flashcardUpdateRequest: FlashcardUpdateRequest,
   signal?: AbortSignal
@@ -347,23 +310,23 @@ export const updateFlashcardApiV1FlashcardsFlashcardIdPut = (
   });
 };
 
-export const getUpdateFlashcardApiV1FlashcardsFlashcardIdPutMutationOptions = <
+export const getUpdateFlashcardMutationOptions = <
   TError = HTTPValidationError,
   TContext = unknown,
 >(options?: {
   mutation?: UseMutationOptions<
-    Awaited<ReturnType<typeof updateFlashcardApiV1FlashcardsFlashcardIdPut>>,
+    Awaited<ReturnType<typeof updateFlashcard>>,
     TError,
     { flashcardId: number; data: FlashcardUpdateRequest },
     TContext
   >;
 }): UseMutationOptions<
-  Awaited<ReturnType<typeof updateFlashcardApiV1FlashcardsFlashcardIdPut>>,
+  Awaited<ReturnType<typeof updateFlashcard>>,
   TError,
   { flashcardId: number; data: FlashcardUpdateRequest },
   TContext
 > => {
-  const mutationKey = ['updateFlashcardApiV1FlashcardsFlashcardIdPut'];
+  const mutationKey = ['updateFlashcard'];
   const { mutation: mutationOptions } = options
     ? options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey
       ? options
@@ -371,33 +334,30 @@ export const getUpdateFlashcardApiV1FlashcardsFlashcardIdPutMutationOptions = <
     : { mutation: { mutationKey } };
 
   const mutationFn: MutationFunction<
-    Awaited<ReturnType<typeof updateFlashcardApiV1FlashcardsFlashcardIdPut>>,
+    Awaited<ReturnType<typeof updateFlashcard>>,
     { flashcardId: number; data: FlashcardUpdateRequest }
   > = (props) => {
     const { flashcardId, data } = props ?? {};
 
-    return updateFlashcardApiV1FlashcardsFlashcardIdPut(flashcardId, data);
+    return updateFlashcard(flashcardId, data);
   };
 
   return { mutationFn, ...mutationOptions };
 };
 
-export type UpdateFlashcardApiV1FlashcardsFlashcardIdPutMutationResult = NonNullable<
-  Awaited<ReturnType<typeof updateFlashcardApiV1FlashcardsFlashcardIdPut>>
+export type UpdateFlashcardMutationResult = NonNullable<
+  Awaited<ReturnType<typeof updateFlashcard>>
 >;
-export type UpdateFlashcardApiV1FlashcardsFlashcardIdPutMutationBody = FlashcardUpdateRequest;
-export type UpdateFlashcardApiV1FlashcardsFlashcardIdPutMutationError = HTTPValidationError;
+export type UpdateFlashcardMutationBody = FlashcardUpdateRequest;
+export type UpdateFlashcardMutationError = HTTPValidationError;
 
 /**
  * @summary Update Flashcard
  */
-export const useUpdateFlashcardApiV1FlashcardsFlashcardIdPut = <
-  TError = HTTPValidationError,
-  TContext = unknown,
->(
+export const useUpdateFlashcard = <TError = HTTPValidationError, TContext = unknown>(
   options?: {
     mutation?: UseMutationOptions<
-      Awaited<ReturnType<typeof updateFlashcardApiV1FlashcardsFlashcardIdPut>>,
+      Awaited<ReturnType<typeof updateFlashcard>>,
       TError,
       { flashcardId: number; data: FlashcardUpdateRequest },
       TContext
@@ -405,15 +365,12 @@ export const useUpdateFlashcardApiV1FlashcardsFlashcardIdPut = <
   },
   queryClient?: QueryClient
 ): UseMutationResult<
-  Awaited<ReturnType<typeof updateFlashcardApiV1FlashcardsFlashcardIdPut>>,
+  Awaited<ReturnType<typeof updateFlashcard>>,
   TError,
   { flashcardId: number; data: FlashcardUpdateRequest },
   TContext
 > => {
-  return useMutation(
-    getUpdateFlashcardApiV1FlashcardsFlashcardIdPutMutationOptions(options),
-    queryClient
-  );
+  return useMutation(getUpdateFlashcardMutationOptions(options), queryClient);
 };
 /**
  * Delete a flashcard.
@@ -429,10 +386,7 @@ export const useUpdateFlashcardApiV1FlashcardsFlashcardIdPut = <
  *     HTTPException: If flashcard not found or deletion fails
  * @summary Delete Flashcard
  */
-export const deleteFlashcardApiV1FlashcardsFlashcardIdDelete = (
-  flashcardId: number,
-  signal?: AbortSignal
-) => {
+export const deleteFlashcard = (flashcardId: number, signal?: AbortSignal) => {
   return axiosInstance<SuccessResponse>({
     url: `/api/v1/flashcards/${flashcardId}`,
     method: 'DELETE',
@@ -440,23 +394,23 @@ export const deleteFlashcardApiV1FlashcardsFlashcardIdDelete = (
   });
 };
 
-export const getDeleteFlashcardApiV1FlashcardsFlashcardIdDeleteMutationOptions = <
+export const getDeleteFlashcardMutationOptions = <
   TError = HTTPValidationError,
   TContext = unknown,
 >(options?: {
   mutation?: UseMutationOptions<
-    Awaited<ReturnType<typeof deleteFlashcardApiV1FlashcardsFlashcardIdDelete>>,
+    Awaited<ReturnType<typeof deleteFlashcard>>,
     TError,
     { flashcardId: number },
     TContext
   >;
 }): UseMutationOptions<
-  Awaited<ReturnType<typeof deleteFlashcardApiV1FlashcardsFlashcardIdDelete>>,
+  Awaited<ReturnType<typeof deleteFlashcard>>,
   TError,
   { flashcardId: number },
   TContext
 > => {
-  const mutationKey = ['deleteFlashcardApiV1FlashcardsFlashcardIdDelete'];
+  const mutationKey = ['deleteFlashcard'];
   const { mutation: mutationOptions } = options
     ? options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey
       ? options
@@ -464,33 +418,30 @@ export const getDeleteFlashcardApiV1FlashcardsFlashcardIdDeleteMutationOptions =
     : { mutation: { mutationKey } };
 
   const mutationFn: MutationFunction<
-    Awaited<ReturnType<typeof deleteFlashcardApiV1FlashcardsFlashcardIdDelete>>,
+    Awaited<ReturnType<typeof deleteFlashcard>>,
     { flashcardId: number }
   > = (props) => {
     const { flashcardId } = props ?? {};
 
-    return deleteFlashcardApiV1FlashcardsFlashcardIdDelete(flashcardId);
+    return deleteFlashcard(flashcardId);
   };
 
   return { mutationFn, ...mutationOptions };
 };
 
-export type DeleteFlashcardApiV1FlashcardsFlashcardIdDeleteMutationResult = NonNullable<
-  Awaited<ReturnType<typeof deleteFlashcardApiV1FlashcardsFlashcardIdDelete>>
+export type DeleteFlashcardMutationResult = NonNullable<
+  Awaited<ReturnType<typeof deleteFlashcard>>
 >;
 
-export type DeleteFlashcardApiV1FlashcardsFlashcardIdDeleteMutationError = HTTPValidationError;
+export type DeleteFlashcardMutationError = HTTPValidationError;
 
 /**
  * @summary Delete Flashcard
  */
-export const useDeleteFlashcardApiV1FlashcardsFlashcardIdDelete = <
-  TError = HTTPValidationError,
-  TContext = unknown,
->(
+export const useDeleteFlashcard = <TError = HTTPValidationError, TContext = unknown>(
   options?: {
     mutation?: UseMutationOptions<
-      Awaited<ReturnType<typeof deleteFlashcardApiV1FlashcardsFlashcardIdDelete>>,
+      Awaited<ReturnType<typeof deleteFlashcard>>,
       TError,
       { flashcardId: number },
       TContext
@@ -498,15 +449,12 @@ export const useDeleteFlashcardApiV1FlashcardsFlashcardIdDelete = <
   },
   queryClient?: QueryClient
 ): UseMutationResult<
-  Awaited<ReturnType<typeof deleteFlashcardApiV1FlashcardsFlashcardIdDelete>>,
+  Awaited<ReturnType<typeof deleteFlashcard>>,
   TError,
   { flashcardId: number },
   TContext
 > => {
-  return useMutation(
-    getDeleteFlashcardApiV1FlashcardsFlashcardIdDeleteMutationOptions(options),
-    queryClient
-  );
+  return useMutation(getDeleteFlashcardMutationOptions(options), queryClient);
 };
 /**
  * Get AI-generated flashcard suggestions for a highlight.
@@ -523,10 +471,7 @@ export const useDeleteFlashcardApiV1FlashcardsFlashcardIdDelete = <
  *     HTTPException 404: If highlight not found or not owned by user
  * @summary Get Highlight Flashcard Suggestions
  */
-export const getHighlightFlashcardSuggestionsApiV1HighlightsHighlightIdFlashcardSuggestionsGet = (
-  highlightId: number,
-  signal?: AbortSignal
-) => {
+export const getHighlightFlashcardSuggestions = (highlightId: number, signal?: AbortSignal) => {
   return axiosInstance<CollectionResponseFlashcardSuggestionItem>({
     url: `/api/v1/highlights/${highlightId}/flashcard_suggestions`,
     method: 'GET',
@@ -534,182 +479,95 @@ export const getHighlightFlashcardSuggestionsApiV1HighlightsHighlightIdFlashcard
   });
 };
 
-export const getGetHighlightFlashcardSuggestionsApiV1HighlightsHighlightIdFlashcardSuggestionsGetQueryKey =
-  (highlightId: number) => {
-    return [`/api/v1/highlights/${highlightId}/flashcard_suggestions`] as const;
-  };
+export const getGetHighlightFlashcardSuggestionsQueryKey = (highlightId: number) => {
+  return [`/api/v1/highlights/${highlightId}/flashcard_suggestions`] as const;
+};
 
-export const getGetHighlightFlashcardSuggestionsApiV1HighlightsHighlightIdFlashcardSuggestionsGetQueryOptions =
-  <
-    TData = Awaited<
-      ReturnType<
-        typeof getHighlightFlashcardSuggestionsApiV1HighlightsHighlightIdFlashcardSuggestionsGet
-      >
-    >,
-    TError = HTTPValidationError,
-  >(
-    highlightId: number,
-    options?: {
-      query?: Partial<
-        UseQueryOptions<
-          Awaited<
-            ReturnType<
-              typeof getHighlightFlashcardSuggestionsApiV1HighlightsHighlightIdFlashcardSuggestionsGet
-            >
-          >,
-          TError,
-          TData
-        >
-      >;
-    }
-  ) => {
-    const { query: queryOptions } = options ?? {};
+export const getGetHighlightFlashcardSuggestionsQueryOptions = <
+  TData = Awaited<ReturnType<typeof getHighlightFlashcardSuggestions>>,
+  TError = HTTPValidationError,
+>(
+  highlightId: number,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<Awaited<ReturnType<typeof getHighlightFlashcardSuggestions>>, TError, TData>
+    >;
+  }
+) => {
+  const { query: queryOptions } = options ?? {};
 
-    const queryKey =
-      queryOptions?.queryKey ??
-      getGetHighlightFlashcardSuggestionsApiV1HighlightsHighlightIdFlashcardSuggestionsGetQueryKey(
-        highlightId
-      );
+  const queryKey =
+    queryOptions?.queryKey ?? getGetHighlightFlashcardSuggestionsQueryKey(highlightId);
 
-    const queryFn: QueryFunction<
-      Awaited<
-        ReturnType<
-          typeof getHighlightFlashcardSuggestionsApiV1HighlightsHighlightIdFlashcardSuggestionsGet
-        >
-      >
-    > = ({ signal }) =>
-      getHighlightFlashcardSuggestionsApiV1HighlightsHighlightIdFlashcardSuggestionsGet(
-        highlightId,
-        signal
-      );
+  const queryFn: QueryFunction<Awaited<ReturnType<typeof getHighlightFlashcardSuggestions>>> = ({
+    signal,
+  }) => getHighlightFlashcardSuggestions(highlightId, signal);
 
-    return {
-      queryKey,
-      queryFn,
-      enabled: highlightId !== null && highlightId !== undefined,
-      ...queryOptions,
-    } as UseQueryOptions<
-      Awaited<
-        ReturnType<
-          typeof getHighlightFlashcardSuggestionsApiV1HighlightsHighlightIdFlashcardSuggestionsGet
-        >
-      >,
-      TError,
-      TData
-    > & { queryKey: DataTag<QueryKey, TData, TError> };
-  };
+  return {
+    queryKey,
+    queryFn,
+    enabled: highlightId !== null && highlightId !== undefined,
+    ...queryOptions,
+  } as UseQueryOptions<
+    Awaited<ReturnType<typeof getHighlightFlashcardSuggestions>>,
+    TError,
+    TData
+  > & { queryKey: DataTag<QueryKey, TData, TError> };
+};
 
-export type GetHighlightFlashcardSuggestionsApiV1HighlightsHighlightIdFlashcardSuggestionsGetQueryResult =
-  NonNullable<
-    Awaited<
-      ReturnType<
-        typeof getHighlightFlashcardSuggestionsApiV1HighlightsHighlightIdFlashcardSuggestionsGet
-      >
-    >
-  >;
-export type GetHighlightFlashcardSuggestionsApiV1HighlightsHighlightIdFlashcardSuggestionsGetQueryError =
-  HTTPValidationError;
+export type GetHighlightFlashcardSuggestionsQueryResult = NonNullable<
+  Awaited<ReturnType<typeof getHighlightFlashcardSuggestions>>
+>;
+export type GetHighlightFlashcardSuggestionsQueryError = HTTPValidationError;
 
-export function useGetHighlightFlashcardSuggestionsApiV1HighlightsHighlightIdFlashcardSuggestionsGet<
-  TData = Awaited<
-    ReturnType<
-      typeof getHighlightFlashcardSuggestionsApiV1HighlightsHighlightIdFlashcardSuggestionsGet
-    >
-  >,
+export function useGetHighlightFlashcardSuggestions<
+  TData = Awaited<ReturnType<typeof getHighlightFlashcardSuggestions>>,
   TError = HTTPValidationError,
 >(
   highlightId: number,
   options: {
     query: Partial<
-      UseQueryOptions<
-        Awaited<
-          ReturnType<
-            typeof getHighlightFlashcardSuggestionsApiV1HighlightsHighlightIdFlashcardSuggestionsGet
-          >
-        >,
-        TError,
-        TData
-      >
+      UseQueryOptions<Awaited<ReturnType<typeof getHighlightFlashcardSuggestions>>, TError, TData>
     > &
       Pick<
         DefinedInitialDataOptions<
-          Awaited<
-            ReturnType<
-              typeof getHighlightFlashcardSuggestionsApiV1HighlightsHighlightIdFlashcardSuggestionsGet
-            >
-          >,
+          Awaited<ReturnType<typeof getHighlightFlashcardSuggestions>>,
           TError,
-          Awaited<
-            ReturnType<
-              typeof getHighlightFlashcardSuggestionsApiV1HighlightsHighlightIdFlashcardSuggestionsGet
-            >
-          >
+          Awaited<ReturnType<typeof getHighlightFlashcardSuggestions>>
         >,
         'initialData'
       >;
   },
   queryClient?: QueryClient
 ): DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
-export function useGetHighlightFlashcardSuggestionsApiV1HighlightsHighlightIdFlashcardSuggestionsGet<
-  TData = Awaited<
-    ReturnType<
-      typeof getHighlightFlashcardSuggestionsApiV1HighlightsHighlightIdFlashcardSuggestionsGet
-    >
-  >,
+export function useGetHighlightFlashcardSuggestions<
+  TData = Awaited<ReturnType<typeof getHighlightFlashcardSuggestions>>,
   TError = HTTPValidationError,
 >(
   highlightId: number,
   options?: {
     query?: Partial<
-      UseQueryOptions<
-        Awaited<
-          ReturnType<
-            typeof getHighlightFlashcardSuggestionsApiV1HighlightsHighlightIdFlashcardSuggestionsGet
-          >
-        >,
-        TError,
-        TData
-      >
+      UseQueryOptions<Awaited<ReturnType<typeof getHighlightFlashcardSuggestions>>, TError, TData>
     > &
       Pick<
         UndefinedInitialDataOptions<
-          Awaited<
-            ReturnType<
-              typeof getHighlightFlashcardSuggestionsApiV1HighlightsHighlightIdFlashcardSuggestionsGet
-            >
-          >,
+          Awaited<ReturnType<typeof getHighlightFlashcardSuggestions>>,
           TError,
-          Awaited<
-            ReturnType<
-              typeof getHighlightFlashcardSuggestionsApiV1HighlightsHighlightIdFlashcardSuggestionsGet
-            >
-          >
+          Awaited<ReturnType<typeof getHighlightFlashcardSuggestions>>
         >,
         'initialData'
       >;
   },
   queryClient?: QueryClient
 ): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
-export function useGetHighlightFlashcardSuggestionsApiV1HighlightsHighlightIdFlashcardSuggestionsGet<
-  TData = Awaited<
-    ReturnType<
-      typeof getHighlightFlashcardSuggestionsApiV1HighlightsHighlightIdFlashcardSuggestionsGet
-    >
-  >,
+export function useGetHighlightFlashcardSuggestions<
+  TData = Awaited<ReturnType<typeof getHighlightFlashcardSuggestions>>,
   TError = HTTPValidationError,
 >(
   highlightId: number,
   options?: {
     query?: Partial<
-      UseQueryOptions<
-        Awaited<
-          ReturnType<
-            typeof getHighlightFlashcardSuggestionsApiV1HighlightsHighlightIdFlashcardSuggestionsGet
-          >
-        >,
-        TError,
-        TData
-      >
+      UseQueryOptions<Awaited<ReturnType<typeof getHighlightFlashcardSuggestions>>, TError, TData>
     >;
   },
   queryClient?: QueryClient
@@ -718,35 +576,19 @@ export function useGetHighlightFlashcardSuggestionsApiV1HighlightsHighlightIdFla
  * @summary Get Highlight Flashcard Suggestions
  */
 
-export function useGetHighlightFlashcardSuggestionsApiV1HighlightsHighlightIdFlashcardSuggestionsGet<
-  TData = Awaited<
-    ReturnType<
-      typeof getHighlightFlashcardSuggestionsApiV1HighlightsHighlightIdFlashcardSuggestionsGet
-    >
-  >,
+export function useGetHighlightFlashcardSuggestions<
+  TData = Awaited<ReturnType<typeof getHighlightFlashcardSuggestions>>,
   TError = HTTPValidationError,
 >(
   highlightId: number,
   options?: {
     query?: Partial<
-      UseQueryOptions<
-        Awaited<
-          ReturnType<
-            typeof getHighlightFlashcardSuggestionsApiV1HighlightsHighlightIdFlashcardSuggestionsGet
-          >
-        >,
-        TError,
-        TData
-      >
+      UseQueryOptions<Awaited<ReturnType<typeof getHighlightFlashcardSuggestions>>, TError, TData>
     >;
   },
   queryClient?: QueryClient
 ): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
-  const queryOptions =
-    getGetHighlightFlashcardSuggestionsApiV1HighlightsHighlightIdFlashcardSuggestionsGetQueryOptions(
-      highlightId,
-      options
-    );
+  const queryOptions = getGetHighlightFlashcardSuggestionsQueryOptions(highlightId, options);
 
   const query = useQuery(queryOptions, queryClient) as UseQueryResult<TData, TError> & {
     queryKey: DataTag<QueryKey, TData, TError>;
@@ -761,10 +603,7 @@ export function useGetHighlightFlashcardSuggestionsApiV1HighlightsHighlightIdFla
  * Requires the chapter to have a generated pre-reading summary.
  * @summary Get Chapter Flashcard Suggestions
  */
-export const getChapterFlashcardSuggestionsApiV1ChaptersChapterIdFlashcardSuggestionsGet = (
-  chapterId: number,
-  signal?: AbortSignal
-) => {
+export const getChapterFlashcardSuggestions = (chapterId: number, signal?: AbortSignal) => {
   return axiosInstance<CollectionResponseFlashcardSuggestionItem>({
     url: `/api/v1/chapters/${chapterId}/flashcard_suggestions`,
     method: 'GET',
@@ -772,172 +611,94 @@ export const getChapterFlashcardSuggestionsApiV1ChaptersChapterIdFlashcardSugges
   });
 };
 
-export const getGetChapterFlashcardSuggestionsApiV1ChaptersChapterIdFlashcardSuggestionsGetQueryKey =
-  (chapterId: number) => {
-    return [`/api/v1/chapters/${chapterId}/flashcard_suggestions`] as const;
-  };
+export const getGetChapterFlashcardSuggestionsQueryKey = (chapterId: number) => {
+  return [`/api/v1/chapters/${chapterId}/flashcard_suggestions`] as const;
+};
 
-export const getGetChapterFlashcardSuggestionsApiV1ChaptersChapterIdFlashcardSuggestionsGetQueryOptions =
-  <
-    TData = Awaited<
-      ReturnType<typeof getChapterFlashcardSuggestionsApiV1ChaptersChapterIdFlashcardSuggestionsGet>
-    >,
-    TError = HTTPValidationError,
-  >(
-    chapterId: number,
-    options?: {
-      query?: Partial<
-        UseQueryOptions<
-          Awaited<
-            ReturnType<
-              typeof getChapterFlashcardSuggestionsApiV1ChaptersChapterIdFlashcardSuggestionsGet
-            >
-          >,
-          TError,
-          TData
-        >
-      >;
-    }
-  ) => {
-    const { query: queryOptions } = options ?? {};
+export const getGetChapterFlashcardSuggestionsQueryOptions = <
+  TData = Awaited<ReturnType<typeof getChapterFlashcardSuggestions>>,
+  TError = HTTPValidationError,
+>(
+  chapterId: number,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<Awaited<ReturnType<typeof getChapterFlashcardSuggestions>>, TError, TData>
+    >;
+  }
+) => {
+  const { query: queryOptions } = options ?? {};
 
-    const queryKey =
-      queryOptions?.queryKey ??
-      getGetChapterFlashcardSuggestionsApiV1ChaptersChapterIdFlashcardSuggestionsGetQueryKey(
-        chapterId
-      );
+  const queryKey = queryOptions?.queryKey ?? getGetChapterFlashcardSuggestionsQueryKey(chapterId);
 
-    const queryFn: QueryFunction<
-      Awaited<
-        ReturnType<
-          typeof getChapterFlashcardSuggestionsApiV1ChaptersChapterIdFlashcardSuggestionsGet
-        >
-      >
-    > = ({ signal }) =>
-      getChapterFlashcardSuggestionsApiV1ChaptersChapterIdFlashcardSuggestionsGet(
-        chapterId,
-        signal
-      );
+  const queryFn: QueryFunction<Awaited<ReturnType<typeof getChapterFlashcardSuggestions>>> = ({
+    signal,
+  }) => getChapterFlashcardSuggestions(chapterId, signal);
 
-    return {
-      queryKey,
-      queryFn,
-      enabled: chapterId !== null && chapterId !== undefined,
-      ...queryOptions,
-    } as UseQueryOptions<
-      Awaited<
-        ReturnType<
-          typeof getChapterFlashcardSuggestionsApiV1ChaptersChapterIdFlashcardSuggestionsGet
-        >
-      >,
-      TError,
-      TData
-    > & { queryKey: DataTag<QueryKey, TData, TError> };
-  };
+  return {
+    queryKey,
+    queryFn,
+    enabled: chapterId !== null && chapterId !== undefined,
+    ...queryOptions,
+  } as UseQueryOptions<
+    Awaited<ReturnType<typeof getChapterFlashcardSuggestions>>,
+    TError,
+    TData
+  > & { queryKey: DataTag<QueryKey, TData, TError> };
+};
 
-export type GetChapterFlashcardSuggestionsApiV1ChaptersChapterIdFlashcardSuggestionsGetQueryResult =
-  NonNullable<
-    Awaited<
-      ReturnType<typeof getChapterFlashcardSuggestionsApiV1ChaptersChapterIdFlashcardSuggestionsGet>
-    >
-  >;
-export type GetChapterFlashcardSuggestionsApiV1ChaptersChapterIdFlashcardSuggestionsGetQueryError =
-  HTTPValidationError;
+export type GetChapterFlashcardSuggestionsQueryResult = NonNullable<
+  Awaited<ReturnType<typeof getChapterFlashcardSuggestions>>
+>;
+export type GetChapterFlashcardSuggestionsQueryError = HTTPValidationError;
 
-export function useGetChapterFlashcardSuggestionsApiV1ChaptersChapterIdFlashcardSuggestionsGet<
-  TData = Awaited<
-    ReturnType<typeof getChapterFlashcardSuggestionsApiV1ChaptersChapterIdFlashcardSuggestionsGet>
-  >,
+export function useGetChapterFlashcardSuggestions<
+  TData = Awaited<ReturnType<typeof getChapterFlashcardSuggestions>>,
   TError = HTTPValidationError,
 >(
   chapterId: number,
   options: {
     query: Partial<
-      UseQueryOptions<
-        Awaited<
-          ReturnType<
-            typeof getChapterFlashcardSuggestionsApiV1ChaptersChapterIdFlashcardSuggestionsGet
-          >
-        >,
-        TError,
-        TData
-      >
+      UseQueryOptions<Awaited<ReturnType<typeof getChapterFlashcardSuggestions>>, TError, TData>
     > &
       Pick<
         DefinedInitialDataOptions<
-          Awaited<
-            ReturnType<
-              typeof getChapterFlashcardSuggestionsApiV1ChaptersChapterIdFlashcardSuggestionsGet
-            >
-          >,
+          Awaited<ReturnType<typeof getChapterFlashcardSuggestions>>,
           TError,
-          Awaited<
-            ReturnType<
-              typeof getChapterFlashcardSuggestionsApiV1ChaptersChapterIdFlashcardSuggestionsGet
-            >
-          >
+          Awaited<ReturnType<typeof getChapterFlashcardSuggestions>>
         >,
         'initialData'
       >;
   },
   queryClient?: QueryClient
 ): DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
-export function useGetChapterFlashcardSuggestionsApiV1ChaptersChapterIdFlashcardSuggestionsGet<
-  TData = Awaited<
-    ReturnType<typeof getChapterFlashcardSuggestionsApiV1ChaptersChapterIdFlashcardSuggestionsGet>
-  >,
+export function useGetChapterFlashcardSuggestions<
+  TData = Awaited<ReturnType<typeof getChapterFlashcardSuggestions>>,
   TError = HTTPValidationError,
 >(
   chapterId: number,
   options?: {
     query?: Partial<
-      UseQueryOptions<
-        Awaited<
-          ReturnType<
-            typeof getChapterFlashcardSuggestionsApiV1ChaptersChapterIdFlashcardSuggestionsGet
-          >
-        >,
-        TError,
-        TData
-      >
+      UseQueryOptions<Awaited<ReturnType<typeof getChapterFlashcardSuggestions>>, TError, TData>
     > &
       Pick<
         UndefinedInitialDataOptions<
-          Awaited<
-            ReturnType<
-              typeof getChapterFlashcardSuggestionsApiV1ChaptersChapterIdFlashcardSuggestionsGet
-            >
-          >,
+          Awaited<ReturnType<typeof getChapterFlashcardSuggestions>>,
           TError,
-          Awaited<
-            ReturnType<
-              typeof getChapterFlashcardSuggestionsApiV1ChaptersChapterIdFlashcardSuggestionsGet
-            >
-          >
+          Awaited<ReturnType<typeof getChapterFlashcardSuggestions>>
         >,
         'initialData'
       >;
   },
   queryClient?: QueryClient
 ): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
-export function useGetChapterFlashcardSuggestionsApiV1ChaptersChapterIdFlashcardSuggestionsGet<
-  TData = Awaited<
-    ReturnType<typeof getChapterFlashcardSuggestionsApiV1ChaptersChapterIdFlashcardSuggestionsGet>
-  >,
+export function useGetChapterFlashcardSuggestions<
+  TData = Awaited<ReturnType<typeof getChapterFlashcardSuggestions>>,
   TError = HTTPValidationError,
 >(
   chapterId: number,
   options?: {
     query?: Partial<
-      UseQueryOptions<
-        Awaited<
-          ReturnType<
-            typeof getChapterFlashcardSuggestionsApiV1ChaptersChapterIdFlashcardSuggestionsGet
-          >
-        >,
-        TError,
-        TData
-      >
+      UseQueryOptions<Awaited<ReturnType<typeof getChapterFlashcardSuggestions>>, TError, TData>
     >;
   },
   queryClient?: QueryClient
@@ -946,33 +707,19 @@ export function useGetChapterFlashcardSuggestionsApiV1ChaptersChapterIdFlashcard
  * @summary Get Chapter Flashcard Suggestions
  */
 
-export function useGetChapterFlashcardSuggestionsApiV1ChaptersChapterIdFlashcardSuggestionsGet<
-  TData = Awaited<
-    ReturnType<typeof getChapterFlashcardSuggestionsApiV1ChaptersChapterIdFlashcardSuggestionsGet>
-  >,
+export function useGetChapterFlashcardSuggestions<
+  TData = Awaited<ReturnType<typeof getChapterFlashcardSuggestions>>,
   TError = HTTPValidationError,
 >(
   chapterId: number,
   options?: {
     query?: Partial<
-      UseQueryOptions<
-        Awaited<
-          ReturnType<
-            typeof getChapterFlashcardSuggestionsApiV1ChaptersChapterIdFlashcardSuggestionsGet
-          >
-        >,
-        TError,
-        TData
-      >
+      UseQueryOptions<Awaited<ReturnType<typeof getChapterFlashcardSuggestions>>, TError, TData>
     >;
   },
   queryClient?: QueryClient
 ): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
-  const queryOptions =
-    getGetChapterFlashcardSuggestionsApiV1ChaptersChapterIdFlashcardSuggestionsGetQueryOptions(
-      chapterId,
-      options
-    );
+  const queryOptions = getGetChapterFlashcardSuggestionsQueryOptions(chapterId, options);
 
   const query = useQuery(queryOptions, queryClient) as UseQueryResult<TData, TError> & {
     queryKey: DataTag<QueryKey, TData, TError>;
@@ -999,7 +746,7 @@ export function useGetChapterFlashcardSuggestionsApiV1ChaptersChapterIdFlashcard
  *     HTTPException: If highlight not found or creation fails
  * @summary Create Flashcard For Highlight
  */
-export const createFlashcardForHighlightApiV1HighlightsHighlightIdFlashcardsPost = (
+export const createFlashcardForHighlight = (
   highlightId: number,
   flashcardCreateRequest: FlashcardCreateRequest,
   signal?: AbortSignal
@@ -1013,64 +760,54 @@ export const createFlashcardForHighlightApiV1HighlightsHighlightIdFlashcardsPost
   });
 };
 
-export const getCreateFlashcardForHighlightApiV1HighlightsHighlightIdFlashcardsPostMutationOptions =
-  <TError = HTTPValidationError, TContext = unknown>(options?: {
-    mutation?: UseMutationOptions<
-      Awaited<
-        ReturnType<typeof createFlashcardForHighlightApiV1HighlightsHighlightIdFlashcardsPost>
-      >,
-      TError,
-      { highlightId: number; data: FlashcardCreateRequest },
-      TContext
-    >;
-  }): UseMutationOptions<
-    Awaited<ReturnType<typeof createFlashcardForHighlightApiV1HighlightsHighlightIdFlashcardsPost>>,
+export const getCreateFlashcardForHighlightMutationOptions = <
+  TError = HTTPValidationError,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof createFlashcardForHighlight>>,
     TError,
     { highlightId: number; data: FlashcardCreateRequest },
     TContext
-  > => {
-    const mutationKey = ['createFlashcardForHighlightApiV1HighlightsHighlightIdFlashcardsPost'];
-    const { mutation: mutationOptions } = options
-      ? options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey
-        ? options
-        : { ...options, mutation: { ...options.mutation, mutationKey } }
-      : { mutation: { mutationKey } };
+  >;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof createFlashcardForHighlight>>,
+  TError,
+  { highlightId: number; data: FlashcardCreateRequest },
+  TContext
+> => {
+  const mutationKey = ['createFlashcardForHighlight'];
+  const { mutation: mutationOptions } = options
+    ? options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey } };
 
-    const mutationFn: MutationFunction<
-      Awaited<
-        ReturnType<typeof createFlashcardForHighlightApiV1HighlightsHighlightIdFlashcardsPost>
-      >,
-      { highlightId: number; data: FlashcardCreateRequest }
-    > = (props) => {
-      const { highlightId, data } = props ?? {};
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof createFlashcardForHighlight>>,
+    { highlightId: number; data: FlashcardCreateRequest }
+  > = (props) => {
+    const { highlightId, data } = props ?? {};
 
-      return createFlashcardForHighlightApiV1HighlightsHighlightIdFlashcardsPost(highlightId, data);
-    };
-
-    return { mutationFn, ...mutationOptions };
+    return createFlashcardForHighlight(highlightId, data);
   };
 
-export type CreateFlashcardForHighlightApiV1HighlightsHighlightIdFlashcardsPostMutationResult =
-  NonNullable<
-    Awaited<ReturnType<typeof createFlashcardForHighlightApiV1HighlightsHighlightIdFlashcardsPost>>
-  >;
-export type CreateFlashcardForHighlightApiV1HighlightsHighlightIdFlashcardsPostMutationBody =
-  FlashcardCreateRequest;
-export type CreateFlashcardForHighlightApiV1HighlightsHighlightIdFlashcardsPostMutationError =
-  HTTPValidationError;
+  return { mutationFn, ...mutationOptions };
+};
+
+export type CreateFlashcardForHighlightMutationResult = NonNullable<
+  Awaited<ReturnType<typeof createFlashcardForHighlight>>
+>;
+export type CreateFlashcardForHighlightMutationBody = FlashcardCreateRequest;
+export type CreateFlashcardForHighlightMutationError = HTTPValidationError;
 
 /**
  * @summary Create Flashcard For Highlight
  */
-export const useCreateFlashcardForHighlightApiV1HighlightsHighlightIdFlashcardsPost = <
-  TError = HTTPValidationError,
-  TContext = unknown,
->(
+export const useCreateFlashcardForHighlight = <TError = HTTPValidationError, TContext = unknown>(
   options?: {
     mutation?: UseMutationOptions<
-      Awaited<
-        ReturnType<typeof createFlashcardForHighlightApiV1HighlightsHighlightIdFlashcardsPost>
-      >,
+      Awaited<ReturnType<typeof createFlashcardForHighlight>>,
       TError,
       { highlightId: number; data: FlashcardCreateRequest },
       TContext
@@ -1078,15 +815,12 @@ export const useCreateFlashcardForHighlightApiV1HighlightsHighlightIdFlashcardsP
   },
   queryClient?: QueryClient
 ): UseMutationResult<
-  Awaited<ReturnType<typeof createFlashcardForHighlightApiV1HighlightsHighlightIdFlashcardsPost>>,
+  Awaited<ReturnType<typeof createFlashcardForHighlight>>,
   TError,
   { highlightId: number; data: FlashcardCreateRequest },
   TContext
 > => {
-  return useMutation(
-    getCreateFlashcardForHighlightApiV1HighlightsHighlightIdFlashcardsPostMutationOptions(options),
-    queryClient
-  );
+  return useMutation(getCreateFlashcardForHighlightMutationOptions(options), queryClient);
 };
 /**
  * Create a flashcard linked to a note.
@@ -1106,7 +840,7 @@ export const useCreateFlashcardForHighlightApiV1HighlightsHighlightIdFlashcardsP
  *     HTTPException: If note not found or book is not linked to the note
  * @summary Create Flashcard For Note
  */
-export const createFlashcardForNoteApiV1NotesNoteIdFlashcardsPost = (
+export const createFlashcardForNote = (
   noteId: number,
   noteFlashcardCreateRequest: NoteFlashcardCreateRequest,
   signal?: AbortSignal
@@ -1120,23 +854,23 @@ export const createFlashcardForNoteApiV1NotesNoteIdFlashcardsPost = (
   });
 };
 
-export const getCreateFlashcardForNoteApiV1NotesNoteIdFlashcardsPostMutationOptions = <
+export const getCreateFlashcardForNoteMutationOptions = <
   TError = HTTPValidationError,
   TContext = unknown,
 >(options?: {
   mutation?: UseMutationOptions<
-    Awaited<ReturnType<typeof createFlashcardForNoteApiV1NotesNoteIdFlashcardsPost>>,
+    Awaited<ReturnType<typeof createFlashcardForNote>>,
     TError,
     { noteId: number; data: NoteFlashcardCreateRequest },
     TContext
   >;
 }): UseMutationOptions<
-  Awaited<ReturnType<typeof createFlashcardForNoteApiV1NotesNoteIdFlashcardsPost>>,
+  Awaited<ReturnType<typeof createFlashcardForNote>>,
   TError,
   { noteId: number; data: NoteFlashcardCreateRequest },
   TContext
 > => {
-  const mutationKey = ['createFlashcardForNoteApiV1NotesNoteIdFlashcardsPost'];
+  const mutationKey = ['createFlashcardForNote'];
   const { mutation: mutationOptions } = options
     ? options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey
       ? options
@@ -1144,34 +878,30 @@ export const getCreateFlashcardForNoteApiV1NotesNoteIdFlashcardsPostMutationOpti
     : { mutation: { mutationKey } };
 
   const mutationFn: MutationFunction<
-    Awaited<ReturnType<typeof createFlashcardForNoteApiV1NotesNoteIdFlashcardsPost>>,
+    Awaited<ReturnType<typeof createFlashcardForNote>>,
     { noteId: number; data: NoteFlashcardCreateRequest }
   > = (props) => {
     const { noteId, data } = props ?? {};
 
-    return createFlashcardForNoteApiV1NotesNoteIdFlashcardsPost(noteId, data);
+    return createFlashcardForNote(noteId, data);
   };
 
   return { mutationFn, ...mutationOptions };
 };
 
-export type CreateFlashcardForNoteApiV1NotesNoteIdFlashcardsPostMutationResult = NonNullable<
-  Awaited<ReturnType<typeof createFlashcardForNoteApiV1NotesNoteIdFlashcardsPost>>
+export type CreateFlashcardForNoteMutationResult = NonNullable<
+  Awaited<ReturnType<typeof createFlashcardForNote>>
 >;
-export type CreateFlashcardForNoteApiV1NotesNoteIdFlashcardsPostMutationBody =
-  NoteFlashcardCreateRequest;
-export type CreateFlashcardForNoteApiV1NotesNoteIdFlashcardsPostMutationError = HTTPValidationError;
+export type CreateFlashcardForNoteMutationBody = NoteFlashcardCreateRequest;
+export type CreateFlashcardForNoteMutationError = HTTPValidationError;
 
 /**
  * @summary Create Flashcard For Note
  */
-export const useCreateFlashcardForNoteApiV1NotesNoteIdFlashcardsPost = <
-  TError = HTTPValidationError,
-  TContext = unknown,
->(
+export const useCreateFlashcardForNote = <TError = HTTPValidationError, TContext = unknown>(
   options?: {
     mutation?: UseMutationOptions<
-      Awaited<ReturnType<typeof createFlashcardForNoteApiV1NotesNoteIdFlashcardsPost>>,
+      Awaited<ReturnType<typeof createFlashcardForNote>>,
       TError,
       { noteId: number; data: NoteFlashcardCreateRequest },
       TContext
@@ -1179,15 +909,12 @@ export const useCreateFlashcardForNoteApiV1NotesNoteIdFlashcardsPost = <
   },
   queryClient?: QueryClient
 ): UseMutationResult<
-  Awaited<ReturnType<typeof createFlashcardForNoteApiV1NotesNoteIdFlashcardsPost>>,
+  Awaited<ReturnType<typeof createFlashcardForNote>>,
   TError,
   { noteId: number; data: NoteFlashcardCreateRequest },
   TContext
 > => {
-  return useMutation(
-    getCreateFlashcardForNoteApiV1NotesNoteIdFlashcardsPostMutationOptions(options),
-    queryClient
-  );
+  return useMutation(getCreateFlashcardForNoteMutationOptions(options), queryClient);
 };
 /**
  * Get AI-generated flashcard suggestions for a note.
@@ -1207,10 +934,7 @@ export const useCreateFlashcardForNoteApiV1NotesNoteIdFlashcardsPost = <
  *     HTTPException 404: If note not found or not owned by user
  * @summary Get Note Flashcard Suggestions
  */
-export const getNoteFlashcardSuggestionsApiV1NotesNoteIdFlashcardSuggestionsGet = (
-  noteId: number,
-  signal?: AbortSignal
-) => {
+export const getNoteFlashcardSuggestions = (noteId: number, signal?: AbortSignal) => {
   return axiosInstance<CollectionResponseFlashcardSuggestionItem>({
     url: `/api/v1/notes/${noteId}/flashcard_suggestions`,
     method: 'GET',
@@ -1218,141 +942,92 @@ export const getNoteFlashcardSuggestionsApiV1NotesNoteIdFlashcardSuggestionsGet 
   });
 };
 
-export const getGetNoteFlashcardSuggestionsApiV1NotesNoteIdFlashcardSuggestionsGetQueryKey = (
-  noteId: number
-) => {
+export const getGetNoteFlashcardSuggestionsQueryKey = (noteId: number) => {
   return [`/api/v1/notes/${noteId}/flashcard_suggestions`] as const;
 };
 
-export const getGetNoteFlashcardSuggestionsApiV1NotesNoteIdFlashcardSuggestionsGetQueryOptions = <
-  TData = Awaited<
-    ReturnType<typeof getNoteFlashcardSuggestionsApiV1NotesNoteIdFlashcardSuggestionsGet>
-  >,
+export const getGetNoteFlashcardSuggestionsQueryOptions = <
+  TData = Awaited<ReturnType<typeof getNoteFlashcardSuggestions>>,
   TError = HTTPValidationError,
 >(
   noteId: number,
   options?: {
     query?: Partial<
-      UseQueryOptions<
-        Awaited<
-          ReturnType<typeof getNoteFlashcardSuggestionsApiV1NotesNoteIdFlashcardSuggestionsGet>
-        >,
-        TError,
-        TData
-      >
+      UseQueryOptions<Awaited<ReturnType<typeof getNoteFlashcardSuggestions>>, TError, TData>
     >;
   }
 ) => {
   const { query: queryOptions } = options ?? {};
 
-  const queryKey =
-    queryOptions?.queryKey ??
-    getGetNoteFlashcardSuggestionsApiV1NotesNoteIdFlashcardSuggestionsGetQueryKey(noteId);
+  const queryKey = queryOptions?.queryKey ?? getGetNoteFlashcardSuggestionsQueryKey(noteId);
 
-  const queryFn: QueryFunction<
-    Awaited<ReturnType<typeof getNoteFlashcardSuggestionsApiV1NotesNoteIdFlashcardSuggestionsGet>>
-  > = ({ signal }) =>
-    getNoteFlashcardSuggestionsApiV1NotesNoteIdFlashcardSuggestionsGet(noteId, signal);
+  const queryFn: QueryFunction<Awaited<ReturnType<typeof getNoteFlashcardSuggestions>>> = ({
+    signal,
+  }) => getNoteFlashcardSuggestions(noteId, signal);
 
   return {
     queryKey,
     queryFn,
     enabled: noteId !== null && noteId !== undefined,
     ...queryOptions,
-  } as UseQueryOptions<
-    Awaited<ReturnType<typeof getNoteFlashcardSuggestionsApiV1NotesNoteIdFlashcardSuggestionsGet>>,
-    TError,
-    TData
-  > & { queryKey: DataTag<QueryKey, TData, TError> };
+  } as UseQueryOptions<Awaited<ReturnType<typeof getNoteFlashcardSuggestions>>, TError, TData> & {
+    queryKey: DataTag<QueryKey, TData, TError>;
+  };
 };
 
-export type GetNoteFlashcardSuggestionsApiV1NotesNoteIdFlashcardSuggestionsGetQueryResult =
-  NonNullable<
-    Awaited<ReturnType<typeof getNoteFlashcardSuggestionsApiV1NotesNoteIdFlashcardSuggestionsGet>>
-  >;
-export type GetNoteFlashcardSuggestionsApiV1NotesNoteIdFlashcardSuggestionsGetQueryError =
-  HTTPValidationError;
+export type GetNoteFlashcardSuggestionsQueryResult = NonNullable<
+  Awaited<ReturnType<typeof getNoteFlashcardSuggestions>>
+>;
+export type GetNoteFlashcardSuggestionsQueryError = HTTPValidationError;
 
-export function useGetNoteFlashcardSuggestionsApiV1NotesNoteIdFlashcardSuggestionsGet<
-  TData = Awaited<
-    ReturnType<typeof getNoteFlashcardSuggestionsApiV1NotesNoteIdFlashcardSuggestionsGet>
-  >,
+export function useGetNoteFlashcardSuggestions<
+  TData = Awaited<ReturnType<typeof getNoteFlashcardSuggestions>>,
   TError = HTTPValidationError,
 >(
   noteId: number,
   options: {
     query: Partial<
-      UseQueryOptions<
-        Awaited<
-          ReturnType<typeof getNoteFlashcardSuggestionsApiV1NotesNoteIdFlashcardSuggestionsGet>
-        >,
-        TError,
-        TData
-      >
+      UseQueryOptions<Awaited<ReturnType<typeof getNoteFlashcardSuggestions>>, TError, TData>
     > &
       Pick<
         DefinedInitialDataOptions<
-          Awaited<
-            ReturnType<typeof getNoteFlashcardSuggestionsApiV1NotesNoteIdFlashcardSuggestionsGet>
-          >,
+          Awaited<ReturnType<typeof getNoteFlashcardSuggestions>>,
           TError,
-          Awaited<
-            ReturnType<typeof getNoteFlashcardSuggestionsApiV1NotesNoteIdFlashcardSuggestionsGet>
-          >
+          Awaited<ReturnType<typeof getNoteFlashcardSuggestions>>
         >,
         'initialData'
       >;
   },
   queryClient?: QueryClient
 ): DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
-export function useGetNoteFlashcardSuggestionsApiV1NotesNoteIdFlashcardSuggestionsGet<
-  TData = Awaited<
-    ReturnType<typeof getNoteFlashcardSuggestionsApiV1NotesNoteIdFlashcardSuggestionsGet>
-  >,
+export function useGetNoteFlashcardSuggestions<
+  TData = Awaited<ReturnType<typeof getNoteFlashcardSuggestions>>,
   TError = HTTPValidationError,
 >(
   noteId: number,
   options?: {
     query?: Partial<
-      UseQueryOptions<
-        Awaited<
-          ReturnType<typeof getNoteFlashcardSuggestionsApiV1NotesNoteIdFlashcardSuggestionsGet>
-        >,
-        TError,
-        TData
-      >
+      UseQueryOptions<Awaited<ReturnType<typeof getNoteFlashcardSuggestions>>, TError, TData>
     > &
       Pick<
         UndefinedInitialDataOptions<
-          Awaited<
-            ReturnType<typeof getNoteFlashcardSuggestionsApiV1NotesNoteIdFlashcardSuggestionsGet>
-          >,
+          Awaited<ReturnType<typeof getNoteFlashcardSuggestions>>,
           TError,
-          Awaited<
-            ReturnType<typeof getNoteFlashcardSuggestionsApiV1NotesNoteIdFlashcardSuggestionsGet>
-          >
+          Awaited<ReturnType<typeof getNoteFlashcardSuggestions>>
         >,
         'initialData'
       >;
   },
   queryClient?: QueryClient
 ): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
-export function useGetNoteFlashcardSuggestionsApiV1NotesNoteIdFlashcardSuggestionsGet<
-  TData = Awaited<
-    ReturnType<typeof getNoteFlashcardSuggestionsApiV1NotesNoteIdFlashcardSuggestionsGet>
-  >,
+export function useGetNoteFlashcardSuggestions<
+  TData = Awaited<ReturnType<typeof getNoteFlashcardSuggestions>>,
   TError = HTTPValidationError,
 >(
   noteId: number,
   options?: {
     query?: Partial<
-      UseQueryOptions<
-        Awaited<
-          ReturnType<typeof getNoteFlashcardSuggestionsApiV1NotesNoteIdFlashcardSuggestionsGet>
-        >,
-        TError,
-        TData
-      >
+      UseQueryOptions<Awaited<ReturnType<typeof getNoteFlashcardSuggestions>>, TError, TData>
     >;
   },
   queryClient?: QueryClient
@@ -1361,31 +1036,19 @@ export function useGetNoteFlashcardSuggestionsApiV1NotesNoteIdFlashcardSuggestio
  * @summary Get Note Flashcard Suggestions
  */
 
-export function useGetNoteFlashcardSuggestionsApiV1NotesNoteIdFlashcardSuggestionsGet<
-  TData = Awaited<
-    ReturnType<typeof getNoteFlashcardSuggestionsApiV1NotesNoteIdFlashcardSuggestionsGet>
-  >,
+export function useGetNoteFlashcardSuggestions<
+  TData = Awaited<ReturnType<typeof getNoteFlashcardSuggestions>>,
   TError = HTTPValidationError,
 >(
   noteId: number,
   options?: {
     query?: Partial<
-      UseQueryOptions<
-        Awaited<
-          ReturnType<typeof getNoteFlashcardSuggestionsApiV1NotesNoteIdFlashcardSuggestionsGet>
-        >,
-        TError,
-        TData
-      >
+      UseQueryOptions<Awaited<ReturnType<typeof getNoteFlashcardSuggestions>>, TError, TData>
     >;
   },
   queryClient?: QueryClient
 ): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
-  const queryOptions =
-    getGetNoteFlashcardSuggestionsApiV1NotesNoteIdFlashcardSuggestionsGetQueryOptions(
-      noteId,
-      options
-    );
+  const queryOptions = getGetNoteFlashcardSuggestionsQueryOptions(noteId, options);
 
   const query = useQuery(queryOptions, queryClient) as UseQueryResult<TData, TError> & {
     queryKey: DataTag<QueryKey, TData, TError>;

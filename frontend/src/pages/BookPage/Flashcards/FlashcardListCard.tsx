@@ -1,4 +1,4 @@
-import { useDeleteFlashcardApiV1FlashcardsFlashcardIdDelete } from '@/api/generated/flashcards/flashcards.ts';
+import { useDeleteFlashcard } from '@/api/generated/flashcards/flashcards.ts';
 import { IconButtonWithTooltip } from '@/components/buttons/IconButtonWithTooltip';
 import { ConfirmationDialog } from '@/components/dialogs/ConfirmationDialog.tsx';
 import { FlashcardWithContext } from '@/components/features/flashcards/FlashcardChapterList.tsx';
@@ -29,7 +29,7 @@ export const FlashcardListCard = ({
   const queryClient = useQueryClient();
   const { mutationErrorHandler, invalidateBookDetails } = useBookMutationHelpers(bookId);
 
-  const deleteMutation = useDeleteFlashcardApiV1FlashcardsFlashcardIdDelete({
+  const deleteMutation = useDeleteFlashcard({
     mutation: {
       onSuccess: () => {
         invalidateBookDetails();

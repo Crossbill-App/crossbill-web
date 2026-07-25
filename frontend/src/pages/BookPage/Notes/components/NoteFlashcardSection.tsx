@@ -1,9 +1,9 @@
 import {
-  useCreateFlashcardForNoteApiV1NotesNoteIdFlashcardsPost,
-  useGetNoteFlashcardSuggestionsApiV1NotesNoteIdFlashcardSuggestionsGet,
+  useCreateFlashcardForNote,
+  useGetNoteFlashcardSuggestions,
 } from '@/api/generated/flashcards/flashcards.ts';
 import type { NoteWithLinks } from '@/api/generated/model';
-import { getGetNoteApiV1NotesNoteIdGetQueryKey } from '@/api/generated/notes/notes.ts';
+import { getGetNoteQueryKey } from '@/api/generated/notes/notes.ts';
 import type { FlashcardWithContext } from '@/components/features/flashcards/FlashcardChapterList.tsx';
 import { FlashcardSection } from '@/components/features/flashcards/FlashcardSection.tsx';
 import { useAIFlashcardSuggestions } from '@/pages/BookPage/Flashcards/hooks/useAIFlashcardSuggestions.ts';
@@ -25,9 +25,9 @@ export const NoteFlashcardSection = ({
   bookId,
   disabled = false,
 }: NoteFlashcardSectionProps) => {
-  const noteQueryKey = getGetNoteApiV1NotesNoteIdGetQueryKey(note.id);
+  const noteQueryKey = getGetNoteQueryKey(note.id);
 
-  const createFlashcardMutation = useCreateFlashcardForNoteApiV1NotesNoteIdFlashcardsPost();
+  const createFlashcardMutation = useCreateFlashcardForNote();
   const { isProcessing, saveFlashcard, updateFlashcard } = useFlashcardMutations({
     bookId,
     additionalInvalidateKeys: [noteQueryKey],
@@ -39,14 +39,11 @@ export const NoteFlashcardSection = ({
       }),
   });
 
-  const { refetch } = useGetNoteFlashcardSuggestionsApiV1NotesNoteIdFlashcardSuggestionsGet(
-    note.id,
-    {
-      query: {
-        enabled: false,
-      },
-    }
-  );
+  const { refetch } = useGetNoteFlashcardSuggestions(note.id, {
+    query: {
+      enabled: false,
+    },
+  });
   const { isLoading, suggestions, fetchSuggestions, removeSuggestion } = useAIFlashcardSuggestions(
     async () => {
       const result = await refetch();

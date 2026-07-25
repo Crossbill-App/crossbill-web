@@ -1,5 +1,5 @@
 import type { Bookmark, ReadingSession } from '@/api/generated/model';
-import { useGetReadingSessionAiSummaryApiV1ReadingSessionIdAiSummaryGet } from '@/api/generated/reading-sessions/reading-sessions';
+import { useGetReadingSessionAiSummary } from '@/api/generated/reading-sessions/reading-sessions';
 import { AIActionButton } from '@/components/buttons/AIActionButton';
 import { HighlightCard } from '@/components/cards/HighlightCard';
 import { MetadataRow } from '@/components/cards/MetadataRow.tsx';
@@ -82,13 +82,12 @@ export const ReadingSessionCard = ({
 }: ReadingSessionCardProps) => {
   const { showSnackbar } = useSnackbar();
 
-  const { data, isLoading, error, refetch } =
-    useGetReadingSessionAiSummaryApiV1ReadingSessionIdAiSummaryGet(session.id, {
-      query: {
-        enabled: false,
-        retry: false,
-      },
-    });
+  const { data, isLoading, error, refetch } = useGetReadingSessionAiSummary(session.id, {
+    query: {
+      enabled: false,
+      retry: false,
+    },
+  });
 
   useEffect(() => {
     if (error) {

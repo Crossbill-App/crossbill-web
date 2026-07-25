@@ -1,6 +1,6 @@
 import {
-  getGetBookPrereadingApiV1BooksBookIdPrereadingGetQueryKey,
-  useGenerateChapterPrereadingApiV1ChaptersChapterIdPrereadingGeneratePost,
+  getGetBookPrereadingQueryKey,
+  useGenerateChapterPrereading,
 } from '@/api/generated/prereading/prereading';
 import { IconButtonWithTooltip } from '@/components/buttons/IconButtonWithTooltip.tsx';
 import { DialogToolbar } from '@/components/dialogs/DialogToolbar.tsx';
@@ -18,16 +18,15 @@ interface ChapterToolbarProps {
 export const ChapterToolbar = ({ chapterId, bookId, hasSummary }: ChapterToolbarProps) => {
   const queryClient = useQueryClient();
 
-  const { mutate: generate, isPending } =
-    useGenerateChapterPrereadingApiV1ChaptersChapterIdPrereadingGeneratePost({
-      mutation: {
-        onSuccess: () => {
-          void queryClient.invalidateQueries({
-            queryKey: getGetBookPrereadingApiV1BooksBookIdPrereadingGetQueryKey(bookId),
-          });
-        },
+  const { mutate: generate, isPending } = useGenerateChapterPrereading({
+    mutation: {
+      onSuccess: () => {
+        void queryClient.invalidateQueries({
+          queryKey: getGetBookPrereadingQueryKey(bookId),
+        });
       },
-    });
+    },
+  });
 
   const handleGenerate = () => {
     generate({ chapterId });

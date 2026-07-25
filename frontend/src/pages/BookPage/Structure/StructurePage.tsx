@@ -1,6 +1,6 @@
 import type { ChapterPrereadingResponse, ChapterWithHighlights } from '@/api/generated/model';
-import { useGetNotesForBookApiV1BooksBookIdNotesGet } from '@/api/generated/notes/notes.ts';
-import { useGetBookPrereadingApiV1BooksBookIdPrereadingGet } from '@/api/generated/prereading/prereading';
+import { useGetNotesForBook } from '@/api/generated/notes/notes.ts';
+import { useGetBookPrereading } from '@/api/generated/prereading/prereading';
 import { useBookPage } from '@/pages/BookPage/BookPageContext';
 import { Box, Typography } from '@mui/material';
 import { keyBy } from 'lodash';
@@ -13,7 +13,7 @@ import { useChapterDetailsModal } from './hooks/useChapterDetailsModal.ts';
 export const StructurePage = () => {
   const { book } = useBookPage();
 
-  const { data: bookPrereading } = useGetBookPrereadingApiV1BooksBookIdPrereadingGet(book.id);
+  const { data: bookPrereading } = useGetBookPrereading(book.id);
 
   const prereadingByChapterId = useMemo(() => {
     const map: Record<number, ChapterPrereadingResponse> = {};
@@ -25,7 +25,7 @@ export const StructurePage = () => {
     return map;
   }, [bookPrereading]);
 
-  const { data: gistNotes } = useGetNotesForBookApiV1BooksBookIdNotesGet(book.id, {
+  const { data: gistNotes } = useGetNotesForBook(book.id, {
     kind: 'gist',
   });
 

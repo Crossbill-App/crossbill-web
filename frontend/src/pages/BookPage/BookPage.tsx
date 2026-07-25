@@ -1,7 +1,4 @@
-import {
-  getGetRecentlyViewedBooksApiV1BooksRecentlyViewedGetQueryKey,
-  useGetBookDetailsApiV1BooksBookIdGet,
-} from '@/api/generated/books/books';
+import { getGetRecentlyViewedBooksQueryKey, useGetBookDetails } from '@/api/generated/books/books';
 import { FadeInOut } from '@/components/animations/FadeInOut.tsx';
 import { Spinner } from '@/components/animations/Spinner.tsx';
 import { ScrollToTopButton } from '@/components/buttons/ScrollToTopButton.tsx';
@@ -17,7 +14,7 @@ import { useEffect, useState } from 'react';
 
 export const BookPage = () => {
   const { bookId } = useParams({ strict: false });
-  const { data: book, isLoading, isError } = useGetBookDetailsApiV1BooksBookIdGet(Number(bookId));
+  const { data: book, isLoading, isError } = useGetBookDetails(Number(bookId));
 
   const theme = useTheme();
   const isDesktop = useMediaQuery(theme.breakpoints.up('lg'));
@@ -28,7 +25,7 @@ export const BookPage = () => {
   // Update recently viewed on mount
   useEffect(() => {
     void queryClient.invalidateQueries({
-      queryKey: getGetRecentlyViewedBooksApiV1BooksRecentlyViewedGetQueryKey(),
+      queryKey: getGetRecentlyViewedBooksQueryKey(),
     });
   }, []);
 

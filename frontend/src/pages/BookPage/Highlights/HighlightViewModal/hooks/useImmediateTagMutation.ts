@@ -1,8 +1,5 @@
 import type { TagInBook } from '@/api/generated/model';
-import {
-  useAddTagToHighlightApiV1BooksBookIdHighlightHighlightIdTagPost,
-  useRemoveTagFromHighlightApiV1BooksBookIdHighlightHighlightIdTagTagIdDelete,
-} from '@/api/generated/tags/tags.ts';
+import { useAddTagToHighlight, useRemoveTagFromHighlight } from '@/api/generated/tags/tags.ts';
 import { useBookMutationHelpers } from '@/hooks/useBookMutationHelpers.ts';
 import { filter, map } from 'lodash';
 import { useEffect, useState } from 'react';
@@ -63,7 +60,7 @@ export const useImmediateTagMutation = ({
     setCurrentTags(initialTags);
   }, [highlightId, initialTags]);
 
-  const addTagMutation = useAddTagToHighlightApiV1BooksBookIdHighlightHighlightIdTagPost({
+  const addTagMutation = useAddTagToHighlight({
     mutation: {
       onSuccess: (data: { tags: TagInBook[] }) => {
         setCurrentTags(data.tags);
@@ -73,16 +70,15 @@ export const useImmediateTagMutation = ({
     },
   });
 
-  const removeTagMutation =
-    useRemoveTagFromHighlightApiV1BooksBookIdHighlightHighlightIdTagTagIdDelete({
-      mutation: {
-        onSuccess: (data: { tags: TagInBook[] }) => {
-          setCurrentTags(data.tags);
-          invalidateBookAndTags();
-        },
-        onError: mutationErrorHandler('remove tag'),
+  const removeTagMutation = useRemoveTagFromHighlight({
+    mutation: {
+      onSuccess: (data: { tags: TagInBook[] }) => {
+        setCurrentTags(data.tags);
+        invalidateBookAndTags();
       },
-    });
+      onError: mutationErrorHandler('remove tag'),
+    },
+  });
 
   const addTagToHighlight = async (tagName: string) => {
     setIsProcessing(true);

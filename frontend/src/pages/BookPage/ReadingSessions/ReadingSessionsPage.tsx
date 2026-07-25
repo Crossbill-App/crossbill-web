@@ -1,6 +1,6 @@
 import type { ReadingSession } from '@/api/generated/model';
-import { useGetBookReadingSessionsApiV1BooksBookIdReadingSessionsGet } from '@/api/generated/reading-sessions/reading-sessions';
-import { useGetTagsApiV1BooksBookIdTagsGet } from '@/api/generated/tags/tags';
+import { useGetBookReadingSessions } from '@/api/generated/reading-sessions/reading-sessions';
+import { useGetTags } from '@/api/generated/tags/tags';
 import { Spinner } from '@/components/animations/Spinner.tsx';
 import { useBookPage } from '@/pages/BookPage/BookPageContext';
 import { HighlightViewModal } from '@/pages/BookPage/Highlights/HighlightViewModal/HighlightViewModal';
@@ -29,15 +29,12 @@ export const ReadingSessionsPage = () => {
     [book.bookmarks]
   );
 
-  const { data: tagsResponse } = useGetTagsApiV1BooksBookIdTagsGet(book.id);
+  const { data: tagsResponse } = useGetTags(book.id);
 
-  const { data, isLoading, isError } = useGetBookReadingSessionsApiV1BooksBookIdReadingSessionsGet(
-    book.id,
-    {
-      limit: SESSIONS_PER_PAGE,
-      offset,
-    }
-  );
+  const { data, isLoading, isError } = useGetBookReadingSessions(book.id, {
+    limit: SESSIONS_PER_PAGE,
+    offset,
+  });
 
   const activeSession = useMemo(
     () => data?.items.find((s: ReadingSession) => s.id === activeSessionId) || null,

@@ -5,7 +5,7 @@
  * OpenAPI spec version: 0.1.0
  */
 
-export interface BodyLoginApiV1AuthLoginPost {
+export interface BodyLogin {
   grant_type?: string | null;
   username: string;
   password: string;

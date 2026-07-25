@@ -1,7 +1,4 @@
-import {
-  useCreateBookmarkApiV1BooksBookIdBookmarksPost,
-  useDeleteBookmarkApiV1BooksBookIdBookmarksBookmarkIdDelete,
-} from '@/api/generated/bookmarks/bookmarks.ts';
+import { useCreateBookmark, useDeleteBookmark } from '@/api/generated/bookmarks/bookmarks.ts';
 import type { Bookmark } from '@/api/generated/model';
 import { IconButtonWithTooltip } from '@/components/buttons/IconButtonWithTooltip.tsx';
 import { DialogToolbar } from '@/components/dialogs/DialogToolbar.tsx';
@@ -98,14 +95,14 @@ const useBookmarkMutations = (
   const { mutationErrorHandler, invalidateBookDetails } = useBookMutationHelpers(bookId);
   const [isProcessing, setIsProcessing] = useState(false);
 
-  const createBookmarkMutation = useCreateBookmarkApiV1BooksBookIdBookmarksPost({
+  const createBookmarkMutation = useCreateBookmark({
     mutation: {
       onSuccess: invalidateBookDetails,
       onError: mutationErrorHandler('create bookmark'),
     },
   });
 
-  const deleteBookmarkMutation = useDeleteBookmarkApiV1BooksBookIdBookmarksBookmarkIdDelete({
+  const deleteBookmarkMutation = useDeleteBookmark({
     mutation: {
       onSuccess: invalidateBookDetails,
       onError: mutationErrorHandler('delete bookmark'),

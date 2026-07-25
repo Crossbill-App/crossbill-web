@@ -3,9 +3,9 @@ import type {
   CollectionResponseChapterPrereadingResponse,
 } from '@/api/generated/model';
 import {
-  getGetBookPrereadingApiV1BooksBookIdPrereadingGetQueryKey,
-  useGenerateChapterPrereadingApiV1ChaptersChapterIdPrereadingGeneratePost,
-  useUpdatePrereadingAnswersApiV1ChaptersChapterIdPrereadingAnswersPut,
+  getGetBookPrereadingQueryKey,
+  useGenerateChapterPrereading,
+  useUpdatePrereadingAnswers,
 } from '@/api/generated/prereading/prereading';
 import { AIActionButton } from '@/components/buttons/AIActionButton.tsx';
 import { AIFeature } from '@/components/features/AIFeature.tsx';
@@ -47,40 +47,38 @@ export const ChapterReviewSection = ({
     ...(localEdits[chapterId] ?? {}),
   };
 
-  const { mutate: generate, isPending } =
-    useGenerateChapterPrereadingApiV1ChaptersChapterIdPrereadingGeneratePost({
-      mutation: {
-        onSuccess: () => {
-          void queryClient.invalidateQueries({
-            queryKey: getGetBookPrereadingApiV1BooksBookIdPrereadingGetQueryKey(bookId),
-          });
-        },
+  const { mutate: generate, isPending } = useGenerateChapterPrereading({
+    mutation: {
+      onSuccess: () => {
+        void queryClient.invalidateQueries({
+          queryKey: getGetBookPrereadingQueryKey(bookId),
+        });
       },
-    });
+    },
+  });
 
-  const queryKey = getGetBookPrereadingApiV1BooksBookIdPrereadingGetQueryKey(bookId);
+  const queryKey = getGetBookPrereadingQueryKey(bookId);
 
-  const { mutate: saveAnswers } =
-    useUpdatePrereadingAnswersApiV1ChaptersChapterIdPrereadingAnswersPut({
-      mutation: {
-        onSuccess: (updatedChapter) => {
-          queryClient.setQueryData<CollectionResponseChapterPrereadingResponse>(queryKey, (old) => {
-            if (!old) return old;
-            return {
-              ...old,
-              items: old.items.map((item) =>
-                item.chapter_id === updatedChapter.chapter_id
-                  ? { ...item, questions: updatedChapter.questions }
-                  : item
-              ),
-            };
-          });
-          setLocalEdits((prev) =>
-            Object.fromEntries(Object.entries(prev).filter(([key]) => Number(key) !== chapterId))
-          );
-        },
+  const { mutate: saveAnswers } = useUpdatePrereadingAnswers({
+    mutation: {
+      onSuccess: (updatedChapter) => {
+        queryClient.setQueryData<CollectionResponseChapterPrereadingResponse>(queryKey, (old) => {
+          if (!old) return old;
+          return {
+            ...old,
+            items: old.items.map((item) =>
+              item.chapter_id === updatedChapter.chapter_id
+                ? { ...item, questions: updatedChapter.questions }
+                : item
+            ),
+          };
+        });
+        setLocalEdits((prev) =>
+          Object.fromEntries(Object.entries(prev).filter(([key]) => Number(key) !== chapterId))
+        );
       },
-    });
+    },
+  });
 
   const saveNow = useCallback(
     (answersToSave: Record<number, string>) => {

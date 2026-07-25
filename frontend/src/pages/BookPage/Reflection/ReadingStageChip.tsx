@@ -1,4 +1,4 @@
-import { useUpdateReadingStageApiV1BooksBookIdReadingStagePut } from '@/api/generated/books/books.ts';
+import { useUpdateReadingStage } from '@/api/generated/books/books.ts';
 import { useBookMutationHelpers } from '@/hooks/useBookMutationHelpers.ts';
 import { Chip, Menu, MenuItem } from '@mui/material';
 import { useState } from 'react';
@@ -13,7 +13,7 @@ export const ReadingStageChip = ({ bookId, readingStage }: ReadingStageChipProps
   const [anchorEl, setAnchorEl] = useState<HTMLElement | null>(null);
   const { invalidateBookDetails, mutationErrorHandler } = useBookMutationHelpers(bookId);
 
-  const { mutate: updateStage, isPending } = useUpdateReadingStageApiV1BooksBookIdReadingStagePut({
+  const { mutate: updateStage, isPending } = useUpdateReadingStage({
     mutation: {
       onSuccess: () => invalidateBookDetails(),
       onError: mutationErrorHandler('update reading stage'),

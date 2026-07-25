@@ -1,8 +1,8 @@
 import type { Highlight } from '@/api/generated/model';
 import {
-  getGetNotesForBookApiV1BooksBookIdNotesGetQueryKey,
-  useDeleteNoteApiV1NotesNoteIdDelete,
-  useGetNoteApiV1NotesNoteIdGet,
+  getGetNotesForBookQueryKey,
+  useDeleteNote,
+  useGetNote,
 } from '@/api/generated/notes/notes.ts';
 import { FadeInOut } from '@/components/animations/FadeInOut.tsx';
 import { Spinner } from '@/components/animations/Spinner.tsx';
@@ -103,13 +103,13 @@ export const NoteViewModal = ({
       onNavigate: isEditing ? undefined : onNavigate,
     });
 
-  const { data: activeNote, isLoading, isError } = useGetNoteApiV1NotesNoteIdGet(noteId);
+  const { data: activeNote, isLoading, isError } = useGetNote(noteId);
 
-  const deleteMutation = useDeleteNoteApiV1NotesNoteIdDelete({
+  const deleteMutation = useDeleteNote({
     mutation: {
       onSuccess: () => {
         void queryClient.invalidateQueries({
-          queryKey: getGetNotesForBookApiV1BooksBookIdNotesGetQueryKey(book.id),
+          queryKey: getGetNotesForBookQueryKey(book.id),
         });
         setDeleteConfirmOpen(false);
         onClose();

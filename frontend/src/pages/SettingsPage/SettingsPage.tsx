@@ -1,4 +1,4 @@
-import { useUpdateMeApiV1UsersMePost } from '@/api/generated/users/users';
+import { useUpdateMe } from '@/api/generated/users/users';
 import { RHFTextField } from '@/components/inputs/RHFTextField.tsx';
 import { PageContainer } from '@/components/layout/Layouts.tsx';
 import { useAuth } from '@/context/AuthContext';
@@ -23,7 +23,7 @@ const EmailForm = () => {
     defaultValues: { email: user?.email ?? '' },
   });
 
-  const updateMutation = useUpdateMeApiV1UsersMePost();
+  const updateMutation = useUpdateMe();
 
   const onSubmit = async ({ email }: EmailFormValues) => {
     setSuccess(false);
@@ -108,7 +108,7 @@ const PasswordForm = () => {
     defaultValues: EMPTY_PASSWORD_FORM,
   });
 
-  const updateMutation = useUpdateMeApiV1UsersMePost();
+  const updateMutation = useUpdateMe();
 
   const onSubmit = async ({ currentPassword, newPassword }: PasswordFormValues) => {
     setSuccess(false);

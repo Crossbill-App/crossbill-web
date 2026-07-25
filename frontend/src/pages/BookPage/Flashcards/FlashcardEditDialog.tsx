@@ -1,4 +1,4 @@
-import { useUpdateFlashcardApiV1FlashcardsFlashcardIdPut } from '@/api/generated/flashcards/flashcards.ts';
+import { useUpdateFlashcard } from '@/api/generated/flashcards/flashcards.ts';
 import { CommonDialog } from '@/components/dialogs/CommonDialog.tsx';
 import type { FlashcardWithContext } from '@/components/features/flashcards/FlashcardChapterList.tsx';
 import { RHFTextField } from '@/components/inputs/RHFTextField.tsx';
@@ -40,7 +40,7 @@ export const FlashcardEditDialog = ({
     reset({ question: flashcard.question, answer: flashcard.answer });
   }, [flashcard, reset]);
 
-  const updateMutation = useUpdateFlashcardApiV1FlashcardsFlashcardIdPut({
+  const updateMutation = useUpdateFlashcard({
     mutation: {
       onSuccess: () => {
         invalidateBookDetails();

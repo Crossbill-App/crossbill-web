@@ -1,9 +1,9 @@
 import type { Note, NoteWithLinks, TagInBook } from '@/api/generated/model';
 import {
-  getGetNoteApiV1NotesNoteIdGetQueryKey,
-  getGetNotesForBookApiV1BooksBookIdNotesGetQueryKey,
-  useCreateNoteApiV1NotesPost,
-  useUpdateNoteApiV1NotesNoteIdPut,
+  getGetNoteQueryKey,
+  getGetNotesForBookQueryKey,
+  useCreateNote,
+  useUpdateNote,
 } from '@/api/generated/notes/notes.ts';
 import { RHFTextField } from '@/components/inputs/RHFTextField.tsx';
 import { TagInput } from '@/components/inputs/TagInput.tsx';
@@ -125,19 +125,19 @@ export const NoteEditorForm = forwardRef<NoteEditorFormHandle, NoteEditorFormPro
 
     const invalidateNotes = () => {
       void queryClient.invalidateQueries({
-        queryKey: getGetNotesForBookApiV1BooksBookIdNotesGetQueryKey(book.id),
+        queryKey: getGetNotesForBookQueryKey(book.id),
       });
       // Refresh the single-note detail so the view dialog reflects edits immediately.
       if (note) {
         void queryClient.invalidateQueries({
-          queryKey: getGetNoteApiV1NotesNoteIdGetQueryKey(note.id),
+          queryKey: getGetNoteQueryKey(note.id),
         });
       }
     };
 
     const { resolveTags, isCreating: isCreatingTag } = useNoteTagField(book.id);
 
-    const createMutation = useCreateNoteApiV1NotesPost({
+    const createMutation = useCreateNote({
       mutation: {
         onSuccess: (response) => {
           invalidateNotes();
@@ -147,7 +147,7 @@ export const NoteEditorForm = forwardRef<NoteEditorFormHandle, NoteEditorFormPro
         onError: mutationErrorHandler('create note'),
       },
     });
-    const updateMutation = useUpdateNoteApiV1NotesNoteIdPut({
+    const updateMutation = useUpdateNote({
       mutation: {
         onSuccess: () => {
           invalidateNotes();

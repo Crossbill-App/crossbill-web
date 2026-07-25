@@ -1,4 +1,4 @@
-import { useGetBookHighlightLabelsApiV1BooksBookIdHighlightLabelsGet } from '@/api/generated/highlight-labels/highlight-labels.ts';
+import { useGetBookHighlightLabels } from '@/api/generated/highlight-labels/highlight-labels.ts';
 import type { HighlightLabelInBook } from '@/api/generated/model';
 import { PaletteIcon } from '@/theme/Icons.tsx';
 import { getContrastColor } from '@/utils/colorUtils.ts';
@@ -82,7 +82,7 @@ export const HighlightLabelsList = ({
   onLabelClick,
   hideTitle,
 }: HighlightLabelsListProps) => {
-  const { data } = useGetBookHighlightLabelsApiV1BooksBookIdHighlightLabelsGet(bookId);
+  const { data } = useGetBookHighlightLabels(bookId);
   const labels = data?.items;
 
   if (!labels || labels.length < 2) {

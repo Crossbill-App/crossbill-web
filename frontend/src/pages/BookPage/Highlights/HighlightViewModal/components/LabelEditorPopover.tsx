@@ -1,6 +1,6 @@
 import {
-  getGetBookHighlightLabelsApiV1BooksBookIdHighlightLabelsGetQueryKey,
-  useUpdateHighlightLabelApiV1HighlightLabelsStyleIdPatch,
+  getGetBookHighlightLabelsQueryKey,
+  useUpdateHighlightLabel,
 } from '@/api/generated/highlight-labels/highlight-labels.ts';
 import { useBookMutationHelpers } from '@/hooks/useBookMutationHelpers.ts';
 import { LABEL_COLORS } from '@/utils/colorUtils.ts';
@@ -36,12 +36,12 @@ const LabelEditorContent = ({
   const { mutationErrorHandler, invalidateBookDetails } = useBookMutationHelpers(bookId);
   const [labelText, setLabelText] = useState(currentLabel || '');
 
-  const updateMutation = useUpdateHighlightLabelApiV1HighlightLabelsStyleIdPatch({
+  const updateMutation = useUpdateHighlightLabel({
     mutation: {
       onSuccess: () => {
         invalidateBookDetails();
         void queryClient.invalidateQueries({
-          queryKey: getGetBookHighlightLabelsApiV1BooksBookIdHighlightLabelsGetQueryKey(bookId),
+          queryKey: getGetBookHighlightLabelsQueryKey(bookId),
         });
       },
       onError: mutationErrorHandler('update label'),

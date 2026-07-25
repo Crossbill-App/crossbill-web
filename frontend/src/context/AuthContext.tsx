@@ -1,4 +1,4 @@
-import { getMeApiV1UsersMeGet } from '@/api/generated/users/users.ts';
+import { getMe } from '@/api/generated/users/users.ts';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from '@tanstack/react-router';
 import {
@@ -11,9 +11,9 @@ import {
   useState,
 } from 'react';
 import { AXIOS_INSTANCE } from '../api/axios-instance';
-import { useLoginApiV1AuthLoginPost } from '../api/generated/auth/auth';
+import { useLogin } from '../api/generated/auth/auth';
 import type { UserDetailsResponse } from '../api/generated/model';
-import { getRegisterApiV1UsersRegisterPostMutationOptions } from '../api/generated/users/users';
+import { getRegisterMutationOptions } from '../api/generated/users/users';
 import { clearTokens, getAccessToken, setAccessToken } from '../api/token-manager';
 
 interface AuthContextType {
@@ -36,8 +36,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const refreshTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const performTokenRefreshRef = useRef<(() => Promise<boolean>) | null>(null);
 
-  const loginMutation = useLoginApiV1AuthLoginPost();
-  const registerMutation = useMutation(getRegisterApiV1UsersRegisterPostMutationOptions());
+  const loginMutation = useLogin();
+  const registerMutation = useMutation(getRegisterMutationOptions());
 
   // Clear scheduled refresh
   const clearRefreshTimeout = useCallback(() => {
@@ -117,7 +117,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const refreshUser = useCallback(async () => {
     try {
-      const userData = await getMeApiV1UsersMeGet();
+      const userData = await getMe();
       setUser(userData);
     } catch {
       // If refresh fails, user might be logged out
@@ -132,7 +132,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const success = await performTokenRefresh();
       if (success) {
         try {
-          const userData = await getMeApiV1UsersMeGet();
+          const userData = await getMe();
           setUser(userData);
         } catch {
           // Token was refreshed but user fetch failed
@@ -161,7 +161,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     scheduleNextRefresh(response.expires_in);
 
     // Fetch user details after login
-    const userData = await getMeApiV1UsersMeGet();
+    const userData = await getMe();
     setUser(userData);
   };
 
@@ -175,7 +175,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     scheduleNextRefresh(response.expires_in);
 
     // Fetch user details after registration
-    const userData = await getMeApiV1UsersMeGet();
+    const userData = await getMe();
     setUser(userData);
   };
 

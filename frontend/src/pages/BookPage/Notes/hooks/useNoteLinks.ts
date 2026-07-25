@@ -1,8 +1,8 @@
 import type { NoteUpdateRequest, NoteWithLinks } from '@/api/generated/model';
 import {
-  getGetNoteApiV1NotesNoteIdGetQueryKey,
-  getGetNotesForBookApiV1BooksBookIdNotesGetQueryKey,
-  useUpdateNoteApiV1NotesNoteIdPut,
+  getGetNoteQueryKey,
+  getGetNotesForBookQueryKey,
+  useUpdateNote,
 } from '@/api/generated/notes/notes.ts';
 import { useSnackbar } from '@/context/SnackbarContext.tsx';
 import { useBookMutationHelpers } from '@/hooks/useBookMutationHelpers.ts';
@@ -27,14 +27,14 @@ export const useNoteLinks = ({ bookId }: UseNoteLinksOptions) => {
   const { showSnackbar } = useSnackbar();
   const { mutationErrorHandler } = useBookMutationHelpers(bookId);
 
-  const updateNoteMutation = useUpdateNoteApiV1NotesNoteIdPut({
+  const updateNoteMutation = useUpdateNote({
     mutation: {
       onSuccess: (_data, { noteId }) => {
         void queryClient.invalidateQueries({
-          queryKey: getGetNotesForBookApiV1BooksBookIdNotesGetQueryKey(bookId),
+          queryKey: getGetNotesForBookQueryKey(bookId),
         });
         void queryClient.invalidateQueries({
-          queryKey: getGetNoteApiV1NotesNoteIdGetQueryKey(noteId),
+          queryKey: getGetNoteQueryKey(noteId),
         });
       },
       onError: mutationErrorHandler('update note links'),

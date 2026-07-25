@@ -1,12 +1,12 @@
 import {
-  getGetActiveBookPrereadingBatchApiV1JobsBooksBookIdPrereadingGetQueryKey,
-  useCancelJobBatchApiV1JobsBatchesBatchIdDelete,
-  useEnqueueBookPrereadingApiV1JobsBooksBookIdPrereadingPost,
-  useGetActiveBookPrereadingBatchApiV1JobsBooksBookIdPrereadingGet,
-  useGetJobBatchApiV1JobsBatchesBatchIdGet,
+  getGetActiveBookPrereadingBatchQueryKey,
+  useCancelJobBatch,
+  useEnqueueBookPrereading,
+  useGetActiveBookPrereadingBatch,
+  useGetJobBatch,
 } from '@/api/generated/jobs/jobs';
 import type { JobBatchResponse } from '@/api/generated/model';
-import { getGetBookPrereadingApiV1BooksBookIdPrereadingGetQueryKey } from '@/api/generated/prereading/prereading';
+import { getGetBookPrereadingQueryKey } from '@/api/generated/prereading/prereading';
 import { IconButtonWithTooltip } from '@/components/buttons/IconButtonWithTooltip';
 import { AIFeature } from '@/components/features/AIFeature';
 import { useSnackbar } from '@/context/SnackbarContext';
@@ -49,7 +49,7 @@ export const BatchPrereadingToolbar = ({ bookId }: BatchPrereadingToolbarProps) 
   const handledTerminalRef = useRef<number | null>(null);
 
   // Check for an already-active batch on mount (survives page refresh)
-  useGetActiveBookPrereadingBatchApiV1JobsBooksBookIdPrereadingGet(bookId, {
+  useGetActiveBookPrereadingBatch(bookId, {
     query: {
       select: (response: JobBatchResponse | null) => {
         if (response && !isTerminal(response.status) && batchId === null) {
@@ -62,20 +62,19 @@ export const BatchPrereadingToolbar = ({ bookId }: BatchPrereadingToolbarProps) 
     },
   });
 
-  const { mutate: enqueue, isPending: isEnqueuing } =
-    useEnqueueBookPrereadingApiV1JobsBooksBookIdPrereadingPost({
-      mutation: {
-        onSuccess: (response) => {
-          handledTerminalRef.current = null;
-          setBatchId(response.id);
-        },
-        onError: () => {
-          showSnackbar('Failed to start batch generation.', 'error');
-        },
+  const { mutate: enqueue, isPending: isEnqueuing } = useEnqueueBookPrereading({
+    mutation: {
+      onSuccess: (response) => {
+        handledTerminalRef.current = null;
+        setBatchId(response.id);
       },
-    });
+      onError: () => {
+        showSnackbar('Failed to start batch generation.', 'error');
+      },
+    },
+  });
 
-  const { data: batch } = useGetJobBatchApiV1JobsBatchesBatchIdGet(batchId ?? 0, {
+  const { data: batch } = useGetJobBatch(batchId ?? 0, {
     query: {
       enabled: batchId !== null,
       refetchInterval: (query) => {
@@ -88,11 +87,10 @@ export const BatchPrereadingToolbar = ({ bookId }: BatchPrereadingToolbarProps) 
           handledTerminalRef.current = response.id;
 
           void queryClient.invalidateQueries({
-            queryKey: getGetBookPrereadingApiV1BooksBookIdPrereadingGetQueryKey(bookId),
+            queryKey: getGetBookPrereadingQueryKey(bookId),
           });
           void queryClient.invalidateQueries({
-            queryKey:
-              getGetActiveBookPrereadingBatchApiV1JobsBooksBookIdPrereadingGetQueryKey(bookId),
+            queryKey: getGetActiveBookPrereadingBatchQueryKey(bookId),
           });
 
           showCompletionMessage(response, showSnackbar);
@@ -106,13 +104,12 @@ export const BatchPrereadingToolbar = ({ bookId }: BatchPrereadingToolbarProps) 
     },
   });
 
-  const { mutate: cancelBatch } = useCancelJobBatchApiV1JobsBatchesBatchIdDelete({
+  const { mutate: cancelBatch } = useCancelJobBatch({
     mutation: {
       onSuccess: () => {
         showSnackbar('Batch generation cancelled.', 'info');
         void queryClient.invalidateQueries({
-          queryKey:
-            getGetActiveBookPrereadingBatchApiV1JobsBooksBookIdPrereadingGetQueryKey(bookId),
+          queryKey: getGetActiveBookPrereadingBatchQueryKey(bookId),
         });
         setBatchId(null);
       },

@@ -1,6 +1,6 @@
 import {
-  useCreateFlashcardForBookApiV1BooksBookIdFlashcardsPost,
-  useGetChapterFlashcardSuggestionsApiV1ChaptersChapterIdFlashcardSuggestionsGet,
+  useCreateFlashcardForBook,
+  useGetChapterFlashcardSuggestions,
 } from '@/api/generated/flashcards/flashcards.ts';
 import type {
   ChapterPrereadingResponse,
@@ -34,7 +34,7 @@ const useFlashcardMutations = (bookId: number, chapterId: number) => {
   const { mutationErrorHandler, invalidateBookDetails } = useBookMutationHelpers(bookId);
   const [isProcessing, setIsProcessing] = useState(false);
 
-  const createFlashcardMutation = useCreateFlashcardForBookApiV1BooksBookIdFlashcardsPost({
+  const createFlashcardMutation = useCreateFlashcardForBook({
     mutation: {
       onSuccess: invalidateBookDetails,
       onError: mutationErrorHandler('create flashcard'),
@@ -71,12 +71,11 @@ const useAIFlashcardSuggestions = (
   const [isLoading, setIsLoading] = useState(false);
   const [suggestions, setSuggestions] = useState<FlashcardSuggestionItem[]>([]);
 
-  const { refetch } =
-    useGetChapterFlashcardSuggestionsApiV1ChaptersChapterIdFlashcardSuggestionsGet(chapterId, {
-      query: {
-        enabled: false,
-      },
-    });
+  const { refetch } = useGetChapterFlashcardSuggestions(chapterId, {
+    query: {
+      enabled: false,
+    },
+  });
 
   const fetchSuggestions = async () => {
     setIsLoading(true);

@@ -1,6 +1,6 @@
 import {
-  useCreateFlashcardForHighlightApiV1HighlightsHighlightIdFlashcardsPost,
-  useGetHighlightFlashcardSuggestionsApiV1HighlightsHighlightIdFlashcardSuggestionsGet,
+  useCreateFlashcardForHighlight,
+  useGetHighlightFlashcardSuggestions,
 } from '@/api/generated/flashcards/flashcards.ts';
 import type { Highlight } from '@/api/generated/model';
 import type { FlashcardWithContext } from '@/components/features/flashcards/FlashcardChapterList.tsx';
@@ -24,8 +24,7 @@ export const HighlightFlashcardSection = ({
   bookId,
   disabled = false,
 }: HighlightFlashcardSectionProps) => {
-  const createFlashcardMutation =
-    useCreateFlashcardForHighlightApiV1HighlightsHighlightIdFlashcardsPost();
+  const createFlashcardMutation = useCreateFlashcardForHighlight();
   const { isProcessing, saveFlashcard, updateFlashcard } = useFlashcardMutations({
     bookId,
     createFlashcard: (question, answer) =>
@@ -35,15 +34,11 @@ export const HighlightFlashcardSection = ({
       }),
   });
 
-  const { refetch } =
-    useGetHighlightFlashcardSuggestionsApiV1HighlightsHighlightIdFlashcardSuggestionsGet(
-      highlight.id,
-      {
-        query: {
-          enabled: false,
-        },
-      }
-    );
+  const { refetch } = useGetHighlightFlashcardSuggestions(highlight.id, {
+    query: {
+      enabled: false,
+    },
+  });
   const { isLoading, suggestions, fetchSuggestions, removeSuggestion } = useAIFlashcardSuggestions(
     async () => {
       const result = await refetch();

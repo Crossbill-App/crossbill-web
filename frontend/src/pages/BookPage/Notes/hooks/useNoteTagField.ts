@@ -1,5 +1,5 @@
 import type { TagInBook } from '@/api/generated/model';
-import { useCreateTagApiV1BooksBookIdTagPost } from '@/api/generated/tags/tags.ts';
+import { useCreateTag } from '@/api/generated/tags/tags.ts';
 import { useBookMutationHelpers } from '@/hooks/useBookMutationHelpers.ts';
 
 /**
@@ -25,7 +25,7 @@ export interface NoteTagField {
 export const useNoteTagField = (bookId: number): NoteTagField => {
   const { mutationErrorHandler, invalidateBookAndTags } = useBookMutationHelpers(bookId);
 
-  const createTagMutation = useCreateTagApiV1BooksBookIdTagPost({
+  const createTagMutation = useCreateTag({
     mutation: {
       onSuccess: invalidateBookAndTags,
       onError: mutationErrorHandler('create tag'),

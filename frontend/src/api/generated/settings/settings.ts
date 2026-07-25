@@ -43,88 +43,77 @@ const withQueryKey = <T extends object, K>(query: T, queryKey: K): T & { queryKe
  * This is a public endpoint that doesn't require authentication.
  * @summary Get App Settings
  */
-export const getAppSettingsApiV1SettingsGet = (signal?: AbortSignal) => {
+export const getAppSettings = (signal?: AbortSignal) => {
   return axiosInstance<AppSettingsResponse>({ url: `/api/v1/settings`, method: 'GET', signal });
 };
 
-export const getGetAppSettingsApiV1SettingsGetQueryKey = () => {
+export const getGetAppSettingsQueryKey = () => {
   return [`/api/v1/settings`] as const;
 };
 
-export const getGetAppSettingsApiV1SettingsGetQueryOptions = <
-  TData = Awaited<ReturnType<typeof getAppSettingsApiV1SettingsGet>>,
+export const getGetAppSettingsQueryOptions = <
+  TData = Awaited<ReturnType<typeof getAppSettings>>,
   TError = unknown,
 >(options?: {
-  query?: Partial<
-    UseQueryOptions<Awaited<ReturnType<typeof getAppSettingsApiV1SettingsGet>>, TError, TData>
-  >;
+  query?: Partial<UseQueryOptions<Awaited<ReturnType<typeof getAppSettings>>, TError, TData>>;
 }) => {
   const { query: queryOptions } = options ?? {};
 
-  const queryKey = queryOptions?.queryKey ?? getGetAppSettingsApiV1SettingsGetQueryKey();
+  const queryKey = queryOptions?.queryKey ?? getGetAppSettingsQueryKey();
 
-  const queryFn: QueryFunction<Awaited<ReturnType<typeof getAppSettingsApiV1SettingsGet>>> = ({
-    signal,
-  }) => getAppSettingsApiV1SettingsGet(signal);
+  const queryFn: QueryFunction<Awaited<ReturnType<typeof getAppSettings>>> = ({ signal }) =>
+    getAppSettings(signal);
 
   return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
-    Awaited<ReturnType<typeof getAppSettingsApiV1SettingsGet>>,
+    Awaited<ReturnType<typeof getAppSettings>>,
     TError,
     TData
   > & { queryKey: DataTag<QueryKey, TData, TError> };
 };
 
-export type GetAppSettingsApiV1SettingsGetQueryResult = NonNullable<
-  Awaited<ReturnType<typeof getAppSettingsApiV1SettingsGet>>
->;
-export type GetAppSettingsApiV1SettingsGetQueryError = unknown;
+export type GetAppSettingsQueryResult = NonNullable<Awaited<ReturnType<typeof getAppSettings>>>;
+export type GetAppSettingsQueryError = unknown;
 
-export function useGetAppSettingsApiV1SettingsGet<
-  TData = Awaited<ReturnType<typeof getAppSettingsApiV1SettingsGet>>,
+export function useGetAppSettings<
+  TData = Awaited<ReturnType<typeof getAppSettings>>,
   TError = unknown,
 >(
   options: {
-    query: Partial<
-      UseQueryOptions<Awaited<ReturnType<typeof getAppSettingsApiV1SettingsGet>>, TError, TData>
-    > &
+    query: Partial<UseQueryOptions<Awaited<ReturnType<typeof getAppSettings>>, TError, TData>> &
       Pick<
         DefinedInitialDataOptions<
-          Awaited<ReturnType<typeof getAppSettingsApiV1SettingsGet>>,
+          Awaited<ReturnType<typeof getAppSettings>>,
           TError,
-          Awaited<ReturnType<typeof getAppSettingsApiV1SettingsGet>>
+          Awaited<ReturnType<typeof getAppSettings>>
         >,
         'initialData'
       >;
   },
   queryClient?: QueryClient
 ): DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
-export function useGetAppSettingsApiV1SettingsGet<
-  TData = Awaited<ReturnType<typeof getAppSettingsApiV1SettingsGet>>,
+export function useGetAppSettings<
+  TData = Awaited<ReturnType<typeof getAppSettings>>,
   TError = unknown,
 >(
   options?: {
-    query?: Partial<
-      UseQueryOptions<Awaited<ReturnType<typeof getAppSettingsApiV1SettingsGet>>, TError, TData>
-    > &
+    query?: Partial<UseQueryOptions<Awaited<ReturnType<typeof getAppSettings>>, TError, TData>> &
       Pick<
         UndefinedInitialDataOptions<
-          Awaited<ReturnType<typeof getAppSettingsApiV1SettingsGet>>,
+          Awaited<ReturnType<typeof getAppSettings>>,
           TError,
-          Awaited<ReturnType<typeof getAppSettingsApiV1SettingsGet>>
+          Awaited<ReturnType<typeof getAppSettings>>
         >,
         'initialData'
       >;
   },
   queryClient?: QueryClient
 ): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
-export function useGetAppSettingsApiV1SettingsGet<
-  TData = Awaited<ReturnType<typeof getAppSettingsApiV1SettingsGet>>,
+export function useGetAppSettings<
+  TData = Awaited<ReturnType<typeof getAppSettings>>,
   TError = unknown,
 >(
   options?: {
-    query?: Partial<
-      UseQueryOptions<Awaited<ReturnType<typeof getAppSettingsApiV1SettingsGet>>, TError, TData>
-    >;
+    query?: Partial<UseQueryOptions<Awaited<ReturnType<typeof getAppSettings>>, TError, TData>>;
   },
   queryClient?: QueryClient
 ): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
@@ -132,18 +121,16 @@ export function useGetAppSettingsApiV1SettingsGet<
  * @summary Get App Settings
  */
 
-export function useGetAppSettingsApiV1SettingsGet<
-  TData = Awaited<ReturnType<typeof getAppSettingsApiV1SettingsGet>>,
+export function useGetAppSettings<
+  TData = Awaited<ReturnType<typeof getAppSettings>>,
   TError = unknown,
 >(
   options?: {
-    query?: Partial<
-      UseQueryOptions<Awaited<ReturnType<typeof getAppSettingsApiV1SettingsGet>>, TError, TData>
-    >;
+    query?: Partial<UseQueryOptions<Awaited<ReturnType<typeof getAppSettings>>, TError, TData>>;
   },
   queryClient?: QueryClient
 ): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
-  const queryOptions = getGetAppSettingsApiV1SettingsGetQueryOptions(options);
+  const queryOptions = getGetAppSettingsQueryOptions(options);
 
   const query = useQuery(queryOptions, queryClient) as UseQueryResult<TData, TError> & {
     queryKey: DataTag<QueryKey, TData, TError>;

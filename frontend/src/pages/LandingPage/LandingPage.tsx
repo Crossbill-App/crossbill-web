@@ -1,4 +1,4 @@
-import { useGetBooksApiV1BooksGet } from '@/api/generated/books/books';
+import { useGetBooks } from '@/api/generated/books/books';
 import { Spinner } from '@/components/animations/Spinner.tsx';
 import { SearchBar } from '@/components/inputs/SearchBar.tsx';
 import { PageContainer } from '@/components/layout/Layouts.tsx';
@@ -19,7 +19,7 @@ export const LandingPage = () => {
   // Calculate offset for pagination
   const offset = (currentPage - 1) * BOOKS_PER_PAGE;
 
-  const { data, isLoading, isError } = useGetBooksApiV1BooksGet({
+  const { data, isLoading, isError } = useGetBooks({
     search: searchText || undefined,
     offset,
     limit: BOOKS_PER_PAGE,

@@ -1,5 +1,5 @@
-import { getGetBookDetailsApiV1BooksBookIdGetQueryKey } from '@/api/generated/books/books.ts';
-import { getGetTagsApiV1BooksBookIdTagsGetQueryKey } from '@/api/generated/tags/tags.ts';
+import { getGetBookDetailsQueryKey } from '@/api/generated/books/books.ts';
+import { getGetTagsQueryKey } from '@/api/generated/tags/tags.ts';
 import { useSnackbar } from '@/context/SnackbarContext.tsx';
 import { useQueryClient } from '@tanstack/react-query';
 
@@ -32,7 +32,7 @@ export const useBookMutationHelpers = (bookId: number) => {
   /** Invalidate the book details query. */
   const invalidateBookDetails = () => {
     void queryClient.invalidateQueries({
-      queryKey: getGetBookDetailsApiV1BooksBookIdGetQueryKey(bookId),
+      queryKey: getGetBookDetailsQueryKey(bookId),
     });
   };
 
@@ -40,7 +40,7 @@ export const useBookMutationHelpers = (bookId: number) => {
   const invalidateBookAndTags = () => {
     invalidateBookDetails();
     void queryClient.invalidateQueries({
-      queryKey: getGetTagsApiV1BooksBookIdTagsGetQueryKey(bookId),
+      queryKey: getGetTagsQueryKey(bookId),
     });
   };
 

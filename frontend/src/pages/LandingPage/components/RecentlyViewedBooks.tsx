@@ -1,4 +1,4 @@
-import { useGetRecentlyViewedBooksApiV1BooksRecentlyViewedGet } from '@/api/generated/books/books';
+import { useGetRecentlyViewedBooks } from '@/api/generated/books/books';
 import { Spinner } from '@/components/animations/Spinner.tsx';
 import { SectionTitle } from '@/components/typography/SectionTitle.tsx';
 import { Alert, Box } from '@mui/material';
@@ -7,7 +7,7 @@ import { BookList } from './BookList';
 const RECENTLY_VIEWED_LIMIT = 8;
 
 export const RecentlyViewedBooks = () => {
-  const { data, isLoading, isError } = useGetRecentlyViewedBooksApiV1BooksRecentlyViewedGet({
+  const { data, isLoading, isError } = useGetRecentlyViewedBooks({
     limit: RECENTLY_VIEWED_LIMIT,
   });
 

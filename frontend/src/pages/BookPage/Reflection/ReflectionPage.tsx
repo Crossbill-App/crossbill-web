@@ -4,11 +4,11 @@ import type {
   Note,
   NoteWithLinks,
 } from '@/api/generated/model';
-import { useGetNotesForBookApiV1BooksBookIdNotesGet } from '@/api/generated/notes/notes.ts';
+import { useGetNotesForBook } from '@/api/generated/notes/notes.ts';
 import {
-  getGetBookReflectionApiV1BooksBookIdReflectionGetQueryKey,
-  useGetBookReflectionApiV1BooksBookIdReflectionGet,
-  useUpsertBookReflectionApiV1BooksBookIdReflectionPut,
+  getGetBookReflectionQueryKey,
+  useGetBookReflection,
+  useUpsertBookReflection,
 } from '@/api/generated/reflections/reflections.ts';
 import { Spinner } from '@/components/animations/Spinner.tsx';
 import { IconButtonWithTooltip } from '@/components/buttons/IconButtonWithTooltip.tsx';
@@ -71,9 +71,9 @@ export const ReflectionPage = () => {
   const queryClient = useQueryClient();
   const { mutationErrorHandler } = useBookMutationHelpers(bookId);
 
-  const queryKey = getGetBookReflectionApiV1BooksBookIdReflectionGetQueryKey(bookId);
-  const { data: reflection, isLoading } = useGetBookReflectionApiV1BooksBookIdReflectionGet(bookId);
-  const { data: notesData } = useGetNotesForBookApiV1BooksBookIdNotesGet(bookId);
+  const queryKey = getGetBookReflectionQueryKey(bookId);
+  const { data: reflection, isLoading } = useGetBookReflection(bookId);
+  const { data: notesData } = useGetNotesForBook(bookId);
   const allNotes = notesData?.items ?? [];
   const notesById = new Map(allNotes.map((note) => [note.id, note]));
 
@@ -81,7 +81,7 @@ export const ReflectionPage = () => {
 
   const server = reflection ?? emptyReflection(bookId);
 
-  const { mutate: save } = useUpsertBookReflectionApiV1BooksBookIdReflectionPut({
+  const { mutate: save } = useUpsertBookReflection({
     mutation: {
       onSuccess: (updated) => {
         queryClient.setQueryData<BookReflectionResponse>(queryKey, updated);

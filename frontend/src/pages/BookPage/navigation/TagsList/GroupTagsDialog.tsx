@@ -1,5 +1,5 @@
 import { TagGroupInBook, TagInBook } from '@/api/generated/model';
-import { useUpdateTagApiV1BooksBookIdTagTagIdPost } from '@/api/generated/tags/tags.ts';
+import { useUpdateTag } from '@/api/generated/tags/tags.ts';
 import { CommonDialog } from '@/components/dialogs/CommonDialog.tsx';
 import { useBookMutationHelpers } from '@/hooks/useBookMutationHelpers.ts';
 import {
@@ -35,7 +35,7 @@ export const GroupTagsDialog = ({
   onClose,
 }: GroupTagsDialogProps) => {
   const { mutationErrorHandler, invalidateBookAndTags } = useBookMutationHelpers(bookId);
-  const updateMutation = useUpdateTagApiV1BooksBookIdTagTagIdPost();
+  const updateMutation = useUpdateTag();
 
   const [orderedTags, setOrderedTags] = useState<TagInBook[]>([]);
   const [checkedIds, setCheckedIds] = useState<Set<number>>(new Set());

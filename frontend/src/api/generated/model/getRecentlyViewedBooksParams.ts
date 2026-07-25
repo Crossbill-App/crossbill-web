@@ -5,7 +5,7 @@
  * OpenAPI spec version: 0.1.0
  */
 
-export type GetRecentlyViewedBooksApiV1BooksRecentlyViewedGetParams = {
+export type GetRecentlyViewedBooksParams = {
   /**
    * Maximum number of books to return
    * @minimum 1

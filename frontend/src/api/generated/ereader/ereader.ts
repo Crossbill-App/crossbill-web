@@ -21,7 +21,7 @@ import type {
 import { useMutation, useQuery } from '@tanstack/react-query';
 
 import type {
-  BodyUploadBookEpubApiV1EreaderBooksClientBookIdEpubPost,
+  BodyUploadBookEpub,
   BookCreate,
   CollectionResponseEreaderChapterPrereadingItem,
   EreaderBookMetadata,
@@ -61,7 +61,7 @@ const withQueryKey = <T extends object, K>(query: T, queryKey: K): T & { queryKe
  *     EreaderBookMetadata with book_id, bookname, author, cover_file, has_epub
  * @summary Create Book
  */
-export const createBookApiV1EreaderBooksPost = (bookCreate: BookCreate, signal?: AbortSignal) => {
+export const createBook = (bookCreate: BookCreate, signal?: AbortSignal) => {
   return axiosInstance<EreaderBookMetadata>({
     url: `/api/v1/ereader/books`,
     method: 'POST',
@@ -71,23 +71,23 @@ export const createBookApiV1EreaderBooksPost = (bookCreate: BookCreate, signal?:
   });
 };
 
-export const getCreateBookApiV1EreaderBooksPostMutationOptions = <
+export const getCreateBookMutationOptions = <
   TError = HTTPValidationError,
   TContext = unknown,
 >(options?: {
   mutation?: UseMutationOptions<
-    Awaited<ReturnType<typeof createBookApiV1EreaderBooksPost>>,
+    Awaited<ReturnType<typeof createBook>>,
     TError,
     { data: BookCreate },
     TContext
   >;
 }): UseMutationOptions<
-  Awaited<ReturnType<typeof createBookApiV1EreaderBooksPost>>,
+  Awaited<ReturnType<typeof createBook>>,
   TError,
   { data: BookCreate },
   TContext
 > => {
-  const mutationKey = ['createBookApiV1EreaderBooksPost'];
+  const mutationKey = ['createBook'];
   const { mutation: mutationOptions } = options
     ? options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey
       ? options
@@ -95,33 +95,28 @@ export const getCreateBookApiV1EreaderBooksPostMutationOptions = <
     : { mutation: { mutationKey } };
 
   const mutationFn: MutationFunction<
-    Awaited<ReturnType<typeof createBookApiV1EreaderBooksPost>>,
+    Awaited<ReturnType<typeof createBook>>,
     { data: BookCreate }
   > = (props) => {
     const { data } = props ?? {};
 
-    return createBookApiV1EreaderBooksPost(data);
+    return createBook(data);
   };
 
   return { mutationFn, ...mutationOptions };
 };
 
-export type CreateBookApiV1EreaderBooksPostMutationResult = NonNullable<
-  Awaited<ReturnType<typeof createBookApiV1EreaderBooksPost>>
->;
-export type CreateBookApiV1EreaderBooksPostMutationBody = BookCreate;
-export type CreateBookApiV1EreaderBooksPostMutationError = HTTPValidationError;
+export type CreateBookMutationResult = NonNullable<Awaited<ReturnType<typeof createBook>>>;
+export type CreateBookMutationBody = BookCreate;
+export type CreateBookMutationError = HTTPValidationError;
 
 /**
  * @summary Create Book
  */
-export const useCreateBookApiV1EreaderBooksPost = <
-  TError = HTTPValidationError,
-  TContext = unknown,
->(
+export const useCreateBook = <TError = HTTPValidationError, TContext = unknown>(
   options?: {
     mutation?: UseMutationOptions<
-      Awaited<ReturnType<typeof createBookApiV1EreaderBooksPost>>,
+      Awaited<ReturnType<typeof createBook>>,
       TError,
       { data: BookCreate },
       TContext
@@ -129,12 +124,12 @@ export const useCreateBookApiV1EreaderBooksPost = <
   },
   queryClient?: QueryClient
 ): UseMutationResult<
-  Awaited<ReturnType<typeof createBookApiV1EreaderBooksPost>>,
+  Awaited<ReturnType<typeof createBook>>,
   TError,
   { data: BookCreate },
   TContext
 > => {
-  return useMutation(getCreateBookApiV1EreaderBooksPostMutationOptions(options), queryClient);
+  return useMutation(getCreateBookMutationOptions(options), queryClient);
 };
 /**
  * Get basic book metadata by client_book_id for ereader operations.
@@ -153,10 +148,7 @@ export const useCreateBookApiV1EreaderBooksPost = <
  *     HTTPException: 404 if book is not found
  * @summary Get Book Metadata
  */
-export const getBookMetadataApiV1EreaderBooksClientBookIdGet = (
-  clientBookId: string,
-  signal?: AbortSignal
-) => {
+export const getBookMetadata = (clientBookId: string, signal?: AbortSignal) => {
   return axiosInstance<EreaderBookMetadata>({
     url: `/api/v1/ereader/books/${clientBookId}`,
     method: 'GET',
@@ -164,115 +156,82 @@ export const getBookMetadataApiV1EreaderBooksClientBookIdGet = (
   });
 };
 
-export const getGetBookMetadataApiV1EreaderBooksClientBookIdGetQueryKey = (
-  clientBookId: string
-) => {
+export const getGetBookMetadataQueryKey = (clientBookId: string) => {
   return [`/api/v1/ereader/books/${clientBookId}`] as const;
 };
 
-export const getGetBookMetadataApiV1EreaderBooksClientBookIdGetQueryOptions = <
-  TData = Awaited<ReturnType<typeof getBookMetadataApiV1EreaderBooksClientBookIdGet>>,
+export const getGetBookMetadataQueryOptions = <
+  TData = Awaited<ReturnType<typeof getBookMetadata>>,
   TError = HTTPValidationError,
 >(
   clientBookId: string,
   options?: {
-    query?: Partial<
-      UseQueryOptions<
-        Awaited<ReturnType<typeof getBookMetadataApiV1EreaderBooksClientBookIdGet>>,
-        TError,
-        TData
-      >
-    >;
+    query?: Partial<UseQueryOptions<Awaited<ReturnType<typeof getBookMetadata>>, TError, TData>>;
   }
 ) => {
   const { query: queryOptions } = options ?? {};
 
-  const queryKey =
-    queryOptions?.queryKey ??
-    getGetBookMetadataApiV1EreaderBooksClientBookIdGetQueryKey(clientBookId);
+  const queryKey = queryOptions?.queryKey ?? getGetBookMetadataQueryKey(clientBookId);
 
-  const queryFn: QueryFunction<
-    Awaited<ReturnType<typeof getBookMetadataApiV1EreaderBooksClientBookIdGet>>
-  > = ({ signal }) => getBookMetadataApiV1EreaderBooksClientBookIdGet(clientBookId, signal);
+  const queryFn: QueryFunction<Awaited<ReturnType<typeof getBookMetadata>>> = ({ signal }) =>
+    getBookMetadata(clientBookId, signal);
 
   return {
     queryKey,
     queryFn,
     enabled: clientBookId !== null && clientBookId !== undefined,
     ...queryOptions,
-  } as UseQueryOptions<
-    Awaited<ReturnType<typeof getBookMetadataApiV1EreaderBooksClientBookIdGet>>,
-    TError,
-    TData
-  > & { queryKey: DataTag<QueryKey, TData, TError> };
+  } as UseQueryOptions<Awaited<ReturnType<typeof getBookMetadata>>, TError, TData> & {
+    queryKey: DataTag<QueryKey, TData, TError>;
+  };
 };
 
-export type GetBookMetadataApiV1EreaderBooksClientBookIdGetQueryResult = NonNullable<
-  Awaited<ReturnType<typeof getBookMetadataApiV1EreaderBooksClientBookIdGet>>
->;
-export type GetBookMetadataApiV1EreaderBooksClientBookIdGetQueryError = HTTPValidationError;
+export type GetBookMetadataQueryResult = NonNullable<Awaited<ReturnType<typeof getBookMetadata>>>;
+export type GetBookMetadataQueryError = HTTPValidationError;
 
-export function useGetBookMetadataApiV1EreaderBooksClientBookIdGet<
-  TData = Awaited<ReturnType<typeof getBookMetadataApiV1EreaderBooksClientBookIdGet>>,
+export function useGetBookMetadata<
+  TData = Awaited<ReturnType<typeof getBookMetadata>>,
   TError = HTTPValidationError,
 >(
   clientBookId: string,
   options: {
-    query: Partial<
-      UseQueryOptions<
-        Awaited<ReturnType<typeof getBookMetadataApiV1EreaderBooksClientBookIdGet>>,
-        TError,
-        TData
-      >
-    > &
+    query: Partial<UseQueryOptions<Awaited<ReturnType<typeof getBookMetadata>>, TError, TData>> &
       Pick<
         DefinedInitialDataOptions<
-          Awaited<ReturnType<typeof getBookMetadataApiV1EreaderBooksClientBookIdGet>>,
+          Awaited<ReturnType<typeof getBookMetadata>>,
           TError,
-          Awaited<ReturnType<typeof getBookMetadataApiV1EreaderBooksClientBookIdGet>>
+          Awaited<ReturnType<typeof getBookMetadata>>
         >,
         'initialData'
       >;
   },
   queryClient?: QueryClient
 ): DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
-export function useGetBookMetadataApiV1EreaderBooksClientBookIdGet<
-  TData = Awaited<ReturnType<typeof getBookMetadataApiV1EreaderBooksClientBookIdGet>>,
+export function useGetBookMetadata<
+  TData = Awaited<ReturnType<typeof getBookMetadata>>,
   TError = HTTPValidationError,
 >(
   clientBookId: string,
   options?: {
-    query?: Partial<
-      UseQueryOptions<
-        Awaited<ReturnType<typeof getBookMetadataApiV1EreaderBooksClientBookIdGet>>,
-        TError,
-        TData
-      >
-    > &
+    query?: Partial<UseQueryOptions<Awaited<ReturnType<typeof getBookMetadata>>, TError, TData>> &
       Pick<
         UndefinedInitialDataOptions<
-          Awaited<ReturnType<typeof getBookMetadataApiV1EreaderBooksClientBookIdGet>>,
+          Awaited<ReturnType<typeof getBookMetadata>>,
           TError,
-          Awaited<ReturnType<typeof getBookMetadataApiV1EreaderBooksClientBookIdGet>>
+          Awaited<ReturnType<typeof getBookMetadata>>
         >,
         'initialData'
       >;
   },
   queryClient?: QueryClient
 ): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
-export function useGetBookMetadataApiV1EreaderBooksClientBookIdGet<
-  TData = Awaited<ReturnType<typeof getBookMetadataApiV1EreaderBooksClientBookIdGet>>,
+export function useGetBookMetadata<
+  TData = Awaited<ReturnType<typeof getBookMetadata>>,
   TError = HTTPValidationError,
 >(
   clientBookId: string,
   options?: {
-    query?: Partial<
-      UseQueryOptions<
-        Awaited<ReturnType<typeof getBookMetadataApiV1EreaderBooksClientBookIdGet>>,
-        TError,
-        TData
-      >
-    >;
+    query?: Partial<UseQueryOptions<Awaited<ReturnType<typeof getBookMetadata>>, TError, TData>>;
   },
   queryClient?: QueryClient
 ): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
@@ -280,26 +239,17 @@ export function useGetBookMetadataApiV1EreaderBooksClientBookIdGet<
  * @summary Get Book Metadata
  */
 
-export function useGetBookMetadataApiV1EreaderBooksClientBookIdGet<
-  TData = Awaited<ReturnType<typeof getBookMetadataApiV1EreaderBooksClientBookIdGet>>,
+export function useGetBookMetadata<
+  TData = Awaited<ReturnType<typeof getBookMetadata>>,
   TError = HTTPValidationError,
 >(
   clientBookId: string,
   options?: {
-    query?: Partial<
-      UseQueryOptions<
-        Awaited<ReturnType<typeof getBookMetadataApiV1EreaderBooksClientBookIdGet>>,
-        TError,
-        TData
-      >
-    >;
+    query?: Partial<UseQueryOptions<Awaited<ReturnType<typeof getBookMetadata>>, TError, TData>>;
   },
   queryClient?: QueryClient
 ): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
-  const queryOptions = getGetBookMetadataApiV1EreaderBooksClientBookIdGetQueryOptions(
-    clientBookId,
-    options
-  );
+  const queryOptions = getGetBookMetadataQueryOptions(clientBookId, options);
 
   const query = useQuery(queryOptions, queryClient) as UseQueryResult<TData, TError> & {
     queryKey: DataTag<QueryKey, TData, TError>;
@@ -326,13 +276,13 @@ export function useGetBookMetadataApiV1EreaderBooksClientBookIdGet<
  *     HTTPException: 400 for invalid file, 404 if book is not found
  * @summary Upload Book Epub
  */
-export const uploadBookEpubApiV1EreaderBooksClientBookIdEpubPost = (
+export const uploadBookEpub = (
   clientBookId: string,
-  bodyUploadBookEpubApiV1EreaderBooksClientBookIdEpubPost: BodyUploadBookEpubApiV1EreaderBooksClientBookIdEpubPost,
+  bodyUploadBookEpub: BodyUploadBookEpub,
   signal?: AbortSignal
 ) => {
   const formData = new FormData();
-  formData.append(`epub`, bodyUploadBookEpubApiV1EreaderBooksClientBookIdEpubPost.epub);
+  formData.append(`epub`, bodyUploadBookEpub.epub);
 
   return axiosInstance<SuccessResponse>({
     url: `/api/v1/ereader/books/${clientBookId}/epub`,
@@ -343,23 +293,23 @@ export const uploadBookEpubApiV1EreaderBooksClientBookIdEpubPost = (
   });
 };
 
-export const getUploadBookEpubApiV1EreaderBooksClientBookIdEpubPostMutationOptions = <
+export const getUploadBookEpubMutationOptions = <
   TError = HTTPValidationError,
   TContext = unknown,
 >(options?: {
   mutation?: UseMutationOptions<
-    Awaited<ReturnType<typeof uploadBookEpubApiV1EreaderBooksClientBookIdEpubPost>>,
+    Awaited<ReturnType<typeof uploadBookEpub>>,
     TError,
-    { clientBookId: string; data: BodyUploadBookEpubApiV1EreaderBooksClientBookIdEpubPost },
+    { clientBookId: string; data: BodyUploadBookEpub },
     TContext
   >;
 }): UseMutationOptions<
-  Awaited<ReturnType<typeof uploadBookEpubApiV1EreaderBooksClientBookIdEpubPost>>,
+  Awaited<ReturnType<typeof uploadBookEpub>>,
   TError,
-  { clientBookId: string; data: BodyUploadBookEpubApiV1EreaderBooksClientBookIdEpubPost },
+  { clientBookId: string; data: BodyUploadBookEpub },
   TContext
 > => {
-  const mutationKey = ['uploadBookEpubApiV1EreaderBooksClientBookIdEpubPost'];
+  const mutationKey = ['uploadBookEpub'];
   const { mutation: mutationOptions } = options
     ? options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey
       ? options
@@ -367,50 +317,41 @@ export const getUploadBookEpubApiV1EreaderBooksClientBookIdEpubPostMutationOptio
     : { mutation: { mutationKey } };
 
   const mutationFn: MutationFunction<
-    Awaited<ReturnType<typeof uploadBookEpubApiV1EreaderBooksClientBookIdEpubPost>>,
-    { clientBookId: string; data: BodyUploadBookEpubApiV1EreaderBooksClientBookIdEpubPost }
+    Awaited<ReturnType<typeof uploadBookEpub>>,
+    { clientBookId: string; data: BodyUploadBookEpub }
   > = (props) => {
     const { clientBookId, data } = props ?? {};
 
-    return uploadBookEpubApiV1EreaderBooksClientBookIdEpubPost(clientBookId, data);
+    return uploadBookEpub(clientBookId, data);
   };
 
   return { mutationFn, ...mutationOptions };
 };
 
-export type UploadBookEpubApiV1EreaderBooksClientBookIdEpubPostMutationResult = NonNullable<
-  Awaited<ReturnType<typeof uploadBookEpubApiV1EreaderBooksClientBookIdEpubPost>>
->;
-export type UploadBookEpubApiV1EreaderBooksClientBookIdEpubPostMutationBody =
-  BodyUploadBookEpubApiV1EreaderBooksClientBookIdEpubPost;
-export type UploadBookEpubApiV1EreaderBooksClientBookIdEpubPostMutationError = HTTPValidationError;
+export type UploadBookEpubMutationResult = NonNullable<Awaited<ReturnType<typeof uploadBookEpub>>>;
+export type UploadBookEpubMutationBody = BodyUploadBookEpub;
+export type UploadBookEpubMutationError = HTTPValidationError;
 
 /**
  * @summary Upload Book Epub
  */
-export const useUploadBookEpubApiV1EreaderBooksClientBookIdEpubPost = <
-  TError = HTTPValidationError,
-  TContext = unknown,
->(
+export const useUploadBookEpub = <TError = HTTPValidationError, TContext = unknown>(
   options?: {
     mutation?: UseMutationOptions<
-      Awaited<ReturnType<typeof uploadBookEpubApiV1EreaderBooksClientBookIdEpubPost>>,
+      Awaited<ReturnType<typeof uploadBookEpub>>,
       TError,
-      { clientBookId: string; data: BodyUploadBookEpubApiV1EreaderBooksClientBookIdEpubPost },
+      { clientBookId: string; data: BodyUploadBookEpub },
       TContext
     >;
   },
   queryClient?: QueryClient
 ): UseMutationResult<
-  Awaited<ReturnType<typeof uploadBookEpubApiV1EreaderBooksClientBookIdEpubPost>>,
+  Awaited<ReturnType<typeof uploadBookEpub>>,
   TError,
-  { clientBookId: string; data: BodyUploadBookEpubApiV1EreaderBooksClientBookIdEpubPost },
+  { clientBookId: string; data: BodyUploadBookEpub },
   TContext
 > => {
-  return useMutation(
-    getUploadBookEpubApiV1EreaderBooksClientBookIdEpubPostMutationOptions(options),
-    queryClient
-  );
+  return useMutation(getUploadBookEpubMutationOptions(options), queryClient);
 };
 /**
  * Get all chapter prereading content for a book by client_book_id.
@@ -428,12 +369,9 @@ export const useUploadBookEpubApiV1EreaderBooksClientBookIdEpubPost = <
  *
  * Raises:
  *     HTTPException: 404 if the book is not found for the given client_book_id
- * @summary Get Book Prereading
+ * @summary Get Ereader Book Prereading
  */
-export const getBookPrereadingApiV1EreaderBooksClientBookIdPrereadingGet = (
-  clientBookId: string,
-  signal?: AbortSignal
-) => {
+export const getEreaderBookPrereading = (clientBookId: string, signal?: AbortSignal) => {
   return axiosInstance<CollectionResponseEreaderChapterPrereadingItem>({
     url: `/api/v1/ereader/books/${clientBookId}/prereading`,
     method: 'GET',
@@ -441,144 +379,113 @@ export const getBookPrereadingApiV1EreaderBooksClientBookIdPrereadingGet = (
   });
 };
 
-export const getGetBookPrereadingApiV1EreaderBooksClientBookIdPrereadingGetQueryKey = (
-  clientBookId: string
-) => {
+export const getGetEreaderBookPrereadingQueryKey = (clientBookId: string) => {
   return [`/api/v1/ereader/books/${clientBookId}/prereading`] as const;
 };
 
-export const getGetBookPrereadingApiV1EreaderBooksClientBookIdPrereadingGetQueryOptions = <
-  TData = Awaited<ReturnType<typeof getBookPrereadingApiV1EreaderBooksClientBookIdPrereadingGet>>,
+export const getGetEreaderBookPrereadingQueryOptions = <
+  TData = Awaited<ReturnType<typeof getEreaderBookPrereading>>,
   TError = HTTPValidationError,
 >(
   clientBookId: string,
   options?: {
     query?: Partial<
-      UseQueryOptions<
-        Awaited<ReturnType<typeof getBookPrereadingApiV1EreaderBooksClientBookIdPrereadingGet>>,
-        TError,
-        TData
-      >
+      UseQueryOptions<Awaited<ReturnType<typeof getEreaderBookPrereading>>, TError, TData>
     >;
   }
 ) => {
   const { query: queryOptions } = options ?? {};
 
-  const queryKey =
-    queryOptions?.queryKey ??
-    getGetBookPrereadingApiV1EreaderBooksClientBookIdPrereadingGetQueryKey(clientBookId);
+  const queryKey = queryOptions?.queryKey ?? getGetEreaderBookPrereadingQueryKey(clientBookId);
 
-  const queryFn: QueryFunction<
-    Awaited<ReturnType<typeof getBookPrereadingApiV1EreaderBooksClientBookIdPrereadingGet>>
-  > = ({ signal }) =>
-    getBookPrereadingApiV1EreaderBooksClientBookIdPrereadingGet(clientBookId, signal);
+  const queryFn: QueryFunction<Awaited<ReturnType<typeof getEreaderBookPrereading>>> = ({
+    signal,
+  }) => getEreaderBookPrereading(clientBookId, signal);
 
   return {
     queryKey,
     queryFn,
     enabled: clientBookId !== null && clientBookId !== undefined,
     ...queryOptions,
-  } as UseQueryOptions<
-    Awaited<ReturnType<typeof getBookPrereadingApiV1EreaderBooksClientBookIdPrereadingGet>>,
-    TError,
-    TData
-  > & { queryKey: DataTag<QueryKey, TData, TError> };
+  } as UseQueryOptions<Awaited<ReturnType<typeof getEreaderBookPrereading>>, TError, TData> & {
+    queryKey: DataTag<QueryKey, TData, TError>;
+  };
 };
 
-export type GetBookPrereadingApiV1EreaderBooksClientBookIdPrereadingGetQueryResult = NonNullable<
-  Awaited<ReturnType<typeof getBookPrereadingApiV1EreaderBooksClientBookIdPrereadingGet>>
+export type GetEreaderBookPrereadingQueryResult = NonNullable<
+  Awaited<ReturnType<typeof getEreaderBookPrereading>>
 >;
-export type GetBookPrereadingApiV1EreaderBooksClientBookIdPrereadingGetQueryError =
-  HTTPValidationError;
+export type GetEreaderBookPrereadingQueryError = HTTPValidationError;
 
-export function useGetBookPrereadingApiV1EreaderBooksClientBookIdPrereadingGet<
-  TData = Awaited<ReturnType<typeof getBookPrereadingApiV1EreaderBooksClientBookIdPrereadingGet>>,
+export function useGetEreaderBookPrereading<
+  TData = Awaited<ReturnType<typeof getEreaderBookPrereading>>,
   TError = HTTPValidationError,
 >(
   clientBookId: string,
   options: {
     query: Partial<
-      UseQueryOptions<
-        Awaited<ReturnType<typeof getBookPrereadingApiV1EreaderBooksClientBookIdPrereadingGet>>,
-        TError,
-        TData
-      >
+      UseQueryOptions<Awaited<ReturnType<typeof getEreaderBookPrereading>>, TError, TData>
     > &
       Pick<
         DefinedInitialDataOptions<
-          Awaited<ReturnType<typeof getBookPrereadingApiV1EreaderBooksClientBookIdPrereadingGet>>,
+          Awaited<ReturnType<typeof getEreaderBookPrereading>>,
           TError,
-          Awaited<ReturnType<typeof getBookPrereadingApiV1EreaderBooksClientBookIdPrereadingGet>>
+          Awaited<ReturnType<typeof getEreaderBookPrereading>>
         >,
         'initialData'
       >;
   },
   queryClient?: QueryClient
 ): DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
-export function useGetBookPrereadingApiV1EreaderBooksClientBookIdPrereadingGet<
-  TData = Awaited<ReturnType<typeof getBookPrereadingApiV1EreaderBooksClientBookIdPrereadingGet>>,
+export function useGetEreaderBookPrereading<
+  TData = Awaited<ReturnType<typeof getEreaderBookPrereading>>,
   TError = HTTPValidationError,
 >(
   clientBookId: string,
   options?: {
     query?: Partial<
-      UseQueryOptions<
-        Awaited<ReturnType<typeof getBookPrereadingApiV1EreaderBooksClientBookIdPrereadingGet>>,
-        TError,
-        TData
-      >
+      UseQueryOptions<Awaited<ReturnType<typeof getEreaderBookPrereading>>, TError, TData>
     > &
       Pick<
         UndefinedInitialDataOptions<
-          Awaited<ReturnType<typeof getBookPrereadingApiV1EreaderBooksClientBookIdPrereadingGet>>,
+          Awaited<ReturnType<typeof getEreaderBookPrereading>>,
           TError,
-          Awaited<ReturnType<typeof getBookPrereadingApiV1EreaderBooksClientBookIdPrereadingGet>>
+          Awaited<ReturnType<typeof getEreaderBookPrereading>>
         >,
         'initialData'
       >;
   },
   queryClient?: QueryClient
 ): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
-export function useGetBookPrereadingApiV1EreaderBooksClientBookIdPrereadingGet<
-  TData = Awaited<ReturnType<typeof getBookPrereadingApiV1EreaderBooksClientBookIdPrereadingGet>>,
+export function useGetEreaderBookPrereading<
+  TData = Awaited<ReturnType<typeof getEreaderBookPrereading>>,
   TError = HTTPValidationError,
 >(
   clientBookId: string,
   options?: {
     query?: Partial<
-      UseQueryOptions<
-        Awaited<ReturnType<typeof getBookPrereadingApiV1EreaderBooksClientBookIdPrereadingGet>>,
-        TError,
-        TData
-      >
+      UseQueryOptions<Awaited<ReturnType<typeof getEreaderBookPrereading>>, TError, TData>
     >;
   },
   queryClient?: QueryClient
 ): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 /**
- * @summary Get Book Prereading
+ * @summary Get Ereader Book Prereading
  */
 
-export function useGetBookPrereadingApiV1EreaderBooksClientBookIdPrereadingGet<
-  TData = Awaited<ReturnType<typeof getBookPrereadingApiV1EreaderBooksClientBookIdPrereadingGet>>,
+export function useGetEreaderBookPrereading<
+  TData = Awaited<ReturnType<typeof getEreaderBookPrereading>>,
   TError = HTTPValidationError,
 >(
   clientBookId: string,
   options?: {
     query?: Partial<
-      UseQueryOptions<
-        Awaited<ReturnType<typeof getBookPrereadingApiV1EreaderBooksClientBookIdPrereadingGet>>,
-        TError,
-        TData
-      >
+      UseQueryOptions<Awaited<ReturnType<typeof getEreaderBookPrereading>>, TError, TData>
     >;
   },
   queryClient?: QueryClient
 ): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
-  const queryOptions = getGetBookPrereadingApiV1EreaderBooksClientBookIdPrereadingGetQueryOptions(
-    clientBookId,
-    options
-  );
+  const queryOptions = getGetEreaderBookPrereadingQueryOptions(clientBookId, options);
 
   const query = useQuery(queryOptions, queryClient) as UseQueryResult<TData, TError> & {
     queryKey: DataTag<QueryKey, TData, TError>;

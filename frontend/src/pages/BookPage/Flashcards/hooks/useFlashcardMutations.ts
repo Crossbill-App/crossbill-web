@@ -1,4 +1,4 @@
-import { useUpdateFlashcardApiV1FlashcardsFlashcardIdPut } from '@/api/generated/flashcards/flashcards.ts';
+import { useUpdateFlashcard } from '@/api/generated/flashcards/flashcards.ts';
 import { useBookMutationHelpers } from '@/hooks/useBookMutationHelpers.ts';
 import { useQueryClient, type QueryKey } from '@tanstack/react-query';
 import { useState } from 'react';
@@ -32,7 +32,7 @@ export const useFlashcardMutations = ({
     }
   };
 
-  const updateFlashcardMutation = useUpdateFlashcardApiV1FlashcardsFlashcardIdPut({
+  const updateFlashcardMutation = useUpdateFlashcard({
     mutation: {
       onSuccess: invalidateFlashcardQueries,
       onError: mutationErrorHandler('update flashcard'),

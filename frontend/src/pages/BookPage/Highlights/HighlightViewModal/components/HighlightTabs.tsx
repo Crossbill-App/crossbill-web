@@ -1,5 +1,5 @@
 import type { Highlight } from '@/api/generated/model';
-import { useGetNotesForBookApiV1BooksBookIdNotesGet } from '@/api/generated/notes/notes.ts';
+import { useGetNotesForBook } from '@/api/generated/notes/notes.ts';
 import { DialogTabs, type DialogTabItem } from '@/components/dialogs/DialogTabs.tsx';
 import { LinkedNotesSection } from '@/pages/BookPage/Notes/components/LinkedNotesSection.tsx';
 import { HighlightFlashcardSection } from './HighlightFlashcardSection.tsx';
@@ -15,7 +15,7 @@ interface HighlightTabsProps {
  * mirroring the tabbed composition of `NoteViewModal` and `ChapterDetailDialog`.
  */
 export const HighlightTabs = ({ highlight, bookId, disabled = false }: HighlightTabsProps) => {
-  const { data, isLoading } = useGetNotesForBookApiV1BooksBookIdNotesGet(bookId, {
+  const { data, isLoading } = useGetNotesForBook(bookId, {
     highlight_id: highlight.id,
   });
   // NOTE: the orval axios mutator unwraps the response (`.then(({ data }) => data)`),

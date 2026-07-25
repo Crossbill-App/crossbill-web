@@ -1,5 +1,5 @@
-import type { GetNotesForBookApiV1BooksBookIdNotesGetParams } from '@/api/generated/model';
-import { useGetNotesForBookApiV1BooksBookIdNotesGet } from '@/api/generated/notes/notes.ts';
+import type { GetNotesForBookParams } from '@/api/generated/model';
+import { useGetNotesForBook } from '@/api/generated/notes/notes.ts';
 import { CardList } from '@/components/CardList.tsx';
 import { EmptyStateText } from '@/components/EmptyStateText.tsx';
 import { Spinner } from '@/components/animations/Spinner.tsx';
@@ -37,11 +37,11 @@ export const NotesPage = () => {
   const selectedKinds = kinds ?? DEFAULT_NOTE_KINDS;
   const kindFilterActive = kinds !== undefined;
 
-  const params: GetNotesForBookApiV1BooksBookIdNotesGetParams = {
+  const params: GetNotesForBookParams = {
     chapter_id: chapterId,
     tag_id: selectedTagId,
   };
-  const { data, isLoading, isError } = useGetNotesForBookApiV1BooksBookIdNotesGet(book.id, params);
+  const { data, isLoading, isError } = useGetNotesForBook(book.id, params);
   // NOTE: the orval axios mutator unwraps the response (`.then(({ data }) => data)`),
   // so the generated GET hook's `data` is the payload itself, not an AxiosResponse.
   const notes = data?.items ?? [];

@@ -1,5 +1,5 @@
 import type { NoteWithLinks } from '@/api/generated/model';
-import { getGetNoteApiV1NotesNoteIdGetQueryKey } from '@/api/generated/notes/notes.ts';
+import { getGetNoteQueryKey } from '@/api/generated/notes/notes.ts';
 import { useQueryClient } from '@tanstack/react-query';
 import { useNavigate, useSearch } from '@tanstack/react-router';
 import { useCallback, useRef, useState } from 'react';
@@ -56,7 +56,7 @@ export const useNoteModals = (options: UseNoteModalsOptions = {}): NoteModalsCon
 
   const openView = useCallback(
     (note: NoteWithLinks) => {
-      queryClient.setQueryData(getGetNoteApiV1NotesNoteIdGetQueryKey(note.id), note);
+      queryClient.setQueryData(getGetNoteQueryKey(note.id), note);
       wasOpenedByPush.current = true;
       setNoteId(note.id, false);
     },
@@ -81,7 +81,7 @@ export const useNoteModals = (options: UseNoteModalsOptions = {}): NoteModalsCon
   const handleModalNavigate = useCallback(
     (newIndex: number) => {
       const note = allNotes[newIndex]!;
-      queryClient.setQueryData(getGetNoteApiV1NotesNoteIdGetQueryKey(note.id), note);
+      queryClient.setQueryData(getGetNoteQueryKey(note.id), note);
       setNoteId(note.id, true);
     },
     [allNotes, queryClient, setNoteId]

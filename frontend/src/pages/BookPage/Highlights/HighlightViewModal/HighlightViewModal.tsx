@@ -1,5 +1,5 @@
-import { getGetBookDetailsApiV1BooksBookIdGetQueryKey } from '@/api/generated/books/books.ts';
-import { useDeleteHighlightsApiV1BooksBookIdHighlightDelete } from '@/api/generated/highlights/highlights.ts';
+import { getGetBookDetailsQueryKey } from '@/api/generated/books/books.ts';
+import { useDeleteHighlights } from '@/api/generated/highlights/highlights.ts';
 import type { Bookmark, Highlight, TagInBook } from '@/api/generated/model';
 import { FadeInOut } from '@/components/animations/FadeInOut.tsx';
 import { CommonDialog } from '@/components/dialogs/CommonDialog.tsx';
@@ -63,11 +63,11 @@ export const HighlightViewModal = ({
       onNavigate,
     });
 
-  const deleteHighlightMutation = useDeleteHighlightsApiV1BooksBookIdHighlightDelete({
+  const deleteHighlightMutation = useDeleteHighlights({
     mutation: {
       onSuccess: () => {
         void queryClient.refetchQueries({
-          queryKey: getGetBookDetailsApiV1BooksBookIdGetQueryKey(bookId),
+          queryKey: getGetBookDetailsQueryKey(bookId),
           exact: true,
         });
         onClose();

@@ -46,10 +46,7 @@ const withQueryKey = <T extends object, K>(query: T, queryKey: K): T & { queryKe
 /**
  * @summary Get Book Reflection
  */
-export const getBookReflectionApiV1BooksBookIdReflectionGet = (
-  bookId: number,
-  signal?: AbortSignal
-) => {
+export const getBookReflection = (bookId: number, signal?: AbortSignal) => {
   return axiosInstance<BookReflectionResponse>({
     url: `/api/v1/books/${bookId}/reflection`,
     method: 'GET',
@@ -57,112 +54,84 @@ export const getBookReflectionApiV1BooksBookIdReflectionGet = (
   });
 };
 
-export const getGetBookReflectionApiV1BooksBookIdReflectionGetQueryKey = (bookId: number) => {
+export const getGetBookReflectionQueryKey = (bookId: number) => {
   return [`/api/v1/books/${bookId}/reflection`] as const;
 };
 
-export const getGetBookReflectionApiV1BooksBookIdReflectionGetQueryOptions = <
-  TData = Awaited<ReturnType<typeof getBookReflectionApiV1BooksBookIdReflectionGet>>,
+export const getGetBookReflectionQueryOptions = <
+  TData = Awaited<ReturnType<typeof getBookReflection>>,
   TError = HTTPValidationError,
 >(
   bookId: number,
   options?: {
-    query?: Partial<
-      UseQueryOptions<
-        Awaited<ReturnType<typeof getBookReflectionApiV1BooksBookIdReflectionGet>>,
-        TError,
-        TData
-      >
-    >;
+    query?: Partial<UseQueryOptions<Awaited<ReturnType<typeof getBookReflection>>, TError, TData>>;
   }
 ) => {
   const { query: queryOptions } = options ?? {};
 
-  const queryKey =
-    queryOptions?.queryKey ?? getGetBookReflectionApiV1BooksBookIdReflectionGetQueryKey(bookId);
+  const queryKey = queryOptions?.queryKey ?? getGetBookReflectionQueryKey(bookId);
 
-  const queryFn: QueryFunction<
-    Awaited<ReturnType<typeof getBookReflectionApiV1BooksBookIdReflectionGet>>
-  > = ({ signal }) => getBookReflectionApiV1BooksBookIdReflectionGet(bookId, signal);
+  const queryFn: QueryFunction<Awaited<ReturnType<typeof getBookReflection>>> = ({ signal }) =>
+    getBookReflection(bookId, signal);
 
   return {
     queryKey,
     queryFn,
     enabled: bookId !== null && bookId !== undefined,
     ...queryOptions,
-  } as UseQueryOptions<
-    Awaited<ReturnType<typeof getBookReflectionApiV1BooksBookIdReflectionGet>>,
-    TError,
-    TData
-  > & { queryKey: DataTag<QueryKey, TData, TError> };
+  } as UseQueryOptions<Awaited<ReturnType<typeof getBookReflection>>, TError, TData> & {
+    queryKey: DataTag<QueryKey, TData, TError>;
+  };
 };
 
-export type GetBookReflectionApiV1BooksBookIdReflectionGetQueryResult = NonNullable<
-  Awaited<ReturnType<typeof getBookReflectionApiV1BooksBookIdReflectionGet>>
+export type GetBookReflectionQueryResult = NonNullable<
+  Awaited<ReturnType<typeof getBookReflection>>
 >;
-export type GetBookReflectionApiV1BooksBookIdReflectionGetQueryError = HTTPValidationError;
+export type GetBookReflectionQueryError = HTTPValidationError;
 
-export function useGetBookReflectionApiV1BooksBookIdReflectionGet<
-  TData = Awaited<ReturnType<typeof getBookReflectionApiV1BooksBookIdReflectionGet>>,
+export function useGetBookReflection<
+  TData = Awaited<ReturnType<typeof getBookReflection>>,
   TError = HTTPValidationError,
 >(
   bookId: number,
   options: {
-    query: Partial<
-      UseQueryOptions<
-        Awaited<ReturnType<typeof getBookReflectionApiV1BooksBookIdReflectionGet>>,
-        TError,
-        TData
-      >
-    > &
+    query: Partial<UseQueryOptions<Awaited<ReturnType<typeof getBookReflection>>, TError, TData>> &
       Pick<
         DefinedInitialDataOptions<
-          Awaited<ReturnType<typeof getBookReflectionApiV1BooksBookIdReflectionGet>>,
+          Awaited<ReturnType<typeof getBookReflection>>,
           TError,
-          Awaited<ReturnType<typeof getBookReflectionApiV1BooksBookIdReflectionGet>>
+          Awaited<ReturnType<typeof getBookReflection>>
         >,
         'initialData'
       >;
   },
   queryClient?: QueryClient
 ): DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
-export function useGetBookReflectionApiV1BooksBookIdReflectionGet<
-  TData = Awaited<ReturnType<typeof getBookReflectionApiV1BooksBookIdReflectionGet>>,
+export function useGetBookReflection<
+  TData = Awaited<ReturnType<typeof getBookReflection>>,
   TError = HTTPValidationError,
 >(
   bookId: number,
   options?: {
-    query?: Partial<
-      UseQueryOptions<
-        Awaited<ReturnType<typeof getBookReflectionApiV1BooksBookIdReflectionGet>>,
-        TError,
-        TData
-      >
-    > &
+    query?: Partial<UseQueryOptions<Awaited<ReturnType<typeof getBookReflection>>, TError, TData>> &
       Pick<
         UndefinedInitialDataOptions<
-          Awaited<ReturnType<typeof getBookReflectionApiV1BooksBookIdReflectionGet>>,
+          Awaited<ReturnType<typeof getBookReflection>>,
           TError,
-          Awaited<ReturnType<typeof getBookReflectionApiV1BooksBookIdReflectionGet>>
+          Awaited<ReturnType<typeof getBookReflection>>
         >,
         'initialData'
       >;
   },
   queryClient?: QueryClient
 ): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
-export function useGetBookReflectionApiV1BooksBookIdReflectionGet<
-  TData = Awaited<ReturnType<typeof getBookReflectionApiV1BooksBookIdReflectionGet>>,
+export function useGetBookReflection<
+  TData = Awaited<ReturnType<typeof getBookReflection>>,
   TError = HTTPValidationError,
 >(
   bookId: number,
   options?: {
-    query?: Partial<
-      UseQueryOptions<
-        Awaited<ReturnType<typeof getBookReflectionApiV1BooksBookIdReflectionGet>>,
-        TError,
-        TData
-      >
-    >;
+    query?: Partial<UseQueryOptions<Awaited<ReturnType<typeof getBookReflection>>, TError, TData>>;
   },
   queryClient?: QueryClient
 ): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
@@ -170,26 +139,17 @@ export function useGetBookReflectionApiV1BooksBookIdReflectionGet<
  * @summary Get Book Reflection
  */
 
-export function useGetBookReflectionApiV1BooksBookIdReflectionGet<
-  TData = Awaited<ReturnType<typeof getBookReflectionApiV1BooksBookIdReflectionGet>>,
+export function useGetBookReflection<
+  TData = Awaited<ReturnType<typeof getBookReflection>>,
   TError = HTTPValidationError,
 >(
   bookId: number,
   options?: {
-    query?: Partial<
-      UseQueryOptions<
-        Awaited<ReturnType<typeof getBookReflectionApiV1BooksBookIdReflectionGet>>,
-        TError,
-        TData
-      >
-    >;
+    query?: Partial<UseQueryOptions<Awaited<ReturnType<typeof getBookReflection>>, TError, TData>>;
   },
   queryClient?: QueryClient
 ): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
-  const queryOptions = getGetBookReflectionApiV1BooksBookIdReflectionGetQueryOptions(
-    bookId,
-    options
-  );
+  const queryOptions = getGetBookReflectionQueryOptions(bookId, options);
 
   const query = useQuery(queryOptions, queryClient) as UseQueryResult<TData, TError> & {
     queryKey: DataTag<QueryKey, TData, TError>;
@@ -201,7 +161,7 @@ export function useGetBookReflectionApiV1BooksBookIdReflectionGet<
 /**
  * @summary Upsert Book Reflection
  */
-export const upsertBookReflectionApiV1BooksBookIdReflectionPut = (
+export const upsertBookReflection = (
   bookId: number,
   bookReflectionUpdateRequest: BookReflectionUpdateRequest,
   signal?: AbortSignal
@@ -215,23 +175,23 @@ export const upsertBookReflectionApiV1BooksBookIdReflectionPut = (
   });
 };
 
-export const getUpsertBookReflectionApiV1BooksBookIdReflectionPutMutationOptions = <
+export const getUpsertBookReflectionMutationOptions = <
   TError = HTTPValidationError,
   TContext = unknown,
 >(options?: {
   mutation?: UseMutationOptions<
-    Awaited<ReturnType<typeof upsertBookReflectionApiV1BooksBookIdReflectionPut>>,
+    Awaited<ReturnType<typeof upsertBookReflection>>,
     TError,
     { bookId: number; data: BookReflectionUpdateRequest },
     TContext
   >;
 }): UseMutationOptions<
-  Awaited<ReturnType<typeof upsertBookReflectionApiV1BooksBookIdReflectionPut>>,
+  Awaited<ReturnType<typeof upsertBookReflection>>,
   TError,
   { bookId: number; data: BookReflectionUpdateRequest },
   TContext
 > => {
-  const mutationKey = ['upsertBookReflectionApiV1BooksBookIdReflectionPut'];
+  const mutationKey = ['upsertBookReflection'];
   const { mutation: mutationOptions } = options
     ? options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey
       ? options
@@ -239,34 +199,30 @@ export const getUpsertBookReflectionApiV1BooksBookIdReflectionPutMutationOptions
     : { mutation: { mutationKey } };
 
   const mutationFn: MutationFunction<
-    Awaited<ReturnType<typeof upsertBookReflectionApiV1BooksBookIdReflectionPut>>,
+    Awaited<ReturnType<typeof upsertBookReflection>>,
     { bookId: number; data: BookReflectionUpdateRequest }
   > = (props) => {
     const { bookId, data } = props ?? {};
 
-    return upsertBookReflectionApiV1BooksBookIdReflectionPut(bookId, data);
+    return upsertBookReflection(bookId, data);
   };
 
   return { mutationFn, ...mutationOptions };
 };
 
-export type UpsertBookReflectionApiV1BooksBookIdReflectionPutMutationResult = NonNullable<
-  Awaited<ReturnType<typeof upsertBookReflectionApiV1BooksBookIdReflectionPut>>
+export type UpsertBookReflectionMutationResult = NonNullable<
+  Awaited<ReturnType<typeof upsertBookReflection>>
 >;
-export type UpsertBookReflectionApiV1BooksBookIdReflectionPutMutationBody =
-  BookReflectionUpdateRequest;
-export type UpsertBookReflectionApiV1BooksBookIdReflectionPutMutationError = HTTPValidationError;
+export type UpsertBookReflectionMutationBody = BookReflectionUpdateRequest;
+export type UpsertBookReflectionMutationError = HTTPValidationError;
 
 /**
  * @summary Upsert Book Reflection
  */
-export const useUpsertBookReflectionApiV1BooksBookIdReflectionPut = <
-  TError = HTTPValidationError,
-  TContext = unknown,
->(
+export const useUpsertBookReflection = <TError = HTTPValidationError, TContext = unknown>(
   options?: {
     mutation?: UseMutationOptions<
-      Awaited<ReturnType<typeof upsertBookReflectionApiV1BooksBookIdReflectionPut>>,
+      Awaited<ReturnType<typeof upsertBookReflection>>,
       TError,
       { bookId: number; data: BookReflectionUpdateRequest },
       TContext
@@ -274,13 +230,10 @@ export const useUpsertBookReflectionApiV1BooksBookIdReflectionPut = <
   },
   queryClient?: QueryClient
 ): UseMutationResult<
-  Awaited<ReturnType<typeof upsertBookReflectionApiV1BooksBookIdReflectionPut>>,
+  Awaited<ReturnType<typeof upsertBookReflection>>,
   TError,
   { bookId: number; data: BookReflectionUpdateRequest },
   TContext
 > => {
-  return useMutation(
-    getUpsertBookReflectionApiV1BooksBookIdReflectionPutMutationOptions(options),
-    queryClient
-  );
+  return useMutation(getUpsertBookReflectionMutationOptions(options), queryClient);
 };
