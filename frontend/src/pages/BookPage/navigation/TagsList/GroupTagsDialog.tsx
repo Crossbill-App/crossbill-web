@@ -1,5 +1,5 @@
-import { useUpdateTagApiV1BooksBookIdTagTagIdPost } from '@/api/generated/highlights/highlights.ts';
 import { TagGroupInBook, TagInBook } from '@/api/generated/model';
+import { useUpdateTagApiV1BooksBookIdTagTagIdPost } from '@/api/generated/tags/tags.ts';
 import { CommonDialog } from '@/components/dialogs/CommonDialog.tsx';
 import { useBookMutationHelpers } from '@/hooks/useBookMutationHelpers.ts';
 import {

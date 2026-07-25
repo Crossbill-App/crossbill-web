@@ -10,14 +10,14 @@ from tests.conftest import create_test_book, create_test_highlight
 
 
 class TestCreateTagGroup:
-    """Test suite for POST /highlights/tag_group endpoint."""
+    """Test suite for POST /tag-groups endpoint."""
 
     async def test_create_tag_group_success(
         self, client: AsyncClient, db_session: AsyncSession, test_book: models.Book
     ) -> None:
         """Test successful creation of a tag group."""
         response = await client.post(
-            "/api/v1/highlights/tag_group",
+            "/api/v1/tag-groups",
             json={"book_id": test_book.id, "name": "Important Themes"},
         )
 
@@ -42,7 +42,7 @@ class TestCreateTagGroup:
     ) -> None:
         """Test successful update of a tag group."""
         response = await client.post(
-            "/api/v1/highlights/tag_group",
+            "/api/v1/tag-groups",
             json={
                 "id": test_tag_group.id,
                 "book_id": test_tag_group.book_id,
@@ -66,7 +66,7 @@ class TestCreateTagGroup:
         """Test creating tag group with duplicate name returns 409 error."""
         # Try to create another tag group with same name
         response = await client.post(
-            "/api/v1/highlights/tag_group",
+            "/api/v1/tag-groups",
             json={"book_id": test_tag_group.book_id, "name": test_tag_group.name},
         )
 
@@ -75,7 +75,7 @@ class TestCreateTagGroup:
     async def test_create_tag_group_nonexistent_book(self, client: AsyncClient) -> None:
         """Test creating tag group for non-existent book."""
         response = await client.post(
-            "/api/v1/highlights/tag_group",
+            "/api/v1/tag-groups",
             json={"book_id": 99999, "name": "Themes"},
         )
 
@@ -86,7 +86,7 @@ class TestCreateTagGroup:
     ) -> None:
         """Test creating tag group with empty name."""
         response = await client.post(
-            "/api/v1/highlights/tag_group",
+            "/api/v1/tag-groups",
             json={"book_id": test_book.id, "name": "   "},
         )
 
@@ -111,7 +111,7 @@ class TestCreateTagGroup:
 
         # Try to update tag_group2 to have the same name as test_tag_group
         response = await client.post(
-            "/api/v1/highlights/tag_group",
+            "/api/v1/tag-groups",
             json={"id": tag_group2.id, "book_id": test_book.id, "name": test_tag_group.name},
         )
 
@@ -135,7 +135,7 @@ class TestCreateTagGroup:
 
         # Try to update test_tag_group with book2's id (should fail)
         response = await client.post(
-            "/api/v1/highlights/tag_group",
+            "/api/v1/tag-groups",
             json={"id": test_tag_group.id, "book_id": book2.id, "name": "Updated Name"},
         )
 
@@ -143,7 +143,7 @@ class TestCreateTagGroup:
 
 
 class TestDeleteTagGroup:
-    """Test suite for DELETE /highlights/tag_group/:id endpoint."""
+    """Test suite for DELETE /tag-groups/:id endpoint."""
 
     async def test_delete_tag_group_success(
         self,
@@ -154,7 +154,7 @@ class TestDeleteTagGroup:
         """Test successful deletion of a tag group."""
         tag_group_id = test_tag_group.id
 
-        response = await client.delete(f"/api/v1/highlights/tag_group/{tag_group_id}")
+        response = await client.delete(f"/api/v1/tag-groups/{tag_group_id}")
 
         assert response.status_code == status.HTTP_204_NO_CONTENT
 
@@ -191,7 +191,7 @@ class TestDeleteTagGroup:
         await db_session.refresh(tag2)
 
         # Delete tag group
-        response = await client.delete(f"/api/v1/highlights/tag_group/{test_tag_group.id}")
+        response = await client.delete(f"/api/v1/tag-groups/{test_tag_group.id}")
 
         assert response.status_code == status.HTTP_204_NO_CONTENT
 
@@ -203,7 +203,7 @@ class TestDeleteTagGroup:
 
     async def test_delete_tag_group_not_found(self, client: AsyncClient) -> None:
         """Test deleting non-existent tag group."""
-        response = await client.delete("/api/v1/highlights/tag_group/99999")
+        response = await client.delete("/api/v1/tag-groups/99999")
 
         assert response.status_code == status.HTTP_404_NOT_FOUND
 

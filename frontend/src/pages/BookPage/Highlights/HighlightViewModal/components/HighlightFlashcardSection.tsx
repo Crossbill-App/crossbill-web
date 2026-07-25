@@ -1,5 +1,7 @@
-import { useGetHighlightFlashcardSuggestionsApiV1HighlightsHighlightIdFlashcardSuggestionsGet } from '@/api/generated/flashcards/flashcards.ts';
-import { useCreateFlashcardForHighlightApiV1HighlightsHighlightIdFlashcardsPost } from '@/api/generated/highlights/highlights.ts';
+import {
+  useCreateFlashcardForHighlightApiV1HighlightsHighlightIdFlashcardsPost,
+  useGetHighlightFlashcardSuggestionsApiV1HighlightsHighlightIdFlashcardSuggestionsGet,
+} from '@/api/generated/flashcards/flashcards.ts';
 import type { Highlight } from '@/api/generated/model';
 import type { FlashcardWithContext } from '@/components/features/flashcards/FlashcardChapterList.tsx';
 import { FlashcardSection } from '@/components/features/flashcards/FlashcardSection.tsx';

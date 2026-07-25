@@ -1,5 +1,5 @@
 import { getGetBookDetailsApiV1BooksBookIdGetQueryKey } from '@/api/generated/books/books.ts';
-import { getGetTagsApiV1BooksBookIdTagsGetQueryKey } from '@/api/generated/highlights/highlights.ts';
+import { getGetTagsApiV1BooksBookIdTagsGetQueryKey } from '@/api/generated/tags/tags.ts';
 import { useSnackbar } from '@/context/SnackbarContext.tsx';
 import { useQueryClient } from '@tanstack/react-query';
 
