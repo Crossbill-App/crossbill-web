@@ -61,18 +61,13 @@ class RootContainer(containers.DeclarativeContainer):
         LibraryContainer,
         book_repository=shared.book_repository,
         chapter_repository=shared.chapter_repository,
-        bookmark_repository=shared.bookmark_repository,
         highlight_repository=shared.highlight_repository,
-        tag_repository=shared.tag_repository,
         reading_session_repository=shared.reading_session_repository,
-        flashcard_repository=shared.flashcard_repository,
         file_repository=shared.file_repository,
-        highlight_grouping_service=shared.highlight_grouping_service,
-        label_resolution_service=shared.label_resolution_service,
         epub_parser_service=shared.epub_parser_service,
         epub_position_index_service=shared.epub_position_index_service,
         cover_image_service=shared.cover_image_service,
-        get_tags_for_book_use_case=tagging.get_tags_for_book_use_case,
+        book_details_query=shared.book_details_query,
     )
 
     learning = providers.Container(

@@ -1,5 +1,6 @@
 from dependency_injector import containers, providers
 
+from src.application.library.queries.get_book_details_use_case import GetBookDetailsUseCase
 from src.application.library.use_cases.book_files.ebook_deletion_use_case import (
     EbookDeletionUseCase,
 )
@@ -10,8 +11,8 @@ from src.application.library.use_cases.book_management.create_book_use_case impo
 from src.application.library.use_cases.book_management.delete_book_use_case import (
     DeleteBookUseCase,
 )
-from src.application.library.use_cases.book_management.get_book_details_use_case import (
-    GetBookDetailsUseCase,
+from src.application.library.use_cases.book_management.mark_book_viewed_use_case import (
+    MarkBookViewedUseCase,
 )
 from src.application.library.use_cases.book_management.update_reading_stage_use_case import (
     UpdateReadingStageUseCase,
@@ -28,25 +29,21 @@ from src.application.library.use_cases.book_queries.get_recently_viewed_books_us
 
 
 class LibraryContainer(containers.DeclarativeContainer):
-    """Library module use cases."""
+    """Library module use cases and read models."""
 
     # Dependencies from shared
     book_repository = providers.Dependency()
     chapter_repository = providers.Dependency()
-    bookmark_repository = providers.Dependency()
     highlight_repository = providers.Dependency()
-    tag_repository = providers.Dependency()
     reading_session_repository = providers.Dependency()
-    flashcard_repository = providers.Dependency()
     file_repository = providers.Dependency()
-    highlight_grouping_service = providers.Dependency()
-    label_resolution_service = providers.Dependency()
     epub_parser_service = providers.Dependency()
     epub_position_index_service = providers.Dependency()
     cover_image_service = providers.Dependency()
 
-    # Cross-module dependency from reading
-    get_tags_for_book_use_case = providers.Dependency()
+    # Read models: the query adapter (a port implementation) plus the read use
+    # case that routers call, mirroring how commands are exposed.
+    book_details_query = providers.Dependency()
 
     # Book files
     ebook_upload_use_case = providers.Factory(
@@ -70,18 +67,9 @@ class LibraryContainer(containers.DeclarativeContainer):
         CreateBookUseCase,
         book_repository=book_repository,
     )
-    get_book_details_use_case = providers.Factory(
-        GetBookDetailsUseCase,
+    mark_book_viewed_use_case = providers.Factory(
+        MarkBookViewedUseCase,
         book_repository=book_repository,
-        chapter_repository=chapter_repository,
-        bookmark_repository=bookmark_repository,
-        highlight_repository=highlight_repository,
-        tag_repository=tag_repository,
-        flashcard_repository=flashcard_repository,
-        tag_use_case=get_tags_for_book_use_case,
-        highlight_grouping_service=highlight_grouping_service,
-        reading_session_repository=reading_session_repository,
-        label_resolution_service=label_resolution_service,
     )
     delete_book_use_case = providers.Factory(
         DeleteBookUseCase,
@@ -91,6 +79,13 @@ class LibraryContainer(containers.DeclarativeContainer):
     update_reading_stage_use_case = providers.Factory(
         UpdateReadingStageUseCase,
         book_repository=book_repository,
+    )
+
+    # Read models
+    get_book_details_use_case = providers.Factory(
+        GetBookDetailsUseCase,
+        mark_book_viewed_use_case=mark_book_viewed_use_case,
+        book_details_query=book_details_query,
     )
 
     # Book queries

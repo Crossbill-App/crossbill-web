@@ -4,7 +4,6 @@ import boto3
 from dependency_injector import containers, providers
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from src.application.reading.services.highlight_grouping_service import HighlightGroupingService
 from src.application.reading.services.label_resolution_service import LabelResolutionService
 from src.domain.reading.services.deduplication_service import HighlightDeduplicationService
 from src.domain.reading.services.highlight_style_resolver import HighlightStyleResolver
@@ -19,6 +18,7 @@ from src.infrastructure.learning.repositories.ai_chat_session_repository import 
     AIChatSessionRepository,
 )
 from src.infrastructure.learning.repositories.flashcard_repository import FlashcardRepository
+from src.infrastructure.library.queries.book_details_query import BookDetailsQuery
 from src.infrastructure.library.repositories import BookRepository
 from src.infrastructure.library.repositories.chapter_repository import ChapterRepository
 from src.infrastructure.library.repositories.file_repository import FileRepository
@@ -108,7 +108,6 @@ class SharedContainer(containers.DeclarativeContainer):
 
     # Domain services
     highlight_deduplication_service = providers.Factory(HighlightDeduplicationService)
-    highlight_grouping_service = providers.Factory(HighlightGroupingService)
     highlight_style_resolver = providers.Factory(HighlightStyleResolver)
 
     # Application services (with deps)
@@ -116,6 +115,13 @@ class SharedContainer(containers.DeclarativeContainer):
         LabelResolutionService,
         highlight_style_repository=highlight_style_repository,
         highlight_style_resolver=highlight_style_resolver,
+    )
+
+    # Query services (read models); like repositories, these take the session
+    book_details_query = providers.Factory(
+        BookDetailsQuery,
+        db=db,
+        label_resolution_service=label_resolution_service,
     )
 
     # Learning repositories

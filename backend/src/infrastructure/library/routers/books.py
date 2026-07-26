@@ -3,12 +3,14 @@ from typing import Annotated
 from fastapi import APIRouter, Depends, Query
 from starlette import status
 
-from src.application.library.dtos import BookDetailsAggregation
+from src.application.library.queries.book_details import (
+    BookDetailsView,
+    ChapterWithHighlightsView,
+    HighlightView,
+)
+from src.application.library.queries.get_book_details_use_case import GetBookDetailsUseCase
 from src.application.library.use_cases.book_management.delete_book_use_case import (
     DeleteBookUseCase,
-)
-from src.application.library.use_cases.book_management.get_book_details_use_case import (
-    GetBookDetailsUseCase,
 )
 from src.application.library.use_cases.book_management.update_reading_stage_use_case import (
     UpdateReadingStageUseCase,
@@ -21,7 +23,6 @@ from src.application.library.use_cases.book_queries.get_recently_viewed_books_us
 )
 from src.core import container
 from src.domain.identity import User
-from src.domain.reading.services.highlight_style_resolver import ResolvedLabel
 from src.infrastructure.common.di import inject_use_case
 from src.infrastructure.common.schemas import CollectionResponse, PaginatedResponse
 from src.infrastructure.common.schemas.position_schemas import PositionResponse
@@ -31,94 +32,150 @@ from src.infrastructure.library.schemas import (
     BookWithHighlightCount,
 )
 from src.infrastructure.library.schemas.book_schemas import BookReadingStageUpdateRequest
-from src.infrastructure.reading.schema_mappers import map_chapters_to_schemas
 from src.infrastructure.reading.schemas import (
     BookDetails,
     Bookmark,
+    ChapterWithHighlights,
+    Highlight,
+    HighlightLabel,
 )
 from src.infrastructure.tagging.schemas import TagGroupInBook, TagInBook
 
 router = APIRouter(prefix="/books", tags=["books"])
 
 
-def _build_book_details_schema(
-    agg: BookDetailsAggregation,
-    labels: dict[int, ResolvedLabel] | None = None,
-) -> BookDetails:
+def _build_highlight_schema(highlight: HighlightView) -> Highlight:
+    """Build the Highlight schema from a highlight in the book-details read model."""
+    return Highlight(
+        id=highlight.id,
+        book_id=highlight.book_id,
+        chapter_id=highlight.chapter_id,
+        text=highlight.text,
+        chapter=highlight.chapter_name,
+        chapter_number=highlight.chapter_number,
+        page=highlight.page,
+        datetime=highlight.datetime,
+        label=HighlightLabel(
+            highlight_style_id=highlight.label.highlight_style_id,
+            text=highlight.label.text,
+            ui_color=highlight.label.ui_color,
+        )
+        if highlight.label
+        else None,
+        flashcards=[
+            Flashcard(
+                id=card.id,
+                user_id=card.user_id,
+                book_id=card.book_id,
+                highlight_id=card.highlight_id,
+                chapter_id=card.chapter_id,
+                question=card.question,
+                answer=card.answer,
+            )
+            for card in highlight.flashcards
+        ],
+        tags=[
+            TagInBook(id=tag.id, name=tag.name, tag_group_id=tag.tag_group_id)
+            for tag in highlight.tags
+        ],
+        created_at=highlight.created_at,
+        updated_at=highlight.updated_at,
+    )
+
+
+def _build_chapter_schema(chapter: ChapterWithHighlightsView) -> ChapterWithHighlights:
+    """Build the ChapterWithHighlights schema from the book-details read model."""
+    return ChapterWithHighlights(
+        id=chapter.id,
+        name=chapter.name,
+        chapter_number=chapter.chapter_number,
+        parent_id=chapter.parent_id,
+        start_position=PositionResponse(
+            index=chapter.start_position.index,
+            char_index=chapter.start_position.char_index,
+        )
+        if chapter.start_position
+        else None,
+        highlights=[_build_highlight_schema(highlight) for highlight in chapter.highlights],
+        created_at=chapter.created_at,
+        updated_at=chapter.updated_at,
+    )
+
+
+def _build_book_details_schema(view: BookDetailsView) -> BookDetails:
     """
-    Build BookDetails Pydantic schema from BookDetailsAggregation.
+    Build BookDetails Pydantic schema from the book-details read model.
 
     Args:
-        agg: BookDetailsAggregation domain dataclass
-        labels: Optional dict mapping highlight_style_id -> ResolvedLabel
+        view: BookDetailsView returned by the book-details query service
 
     Returns:
         BookDetails Pydantic schema
     """
     return BookDetails(
-        id=agg.book.id.value,
-        client_book_id=agg.book.client_book_id,
-        title=agg.book.title,
-        author=agg.book.author,
-        isbn=agg.book.isbn,
-        cover_file=agg.book.cover_file,
-        cover_blurhash=agg.book.cover_blurhash,
-        description=agg.book.description,
-        language=agg.book.language,
-        page_count=agg.book.page_count,
-        reading_stage=agg.book.reading_stage.value if agg.book.reading_stage else None,
+        id=view.id,
+        client_book_id=view.client_book_id,
+        title=view.title,
+        author=view.author,
+        isbn=view.isbn,
+        cover_file=view.cover_file,
+        cover_blurhash=view.cover_blurhash,
+        description=view.description,
+        language=view.language,
+        page_count=view.page_count,
+        reading_stage=view.reading_stage.value if view.reading_stage else None,
         tags=[
             TagInBook(
-                id=tag.id.value,
+                id=tag.id,
                 name=tag.name,
                 tag_group_id=tag.tag_group_id,
             )
-            for tag in agg.tags
+            for tag in view.tags
         ],
         tag_groups=[
             TagGroupInBook(
-                id=group.id.value,
+                id=group.id,
                 name=group.name,
             )
-            for group in agg.tag_groups
+            for group in view.tag_groups
         ],
         bookmarks=[
             Bookmark(
-                id=b.id.value,
-                book_id=b.book_id.value,
-                highlight_id=b.highlight_id.value,
+                id=b.id,
+                book_id=b.book_id,
+                highlight_id=b.highlight_id,
                 created_at=b.created_at,
             )
-            for b in agg.bookmarks
+            for b in view.bookmarks
         ],
         book_flashcards=[
             Flashcard(
-                id=f.id.value,
-                user_id=f.user_id.value,
-                book_id=f.book_id.value,
+                id=f.id,
+                user_id=f.user_id,
+                book_id=f.book_id,
                 highlight_id=None,
-                chapter_id=f.chapter_id.value if f.chapter_id else None,
+                chapter_id=f.chapter_id,
                 question=f.question,
                 answer=f.answer,
             )
-            for f in agg.book_flashcards
+            for f in view.book_flashcards
         ],
-        chapters=map_chapters_to_schemas(agg.chapters_with_highlights, labels),
+        chapters=[_build_chapter_schema(chapter) for chapter in view.chapters],
         reading_position=PositionResponse(
-            index=agg.reading_position.index,
-            char_index=agg.reading_position.char_index,
+            index=view.reading_position.index,
+            char_index=view.reading_position.char_index,
         )
-        if agg.reading_position
+        if view.reading_position
         else None,
         end_position=PositionResponse(
-            index=agg.book.end_position.index,
-            char_index=agg.book.end_position.char_index,
+            index=view.end_position.index,
+            char_index=view.end_position.char_index,
         )
-        if agg.book.end_position
+        if view.end_position
         else None,
-        created_at=agg.book.created_at,
-        updated_at=agg.book.updated_at,
-        last_viewed=agg.book.last_viewed,
+        created_at=view.created_at,
+        updated_at=view.updated_at,
+        last_viewed=view.last_viewed,
     )
 
 
@@ -265,8 +322,8 @@ async def get_book_details(
     Raises:
         HTTPException: If book is not found or fetching fails
     """
-    agg = await use_case.get_book_details(book_id, current_user.id.value)
-    return _build_book_details_schema(agg, agg.labels)
+    view = await use_case.get_book_details(book_id, current_user.id.value)
+    return _build_book_details_schema(view)
 
 
 @router.put("/{book_id}/reading-stage", status_code=status.HTTP_204_NO_CONTENT)
