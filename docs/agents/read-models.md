@@ -17,7 +17,9 @@ The reference implementation is the book-details view:
 
 The `jobs` module is a smaller second example: one view DTO, one port with two
 query methods, no cross-module joins
-(`backend/src/infrastructure/jobs/queries/job_batch_query.py`).
+(`backend/src/infrastructure/jobs/queries/job_batch_query.py`). The `notes`
+module shows the same one-DTO-two-methods shape over many-to-many links
+(`backend/src/infrastructure/notes/queries/note_query.py`).
 
 ## Does this view qualify?
 
@@ -71,6 +73,12 @@ renames to `commands/`. Do NOT rename early — mid-migration the packages still
 hold unported reads — and keep the `*UseCase` class suffix on both sides ("use
 case" names the layer role; the package names the kind).
 
+A helper that both sides need (`notes`' `parse_note_kind`, which turns the
+API's kind string into a `NoteKind`) stays where it is and is imported by the
+query. The dead-ends contract is one-directional — `commands` must not import
+`queries`, not the reverse — so this is allowed, and it beats duplicating the
+conversion or inventing a third package to hold one function.
+
 ## Recipe
 
 ### 1. Define the DTOs and the port
@@ -119,6 +127,14 @@ targeted selects is fine and preferable to reusing an aggregate finder.
   (`deleted_at IS NULL`), user ownership, and any "in active use" style
   predicate. Ownership is the easiest to drop by accident — check both the
   parent row's `user_id` and the child rows'.
+- Check *where* each filter applied. A path that resolved ids in Python may
+  have filtered the resolved entities without filtering the ids they came from,
+  and the response then carries both shapes. The note views do exactly this:
+  `highlight_ids` is the note's raw link set while `highlights` holds only the
+  live, owned rows, so a link to a soft-deleted highlight keeps its id and
+  renders as nothing. That is API behaviour, not a bug to tidy up — give the
+  DTO both fields and say so in its docstring, rather than filtering once and
+  deriving the other.
 - Return `None` when the root row is absent; let the read use case turn that
   into the domain's NotFound error.
 
