@@ -5,7 +5,7 @@ from unittest.mock import AsyncMock
 
 import pytest
 
-from src.application.jobs.use_cases.cancel_job_batch_use_case import CancelJobBatchUseCase
+from src.application.jobs.commands.cancel_job_batch_use_case import CancelJobBatchUseCase
 from src.domain.common.value_objects.ids import JobBatchId, UserId
 from src.domain.jobs.entities.job_batch import JobBatch, JobBatchStatus, JobBatchType
 from src.domain.jobs.exceptions import JobBatchNotFoundError

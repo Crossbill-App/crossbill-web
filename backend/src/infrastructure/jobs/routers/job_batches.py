@@ -5,14 +5,15 @@ from typing import Annotated
 from fastapi import APIRouter, Depends
 from starlette import status
 
-from src.application.jobs.use_cases.cancel_job_batch_use_case import CancelJobBatchUseCase
-from src.application.jobs.use_cases.enqueue_book_prereading_use_case import (
+from src.application.jobs.commands.cancel_job_batch_use_case import CancelJobBatchUseCase
+from src.application.jobs.commands.enqueue_book_prereading_use_case import (
     EnqueueBookPrereadingUseCase,
 )
-from src.application.jobs.use_cases.get_active_book_batch_use_case import (
+from src.application.jobs.queries.get_active_book_batch_use_case import (
     GetActiveBookBatchUseCase,
 )
-from src.application.jobs.use_cases.get_job_batch_use_case import GetJobBatchUseCase
+from src.application.jobs.queries.get_job_batch_use_case import GetJobBatchUseCase
+from src.application.jobs.queries.job_batch import JobBatchView
 from src.core import container
 from src.domain.common.value_objects.ids import BookId, JobBatchId, UserId
 from src.domain.identity import User
@@ -25,7 +26,7 @@ from src.infrastructure.jobs.schemas.job_batch_schemas import JobBatchResponse
 router = APIRouter(prefix="/jobs", tags=["jobs"])
 
 
-def _to_response(batch: JobBatch) -> JobBatchResponse:
+def _batch_to_response(batch: JobBatch) -> JobBatchResponse:
     return JobBatchResponse(
         id=batch.id.value,
         batch_type=batch.batch_type.value,
@@ -36,6 +37,20 @@ def _to_response(batch: JobBatch) -> JobBatchResponse:
         status=batch.status.value,
         created_at=batch.created_at,
         updated_at=batch.updated_at,
+    )
+
+
+def _view_to_response(view: JobBatchView) -> JobBatchResponse:
+    return JobBatchResponse(
+        id=view.id,
+        batch_type=view.batch_type.value,
+        reference_id=view.reference_id,
+        total_jobs=view.total_jobs,
+        completed_jobs=view.completed_jobs,
+        failed_jobs=view.failed_jobs,
+        status=view.status.value,
+        created_at=view.created_at,
+        updated_at=view.updated_at,
     )
 
 
@@ -57,7 +72,7 @@ async def enqueue_book_prereading(
         BookId(book_id),
         UserId(current_user.id.value),
     )
-    return _to_response(batch)
+    return _batch_to_response(batch)
 
 
 @router.get(
@@ -73,12 +88,12 @@ async def get_active_book_prereading_batch(
     ),
 ) -> JobBatchResponse | None:
     """Get the active prereading batch for a book, if any."""
-    batch = await use_case.execute(
+    view = await use_case.execute(
         BookId(book_id),
         UserId(current_user.id.value),
         JobBatchType.CHAPTER_PREREADING,
     )
-    return _to_response(batch) if batch else None
+    return _view_to_response(view) if view else None
 
 
 @router.get(
@@ -92,11 +107,11 @@ async def get_job_batch(
     use_case: GetJobBatchUseCase = Depends(inject_use_case(container.jobs.get_job_batch_use_case)),
 ) -> JobBatchResponse:
     """Get job batch status."""
-    batch = await use_case.execute(
+    view = await use_case.execute(
         JobBatchId(batch_id),
         UserId(current_user.id.value),
     )
-    return _to_response(batch)
+    return _view_to_response(view)
 
 
 @router.delete(
@@ -116,4 +131,4 @@ async def cancel_job_batch(
         JobBatchId(batch_id),
         UserId(current_user.id.value),
     )
-    return _to_response(batch)
+    return _batch_to_response(batch)

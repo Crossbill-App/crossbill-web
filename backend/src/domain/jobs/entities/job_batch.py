@@ -26,6 +26,12 @@ class JobBatchStatus(StrEnum):
     CANCELLED = "cancelled"
 
 
+ACTIVE_JOB_BATCH_STATUSES: frozenset[JobBatchStatus] = frozenset(
+    {JobBatchStatus.PENDING, JobBatchStatus.RUNNING}
+)
+"""Statuses in which a batch still has jobs expected to run."""
+
+
 @dataclass
 class JobBatch(Entity[JobBatchId]):
     """Tracks a group of related background jobs."""

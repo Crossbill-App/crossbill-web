@@ -13,6 +13,7 @@ from src.infrastructure.identity.repositories.refresh_token_repository import Re
 from src.infrastructure.identity.repositories.user_repository import UserRepository
 from src.infrastructure.identity.services.password_service_adapter import PasswordServiceAdapter
 from src.infrastructure.identity.services.token_service_adapter import TokenServiceAdapter
+from src.infrastructure.jobs.queries.job_batch_query import JobBatchQuery
 from src.infrastructure.jobs.repositories.job_batch_repository import JobBatchRepository
 from src.infrastructure.learning.repositories.ai_chat_session_repository import (
     AIChatSessionRepository,
@@ -129,3 +130,4 @@ class SharedContainer(containers.DeclarativeContainer):
 
     # Jobs
     job_batch_repository = providers.Factory(JobBatchRepository, db=db)
+    job_batch_query = providers.Factory(JobBatchQuery, db=db)

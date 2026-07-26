@@ -14,6 +14,7 @@ from src.application.identity.protocols.refresh_token_repository import (
 )
 from src.application.identity.protocols.user_repository import UserRepositoryProtocol
 from src.application.jobs.protocols.job_batch_repository import JobBatchRepositoryProtocol
+from src.application.jobs.queries.job_batch import JobBatchQueryProtocol
 from src.application.learning.protocols.ai_chat_session_repository import (
     AIChatSessionRepositoryProtocol,
 )
@@ -47,6 +48,7 @@ from src.infrastructure.identity.repositories.refresh_token_repository import (
     RefreshTokenRepository,
 )
 from src.infrastructure.identity.repositories.user_repository import UserRepository
+from src.infrastructure.jobs.queries.job_batch_query import JobBatchQuery
 from src.infrastructure.jobs.repositories.job_batch_repository import JobBatchRepository
 from src.infrastructure.learning.repositories.ai_chat_session_repository import (
     AIChatSessionRepository,
@@ -93,3 +95,4 @@ def repositories_satisfy_their_protocols(
     _job_batch: JobBatchRepositoryProtocol = JobBatchRepository(db)
     _book_reflection: BookReflectionRepositoryProtocol = BookReflectionRepository(db)
     _book_details: BookDetailsQueryProtocol = BookDetailsQuery(db, label_resolution_service)
+    _job_batch_view: JobBatchQueryProtocol = JobBatchQuery(db)

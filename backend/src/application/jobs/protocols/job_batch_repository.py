@@ -22,7 +22,3 @@ class JobBatchRepositoryProtocol(Protocol):
     async def atomic_increment_failed(self, batch_id: JobBatchId) -> JobBatch | None:
         """Atomically increment failed_jobs and recompute status. Race-condition safe."""
         ...
-
-    async def find_by_reference(
-        self, batch_type: str, reference_id: str, user_id: UserId
-    ) -> list[JobBatch]: ...
