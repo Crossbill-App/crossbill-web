@@ -1,5 +1,14 @@
 from dependency_injector import containers, providers
 
+from src.application.reading.queries.chapter_content_use_case import (
+    ChapterContentUseCase,
+)
+from src.application.reading.queries.get_book_prereading_use_case import (
+    GetBookPrereadingUseCase,
+)
+from src.application.reading.queries.get_chapter_prereading_use_case import (
+    GetChapterPrereadingUseCase,
+)
 from src.application.reading.use_cases.bookmarks.create_bookmark_use_case import (
     CreateBookmarkUseCase,
 )
@@ -9,17 +18,8 @@ from src.application.reading.use_cases.bookmarks.delete_bookmark_use_case import
 from src.application.reading.use_cases.bookmarks.get_bookmarks_use_case import (
     GetBookmarksUseCase,
 )
-from src.application.reading.use_cases.chapter_content_use_case import (
-    ChapterContentUseCase,
-)
 from src.application.reading.use_cases.chapter_prereading.generate_chapter_prereading_use_case import (
     GenerateChapterPrereadingUseCase,
-)
-from src.application.reading.use_cases.chapter_prereading.get_book_prereading_use_case import (
-    GetBookPrereadingUseCase,
-)
-from src.application.reading.use_cases.chapter_prereading.get_chapter_prereading_use_case import (
-    GetChapterPrereadingUseCase,
 )
 from src.application.reading.use_cases.chapter_prereading.get_ereader_book_prereading_use_case import (
     GetEreaderBookPrereadingUseCase,
