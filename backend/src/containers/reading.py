@@ -9,6 +9,9 @@ from src.application.reading.queries.get_book_highlight_labels_use_case import (
 from src.application.reading.queries.get_book_prereading_use_case import (
     GetBookPrereadingUseCase,
 )
+from src.application.reading.queries.get_book_reading_sessions_use_case import (
+    ReadingSessionQueryUseCase,
+)
 from src.application.reading.queries.get_bookmarks_use_case import (
     GetBookmarksUseCase,
 )
@@ -51,9 +54,6 @@ from src.application.reading.use_cases.highlights.highlight_upload_use_case impo
 from src.application.reading.use_cases.reading_sessions.reading_session_ai_summary_use_case import (
     ReadingSessionAISummaryUseCase,
 )
-from src.application.reading.use_cases.reading_sessions.reading_session_query_use_case import (
-    ReadingSessionQueryUseCase,
-)
 from src.application.reading.use_cases.reading_sessions.reading_session_upload_use_case import (
     ReadingSessionUploadUseCase,
 )
@@ -91,6 +91,7 @@ class ReadingContainer(containers.DeclarativeContainer):
     bookmark_query = providers.Dependency()
     highlight_label_query = providers.Dependency()
     highlight_search_query = providers.Dependency()
+    reading_session_query = providers.Dependency()
 
     # Bookmarks
     create_bookmark_use_case = providers.Factory(
@@ -178,12 +179,7 @@ class ReadingContainer(containers.DeclarativeContainer):
     )
     reading_session_query_use_case = providers.Factory(
         ReadingSessionQueryUseCase,
-        session_repository=reading_session_repository,
-        book_repository=book_repository,
-        highlight_repository=highlight_repository,
-        text_extraction_service=ebook_text_extraction_service,
-        file_repo=file_repository,
-        label_resolution_service=label_resolution_service,
+        reading_session_query=reading_session_query,
     )
     reading_session_ai_summary_use_case = providers.Factory(
         ReadingSessionAISummaryUseCase,

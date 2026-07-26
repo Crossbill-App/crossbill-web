@@ -171,24 +171,6 @@ class ReadingSessionRepository:
         orms = result.scalars().all()
         return [self.mapper.to_domain(orm) for orm in orms]
 
-    async def count_by_book_id(self, book_id: BookId, user_id: UserId) -> int:
-        """
-        Count all reading sessions for a book.
-
-        Args:
-            book_id: Book ID value object
-            user_id: User ID value object
-
-        Returns:
-            Total count of sessions
-        """
-        stmt = select(func.count(ReadingSessionORM.id)).where(
-            ReadingSessionORM.book_id == book_id.value,
-            ReadingSessionORM.user_id == user_id.value,
-        )
-        result = await self.db.execute(stmt)
-        return result.scalar() or 0
-
     async def find_by_id(
         self, session_id: ReadingSessionId, user_id: UserId
     ) -> ReadingSession | None:

@@ -39,6 +39,7 @@ from src.infrastructure.notes.repositories.note_repository import NoteRepository
 from src.infrastructure.reading.queries.bookmark_query import BookmarkQuery
 from src.infrastructure.reading.queries.highlight_label_query import HighlightLabelQuery
 from src.infrastructure.reading.queries.highlight_search_query import HighlightSearchQuery
+from src.infrastructure.reading.queries.reading_session_query import ReadingSessionQuery
 from src.infrastructure.reading.repositories import (
     BookmarkRepository,
     HighlightRepository,
@@ -147,6 +148,13 @@ class SharedContainer(containers.DeclarativeContainer):
         HighlightSearchQuery,
         db=db,
         label_resolution_service=label_resolution_service,
+    )
+    reading_session_query = providers.Factory(
+        ReadingSessionQuery,
+        db=db,
+        label_resolution_service=label_resolution_service,
+        file_repository=file_repository,
+        text_extraction_service=ebook_text_extraction_service,
     )
 
     # Learning repositories

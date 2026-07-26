@@ -4,7 +4,6 @@ from src.domain.common.value_objects import ContentHash
 from src.domain.common.value_objects.ids import (
     BookId,
     HighlightId,
-    ReadingSessionId,
     TagId,
     UserId,
 )
@@ -26,12 +25,6 @@ class HighlightRepositoryProtocol(Protocol):
     async def find_by_book_id(self, book_id: BookId, user_id: UserId) -> list[Highlight]: ...
 
     async def count_by_book(self, book_id: BookId, user_id: UserId) -> int: ...
-
-    async def get_highlights_by_session_ids(
-        self,
-        session_ids: list[ReadingSessionId],
-        user_id: UserId,
-    ) -> dict[ReadingSessionId, list[Highlight]]: ...
 
     async def get_existing_hashes(
         self, user_id: UserId, book_id: BookId, hashes: list[ContentHash]

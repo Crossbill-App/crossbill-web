@@ -52,6 +52,7 @@ class RootContainer(containers.DeclarativeContainer):
         bookmark_query=shared.bookmark_query,
         highlight_label_query=shared.highlight_label_query,
         highlight_search_query=shared.highlight_search_query,
+        reading_session_query=shared.reading_session_query,
     )
 
     tagging = providers.Container(
