@@ -139,8 +139,7 @@ def _chapter_view(
         chapter_number=chapter.chapter_number,
         highlights=tuple(_highlight_view(row, labels) for row in ordered),
         created_at=chapter.created_at,
-        # This response has always echoed the chapter's creation time here.
-        updated_at=chapter.created_at,
+        updated_at=chapter.updated_at,
     )
 
 

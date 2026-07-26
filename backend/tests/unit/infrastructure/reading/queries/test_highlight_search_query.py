@@ -103,9 +103,32 @@ async def test_matches_are_grouped_by_chapter_in_chapter_number_order(
     assert view is not None
     assert [chapter.name for chapter in view.chapters] == ["First", "Second"]
     assert view.total == 2
-    assert view.chapters[0].created_at == first.created_at
-    # The response has always reported the chapter's creation time as updated_at.
-    assert view.chapters[0].updated_at == first.created_at
+
+
+async def test_a_chapters_own_timestamps_are_reported(
+    query: HighlightSearchQuery, db_session: AsyncSession, test_book: Book
+) -> None:
+    chapter = await add_chapter(db_session, test_book, "Renamed since", chapter_number=1)
+    # A chapter that was created once and edited later must report both times,
+    # not the creation time twice.
+    chapter.created_at = datetime(2024, 1, 1, tzinfo=UTC)
+    chapter.updated_at = datetime(2024, 6, 30, tzinfo=UTC)
+    await db_session.commit()
+    await create_test_highlight(
+        db_session=db_session,
+        book=test_book,
+        user_id=DEFAULT_USER_ID,
+        text="needle here",
+        datetime_str="2024-01-01 10:00:00",
+        chapter_id=chapter.id,
+    )
+
+    view = await query.search_in_book(BookId(test_book.id), UserId(DEFAULT_USER_ID), "needle")
+
+    assert view is not None
+    assert view.chapters[0].created_at == chapter.created_at
+    assert view.chapters[0].updated_at == chapter.updated_at
+    assert view.chapters[0].created_at != view.chapters[0].updated_at
 
 
 async def test_highlights_within_a_chapter_are_ordered_by_page(

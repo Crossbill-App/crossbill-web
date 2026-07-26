@@ -71,9 +71,8 @@ class SearchHighlightView:
 class SearchChapterView:
     """A chapter holding at least one matched highlight.
 
-    ``updated_at`` mirrors the chapter's creation time, which is what this
-    response has always reported; the search rows carry no parent chapter or
-    start position, so the schema's fields for those stay null.
+    The search rows carry no parent chapter or start position, so the schema's
+    fields for those stay null.
     """
 
     id: int
