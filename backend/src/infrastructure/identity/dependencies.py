@@ -5,9 +5,7 @@ from typing import Annotated
 from fastapi import Depends
 from fastapi.security import OAuth2PasswordBearer
 
-from src.application.identity.use_cases.authentication.get_user_by_id_use_case import (
-    GetUserByIdUseCase,
-)
+from src.application.identity.queries.get_user_by_id_use_case import GetUserByIdUseCase
 from src.core import container
 from src.domain.common.exceptions import AuthenticationError
 from src.domain.identity.entities.user import User

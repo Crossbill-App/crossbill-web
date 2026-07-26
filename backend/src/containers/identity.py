@@ -1,10 +1,8 @@
 from dependency_injector import containers, providers
 
+from src.application.identity.queries.get_user_by_id_use_case import GetUserByIdUseCase
 from src.application.identity.use_cases.authentication.authenticate_user_use_case import (
     AuthenticateUserUseCase,
-)
-from src.application.identity.use_cases.authentication.get_user_by_id_use_case import (
-    GetUserByIdUseCase,
 )
 from src.application.identity.use_cases.authentication.logout_use_case import LogoutUseCase
 from src.application.identity.use_cases.authentication.refresh_access_token_use_case import (
