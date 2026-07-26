@@ -28,7 +28,7 @@ async def create_chat_chapter(db_session: AsyncSession, book: Book) -> Chapter:
 
 class TestCreateChatSession:
     @patch("src.infrastructure.common.dependencies.is_ai_enabled", return_value=True)
-    @patch("src.infrastructure.ai.ai_service.AIService.start_chat", new_callable=AsyncMock)
+    @patch("src.infrastructure.ai.ai_service.AIService._respond", new_callable=AsyncMock)
     @patch(
         "src.infrastructure.library.services.epub_text_extraction_service"
         ".EpubTextExtractionService.extract_chapter_text"
@@ -41,7 +41,7 @@ class TestCreateChatSession:
         self,
         mock_get_epub: AsyncMock,
         mock_extract: MagicMock,
-        mock_start_chat: AsyncMock,
+        mock_respond: AsyncMock,
         mock_ai_enabled: MagicMock,
         client: AsyncClient,
         db_session: AsyncSession,
@@ -62,8 +62,10 @@ class TestCreateChatSession:
         assert "session_id" in data
         assert data["message"] == CHAT_OPENER
 
-        # The opener is fixed, not model-generated: no AI round-trip at session start.
-        mock_start_chat.assert_not_awaited()
+        # The opener is fixed, not model-generated: no AI round-trip at session
+        # start. Asserted on the funnel every AI call goes through, so it holds
+        # whichever method a future change might reach for.
+        mock_respond.assert_not_awaited()
 
         # The chapter content is seeded into the session history so the model can
         # refer to it on the first real message.

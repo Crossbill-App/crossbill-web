@@ -11,10 +11,6 @@ class JobBatchRepositoryProtocol(Protocol):
 
     async def find_by_id(self, batch_id: JobBatchId, user_id: UserId) -> JobBatch | None: ...
 
-    async def find_by_id_internal(self, batch_id: JobBatchId) -> JobBatch | None:
-        """Find batch by ID without user ownership check. For internal worker use only."""
-        ...
-
     async def atomic_increment_completed(self, batch_id: JobBatchId) -> JobBatch | None:
         """Atomically increment completed_jobs and recompute status. Race-condition safe."""
         ...

@@ -9,10 +9,6 @@ class AIChatServiceProtocol(Protocol):
         self, chapter_content: str, assistant_opener: str
     ) -> SerializedMessageHistory: ...
 
-    async def start_chat(
-        self, chapter_content: str, usage_context: AIUsageContext
-    ) -> tuple[str, SerializedMessageHistory]: ...
-
     async def continue_chat(
         self,
         user_message: str,

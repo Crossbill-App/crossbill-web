@@ -82,10 +82,3 @@ class JobBatchRepository:
         )
         model = result.scalar_one_or_none()
         return JobBatchMapper.to_domain(model) if model else None
-
-    async def find_by_id_internal(self, batch_id: JobBatchId) -> JobBatch | None:
-        result = await self._db.execute(
-            select(JobBatchModel).where(JobBatchModel.id == batch_id.value)
-        )
-        model = result.scalar_one_or_none()
-        return JobBatchMapper.to_domain(model) if model else None

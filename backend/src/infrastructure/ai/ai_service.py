@@ -144,13 +144,6 @@ class AIService:
         ]
         return to_jsonable_python(messages)
 
-    async def start_chat(
-        self, chapter_content: str, usage_context: AIUsageContext
-    ) -> tuple[str, SerializedMessageHistory]:
-        agent = get_chat_agent()
-        prompt = f"The reader wants chat about contents of this chapter.\n\n--- CHAPTER CONTENT ---\n{chapter_content}"
-        return await self._respond(agent, usage_context, prompt=prompt)
-
     async def continue_chat(
         self,
         user_message: str,

@@ -35,19 +35,6 @@ class FlashcardRepositoryProtocol(Protocol):
         """
         ...
 
-    async def count_by_book(self, book_id: BookId, user_id: UserId) -> int:
-        """
-        Count flashcards for a book.
-
-        Args:
-            book_id: The book ID
-            user_id: The user ID
-
-        Returns:
-            Count of flashcards
-        """
-        ...
-
     async def save(self, flashcard: Flashcard, /) -> Flashcard:
         """
         Save a flashcard entity (create or update).
