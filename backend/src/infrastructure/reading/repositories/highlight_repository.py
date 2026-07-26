@@ -401,49 +401,6 @@ class HighlightRepository:
         )
         return count
 
-    async def find_by_ids_with_tags(
-        self, highlight_ids: list[HighlightId], user_id: UserId
-    ) -> list[tuple[Highlight, Chapter | None, list[Tag]]]:
-        """
-        Get highlights by IDs with tags and chapters.
-
-        Args:
-            highlight_ids: List of highlight IDs to fetch
-            user_id: The user ID for ownership verification
-
-        Returns:
-            List of tuples (Highlight, Chapter | None, list[Tag])
-        """
-        if not highlight_ids:
-            return []
-
-        highlight_id_values = [hid.value for hid in highlight_ids]
-
-        stmt = (
-            select(HighlightORM)
-            .options(
-                joinedload(HighlightORM.tags),
-                joinedload(HighlightORM.chapter),
-            )
-            .where(
-                HighlightORM.id.in_(highlight_id_values),
-                HighlightORM.user_id == user_id.value,
-                HighlightORM.deleted_at.is_(None),
-            )
-        )
-        result = await self.db.execute(stmt)
-        highlight_orms = list(result.unique().scalars().all())
-
-        # Convert to domain entities
-        return [
-            (
-                self.mapper.to_domain(h_orm),
-                self.chapter_mapper.to_domain(h_orm.chapter) if h_orm.chapter else None,
-                [self.tag_mapper.to_domain(tag_orm) for tag_orm in h_orm.tags],
-            )
-            for h_orm in highlight_orms
-        ]
-
     async def find_by_book_id(self, book_id: BookId, user_id: UserId) -> list[Highlight]:
         """
         Get all non-deleted highlights for a book.

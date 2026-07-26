@@ -74,7 +74,6 @@ class RootContainer(containers.DeclarativeContainer):
         LearningContainer,
         flashcard_repository=shared.flashcard_repository,
         highlight_repository=shared.highlight_repository,
-        label_resolution_service=shared.label_resolution_service,
         book_repository=shared.book_repository,
         chapter_repository=shared.chapter_repository,
         chapter_prereading_repository=shared.chapter_prereading_repository,
@@ -83,6 +82,7 @@ class RootContainer(containers.DeclarativeContainer):
         ai_service=shared.ai_service,
         ai_chat_session_repository=shared.ai_chat_session_repository,
         note_repository=shared.note_repository,
+        book_flashcard_query=shared.book_flashcard_query,
     )
 
     notes = providers.Container(

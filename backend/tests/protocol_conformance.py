@@ -19,6 +19,7 @@ from src.application.learning.protocols.ai_chat_session_repository import (
     AIChatSessionRepositoryProtocol,
 )
 from src.application.learning.protocols.flashcard_repository import FlashcardRepositoryProtocol
+from src.application.learning.queries.book_flashcards import BookFlashcardQueryProtocol
 from src.application.library.protocols.book_repository import (
     BookRepositoryProtocol as LibraryBookRepositoryProtocol,
 )
@@ -51,6 +52,7 @@ from src.infrastructure.identity.repositories.refresh_token_repository import (
 from src.infrastructure.identity.repositories.user_repository import UserRepository
 from src.infrastructure.jobs.queries.job_batch_query import JobBatchQuery
 from src.infrastructure.jobs.repositories.job_batch_repository import JobBatchRepository
+from src.infrastructure.learning.queries.book_flashcard_query import BookFlashcardQuery
 from src.infrastructure.learning.repositories.ai_chat_session_repository import (
     AIChatSessionRepository,
 )
@@ -99,3 +101,6 @@ def repositories_satisfy_their_protocols(
     _book_details: BookDetailsQueryProtocol = BookDetailsQuery(db, label_resolution_service)
     _job_batch_view: JobBatchQueryProtocol = JobBatchQuery(db)
     _note_view: NoteQueryProtocol = NoteQuery(db)
+    _book_flashcards_view: BookFlashcardQueryProtocol = BookFlashcardQuery(
+        db, label_resolution_service
+    )
