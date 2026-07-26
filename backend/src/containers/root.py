@@ -49,6 +49,7 @@ class RootContainer(containers.DeclarativeContainer):
         epub_position_index_service=shared.epub_position_index_service,
         ebook_text_extraction_service=shared.ebook_text_extraction_service,
         ai_service=shared.ai_service,
+        bookmark_query=shared.bookmark_query,
     )
 
     tagging = providers.Container(

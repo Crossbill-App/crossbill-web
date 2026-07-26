@@ -3,14 +3,14 @@ from typing import Annotated
 from fastapi import APIRouter, Depends
 from starlette import status
 
+from src.application.reading.queries.get_bookmarks_use_case import (
+    GetBookmarksUseCase,
+)
 from src.application.reading.use_cases.bookmarks.create_bookmark_use_case import (
     CreateBookmarkUseCase,
 )
 from src.application.reading.use_cases.bookmarks.delete_bookmark_use_case import (
     DeleteBookmarkUseCase,
-)
-from src.application.reading.use_cases.bookmarks.get_bookmarks_use_case import (
-    GetBookmarksUseCase,
 )
 from src.core import container
 from src.domain.identity import User
@@ -122,9 +122,9 @@ async def get_bookmarks(
 
     bookmark_schemas = [
         Bookmark(
-            id=b.id.value,
-            book_id=b.book_id.value,
-            highlight_id=b.highlight_id.value,
+            id=b.id,
+            book_id=b.book_id,
+            highlight_id=b.highlight_id,
             created_at=b.created_at,
         )
         for b in bookmarks

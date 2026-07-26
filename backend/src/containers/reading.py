@@ -6,6 +6,9 @@ from src.application.reading.queries.chapter_content_use_case import (
 from src.application.reading.queries.get_book_prereading_use_case import (
     GetBookPrereadingUseCase,
 )
+from src.application.reading.queries.get_bookmarks_use_case import (
+    GetBookmarksUseCase,
+)
 from src.application.reading.queries.get_chapter_prereading_use_case import (
     GetChapterPrereadingUseCase,
 )
@@ -14,9 +17,6 @@ from src.application.reading.use_cases.bookmarks.create_bookmark_use_case import
 )
 from src.application.reading.use_cases.bookmarks.delete_bookmark_use_case import (
     DeleteBookmarkUseCase,
-)
-from src.application.reading.use_cases.bookmarks.get_bookmarks_use_case import (
-    GetBookmarksUseCase,
 )
 from src.application.reading.use_cases.chapter_prereading.generate_chapter_prereading_use_case import (
     GenerateChapterPrereadingUseCase,
@@ -87,6 +87,9 @@ class ReadingContainer(containers.DeclarativeContainer):
     ebook_text_extraction_service = providers.Dependency()
     ai_service = providers.Dependency()
 
+    # Query services (read models)
+    bookmark_query = providers.Dependency()
+
     # Bookmarks
     create_bookmark_use_case = providers.Factory(
         CreateBookmarkUseCase,
@@ -101,8 +104,7 @@ class ReadingContainer(containers.DeclarativeContainer):
     )
     get_bookmarks_use_case = providers.Factory(
         GetBookmarksUseCase,
-        book_repository=book_repository,
-        bookmark_repository=bookmark_repository,
+        bookmark_query=bookmark_query,
     )
 
     # Highlights

@@ -42,6 +42,7 @@ from src.application.reading.protocols.highlight_style_repository import (
 from src.application.reading.protocols.reading_session_repository import (
     ReadingSessionRepositoryProtocol,
 )
+from src.application.reading.queries.bookmarks import BookmarkQueryProtocol
 from src.application.reading.services.label_resolution_service import LabelResolutionService
 from src.application.reflection.protocols.book_reflection_repository import (
     BookReflectionRepositoryProtocol,
@@ -64,6 +65,7 @@ from src.infrastructure.library.repositories import BookRepository
 from src.infrastructure.library.repositories.chapter_repository import ChapterRepository
 from src.infrastructure.notes.queries.note_query import NoteQuery
 from src.infrastructure.notes.repositories.note_repository import NoteRepository
+from src.infrastructure.reading.queries.bookmark_query import BookmarkQuery
 from src.infrastructure.reading.repositories import (
     BookmarkRepository,
     HighlightRepository,
@@ -107,3 +109,4 @@ def repositories_satisfy_their_protocols(
     _book_flashcards_view: BookFlashcardQueryProtocol = BookFlashcardQuery(
         db, label_resolution_service
     )
+    _bookmarks_view: BookmarkQueryProtocol = BookmarkQuery(db)
