@@ -10,7 +10,7 @@ class HighlightStyleRepositoryProtocol(Protocol):
     """Interface for HighlightStyle persistence."""
 
     async def find_by_id(
-        self, style_id: HighlightStyleId, user_id: UserId
+        self, style_id: HighlightStyleId, /, user_id: UserId
     ) -> HighlightStyle | None: ...
 
     async def find_or_create(
@@ -29,6 +29,6 @@ class HighlightStyleRepositoryProtocol(Protocol):
         self, user_id: UserId, book_id: BookId
     ) -> list[HighlightStyle]: ...
 
-    async def save(self, style: HighlightStyle) -> HighlightStyle: ...
+    async def save(self, style: HighlightStyle, /) -> HighlightStyle: ...
 
     async def count_highlights_by_style(self, style_id: HighlightStyleId) -> int: ...

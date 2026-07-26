@@ -207,7 +207,7 @@ Run all of these from `backend/`:
 
 ```bash
 uv run pytest                                  # full suite, unchanged tests must pass
-uv run pyright src                             # 0 errors
+uv run pyright                                 # 0 errors — whole project, tests included (what CI runs)
 uv run ruff check src tests
 uv run ruff format --check src tests
 uv run lint-imports                            # all contracts KEPT

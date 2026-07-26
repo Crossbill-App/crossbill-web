@@ -9,7 +9,7 @@ from src.domain.learning.entities.flashcard import Flashcard
 class FlashcardRepositoryProtocol(Protocol):
     """Protocol for Flashcard repository operations in learning context."""
 
-    async def find_by_id(self, flashcard_id: FlashcardId, user_id: UserId) -> Flashcard | None:
+    async def find_by_id(self, flashcard_id: FlashcardId, /, user_id: UserId) -> Flashcard | None:
         """
         Find a flashcard by ID with user ownership check.
 
@@ -61,7 +61,7 @@ class FlashcardRepositoryProtocol(Protocol):
         """
         ...
 
-    async def save(self, flashcard: Flashcard) -> Flashcard:
+    async def save(self, flashcard: Flashcard, /) -> Flashcard:
         """
         Save a flashcard entity (create or update).
 
@@ -73,7 +73,7 @@ class FlashcardRepositoryProtocol(Protocol):
         """
         ...
 
-    async def delete(self, flashcard_id: FlashcardId, user_id: UserId) -> bool:
+    async def delete(self, flashcard_id: FlashcardId, /, user_id: UserId) -> bool:
         """
         Delete a flashcard.
 

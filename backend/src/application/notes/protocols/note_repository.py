@@ -16,7 +16,7 @@ from src.domain.notes.entities.note import Note, NoteKind
 class NoteRepositoryProtocol(Protocol):
     """Protocol for Note repository operations."""
 
-    async def find_by_id(self, note_id: NoteId, user_id: UserId) -> Note | None:
+    async def find_by_id(self, note_id: NoteId, /, user_id: UserId) -> Note | None:
         """Find a note by id, scoped to the user."""
         ...
 
@@ -32,10 +32,10 @@ class NoteRepositoryProtocol(Protocol):
         """Find notes linked to a book, with optional filters."""
         ...
 
-    async def save(self, note: Note) -> Note:
+    async def save(self, note: Note, /) -> Note:
         """Create or update a note, replacing association rows."""
         ...
 
-    async def delete(self, note_id: NoteId, user_id: UserId) -> bool:
+    async def delete(self, note_id: NoteId, /, user_id: UserId) -> bool:
         """Delete a note. Returns False if not found."""
         ...
