@@ -53,7 +53,7 @@ saq src.worker.worker_settings
 1. Add a new value to `JobBatchType` enum in `src/domain/jobs/entities/job_batch.py`
 2. Create a task handler in `src/infrastructure/jobs/tasks/`
 3. Create a top-level async task function in `src/worker.py` and register it in `worker_settings["functions"]`
-4. Create an enqueue use case in `src/application/jobs/use_cases/`
+4. Create an enqueue use case in `src/application/jobs/commands/`
 5. Wire it through the DI container (`src/containers/jobs.py`)
 
 ### API Endpoints
@@ -98,12 +98,17 @@ This backend follows DDD (Domain-Driven Design) with hexagonal architecture and 
 
 ### Read Models (CQRS-lite)
 
-Views are being migrated off the repositories onto **query services**: view DTOs
-and a query port in `src/application/<module>/queries/`, an ORM-to-DTO adapter in
-`src/infrastructure/<module>/queries/`. `src/application/<module>/use_cases/`
+Views are served by **query services**, not repositories: view DTOs and a query
+port in `src/application/<module>/queries/`, an ORM-to-DTO adapter in
+`src/infrastructure/<module>/queries/`. `src/application/<module>/commands/`
 holds **commands only**; read use cases live in the `queries` package and are
 what routers inject. Read DTOs must never reach a command — enforced by the
 `queries-are-dead-ends` import-linter contract.
+
+Every module has been migrated, so a **new read starts in `queries/`** — there
+is no `use_cases/` package left to put it in. A read too small to deserve a
+port still lives there, delegating to a repository and returning domain
+entities (the ADR's "halfway option").
 
 - Decision and rationale: `docs/adr/0001-read-models-and-query-services.md`
 - Porting recipe for a new view: `docs/agents/read-models.md`
@@ -151,8 +156,9 @@ what routers inject. Read DTOs must never reach a command — enforced by the
    - Domain services live in the domain layer, NOT the application layer
    - They encapsulate domain logic that doesn't belong to a single entity
    - Exception: services that compose data *across* domain modules for views (read-model
-     assembly, e.g. `HighlightGroupingService`, `BookDetailsAggregation`) are application
-     services, not domain services — they live in the application layer
+     assembly, e.g. `LabelResolutionService`) are application services, not domain
+     services — they live in the application layer, and query adapters may inject them
+     to reuse a rule rather than re-encode it in SQL
 
 6. **Module Boundaries (enforced by import-linter)**
    - The backend is a single bounded context; the directories under `src/domain/` are

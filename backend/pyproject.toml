@@ -154,7 +154,6 @@ name = "Read models must not flow back into the domain or into commands"
 type = "forbidden"
 source_modules = [
     "src.domain",
-    "src.application.*.use_cases",
     "src.application.*.commands",
 ]
 forbidden_modules = ["src.application.*.queries"]
