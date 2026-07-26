@@ -3,10 +3,10 @@
 import logging
 
 from src.application.common.ownership import require_book
-from src.application.library.protocols.book_repository import BookRepositoryProtocol
-from src.application.library.use_cases.book_files.ebook_deletion_use_case import (
+from src.application.library.commands.book_files.ebook_deletion_use_case import (
     EbookDeletionUseCase,
 )
+from src.application.library.protocols.book_repository import BookRepositoryProtocol
 from src.domain.common.value_objects import BookId, UserId
 
 logger = logging.getLogger(__name__)

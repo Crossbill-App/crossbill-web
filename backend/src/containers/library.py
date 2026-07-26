@@ -1,29 +1,29 @@
 from dependency_injector import containers, providers
 
-from src.application.library.queries.get_book_details_use_case import GetBookDetailsUseCase
-from src.application.library.use_cases.book_files.ebook_deletion_use_case import (
+from src.application.library.commands.book_files.ebook_deletion_use_case import (
     EbookDeletionUseCase,
 )
-from src.application.library.use_cases.book_files.ebook_upload_use_case import EbookUploadUseCase
-from src.application.library.use_cases.book_management.create_book_use_case import (
+from src.application.library.commands.book_files.ebook_upload_use_case import EbookUploadUseCase
+from src.application.library.commands.book_management.create_book_use_case import (
     CreateBookUseCase,
 )
-from src.application.library.use_cases.book_management.delete_book_use_case import (
+from src.application.library.commands.book_management.delete_book_use_case import (
     DeleteBookUseCase,
 )
-from src.application.library.use_cases.book_management.mark_book_viewed_use_case import (
+from src.application.library.commands.book_management.mark_book_viewed_use_case import (
     MarkBookViewedUseCase,
 )
-from src.application.library.use_cases.book_management.update_reading_stage_use_case import (
+from src.application.library.commands.book_management.update_reading_stage_use_case import (
     UpdateReadingStageUseCase,
 )
-from src.application.library.use_cases.book_queries.get_books_with_counts_use_case import (
+from src.application.library.queries.get_book_details_use_case import GetBookDetailsUseCase
+from src.application.library.queries.get_books_with_counts_use_case import (
     GetBooksWithCountsUseCase,
 )
-from src.application.library.use_cases.book_queries.get_ereader_metadata_use_case import (
+from src.application.library.queries.get_ereader_metadata_use_case import (
     GetEreaderMetadataUseCase,
 )
-from src.application.library.use_cases.book_queries.get_recently_viewed_books_use_case import (
+from src.application.library.queries.get_recently_viewed_books_use_case import (
     GetRecentlyViewedBooksUseCase,
 )
 
@@ -41,9 +41,10 @@ class LibraryContainer(containers.DeclarativeContainer):
     epub_position_index_service = providers.Dependency()
     cover_image_service = providers.Dependency()
 
-    # Read models: the query adapter (a port implementation) plus the read use
-    # case that routers call, mirroring how commands are exposed.
+    # Read models: the query adapters (port implementations) plus the read use
+    # cases that routers call, mirroring how commands are exposed.
     book_details_query = providers.Dependency()
+    book_list_query = providers.Dependency()
 
     # Book files
     ebook_upload_use_case = providers.Factory(
@@ -87,15 +88,13 @@ class LibraryContainer(containers.DeclarativeContainer):
         mark_book_viewed_use_case=mark_book_viewed_use_case,
         book_details_query=book_details_query,
     )
-
-    # Book queries
     get_books_with_counts_use_case = providers.Factory(
         GetBooksWithCountsUseCase,
-        book_repository=book_repository,
+        book_list_query=book_list_query,
     )
     get_recently_viewed_books_use_case = providers.Factory(
         GetRecentlyViewedBooksUseCase,
-        book_repository=book_repository,
+        book_list_query=book_list_query,
     )
     get_ereader_metadata_use_case = providers.Factory(
         GetEreaderMetadataUseCase,

@@ -22,7 +22,10 @@ module shows the same one-DTO-two-methods shape over many-to-many links
 (`backend/src/infrastructure/notes/queries/note_query.py`). The `learning`
 module's book-flashcards view is the smallest full port that still reuses a
 domain-owned rule — two selects plus `LabelResolutionService`
-(`backend/src/infrastructure/learning/queries/book_flashcard_query.py`).
+(`backend/src/infrastructure/learning/queries/book_flashcard_query.py`). The
+`library` module's book lists are the paginated example, and the one where the
+port emptied the repository of everything but aggregate lifecycle
+(`backend/src/infrastructure/library/queries/book_list_query.py`).
 
 ## Does this view qualify?
 
@@ -115,6 +118,12 @@ active batch" as a `JobBatchResponse` — give them one DTO and one
 `JobBatchQueryProtocol` with a method each, instead of two ports duplicating the
 shape.
 
+A paginated view needs both the page and the unpaginated total, which is two
+values, not one DTO. Wrap them: `BookListPageView` holds
+`books: tuple[BookWithCountsView, ...]` plus `total: int`, and the router reads
+`page.books` / `page.total`. Returning a bare tuple from the port would put the
+view's shape back in the caller, which is the thing the port exists to stop.
+
 Derive the DTO fields from what the response schema actually needs — read the
 router's schema-building function first and work backwards. Do not mirror the
 tables.
@@ -133,6 +142,19 @@ targeted selects is fine and preferable to reusing an aggregate finder.
   entity where you need a lot of it.
 - `joinedload` for to-many relations you fold into one DTO, and remember
   `.unique()` on the result.
+- **Do not build a statement at module scope.** `select(...)` is immutable, so a
+  shared base statement looks like the obvious way to let two methods share a
+  column list — but `.options(noload(X.rel))` resolves the relationship
+  eagerly, and adapters are imported from `containers/shared.py` early enough
+  that this configures the ORM mappers before every model is registered. The
+  whole suite then dies at collection with `InvalidRequestError: ... failed to
+  locate a name`. Build the statement in a small function instead
+  (`_book_rows()` in `book_list_query.py`) and call it per query.
+- Selecting the ORM entity drags in its `lazy="selectin"` relationships, one
+  extra round trip per result set, for data the view never renders. `Book` has
+  `tag_groups` configured that way, so both list queries and the book-details
+  query pass `noload(BookORM.tag_groups)`. Selecting a column list avoids this
+  by construction; selecting the entity means you have to remember.
 - Reproduce every filter the old path applied: soft deletion
   (`deleted_at IS NULL`), user ownership, and any "in active use" style
   predicate. Ownership is the easiest to drop by accident — check both the

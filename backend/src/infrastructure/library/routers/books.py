@@ -3,22 +3,23 @@ from typing import Annotated
 from fastapi import APIRouter, Depends, Query
 from starlette import status
 
+from src.application.library.commands.book_management.delete_book_use_case import (
+    DeleteBookUseCase,
+)
+from src.application.library.commands.book_management.update_reading_stage_use_case import (
+    UpdateReadingStageUseCase,
+)
 from src.application.library.queries.book_details import (
     BookDetailsView,
     ChapterWithHighlightsView,
     HighlightView,
 )
+from src.application.library.queries.book_list import BookWithCountsView
 from src.application.library.queries.get_book_details_use_case import GetBookDetailsUseCase
-from src.application.library.use_cases.book_management.delete_book_use_case import (
-    DeleteBookUseCase,
-)
-from src.application.library.use_cases.book_management.update_reading_stage_use_case import (
-    UpdateReadingStageUseCase,
-)
-from src.application.library.use_cases.book_queries.get_books_with_counts_use_case import (
+from src.application.library.queries.get_books_with_counts_use_case import (
     GetBooksWithCountsUseCase,
 )
-from src.application.library.use_cases.book_queries.get_recently_viewed_books_use_case import (
+from src.application.library.queries.get_recently_viewed_books_use_case import (
     GetRecentlyViewedBooksUseCase,
 )
 from src.core import container
@@ -100,6 +101,33 @@ def _build_chapter_schema(chapter: ChapterWithHighlightsView) -> ChapterWithHigh
         highlights=[_build_highlight_schema(highlight) for highlight in chapter.highlights],
         created_at=chapter.created_at,
         updated_at=chapter.updated_at,
+    )
+
+
+def _build_book_with_counts_schema(view: BookWithCountsView) -> BookWithHighlightCount:
+    """Build the list-row schema shared by the library and recently-viewed lists."""
+    return BookWithHighlightCount(
+        id=view.id,
+        client_book_id=view.client_book_id,
+        title=view.title,
+        author=view.author,
+        isbn=view.isbn,
+        cover_file=view.cover_file,
+        cover_blurhash=view.cover_blurhash,
+        description=view.description,
+        language=view.language,
+        page_count=view.page_count,
+        highlight_count=view.highlight_count,
+        flashcard_count=view.flashcard_count,
+        end_position=PositionResponse(
+            index=view.end_position.index,
+            char_index=view.end_position.char_index,
+        )
+        if view.end_position
+        else None,
+        created_at=view.created_at,
+        updated_at=view.updated_at,
+        last_viewed=view.last_viewed,
     )
 
 
@@ -210,39 +238,15 @@ async def get_books(
     Raises:
         HTTPException: If fetching books fails due to server error
     """
-    results, total = await use_case.get_books_with_counts(
+    page = await use_case.get_books_with_counts(
         current_user.id.value, offset, limit, only_with_flashcards, search
     )
 
-    books_list = [
-        BookWithHighlightCount(
-            id=book.id.value,
-            client_book_id=book.client_book_id,
-            title=book.title,
-            author=book.author,
-            isbn=book.isbn,
-            cover_file=book.cover_file,
-            cover_blurhash=book.cover_blurhash,
-            description=book.description,
-            language=book.language,
-            page_count=book.page_count,
-            highlight_count=highlight_count,
-            flashcard_count=flashcard_count,
-            end_position=PositionResponse(
-                index=book.end_position.index,
-                char_index=book.end_position.char_index,
-            )
-            if book.end_position
-            else None,
-            created_at=book.created_at,
-            updated_at=book.updated_at,
-            last_viewed=book.last_viewed,
-        )
-        for book, highlight_count, flashcard_count in results
-    ]
-
     return PaginatedResponse[BookWithHighlightCount](
-        items=books_list, total=total, offset=offset, limit=limit
+        items=[_build_book_with_counts_schema(book) for book in page.books],
+        total=page.total,
+        offset=offset,
+        limit=limit,
     )
 
 
@@ -272,36 +276,11 @@ async def get_recently_viewed_books(
     Raises:
         HTTPException: If fetching books fails due to server error
     """
-    results = await use_case.get_recently_viewed(current_user.id.value, limit)
+    books = await use_case.get_recently_viewed(current_user.id.value, limit)
 
-    books_list = [
-        BookWithHighlightCount(
-            id=book.id.value,
-            client_book_id=book.client_book_id,
-            title=book.title,
-            author=book.author,
-            isbn=book.isbn,
-            cover_file=book.cover_file,
-            cover_blurhash=book.cover_blurhash,
-            description=book.description,
-            language=book.language,
-            page_count=book.page_count,
-            highlight_count=highlight_count,
-            flashcard_count=flashcard_count,
-            end_position=PositionResponse(
-                index=book.end_position.index,
-                char_index=book.end_position.char_index,
-            )
-            if book.end_position
-            else None,
-            created_at=book.created_at,
-            updated_at=book.updated_at,
-            last_viewed=book.last_viewed,
-        )
-        for book, highlight_count, flashcard_count in results
-    ]
-
-    return CollectionResponse[BookWithHighlightCount](items=books_list)
+    return CollectionResponse[BookWithHighlightCount](
+        items=[_build_book_with_counts_schema(book) for book in books]
+    )
 
 
 @router.get("/{book_id}", response_model=BookDetails, status_code=status.HTTP_200_OK)

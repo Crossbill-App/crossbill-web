@@ -6,12 +6,12 @@ contract forbids commands from importing read models. Wrapping the query port
 is deliberate boilerplate -- routers invoke use cases, never ports.
 """
 
+from src.application.library.commands.book_management.mark_book_viewed_use_case import (
+    MarkBookViewedUseCase,
+)
 from src.application.library.queries.book_details import (
     BookDetailsQueryProtocol,
     BookDetailsView,
-)
-from src.application.library.use_cases.book_management.mark_book_viewed_use_case import (
-    MarkBookViewedUseCase,
 )
 from src.domain.common.value_objects import BookId, UserId
 from src.domain.reading.exceptions import BookNotFoundError

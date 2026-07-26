@@ -12,16 +12,3 @@ class BookRepositoryProtocol(Protocol):
     async def save(self, book: Book) -> Book: ...
 
     async def delete(self, book: Book) -> None: ...
-
-    async def get_recently_viewed_books(
-        self, user_id: UserId, limit: int = 10
-    ) -> list[tuple[Book, int, int]]: ...
-
-    async def get_books_with_counts(
-        self,
-        user_id: UserId,
-        offset: int = 0,
-        limit: int = 100,
-        include_only_with_flashcards: bool = False,
-        search_text: str | None = None,
-    ) -> tuple[list[tuple[Book, int, int]], int]: ...
