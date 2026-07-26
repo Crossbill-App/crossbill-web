@@ -67,8 +67,11 @@ class NoteWithLinksView:
     The ``*_ids`` tuples are the note's raw link sets, while ``chapters``,
     ``highlights`` and ``tags`` carry only the links the viewer may actually
     see: a link to a soft-deleted highlight or to another user's row keeps its
-    id but resolves to nothing. ``flashcards`` is populated by the detail view
-    only; the list view leaves it empty.
+    id but resolves to nothing.
+
+    Both query methods fill every field. The list view used to leave
+    ``flashcards`` empty, which made a list row an incomplete stand-in for a
+    detail row -- and the frontend seeds its detail cache from list rows.
     """
 
     id: int
@@ -92,7 +95,7 @@ class NoteQueryProtocol(Protocol):
     """Port for reading the note views."""
 
     async def get_note(self, note_id: NoteId, user_id: UserId) -> NoteWithLinksView | None:
-        """Return one of the user's notes with its flashcards, or ``None``."""
+        """Return one of the user's notes, or ``None`` when they have no such note."""
         ...
 
     async def list_for_book(
@@ -104,5 +107,5 @@ class NoteQueryProtocol(Protocol):
         highlight_id: HighlightId | None = None,
         tag_id: TagId | None = None,
     ) -> tuple[NoteWithLinksView, ...]:
-        """Return the user's notes for a book, ordered by title, without flashcards."""
+        """Return the user's notes for a book, ordered by title."""
         ...

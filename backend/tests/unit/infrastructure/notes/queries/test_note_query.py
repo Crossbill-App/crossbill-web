@@ -317,11 +317,34 @@ class TestListForBook:
 
         assert [v.title for v in views] == ["Mine"]
 
-    async def test_leaves_flashcards_empty(
+    async def test_groups_flashcards_onto_the_note_that_owns_them(
         self, query: NoteQuery, db_session: AsyncSession, test_book: Book, add_note: AddNote
     ) -> None:
+        # A list row must be a complete note: the frontend seeds its detail
+        # cache from one, so anything missing here never reaches the detail view.
+        first = await add_note(test_book, title="First")
+        second = await add_note(test_book, title="Second")
+        await add_flashcard(db_session, test_book, first.id, "First's card")
+        await add_flashcard(db_session, test_book, second.id, "Second's card")
+        await add_flashcard(db_session, test_book, None, "Book-level card")
+
+        views = await query.list_for_book(BookId(test_book.id), UserId(DEFAULT_USER_ID))
+
+        assert [[f.question for f in v.flashcards] for v in views] == [
+            ["First's card"],
+            ["Second's card"],
+        ]
+
+    async def test_another_users_flashcard_is_invisible_in_the_list(
+        self,
+        query: NoteQuery,
+        db_session: AsyncSession,
+        test_book: Book,
+        add_note: AddNote,
+        other_user: User,
+    ) -> None:
         note = await add_note(test_book)
-        await add_flashcard(db_session, test_book, note.id, "Not in the list view")
+        await add_flashcard(db_session, test_book, note.id, "Theirs", user_id=OTHER_USER_ID)
 
         (view,) = await query.list_for_book(BookId(test_book.id), UserId(DEFAULT_USER_ID))
 

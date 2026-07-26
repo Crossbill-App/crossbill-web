@@ -381,6 +381,24 @@ class TestGetNotesForBook:
         raskolnikov = next(n for n in notes if n["title"] == "Raskolnikov")
         assert raskolnikov["chapters"] == [{"id": test_chapter.id, "name": test_chapter.name}]
 
+    async def test_list_notes_includes_flashcards(
+        self, client: AsyncClient, test_book: models.Book
+    ) -> None:
+        # The frontend seeds the note-detail cache from a list row, so a list
+        # row must carry everything the detail carries.
+        create = await client.post(
+            "/api/v1/notes", json={"title": "Raskolnikov", "book_id": test_book.id}
+        )
+        note_id = create.json()["note"]["id"]
+        await client.post(
+            f"/api/v1/notes/{note_id}/flashcards",
+            json={"question": "Who is Raskolnikov?", "answer": "The protagonist"},
+        )
+
+        response = await client.get(f"/api/v1/books/{test_book.id}/notes")
+        (note,) = response.json()["items"]
+        assert [f["question"] for f in note["flashcards"]] == ["Who is Raskolnikov?"]
+
     async def test_list_excludes_soft_deleted_highlight(
         self,
         client: AsyncClient,

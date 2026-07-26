@@ -82,8 +82,7 @@ class NoteQuery:
         if row is None:
             return None
 
-        flashcards = {note_id.value: await self._fetch_flashcards(note_id, user_id)}
-        views = await self._build_views([row], user_id, flashcards)
+        views = await self._build_views([row], user_id)
         return views[0]
 
     async def list_for_book(
@@ -95,7 +94,7 @@ class NoteQuery:
         highlight_id: HighlightId | None = None,
         tag_id: TagId | None = None,
     ) -> tuple[NoteWithLinksView, ...]:
-        """Return the user's notes for a book, ordered by title, without flashcards."""
+        """Return the user's notes for a book, ordered by title."""
         stmt = (
             _select_notes()
             .where(
@@ -114,19 +113,17 @@ class NoteQuery:
             stmt = stmt.where(NoteORM.tags.any(TagORM.id == tag_id.value))
 
         result = await self.db.execute(stmt)
-        return await self._build_views(result.tuples().all(), user_id, {})
+        return await self._build_views(result.tuples().all(), user_id)
 
     async def _build_views(
-        self,
-        rows: Sequence[_NoteRow],
-        user_id: UserId,
-        flashcards_by_note: dict[int, tuple[NoteFlashcardView, ...]],
+        self, rows: Sequence[_NoteRow], user_id: UserId
     ) -> tuple[NoteWithLinksView, ...]:
         """Resolve the links of every note row and assemble the view DTOs."""
         if not rows:
             return ()
 
         note_ids = [row[0] for row in rows]
+        flashcards_by_note = await self._fetch_flashcards(note_ids, user_id)
         book_ids = await self._fetch_link_ids(note_books, note_books.c.book_id, note_ids)
         chapter_ids = await self._fetch_link_ids(
             note_chapters, note_chapters.c.chapter_id, note_ids
@@ -226,9 +223,9 @@ class NoteQuery:
         return {row[0]: LinkedTagView(id=row[0], name=row[1]) for row in rows}
 
     async def _fetch_flashcards(
-        self, note_id: NoteId, user_id: UserId
-    ) -> tuple[NoteFlashcardView, ...]:
-        """Load the note's flashcards, newest first."""
+        self, note_ids: list[int], user_id: UserId
+    ) -> dict[int, tuple[NoteFlashcardView, ...]]:
+        """Load every note's flashcards in one pass, newest first within a note."""
         stmt = (
             select(
                 FlashcardORM.id,
@@ -241,34 +238,37 @@ class NoteQuery:
                 FlashcardORM.answer,
             )
             .where(
-                FlashcardORM.note_id == note_id.value,
+                FlashcardORM.note_id.in_(note_ids),
                 FlashcardORM.user_id == user_id.value,
             )
-            .order_by(FlashcardORM.created_at.desc())
+            .order_by(FlashcardORM.note_id, FlashcardORM.created_at.desc())
         )
         rows = (await self.db.execute(stmt)).tuples().all()
-        return tuple(
-            NoteFlashcardView(
-                id=card_id,
-                user_id=card_user_id,
-                book_id=book_id,
-                highlight_id=highlight_id,
-                chapter_id=chapter_id,
-                note_id=card_note_id,
-                question=question,
-                answer=answer,
+        grouped: dict[int | None, list[NoteFlashcardView]] = defaultdict(list)
+        for (
+            card_id,
+            card_user_id,
+            book_id,
+            highlight_id,
+            chapter_id,
+            card_note_id,
+            question,
+            answer,
+        ) in rows:
+            grouped[card_note_id].append(
+                NoteFlashcardView(
+                    id=card_id,
+                    user_id=card_user_id,
+                    book_id=book_id,
+                    highlight_id=highlight_id,
+                    chapter_id=chapter_id,
+                    note_id=card_note_id,
+                    question=question,
+                    answer=answer,
+                )
             )
-            for (
-                card_id,
-                card_user_id,
-                book_id,
-                highlight_id,
-                chapter_id,
-                card_note_id,
-                question,
-                answer,
-            ) in rows
-        )
+        # ``note_id`` is nullable on the table -- book-level cards keep no note.
+        return {note_id: tuple(cards) for note_id, cards in grouped.items() if note_id is not None}
 
 
 def _union(link_ids: _LinkIds) -> set[int]:
