@@ -15,6 +15,10 @@ The reference implementation is the book-details view:
 | `backend/src/infrastructure/library/routers/books.py` | Router + view-DTO → Pydantic mapping |
 | `backend/tests/unit/infrastructure/library/queries/test_book_details_query.py` | Adapter tests |
 
+The `jobs` module is a smaller second example: one view DTO, one port with two
+query methods, no cross-module joins
+(`backend/src/infrastructure/jobs/queries/job_batch_query.py`).
+
 ## Does this view qualify?
 
 Port a view when you see any of:
@@ -34,6 +38,12 @@ Do **not** fully port:
   aggregates and their invariants.
 - Single-entity GETs already served by one `find_by_id` and one mapper. The
   ceremony would exceed the benefit.
+
+When a view sits on the line, ask what the port would remove. A read whose
+repository finder has no other caller takes that finder with it, and the write
+side gets smaller — `find_by_reference` died with the active-batch view, which
+the halfway option could never have achieved. A read that shares `find_by_id`
+with a command removes nothing, so stay minimal there.
 
 A simple read that doesn't qualify still **moves** to `queries/` — otherwise
 the module's `use_cases/` package can never finish as commands-only. Apply the
@@ -80,6 +90,12 @@ In `src/application/<module>/queries/<view_name>.py`:
           self, book_id: BookId, user_id: UserId
       ) -> BookDetailsView | None: ...
   ```
+
+One port may carry more than one method. Where several endpoints render the same
+response schema — the jobs module serves both "this batch" and "the book's
+active batch" as a `JobBatchResponse` — give them one DTO and one
+`JobBatchQueryProtocol` with a method each, instead of two ports duplicating the
+shape.
 
 Derive the DTO fields from what the response schema actually needs — read the
 router's schema-building function first and work backwards. Do not mirror the
@@ -190,6 +206,25 @@ text=resolved.label if resolved else None
 ```
 
 ✓ Correct — fetch, then ask the domain service what counts.
+
+✗ Violation — a named set of statuses restated as literals in SQL:
+
+```python
+.where(JobBatchModel.status.in_(["pending", "running"]))  # "still active"
+```
+
+✓ Correct — the set is a domain fact, so the adapter imports it:
+
+```python
+from src.domain.jobs.entities.job_batch import ACTIVE_JOB_BATCH_STATUSES
+...
+.where(JobBatchModel.status.in_(sorted(s.value for s in ACTIVE_JOB_BATCH_STATUSES)))
+```
+
+The rule is not "no status filters in SQL"; it is that the adapter must not be
+where the set is *defined*. If the read you are porting keeps such a set as a
+private constant in the application layer, move it to the domain next to the
+enum as part of the port.
 
 Filtering on `deleted_at IS NULL` or `user_id = :me` is **not** a decision:
 soft-deleted and other people's rows are not data at all from the caller's
