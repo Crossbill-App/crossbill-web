@@ -6,7 +6,7 @@ from src.application.ai.ai_usage_context import AIUsageContext
 from src.application.learning.protocols.ai_flashcard_service import (
     AIFlashcardServiceProtocol,
 )
-from src.application.learning.use_cases.dtos.flashcard_ai_dtos import FlashcardSuggestion
+from src.application.learning.queries.flashcard_suggestions import FlashcardSuggestion
 from src.application.reading.protocols.chapter_prereading_repository import (
     ChapterPrereadingRepositoryProtocol,
 )

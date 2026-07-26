@@ -6,7 +6,7 @@ from src.application.ai.ai_usage_context import AIUsageContext
 from src.application.learning.protocols.ai_flashcard_service import (
     AIFlashcardServiceProtocol,
 )
-from src.application.learning.use_cases.dtos import FlashcardSuggestion
+from src.application.learning.queries.flashcard_suggestions import FlashcardSuggestion
 from src.application.reading.protocols.highlight_repository import HighlightRepositoryProtocol
 from src.domain.common.value_objects.ids import HighlightId, UserId
 from src.domain.reading.exceptions import HighlightNotFoundError

@@ -1,7 +1,16 @@
 from dependency_injector import containers, providers
 
+from src.application.learning.queries.get_chapter_flashcard_suggestions_use_case import (
+    GetChapterFlashcardSuggestionsUseCase,
+)
+from src.application.learning.queries.get_flashcard_suggestions_use_case import (
+    GetFlashcardSuggestionsUseCase,
+)
 from src.application.learning.queries.get_flashcards_by_book_use_case import (
     GetFlashcardsByBookUseCase,
+)
+from src.application.learning.queries.get_note_flashcard_suggestions_use_case import (
+    GetNoteFlashcardSuggestionsUseCase,
 )
 from src.application.learning.use_cases.chat.send_chat_message_use_case import (
     SendChatMessageUseCase,
@@ -20,15 +29,6 @@ from src.application.learning.use_cases.flashcards.create_flashcard_for_note_use
 )
 from src.application.learning.use_cases.flashcards.delete_flashcard_use_case import (
     DeleteFlashcardUseCase,
-)
-from src.application.learning.use_cases.flashcards.get_chapter_flashcard_suggestions_use_case import (
-    GetChapterFlashcardSuggestionsUseCase,
-)
-from src.application.learning.use_cases.flashcards.get_flashcard_suggestions_use_case import (
-    GetFlashcardSuggestionsUseCase,
-)
-from src.application.learning.use_cases.flashcards.get_note_flashcard_suggestions_use_case import (
-    GetNoteFlashcardSuggestionsUseCase,
 )
 from src.application.learning.use_cases.flashcards.update_flashcard_use_case import (
     UpdateFlashcardUseCase,
