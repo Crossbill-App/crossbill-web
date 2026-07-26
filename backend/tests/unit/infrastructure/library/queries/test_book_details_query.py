@@ -12,7 +12,7 @@ from src.infrastructure.library.queries.book_details_query import BookDetailsQue
 from src.infrastructure.reading.repositories.highlight_style_repository import (
     HighlightStyleRepository,
 )
-from src.models import Book, Chapter, Flashcard, User
+from src.models import Book, Chapter, Flashcard, Note, User
 from tests.conftest import (
     create_test_book,
     create_test_highlight,
@@ -175,6 +175,44 @@ async def test_book_flashcards_exclude_highlight_cards(
     assert [card.question for card in view.chapters[0].highlights[0].flashcards] == [
         "Highlight level?"
     ]
+
+
+async def test_book_flashcards_carry_the_note_they_came_from(
+    query: BookDetailsQuery, db_session: AsyncSession, test_book: Book
+) -> None:
+    # Callers use note_id to tell a note's card apart from a plain book card;
+    # dropping it here is invisible until a cache goes stale somewhere else.
+    note = Note(user_id=DEFAULT_USER_ID, title="Raskolnikov", body="")
+    note.books = [test_book]
+    db_session.add(note)
+    await db_session.commit()
+    await db_session.refresh(note)
+    db_session.add_all(
+        [
+            Flashcard(
+                user_id=DEFAULT_USER_ID,
+                book_id=test_book.id,
+                note_id=note.id,
+                question="From a note?",
+                answer="Yes",
+            ),
+            Flashcard(
+                user_id=DEFAULT_USER_ID,
+                book_id=test_book.id,
+                question="From the book?",
+                answer="Yes",
+            ),
+        ]
+    )
+    await db_session.commit()
+
+    view = await query.get_book_details(BookId(test_book.id), UserId(DEFAULT_USER_ID))
+
+    assert view is not None
+    assert {(card.question, card.note_id) for card in view.book_flashcards} == {
+        ("From a note?", note.id),
+        ("From the book?", None),
+    }
 
 
 async def test_another_users_book_is_invisible(

@@ -49,6 +49,7 @@ class FlashcardRef:
     book_id: int
     highlight_id: int | None
     chapter_id: int | None
+    note_id: int | None
     question: str
     answer: str
 

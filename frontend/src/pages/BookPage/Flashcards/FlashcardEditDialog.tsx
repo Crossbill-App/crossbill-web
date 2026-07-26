@@ -45,7 +45,7 @@ export const FlashcardEditDialog = ({
   const updateMutation = useUpdateFlashcard({
     mutation: {
       onSuccess: () => {
-        cache.flashcardsChanged(bookId);
+        cache.flashcardsChanged(bookId, flashcard.note_id ?? undefined);
         onClose();
       },
       onError: mutationErrorHandler('update flashcard'),
