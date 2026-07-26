@@ -4,6 +4,9 @@ from src.application.library.queries.get_book_details_use_case import GetBookDet
 from src.application.library.queries.get_books_with_counts_use_case import (
     GetBooksWithCountsUseCase,
 )
+from src.application.library.queries.get_ereader_metadata_use_case import (
+    GetEreaderMetadataUseCase,
+)
 from src.application.library.queries.get_recently_viewed_books_use_case import (
     GetRecentlyViewedBooksUseCase,
 )
@@ -22,9 +25,6 @@ from src.application.library.use_cases.book_management.mark_book_viewed_use_case
 )
 from src.application.library.use_cases.book_management.update_reading_stage_use_case import (
     UpdateReadingStageUseCase,
-)
-from src.application.library.use_cases.book_queries.get_ereader_metadata_use_case import (
-    GetEreaderMetadataUseCase,
 )
 
 
