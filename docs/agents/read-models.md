@@ -19,7 +19,10 @@ The `jobs` module is a smaller second example: one view DTO, one port with two
 query methods, no cross-module joins
 (`backend/src/infrastructure/jobs/queries/job_batch_query.py`). The `notes`
 module shows the same one-DTO-two-methods shape over many-to-many links
-(`backend/src/infrastructure/notes/queries/note_query.py`).
+(`backend/src/infrastructure/notes/queries/note_query.py`). The `learning`
+module's book-flashcards view is the smallest full port that still reuses a
+domain-owned rule — two selects plus `LabelResolutionService`
+(`backend/src/infrastructure/learning/queries/book_flashcard_query.py`).
 
 ## Does this view qualify?
 
@@ -40,6 +43,13 @@ Do **not** fully port:
   aggregates and their invariants.
 - Single-entity GETs already served by one `find_by_id` and one mapper. The
   ceremony would exceed the benefit.
+
+"Reads in order to write" means the use case itself mutates the data the view is
+about. A row written *by a collaborator* as a side effect does not make the read
+a command: the flashcard-suggestion endpoints persist an `AIUsageRecord` inside
+`AIService`, and they are still reads. The ADR settles the general case in the
+other direction too — a read use case may call a command outright, which is how
+`GetBookDetailsUseCase` stamps `last_viewed`.
 
 When a view sits on the line, ask what the port would remove. A read whose
 repository finder has no other caller takes that finder with it, and the write
@@ -137,6 +147,15 @@ targeted selects is fine and preferable to reusing an aggregate finder.
   deriving the other.
 - Return `None` when the root row is absent; let the read use case turn that
   into the domain's NotFound error.
+
+A field the response schema declares but the old router never passed is not an
+invitation to start filling it *in the port*. The book-flashcards list used to
+serialise `note_id` as `null` because the router omitted it, even though the
+schema had the field; the port preserved that, and a follow-up commit added the
+field to the DTO and filled it. Keep the two apart: the OpenAPI document is
+byte-identical either way, so the verification step cannot tell a faithful port
+from a behaviour change, and a reviewer reading one commit should not have to
+guess which they are looking at.
 
 ### 3. Add the read use case
 

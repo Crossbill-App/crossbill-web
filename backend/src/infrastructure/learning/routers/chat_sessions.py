@@ -5,16 +5,16 @@ from typing import Annotated
 import structlog
 from fastapi import APIRouter, Depends, status
 
-from src.application.learning.use_cases.chat.send_chat_message_use_case import (
+from src.application.learning.commands.chat.send_chat_message_use_case import (
     SendChatMessageUseCase,
 )
-from src.application.learning.use_cases.chat.start_chat_session_use_case import (
+from src.application.learning.commands.chat.start_chat_session_use_case import (
     StartChatSessionUseCase,
 )
-from src.application.learning.use_cases.quiz.send_quiz_message_use_case import (
+from src.application.learning.commands.quiz.send_quiz_message_use_case import (
     SendQuizMessageUseCase,
 )
-from src.application.learning.use_cases.quiz.start_quiz_session_use_case import (
+from src.application.learning.commands.quiz.start_quiz_session_use_case import (
     StartQuizSessionUseCase,
 )
 from src.core import container

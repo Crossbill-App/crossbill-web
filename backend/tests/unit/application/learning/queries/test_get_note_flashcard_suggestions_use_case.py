@@ -6,7 +6,7 @@ from unittest.mock import AsyncMock
 import pytest
 
 from src.application.learning.protocols.ai_flashcard_service import AIFlashcardSuggestion
-from src.application.learning.use_cases.flashcards.get_note_flashcard_suggestions_use_case import (
+from src.application.learning.queries.get_note_flashcard_suggestions_use_case import (
     GetNoteFlashcardSuggestionsUseCase,
 )
 from src.domain.common.value_objects.ids import BookId, HighlightId, NoteId, UserId

@@ -15,6 +15,7 @@ from src.infrastructure.identity.services.password_service_adapter import Passwo
 from src.infrastructure.identity.services.token_service_adapter import TokenServiceAdapter
 from src.infrastructure.jobs.queries.job_batch_query import JobBatchQuery
 from src.infrastructure.jobs.repositories.job_batch_repository import JobBatchRepository
+from src.infrastructure.learning.queries.book_flashcard_query import BookFlashcardQuery
 from src.infrastructure.learning.repositories.ai_chat_session_repository import (
     AIChatSessionRepository,
 )
@@ -126,6 +127,11 @@ class SharedContainer(containers.DeclarativeContainer):
         label_resolution_service=label_resolution_service,
     )
     note_query = providers.Factory(NoteQuery, db=db)
+    book_flashcard_query = providers.Factory(
+        BookFlashcardQuery,
+        db=db,
+        label_resolution_service=label_resolution_service,
+    )
 
     # Learning repositories
     ai_chat_session_repository = providers.Factory(AIChatSessionRepository, db=db)

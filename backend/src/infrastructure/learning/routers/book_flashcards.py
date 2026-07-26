@@ -3,10 +3,14 @@ from typing import Annotated
 from fastapi import APIRouter, Depends
 from starlette import status
 
-from src.application.learning.use_cases.flashcards.create_flashcard_for_book_use_case import (
+from src.application.learning.commands.flashcards.create_flashcard_for_book_use_case import (
     CreateFlashcardForBookUseCase,
 )
-from src.application.learning.use_cases.flashcards.get_flashcards_by_book_use_case import (
+from src.application.learning.queries.book_flashcards import (
+    FlashcardHighlightView,
+    FlashcardWithHighlightView,
+)
+from src.application.learning.queries.get_flashcards_by_book_use_case import (
     GetFlashcardsByBookUseCase,
 )
 from src.core import container
@@ -110,69 +114,48 @@ async def get_flashcards_for_book(
     Raises:
         HTTPException: If book not found or fetching fails
     """
-    # Get flashcards with highlights from use case (returns DTOs + labels)
-    flashcards_with_highlights, labels = await use_case.get_flashcards(
-        book_id, current_user.id.value
+    view = await use_case.get_flashcards(book_id, current_user.id.value)
+    return CollectionResponse[FlashcardWithHighlight](
+        items=[_flashcard_schema(card) for card in view]
     )
 
-    # Convert DTOs to Pydantic schemas
-    flashcards = []
-    for dto in flashcards_with_highlights:
-        fc = dto.flashcard
-        highlight = dto.highlight
-        chapter = dto.chapter
-        tags = dto.tags
 
-        # Convert highlight to Pydantic schema if present
-        highlight_schema = None
-        if highlight:
-            resolved = (
-                labels.get(highlight.highlight_style_id.value)
-                if highlight.highlight_style_id
-                else None
-            )
-            # Manually construct highlight schema
-            highlight_schema = HighlightResponseBase(
-                id=highlight.id.value,
-                book_id=highlight.book_id.value,
-                chapter_id=highlight.chapter_id.value if highlight.chapter_id else None,
-                text=highlight.text,
-                page=highlight.page,
-                datetime=highlight.datetime,
-                chapter=chapter.name if chapter else None,
-                chapter_number=chapter.chapter_number if chapter else None,
-                label=HighlightLabel(
-                    highlight_style_id=highlight.highlight_style_id.value
-                    if highlight.highlight_style_id
-                    else None,
-                    text=resolved.label if resolved else None,
-                    ui_color=resolved.ui_color if resolved else None,
-                )
-                if highlight.highlight_style_id
-                else None,
-                created_at=highlight.created_at,
-                updated_at=highlight.updated_at,
-                tags=[
-                    TagInBook(
-                        id=tag.id.value,
-                        name=tag.name,
-                        tag_group_id=tag.tag_group_id,
-                    )
-                    for tag in tags
-                ],
-            )
-
-        # Construct flashcard schema with highlight
-        flashcard_schema = FlashcardWithHighlight(
-            id=fc.id.value,
-            user_id=fc.user_id.value,
-            book_id=fc.book_id.value,
-            highlight_id=fc.highlight_id.value if fc.highlight_id else None,
-            chapter_id=fc.chapter_id.value if fc.chapter_id else None,
-            question=fc.question,
-            answer=fc.answer,
-            highlight=highlight_schema,
+def _highlight_schema(view: FlashcardHighlightView) -> HighlightResponseBase:
+    """Render the highlight embedded in a flashcard row."""
+    return HighlightResponseBase(
+        id=view.id,
+        book_id=view.book_id,
+        chapter_id=view.chapter_id,
+        text=view.text,
+        page=view.page,
+        datetime=view.datetime,
+        chapter=view.chapter_name,
+        chapter_number=view.chapter_number,
+        label=HighlightLabel(
+            highlight_style_id=view.label.highlight_style_id,
+            text=view.label.text,
+            ui_color=view.label.ui_color,
         )
-        flashcards.append(flashcard_schema)
+        if view.label
+        else None,
+        created_at=view.created_at,
+        updated_at=view.updated_at,
+        tags=[
+            TagInBook(id=tag.id, name=tag.name, tag_group_id=tag.tag_group_id) for tag in view.tags
+        ],
+    )
 
-    return CollectionResponse[FlashcardWithHighlight](items=flashcards)
+
+def _flashcard_schema(view: FlashcardWithHighlightView) -> FlashcardWithHighlight:
+    """Render one flashcard row of the book's flashcard list."""
+    return FlashcardWithHighlight(
+        id=view.id,
+        user_id=view.user_id,
+        book_id=view.book_id,
+        highlight_id=view.highlight_id,
+        chapter_id=view.chapter_id,
+        note_id=view.note_id,
+        question=view.question,
+        answer=view.answer,
+        highlight=_highlight_schema(view.highlight) if view.highlight else None,
+    )

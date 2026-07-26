@@ -5,7 +5,7 @@ from typing import Annotated
 from fastapi import APIRouter, Depends
 from starlette import status
 
-from src.application.learning.use_cases.flashcards.create_flashcard_for_highlight_use_case import (
+from src.application.learning.commands.flashcards.create_flashcard_for_highlight_use_case import (
     CreateFlashcardForHighlightUseCase,
 )
 from src.core import container
