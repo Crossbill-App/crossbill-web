@@ -96,6 +96,19 @@ This backend follows DDD (Domain-Driven Design) with hexagonal architecture and 
    - **MUST NOT** use ORM models directly
    - **MUST NOT** contain business logic
 
+### Read Models (CQRS-lite)
+
+Views are being migrated off the repositories onto **query services**: view DTOs
+and a query port in `src/application/<module>/queries/`, an ORM-to-DTO adapter in
+`src/infrastructure/<module>/queries/`. `src/application/<module>/use_cases/`
+holds **commands only**; read use cases live in the `queries` package and are
+what routers inject. Read DTOs must never reach a command — enforced by the
+`queries-are-dead-ends` import-linter contract.
+
+- Decision and rationale: `docs/adr/0001-read-models-and-query-services.md`
+- Porting recipe for a new view: `docs/agents/read-models.md`
+- Reference implementation: the book-details view (`library` module)
+
 ### Critical Architectural Rules
 
 1. **ORM Models**
