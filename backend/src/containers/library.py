@@ -1,5 +1,6 @@
 from dependency_injector import containers, providers
 
+from src.application.library.queries.get_book_details_use_case import GetBookDetailsUseCase
 from src.application.library.use_cases.book_files.ebook_deletion_use_case import (
     EbookDeletionUseCase,
 )
@@ -40,7 +41,8 @@ class LibraryContainer(containers.DeclarativeContainer):
     epub_position_index_service = providers.Dependency()
     cover_image_service = providers.Dependency()
 
-    # Read models (query services), called straight from routers
+    # Read models: the query adapter (a port implementation) plus the read use
+    # case that routers call, mirroring how commands are exposed.
     book_details_query = providers.Dependency()
 
     # Book files
@@ -77,6 +79,13 @@ class LibraryContainer(containers.DeclarativeContainer):
     update_reading_stage_use_case = providers.Factory(
         UpdateReadingStageUseCase,
         book_repository=book_repository,
+    )
+
+    # Read models
+    get_book_details_use_case = providers.Factory(
+        GetBookDetailsUseCase,
+        mark_book_viewed_use_case=mark_book_viewed_use_case,
+        book_details_query=book_details_query,
     )
 
     # Book queries

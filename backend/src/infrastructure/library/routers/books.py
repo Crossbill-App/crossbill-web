@@ -4,16 +4,13 @@ from fastapi import APIRouter, Depends, Query
 from starlette import status
 
 from src.application.library.queries.book_details import (
-    BookDetailsQueryProtocol,
     BookDetailsView,
     ChapterWithHighlightsView,
     HighlightView,
 )
+from src.application.library.queries.get_book_details_use_case import GetBookDetailsUseCase
 from src.application.library.use_cases.book_management.delete_book_use_case import (
     DeleteBookUseCase,
-)
-from src.application.library.use_cases.book_management.mark_book_viewed_use_case import (
-    MarkBookViewedUseCase,
 )
 from src.application.library.use_cases.book_management.update_reading_stage_use_case import (
     UpdateReadingStageUseCase,
@@ -25,9 +22,7 @@ from src.application.library.use_cases.book_queries.get_recently_viewed_books_us
     GetRecentlyViewedBooksUseCase,
 )
 from src.core import container
-from src.domain.common.value_objects import BookId, UserId
 from src.domain.identity import User
-from src.domain.reading.exceptions import BookNotFoundError
 from src.infrastructure.common.di import inject_use_case
 from src.infrastructure.common.schemas import CollectionResponse, PaginatedResponse
 from src.infrastructure.common.schemas.position_schemas import PositionResponse
@@ -311,11 +306,8 @@ async def get_recently_viewed_books(
 async def get_book_details(
     book_id: int,
     current_user: Annotated[User, Depends(get_current_user)],
-    mark_viewed: MarkBookViewedUseCase = Depends(
-        inject_use_case(container.library.mark_book_viewed_use_case)
-    ),
-    query: BookDetailsQueryProtocol = Depends(
-        inject_use_case(container.library.book_details_query)
+    use_case: GetBookDetailsUseCase = Depends(
+        inject_use_case(container.library.get_book_details_use_case)
     ),
 ) -> BookDetails:
     """
@@ -330,13 +322,7 @@ async def get_book_details(
     Raises:
         HTTPException: If book is not found or fetching fails
     """
-    # Opening the page stamps the book as viewed. That is a command, so it runs
-    # through its own use case before the read model is queried.
-    await mark_viewed.mark_viewed(book_id, current_user.id.value)
-
-    view = await query.get_book_details(BookId(book_id), UserId(current_user.id.value))
-    if view is None:
-        raise BookNotFoundError(book_id)
+    view = await use_case.get_book_details(book_id, current_user.id.value)
     return _build_book_details_schema(view)
 
 
