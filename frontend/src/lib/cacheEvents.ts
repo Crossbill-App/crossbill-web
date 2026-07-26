@@ -68,14 +68,16 @@ export const useCacheEvents = () => {
       /**
        * A flashcard was created, edited or deleted.
        *
-       * Cards are counted in book details wherever they came from. Pass `noteId`
-       * for a card belonging to a note, whose detail embeds its own card list.
-       * Highlight- and chapter-sourced cards need no second key: their views read
-       * from book details.
+       * Cards are counted in book details wherever they came from. The notes
+       * list embeds each note's cards, and a card edited from the book's
+       * flashcard page does not say which note it belongs to, so that key is
+       * invalidated unconditionally. Pass `noteId` for a card belonging to a
+       * note, whose detail embeds its own card list.
        */
       flashcardsChanged: (bookId: number, noteId?: number) =>
         invalidate(
           getGetBookDetailsQueryKey(bookId),
+          getGetNotesForBookQueryKey(bookId),
           ...(noteId === undefined ? [] : [getGetNoteQueryKey(noteId)])
         ),
 
