@@ -1,10 +1,10 @@
 from dependency_injector import containers, providers
 
-from src.application.reflection.use_cases.get_book_reflection_use_case import (
-    GetBookReflectionUseCase,
-)
-from src.application.reflection.use_cases.upsert_book_reflection_use_case import (
+from src.application.reflection.commands.upsert_book_reflection_use_case import (
     UpsertBookReflectionUseCase,
+)
+from src.application.reflection.queries.get_book_reflection_use_case import (
+    GetBookReflectionUseCase,
 )
 
 
