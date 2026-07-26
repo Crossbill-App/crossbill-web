@@ -1,6 +1,6 @@
 ---
 name: start-github-ticket
-description: Use when the user provides a GitHub issue/ticket URL (e.g. github.com/Crossbill-Highlights/crossbill-web/issues/NNN) and asks to start working on it — fetches the ticket, moves it to In Progress on the project board, sets up a worktree, and begins implementation.
+description: Use when the user provides a GitHub issue/ticket URL (e.g. github.com/Crossbill-Highlights/crossbill-web/issues/NNN) and asks to start working on it — fetches the ticket, moves it to In Progress on the project board, creates a branch, and begins implementation.
 ---
 
 # Start GitHub Ticket
@@ -42,28 +42,34 @@ If the issue isn't on the project board yet, add it first with `gh project item-
 
 If any of these commands fail (auth, TLS, missing permissions), report the failure to the user and ask whether to continue without the status update — don't silently skip it.
 
-### 3. Create a worktree
+### 3. Create a branch
 
-Worktrees live in `.worktrees/` at the repo root. Use a short kebab-case slug derived from the issue title (match the style of existing entries like `escape-like-wildcards`, `ai-usage-tracking`). Branch name should be similar, optionally prefixed with the issue number.
+**Default: work directly in the main repo directory on a new branch — no worktree.**
+Use a short kebab-case slug derived from the issue title, optionally prefixed with the
+issue number.
 
 ```bash
-# From the main repo root
+git checkout -b <branch-name>
+```
+
+Check `git branch --list` first if you're unsure the name is free.
+
+#### Worktree (only on request)
+
+Only create a worktree when the user explicitly asks, or when several agents will work
+the same repo in parallel and would otherwise collide. Then:
+
+```bash
 git worktree add .worktrees/<slug> -b <branch-name>
+cp .env .worktrees/<slug>/.env   # git-ignored, not carried across worktrees
 ```
 
-### 4. Copy the .env file
+Keep worktrees under `.worktrees/` so they stay consistent with existing ones. If `.env`
+doesn't exist in main, tell the user and stop — don't fabricate one.
 
-The `.env` is git-ignored and not carried across worktrees. Copy it so the new worktree can run the stack:
+### 4. Begin implementation
 
-```bash
-cp .env .worktrees/<slug>/.env
-```
-
-If `.env` doesn't exist in main, tell the user and stop — don't fabricate one.
-
-### 5. Begin implementation
-
-`cd` into the worktree and start working on the ticket. Before writing code:
+Start working on the ticket (from the worktree, if you created one). Before writing code:
 
 - Re-read the ticket body and acceptance criteria.
 - If the task is non-trivial or ambiguous, invoke `superpowers:brainstorming` before touching code.
@@ -77,12 +83,12 @@ Reference the issue number in commits and the eventual PR so GitHub auto-links t
 |------|---------|
 | Read ticket | `gh issue view <n> --repo Crossbill-Highlights/crossbill-web --json number,title,body,labels,projectItems` |
 | Move to In Progress | `gh project item-edit --project-id … --id … --field-id … --single-select-option-id …` |
-| Create worktree | `git worktree add .worktrees/<slug> -b <branch>` |
-| Copy env | `cp .env .worktrees/<slug>/.env` |
+| Create branch (default) | `git checkout -b <branch>` |
+| Worktree (on request only) | `git worktree add .worktrees/<slug> -b <branch>` + `cp .env .worktrees/<slug>/.env` |
 
 ## Common mistakes
 
+- **Creating a worktree by default** — work in the main repo directory unless the user asks otherwise or parallel agents need isolation.
 - **Skipping the project board update silently** when `gh project` commands fail. Surface the failure instead.
-- **Forgetting to copy `.env`** — the worktree will then fail to start the backend/frontend.
-- **Creating the worktree outside `.worktrees/`** — keep everything under that directory so it stays consistent with existing ones.
+- **Forgetting to copy `.env`** when you *do* use a worktree — it will then fail to start the backend/frontend.
 - **Using a branch name that already exists** — check with `git branch --list` first if unsure.
