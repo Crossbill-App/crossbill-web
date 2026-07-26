@@ -38,24 +38,33 @@ export const useNoteDialogs = (options: UseNoteDialogsOptions = {}): NoteDialogs
 
   const { open, navigateToIndex, ...rest } = dialog;
 
-  const openView = useCallback(
+  // A list row is a placeholder for the detail, not a substitute: the list
+  // response leaves `flashcards` empty by design. Seed it so the dialog paints
+  // instantly, but backdate the entry so it counts as stale and `useGetNote`
+  // still fetches the real detail on mount.
+  const seedDetail = useCallback(
     (note: NoteWithLinks) => {
-      queryClient.setQueryData(getGetNoteQueryKey(note.id), note);
-      open(note.id);
+      queryClient.setQueryData(getGetNoteQueryKey(note.id), note, { updatedAt: 0 });
     },
-    [open, queryClient]
+    [queryClient]
   );
 
-  // Seed the detail cache like openView so navigation renders instantly; the
-  // underlying navigation replaces the history entry so Back closes the dialog
-  // instead of stepping through every viewed note.
+  const openView = useCallback(
+    (note: NoteWithLinks) => {
+      seedDetail(note);
+      open(note.id);
+    },
+    [open, seedDetail]
+  );
+
+  // The underlying navigation replaces the history entry so Back closes the
+  // dialog instead of stepping through every viewed note.
   const handleNavigate = useCallback(
     (newIndex: number) => {
-      const note = allNotes[newIndex];
-      queryClient.setQueryData(getGetNoteQueryKey(note.id), note);
+      seedDetail(allNotes[newIndex]);
       navigateToIndex(newIndex);
     },
-    [allNotes, navigateToIndex, queryClient]
+    [allNotes, navigateToIndex, seedDetail]
   );
 
   return {
