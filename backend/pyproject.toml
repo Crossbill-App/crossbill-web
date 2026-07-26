@@ -149,6 +149,16 @@ source_modules = ["src.application"]
 forbidden_modules = ["src.infrastructure"]
 
 [[tool.importlinter.contracts]]
+id = "queries-are-dead-ends"
+name = "Read models must not flow back into the domain or into commands"
+type = "forbidden"
+source_modules = [
+    "src.domain",
+    "src.application.*.use_cases",
+]
+forbidden_modules = ["src.application.*.queries"]
+
+[[tool.importlinter.contracts]]
 id = "orm-boundary"
 name = "ORM models must only be directly imported in repository and mapper modules"
 type = "forbidden"
