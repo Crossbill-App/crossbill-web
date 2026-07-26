@@ -157,3 +157,13 @@ implementation detail that can be tightened later without touching callers.
 The whole app ports view-by-view; book details is the first. Nothing forces a
 big-bang migration, and untouched endpoints keep working through repositories.
 See `docs/agents/read-models.md` for the porting recipe.
+
+**End-state naming**
+
+`use_cases/` still contains unported reads and keeps its historical name during
+the migration. Once a module's `use_cases/` holds only commands, the package
+renames to `commands/` (symmetric with `queries/`). Class names keep the
+`*UseCase` suffix on both sides: "use case" is the layer role — reads are use
+cases too — while the package encodes the command/query kind. `*Command` as a
+class suffix is deliberately avoided (in CQRS literature a Command is a message
+object, which is not this codebase's shape).

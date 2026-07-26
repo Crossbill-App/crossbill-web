@@ -46,6 +46,12 @@ src/infrastructure/<module>/queries/   the adapter (may import ORM models)
 A view's query belongs to the module that owns the view. The adapter may import
 any module's `orm` package for joins — infrastructure is one layer.
 
+Naming note: `use_cases/` is a historical name. Once a module's `use_cases/`
+package genuinely contains only commands (every read ported to `queries/`), it
+renames to `commands/`. Do NOT rename early — mid-migration the packages still
+hold unported reads — and keep the `*UseCase` class suffix on both sides ("use
+case" names the layer role; the package names the kind).
+
 ## Recipe
 
 ### 1. Define the DTOs and the port
