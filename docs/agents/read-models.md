@@ -28,12 +28,21 @@ Port a view when you see any of:
   or loaded and then partly discarded.
 - A `limit=10000`-style call standing in for "all of them".
 
-Do **not** port:
+Do **not** fully port:
 
 - Endpoints that read in order to write. Those are commands; they need
   aggregates and their invariants.
 - Single-entity GETs already served by one `find_by_id` and one mapper. The
   ceremony would exceed the benefit.
+
+A simple read that doesn't qualify still **moves** to `queries/` — otherwise
+the module's `use_cases/` package can never finish as commands-only. Apply the
+ADR's halfway option at its most minimal: the read use case relocates as-is,
+keeps delegating to the existing repository, and keeps returning domain
+entities. No adapter, no invented DTOs, no query port. The package placement
+(and the dead-ends contract that keys off it) is the point; the internals can
+be tightened later if the view ever grows. `GetTagsForBookUseCase`
+(`application/tagging/queries/`) is the reference for this shape.
 
 ## The layout
 

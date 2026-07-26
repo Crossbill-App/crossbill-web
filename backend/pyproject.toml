@@ -155,6 +155,7 @@ type = "forbidden"
 source_modules = [
     "src.domain",
     "src.application.*.use_cases",
+    "src.application.*.commands",
 ]
 forbidden_modules = ["src.application.*.queries"]
 

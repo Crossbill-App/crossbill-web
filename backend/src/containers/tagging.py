@@ -1,28 +1,28 @@
 from dependency_injector import containers, providers
 
-from src.application.tagging.use_cases.tag_groups.create_tag_group_use_case import (
+from src.application.tagging.commands.tag_groups.create_tag_group_use_case import (
     CreateTagGroupUseCase,
 )
-from src.application.tagging.use_cases.tag_groups.delete_tag_group_use_case import (
+from src.application.tagging.commands.tag_groups.delete_tag_group_use_case import (
     DeleteTagGroupUseCase,
 )
-from src.application.tagging.use_cases.tag_groups.update_tag_group_association_use_case import (
+from src.application.tagging.commands.tag_groups.update_tag_group_association_use_case import (
     UpdateTagGroupAssociationUseCase,
 )
-from src.application.tagging.use_cases.tag_groups.update_tag_group_use_case import (
+from src.application.tagging.commands.tag_groups.update_tag_group_use_case import (
     UpdateTagGroupUseCase,
 )
-from src.application.tagging.use_cases.tags.create_tag_use_case import (
+from src.application.tagging.commands.tags.create_tag_use_case import (
     CreateTagUseCase,
 )
-from src.application.tagging.use_cases.tags.delete_tag_use_case import (
+from src.application.tagging.commands.tags.delete_tag_use_case import (
     DeleteTagUseCase,
 )
-from src.application.tagging.use_cases.tags.get_tags_for_book_use_case import (
-    GetTagsForBookUseCase,
-)
-from src.application.tagging.use_cases.tags.update_tag_name_use_case import (
+from src.application.tagging.commands.tags.update_tag_name_use_case import (
     UpdateTagNameUseCase,
+)
+from src.application.tagging.queries.get_tags_for_book_use_case import (
+    GetTagsForBookUseCase,
 )
 
 

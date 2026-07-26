@@ -102,25 +102,6 @@ class TagRepository(BaseRepository[Tag, TagORM]):
 
     # Tag group methods
 
-    async def find_groups_by_book(self, book_id: BookId) -> list[TagGroup]:
-        """
-        Find all tag groups for a book.
-
-        Args:
-            book_id: The book ID
-
-        Returns:
-            List of tag group entities, ordered by name
-        """
-        stmt = (
-            select(TagGroupORM)
-            .where(TagGroupORM.book_id == book_id.value)
-            .order_by(TagGroupORM.name)
-        )
-        result = await self.db.execute(stmt)
-        orm_models = result.scalars().all()
-        return [self.group_mapper.to_domain(orm) for orm in orm_models]
-
     async def find_group_by_id(self, group_id: TagGroupId, book_id: BookId) -> TagGroup | None:
         """
         Find a tag group by ID and book ID.
@@ -204,17 +185,3 @@ class TagRepository(BaseRepository[Tag, TagORM]):
         await self.db.delete(group_orm)
         await self.db.commit()
         return True
-
-    async def check_group_exists(self, group_id: TagGroupId) -> bool:
-        """
-        Check if a tag group exists (regardless of book).
-
-        Args:
-            group_id: The group ID
-
-        Returns:
-            True if the group exists, False otherwise
-        """
-        stmt = select(TagGroupORM.id).where(TagGroupORM.id == group_id.value)
-        result = await self.db.execute(stmt)
-        return result.scalar_one_or_none() is not None
