@@ -37,6 +37,7 @@ from src.infrastructure.library.services.epub_text_extraction_service import (
 from src.infrastructure.notes.queries.note_query import NoteQuery
 from src.infrastructure.notes.repositories.note_repository import NoteRepository
 from src.infrastructure.reading.queries.bookmark_query import BookmarkQuery
+from src.infrastructure.reading.queries.ereader_prereading_query import EreaderPrereadingQuery
 from src.infrastructure.reading.queries.highlight_label_query import HighlightLabelQuery
 from src.infrastructure.reading.queries.highlight_search_query import HighlightSearchQuery
 from src.infrastructure.reading.queries.reading_session_query import ReadingSessionQuery
@@ -139,6 +140,7 @@ class SharedContainer(containers.DeclarativeContainer):
         label_resolution_service=label_resolution_service,
     )
     bookmark_query = providers.Factory(BookmarkQuery, db=db)
+    ereader_prereading_query = providers.Factory(EreaderPrereadingQuery, db=db)
     highlight_label_query = providers.Factory(
         HighlightLabelQuery,
         db=db,

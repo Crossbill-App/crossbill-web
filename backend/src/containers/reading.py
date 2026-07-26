@@ -18,6 +18,9 @@ from src.application.reading.queries.get_bookmarks_use_case import (
 from src.application.reading.queries.get_chapter_prereading_use_case import (
     GetChapterPrereadingUseCase,
 )
+from src.application.reading.queries.get_ereader_book_prereading_use_case import (
+    GetEreaderBookPrereadingUseCase,
+)
 from src.application.reading.queries.get_global_highlight_labels_use_case import (
     GetGlobalHighlightLabelsUseCase,
 )
@@ -32,9 +35,6 @@ from src.application.reading.use_cases.bookmarks.delete_bookmark_use_case import
 )
 from src.application.reading.use_cases.chapter_prereading.generate_chapter_prereading_use_case import (
     GenerateChapterPrereadingUseCase,
-)
-from src.application.reading.use_cases.chapter_prereading.get_ereader_book_prereading_use_case import (
-    GetEreaderBookPrereadingUseCase,
 )
 from src.application.reading.use_cases.chapter_prereading.update_prereading_answers_use_case import (
     UpdatePrereadingAnswersUseCase,
@@ -92,6 +92,7 @@ class ReadingContainer(containers.DeclarativeContainer):
     highlight_label_query = providers.Dependency()
     highlight_search_query = providers.Dependency()
     reading_session_query = providers.Dependency()
+    ereader_prereading_query = providers.Dependency()
 
     # Bookmarks
     create_bookmark_use_case = providers.Factory(
@@ -203,9 +204,7 @@ class ReadingContainer(containers.DeclarativeContainer):
     )
     get_ereader_book_prereading_use_case = providers.Factory(
         GetEreaderBookPrereadingUseCase,
-        book_repo=book_repository,
-        chapter_repo=chapter_repository,
-        prereading_repo=chapter_prereading_repository,
+        ereader_prereading_query=ereader_prereading_query,
     )
     generate_chapter_prereading_use_case = providers.Factory(
         GenerateChapterPrereadingUseCase,

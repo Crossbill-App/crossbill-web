@@ -47,6 +47,7 @@ from src.application.reading.protocols.reading_session_repository import (
     ReadingSessionRepositoryProtocol,
 )
 from src.application.reading.queries.bookmarks import BookmarkQueryProtocol
+from src.application.reading.queries.ereader_prereading import EreaderPrereadingQueryProtocol
 from src.application.reading.queries.highlight_labels import HighlightLabelQueryProtocol
 from src.application.reading.queries.highlight_search import HighlightSearchQueryProtocol
 from src.application.reading.queries.reading_sessions import ReadingSessionQueryProtocol
@@ -73,6 +74,7 @@ from src.infrastructure.library.repositories.chapter_repository import ChapterRe
 from src.infrastructure.notes.queries.note_query import NoteQuery
 from src.infrastructure.notes.repositories.note_repository import NoteRepository
 from src.infrastructure.reading.queries.bookmark_query import BookmarkQuery
+from src.infrastructure.reading.queries.ereader_prereading_query import EreaderPrereadingQuery
 from src.infrastructure.reading.queries.highlight_label_query import HighlightLabelQuery
 from src.infrastructure.reading.queries.highlight_search_query import HighlightSearchQuery
 from src.infrastructure.reading.queries.reading_session_query import ReadingSessionQuery
@@ -123,6 +125,7 @@ def repositories_satisfy_their_protocols(
         db, label_resolution_service
     )
     _bookmarks_view: BookmarkQueryProtocol = BookmarkQuery(db)
+    _ereader_prereading_view: EreaderPrereadingQueryProtocol = EreaderPrereadingQuery(db)
     _highlight_labels_view: HighlightLabelQueryProtocol = HighlightLabelQuery(
         db, label_resolution_service
     )

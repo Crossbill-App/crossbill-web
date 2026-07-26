@@ -12,7 +12,7 @@ from src.application.library.dtos import CreateBookInput
 from src.application.library.queries.get_ereader_metadata_use_case import (
     GetEreaderMetadataUseCase,
 )
-from src.application.reading.use_cases.chapter_prereading.get_ereader_book_prereading_use_case import (
+from src.application.reading.queries.get_ereader_book_prereading_use_case import (
     GetEreaderBookPrereadingUseCase,
 )
 from src.core import container
@@ -219,8 +219,8 @@ async def get_ereader_book_prereading(
                 chapter_number=item.chapter_number,
                 parent_chapter_name=item.parent_chapter_name,
                 summary=item.summary,
-                keypoints=item.keypoints,
-                questions=item.questions,
+                keypoints=list(item.keypoints),
+                questions=list(item.questions),
                 generated_at=item.generated_at,
             )
             for item in items
