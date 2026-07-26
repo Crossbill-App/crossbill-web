@@ -4,13 +4,13 @@ from typing import Annotated
 
 from fastapi import APIRouter, Depends, File, UploadFile, status
 
+from src.application.library.commands.book_files.ebook_upload_use_case import EbookUploadUseCase
+from src.application.library.commands.book_management.create_book_use_case import (
+    CreateBookUseCase,
+)
 from src.application.library.dtos import CreateBookInput
 from src.application.library.queries.get_ereader_metadata_use_case import (
     GetEreaderMetadataUseCase,
-)
-from src.application.library.use_cases.book_files.ebook_upload_use_case import EbookUploadUseCase
-from src.application.library.use_cases.book_management.create_book_use_case import (
-    CreateBookUseCase,
 )
 from src.application.reading.use_cases.chapter_prereading.get_ereader_book_prereading_use_case import (
     GetEreaderBookPrereadingUseCase,

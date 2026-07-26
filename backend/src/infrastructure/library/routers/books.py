@@ -3,6 +3,12 @@ from typing import Annotated
 from fastapi import APIRouter, Depends, Query
 from starlette import status
 
+from src.application.library.commands.book_management.delete_book_use_case import (
+    DeleteBookUseCase,
+)
+from src.application.library.commands.book_management.update_reading_stage_use_case import (
+    UpdateReadingStageUseCase,
+)
 from src.application.library.queries.book_details import (
     BookDetailsView,
     ChapterWithHighlightsView,
@@ -15,12 +21,6 @@ from src.application.library.queries.get_books_with_counts_use_case import (
 )
 from src.application.library.queries.get_recently_viewed_books_use_case import (
     GetRecentlyViewedBooksUseCase,
-)
-from src.application.library.use_cases.book_management.delete_book_use_case import (
-    DeleteBookUseCase,
-)
-from src.application.library.use_cases.book_management.update_reading_stage_use_case import (
-    UpdateReadingStageUseCase,
 )
 from src.core import container
 from src.domain.identity import User
