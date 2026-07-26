@@ -69,6 +69,7 @@ def _build_highlight_schema(highlight: HighlightView) -> Highlight:
                 book_id=card.book_id,
                 highlight_id=card.highlight_id,
                 chapter_id=card.chapter_id,
+                note_id=card.note_id,
                 question=card.question,
                 answer=card.answer,
             )
@@ -155,6 +156,7 @@ def _build_book_details_schema(view: BookDetailsView) -> BookDetails:
                 book_id=f.book_id,
                 highlight_id=None,
                 chapter_id=f.chapter_id,
+                note_id=f.note_id,
                 question=f.question,
                 answer=f.answer,
             )

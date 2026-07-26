@@ -92,7 +92,7 @@ class RootContainer(containers.DeclarativeContainer):
         chapter_repository=shared.chapter_repository,
         highlight_repository=shared.highlight_repository,
         tag_repository=shared.tag_repository,
-        flashcard_repository=shared.flashcard_repository,
+        note_query=shared.note_query,
     )
 
     reflection = providers.Container(

@@ -5,8 +5,8 @@ import structlog
 from src.application.common.ownership import require_book
 from src.application.library.protocols.book_repository import BookRepositoryProtocol
 from src.application.library.protocols.chapter_repository import ChapterRepositoryProtocol
+from src.application.notes.commands.helpers import parse_note_kind, validate_link_targets
 from src.application.notes.protocols.note_repository import NoteRepositoryProtocol
-from src.application.notes.use_cases.helpers import parse_note_kind, validate_link_targets
 from src.application.reading.protocols.highlight_repository import HighlightRepositoryProtocol
 from src.application.tagging.protocols.tag_repository import (
     TagRepositoryProtocol,

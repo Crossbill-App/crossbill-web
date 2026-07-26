@@ -5,12 +5,12 @@ from typing import Annotated
 from fastapi import APIRouter, Depends, Query
 from starlette import status
 
-from src.application.notes.use_cases.create_note_use_case import CreateNoteUseCase
-from src.application.notes.use_cases.delete_note_use_case import DeleteNoteUseCase
-from src.application.notes.use_cases.dtos import NoteWithLinkedEntities
-from src.application.notes.use_cases.get_note_use_case import GetNoteUseCase
-from src.application.notes.use_cases.get_notes_by_book_use_case import GetNotesByBookUseCase
-from src.application.notes.use_cases.update_note_use_case import UpdateNoteUseCase
+from src.application.notes.commands.create_note_use_case import CreateNoteUseCase
+from src.application.notes.commands.delete_note_use_case import DeleteNoteUseCase
+from src.application.notes.commands.update_note_use_case import UpdateNoteUseCase
+from src.application.notes.queries.get_note_use_case import GetNoteUseCase
+from src.application.notes.queries.get_notes_by_book_use_case import GetNotesByBookUseCase
+from src.application.notes.queries.note_with_links import NoteWithLinksView
 from src.core import container
 from src.domain.identity import User
 from src.domain.notes.entities.note import Note as NoteEntity
@@ -53,33 +53,38 @@ def note_entity_to_schema(entity: NoteEntity) -> Note:
     )
 
 
-def note_with_links_to_schema(dto: NoteWithLinkedEntities) -> NoteWithLinks:
-    """Convert a NoteWithLinkedEntities DTO to its response schema."""
-    base = note_entity_to_schema(dto.note)
+def note_with_links_to_schema(view: NoteWithLinksView) -> NoteWithLinks:
+    """Convert a note view DTO to its response schema."""
     return NoteWithLinks(
-        **base.model_dump(),
-        chapters=[
-            NoteLinkedChapter(id=chapter.id.value, name=chapter.name) for chapter in dto.chapters
-        ],
+        id=view.id,
+        user_id=view.user_id,
+        title=view.title,
+        body=view.body,
+        kind=view.kind.value if view.kind else None,
+        book_ids=list(view.book_ids),
+        chapter_ids=list(view.chapter_ids),
+        highlight_ids=list(view.highlight_ids),
+        tag_ids=list(view.tag_ids),
+        created_at=view.created_at,
+        updated_at=view.updated_at,
+        chapters=[NoteLinkedChapter(id=chapter.id, name=chapter.name) for chapter in view.chapters],
         highlights=[
-            NoteLinkedHighlight(
-                id=highlight.id.value, text=highlight.text[:HIGHLIGHT_SNIPPET_LENGTH]
-            )
-            for highlight in dto.highlights
+            NoteLinkedHighlight(id=highlight.id, text=highlight.text[:HIGHLIGHT_SNIPPET_LENGTH])
+            for highlight in view.highlights
         ],
-        tags=[NoteLinkedTag(id=tag.id.value, name=tag.name) for tag in dto.tags],
+        tags=[NoteLinkedTag(id=tag.id, name=tag.name) for tag in view.tags],
         flashcards=[
             Flashcard(
-                id=fc.id.value,
-                user_id=fc.user_id.value,
-                book_id=fc.book_id.value,
-                highlight_id=fc.highlight_id.value if fc.highlight_id else None,
-                chapter_id=fc.chapter_id.value if fc.chapter_id else None,
-                note_id=fc.note_id.value if fc.note_id else None,
+                id=fc.id,
+                user_id=fc.user_id,
+                book_id=fc.book_id,
+                highlight_id=fc.highlight_id,
+                chapter_id=fc.chapter_id,
+                note_id=fc.note_id,
                 question=fc.question,
                 answer=fc.answer,
             )
-            for fc in dto.flashcards
+            for fc in view.flashcards
         ],
     )
 
@@ -121,8 +126,8 @@ async def get_note(
     current_user: Annotated[User, Depends(get_current_user)],
     use_case: GetNoteUseCase = Depends(inject_use_case(container.notes.get_note_use_case)),
 ) -> NoteWithLinks:
-    dto = await use_case.get_note(note_id=note_id, user_id=current_user.id.value)
-    return note_with_links_to_schema(dto)
+    view = await use_case.get_note(note_id=note_id, user_id=current_user.id.value)
+    return note_with_links_to_schema(view)
 
 
 @router.get(
@@ -141,7 +146,7 @@ async def get_notes_for_book(
         inject_use_case(container.notes.get_notes_by_book_use_case)
     ),
 ) -> CollectionResponse[NoteWithLinks]:
-    dtos = await use_case.get_notes(
+    views = await use_case.get_notes(
         book_id=book_id,
         user_id=current_user.id.value,
         kind=kind,
@@ -149,7 +154,9 @@ async def get_notes_for_book(
         highlight_id=highlight_id,
         tag_id=tag_id,
     )
-    return CollectionResponse[NoteWithLinks](items=[note_with_links_to_schema(dto) for dto in dtos])
+    return CollectionResponse[NoteWithLinks](
+        items=[note_with_links_to_schema(view) for view in views]
+    )
 
 
 @router.put(

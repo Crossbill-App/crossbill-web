@@ -70,12 +70,16 @@ export const useCacheEvents = () => {
        *
        * Cards are counted in book details wherever they came from. Pass `noteId`
        * for a card belonging to a note, whose detail embeds its own card list.
-       * Highlight- and chapter-sourced cards need no second key: their views read
-       * from book details.
+       *
+       * The notes list embeds each note's cards too, and is refreshed whether or
+       * not a `noteId` is given: a missed invalidation there shows up as a card
+       * vanishing from a note when its dialog is reopened, which is far more
+       * expensive than refetching one small list.
        */
       flashcardsChanged: (bookId: number, noteId?: number) =>
         invalidate(
           getGetBookDetailsQueryKey(bookId),
+          getGetNotesForBookQueryKey(bookId),
           ...(noteId === undefined ? [] : [getGetNoteQueryKey(noteId)])
         ),
 

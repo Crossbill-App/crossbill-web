@@ -55,8 +55,6 @@ class NoteWithLinks(Note):
     chapters: list[NoteLinkedChapter] = Field(default_factory=list)
     highlights: list[NoteLinkedHighlight] = Field(default_factory=list)
     tags: list[NoteLinkedTag] = Field(default_factory=list)
-    # Only populated on the single-note detail endpoint; list responses
-    # return empty arrays.
     flashcards: list[Flashcard] = Field(default_factory=list)
 
 

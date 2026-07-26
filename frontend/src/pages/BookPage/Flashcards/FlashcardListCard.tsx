@@ -13,7 +13,10 @@ export interface FlashcardListCardProps {
   bookId: number;
   onEdit: () => void;
   showSourceHighlight?: boolean;
-  /** Set when the card belongs to a note, whose detail embeds its own card list. */
+  /**
+   * The note whose section is rendering this card. Cards reached from elsewhere
+   * name their own note via `flashcard.note_id`.
+   */
   noteId?: number;
 }
 
@@ -32,7 +35,7 @@ export const FlashcardListCard = ({
   const deleteMutation = useDeleteFlashcard({
     mutation: {
       onSuccess: () => {
-        cache.flashcardsChanged(bookId, noteId);
+        cache.flashcardsChanged(bookId, noteId ?? flashcard.note_id ?? undefined);
       },
       onError: mutationErrorHandler('delete flashcard'),
     },
