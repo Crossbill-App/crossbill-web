@@ -5,7 +5,7 @@ from typing import Annotated
 from fastapi import APIRouter, Depends
 from starlette import status
 
-from src.application.reading.use_cases.chapter_content_use_case import (
+from src.application.reading.queries.chapter_content_use_case import (
     ChapterContentUseCase,
 )
 from src.core import container

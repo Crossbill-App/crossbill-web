@@ -4,16 +4,17 @@ from typing import Annotated
 
 from fastapi import APIRouter, Depends, Query, status
 
-from src.application.reading.use_cases.reading_sessions.reading_session_ai_summary_use_case import (
+from src.application.reading.commands.reading_sessions.reading_session_ai_summary_use_case import (
     ReadingSessionAISummaryUseCase,
 )
-from src.application.reading.use_cases.reading_sessions.reading_session_query_use_case import (
-    ReadingSessionQueryUseCase,
-)
-from src.application.reading.use_cases.reading_sessions.reading_session_upload_use_case import (
+from src.application.reading.commands.reading_sessions.reading_session_upload_use_case import (
     ReadingSessionUploadData,
     ReadingSessionUploadUseCase,
 )
+from src.application.reading.queries.get_book_reading_sessions_use_case import (
+    ReadingSessionQueryUseCase,
+)
+from src.application.reading.queries.reading_sessions import ReadingSessionView
 from src.core import container
 from src.domain.identity.entities.user import User
 from src.infrastructure.common.dependencies import require_ai_enabled
@@ -30,6 +31,51 @@ from src.infrastructure.reading.schemas import (
 )
 
 router = APIRouter(prefix="", tags=["reading_sessions"])
+
+
+def _build_session_schema(view: ReadingSessionView) -> ReadingSession:
+    """Build the ReadingSession schema from the session-list read model.
+
+    A session's highlights are rendered without their chapter, tags or
+    flashcards; this list has never loaded them.
+    """
+    return ReadingSession(
+        id=view.id,
+        book_id=view.book_id,
+        device_id=view.device_id,
+        content_hash=view.content_hash,
+        start_time=view.start_time,
+        end_time=view.end_time,
+        start_page=view.start_page,
+        end_page=view.end_page,
+        content=view.content,
+        ai_summary=view.ai_summary,
+        created_at=view.created_at,
+        highlights=[
+            Highlight(
+                id=highlight.id,
+                book_id=highlight.book_id,
+                chapter_id=highlight.chapter_id,
+                text=highlight.text,
+                page=highlight.page,
+                datetime=highlight.datetime,
+                created_at=highlight.created_at,
+                updated_at=highlight.updated_at,
+                label=HighlightLabel(
+                    highlight_style_id=highlight.label.highlight_style_id,
+                    text=highlight.label.text,
+                    ui_color=highlight.label.ui_color,
+                )
+                if highlight.label
+                else None,
+                chapter=None,
+                chapter_number=None,
+                tags=[],
+                flashcards=[],
+            )
+            for highlight in view.highlights
+        ],
+    )
 
 
 @router.post(
@@ -123,84 +169,18 @@ async def get_book_reading_sessions(
     Returns:
         PaginatedResponse with sessions list
     """
-    # Call use case
-    result = await use_case.get_sessions_for_book(
+    page = await use_case.get_sessions_for_book(
         book_id=book_id,
         user_id=current_user.id.value,
         limit=limit,
         offset=offset,
-        include_content=True,
     )
 
-    labels = result.labels
-
-    # Manually construct Pydantic schemas
-    sessions_schemas = []
-    for session_with_highlights in result.sessions_with_highlights:
-        session = session_with_highlights.session
-
-        # Convert highlights to schemas
-        # Note: We don't have chapter/tags/flashcards loaded, so use minimal schema
-        highlight_schemas = []
-        for highlight in session_with_highlights.highlights:
-            resolved = (
-                labels.get(highlight.highlight_style_id.value)
-                if highlight.highlight_style_id
-                else None
-            )
-            # Construct Highlight schema directly with named parameters
-            highlight_schemas.append(
-                Highlight(
-                    id=highlight.id.value,
-                    book_id=highlight.book_id.value,
-                    chapter_id=highlight.chapter_id.value if highlight.chapter_id else None,
-                    text=highlight.text,
-                    page=highlight.page,
-                    datetime=highlight.datetime,
-                    created_at=highlight.created_at,
-                    updated_at=highlight.updated_at,
-                    label=HighlightLabel(
-                        highlight_style_id=highlight.highlight_style_id.value
-                        if highlight.highlight_style_id
-                        else None,
-                        text=resolved.label if resolved else None,
-                        ui_color=resolved.ui_color if resolved else None,
-                    )
-                    if highlight.highlight_style_id
-                    else None,
-                    chapter=None,  # Not loaded in this context
-                    chapter_number=None,  # Not loaded in this context
-                    tags=[],  # Not loaded in this context
-                    flashcards=[],  # Not loaded in this context
-                )
-            )
-
-        # Build ReadingSession schema
-        # Assert created_at is not None (always present for persisted entities)
-        assert session.created_at is not None, "Persisted session must have created_at"
-
-        sessions_schemas.append(
-            ReadingSession(
-                id=session.id.value,
-                book_id=session.book_id.value,
-                device_id=session.device_id,
-                content_hash=session.content_hash.value,
-                start_time=session.start_time,
-                end_time=session.end_time,
-                start_page=session.start_page,
-                end_page=session.end_page,
-                content=session_with_highlights.extracted_content,
-                ai_summary=session.ai_summary,
-                created_at=session.created_at,
-                highlights=highlight_schemas,
-            )
-        )
-
     return PaginatedResponse[ReadingSession](
-        items=sessions_schemas,
-        total=result.total,
-        offset=result.offset,
-        limit=result.limit,
+        items=[_build_session_schema(view) for view in page.sessions],
+        total=page.total,
+        offset=offset,
+        limit=limit,
     )
 
 

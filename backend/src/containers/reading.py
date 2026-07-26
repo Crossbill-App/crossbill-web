@@ -1,70 +1,70 @@
 from dependency_injector import containers, providers
 
-from src.application.reading.use_cases.bookmarks.create_bookmark_use_case import (
+from src.application.reading.commands.bookmarks.create_bookmark_use_case import (
     CreateBookmarkUseCase,
 )
-from src.application.reading.use_cases.bookmarks.delete_bookmark_use_case import (
+from src.application.reading.commands.bookmarks.delete_bookmark_use_case import (
     DeleteBookmarkUseCase,
 )
-from src.application.reading.use_cases.bookmarks.get_bookmarks_use_case import (
-    GetBookmarksUseCase,
-)
-from src.application.reading.use_cases.chapter_content_use_case import (
-    ChapterContentUseCase,
-)
-from src.application.reading.use_cases.chapter_prereading.generate_chapter_prereading_use_case import (
+from src.application.reading.commands.chapter_prereading.generate_chapter_prereading_use_case import (
     GenerateChapterPrereadingUseCase,
 )
-from src.application.reading.use_cases.chapter_prereading.get_book_prereading_use_case import (
-    GetBookPrereadingUseCase,
-)
-from src.application.reading.use_cases.chapter_prereading.get_chapter_prereading_use_case import (
-    GetChapterPrereadingUseCase,
-)
-from src.application.reading.use_cases.chapter_prereading.get_ereader_book_prereading_use_case import (
-    GetEreaderBookPrereadingUseCase,
-)
-from src.application.reading.use_cases.chapter_prereading.update_prereading_answers_use_case import (
+from src.application.reading.commands.chapter_prereading.update_prereading_answers_use_case import (
     UpdatePrereadingAnswersUseCase,
 )
-from src.application.reading.use_cases.highlight_labels.create_global_highlight_label_use_case import (
+from src.application.reading.commands.highlight_labels.create_global_highlight_label_use_case import (
     CreateGlobalHighlightLabelUseCase,
 )
-from src.application.reading.use_cases.highlight_labels.get_book_highlight_labels_use_case import (
-    GetBookHighlightLabelsUseCase,
-)
-from src.application.reading.use_cases.highlight_labels.get_global_highlight_labels_use_case import (
-    GetGlobalHighlightLabelsUseCase,
-)
-from src.application.reading.use_cases.highlight_labels.update_highlight_label_use_case import (
+from src.application.reading.commands.highlight_labels.update_highlight_label_use_case import (
     UpdateHighlightLabelUseCase,
 )
-from src.application.reading.use_cases.highlights.highlight_delete_use_case import (
+from src.application.reading.commands.highlights.highlight_delete_use_case import (
     HighlightDeleteUseCase,
 )
-from src.application.reading.use_cases.highlights.highlight_search_use_case import (
-    HighlightSearchUseCase,
-)
-from src.application.reading.use_cases.highlights.highlight_upload_use_case import (
+from src.application.reading.commands.highlights.highlight_upload_use_case import (
     HighlightUploadUseCase,
 )
-from src.application.reading.use_cases.reading_sessions.reading_session_ai_summary_use_case import (
+from src.application.reading.commands.reading_sessions.reading_session_ai_summary_use_case import (
     ReadingSessionAISummaryUseCase,
 )
-from src.application.reading.use_cases.reading_sessions.reading_session_query_use_case import (
-    ReadingSessionQueryUseCase,
-)
-from src.application.reading.use_cases.reading_sessions.reading_session_upload_use_case import (
+from src.application.reading.commands.reading_sessions.reading_session_upload_use_case import (
     ReadingSessionUploadUseCase,
 )
-from src.application.reading.use_cases.tag_associations.add_tag_to_highlight_by_id_use_case import (
+from src.application.reading.commands.tag_associations.add_tag_to_highlight_by_id_use_case import (
     AddTagToHighlightByIdUseCase,
 )
-from src.application.reading.use_cases.tag_associations.add_tag_to_highlight_by_name_use_case import (
+from src.application.reading.commands.tag_associations.add_tag_to_highlight_by_name_use_case import (
     AddTagToHighlightByNameUseCase,
 )
-from src.application.reading.use_cases.tag_associations.remove_tag_from_highlight_use_case import (
+from src.application.reading.commands.tag_associations.remove_tag_from_highlight_use_case import (
     RemoveTagFromHighlightUseCase,
+)
+from src.application.reading.queries.chapter_content_use_case import (
+    ChapterContentUseCase,
+)
+from src.application.reading.queries.get_book_highlight_labels_use_case import (
+    GetBookHighlightLabelsUseCase,
+)
+from src.application.reading.queries.get_book_prereading_use_case import (
+    GetBookPrereadingUseCase,
+)
+from src.application.reading.queries.get_book_reading_sessions_use_case import (
+    ReadingSessionQueryUseCase,
+)
+from src.application.reading.queries.get_bookmarks_use_case import (
+    GetBookmarksUseCase,
+)
+from src.application.reading.queries.get_chapter_prereading_use_case import (
+    GetChapterPrereadingUseCase,
+)
+from src.application.reading.queries.get_ereader_book_prereading_use_case import (
+    GetEreaderBookPrereadingUseCase,
+)
+from src.application.reading.queries.get_global_highlight_labels_use_case import (
+    GetGlobalHighlightLabelsUseCase,
+)
+from src.application.reading.queries.highlight_search_use_case import (
+    HighlightSearchUseCase,
 )
 
 
@@ -87,6 +87,13 @@ class ReadingContainer(containers.DeclarativeContainer):
     ebook_text_extraction_service = providers.Dependency()
     ai_service = providers.Dependency()
 
+    # Query services (read models)
+    bookmark_query = providers.Dependency()
+    highlight_label_query = providers.Dependency()
+    highlight_search_query = providers.Dependency()
+    reading_session_query = providers.Dependency()
+    ereader_prereading_query = providers.Dependency()
+
     # Bookmarks
     create_bookmark_use_case = providers.Factory(
         CreateBookmarkUseCase,
@@ -101,16 +108,13 @@ class ReadingContainer(containers.DeclarativeContainer):
     )
     get_bookmarks_use_case = providers.Factory(
         GetBookmarksUseCase,
-        book_repository=book_repository,
-        bookmark_repository=bookmark_repository,
+        bookmark_query=bookmark_query,
     )
 
     # Highlights
     highlight_search_use_case = providers.Factory(
         HighlightSearchUseCase,
-        book_repository=book_repository,
-        highlight_repository=highlight_repository,
-        label_resolution_service=label_resolution_service,
+        highlight_search_query=highlight_search_query,
     )
     highlight_delete_use_case = providers.Factory(
         HighlightDeleteUseCase,
@@ -150,9 +154,7 @@ class ReadingContainer(containers.DeclarativeContainer):
     # Highlight labels
     get_book_highlight_labels_use_case = providers.Factory(
         GetBookHighlightLabelsUseCase,
-        highlight_style_repository=highlight_style_repository,
-        book_repository=book_repository,
-        label_resolution_service=label_resolution_service,
+        highlight_label_query=highlight_label_query,
     )
     update_highlight_label_use_case = providers.Factory(
         UpdateHighlightLabelUseCase,
@@ -160,7 +162,7 @@ class ReadingContainer(containers.DeclarativeContainer):
     )
     get_global_highlight_labels_use_case = providers.Factory(
         GetGlobalHighlightLabelsUseCase,
-        highlight_style_repository=highlight_style_repository,
+        highlight_label_query=highlight_label_query,
     )
     create_global_highlight_label_use_case = providers.Factory(
         CreateGlobalHighlightLabelUseCase,
@@ -178,12 +180,7 @@ class ReadingContainer(containers.DeclarativeContainer):
     )
     reading_session_query_use_case = providers.Factory(
         ReadingSessionQueryUseCase,
-        session_repository=reading_session_repository,
-        book_repository=book_repository,
-        highlight_repository=highlight_repository,
-        text_extraction_service=ebook_text_extraction_service,
-        file_repo=file_repository,
-        label_resolution_service=label_resolution_service,
+        reading_session_query=reading_session_query,
     )
     reading_session_ai_summary_use_case = providers.Factory(
         ReadingSessionAISummaryUseCase,
@@ -207,9 +204,7 @@ class ReadingContainer(containers.DeclarativeContainer):
     )
     get_ereader_book_prereading_use_case = providers.Factory(
         GetEreaderBookPrereadingUseCase,
-        book_repo=book_repository,
-        chapter_repo=chapter_repository,
-        prereading_repo=chapter_prereading_repository,
+        ereader_prereading_query=ereader_prereading_query,
     )
     generate_chapter_prereading_use_case = providers.Factory(
         GenerateChapterPrereadingUseCase,

@@ -1,13 +1,12 @@
 """Repository for HighlightStyle persistence."""
 
-from sqlalchemy import func, select
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from src.domain.common.value_objects import BookId, HighlightStyleId, UserId
+from src.domain.common.value_objects import BookId, UserId
 from src.domain.reading.entities.highlight_style import HighlightStyle
 from src.infrastructure.common.repositories import BaseRepository
 from src.infrastructure.reading.mappers.highlight_style_mapper import HighlightStyleMapper
-from src.infrastructure.reading.orm.highlight_model import Highlight as HighlightORM
 from src.infrastructure.reading.orm.highlight_style_model import HighlightStyle as HighlightStyleORM
 
 
@@ -61,15 +60,6 @@ class HighlightStyleRepository(BaseRepository[HighlightStyle, HighlightStyleORM]
         orms = result.scalars().all()
         return [self.mapper.to_domain(orm) for orm in orms]
 
-    async def find_global(self, user_id: UserId) -> list[HighlightStyle]:
-        stmt = select(HighlightStyleORM).where(
-            HighlightStyleORM.user_id == user_id.value,
-            HighlightStyleORM.book_id.is_(None),
-        )
-        result = await self.db.execute(stmt)
-        orms = result.scalars().all()
-        return [self.mapper.to_domain(orm) for orm in orms]
-
     async def find_for_resolution(self, user_id: UserId, book_id: BookId) -> list[HighlightStyle]:
         stmt = select(HighlightStyleORM).where(
             HighlightStyleORM.user_id == user_id.value,
@@ -102,15 +92,3 @@ class HighlightStyleRepository(BaseRepository[HighlightStyle, HighlightStyleORM]
         await self.db.commit()
         await self.db.refresh(orm)
         return self.mapper.to_domain(orm)
-
-    async def count_highlights_by_style(self, style_id: HighlightStyleId) -> int:
-        stmt = (
-            select(func.count())
-            .select_from(HighlightORM)
-            .where(
-                HighlightORM.highlight_style_id == style_id.value,
-                HighlightORM.deleted_at.is_(None),
-            )
-        )
-        result = await self.db.execute(stmt)
-        return result.scalar() or 0

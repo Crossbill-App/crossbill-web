@@ -76,7 +76,7 @@ def _build_file_repo() -> S3FileRepository | FileRepository:
 
 def _build_prereading_handler(db: AsyncSession) -> PrereadingTaskHandler:
     """Build a PrereadingTaskHandler with a fresh session."""
-    from src.application.reading.use_cases.chapter_prereading.generate_chapter_prereading_use_case import (  # noqa: PLC0415
+    from src.application.reading.commands.chapter_prereading.generate_chapter_prereading_use_case import (  # noqa: PLC0415
         GenerateChapterPrereadingUseCase,
     )
 

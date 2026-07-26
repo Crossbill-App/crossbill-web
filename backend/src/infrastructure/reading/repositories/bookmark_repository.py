@@ -53,30 +53,6 @@ class BookmarkRepository(BaseRepository[Bookmark, BookmarkORM]):
         orm_model = result.scalar_one_or_none()
         return self.mapper.to_domain(orm_model) if orm_model else None
 
-    async def find_by_book(self, book_id: BookId, user_id: UserId) -> list[Bookmark]:
-        """
-        Get all bookmarks for a book.
-
-        Args:
-            book_id: The book ID
-            user_id: The user ID for ownership verification
-
-        Returns:
-            List of bookmark entities ordered by created_at DESC
-        """
-        stmt = (
-            select(BookmarkORM)
-            .join(BookORM, BookmarkORM.book_id == BookORM.id)
-            .where(
-                BookmarkORM.book_id == book_id.value,
-                BookORM.user_id == user_id.value,
-            )
-            .order_by(BookmarkORM.created_at.desc())
-        )
-        result = await self.db.execute(stmt)
-        orm_models = result.scalars().all()
-        return [self.mapper.to_domain(orm) for orm in orm_models]
-
     async def save(self, bookmark: Bookmark) -> Bookmark:
         """
         Save a bookmark entity.

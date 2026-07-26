@@ -5,17 +5,17 @@ from typing import Annotated
 from fastapi import APIRouter, Depends
 from starlette import status
 
-from src.application.reading.use_cases.chapter_prereading.generate_chapter_prereading_use_case import (
+from src.application.reading.commands.chapter_prereading.generate_chapter_prereading_use_case import (
     GenerateChapterPrereadingUseCase,
 )
-from src.application.reading.use_cases.chapter_prereading.get_book_prereading_use_case import (
+from src.application.reading.commands.chapter_prereading.update_prereading_answers_use_case import (
+    UpdatePrereadingAnswersUseCase,
+)
+from src.application.reading.queries.get_book_prereading_use_case import (
     GetBookPrereadingUseCase,
 )
-from src.application.reading.use_cases.chapter_prereading.get_chapter_prereading_use_case import (
+from src.application.reading.queries.get_chapter_prereading_use_case import (
     GetChapterPrereadingUseCase,
-)
-from src.application.reading.use_cases.chapter_prereading.update_prereading_answers_use_case import (
-    UpdatePrereadingAnswersUseCase,
 )
 from src.core import container
 from src.domain.common.value_objects.ids import BookId, ChapterId, UserId

@@ -24,6 +24,7 @@ from src.application.library.protocols.book_repository import (
     BookRepositoryProtocol as LibraryBookRepositoryProtocol,
 )
 from src.application.library.protocols.chapter_repository import ChapterRepositoryProtocol
+from src.application.library.protocols.file_repository import FileRepositoryProtocol
 from src.application.library.queries.book_details import BookDetailsQueryProtocol
 from src.application.library.queries.book_list import BookListQueryProtocol
 from src.application.notes.protocols.note_repository import NoteRepositoryProtocol
@@ -35,6 +36,9 @@ from src.application.reading.protocols.bookmark_repository import BookmarkReposi
 from src.application.reading.protocols.chapter_prereading_repository import (
     ChapterPrereadingRepositoryProtocol,
 )
+from src.application.reading.protocols.ebook_text_extraction_service import (
+    EbookTextExtractionServiceProtocol,
+)
 from src.application.reading.protocols.highlight_repository import HighlightRepositoryProtocol
 from src.application.reading.protocols.highlight_style_repository import (
     HighlightStyleRepositoryProtocol,
@@ -42,6 +46,11 @@ from src.application.reading.protocols.highlight_style_repository import (
 from src.application.reading.protocols.reading_session_repository import (
     ReadingSessionRepositoryProtocol,
 )
+from src.application.reading.queries.bookmarks import BookmarkQueryProtocol
+from src.application.reading.queries.ereader_prereading import EreaderPrereadingQueryProtocol
+from src.application.reading.queries.highlight_labels import HighlightLabelQueryProtocol
+from src.application.reading.queries.highlight_search import HighlightSearchQueryProtocol
+from src.application.reading.queries.reading_sessions import ReadingSessionQueryProtocol
 from src.application.reading.services.label_resolution_service import LabelResolutionService
 from src.application.reflection.protocols.book_reflection_repository import (
     BookReflectionRepositoryProtocol,
@@ -64,6 +73,11 @@ from src.infrastructure.library.repositories import BookRepository
 from src.infrastructure.library.repositories.chapter_repository import ChapterRepository
 from src.infrastructure.notes.queries.note_query import NoteQuery
 from src.infrastructure.notes.repositories.note_repository import NoteRepository
+from src.infrastructure.reading.queries.bookmark_query import BookmarkQuery
+from src.infrastructure.reading.queries.ereader_prereading_query import EreaderPrereadingQuery
+from src.infrastructure.reading.queries.highlight_label_query import HighlightLabelQuery
+from src.infrastructure.reading.queries.highlight_search_query import HighlightSearchQuery
+from src.infrastructure.reading.queries.reading_session_query import ReadingSessionQuery
 from src.infrastructure.reading.repositories import (
     BookmarkRepository,
     HighlightRepository,
@@ -82,7 +96,10 @@ from src.infrastructure.tagging.repositories import TagRepository
 
 
 def repositories_satisfy_their_protocols(
-    db: AsyncSession, label_resolution_service: LabelResolutionService
+    db: AsyncSession,
+    label_resolution_service: LabelResolutionService,
+    file_repository: FileRepositoryProtocol,
+    text_extraction_service: EbookTextExtractionServiceProtocol,
 ) -> None:
     _user: UserRepositoryProtocol = UserRepository(db)
     _refresh_token: RefreshTokenRepositoryProtocol = RefreshTokenRepository(db)
@@ -106,4 +123,15 @@ def repositories_satisfy_their_protocols(
     _note_view: NoteQueryProtocol = NoteQuery(db)
     _book_flashcards_view: BookFlashcardQueryProtocol = BookFlashcardQuery(
         db, label_resolution_service
+    )
+    _bookmarks_view: BookmarkQueryProtocol = BookmarkQuery(db)
+    _ereader_prereading_view: EreaderPrereadingQueryProtocol = EreaderPrereadingQuery(db)
+    _highlight_labels_view: HighlightLabelQueryProtocol = HighlightLabelQuery(
+        db, label_resolution_service
+    )
+    _highlight_search_view: HighlightSearchQueryProtocol = HighlightSearchQuery(
+        db, label_resolution_service
+    )
+    _reading_sessions_view: ReadingSessionQueryProtocol = ReadingSessionQuery(
+        db, label_resolution_service, file_repository, text_extraction_service
     )
