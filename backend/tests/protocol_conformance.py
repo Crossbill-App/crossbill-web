@@ -25,6 +25,7 @@ from src.application.library.protocols.book_repository import (
 )
 from src.application.library.protocols.chapter_repository import ChapterRepositoryProtocol
 from src.application.library.queries.book_details import BookDetailsQueryProtocol
+from src.application.library.queries.book_list import BookListQueryProtocol
 from src.application.notes.protocols.note_repository import NoteRepositoryProtocol
 from src.application.notes.queries.note_with_links import NoteQueryProtocol
 from src.application.reading.protocols.book_repository import (
@@ -58,6 +59,7 @@ from src.infrastructure.learning.repositories.ai_chat_session_repository import 
 )
 from src.infrastructure.learning.repositories.flashcard_repository import FlashcardRepository
 from src.infrastructure.library.queries.book_details_query import BookDetailsQuery
+from src.infrastructure.library.queries.book_list_query import BookListQuery
 from src.infrastructure.library.repositories import BookRepository
 from src.infrastructure.library.repositories.chapter_repository import ChapterRepository
 from src.infrastructure.notes.queries.note_query import NoteQuery
@@ -99,6 +101,7 @@ def repositories_satisfy_their_protocols(
     _job_batch: JobBatchRepositoryProtocol = JobBatchRepository(db)
     _book_reflection: BookReflectionRepositoryProtocol = BookReflectionRepository(db)
     _book_details: BookDetailsQueryProtocol = BookDetailsQuery(db, label_resolution_service)
+    _book_list_view: BookListQueryProtocol = BookListQuery(db)
     _job_batch_view: JobBatchQueryProtocol = JobBatchQuery(db)
     _note_view: NoteQueryProtocol = NoteQuery(db)
     _book_flashcards_view: BookFlashcardQueryProtocol = BookFlashcardQuery(

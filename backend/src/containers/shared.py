@@ -21,6 +21,7 @@ from src.infrastructure.learning.repositories.ai_chat_session_repository import 
 )
 from src.infrastructure.learning.repositories.flashcard_repository import FlashcardRepository
 from src.infrastructure.library.queries.book_details_query import BookDetailsQuery
+from src.infrastructure.library.queries.book_list_query import BookListQuery
 from src.infrastructure.library.repositories import BookRepository
 from src.infrastructure.library.repositories.chapter_repository import ChapterRepository
 from src.infrastructure.library.repositories.file_repository import FileRepository
@@ -126,6 +127,7 @@ class SharedContainer(containers.DeclarativeContainer):
         db=db,
         label_resolution_service=label_resolution_service,
     )
+    book_list_query = providers.Factory(BookListQuery, db=db)
     note_query = providers.Factory(NoteQuery, db=db)
     book_flashcard_query = providers.Factory(
         BookFlashcardQuery,

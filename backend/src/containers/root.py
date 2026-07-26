@@ -68,6 +68,7 @@ class RootContainer(containers.DeclarativeContainer):
         epub_position_index_service=shared.epub_position_index_service,
         cover_image_service=shared.cover_image_service,
         book_details_query=shared.book_details_query,
+        book_list_query=shared.book_list_query,
     )
 
     learning = providers.Container(
