@@ -4,10 +4,10 @@ from typing import Annotated
 
 from fastapi import APIRouter, Depends, status
 
-from src.application.learning.use_cases.flashcards.delete_flashcard_use_case import (
+from src.application.learning.commands.flashcards.delete_flashcard_use_case import (
     DeleteFlashcardUseCase,
 )
-from src.application.learning.use_cases.flashcards.update_flashcard_use_case import (
+from src.application.learning.commands.flashcards.update_flashcard_use_case import (
     UpdateFlashcardUseCase,
 )
 from src.core import container

@@ -3,15 +3,15 @@ from typing import Annotated
 from fastapi import APIRouter, Depends
 from starlette import status
 
+from src.application.learning.commands.flashcards.create_flashcard_for_book_use_case import (
+    CreateFlashcardForBookUseCase,
+)
 from src.application.learning.queries.book_flashcards import (
     FlashcardHighlightView,
     FlashcardWithHighlightView,
 )
 from src.application.learning.queries.get_flashcards_by_book_use_case import (
     GetFlashcardsByBookUseCase,
-)
-from src.application.learning.use_cases.flashcards.create_flashcard_for_book_use_case import (
-    CreateFlashcardForBookUseCase,
 )
 from src.core import container
 from src.domain.identity import User

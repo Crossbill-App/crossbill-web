@@ -1,5 +1,32 @@
 from dependency_injector import containers, providers
 
+from src.application.learning.commands.chat.send_chat_message_use_case import (
+    SendChatMessageUseCase,
+)
+from src.application.learning.commands.chat.start_chat_session_use_case import (
+    StartChatSessionUseCase,
+)
+from src.application.learning.commands.flashcards.create_flashcard_for_book_use_case import (
+    CreateFlashcardForBookUseCase,
+)
+from src.application.learning.commands.flashcards.create_flashcard_for_highlight_use_case import (
+    CreateFlashcardForHighlightUseCase,
+)
+from src.application.learning.commands.flashcards.create_flashcard_for_note_use_case import (
+    CreateFlashcardForNoteUseCase,
+)
+from src.application.learning.commands.flashcards.delete_flashcard_use_case import (
+    DeleteFlashcardUseCase,
+)
+from src.application.learning.commands.flashcards.update_flashcard_use_case import (
+    UpdateFlashcardUseCase,
+)
+from src.application.learning.commands.quiz.send_quiz_message_use_case import (
+    SendQuizMessageUseCase,
+)
+from src.application.learning.commands.quiz.start_quiz_session_use_case import (
+    StartQuizSessionUseCase,
+)
 from src.application.learning.queries.get_chapter_flashcard_suggestions_use_case import (
     GetChapterFlashcardSuggestionsUseCase,
 )
@@ -11,33 +38,6 @@ from src.application.learning.queries.get_flashcards_by_book_use_case import (
 )
 from src.application.learning.queries.get_note_flashcard_suggestions_use_case import (
     GetNoteFlashcardSuggestionsUseCase,
-)
-from src.application.learning.use_cases.chat.send_chat_message_use_case import (
-    SendChatMessageUseCase,
-)
-from src.application.learning.use_cases.chat.start_chat_session_use_case import (
-    StartChatSessionUseCase,
-)
-from src.application.learning.use_cases.flashcards.create_flashcard_for_book_use_case import (
-    CreateFlashcardForBookUseCase,
-)
-from src.application.learning.use_cases.flashcards.create_flashcard_for_highlight_use_case import (
-    CreateFlashcardForHighlightUseCase,
-)
-from src.application.learning.use_cases.flashcards.create_flashcard_for_note_use_case import (
-    CreateFlashcardForNoteUseCase,
-)
-from src.application.learning.use_cases.flashcards.delete_flashcard_use_case import (
-    DeleteFlashcardUseCase,
-)
-from src.application.learning.use_cases.flashcards.update_flashcard_use_case import (
-    UpdateFlashcardUseCase,
-)
-from src.application.learning.use_cases.quiz.send_quiz_message_use_case import (
-    SendQuizMessageUseCase,
-)
-from src.application.learning.use_cases.quiz.start_quiz_session_use_case import (
-    StartQuizSessionUseCase,
 )
 
 
