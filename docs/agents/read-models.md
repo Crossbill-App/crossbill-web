@@ -72,14 +72,14 @@ and porting it still deleted a Book aggregate load, every Chapter aggregate of
 the book, and a hand-rolled DTO that was a view DTO in all but location. Ask
 what the port removes only when nothing on the list applies.
 
-A simple read that doesn't qualify still **moves** to `queries/` — otherwise
-the module's `use_cases/` package can never finish as commands-only. Apply the
-ADR's halfway option at its most minimal: the read use case relocates as-is,
-keeps delegating to the existing repository, and keeps returning domain
-entities. No adapter, no invented DTOs, no query port. The package placement
-(and the dead-ends contract that keys off it) is the point; the internals can
-be tightened later if the view ever grows. `GetTagsForBookUseCase`
-(`application/tagging/queries/`) is the reference for this shape.
+A simple read that doesn't qualify still **belongs in** `queries/` — a read
+never sits in `commands/`, whatever its internals. Apply the ADR's halfway
+option at its most minimal: the read use case delegates to the existing
+repository and returns domain entities. No adapter, no invented DTOs, no query
+port. The package placement (and the dead-ends contract that keys off it) is
+the point; the internals can be tightened later if the view ever grows.
+`GetTagsForBookUseCase` (`application/tagging/queries/`) is the reference for
+this shape.
 
 Not every read serves a view. `GetUserByIdUseCase`
 (`application/identity/queries/`) backs the `get_current_user` FastAPI
@@ -88,24 +88,23 @@ app, which then passes it into commands. For a read like that the halfway
 option is not the economical choice, it is the only legal one — handing back a
 view DTO would put a read model on the input side of a command, which Rule 2
 forbids. **A read whose result flows into a command keeps returning the domain
-entity.** Move it to `queries/` and stop there.
+entity.** Put it in `queries/` and stop there.
 
 ## The layout
 
 ```
 src/application/<module>/queries/      view DTOs, query protocol, read use cases
-src/application/<module>/use_cases/    COMMANDS ONLY
+src/application/<module>/commands/     COMMANDS ONLY
 src/infrastructure/<module>/queries/   the adapter (may import ORM models)
 ```
 
 A view's query belongs to the module that owns the view. The adapter may import
 any module's `orm` package for joins — infrastructure is one layer.
 
-Naming note: `use_cases/` is a historical name. Once a module's `use_cases/`
-package genuinely contains only commands (every read ported to `queries/`), it
-renames to `commands/`. Do NOT rename early — mid-migration the packages still
-hold unported reads — and keep the `*UseCase` class suffix on both sides ("use
-case" names the layer role; the package names the kind).
+Naming note: classes keep the `*UseCase` suffix on both sides ("use case"
+names the layer role; the package names the kind). `commands/` was called
+`use_cases/` before ADR-0001; every module has since been renamed, so a
+`use_cases/` package in a diff is a mistake, not a leftover.
 
 A helper that both sides need (`notes`' `parse_note_kind`, which turns the
 API's kind string into a `NoteKind`) stays where it is and is imported by the
@@ -236,7 +235,7 @@ class GetBookDetailsUseCase:
 ```
 
 If the old read hid a write (marking something viewed, touching a timestamp),
-extract that into its own command use case under `use_cases/` — one operation
+extract that into its own command use case under `commands/` — one operation
 per file — and call it from the read use case *before* querying.
 
 ### 4. Wire the DI container
@@ -268,7 +267,7 @@ search still uses it) while the `highlight_grouping_service` provider went.
 ### 7. Extend the contract if needed
 
 The `queries-are-dead-ends` contract uses wildcards
-(`src.application.*.use_cases` → `src.application.*.queries`), which
+(`src.application.*.commands` → `src.application.*.queries`), which
 import-linter ≥ 2.11 supports, so **a new module's queries package is covered
 automatically**. If the project ever pins an older import-linter, the wildcards
 must be expanded into an explicit list of packages, and that list must then be
@@ -337,7 +336,7 @@ command.
 ✗ Violation:
 
 ```python
-# src/application/library/use_cases/book_management/update_book_use_case.py
+# src/application/library/commands/book_management/update_book_use_case.py
 from src.application.library.queries.book_details import BookDetailsView
 ```
 
@@ -375,12 +374,10 @@ Finally, confirm the dead-end rule by inspection as well as by contract:
 
 ```bash
 rg -n "application\.[a-z_]+\.queries" backend/src/domain \
-  backend/src/application/*/use_cases backend/src/application/*/commands
+  backend/src/application/*/commands
 ```
 
-should print nothing. Both package names must be listed: mid-migration a module
-is either still `use_cases/` or already renamed to `commands/`, and a glob that
-covers only one of them stops seeing the renamed modules.
+should print nothing.
 
 ## Tests
 

@@ -3,6 +3,7 @@
 - **Status:** Accepted
 - **Date:** 2026-07-26
 - **Applies to:** `backend/`
+- **Migration completed:** 2026-07-26 (all modules)
 
 ## Context
 
@@ -41,7 +42,7 @@ ORM rows directly to those DTOs.
 | Where | What |
 | --- | --- |
 | `src/application/<module>/queries/` | Frozen view-DTO dataclasses, the query protocol (port), and the read use case that wraps it |
-| `src/application/<module>/use_cases/` | **Commands only** |
+| `src/application/<module>/commands/` | **Commands only** |
 | `src/infrastructure/<module>/queries/` | The query adapter. Like repositories and mappers, it MAY import ORM models, and maps rows straight to view DTOs without building domain entities |
 
 A view's query lives in the module that owns the view (book details →
@@ -60,7 +61,7 @@ triggers. For book details that is:
 ```
 router
   └─ GetBookDetailsUseCase            (application/library/queries/)
-       ├─ MarkBookViewedUseCase       (application/library/use_cases/book_management/)
+       ├─ MarkBookViewedUseCase       (application/library/commands/book_management/)
        └─ BookDetailsQueryProtocol    → BookDetailsQuery (infrastructure/library/queries/)
 ```
 
@@ -68,8 +69,9 @@ The wrapper is deliberate boilerplate. We chose pattern uniformity over
 minimalism: a rule with no branches ("routers call use cases") is easier to
 follow and to review than one with an exception.
 
-Placing read use cases inside `queries/` rather than `use_cases/` is what makes
-that uniformity compatible with rule 2 below: `use_cases/` stays commands-only,
+Placing read use cases inside `queries/` rather than alongside the commands is
+what makes that uniformity compatible with rule 2 below: `commands/` stays
+commands-only,
 so the import contract can forbid it from touching read models outright. The
 reverse direction — a read use case importing a command use case — is allowed
 and is exactly how `GetBookDetailsUseCase` reaches `MarkBookViewedUseCase`.
@@ -94,7 +96,7 @@ already knows how to make?"
 View DTOs flow to routers and response schemas only. They never become input to
 a command. This is **machine-enforced** by the `queries-are-dead-ends`
 import-linter contract in `backend/pyproject.toml`, which forbids `src.domain`
-and `src.application.*.use_cases` from importing `src.application.*.queries`.
+and `src.application.*.commands` from importing `src.application.*.queries`.
 The wildcard module expressions are supported by import-linter ≥ 2.11, so the
 contract covers modules that do not exist yet without further edits.
 
@@ -109,7 +111,7 @@ byte-identical to `main` after this spike.
   parts, and it makes "reads are different" visible in the code. Rejected: it
   splits the router-level convention in two, and it pushes orchestration —
   book details also stamps `last_viewed` — into the router.
-- **Read use cases under `use_cases/`.** Rejected: it would force the
+- **Read use cases alongside the commands.** Rejected: it would force the
   dead-ends contract to enumerate individual command modules instead of a whole
   package, which is exactly the kind of list that rots.
 - **Widening repositories further** (more tuple-returning finders). Rejected:
@@ -152,18 +154,21 @@ implementation detail that can be tightened later without touching callers.
 - Rule 1 is not machine-checkable, so it depends on review discipline.
 - The read use-case wrapper is boilerplate by construction.
 
-**Migration assumption**
+**Migration**
 
-The whole app ports view-by-view; book details is the first. Nothing forces a
-big-bang migration, and untouched endpoints keep working through repositories.
-See `docs/agents/read-models.md` for the porting recipe.
+The app ported view-by-view rather than big-bang, starting with book details;
+untouched endpoints kept working through repositories throughout. That
+migration is **complete** — every module now has a `queries/` package and no
+`use_cases/` package survives. `docs/agents/read-models.md` remains the recipe,
+and it now describes adding a view to a migrated codebase rather than porting
+one out of a repository.
 
-**End-state naming**
+**Naming**
 
-`use_cases/` still contains unported reads and keeps its historical name during
-the migration. Once a module's `use_cases/` holds only commands, the package
-renames to `commands/` (symmetric with `queries/`). Class names keep the
-`*UseCase` suffix on both sides: "use case" is the layer role — reads are use
-cases too — while the package encodes the command/query kind. `*Command` as a
-class suffix is deliberately avoided (in CQRS literature a Command is a message
-object, which is not this codebase's shape).
+A module's write side is `commands/` (symmetric with `queries/`). Class names
+keep the `*UseCase` suffix on both sides: "use case" is the layer role — reads
+are use cases too — while the package encodes the command/query kind. `*Command`
+as a class suffix is deliberately avoided (in CQRS literature a Command is a
+message object, which is not this codebase's shape). `use_cases/` was the
+historical name for the write side and was renamed per module as that module's
+last read moved to `queries/`.

@@ -8,7 +8,7 @@ Uses HighlightMapper internally for conversions.
 import logging
 from datetime import UTC, datetime
 
-from sqlalchemy import delete, func, select, update
+from sqlalchemy import delete, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import joinedload, selectinload
 
@@ -328,25 +328,6 @@ class HighlightRepository:
         result = await self.db.execute(stmt)
         orms = result.scalars().all()
         return [self.mapper.to_domain(orm) for orm in orms]
-
-    async def count_by_book(self, book_id: BookId, user_id: UserId) -> int:
-        """
-        Count all non-deleted highlights for a book.
-
-        Args:
-            book_id: Book ID value object
-            user_id: User ID value object for authorization
-
-        Returns:
-            Count of non-deleted highlights
-        """
-        stmt = select(func.count(HighlightORM.id)).where(
-            HighlightORM.book_id == book_id.value,
-            HighlightORM.user_id == user_id.value,
-            HighlightORM.deleted_at.is_(None),
-        )
-        result = await self.db.execute(stmt)
-        return result.scalar() or 0
 
     # Tag-Highlight association methods
 

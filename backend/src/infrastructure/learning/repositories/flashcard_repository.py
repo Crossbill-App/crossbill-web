@@ -1,6 +1,6 @@
 """Repository for Flashcard domain entities."""
 
-from sqlalchemy import func, select
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.domain.common.value_objects.ids import BookId, UserId
@@ -43,21 +43,3 @@ class FlashcardRepository(BaseRepository[Flashcard, FlashcardORM]):
         result = await self.db.execute(stmt)
         orm_models = result.scalars().all()
         return [self.mapper.to_domain(orm) for orm in orm_models]
-
-    async def count_by_book(self, book_id: BookId, user_id: UserId) -> int:
-        """
-        Count flashcards for a book.
-
-        Args:
-            book_id: The book ID
-            user_id: The user ID for ownership verification
-
-        Returns:
-            Count of flashcards
-        """
-        stmt = select(func.count(FlashcardORM.id)).where(
-            FlashcardORM.book_id == book_id.value,
-            FlashcardORM.user_id == user_id.value,
-        )
-        result = await self.db.execute(stmt)
-        return result.scalar() or 0
