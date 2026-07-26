@@ -5,10 +5,10 @@ from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
-from src.application.identity.dtos import TokenPairWithMetadata
-from src.application.identity.use_cases.authentication.authenticate_user_use_case import (
+from src.application.identity.commands.authentication.authenticate_user_use_case import (
     AuthenticateUserUseCase,
 )
+from src.application.identity.dtos import TokenPairWithMetadata
 from src.domain.common.value_objects.ids import UserId
 from src.domain.identity.entities.user import User
 from src.domain.identity.exceptions import InvalidCredentialsError

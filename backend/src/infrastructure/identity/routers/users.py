@@ -2,8 +2,8 @@ from typing import Annotated
 
 from fastapi import APIRouter, Depends, Request, Response
 
-from src.application.identity.use_cases.register_user_use_case import RegisterUserUseCase
-from src.application.identity.use_cases.update_user_use_case import UpdateUserUseCase
+from src.application.identity.commands.register_user_use_case import RegisterUserUseCase
+from src.application.identity.commands.update_user_use_case import UpdateUserUseCase
 from src.core import container
 from src.database import DatabaseSession
 from src.domain.identity.entities.user import User

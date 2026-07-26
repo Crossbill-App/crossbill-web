@@ -4,7 +4,7 @@ from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
-from src.application.identity.use_cases.update_user_use_case import UpdateUserUseCase
+from src.application.identity.commands.update_user_use_case import UpdateUserUseCase
 from src.domain.common.value_objects.ids import UserId
 from src.domain.identity.entities.user import User
 from src.domain.identity.exceptions import PasswordVerificationError

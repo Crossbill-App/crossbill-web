@@ -8,14 +8,14 @@ from fastapi.security import OAuth2PasswordRequestForm
 from pydantic import BaseModel
 from starlette import status
 
-from src.application.identity.dtos import TokenPairWithMetadata
-from src.application.identity.use_cases.authentication.authenticate_user_use_case import (
+from src.application.identity.commands.authentication.authenticate_user_use_case import (
     AuthenticateUserUseCase,
 )
-from src.application.identity.use_cases.authentication.logout_use_case import LogoutUseCase
-from src.application.identity.use_cases.authentication.refresh_access_token_use_case import (
+from src.application.identity.commands.authentication.logout_use_case import LogoutUseCase
+from src.application.identity.commands.authentication.refresh_access_token_use_case import (
     RefreshAccessTokenUseCase,
 )
+from src.application.identity.dtos import TokenPairWithMetadata
 from src.config import get_settings
 from src.core import container
 from src.domain.identity.exceptions import InvalidCredentialsError

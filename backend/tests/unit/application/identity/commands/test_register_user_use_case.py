@@ -5,8 +5,8 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
+from src.application.identity.commands.register_user_use_case import RegisterUserUseCase
 from src.application.identity.dtos import TokenPairWithMetadata
-from src.application.identity.use_cases.register_user_use_case import RegisterUserUseCase
 from src.domain.common.value_objects.ids import UserId
 from src.domain.identity.entities.user import User
 
@@ -86,7 +86,7 @@ class TestRegisterUserUseCase:
         return token_pair
 
     @patch(
-        "src.application.identity.use_cases.register_user_use_case.is_user_registrations_enabled",
+        "src.application.identity.commands.register_user_use_case.is_user_registrations_enabled",
         return_value=True,
     )
     async def test_register_persists_refresh_token(
