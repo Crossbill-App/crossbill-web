@@ -12,7 +12,7 @@ from collections.abc import Sequence
 
 from sqlalchemy import or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.orm import joinedload
+from sqlalchemy.orm import joinedload, noload
 
 from src.application.library.queries.book_details import (
     BookDetailsView,
@@ -100,9 +100,14 @@ class BookDetailsQuery:
             .limit(1)
             .scalar_subquery()
         )
-        stmt = select(BookORM, latest_position).where(
-            BookORM.id == book_id.value,
-            BookORM.user_id == user_id.value,
+        stmt = (
+            select(BookORM, latest_position)
+            # Book.tag_groups is lazy="selectin"; the view loads groups itself.
+            .options(noload(BookORM.tag_groups))
+            .where(
+                BookORM.id == book_id.value,
+                BookORM.user_id == user_id.value,
+            )
         )
         row = (await self.db.execute(stmt)).first()
         if row is None:
@@ -234,6 +239,8 @@ class BookDetailsQuery:
                 joinedload(HighlightORM.chapter),
                 joinedload(HighlightORM.tags),
                 joinedload(HighlightORM.flashcards),
+                # Highlight.reading_sessions is lazy="selectin" and unused here.
+                noload(HighlightORM.reading_sessions),
             )
             .where(
                 HighlightORM.book_id == book_id.value,
