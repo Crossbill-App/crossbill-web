@@ -240,10 +240,13 @@ It must be byte-identical unless the ticket explicitly changes the API.
 Finally, confirm the dead-end rule by inspection as well as by contract:
 
 ```bash
-rg -n "application\.[a-z_]+\.queries" backend/src/domain backend/src/application/*/use_cases
+rg -n "application\.[a-z_]+\.queries" backend/src/domain \
+  backend/src/application/*/use_cases backend/src/application/*/commands
 ```
 
-should print nothing.
+should print nothing. Both package names must be listed: mid-migration a module
+is either still `use_cases/` or already renamed to `commands/`, and a glob that
+covers only one of them stops seeing the renamed modules.
 
 ## Tests
 
