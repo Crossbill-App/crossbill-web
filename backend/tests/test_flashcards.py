@@ -291,6 +291,25 @@ class TestGetFlashcardsForBook:
         assert "items" in data
         assert len(data["items"]) == 2
 
+    async def test_get_flashcards_carries_note_id(
+        self, client: AsyncClient, test_book: models.Book
+    ) -> None:
+        """A card made from a note reports the note it came from."""
+        note_response = await client.post(
+            "/api/v1/notes",
+            json={"title": "Test note", "body": "Note body", "book_id": test_book.id},
+        )
+        note_id = note_response.json()["note"]["id"]
+        await client.post(
+            f"/api/v1/notes/{note_id}/flashcards",
+            json={"question": "Q", "answer": "A"},
+        )
+
+        response = await client.get(f"/api/v1/books/{test_book.id}/flashcards")
+
+        assert response.status_code == status.HTTP_200_OK
+        assert [item["note_id"] for item in response.json()["items"]] == [note_id]
+
     async def test_get_flashcards_empty(self, client: AsyncClient, test_book: models.Book) -> None:
         """Test getting flashcards when book has none."""
         response = await client.get(f"/api/v1/books/{test_book.id}/flashcards")

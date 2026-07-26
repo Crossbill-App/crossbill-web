@@ -12,7 +12,7 @@ from src.infrastructure.learning.queries.book_flashcard_query import BookFlashca
 from src.infrastructure.reading.repositories.highlight_style_repository import (
     HighlightStyleRepository,
 )
-from src.models import Book, Chapter, Flashcard, Highlight, Tag, User
+from src.models import Book, Chapter, Flashcard, Highlight, Note, Tag, User
 from tests.conftest import (
     create_test_book,
     create_test_highlight,
@@ -54,6 +54,7 @@ async def add_flashcard(
     highlight: Highlight | None = None,
     highlight_id: int | None = None,
     chapter_id: int | None = None,
+    note_id: int | None = None,
     created_at: datetime | None = None,
 ) -> Flashcard:
     """Persist a flashcard, optionally pointing at a highlight."""
@@ -62,6 +63,7 @@ async def add_flashcard(
         book_id=book.id,
         highlight_id=highlight.id if highlight else highlight_id,
         chapter_id=chapter_id,
+        note_id=note_id,
         question=question,
         answer=answer,
     )
@@ -129,7 +131,23 @@ async def test_book_level_flashcard_has_no_highlight(
     assert len(view) == 1
     assert view[0].highlight_id is None
     assert view[0].highlight is None
+    assert view[0].note_id is None
     assert view[0].chapter_id == chapter.id
+
+
+async def test_flashcard_made_from_a_note_carries_its_note_id(
+    query: BookFlashcardQuery, db_session: AsyncSession, test_book: Book
+) -> None:
+    note = Note(user_id=DEFAULT_USER_ID, title="Raskolnikov", body="")
+    note.books = [test_book]
+    db_session.add(note)
+    await db_session.commit()
+    await db_session.refresh(note)
+    await add_flashcard(db_session, test_book, note_id=note.id)
+
+    view = await query.list_for_book(BookId(test_book.id), UserId(DEFAULT_USER_ID))
+
+    assert view[0].note_id == note.id
 
 
 async def test_highlight_carries_its_chapter_and_tags(

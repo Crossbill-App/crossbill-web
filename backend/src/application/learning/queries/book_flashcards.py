@@ -55,9 +55,6 @@ class FlashcardWithHighlightView:
     row only when the viewer may actually see it: a card pointing at a
     soft-deleted or another user's highlight keeps its id and renders as
     nothing. That is the API's behaviour, so the DTO carries both.
-
-    There is deliberately no ``note_id``: the endpoint has never returned one,
-    even though the response schema declares the field.
     """
 
     id: int
@@ -65,6 +62,7 @@ class FlashcardWithHighlightView:
     book_id: int
     highlight_id: int | None
     chapter_id: int | None
+    note_id: int | None
     question: str
     answer: str
     highlight: FlashcardHighlightView | None

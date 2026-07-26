@@ -154,6 +154,7 @@ def _flashcard_schema(view: FlashcardWithHighlightView) -> FlashcardWithHighligh
         book_id=view.book_id,
         highlight_id=view.highlight_id,
         chapter_id=view.chapter_id,
+        note_id=view.note_id,
         question=view.question,
         answer=view.answer,
         highlight=_highlight_schema(view.highlight) if view.highlight else None,
