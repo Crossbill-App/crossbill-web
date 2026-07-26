@@ -2,14 +2,15 @@
 
 from fastapi import APIRouter, Depends
 
-from src.application.reading.use_cases.highlight_labels.create_global_highlight_label_use_case import (
-    CreateGlobalHighlightLabelUseCase,
-)
-from src.application.reading.use_cases.highlight_labels.get_book_highlight_labels_use_case import (
+from src.application.reading.queries.get_book_highlight_labels_use_case import (
     GetBookHighlightLabelsUseCase,
 )
-from src.application.reading.use_cases.highlight_labels.get_global_highlight_labels_use_case import (
+from src.application.reading.queries.get_global_highlight_labels_use_case import (
     GetGlobalHighlightLabelsUseCase,
+)
+from src.application.reading.queries.highlight_labels import HighlightLabelView
+from src.application.reading.use_cases.highlight_labels.create_global_highlight_label_use_case import (
+    CreateGlobalHighlightLabelUseCase,
 )
 from src.application.reading.use_cases.highlight_labels.update_highlight_label_use_case import (
     UpdateHighlightLabelUseCase,
@@ -28,6 +29,19 @@ from src.infrastructure.reading.schemas.highlight_schemas import (
 router = APIRouter(tags=["highlight-labels"])
 
 
+def _build_label_schema(view: HighlightLabelView) -> HighlightLabelInBook:
+    """Build the label schema from a row of either highlight-label read model."""
+    return HighlightLabelInBook(
+        id=view.id,
+        device_color=view.device_color,
+        device_style=view.device_style,
+        label=view.label,
+        ui_color=view.ui_color,
+        label_source=view.label_source,
+        highlight_count=view.highlight_count,
+    )
+
+
 @router.get(
     "/books/{book_id}/highlight-labels",
     response_model=CollectionResponse[HighlightLabelInBook],
@@ -42,18 +56,7 @@ async def get_book_highlight_labels(
     """Get all highlight labels for a book with resolved labels."""
     results = await use_case.execute(book_id=book_id, user_id=current_user.id.value)
     return CollectionResponse[HighlightLabelInBook](
-        items=[
-            HighlightLabelInBook(
-                id=style.id.value,
-                device_color=style.device_color,
-                device_style=style.device_style,
-                label=resolved.label,
-                ui_color=resolved.ui_color,
-                label_source=resolved.source,
-                highlight_count=count,
-            )
-            for style, resolved, count in results
-        ]
+        items=[_build_label_schema(view) for view in results]
     )
 
 
@@ -97,18 +100,7 @@ async def get_global_highlight_labels(
     """Get all global default highlight labels."""
     styles = await use_case.execute(user_id=current_user.id.value)
     return CollectionResponse[HighlightLabelInBook](
-        items=[
-            HighlightLabelInBook(
-                id=s.id.value,
-                device_color=s.device_color,
-                device_style=s.device_style,
-                label=s.label,
-                ui_color=s.ui_color,
-                label_source="global",
-                highlight_count=0,
-            )
-            for s in styles
-        ]
+        items=[_build_label_schema(view) for view in styles]
     )
 
 

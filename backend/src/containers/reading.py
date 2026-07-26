@@ -3,6 +3,9 @@ from dependency_injector import containers, providers
 from src.application.reading.queries.chapter_content_use_case import (
     ChapterContentUseCase,
 )
+from src.application.reading.queries.get_book_highlight_labels_use_case import (
+    GetBookHighlightLabelsUseCase,
+)
 from src.application.reading.queries.get_book_prereading_use_case import (
     GetBookPrereadingUseCase,
 )
@@ -11,6 +14,9 @@ from src.application.reading.queries.get_bookmarks_use_case import (
 )
 from src.application.reading.queries.get_chapter_prereading_use_case import (
     GetChapterPrereadingUseCase,
+)
+from src.application.reading.queries.get_global_highlight_labels_use_case import (
+    GetGlobalHighlightLabelsUseCase,
 )
 from src.application.reading.use_cases.bookmarks.create_bookmark_use_case import (
     CreateBookmarkUseCase,
@@ -29,12 +35,6 @@ from src.application.reading.use_cases.chapter_prereading.update_prereading_answ
 )
 from src.application.reading.use_cases.highlight_labels.create_global_highlight_label_use_case import (
     CreateGlobalHighlightLabelUseCase,
-)
-from src.application.reading.use_cases.highlight_labels.get_book_highlight_labels_use_case import (
-    GetBookHighlightLabelsUseCase,
-)
-from src.application.reading.use_cases.highlight_labels.get_global_highlight_labels_use_case import (
-    GetGlobalHighlightLabelsUseCase,
 )
 from src.application.reading.use_cases.highlight_labels.update_highlight_label_use_case import (
     UpdateHighlightLabelUseCase,
@@ -89,6 +89,7 @@ class ReadingContainer(containers.DeclarativeContainer):
 
     # Query services (read models)
     bookmark_query = providers.Dependency()
+    highlight_label_query = providers.Dependency()
 
     # Bookmarks
     create_bookmark_use_case = providers.Factory(
@@ -152,9 +153,7 @@ class ReadingContainer(containers.DeclarativeContainer):
     # Highlight labels
     get_book_highlight_labels_use_case = providers.Factory(
         GetBookHighlightLabelsUseCase,
-        highlight_style_repository=highlight_style_repository,
-        book_repository=book_repository,
-        label_resolution_service=label_resolution_service,
+        highlight_label_query=highlight_label_query,
     )
     update_highlight_label_use_case = providers.Factory(
         UpdateHighlightLabelUseCase,
@@ -162,7 +161,7 @@ class ReadingContainer(containers.DeclarativeContainer):
     )
     get_global_highlight_labels_use_case = providers.Factory(
         GetGlobalHighlightLabelsUseCase,
-        highlight_style_repository=highlight_style_repository,
+        highlight_label_query=highlight_label_query,
     )
     create_global_highlight_label_use_case = providers.Factory(
         CreateGlobalHighlightLabelUseCase,

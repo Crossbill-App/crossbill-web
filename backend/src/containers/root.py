@@ -50,6 +50,7 @@ class RootContainer(containers.DeclarativeContainer):
         ebook_text_extraction_service=shared.ebook_text_extraction_service,
         ai_service=shared.ai_service,
         bookmark_query=shared.bookmark_query,
+        highlight_label_query=shared.highlight_label_query,
     )
 
     tagging = providers.Container(
