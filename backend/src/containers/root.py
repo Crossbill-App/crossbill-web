@@ -107,6 +107,7 @@ class RootContainer(containers.DeclarativeContainer):
     jobs = providers.Container(
         JobsContainer,
         job_batch_repository=shared.job_batch_repository,
+        job_batch_query=shared.job_batch_query,
         job_queue_service=job_queue_service,
         chapter_repository=shared.chapter_repository,
         book_repository=shared.book_repository,

@@ -89,17 +89,3 @@ class JobBatchRepository:
         )
         model = result.scalar_one_or_none()
         return JobBatchMapper.to_domain(model) if model else None
-
-    async def find_by_reference(
-        self, batch_type: str, reference_id: str, user_id: UserId
-    ) -> list[JobBatch]:
-        result = await self._db.execute(
-            select(JobBatchModel)
-            .where(
-                JobBatchModel.batch_type == batch_type,
-                JobBatchModel.reference_id == reference_id,
-                JobBatchModel.user_id == user_id.value,
-            )
-            .order_by(JobBatchModel.created_at.desc())
-        )
-        return [JobBatchMapper.to_domain(m) for m in result.scalars().all()]

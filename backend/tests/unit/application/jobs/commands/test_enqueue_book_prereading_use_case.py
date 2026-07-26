@@ -5,7 +5,7 @@ from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
-from src.application.jobs.use_cases.enqueue_book_prereading_use_case import (
+from src.application.jobs.commands.enqueue_book_prereading_use_case import (
     EnqueueBookPrereadingUseCase,
 )
 from src.domain.common.exceptions import DomainError
