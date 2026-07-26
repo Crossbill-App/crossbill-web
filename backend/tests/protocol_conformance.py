@@ -25,6 +25,7 @@ from src.application.library.protocols.book_repository import (
 from src.application.library.protocols.chapter_repository import ChapterRepositoryProtocol
 from src.application.library.queries.book_details import BookDetailsQueryProtocol
 from src.application.notes.protocols.note_repository import NoteRepositoryProtocol
+from src.application.notes.queries.note_with_links import NoteQueryProtocol
 from src.application.reading.protocols.book_repository import (
     BookRepositoryProtocol as ReadingBookRepositoryProtocol,
 )
@@ -57,6 +58,7 @@ from src.infrastructure.learning.repositories.flashcard_repository import Flashc
 from src.infrastructure.library.queries.book_details_query import BookDetailsQuery
 from src.infrastructure.library.repositories import BookRepository
 from src.infrastructure.library.repositories.chapter_repository import ChapterRepository
+from src.infrastructure.notes.queries.note_query import NoteQuery
 from src.infrastructure.notes.repositories.note_repository import NoteRepository
 from src.infrastructure.reading.repositories import (
     BookmarkRepository,
@@ -96,3 +98,4 @@ def repositories_satisfy_their_protocols(
     _book_reflection: BookReflectionRepositoryProtocol = BookReflectionRepository(db)
     _book_details: BookDetailsQueryProtocol = BookDetailsQuery(db, label_resolution_service)
     _job_batch_view: JobBatchQueryProtocol = JobBatchQuery(db)
+    _note_view: NoteQueryProtocol = NoteQuery(db)

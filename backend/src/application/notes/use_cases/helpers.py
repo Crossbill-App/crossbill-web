@@ -1,16 +1,21 @@
-"""Shared helpers for note use cases."""
+"""Shared helpers for note use cases.
+
+``parse_note_kind`` is also used by the note read use cases: converting the
+API's kind string is the same job on both sides, and a query importing from the
+command package is the allowed direction of the ``queries-are-dead-ends``
+contract.
+"""
 
 from collections.abc import Callable
 
 from src.application.library.protocols.chapter_repository import ChapterRepositoryProtocol
-from src.application.notes.use_cases.dtos import NoteWithLinkedEntities
 from src.application.reading.protocols.highlight_repository import HighlightRepositoryProtocol
 from src.application.tagging.protocols.tag_repository import (
     TagRepositoryProtocol,
 )
 from src.domain.common.exceptions import EntityNotFoundError, ValidationError
 from src.domain.common.value_objects import UserId
-from src.domain.notes.entities.note import Note, NoteKind
+from src.domain.notes.entities.note import NoteKind
 from src.domain.notes.exceptions import NoteLinkBookMismatchError
 from src.domain.reading.exceptions import (
     ChapterNotFoundError,
@@ -87,50 +92,3 @@ def _check_links(
         if book_id not in allowed_book_ids:
             raise NoteLinkBookMismatchError(entity_type, requested_id)
 
-
-async def hydrate_note_links(
-    notes: list[Note],
-    user_id: UserId,
-    *,
-    chapter_repository: ChapterRepositoryProtocol,
-    highlight_repository: HighlightRepositoryProtocol,
-    tag_repository: TagRepositoryProtocol,
-) -> list[NoteWithLinkedEntities]:
-    """Resolve the link ids of ``notes`` into the entities needed for display."""
-    if not notes:
-        return []
-
-    chapters_by_id = {
-        chapter.id.value: chapter
-        for chapter in await chapter_repository.find_by_ids(
-            list({cid for note in notes for cid in note.chapter_ids}), user_id
-        )
-    }
-    highlights_by_id = {
-        highlight.id.value: highlight
-        for highlight in await highlight_repository.find_by_ids(
-            list({hid for note in notes for hid in note.highlight_ids}), user_id
-        )
-        if highlight.deleted_at is None
-    }
-    # Fetched by id rather than by book: find_by_book only returns tags with
-    # active highlight associations, which would drop a tag attached to a note
-    # but to no highlight.
-    tags_by_id = {
-        tag.id.value: tag
-        for tag in await tag_repository.find_by_ids(
-            list({tid for note in notes for tid in note.tag_ids}), user_id
-        )
-    }
-
-    return [
-        NoteWithLinkedEntities(
-            note=note,
-            chapters=[chapters_by_id[cid] for cid in note.chapter_ids if cid in chapters_by_id],
-            highlights=[
-                highlights_by_id[hid] for hid in note.highlight_ids if hid in highlights_by_id
-            ],
-            tags=[tags_by_id[tid] for tid in note.tag_ids if tid in tags_by_id],
-        )
-        for note in notes
-    ]

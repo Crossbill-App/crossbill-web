@@ -32,6 +32,7 @@ from src.infrastructure.library.services.epub_position_index_service import (
 from src.infrastructure.library.services.epub_text_extraction_service import (
     EpubTextExtractionService,
 )
+from src.infrastructure.notes.queries.note_query import NoteQuery
 from src.infrastructure.notes.repositories.note_repository import NoteRepository
 from src.infrastructure.reading.repositories import (
     BookmarkRepository,
@@ -124,6 +125,7 @@ class SharedContainer(containers.DeclarativeContainer):
         db=db,
         label_resolution_service=label_resolution_service,
     )
+    note_query = providers.Factory(NoteQuery, db=db)
 
     # Learning repositories
     ai_chat_session_repository = providers.Factory(AIChatSessionRepository, db=db)

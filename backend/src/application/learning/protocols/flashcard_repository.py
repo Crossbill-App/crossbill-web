@@ -2,7 +2,7 @@
 
 from typing import Protocol
 
-from src.domain.common.value_objects.ids import BookId, FlashcardId, NoteId, UserId
+from src.domain.common.value_objects.ids import BookId, FlashcardId, UserId
 from src.domain.learning.entities.flashcard import Flashcard
 
 
@@ -28,19 +28,6 @@ class FlashcardRepositoryProtocol(Protocol):
 
         Args:
             book_id: The book ID
-            user_id: The user ID for ownership verification
-
-        Returns:
-            List of flashcard entities ordered by created_at DESC
-        """
-        ...
-
-    async def find_by_note(self, note_id: NoteId, user_id: UserId) -> list[Flashcard]:
-        """
-        Get all flashcards linked to a note.
-
-        Args:
-            note_id: The note ID
             user_id: The user ID for ownership verification
 
         Returns:
