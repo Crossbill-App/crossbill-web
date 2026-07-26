@@ -10,8 +10,6 @@ from src.domain.common.value_objects.ids import (
 )
 from src.domain.common.value_objects.position import Position
 from src.domain.learning.entities import Flashcard
-from src.domain.library.entities.book import Book
-from src.domain.library.entities.chapter import Chapter
 from src.domain.reading import Highlight
 from src.domain.tagging import Tag
 
@@ -38,14 +36,6 @@ class HighlightRepositoryProtocol(Protocol):
     async def get_existing_hashes(
         self, user_id: UserId, book_id: BookId, hashes: list[ContentHash]
     ) -> set[ContentHash]: ...
-
-    async def search(
-        self,
-        search_text: str,
-        user_id: UserId,
-        book_id: BookId | None = None,
-        limit: int = 100,
-    ) -> list[tuple[Highlight, Book, Chapter | None, list[Tag], list[Flashcard]]]: ...
 
     async def save(self, highlight: Highlight) -> Highlight: ...
 

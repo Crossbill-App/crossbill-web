@@ -38,6 +38,7 @@ from src.infrastructure.notes.queries.note_query import NoteQuery
 from src.infrastructure.notes.repositories.note_repository import NoteRepository
 from src.infrastructure.reading.queries.bookmark_query import BookmarkQuery
 from src.infrastructure.reading.queries.highlight_label_query import HighlightLabelQuery
+from src.infrastructure.reading.queries.highlight_search_query import HighlightSearchQuery
 from src.infrastructure.reading.repositories import (
     BookmarkRepository,
     HighlightRepository,
@@ -139,6 +140,11 @@ class SharedContainer(containers.DeclarativeContainer):
     bookmark_query = providers.Factory(BookmarkQuery, db=db)
     highlight_label_query = providers.Factory(
         HighlightLabelQuery,
+        db=db,
+        label_resolution_service=label_resolution_service,
+    )
+    highlight_search_query = providers.Factory(
+        HighlightSearchQuery,
         db=db,
         label_resolution_service=label_resolution_service,
     )

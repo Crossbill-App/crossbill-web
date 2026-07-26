@@ -18,6 +18,9 @@ from src.application.reading.queries.get_chapter_prereading_use_case import (
 from src.application.reading.queries.get_global_highlight_labels_use_case import (
     GetGlobalHighlightLabelsUseCase,
 )
+from src.application.reading.queries.highlight_search_use_case import (
+    HighlightSearchUseCase,
+)
 from src.application.reading.use_cases.bookmarks.create_bookmark_use_case import (
     CreateBookmarkUseCase,
 )
@@ -41,9 +44,6 @@ from src.application.reading.use_cases.highlight_labels.update_highlight_label_u
 )
 from src.application.reading.use_cases.highlights.highlight_delete_use_case import (
     HighlightDeleteUseCase,
-)
-from src.application.reading.use_cases.highlights.highlight_search_use_case import (
-    HighlightSearchUseCase,
 )
 from src.application.reading.use_cases.highlights.highlight_upload_use_case import (
     HighlightUploadUseCase,
@@ -90,6 +90,7 @@ class ReadingContainer(containers.DeclarativeContainer):
     # Query services (read models)
     bookmark_query = providers.Dependency()
     highlight_label_query = providers.Dependency()
+    highlight_search_query = providers.Dependency()
 
     # Bookmarks
     create_bookmark_use_case = providers.Factory(
@@ -111,9 +112,7 @@ class ReadingContainer(containers.DeclarativeContainer):
     # Highlights
     highlight_search_use_case = providers.Factory(
         HighlightSearchUseCase,
-        book_repository=book_repository,
-        highlight_repository=highlight_repository,
-        label_resolution_service=label_resolution_service,
+        highlight_search_query=highlight_search_query,
     )
     highlight_delete_use_case = providers.Factory(
         HighlightDeleteUseCase,

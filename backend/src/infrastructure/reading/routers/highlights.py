@@ -4,11 +4,15 @@ from typing import Annotated
 
 from fastapi import APIRouter, Depends, Query, status
 
+from src.application.reading.queries.highlight_search import (
+    SearchChapterView,
+    SearchHighlightView,
+)
+from src.application.reading.queries.highlight_search_use_case import (
+    HighlightSearchUseCase,
+)
 from src.application.reading.use_cases.highlights.highlight_delete_use_case import (
     HighlightDeleteUseCase,
-)
-from src.application.reading.use_cases.highlights.highlight_search_use_case import (
-    HighlightSearchUseCase,
 )
 from src.application.reading.use_cases.highlights.highlight_upload_use_case import (
     HighlightUploadData,
@@ -18,16 +22,76 @@ from src.core import container
 from src.domain.identity.entities.user import User
 from src.infrastructure.common.di import inject_use_case
 from src.infrastructure.identity.dependencies import get_current_user
-from src.infrastructure.reading.schema_mappers import map_chapters_to_schemas
+from src.infrastructure.learning.schemas import Flashcard
 from src.infrastructure.reading.schemas import (
     BookHighlightSearchResponse,
+    ChapterWithHighlights,
+    Highlight,
     HighlightDeleteRequest,
     HighlightDeleteResponse,
+    HighlightLabel,
     HighlightUploadRequest,
     HighlightUploadResponse,
 )
+from src.infrastructure.tagging.schemas import TagInBook
 
 router = APIRouter(prefix="", tags=["highlights"])
+
+
+def _build_highlight_schema(highlight: SearchHighlightView) -> Highlight:
+    """Build the Highlight schema from a match in the search read model."""
+    return Highlight(
+        id=highlight.id,
+        book_id=highlight.book_id,
+        chapter_id=highlight.chapter_id,
+        text=highlight.text,
+        chapter=highlight.chapter_name,
+        chapter_number=highlight.chapter_number,
+        page=highlight.page,
+        datetime=highlight.datetime,
+        label=HighlightLabel(
+            highlight_style_id=highlight.label.highlight_style_id,
+            text=highlight.label.text,
+            ui_color=highlight.label.ui_color,
+        )
+        if highlight.label
+        else None,
+        flashcards=[
+            Flashcard(
+                id=card.id,
+                user_id=card.user_id,
+                book_id=card.book_id,
+                highlight_id=card.highlight_id,
+                chapter_id=card.chapter_id,
+                question=card.question,
+                answer=card.answer,
+            )
+            for card in highlight.flashcards
+        ],
+        tags=[
+            TagInBook(id=tag.id, name=tag.name, tag_group_id=tag.tag_group_id)
+            for tag in highlight.tags
+        ],
+        created_at=highlight.created_at,
+        updated_at=highlight.updated_at,
+    )
+
+
+def _build_chapter_schema(chapter: SearchChapterView) -> ChapterWithHighlights:
+    """Build the ChapterWithHighlights schema from the search read model.
+
+    Search rows carry no parent chapter or start position, and never have.
+    """
+    return ChapterWithHighlights(
+        id=chapter.id,
+        name=chapter.name,
+        chapter_number=chapter.chapter_number,
+        parent_id=None,
+        start_position=None,
+        highlights=[_build_highlight_schema(highlight) for highlight in chapter.highlights],
+        created_at=chapter.created_at,
+        updated_at=chapter.updated_at,
+    )
 
 
 @router.post(
@@ -110,12 +174,10 @@ async def search_book_highlights(
     Searches across all highlight text using PostgreSQL full-text search.
     Results are ranked by relevance and excludes soft-deleted highlights.
     """
-    chapters_grouped, total, labels = await use_case.search_book_highlights(
-        book_id, current_user.id.value, search_text
-    )
+    view = await use_case.search_book_highlights(book_id, current_user.id.value, search_text)
     return BookHighlightSearchResponse(
-        chapters=map_chapters_to_schemas(chapters_grouped, labels),
-        total=total,
+        chapters=[_build_chapter_schema(chapter) for chapter in view.chapters],
+        total=view.total,
     )
 
 

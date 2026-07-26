@@ -22,15 +22,10 @@ from src.domain.common.value_objects import (
 )
 from src.domain.common.value_objects.position import Position
 from src.domain.learning.entities.flashcard import Flashcard
-from src.domain.library.entities.book import Book
-from src.domain.library.entities.chapter import Chapter
 from src.domain.reading.entities.highlight import Highlight
 from src.domain.tagging.entities.tag import Tag
-from src.infrastructure.common.sql import LIKE_ESCAPE_CHAR, escape_like_pattern
 from src.infrastructure.learning.mappers.flashcard_mapper import FlashcardMapper
 from src.infrastructure.learning.orm.flashcard_model import Flashcard as FlashcardORM
-from src.infrastructure.library.mappers.book_mapper import BookMapper
-from src.infrastructure.library.mappers.chapter_mapper import ChapterMapper
 from src.infrastructure.reading.mappers.highlight_mapper import HighlightMapper
 from src.infrastructure.reading.orm.associations import reading_session_highlights
 from src.infrastructure.reading.orm.bookmark_model import Bookmark as BookmarkORM
@@ -53,8 +48,6 @@ class HighlightRepository:
         """
         self.db = db
         self.mapper = HighlightMapper()
-        self.book_mapper = BookMapper()
-        self.chapter_mapper = ChapterMapper()
         self.tag_mapper = TagMapper()
         self.flashcard_mapper = FlashcardMapper()
 
@@ -230,89 +223,6 @@ class HighlightRepository:
 
         # Convert back to domain entities with real IDs
         return [self.mapper.to_domain(orm) for orm in orm_models]
-
-    async def search(
-        self,
-        search_text: str,
-        user_id: UserId,
-        book_id: BookId | None = None,
-        limit: int = 100,
-    ) -> list[tuple[Highlight, Book, Chapter | None, list[Tag], list[Flashcard]]]:
-        """
-        Search for highlights using full-text search (PostgreSQL) or LIKE (SQLite).
-
-        Returns highlights with their associated book, chapter, tags, and flashcards eagerly loaded.
-
-        Args:
-            search_text: Text to search for
-            user_id: User ID for filtering highlights
-            book_id: Optional book ID to filter by
-            limit: Maximum number of results to return (default 100)
-
-        Returns:
-            List of tuples containing (Highlight, Book, Chapter or None, list[Tag], list[Flashcard])
-        """
-        # Check database type
-        dialect_name = self.db.bind.dialect.name
-        is_postgresql = dialect_name == "postgresql"
-
-        # Build the base query with eager loading of relationships
-        stmt = (
-            select(HighlightORM)
-            .options(
-                joinedload(HighlightORM.book),
-                joinedload(HighlightORM.chapter),
-                joinedload(HighlightORM.tags),
-                joinedload(HighlightORM.flashcards),
-            )
-            .where(
-                HighlightORM.user_id == user_id.value,
-                HighlightORM.deleted_at.is_(None),
-            )
-        )
-
-        # Only apply search filter if search_text is provided
-        if search_text:
-            if is_postgresql:
-                # PostgreSQL: Use full-text search
-                search_query = func.plainto_tsquery("english", search_text)
-                stmt = stmt.where(HighlightORM.text_search_vector.op("@@")(search_query))
-            else:
-                # SQLite: Use LIKE-based search
-                escaped = escape_like_pattern(search_text)
-                stmt = stmt.where(HighlightORM.text.ilike(f"%{escaped}%", escape=LIKE_ESCAPE_CHAR))
-
-        # Add optional book_id filter
-        if book_id is not None:
-            stmt = stmt.where(HighlightORM.book_id == book_id.value)
-
-        # Order by relevance (if searching) or by created_at (if not searching)
-        if search_text and is_postgresql:
-            search_query = func.plainto_tsquery("english", search_text)
-            stmt = stmt.order_by(func.ts_rank(HighlightORM.text_search_vector, search_query).desc())
-        else:
-            # Order by created_at (newest first) for SQLite or when not searching
-            stmt = stmt.order_by(HighlightORM.created_at.desc())
-
-        stmt = stmt.limit(limit)
-
-        # Execute query - use unique() when joining collections
-        result = await self.db.execute(stmt)
-        results = result.unique().scalars().all()
-
-        # Convert ORM models to domain entities
-        return [
-            (
-                self.mapper.to_domain(highlight_orm),
-                self.book_mapper.to_domain(highlight_orm.book),
-                self.chapter_mapper.to_domain(highlight_orm.chapter)
-                if highlight_orm.chapter
-                else None,
-                [self.tag_mapper.to_domain(tag_orm) for tag_orm in highlight_orm.tags],
-                [self.flashcard_mapper.to_domain(fc_orm) for fc_orm in highlight_orm.flashcards],
-            )
-            for highlight_orm in results
-        ]
 
     async def bulk_update_positions(
         self,
