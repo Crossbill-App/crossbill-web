@@ -63,6 +63,7 @@ def _build_highlight_schema(highlight: SearchHighlightView) -> Highlight:
                 book_id=card.book_id,
                 highlight_id=card.highlight_id,
                 chapter_id=card.chapter_id,
+                note_id=card.note_id,
                 question=card.question,
                 answer=card.answer,
             )

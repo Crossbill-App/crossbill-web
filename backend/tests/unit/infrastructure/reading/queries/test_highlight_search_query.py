@@ -12,7 +12,7 @@ from src.infrastructure.reading.queries.highlight_search_query import HighlightS
 from src.infrastructure.reading.repositories.highlight_style_repository import (
     HighlightStyleRepository,
 )
-from src.models import Book, Chapter, Flashcard, Tag, User
+from src.models import Book, Chapter, Flashcard, Note, Tag, User
 from tests.conftest import (
     create_test_book,
     create_test_highlight,
@@ -221,11 +221,16 @@ async def test_tags_flashcards_and_the_resolved_label_ride_along(
     await db_session.commit()
     await db_session.refresh(tag)
     highlight.tags.append(tag)
+    note = Note(user_id=DEFAULT_USER_ID, title="A note", body="Something worth keeping")
+    db_session.add(note)
+    await db_session.commit()
+    await db_session.refresh(note)
     db_session.add(
         Flashcard(
             user_id=DEFAULT_USER_ID,
             book_id=test_book.id,
             highlight_id=highlight.id,
+            note_id=note.id,
             question="Q?",
             answer="A.",
         )
@@ -240,6 +245,7 @@ async def test_tags_flashcards_and_the_resolved_label_ride_along(
     assert match.chapter_number == 1
     assert [t.name for t in match.tags] == ["theme"]
     assert [card.question for card in match.flashcards] == ["Q?"]
+    assert [card.note_id for card in match.flashcards] == [note.id]
     assert match.label is not None
     assert match.label.highlight_style_id == style.id
     assert match.label.text == "Key idea"

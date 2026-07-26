@@ -215,10 +215,11 @@ A field the response schema declares but the old router never passed is not an
 invitation to start filling it *in the port*. The book-flashcards list used to
 serialise `note_id` as `null` because the router omitted it, even though the
 schema had the field; the port preserved that, and a follow-up commit added the
-field to the DTO and filled it. Keep the two apart: the OpenAPI document is
-byte-identical either way, so the verification step cannot tell a faithful port
-from a behaviour change, and a reviewer reading one commit should not have to
-guess which they are looking at.
+field to the DTO and filled it. The highlight search carried the same omission
+and was repaired the same way, one commit later. Keep the two apart: the
+OpenAPI document is byte-identical either way, so the verification step cannot
+tell a faithful port from a behaviour change, and a reviewer reading one commit
+should not have to guess which they are looking at.
 
 ### 3. Add the read use case
 

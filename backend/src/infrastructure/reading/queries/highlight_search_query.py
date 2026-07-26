@@ -184,6 +184,7 @@ def _flashcard_ref(row: FlashcardORM) -> FlashcardRef:
         book_id=row.book_id,
         highlight_id=row.highlight_id,
         chapter_id=row.chapter_id,
+        note_id=row.note_id,
         question=row.question,
         answer=row.answer,
     )

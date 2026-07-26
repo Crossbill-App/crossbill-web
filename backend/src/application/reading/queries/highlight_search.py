@@ -27,17 +27,14 @@ class TagRef:
 
 @dataclass(frozen=True)
 class FlashcardRef:
-    """A flashcard made from a matched highlight.
-
-    The search response has never carried a flashcard's ``note_id``, even
-    though the schema declares the field, so the view does not fetch it.
-    """
+    """A flashcard made from a matched highlight."""
 
     id: int
     user_id: int
     book_id: int
     highlight_id: int | None
     chapter_id: int | None
+    note_id: int | None
     question: str
     answer: str
 
