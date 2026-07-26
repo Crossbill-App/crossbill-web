@@ -6,7 +6,7 @@ description: Migrate one backend module's reads to the read-model pattern (ADR-0
 # Migrate a module's reads to read models
 
 The module to migrate is given in the arguments (one of: `tagging`, `reflection`,
-`jobs`, `notes`, `learning`, `library`, `reading`). If no module is given, list
+`jobs`, `notes`, `learning`, `library`, `identity`, `reading`). If no module is given, list
 each module's remaining read use cases and ask which to migrate. Migrate ONE
 module per invocation; the shared touch points (the import-linter contract,
 `tests/protocol_conformance.py`) conflict across parallel branches, so the
