@@ -4,13 +4,13 @@ from typing import Annotated
 
 from fastapi import APIRouter, Depends, status
 
-from src.application.reading.use_cases.tag_associations.add_tag_to_highlight_by_id_use_case import (
+from src.application.reading.commands.tag_associations.add_tag_to_highlight_by_id_use_case import (
     AddTagToHighlightByIdUseCase,
 )
-from src.application.reading.use_cases.tag_associations.add_tag_to_highlight_by_name_use_case import (
+from src.application.reading.commands.tag_associations.add_tag_to_highlight_by_name_use_case import (
     AddTagToHighlightByNameUseCase,
 )
-from src.application.reading.use_cases.tag_associations.remove_tag_from_highlight_use_case import (
+from src.application.reading.commands.tag_associations.remove_tag_from_highlight_use_case import (
     RemoveTagFromHighlightUseCase,
 )
 from src.application.tagging.commands.tag_groups.create_tag_group_use_case import (

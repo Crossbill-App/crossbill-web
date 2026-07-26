@@ -1,5 +1,44 @@
 from dependency_injector import containers, providers
 
+from src.application.reading.commands.bookmarks.create_bookmark_use_case import (
+    CreateBookmarkUseCase,
+)
+from src.application.reading.commands.bookmarks.delete_bookmark_use_case import (
+    DeleteBookmarkUseCase,
+)
+from src.application.reading.commands.chapter_prereading.generate_chapter_prereading_use_case import (
+    GenerateChapterPrereadingUseCase,
+)
+from src.application.reading.commands.chapter_prereading.update_prereading_answers_use_case import (
+    UpdatePrereadingAnswersUseCase,
+)
+from src.application.reading.commands.highlight_labels.create_global_highlight_label_use_case import (
+    CreateGlobalHighlightLabelUseCase,
+)
+from src.application.reading.commands.highlight_labels.update_highlight_label_use_case import (
+    UpdateHighlightLabelUseCase,
+)
+from src.application.reading.commands.highlights.highlight_delete_use_case import (
+    HighlightDeleteUseCase,
+)
+from src.application.reading.commands.highlights.highlight_upload_use_case import (
+    HighlightUploadUseCase,
+)
+from src.application.reading.commands.reading_sessions.reading_session_ai_summary_use_case import (
+    ReadingSessionAISummaryUseCase,
+)
+from src.application.reading.commands.reading_sessions.reading_session_upload_use_case import (
+    ReadingSessionUploadUseCase,
+)
+from src.application.reading.commands.tag_associations.add_tag_to_highlight_by_id_use_case import (
+    AddTagToHighlightByIdUseCase,
+)
+from src.application.reading.commands.tag_associations.add_tag_to_highlight_by_name_use_case import (
+    AddTagToHighlightByNameUseCase,
+)
+from src.application.reading.commands.tag_associations.remove_tag_from_highlight_use_case import (
+    RemoveTagFromHighlightUseCase,
+)
 from src.application.reading.queries.chapter_content_use_case import (
     ChapterContentUseCase,
 )
@@ -26,45 +65,6 @@ from src.application.reading.queries.get_global_highlight_labels_use_case import
 )
 from src.application.reading.queries.highlight_search_use_case import (
     HighlightSearchUseCase,
-)
-from src.application.reading.use_cases.bookmarks.create_bookmark_use_case import (
-    CreateBookmarkUseCase,
-)
-from src.application.reading.use_cases.bookmarks.delete_bookmark_use_case import (
-    DeleteBookmarkUseCase,
-)
-from src.application.reading.use_cases.chapter_prereading.generate_chapter_prereading_use_case import (
-    GenerateChapterPrereadingUseCase,
-)
-from src.application.reading.use_cases.chapter_prereading.update_prereading_answers_use_case import (
-    UpdatePrereadingAnswersUseCase,
-)
-from src.application.reading.use_cases.highlight_labels.create_global_highlight_label_use_case import (
-    CreateGlobalHighlightLabelUseCase,
-)
-from src.application.reading.use_cases.highlight_labels.update_highlight_label_use_case import (
-    UpdateHighlightLabelUseCase,
-)
-from src.application.reading.use_cases.highlights.highlight_delete_use_case import (
-    HighlightDeleteUseCase,
-)
-from src.application.reading.use_cases.highlights.highlight_upload_use_case import (
-    HighlightUploadUseCase,
-)
-from src.application.reading.use_cases.reading_sessions.reading_session_ai_summary_use_case import (
-    ReadingSessionAISummaryUseCase,
-)
-from src.application.reading.use_cases.reading_sessions.reading_session_upload_use_case import (
-    ReadingSessionUploadUseCase,
-)
-from src.application.reading.use_cases.tag_associations.add_tag_to_highlight_by_id_use_case import (
-    AddTagToHighlightByIdUseCase,
-)
-from src.application.reading.use_cases.tag_associations.add_tag_to_highlight_by_name_use_case import (
-    AddTagToHighlightByNameUseCase,
-)
-from src.application.reading.use_cases.tag_associations.remove_tag_from_highlight_use_case import (
-    RemoveTagFromHighlightUseCase,
 )
 
 

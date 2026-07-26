@@ -3,7 +3,7 @@
 import structlog
 from saq.types import Context
 
-from src.application.reading.use_cases.chapter_prereading.generate_chapter_prereading_use_case import (
+from src.application.reading.commands.chapter_prereading.generate_chapter_prereading_use_case import (
     GenerateChapterPrereadingUseCase,
 )
 from src.domain.common.value_objects.ids import ChapterId, UserId

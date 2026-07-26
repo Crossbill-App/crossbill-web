@@ -4,17 +4,17 @@ from typing import Annotated
 
 from fastapi import APIRouter, Depends, Query, status
 
+from src.application.reading.commands.reading_sessions.reading_session_ai_summary_use_case import (
+    ReadingSessionAISummaryUseCase,
+)
+from src.application.reading.commands.reading_sessions.reading_session_upload_use_case import (
+    ReadingSessionUploadData,
+    ReadingSessionUploadUseCase,
+)
 from src.application.reading.queries.get_book_reading_sessions_use_case import (
     ReadingSessionQueryUseCase,
 )
 from src.application.reading.queries.reading_sessions import ReadingSessionView
-from src.application.reading.use_cases.reading_sessions.reading_session_ai_summary_use_case import (
-    ReadingSessionAISummaryUseCase,
-)
-from src.application.reading.use_cases.reading_sessions.reading_session_upload_use_case import (
-    ReadingSessionUploadData,
-    ReadingSessionUploadUseCase,
-)
 from src.core import container
 from src.domain.identity.entities.user import User
 from src.infrastructure.common.dependencies import require_ai_enabled

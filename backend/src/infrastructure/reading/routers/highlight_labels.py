@@ -2,6 +2,12 @@
 
 from fastapi import APIRouter, Depends
 
+from src.application.reading.commands.highlight_labels.create_global_highlight_label_use_case import (
+    CreateGlobalHighlightLabelUseCase,
+)
+from src.application.reading.commands.highlight_labels.update_highlight_label_use_case import (
+    UpdateHighlightLabelUseCase,
+)
 from src.application.reading.queries.get_book_highlight_labels_use_case import (
     GetBookHighlightLabelsUseCase,
 )
@@ -9,12 +15,6 @@ from src.application.reading.queries.get_global_highlight_labels_use_case import
     GetGlobalHighlightLabelsUseCase,
 )
 from src.application.reading.queries.highlight_labels import HighlightLabelView
-from src.application.reading.use_cases.highlight_labels.create_global_highlight_label_use_case import (
-    CreateGlobalHighlightLabelUseCase,
-)
-from src.application.reading.use_cases.highlight_labels.update_highlight_label_use_case import (
-    UpdateHighlightLabelUseCase,
-)
 from src.core import container
 from src.domain.identity.entities.user import User
 from src.infrastructure.common.di import inject_use_case

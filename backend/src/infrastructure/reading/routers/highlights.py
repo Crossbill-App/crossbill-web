@@ -4,19 +4,19 @@ from typing import Annotated
 
 from fastapi import APIRouter, Depends, Query, status
 
+from src.application.reading.commands.highlights.highlight_delete_use_case import (
+    HighlightDeleteUseCase,
+)
+from src.application.reading.commands.highlights.highlight_upload_use_case import (
+    HighlightUploadData,
+    HighlightUploadUseCase,
+)
 from src.application.reading.queries.highlight_search import (
     SearchChapterView,
     SearchHighlightView,
 )
 from src.application.reading.queries.highlight_search_use_case import (
     HighlightSearchUseCase,
-)
-from src.application.reading.use_cases.highlights.highlight_delete_use_case import (
-    HighlightDeleteUseCase,
-)
-from src.application.reading.use_cases.highlights.highlight_upload_use_case import (
-    HighlightUploadData,
-    HighlightUploadUseCase,
 )
 from src.core import container
 from src.domain.identity.entities.user import User
