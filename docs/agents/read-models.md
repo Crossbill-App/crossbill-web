@@ -25,7 +25,12 @@ domain-owned rule — two selects plus `LabelResolutionService`
 (`backend/src/infrastructure/learning/queries/book_flashcard_query.py`). The
 `library` module's book lists are the paginated example, and the one where the
 port emptied the repository of everything but aggregate lifecycle
-(`backend/src/infrastructure/library/queries/book_list_query.py`).
+(`backend/src/infrastructure/library/queries/book_list_query.py`). In the
+`reading` module, the highlight search is the view ADR-0001 opens with and the
+port that finally deleted `HighlightRepositoryProtocol.search`
+(`backend/src/infrastructure/reading/queries/highlight_search_query.py`), and
+the session list is the one whose data does not all live in Postgres
+(`backend/src/infrastructure/reading/queries/reading_session_query.py`).
 
 ## Does this view qualify?
 
@@ -59,6 +64,13 @@ repository finder has no other caller takes that finder with it, and the write
 side gets smaller — `find_by_reference` died with the active-batch view, which
 the halfway option could never have achieved. A read that shares `find_by_id`
 with a command removes nothing, so stay minimal there.
+
+That question breaks ties; it does not overrule the bullets above. A view that
+already trips one of them qualifies however widely its finders are shared —
+the ereader prereading list calls nothing but finders that commands also use,
+and porting it still deleted a Book aggregate load, every Chapter aggregate of
+the book, and a hand-rolled DTO that was a view DTO in all but location. Ask
+what the port removes only when nothing on the list applies.
 
 A simple read that doesn't qualify still **moves** to `queries/` — otherwise
 the module's `use_cases/` package can never finish as commands-only. Apply the
@@ -127,6 +139,12 @@ active batch" as a `JobBatchResponse` — give them one DTO and one
 `JobBatchQueryProtocol` with a method each, instead of two ports duplicating the
 shape.
 
+Sharing one DTO across two endpoints can mean one method fills a field the other
+computes. `HighlightLabelQueryProtocol.list_global` hands back
+`label_source="global"` and `highlight_count=0` because the router did, while
+`list_for_book` resolves both for real. Preserve the constant and say why in the
+DTO's docstring; do not start computing it because the field is now in reach.
+
 A paginated view needs both the page and the unpaginated total, which is two
 values, not one DTO. Wrap them: `BookListPageView` holds
 `books: tuple[BookWithCountsView, ...]` plus `total: int`, and the router reads
@@ -176,8 +194,22 @@ targeted selects is fine and preferable to reusing an aggregate finder.
   renders as nothing. That is API behaviour, not a bug to tidy up — give the
   DTO both fields and say so in its docstring, rather than filtering once and
   deriving the other.
+- Copy an existing finder's `ORDER BY` verbatim rather than tidying it. A bare
+  `.order_by(Chapter.chapter_number)` sorts nulls first on SQLite and last on
+  PostgreSQL; "fixing" that with `nulls_last()` changes the response on one
+  dialect and the OpenAPI check will not notice.
 - Return `None` when the root row is absent; let the read use case turn that
-  into the domain's NotFound error.
+  into the domain's NotFound error. When the root row is also the ownership
+  check, `None` is what separates "no such book" (404) from "a book with
+  nothing in it" (an empty list) — the two are otherwise indistinguishable
+  once the aggregate load is gone.
+- A view whose data does not all live in Postgres may take the other store's
+  collaborator too. `ReadingSessionQuery` is constructed with the file
+  repository and the text extractor because a session's `content` is read back
+  out of the book's EPUB: that is a fetch, not a decision, and the alternative
+  was putting the sessions' xpoints into a DTO that never renders them. Fetch
+  the shared blob once per call, not once per row, and let a failed read
+  degrade the field rather than the response.
 
 A field the response schema declares but the old router never passed is not an
 invitation to start filling it *in the port*. The book-flashcards list used to
