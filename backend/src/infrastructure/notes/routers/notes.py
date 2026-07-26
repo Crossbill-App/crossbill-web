@@ -5,12 +5,12 @@ from typing import Annotated
 from fastapi import APIRouter, Depends, Query
 from starlette import status
 
+from src.application.notes.commands.create_note_use_case import CreateNoteUseCase
+from src.application.notes.commands.delete_note_use_case import DeleteNoteUseCase
+from src.application.notes.commands.update_note_use_case import UpdateNoteUseCase
 from src.application.notes.queries.get_note_use_case import GetNoteUseCase
 from src.application.notes.queries.get_notes_by_book_use_case import GetNotesByBookUseCase
 from src.application.notes.queries.note_with_links import NoteWithLinksView
-from src.application.notes.use_cases.create_note_use_case import CreateNoteUseCase
-from src.application.notes.use_cases.delete_note_use_case import DeleteNoteUseCase
-from src.application.notes.use_cases.update_note_use_case import UpdateNoteUseCase
 from src.core import container
 from src.domain.identity import User
 from src.domain.notes.entities.note import Note as NoteEntity

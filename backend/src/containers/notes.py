@@ -1,10 +1,10 @@
 from dependency_injector import containers, providers
 
+from src.application.notes.commands.create_note_use_case import CreateNoteUseCase
+from src.application.notes.commands.delete_note_use_case import DeleteNoteUseCase
+from src.application.notes.commands.update_note_use_case import UpdateNoteUseCase
 from src.application.notes.queries.get_note_use_case import GetNoteUseCase
 from src.application.notes.queries.get_notes_by_book_use_case import GetNotesByBookUseCase
-from src.application.notes.use_cases.create_note_use_case import CreateNoteUseCase
-from src.application.notes.use_cases.delete_note_use_case import DeleteNoteUseCase
-from src.application.notes.use_cases.update_note_use_case import UpdateNoteUseCase
 
 
 class NotesContainer(containers.DeclarativeContainer):

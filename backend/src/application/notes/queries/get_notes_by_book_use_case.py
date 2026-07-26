@@ -2,11 +2,11 @@
 
 from src.application.common.ownership import require_book
 from src.application.library.protocols.book_repository import BookRepositoryProtocol
+from src.application.notes.commands.helpers import parse_note_kind
 from src.application.notes.queries.note_with_links import (
     NoteQueryProtocol,
     NoteWithLinksView,
 )
-from src.application.notes.use_cases.helpers import parse_note_kind
 from src.domain.common.value_objects import BookId, ChapterId, HighlightId, TagId, UserId
 
 

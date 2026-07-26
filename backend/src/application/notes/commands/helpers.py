@@ -1,4 +1,4 @@
-"""Shared helpers for note use cases.
+"""Shared helpers for the note commands.
 
 ``parse_note_kind`` is also used by the note read use cases: converting the
 API's kind string is the same job on both sides, and a query importing from the
@@ -91,4 +91,3 @@ def _check_links(
             raise not_found_error(requested_id)
         if book_id not in allowed_book_ids:
             raise NoteLinkBookMismatchError(entity_type, requested_id)
-
