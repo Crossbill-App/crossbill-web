@@ -69,6 +69,15 @@ entities. No adapter, no invented DTOs, no query port. The package placement
 be tightened later if the view ever grows. `GetTagsForBookUseCase`
 (`application/tagging/queries/`) is the reference for this shape.
 
+Not every read serves a view. `GetUserByIdUseCase`
+(`application/identity/queries/`) backs the `get_current_user` FastAPI
+dependency: no endpoint of its own, and its `User` reaches every router in the
+app, which then passes it into commands. For a read like that the halfway
+option is not the economical choice, it is the only legal one — handing back a
+view DTO would put a read model on the input side of a command, which Rule 2
+forbids. **A read whose result flows into a command keeps returning the domain
+entity.** Move it to `queries/` and stop there.
+
 ## The layout
 
 ```

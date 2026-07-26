@@ -5,10 +5,10 @@ from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
-from src.application.identity.dtos import RefreshTokenClaims, TokenPairWithMetadata
-from src.application.identity.use_cases.authentication.refresh_access_token_use_case import (
+from src.application.identity.commands.authentication.refresh_access_token_use_case import (
     RefreshAccessTokenUseCase,
 )
+from src.application.identity.dtos import RefreshTokenClaims, TokenPairWithMetadata
 from src.domain.common.value_objects.ids import RefreshTokenId, UserId
 from src.domain.identity.entities.refresh_token import RefreshToken
 from src.domain.identity.entities.user import User

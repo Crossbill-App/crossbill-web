@@ -5,8 +5,8 @@ from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
+from src.application.identity.commands.authentication.logout_use_case import LogoutUseCase
 from src.application.identity.dtos import RefreshTokenClaims
-from src.application.identity.use_cases.authentication.logout_use_case import LogoutUseCase
 from src.domain.common.value_objects.ids import RefreshTokenId, UserId
 from src.domain.identity.entities.refresh_token import RefreshToken
 
