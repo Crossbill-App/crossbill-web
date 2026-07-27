@@ -17,11 +17,11 @@ from sqlalchemy import ColumnElement, Select, Table, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.sql import func
 
+from src.application.common.queries.refs import FlashcardRef
 from src.application.notes.queries.note_with_links import (
     LinkedChapterView,
     LinkedHighlightView,
     LinkedTagView,
-    NoteFlashcardView,
     NoteWithLinksView,
 )
 from src.domain.common.value_objects.ids import (
@@ -224,7 +224,7 @@ class NoteQuery:
 
     async def _fetch_flashcards(
         self, note_ids: list[int], user_id: UserId
-    ) -> dict[int, tuple[NoteFlashcardView, ...]]:
+    ) -> dict[int, tuple[FlashcardRef, ...]]:
         """Load every note's flashcards in one pass, newest first within a note."""
         stmt = (
             select(
@@ -244,7 +244,7 @@ class NoteQuery:
             .order_by(FlashcardORM.note_id, FlashcardORM.created_at.desc())
         )
         rows = (await self.db.execute(stmt)).tuples().all()
-        grouped: dict[int | None, list[NoteFlashcardView]] = defaultdict(list)
+        grouped: dict[int | None, list[FlashcardRef]] = defaultdict(list)
         for (
             card_id,
             card_user_id,
@@ -256,7 +256,7 @@ class NoteQuery:
             answer,
         ) in rows:
             grouped[card_note_id].append(
-                NoteFlashcardView(
+                FlashcardRef(
                     id=card_id,
                     user_id=card_user_id,
                     book_id=book_id,
