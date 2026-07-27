@@ -11,6 +11,7 @@ from dataclasses import dataclass
 from datetime import datetime as dt
 from typing import Protocol
 
+from src.application.common.queries.refs import FlashcardRef
 from src.domain.common.value_objects.ids import (
     BookId,
     ChapterId,
@@ -47,20 +48,6 @@ class LinkedTagView:
 
 
 @dataclass(frozen=True)
-class NoteFlashcardView:
-    """A flashcard generated from a note."""
-
-    id: int
-    user_id: int
-    book_id: int
-    highlight_id: int | None
-    chapter_id: int | None
-    note_id: int | None
-    question: str
-    answer: str
-
-
-@dataclass(frozen=True)
 class NoteWithLinksView:
     """A note together with the entities it links to.
 
@@ -86,7 +73,7 @@ class NoteWithLinksView:
     chapters: tuple[LinkedChapterView, ...]
     highlights: tuple[LinkedHighlightView, ...]
     tags: tuple[LinkedTagView, ...]
-    flashcards: tuple[NoteFlashcardView, ...]
+    flashcards: tuple[FlashcardRef, ...]
     created_at: dt
     updated_at: dt
 

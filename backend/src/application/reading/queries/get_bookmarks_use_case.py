@@ -1,9 +1,7 @@
 """Read use case for a book's bookmark list."""
 
-from src.application.reading.queries.bookmarks import (
-    BookmarkQueryProtocol,
-    BookmarkView,
-)
+from src.application.common.queries.refs import BookmarkView
+from src.application.reading.queries.bookmarks import BookmarkQueryProtocol
 from src.domain.common.value_objects.ids import BookId, UserId
 from src.domain.reading.exceptions import BookNotFoundError
 

@@ -12,7 +12,6 @@ from src.application.library.commands.book_management.update_reading_stage_use_c
 from src.application.library.queries.book_details import (
     BookDetailsView,
     ChapterWithHighlightsView,
-    HighlightView,
 )
 from src.application.library.queries.book_list import BookWithCountsView
 from src.application.library.queries.get_book_details_use_case import GetBookDetailsUseCase
@@ -37,52 +36,11 @@ from src.infrastructure.reading.schemas import (
     BookDetails,
     Bookmark,
     ChapterWithHighlights,
-    Highlight,
-    HighlightLabel,
 )
+from src.infrastructure.reading.schemas.highlight_builders import build_highlight_schema
 from src.infrastructure.tagging.schemas import TagGroupInBook, TagInBook
 
 router = APIRouter(prefix="/books", tags=["books"])
-
-
-def _build_highlight_schema(highlight: HighlightView) -> Highlight:
-    """Build the Highlight schema from a highlight in the book-details read model."""
-    return Highlight(
-        id=highlight.id,
-        book_id=highlight.book_id,
-        chapter_id=highlight.chapter_id,
-        text=highlight.text,
-        chapter=highlight.chapter_name,
-        chapter_number=highlight.chapter_number,
-        page=highlight.page,
-        datetime=highlight.datetime,
-        label=HighlightLabel(
-            highlight_style_id=highlight.label.highlight_style_id,
-            text=highlight.label.text,
-            ui_color=highlight.label.ui_color,
-        )
-        if highlight.label
-        else None,
-        flashcards=[
-            Flashcard(
-                id=card.id,
-                user_id=card.user_id,
-                book_id=card.book_id,
-                highlight_id=card.highlight_id,
-                chapter_id=card.chapter_id,
-                note_id=card.note_id,
-                question=card.question,
-                answer=card.answer,
-            )
-            for card in highlight.flashcards
-        ],
-        tags=[
-            TagInBook(id=tag.id, name=tag.name, tag_group_id=tag.tag_group_id)
-            for tag in highlight.tags
-        ],
-        created_at=highlight.created_at,
-        updated_at=highlight.updated_at,
-    )
 
 
 def _build_chapter_schema(chapter: ChapterWithHighlightsView) -> ChapterWithHighlights:
@@ -98,7 +56,7 @@ def _build_chapter_schema(chapter: ChapterWithHighlightsView) -> ChapterWithHigh
         )
         if chapter.start_position
         else None,
-        highlights=[_build_highlight_schema(highlight) for highlight in chapter.highlights],
+        highlights=[build_highlight_schema(highlight) for highlight in chapter.highlights],
         created_at=chapter.created_at,
         updated_at=chapter.updated_at,
     )

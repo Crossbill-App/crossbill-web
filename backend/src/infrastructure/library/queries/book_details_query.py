@@ -14,21 +14,18 @@ from sqlalchemy import or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import joinedload, noload
 
+from src.application.common.queries.refs import BookmarkView, FlashcardRef, TagRef
 from src.application.library.queries.book_details import (
     BookDetailsView,
-    BookmarkView,
     ChapterWithHighlightsView,
-    FlashcardRef,
-    HighlightLabelView,
-    HighlightView,
     TagGroupRef,
-    TagRef,
 )
 from src.application.reading.services.label_resolution_service import LabelResolutionService
 from src.domain.common.value_objects.ids import BookId, UserId
 from src.domain.common.value_objects.position import Position
 from src.domain.library.entities.book import ReadingStage
 from src.domain.reading.services.highlight_style_resolver import ResolvedLabel
+from src.infrastructure.common.queries.row_mappers import flashcard_ref, highlight_row
 from src.infrastructure.learning.orm.flashcard_model import Flashcard as FlashcardORM
 from src.infrastructure.library.orm.book_model import Book as BookORM
 from src.infrastructure.library.orm.chapter_model import Chapter as ChapterORM
@@ -182,7 +179,7 @@ class BookDetailsQuery:
             .order_by(FlashcardORM.created_at.desc())
         )
         rows = (await self.db.execute(stmt)).scalars().all()
-        return tuple(_flashcard_ref(row) for row in rows)
+        return tuple(flashcard_ref(row) for row in rows)
 
     async def _fetch_chapters(
         self,
@@ -252,49 +249,6 @@ class BookDetailsQuery:
         return (await self.db.execute(stmt)).unique().scalars().all()
 
 
-def _flashcard_ref(row: FlashcardORM) -> FlashcardRef:
-    """Map a flashcard row to its view DTO."""
-    return FlashcardRef(
-        id=row.id,
-        user_id=row.user_id,
-        book_id=row.book_id,
-        highlight_id=row.highlight_id,
-        chapter_id=row.chapter_id,
-        note_id=row.note_id,
-        question=row.question,
-        answer=row.answer,
-    )
-
-
-def _highlight_view(row: HighlightORM, labels: dict[int, ResolvedLabel]) -> HighlightView:
-    """Map a highlight row and its eagerly loaded relations to the view DTO."""
-    style_id = row.highlight_style_id
-    resolved = labels.get(style_id) if style_id is not None else None
-    return HighlightView(
-        id=row.id,
-        book_id=row.book_id,
-        chapter_id=row.chapter_id,
-        chapter_name=row.chapter.name if row.chapter else None,
-        chapter_number=row.chapter.chapter_number if row.chapter else None,
-        text=row.text,
-        page=row.page,
-        datetime=row.datetime,
-        label=HighlightLabelView(
-            highlight_style_id=style_id,
-            text=resolved.label if resolved else None,
-            ui_color=resolved.ui_color if resolved else None,
-        )
-        if style_id is not None
-        else None,
-        tags=tuple(
-            TagRef(id=tag.id, name=tag.name, tag_group_id=tag.tag_group_id) for tag in row.tags
-        ),
-        flashcards=tuple(_flashcard_ref(card) for card in row.flashcards),
-        created_at=row.created_at,
-        updated_at=row.updated_at,
-    )
-
-
 def _chapter_view(
     chapter: ChapterORM,
     highlights: list[HighlightORM],
@@ -308,7 +262,7 @@ def _chapter_view(
         chapter_number=chapter.chapter_number,
         parent_id=chapter.parent_id,
         start_position=_position(chapter.start_position),
-        highlights=tuple(_highlight_view(row, labels) for row in ordered),
+        highlights=tuple(highlight_row(row, labels) for row in ordered),
         created_at=chapter.created_at,
         updated_at=chapter.updated_at,
     )

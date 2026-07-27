@@ -9,7 +9,7 @@ question.
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from src.application.reading.queries.bookmarks import BookmarkView
+from src.application.common.queries.refs import BookmarkView
 from src.domain.common.value_objects.ids import BookId, UserId
 from src.infrastructure.library.orm.book_model import Book as BookORM
 from src.infrastructure.reading.orm.bookmark_model import Bookmark as BookmarkORM

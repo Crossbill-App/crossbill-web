@@ -20,21 +20,16 @@ from sqlalchemy.orm import joinedload, noload
 
 from src.application.reading.queries.highlight_search import (
     BookHighlightSearchView,
-    FlashcardRef,
-    HighlightLabelView,
     SearchChapterView,
-    SearchHighlightView,
-    TagRef,
 )
 from src.application.reading.services.label_resolution_service import LabelResolutionService
 from src.domain.common.value_objects.ids import BookId, UserId
 from src.domain.reading.services.highlight_style_resolver import ResolvedLabel
+from src.infrastructure.common.queries.row_mappers import highlight_row
 from src.infrastructure.common.sql import LIKE_ESCAPE_CHAR, escape_like_pattern
-from src.infrastructure.learning.orm.flashcard_model import Flashcard as FlashcardORM
 from src.infrastructure.library.orm.book_model import Book as BookORM
 from src.infrastructure.library.orm.chapter_model import Chapter as ChapterORM
 from src.infrastructure.reading.orm.highlight_model import Highlight as HighlightORM
-from src.infrastructure.tagging.orm.tag_model import Tag as TagORM
 
 
 class HighlightSearchQuery:
@@ -137,53 +132,7 @@ def _chapter_view(
         id=chapter.id,
         name=chapter.name,
         chapter_number=chapter.chapter_number,
-        highlights=tuple(_highlight_view(row, labels) for row in ordered),
+        highlights=tuple(highlight_row(row, labels) for row in ordered),
         created_at=chapter.created_at,
         updated_at=chapter.updated_at,
-    )
-
-
-def _highlight_view(row: HighlightORM, labels: dict[int, ResolvedLabel]) -> SearchHighlightView:
-    """Map a matched highlight and its eagerly loaded relations to the view DTO."""
-    style_id = row.highlight_style_id
-    resolved = labels.get(style_id) if style_id is not None else None
-    return SearchHighlightView(
-        id=row.id,
-        book_id=row.book_id,
-        chapter_id=row.chapter_id,
-        chapter_name=row.chapter.name if row.chapter else None,
-        chapter_number=row.chapter.chapter_number if row.chapter else None,
-        text=row.text,
-        page=row.page,
-        datetime=row.datetime,
-        label=HighlightLabelView(
-            highlight_style_id=style_id,
-            text=resolved.label if resolved else None,
-            ui_color=resolved.ui_color if resolved else None,
-        )
-        if style_id is not None
-        else None,
-        tags=tuple(_tag_ref(tag) for tag in row.tags),
-        flashcards=tuple(_flashcard_ref(card) for card in row.flashcards),
-        created_at=row.created_at,
-        updated_at=row.updated_at,
-    )
-
-
-def _tag_ref(row: TagORM) -> TagRef:
-    """Map a tag row to its view DTO."""
-    return TagRef(id=row.id, name=row.name, tag_group_id=row.tag_group_id)
-
-
-def _flashcard_ref(row: FlashcardORM) -> FlashcardRef:
-    """Map a flashcard row to its view DTO."""
-    return FlashcardRef(
-        id=row.id,
-        user_id=row.user_id,
-        book_id=row.book_id,
-        highlight_id=row.highlight_id,
-        chapter_id=row.chapter_id,
-        note_id=row.note_id,
-        question=row.question,
-        answer=row.answer,
     )

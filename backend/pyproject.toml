@@ -170,33 +170,19 @@ source_modules = [
     "src.infrastructure.ai.ai_agents",
     "src.infrastructure.ai.ai_model",
     "src.infrastructure.ai.ai_service",
+    "src.infrastructure.*.routers",
+    "src.infrastructure.*.schemas",
+    "src.infrastructure.*.services",
     "src.infrastructure.common.dependencies",
     "src.infrastructure.common.di",
     "src.infrastructure.common.rate_limit",
-    "src.infrastructure.common.routers",
-    "src.infrastructure.common.schemas",
     "src.infrastructure.common.sql",
     "src.infrastructure.identity.dependencies",
-    "src.infrastructure.identity.routers",
-    "src.infrastructure.identity.schemas",
-    "src.infrastructure.identity.services",
-    "src.infrastructure.jobs.routers",
-    "src.infrastructure.jobs.schemas",
     "src.infrastructure.jobs.tasks",
     "src.infrastructure.jobs.saq_job_queue_service",
     "src.infrastructure.jobs.saq_queue",
-    "src.infrastructure.learning.routers",
-    "src.infrastructure.learning.schemas",
-    "src.infrastructure.library.routers",
-    "src.infrastructure.library.schemas",
-    "src.infrastructure.library.services",
-    "src.infrastructure.reading.routers",
-    "src.infrastructure.reading.schemas",
-    "src.infrastructure.reading.services",
-    "src.infrastructure.tagging.routers",
-    "src.infrastructure.tagging.schemas",
 ]
-forbidden_modules = ["src.models", "src.infrastructure.jobs.orm"]
+forbidden_modules = ["src.infrastructure.*.orm"]
 
 [tool.pytest.ini_options]
 asyncio_mode = "auto"

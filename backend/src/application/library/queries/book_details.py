@@ -8,18 +8,11 @@ from dataclasses import dataclass
 from datetime import datetime as dt
 from typing import Protocol
 
+from src.application.common.queries.highlight_row import HighlightRow
+from src.application.common.queries.refs import BookmarkView, FlashcardRef, TagRef
 from src.domain.common.value_objects.ids import BookId, UserId
 from src.domain.common.value_objects.position import Position
 from src.domain.library.entities.book import ReadingStage
-
-
-@dataclass(frozen=True)
-class TagRef:
-    """A tag as shown inside a book."""
-
-    id: int
-    name: str
-    tag_group_id: int | None
 
 
 @dataclass(frozen=True)
@@ -31,58 +24,6 @@ class TagGroupRef:
 
 
 @dataclass(frozen=True)
-class BookmarkView:
-    """A bookmark pinned to one of the book's highlights."""
-
-    id: int
-    book_id: int
-    highlight_id: int
-    created_at: dt
-
-
-@dataclass(frozen=True)
-class FlashcardRef:
-    """A flashcard as shown in the book-details view."""
-
-    id: int
-    user_id: int
-    book_id: int
-    highlight_id: int | None
-    chapter_id: int | None
-    note_id: int | None
-    question: str
-    answer: str
-
-
-@dataclass(frozen=True)
-class HighlightLabelView:
-    """The label resolved for a highlight's style."""
-
-    highlight_style_id: int
-    text: str | None
-    ui_color: str | None
-
-
-@dataclass(frozen=True)
-class HighlightView:
-    """A highlight with everything the book-details view renders alongside it."""
-
-    id: int
-    book_id: int
-    chapter_id: int | None
-    chapter_name: str | None
-    chapter_number: int | None
-    text: str
-    page: int | None
-    datetime: str
-    label: HighlightLabelView | None
-    tags: tuple[TagRef, ...]
-    flashcards: tuple[FlashcardRef, ...]
-    created_at: dt
-    updated_at: dt
-
-
-@dataclass(frozen=True)
 class ChapterWithHighlightsView:
     """A chapter of the book together with its highlights (possibly none)."""
 
@@ -91,7 +32,7 @@ class ChapterWithHighlightsView:
     chapter_number: int | None
     parent_id: int | None
     start_position: Position | None
-    highlights: tuple[HighlightView, ...]
+    highlights: tuple[HighlightRow, ...]
     created_at: dt
     updated_at: dt
 

@@ -13,58 +13,8 @@ from dataclasses import dataclass
 from datetime import datetime as dt
 from typing import Protocol
 
+from src.application.common.queries.highlight_row import HighlightRow
 from src.domain.common.value_objects.ids import BookId, UserId
-
-
-@dataclass(frozen=True)
-class TagRef:
-    """A tag on a matched highlight."""
-
-    id: int
-    name: str
-    tag_group_id: int | None
-
-
-@dataclass(frozen=True)
-class FlashcardRef:
-    """A flashcard made from a matched highlight."""
-
-    id: int
-    user_id: int
-    book_id: int
-    highlight_id: int | None
-    chapter_id: int | None
-    note_id: int | None
-    question: str
-    answer: str
-
-
-@dataclass(frozen=True)
-class HighlightLabelView:
-    """A highlight's effective label, resolved by the domain rather than by SQL."""
-
-    highlight_style_id: int
-    text: str | None
-    ui_color: str | None
-
-
-@dataclass(frozen=True)
-class SearchHighlightView:
-    """A highlight that matched the search, with what the result list renders."""
-
-    id: int
-    book_id: int
-    chapter_id: int | None
-    chapter_name: str | None
-    chapter_number: int | None
-    text: str
-    page: int | None
-    datetime: str
-    label: HighlightLabelView | None
-    tags: tuple[TagRef, ...]
-    flashcards: tuple[FlashcardRef, ...]
-    created_at: dt
-    updated_at: dt
 
 
 @dataclass(frozen=True)
@@ -78,7 +28,7 @@ class SearchChapterView:
     id: int
     name: str
     chapter_number: int | None
-    highlights: tuple[SearchHighlightView, ...]
+    highlights: tuple[HighlightRow, ...]
     created_at: dt
     updated_at: dt
 
