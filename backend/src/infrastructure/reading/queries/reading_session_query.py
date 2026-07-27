@@ -16,12 +16,12 @@ from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import noload
 
+from src.application.common.queries.highlight_row import HighlightLabelView
 from src.application.library.protocols.file_repository import FileRepositoryProtocol
 from src.application.reading.protocols.ebook_text_extraction_service import (
     EbookTextExtractionServiceProtocol,
 )
 from src.application.reading.queries.reading_sessions import (
-    HighlightLabelView,
     ReadingSessionPageView,
     ReadingSessionView,
     SessionHighlightView,
