@@ -8,25 +8,9 @@ from dataclasses import dataclass
 from datetime import datetime as dt
 from typing import Protocol
 
+from src.application.common.queries.highlight_row import HighlightLabelView
+from src.application.common.queries.refs import TagRef
 from src.domain.common.value_objects.ids import BookId, UserId
-
-
-@dataclass(frozen=True)
-class TagRef:
-    """A tag on a flashcard's highlight, as the list shows it."""
-
-    id: int
-    name: str
-    tag_group_id: int | None
-
-
-@dataclass(frozen=True)
-class HighlightLabelView:
-    """A highlight's effective label, resolved by the domain rather than by SQL."""
-
-    highlight_style_id: int | None
-    text: str | None
-    ui_color: str | None
 
 
 @dataclass(frozen=True)

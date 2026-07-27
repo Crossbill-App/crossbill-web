@@ -13,15 +13,15 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import joinedload, noload
 
+from src.application.common.queries.highlight_row import HighlightLabelView
 from src.application.learning.queries.book_flashcards import (
     FlashcardHighlightView,
     FlashcardWithHighlightView,
-    HighlightLabelView,
-    TagRef,
 )
 from src.application.reading.services.label_resolution_service import LabelResolutionService
 from src.domain.common.value_objects.ids import BookId, UserId
 from src.domain.reading.services.highlight_style_resolver import ResolvedLabel
+from src.infrastructure.common.queries.row_mappers import tag_ref
 from src.infrastructure.learning.orm.flashcard_model import Flashcard as FlashcardORM
 from src.infrastructure.reading.orm.highlight_model import Highlight as HighlightORM
 
@@ -121,9 +121,7 @@ def _highlight_view(row: HighlightORM, labels: dict[int, ResolvedLabel]) -> Flas
         )
         if style_id is not None
         else None,
-        tags=tuple(
-            TagRef(id=tag.id, name=tag.name, tag_group_id=tag.tag_group_id) for tag in row.tags
-        ),
+        tags=tuple(tag_ref(tag) for tag in row.tags),
         created_at=row.created_at,
         updated_at=row.updated_at,
     )
