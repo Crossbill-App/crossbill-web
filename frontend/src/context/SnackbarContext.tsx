@@ -1,4 +1,5 @@
 /* eslint-disable react-refresh/only-export-components */
+import { Portal } from '@mui/material';
 import Alert, { AlertColor } from '@mui/material/Alert';
 import Snackbar from '@mui/material/Snackbar';
 import { createContext, ReactNode, useCallback, useContext, useState } from 'react';
@@ -36,21 +37,25 @@ export function SnackbarProvider({ children }: { children: ReactNode }) {
   return (
     <SnackbarContext.Provider value={{ showSnackbar }}>
       {children}
-      <Snackbar
-        open={snackbar.open}
-        autoHideDuration={6000}
-        onClose={handleClose}
-        anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
-      >
-        <Alert
+      {/* Portalled to the body so an open dialog does not bury the message
+          under its `aria-hidden`, which would hide errors from assistive tech. */}
+      <Portal>
+        <Snackbar
+          open={snackbar.open}
+          autoHideDuration={6000}
           onClose={handleClose}
-          severity={snackbar.severity}
-          variant="filled"
-          sx={{ width: '100%' }}
+          anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
         >
-          {snackbar.message}
-        </Alert>
-      </Snackbar>
+          <Alert
+            onClose={handleClose}
+            severity={snackbar.severity}
+            variant="filled"
+            sx={{ width: '100%' }}
+          >
+            {snackbar.message}
+          </Alert>
+        </Snackbar>
+      </Portal>
     </SnackbarContext.Provider>
   );
 }

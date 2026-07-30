@@ -138,7 +138,7 @@ export const CommonDialog = ({
             edge="end"
             color="inherit"
             onClick={onClose}
-            aria-label="close"
+            aria-label="Close dialog"
             disabled={isLoading}
           >
             <CloseIcon />
