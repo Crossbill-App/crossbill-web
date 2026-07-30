@@ -139,6 +139,8 @@ The full porting procedure lives in the `ddd-migration` skill.
 
 Always run the full test suite after completing any migration or refactoring. Do not
 declare work complete until all tests pass. If tests fail, fix them before stopping.
+Test policy (API-first tiering, assertion depth, when unit tests are warranted): load the
+`writing-tests` skill before writing or reviewing tests.
 
 ## Working Style
 
