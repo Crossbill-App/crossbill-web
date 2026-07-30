@@ -202,11 +202,16 @@ filterwarnings = [
 source_paths = ["src/domain/"]
 tests_dir = ["tests/"]
 also_copy = ["src/", "tests/"]
-# Every mutant pays a fresh pytest startup, and the root conftest imports the
-# whole app (~3.5s idle, more under parallel workers). mutmut's default budget of
-# (test_time + 1s) * 15 is derived from per-test durations of a few ms, so that
-# startup alone blows the deadline and nearly every mutant is reported as a
-# timeout instead of killed. Model the startup as the constant and cut the
-# multiplier to keep a real hang from costing minutes.
+# mutmut's default budget is (test_time + 1s) * 15, derived from per-test
+# durations of a few ms, which is far too tight here. Model a fixed overhead as
+# the constant and cut the multiplier so a genuine hang still can't cost minutes.
+#
+# Known limitation: mutmut runs each mutant by forking a warm parent process, and
+# our DB/TestClient-backed tests hang after that fork. Mutants whose covering
+# tests reach one of those are therefore reported as "timeout" rather than
+# "killed" - roughly a third of the run. A timeout is inconclusive, NOT a
+# survivor: spot-checking them by hand (MUTANT_UNDER_TEST=<name> pytest <test>
+# from mutants/) shows the tests do kill them. Read the audit for survivors; the
+# signal is trustworthy for anything the pure unit tests cover.
 timeout_constant = 20.0
 timeout_multiplier = 3.0

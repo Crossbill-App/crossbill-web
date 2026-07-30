@@ -66,4 +66,6 @@ shadowed), delete it. Fewer strong tests beat many weak ones.
   fixtures before adding new ones.
 - Run the full suite before declaring work done: `cd backend && uv run pytest`.
 - Periodic quality audit: `make mutation-test` (mutmut over `src/domain/`). Surviving
-  mutants are concrete test gaps — write tests that kill them.
+  mutants are concrete test gaps — write tests that kill them. Mutants reported as
+  `timeout` are inconclusive rather than gaps: mutmut forks a warm process and our
+  DB-backed tests hang after the fork, so read the audit for survivors.
