@@ -228,9 +228,52 @@ const MyComponent = () => {
 - **VERIFY** no console errors before pushing
 - **KEEP** commits focused on single changes
 
-## Testing (Future)
+## Testing
 
-- Write unit tests for utilities
-- Write integration tests for user flows
-- Aim for high coverage of business logic
-- Test error states and edge cases
+Behavior tests over whole routes are the only tier. A test renders a real route
+through the real router, the real auth gate and the real providers, mocks the
+network with MSW, and drives the page the way a user would.
+
+Run them with `npm run test` (headless Chromium via Vitest browser mode) or
+`npm run test:watch`. `npx playwright install chromium` once, first time.
+
+### What belongs in a test
+
+- User-visible flows: open a dialog, edit, save, and assert the **list or page**
+  reflects the change — not merely that the dialog closed.
+- Error paths: make the endpoint fail and assert the snackbar reports it and the
+  original data is still on screen.
+- Queries by accessible role and name (`getByRole('button', { name: 'Save' })`).
+  Scope to a container when a name is ambiguous, e.g.
+  `screen.getByRole('dialog').getByRole('button', { name: 'Close', exact: true })`.
+  Reach for `data-testid` only when nothing else works; giving the element a
+  proper `aria-label` in `src/` is usually the better fix.
+
+### What does not
+
+- Component-internal tests, shallow renders, snapshots, coverage targets.
+- Mocking hooks, contexts or modules. Mock **the network**, never the app.
+  If a test needs a context stubbed, the test is at the wrong level.
+
+### How it is wired
+
+- `tests/harness/renderApp.tsx` — `renderApp({ path })` mounts the whole app at
+  a path with a fresh QueryClient. Real browser history, because dialogs close
+  themselves via `window.history.back()`.
+- `tests/msw/` — request handlers. `auth.ts` holds the bootstrap defaults every
+  test gets; `bookApi.ts` is the pattern for a stateful module: a factory
+  returning `{ handlers, state }` whose PUT updates the record the next GET
+  serves, so a mutation genuinely round-trips.
+- `tests/fixtures/` — builders returning generated model types, so an API schema
+  change breaks the fixture at compile time.
+- `tests/setup.ts` — starts the worker and fails any test that hits an `/api/`
+  endpoint nobody mocked. Unhandled requests are errors by design: a test must
+  never pass while silently talking to an unmocked endpoint.
+
+Copy `src/pages/BookPage/BookPage.test.tsx` (render) and
+`src/pages/BookPage/Notes/NotesPage.test.tsx` (mutation flow + error path) when
+adding tests for a new page. Tests live next to the page they cover.
+
+Plain node-environment unit tests are reserved for genuinely tricky pure logic
+in `src/utils` — parsing, normalisation, arithmetic — where a page-level test
+could not pin down the edge cases.
