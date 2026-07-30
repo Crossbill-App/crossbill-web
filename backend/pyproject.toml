@@ -38,6 +38,7 @@ dev = [
   "lxml-stubs>=0.5.1",
   "aiosqlite>=0.22.1",
   "import-linter>=2.11",
+  "mutmut>=3.6.0",
 ]
 
 [build-system]
@@ -196,3 +197,16 @@ filterwarnings = [
     "ignore:.*_UnionGenericAlias.*:DeprecationWarning:google.genai",
     "ignore:.*asyncio.iscoroutinefunction.*:DeprecationWarning:slowapi",
 ]
+
+[tool.mutmut]
+source_paths = ["src/domain/"]
+tests_dir = ["tests/"]
+also_copy = ["src/", "tests/"]
+# Every mutant pays a fresh pytest startup, and the root conftest imports the
+# whole app (~3.5s idle, more under parallel workers). mutmut's default budget of
+# (test_time + 1s) * 15 is derived from per-test durations of a few ms, so that
+# startup alone blows the deadline and nearly every mutant is reported as a
+# timeout instead of killed. Model the startup as the constant and cut the
+# multiplier to keep a real hang from costing minutes.
+timeout_constant = 20.0
+timeout_multiplier = 3.0

@@ -1,4 +1,4 @@
-.PHONY: help test dev-app dev-worker migrate migrate-new lint format release-nightly deploy empty-s3-bucket reset-db
+.PHONY: help test mutation-test dev-app dev-worker migrate migrate-new lint format release-nightly deploy empty-s3-bucket reset-db
 
 help: ## Show this help
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*?## "}; {printf "  \033[36m%-15s\033[0m %s\n", $$1, $$2}'
@@ -7,6 +7,11 @@ help: ## Show this help
 
 test: ## Run backend tests
 	cd backend && uv run pytest
+
+mutation-test: ## Run mutation-testing audit on the backend domain layer (slow, ~5-10 min)
+	cd backend && ./scripts/patch-mutmut.sh
+	cd backend && rm -rf mutants && uv run mutmut run
+	cd backend && uv run mutmut results
 
 dev-app: ## Run the backend dev server
 	cd backend && uv run uvicorn src.main:app --reload --host 0.0.0.0 --port 8000
