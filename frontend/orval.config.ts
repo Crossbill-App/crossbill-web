@@ -3,7 +3,7 @@ import { defineConfig } from 'orval';
 export default defineConfig({
   crossbill: {
     input: {
-      target: 'http://localhost:8000/api/v1/openapi.json',
+      target: '../backend/openapi.json',
     },
     output: {
       mode: 'tags-split',
