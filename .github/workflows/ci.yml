@@ -44,6 +44,13 @@ jobs:
         working-directory: frontend
         run: npm run lint
 
+      - name: Check generated API client is current
+        working-directory: frontend
+        run: |
+          npm run api:generate
+          git add -N src/api/generated
+          git diff --exit-code -- src/api/generated
+
       - name: Type check with TypeScript
         working-directory: frontend
         run: npm run type-check
@@ -84,6 +91,11 @@ jobs:
 
       - name: Check architecture with import-linter
         run: uv run lint-imports
+
+      - name: Check committed OpenAPI schema is current
+        run: |
+          uv run python scripts/export_openapi.py
+          git diff --exit-code openapi.json
 
       - name: Run tests with pytest
         env:

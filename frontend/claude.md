@@ -111,6 +111,11 @@ const HighlightsList = ({ bookId }: Props) => {
 ## API Integration
 
 - **USE** generated API client from Orval
+- The client is generated from the committed `backend/openapi.json` (no running
+  backend needed). After changing backend endpoints, run `make api-client` from
+  the repo root and commit the schema + regenerated client — CI fails if either
+  is stale
+- **NEVER** hand-edit files under `src/api/generated`
 - **ALWAYS** handle loading and error states
 - **USE** optimistic updates for better UX
 - **INVALIDATE** queries after mutations
