@@ -45,34 +45,3 @@ class HighlightDeduplicationService:
                 seen_in_batch.add(highlight.content_hash)
 
         return unique, duplicates
-
-    def find_duplicate_pairs(
-        self,
-        highlights: list[Highlight],
-    ) -> list[tuple[Highlight, Highlight]]:
-        """
-        Find pairs of duplicates within a list of highlights.
-
-        Useful for cleanup operations.
-
-        Args:
-            highlights: List of highlights to check
-
-        Returns:
-            List of duplicate pairs
-        """
-        hash_to_highlights: dict[ContentHash, list[Highlight]] = {}
-
-        for highlight in highlights:
-            if highlight.content_hash not in hash_to_highlights:
-                hash_to_highlights[highlight.content_hash] = []
-            hash_to_highlights[highlight.content_hash].append(highlight)
-
-        pairs: list[tuple[Highlight, Highlight]] = []
-        for highlights_group in hash_to_highlights.values():
-            if len(highlights_group) > 1:
-                # Create pairs from duplicates
-                for i in range(len(highlights_group) - 1):
-                    pairs.append((highlights_group[i], highlights_group[i + 1]))
-
-        return pairs
