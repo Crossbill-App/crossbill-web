@@ -32,7 +32,7 @@ IMAGE="tumetsu/crossbill:${TAG}"
 "${SCRIPT_DIR}/build-for-docker-hub.sh" "$TAG"
 
 gql() {
-  # $1 = full JSON request body; fails the script on a GraphQL error.
+  # $1 = full JSON request body; echoes the response, fails on a GraphQL error.
   local resp
   resp="$(curl -sS -X POST "$API" \
     -H "Authorization: Bearer ${RAILWAY_API_TOKEN}" \
@@ -42,20 +42,55 @@ gql() {
     echo "Railway API error: $resp" >&2
     exit 1
   fi
+  printf '%s' "$resp"
 }
 
 echo "Pointing Railway service at ${IMAGE} and deploying..."
 
-# 3. Update the service's source image to the freshly-pushed tag.
+# 2. Update the service's source image to the freshly-pushed tag.
 gql "$(jq -n --arg svc "$SERVICE_ID" --arg env "$ENVIRONMENT_ID" --arg image "$IMAGE" '{
   query: "mutation($serviceId: String!, $environmentId: String, $input: ServiceInstanceUpdateInput!) { serviceInstanceUpdate(serviceId: $serviceId, environmentId: $environmentId, input: $input) }",
   variables: { serviceId: $svc, environmentId: $env, input: { source: { image: $image } } }
-}')"
+}')" >/dev/null
 
-# 4. Trigger the deployment.
+# 3. Deploy the updated source.
+#
+# NOT serviceInstanceRedeploy: it re-runs the *existing deployment's* image and
+# ignores the source we just updated, so it silently keeps an old image live
+# forever (it pinned this service to a 6-day-old build without ever failing).
+# serviceInstanceDeployV2 creates a new deployment from the current source.
 gql "$(jq -n --arg svc "$SERVICE_ID" --arg env "$ENVIRONMENT_ID" '{
-  query: "mutation($serviceId: String!, $environmentId: String!) { serviceInstanceRedeploy(serviceId: $serviceId, environmentId: $environmentId) }",
+  query: "mutation($serviceId: String!, $environmentId: String!) { serviceInstanceDeployV2(serviceId: $serviceId, environmentId: $environmentId) }",
   variables: { serviceId: $svc, environmentId: $env }
-}')"
+}')" >/dev/null
 
-echo "Deployed ${IMAGE} to Railway."
+# 4. Confirm the deployment that actually went live is running OUR image.
+# Without this the whole script can succeed while deploying something else.
+echo "Waiting for Railway to report a deployment of ${IMAGE}..."
+for _ in $(seq 1 60); do
+  resp="$(gql "$(jq -n --arg svc "$SERVICE_ID" --arg env "$ENVIRONMENT_ID" '{
+    query: "query($serviceId: String!, $environmentId: String!) { serviceInstance(serviceId: $serviceId, environmentId: $environmentId) { latestDeployment { status meta } } }",
+    variables: { serviceId: $svc, environmentId: $env }
+  }')")"
+  status="$(echo "$resp" | jq -r '.data.serviceInstance.latestDeployment.status // "UNKNOWN"')"
+  live="$(echo "$resp" | jq -r '.data.serviceInstance.latestDeployment.meta.image // "unknown"')"
+
+  # The previous deployment stays "latest" for a moment after the trigger, so a
+  # mismatch here is only conclusive once we give up below.
+  if [ "$live" = "$IMAGE" ]; then
+    case "$status" in
+      SUCCESS)
+        echo "Deployed ${IMAGE} to Railway."
+        exit 0
+        ;;
+      FAILED | CRASHED)
+        echo "Deployment of ${IMAGE} ended as ${status}." >&2
+        exit 1
+        ;;
+    esac
+  fi
+  sleep 5
+done
+
+echo "Timed out waiting for ${IMAGE}; Railway's latest deployment is ${live} (${status})." >&2
+exit 1
