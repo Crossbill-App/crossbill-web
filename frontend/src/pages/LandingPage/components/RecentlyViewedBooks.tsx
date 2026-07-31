@@ -1,8 +1,10 @@
 import { useGetRecentlyViewedBooks } from '@/api/generated/books/books';
 import { Spinner } from '@/components/animations/Spinner.tsx';
+import { Carousel } from '@/components/carousel/Carousel.tsx';
+import { CarouselItem } from '@/components/carousel/CarouselItem.tsx';
 import { SectionTitle } from '@/components/typography/SectionTitle.tsx';
 import { Alert, Box } from '@mui/material';
-import { BookList } from './BookList';
+import { BookCard } from './BookCard';
 
 const RECENTLY_VIEWED_LIMIT = 8;
 
@@ -29,7 +31,13 @@ export const RecentlyViewedBooks = () => {
       )}
 
       {data?.items && data.items.length > 0 && (
-        <BookList books={data.items} pageKey="recently-viewed" />
+        <Carousel aria-label="Recently viewed books">
+          {data.items.map((book) => (
+            <CarouselItem key={book.id}>
+              <BookCard book={book} />
+            </CarouselItem>
+          ))}
+        </Carousel>
       )}
     </Box>
   );
