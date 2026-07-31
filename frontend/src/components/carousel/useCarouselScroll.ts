@@ -1,5 +1,6 @@
 import { animate, useReducedMotion } from 'motion/react';
 import { useCallback, useEffect, useRef, useState, type RefObject } from 'react';
+import { CAROUSEL_ITEM_SELECTOR } from './CarouselItem';
 
 const PAGE_TRANSITION = {
   duration: 0.45,
@@ -26,48 +27,22 @@ export interface CarouselScroll {
   scrollByPage: (direction: -1 | 1) => void;
 }
 
-interface Metrics {
-  isOverflowing: boolean;
-  canScrollBack: boolean;
-  canScrollForward: boolean;
-}
-
-const INITIAL_METRICS: Metrics = {
-  isOverflowing: false,
-  canScrollBack: false,
-  canScrollForward: false,
-};
-
-const paddingLeftOf = (element: Element | null): number =>
-  element ? parseFloat(getComputedStyle(element).paddingLeft) || 0 : 0;
-
-/**
- * How far a resting item sits from the viewport's left edge. Summed across the
- * viewport and the track because a full-bleed carousel pads the track instead,
- * and either one shifts where an item comes to rest.
- */
-const contentInset = (viewport: HTMLElement): number =>
-  paddingLeftOf(viewport) + paddingLeftOf(viewport.firstElementChild);
-
 /**
  * Scroll positions that start-align each item, in `scrollLeft` units.
  *
- * Measured from bounding rects rather than `offsetLeft` so the numbers stay
- * correct regardless of which ancestor happens to be the offset parent.
+ * Item zero defines where a resting item sits, so its offset is the origin and
+ * every other item is measured against it. That keeps the maths independent of
+ * where the carousel's padding happens to live, and of any wrapper between the
+ * viewport and the items. Bounding rects rather than `offsetLeft`, so the
+ * offset parent doesn't matter either.
  */
 const itemStarts = (viewport: HTMLElement): number[] => {
-  const contentLeft = viewport.getBoundingClientRect().left + contentInset(viewport);
-  return Array.from(viewport.querySelectorAll<HTMLElement>('[data-carousel-item]')).map(
-    (item) => viewport.scrollLeft + item.getBoundingClientRect().left - contentLeft
-  );
-};
+  const items = Array.from(viewport.querySelectorAll<HTMLElement>(CAROUSEL_ITEM_SELECTOR));
+  if (items.length === 0) return [];
 
-const nearestStart = (starts: number[], scrollLeft: number): number | null =>
-  starts.reduce<number | null>(
-    (best, start) =>
-      best === null || Math.abs(start - scrollLeft) < Math.abs(best - scrollLeft) ? start : best,
-    null
-  );
+  const originLeft = items[0].getBoundingClientRect().left;
+  return items.map((item) => item.getBoundingClientRect().left - originLeft);
+};
 
 /**
  * Drives a native horizontal scroller: reports whether it overflows and in
@@ -77,8 +52,9 @@ const nearestStart = (starts: number[], scrollLeft: number): number | null =>
 export const useCarouselScroll = (): CarouselScroll => {
   const viewportRef = useRef<HTMLDivElement | null>(null);
   const animationRef = useRef<{ stop: () => void } | null>(null);
-  const isAnimatingRef = useRef(false);
-  const [metrics, setMetrics] = useState<Metrics>(INITIAL_METRICS);
+  const [isOverflowing, setIsOverflowing] = useState(false);
+  const [canScrollBack, setCanScrollBack] = useState(false);
+  const [canScrollForward, setCanScrollForward] = useState(false);
   const prefersReducedMotion = useReducedMotion();
 
   const measure = useCallback(() => {
@@ -86,24 +62,14 @@ export const useCarouselScroll = (): CarouselScroll => {
     if (!el) return;
 
     const max = el.scrollWidth - el.clientWidth;
-    const next: Metrics = {
-      isOverflowing: max > 1,
-      canScrollBack: el.scrollLeft > 1,
-      canScrollForward: el.scrollLeft < max - 1,
-    };
-    setMetrics((prev) =>
-      prev.isOverflowing === next.isOverflowing &&
-      prev.canScrollBack === next.canScrollBack &&
-      prev.canScrollForward === next.canScrollForward
-        ? prev
-        : next
-    );
+    setIsOverflowing(max > 1);
+    setCanScrollBack(el.scrollLeft > 1);
+    setCanScrollForward(el.scrollLeft < max - 1);
   }, []);
 
   const stopAnimation = useCallback(() => {
     animationRef.current?.stop();
     animationRef.current = null;
-    isAnimatingRef.current = false;
   }, []);
 
   const animateTo = useCallback(
@@ -121,16 +87,12 @@ export const useCarouselScroll = (): CarouselScroll => {
         return;
       }
 
-      // The flag keeps the settle detector from reacting to the scroll events
-      // this animation itself emits.
-      isAnimatingRef.current = true;
       animationRef.current = animate(el.scrollLeft, target, {
         ...transition,
         onUpdate: (value) => {
           el.scrollLeft = Math.max(0, Math.min(value, max));
         },
         onComplete: () => {
-          isAnimatingRef.current = false;
           animationRef.current = null;
         },
       });
@@ -184,15 +146,22 @@ export const useCarouselScroll = (): CarouselScroll => {
     if (!el) return;
 
     const settle = () => {
-      if (isAnimatingRef.current) return;
+      // An animation of our own is already heading for a boundary; the scroll
+      // events it emits must not be mistaken for a drag coming to rest.
+      if (animationRef.current) return;
 
       const max = el.scrollWidth - el.clientWidth;
       // At either end the scroller is already where the user put it; correcting
       // there would fight the bounce rather than tidy the position.
       if (el.scrollLeft <= 1 || el.scrollLeft >= max - 1) return;
 
-      const target = nearestStart(itemStarts(el), el.scrollLeft);
-      if (target === null || Math.abs(target - el.scrollLeft) <= SNAP_THRESHOLD_PX) return;
+      const starts = itemStarts(el);
+      if (starts.length === 0) return;
+
+      const target = starts.reduce((best, start) =>
+        Math.abs(start - el.scrollLeft) < Math.abs(best - el.scrollLeft) ? start : best
+      );
+      if (Math.abs(target - el.scrollLeft) <= SNAP_THRESHOLD_PX) return;
 
       animateTo(target, SETTLE_TRANSITION);
     };
@@ -230,5 +199,5 @@ export const useCarouselScroll = (): CarouselScroll => {
     };
   }, [animateTo, measure, stopAnimation]);
 
-  return { viewportRef, scrollByPage, ...metrics };
+  return { viewportRef, scrollByPage, isOverflowing, canScrollBack, canScrollForward };
 };

@@ -1,7 +1,7 @@
 import { Box } from '@mui/material';
 import { AnimatePresence, motion } from 'motion/react';
 import type { BookWithHighlightCount } from '../../../api/generated/model';
-import { BookCard } from './BookCard';
+import { BOOK_CARD_WIDTH, BookCard } from './BookCard';
 
 export interface BookListProps {
   books: BookWithHighlightCount[];
@@ -21,10 +21,10 @@ export const BookList = ({ books, pageKey }: BookListProps) => {
         <Box
           sx={{
             display: 'grid',
-            // Fixed rather than 1fr columns: stretching them spreads the slack
-            // across the row and pulls the grid out of step with the carousel
-            // above, which packs its covers at their natural width.
-            gridTemplateColumns: 'repeat(auto-fill, 150px)',
+            // Fixed rather than 1fr columns: the cards are intrinsically fixed
+            // width, so stretching the cells only spreads slack between covers
+            // that stay put anyway.
+            gridTemplateColumns: `repeat(auto-fill, ${BOOK_CARD_WIDTH}px)`,
             gap: 4,
           }}
         >

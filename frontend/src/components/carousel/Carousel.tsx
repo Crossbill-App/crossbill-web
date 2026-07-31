@@ -1,8 +1,16 @@
 import { ArrowBackIcon, ArrowForwardIcon } from '@/theme/Icons.tsx';
+import { TOUCH_POINTER_QUERY } from '@/utils/adaptiveHover.ts';
 import { Box, IconButton, type Breakpoint, type SxProps, type Theme } from '@mui/material';
 import { AnimatePresence, motion } from 'motion/react';
 import type { ReactNode } from 'react';
 import { useCarouselScroll } from './useCarouselScroll';
+
+type Spacing = number | Partial<Record<Breakpoint, number>>;
+
+const negate = (spacing: Spacing): Spacing =>
+  typeof spacing === 'number'
+    ? -spacing
+    : Object.fromEntries(Object.entries(spacing).map(([key, value]) => [key, -value]));
 
 /**
  * Vertical breathing room inside the scroller, so lifted cards and their
@@ -12,6 +20,7 @@ import { useCarouselScroll } from './useCarouselScroll';
 const OVERFLOW_PADDING = 1.5;
 
 const CONTROL_TRANSITION = { duration: 0.15 };
+const CONTROL_FADE = { initial: { opacity: 0 }, animate: { opacity: 1 }, exit: { opacity: 0 } };
 
 const controlWrapperStyle = (side: 'left' | 'right'): React.CSSProperties => ({
   position: 'absolute',
@@ -24,6 +33,21 @@ const controlWrapperStyle = (side: 'left' | 'right'): React.CSSProperties => ({
   zIndex: 1,
 });
 
+const CONTROLS = [
+  { key: 'back', side: 'left', label: 'Scroll back', direction: -1, Icon: ArrowBackIcon },
+  { key: 'forward', side: 'right', label: 'Scroll forward', direction: 1, Icon: ArrowForwardIcon },
+] as const;
+
+const viewportSx: SxProps<Theme> = {
+  overflowX: 'auto',
+  overflowY: 'clip',
+  // Keeps a horizontal drag from triggering the browser's back gesture.
+  overscrollBehaviorX: 'contain',
+  py: OVERFLOW_PADDING,
+  scrollbarWidth: 'none',
+  '&::-webkit-scrollbar': { display: 'none' },
+};
+
 /** Inset by the bleed, so the buttons stay on the surrounding content column. */
 const controlSx = (bleed: Spacing): SxProps<Theme> => ({
   pointerEvents: 'auto',
@@ -32,15 +56,8 @@ const controlSx = (bleed: Spacing): SxProps<Theme> => ({
   boxShadow: 3,
   '&:hover': { bgcolor: 'background.paper' },
   // Touch devices drag the track directly; buttons would only cover content.
-  '@media (hover: none) and (pointer: coarse)': { display: 'none' },
+  [TOUCH_POINTER_QUERY]: { display: 'none' },
 });
-
-type Spacing = number | Partial<Record<Breakpoint, number>>;
-
-const negate = (spacing: Spacing): Spacing =>
-  typeof spacing === 'number'
-    ? -spacing
-    : Object.fromEntries(Object.entries(spacing).map(([key, value]) => [key, -value]));
 
 export interface CarouselProps {
   children: ReactNode;
@@ -75,6 +92,8 @@ export const Carousel = ({
   const { viewportRef, isOverflowing, canScrollBack, canScrollForward, scrollByPage } =
     useCarouselScroll();
 
+  const canScroll = { back: canScrollBack, forward: canScrollForward };
+
   return (
     <Box
       sx={[
@@ -87,15 +106,7 @@ export const Carousel = ({
         role="group"
         aria-label={ariaLabel}
         tabIndex={isOverflowing ? 0 : undefined}
-        sx={{
-          overflowX: 'auto',
-          overflowY: 'clip',
-          // Keeps a horizontal drag from triggering the browser's back gesture.
-          overscrollBehaviorX: 'contain',
-          py: OVERFLOW_PADDING,
-          scrollbarWidth: 'none',
-          '&::-webkit-scrollbar': { display: 'none' },
-        }}
+        sx={viewportSx}
       >
         {/* The bleed lives on the track, not the viewport: a scroll container
             leaves its own trailing padding out of the scrollable overflow, so
@@ -119,42 +130,23 @@ export const Carousel = ({
       </Box>
 
       <AnimatePresence>
-        {isOverflowing && canScrollBack && (
-          <motion.div
-            key="back"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            transition={CONTROL_TRANSITION}
-            style={controlWrapperStyle('left')}
-          >
-            <IconButton
-              aria-label="Scroll back"
-              onClick={() => scrollByPage(-1)}
-              sx={controlSx(bleed)}
+        {CONTROLS.filter((control) => canScroll[control.key]).map(
+          ({ key, side, label, direction, Icon }) => (
+            <motion.div
+              key={key}
+              {...CONTROL_FADE}
+              transition={CONTROL_TRANSITION}
+              style={controlWrapperStyle(side)}
             >
-              <ArrowBackIcon />
-            </IconButton>
-          </motion.div>
-        )}
-
-        {isOverflowing && canScrollForward && (
-          <motion.div
-            key="forward"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            transition={CONTROL_TRANSITION}
-            style={controlWrapperStyle('right')}
-          >
-            <IconButton
-              aria-label="Scroll forward"
-              onClick={() => scrollByPage(1)}
-              sx={controlSx(bleed)}
-            >
-              <ArrowForwardIcon />
-            </IconButton>
-          </motion.div>
+              <IconButton
+                aria-label={label}
+                onClick={() => scrollByPage(direction)}
+                sx={controlSx(bleed)}
+              >
+                <Icon />
+              </IconButton>
+            </motion.div>
+          )
         )}
       </AnimatePresence>
     </Box>

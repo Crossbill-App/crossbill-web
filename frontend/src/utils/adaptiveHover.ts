@@ -1,5 +1,8 @@
 import type { SxProps, Theme } from '@mui/material';
 
+/** Matches touch devices: no hover, imprecise pointer. */
+export const TOUCH_POINTER_QUERY = '@media (hover: none) and (pointer: coarse)';
+
 /**
  * Configuration options for adaptive hover styles.
  */
@@ -87,7 +90,7 @@ export const createAdaptiveTouchTarget = (): SxProps<Theme> => ({
   padding: 0.25,
 
   // Increase touch target on touch devices
-  '@media (hover: none) and (pointer: coarse)': {
+  [TOUCH_POINTER_QUERY]: {
     padding: 0.5,
     minHeight: 24,
     minWidth: 24,

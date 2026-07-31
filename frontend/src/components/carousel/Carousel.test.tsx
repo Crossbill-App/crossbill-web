@@ -9,10 +9,21 @@ const VIEWPORT_WIDTH = 400;
 /** Item pitch: 150px item + the default gap of 2 spacing units. */
 const STEP = ITEM_WIDTH + 16;
 
-/** Fixed-width host, so overflow is decided by the test rather than the window. */
-const Strip = ({ count }: { count: number }) => (
-  <div style={{ width: VIEWPORT_WIDTH }}>
-    <Carousel aria-label="Test carousel">
+/** Padding a bleeding carousel is expected to escape, in px. */
+const HOST_PADDING = 24;
+
+/**
+ * Fixed-width host, so overflow is decided by the test rather than the window.
+ * Passing `bleed` also pads the host, mirroring the gutter a real page has.
+ */
+const Strip = ({ count, bleed }: { count: number; bleed?: number }) => (
+  <div
+    style={{
+      width: VIEWPORT_WIDTH,
+      ...(bleed === undefined ? {} : { paddingLeft: HOST_PADDING, paddingRight: HOST_PADDING }),
+    }}
+  >
+    <Carousel aria-label="Test carousel" bleed={bleed}>
       {Array.from({ length: count }, (_, index) => (
         <CarouselItem key={index}>
           <div style={{ width: ITEM_WIDTH, height: 80 }}>Item {index + 1}</div>
@@ -73,17 +84,7 @@ test('paging back returns to the start and retires the back control', async () =
 });
 
 test('items land on the content column when the carousel bleeds past its container', async () => {
-  const screen = await render(
-    <div style={{ width: VIEWPORT_WIDTH, paddingLeft: 24, paddingRight: 24 }}>
-      <Carousel aria-label="Test carousel" bleed={3}>
-        {Array.from({ length: 10 }, (_, index) => (
-          <CarouselItem key={index}>
-            <div style={{ width: ITEM_WIDTH, height: 80 }}>Item {index + 1}</div>
-          </CarouselItem>
-        ))}
-      </Carousel>
-    </div>
-  );
+  const screen = await render(<Strip count={10} bleed={3} />);
 
   const restingLeft = document.querySelector('[data-carousel-item]')!.getBoundingClientRect().left;
 
@@ -102,17 +103,7 @@ test('items land on the content column when the carousel bleeds past its contain
 });
 
 test('the last item keeps the same margin at the end as the first has at rest', async () => {
-  const screen = await render(
-    <div style={{ width: VIEWPORT_WIDTH, paddingLeft: 24, paddingRight: 24 }}>
-      <Carousel aria-label="Test carousel" bleed={3}>
-        {Array.from({ length: 10 }, (_, index) => (
-          <CarouselItem key={index}>
-            <div style={{ width: ITEM_WIDTH, height: 80 }}>Item {index + 1}</div>
-          </CarouselItem>
-        ))}
-      </Carousel>
-    </div>
-  );
+  const screen = await render(<Strip count={10} bleed={3} />);
   await expect.element(screen.getByRole('button', { name: 'Scroll forward' })).toBeInTheDocument();
 
   const items = Array.from(document.querySelectorAll('[data-carousel-item]'));

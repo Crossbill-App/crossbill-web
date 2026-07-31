@@ -1,12 +1,15 @@
 import { Box, type SxProps, type Theme } from '@mui/material';
 import type { ReactNode } from 'react';
 
+/** The contract between an item and `useCarouselScroll`'s paging maths. */
+export const CAROUSEL_ITEM_SELECTOR = '[data-carousel-item]';
+
 export interface CarouselItemProps {
   children: ReactNode;
   sx?: SxProps<Theme>;
 }
 
-/** A single slide. The `data-` attribute is how `Carousel` finds snap targets. */
+/** A single slide; the `data-` attribute is what paging aligns against. */
 export const CarouselItem = ({ children, sx }: CarouselItemProps) => (
   <Box
     component="li"
