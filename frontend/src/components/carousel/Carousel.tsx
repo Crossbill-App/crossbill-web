@@ -93,14 +93,27 @@ export const Carousel = ({
           // Keeps a horizontal drag from triggering the browser's back gesture.
           overscrollBehaviorX: 'contain',
           py: OVERFLOW_PADDING,
-          // Puts back what the negative margin took, so the track spans the full
-          // width but items still rest against the content column.
-          px: bleed,
           scrollbarWidth: 'none',
           '&::-webkit-scrollbar': { display: 'none' },
         }}
       >
-        <Box component="ul" sx={{ display: 'flex', gap, listStyle: 'none', p: 0, m: 0 }}>
+        {/* The bleed lives on the track, not the viewport: a scroll container
+            leaves its own trailing padding out of the scrollable overflow, so
+            padding here is the only way the last item keeps its margin. That
+            needs max-content too, or the track fills the viewport and the items
+            overflow out of it, stranding the right padding at the fold. */}
+        <Box
+          component="ul"
+          sx={{
+            display: 'flex',
+            width: 'max-content',
+            gap,
+            listStyle: 'none',
+            m: 0,
+            py: 0,
+            px: bleed,
+          }}
+        >
           {children}
         </Box>
       </Box>

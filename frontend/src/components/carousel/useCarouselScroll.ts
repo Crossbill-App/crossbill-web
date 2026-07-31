@@ -38,24 +38,25 @@ const INITIAL_METRICS: Metrics = {
   canScrollForward: false,
 };
 
-const horizontalPadding = (viewport: HTMLElement) => {
-  const style = getComputedStyle(viewport);
-  return {
-    left: parseFloat(style.paddingLeft) || 0,
-    right: parseFloat(style.paddingRight) || 0,
-  };
-};
+const paddingLeftOf = (element: Element | null): number =>
+  element ? parseFloat(getComputedStyle(element).paddingLeft) || 0 : 0;
+
+/**
+ * How far a resting item sits from the viewport's left edge. Summed across the
+ * viewport and the track because a full-bleed carousel pads the track instead,
+ * and either one shifts where an item comes to rest.
+ */
+const contentInset = (viewport: HTMLElement): number =>
+  paddingLeftOf(viewport) + paddingLeftOf(viewport.firstElementChild);
 
 /**
  * Scroll positions that start-align each item, in `scrollLeft` units.
  *
  * Measured from bounding rects rather than `offsetLeft` so the numbers stay
- * correct regardless of which ancestor happens to be the offset parent. The
- * viewport's own left padding is subtracted, so a full-bleed carousel aligns
- * items with its content column rather than the gutter it bleeds into.
+ * correct regardless of which ancestor happens to be the offset parent.
  */
 const itemStarts = (viewport: HTMLElement): number[] => {
-  const contentLeft = viewport.getBoundingClientRect().left + horizontalPadding(viewport).left;
+  const contentLeft = viewport.getBoundingClientRect().left + contentInset(viewport);
   return Array.from(viewport.querySelectorAll<HTMLElement>('[data-carousel-item]')).map(
     (item) => viewport.scrollLeft + item.getBoundingClientRect().left - contentLeft
   );
@@ -144,10 +145,9 @@ export const useCarouselScroll = (): CarouselScroll => {
 
       stopAnimation();
       const starts = itemStarts(el);
-      const padding = horizontalPadding(el);
-      // Travel a page of *visible* track; clientWidth would overshoot by the
-      // bleed and let a page skip an item.
-      const page = el.clientWidth - padding.left - padding.right;
+      // A full screenful: items scroll through the bleed rather than being
+      // clipped by it, so the whole viewport width is in play.
+      const page = el.clientWidth;
       const max = el.scrollWidth - el.clientWidth;
 
       // Land on the item boundary furthest within one page of travel, so a page

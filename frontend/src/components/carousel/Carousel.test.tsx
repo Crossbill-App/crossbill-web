@@ -101,6 +101,35 @@ test('items land on the content column when the carousel bleeds past its contain
     .toBe(true);
 });
 
+test('the last item keeps the same margin at the end as the first has at rest', async () => {
+  const screen = await render(
+    <div style={{ width: VIEWPORT_WIDTH, paddingLeft: 24, paddingRight: 24 }}>
+      <Carousel aria-label="Test carousel" bleed={3}>
+        {Array.from({ length: 10 }, (_, index) => (
+          <CarouselItem key={index}>
+            <div style={{ width: ITEM_WIDTH, height: 80 }}>Item {index + 1}</div>
+          </CarouselItem>
+        ))}
+      </Carousel>
+    </div>
+  );
+  await expect.element(screen.getByRole('button', { name: 'Scroll forward' })).toBeInTheDocument();
+
+  const items = Array.from(document.querySelectorAll('[data-carousel-item]'));
+  const leadingMargin =
+    items[0].getBoundingClientRect().left - viewport().getBoundingClientRect().left;
+
+  viewport().scrollLeft = viewport().scrollWidth;
+  await expect.poll(() => Math.round(viewport().scrollLeft)).toBeGreaterThan(0);
+
+  // A scroll container drops its own trailing padding from the scrollable
+  // overflow, so this is 0 unless the bleed lives on the track instead.
+  const trailingMargin =
+    viewport().getBoundingClientRect().right -
+    items[items.length - 1].getBoundingClientRect().right;
+  expect(Math.round(trailingMargin)).toBe(Math.round(leadingMargin));
+});
+
 test('a drag that stops mid-item settles onto the nearest boundary', async () => {
   const screen = await render(<Strip count={10} />);
   await expect.element(screen.getByRole('button', { name: 'Scroll forward' })).toBeInTheDocument();
