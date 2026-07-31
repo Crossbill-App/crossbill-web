@@ -21,14 +21,11 @@ export const BookList = ({ books, pageKey }: BookListProps) => {
         <Box
           sx={{
             display: 'grid',
-            gridTemplateColumns: {
-              xs: 'repeat(auto-fill, minmax(150px, 1fr))',
-              sm: 'repeat(auto-fill, minmax(150px, 1fr))',
-              md: 'repeat(auto-fill, minmax(150px, 1fr))',
-              lg: 'repeat(auto-fill, minmax(150px, 1fr))',
-            },
+            // Fixed rather than 1fr columns: stretching them spreads the slack
+            // across the row and pulls the grid out of step with the carousel
+            // above, which packs its covers at their natural width.
+            gridTemplateColumns: 'repeat(auto-fill, 150px)',
             gap: 4,
-            justifyItems: 'start',
           }}
         >
           {books.map((book) => (

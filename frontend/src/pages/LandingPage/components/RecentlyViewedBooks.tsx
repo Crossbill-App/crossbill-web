@@ -31,7 +31,11 @@ export const RecentlyViewedBooks = () => {
       )}
 
       {data?.items && data.items.length > 0 && (
-        <Carousel aria-label="Recently viewed books">
+        <Carousel
+          aria-label="Recently viewed books"
+          gap={{ xs: 2, sm: 4 }}
+          bleed={{ xs: 2, sm: 3 }}
+        >
           {data.items.map((book) => (
             <CarouselItem key={book.id}>
               <BookCard book={book} />
