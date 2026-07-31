@@ -750,7 +750,7 @@ requires-dist = [
     { name = "boto3", specifier = ">=1.38.0,<2.0.0" },
     { name = "dependency-injector", specifier = ">=4.49.0,<5.0.0" },
     { name = "ebooklib", specifier = ">=0.20,<1.0" },
-    { name = "fastapi", specifier = ">=0.139.0,<0.140.0" },
+    { name = "fastapi", specifier = ">=0.139.0,<0.141.0" },
     { name = "httpx", specifier = ">=0.28.1,<0.29.0" },
     { name = "pillow", specifier = ">=11.0.0" },
     { name = "psycopg", extras = ["binary"], specifier = ">=3.2.12,<4.0.0" },

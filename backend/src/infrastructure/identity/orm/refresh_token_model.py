@@ -24,6 +24,9 @@ class RefreshToken(Base):
     )
     family_id: Mapped[str] = mapped_column(String(36), nullable=False, index=True)
     revoked_at: Mapped[dt | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    # The token this one was rotated into. Set only by rotation, so a token
+    # revoked outright (logout, password change) can never be traded back in.
+    replaced_by_jti: Mapped[str | None] = mapped_column(String(36), nullable=True)
     expires_at: Mapped[dt] = mapped_column(DateTime(timezone=True), nullable=False)
     created_at: Mapped[dt] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), nullable=False

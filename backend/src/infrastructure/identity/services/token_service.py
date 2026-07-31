@@ -72,12 +72,24 @@ def verify_refresh_token(token: str) -> RefreshTokenClaims | None:
 def create_token_pair(user_id: int, family_id: str) -> TokenPairWithMetadata:
     """Create a token pair (access + refresh) for a user."""
     jti = str(uuid.uuid4())
-    access_token = create_access_token(user_id)
     refresh_token_expires_at = datetime.now(UTC) + timedelta(days=REFRESH_TOKEN_EXPIRE_DAYS)
-    refresh_token = create_refresh_token(user_id, jti, refresh_token_expires_at)
+    return reissue_token_pair(user_id, family_id, jti, refresh_token_expires_at)
+
+
+def reissue_token_pair(
+    user_id: int, family_id: str, jti: str, refresh_token_expires_at: datetime
+) -> TokenPairWithMetadata:
+    """Rebuild the pair for an already-issued refresh token.
+
+    The refresh JWT is a pure function of these arguments, so a token whose jti
+    and expiry are on record can be handed out again byte for byte without
+    storing the token itself. That is what lets a client that lost a rotation
+    response be answered with the very token it missed, rather than with a
+    second one that would fork the family.
+    """
     return TokenPairWithMetadata(
-        access_token=access_token,
-        refresh_token=refresh_token,
+        access_token=create_access_token(user_id),
+        refresh_token=create_refresh_token(user_id, jti, refresh_token_expires_at),
         token_type="bearer",  # noqa: S106
         expires_in=ACCESS_TOKEN_EXPIRE_MINUTES * 60,
         jti=jti,

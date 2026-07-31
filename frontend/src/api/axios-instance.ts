@@ -1,5 +1,5 @@
 import Axios, { AxiosError, AxiosRequestConfig, InternalAxiosRequestConfig } from 'axios';
-import { getAccessToken, setAccessToken } from './token-manager';
+import { clearTokens, getAccessToken, setAccessToken } from './token-manager';
 
 // Default baseURL - can be overridden by setting AXIOS_INSTANCE.defaults.baseURL
 // In development, this points to the local backend server
@@ -11,24 +11,102 @@ export const AXIOS_INSTANCE = Axios.create({
   withCredentials: true, // Enable cookie handling for refresh tokens
 });
 
-// Flag to prevent multiple simultaneous refresh attempts
-let isRefreshing = false;
-// Queue of requests waiting for token refresh
-let failedQueue: Array<{
-  resolve: (token: string | null) => void;
-  reject: (error: unknown) => void;
-}> = [];
+/**
+ * The server rejected the refresh token itself: the session is over and only
+ * signing in again will fix it.
+ *
+ * Every other refresh failure — no network, a 5xx, a rate limit — leaves the
+ * session perfectly valid and must not be mistaken for this one. Treating them
+ * alike is why a phone that briefly lost signal came back to a login form.
+ */
+export class SessionExpiredError extends Error {
+  constructor() {
+    super('The session has expired');
+    this.name = 'SessionExpiredError';
+  }
+}
 
-const processQueue = (error: unknown, token: string | null = null) => {
-  failedQueue.forEach((promise) => {
-    if (error) {
-      promise.reject(error);
-    } else {
-      promise.resolve(token);
-    }
+export interface RefreshResult {
+  accessToken: string;
+  expiresIn: number;
+}
+
+interface RefreshResponseBody {
+  access_token: string;
+  refresh_token: string;
+  expires_in: number;
+}
+
+const REFRESH_URL = '/api/v1/auth/refresh';
+
+// Two quick retries, deliberately well inside the server's rotation grace
+// window: a refresh whose response was lost still spent the token server-side,
+// and only a retry landing within that window is answered with the replacement
+// rather than being read as a replay.
+const TRANSIENT_RETRY_DELAYS_MS = [500, 2000];
+
+const delay = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+
+// Refreshing rotates the refresh token, so two calls in flight at once present
+// the same token twice and the loser looks like a stolen-token replay — which
+// ends the whole session. Every caller shares one attempt: the 401 interceptor,
+// the scheduled refresh, and the app returning to the foreground all collapse
+// into this single promise.
+let inFlight: Promise<RefreshResult> | null = null;
+
+export function refreshSession(): Promise<RefreshResult> {
+  inFlight ??= runRefresh().finally(() => {
+    inFlight = null;
   });
-  failedQueue = [];
-};
+  return inFlight;
+}
+
+async function runRefresh(): Promise<RefreshResult> {
+  for (let attempt = 0; ; attempt++) {
+    try {
+      const { data } = await AXIOS_INSTANCE.post<RefreshResponseBody>(REFRESH_URL, null, {
+        withCredentials: true,
+      });
+      setAccessToken(data.access_token, data.expires_in);
+      return { accessToken: data.access_token, expiresIn: data.expires_in };
+    } catch (error) {
+      if (isSessionRejection(error)) {
+        // Dropped here rather than by each caller: this function owns the
+        // stored token on the way in, so it owns clearing it on the way out.
+        clearTokens();
+        throw new SessionExpiredError();
+      }
+      if (attempt >= TRANSIENT_RETRY_DELAYS_MS.length || !isRetryable(error)) {
+        throw error;
+      }
+      await delay(TRANSIENT_RETRY_DELAYS_MS[attempt]);
+    }
+  }
+}
+
+function isSessionRejection(error: unknown): boolean {
+  return Axios.isAxiosError(error) && error.response?.status === 401;
+}
+
+// No response at all means the request never completed, which says nothing
+// about the session. A 5xx is the server failing, not the token. A 429 is not
+// retried here — hammering a rate limit only deepens it — but it is not a
+// logout either, so it propagates as an ordinary error.
+function isRetryable(error: unknown): boolean {
+  if (!Axios.isAxiosError(error)) {
+    return false;
+  }
+  const status = error.response?.status;
+  return status === undefined || status >= 500;
+}
+
+// A hard navigation, not a router push: the session died mid-use, so dropping
+// the cached data of the session that is over is the point.
+function redirectToLogin(): void {
+  if (!window.location.pathname.includes('/login')) {
+    window.location.href = '/login';
+  }
+}
 
 // Add request interceptor for auth tokens
 AXIOS_INSTANCE.interceptors.request.use(
@@ -46,64 +124,34 @@ AXIOS_INSTANCE.interceptors.request.use(
 AXIOS_INSTANCE.interceptors.response.use(
   (response) => response,
   async (error: AxiosError) => {
-    const originalRequest = error.config as InternalAxiosRequestConfig & { _retry?: boolean };
+    const originalRequest = error.config as
+      | (InternalAxiosRequestConfig & { _retry?: boolean })
+      | undefined;
 
     // Only handle 401 errors that haven't been retried
-    if (error.response?.status !== 401 || originalRequest._retry) {
+    if (!originalRequest || error.response?.status !== 401 || originalRequest._retry) {
       return Promise.reject(error);
     }
 
-    // Don't retry for auth endpoints (login, refresh, logout)
+    // The auth endpoints answer 401 about the credentials themselves, so
+    // refreshing and replaying them would only loop.
     if (originalRequest.url?.includes('/auth/')) {
       return Promise.reject(error);
     }
 
-    if (isRefreshing) {
-      // If already refreshing, queue this request
-      return new Promise((resolve, reject) => {
-        failedQueue.push({ resolve, reject });
-      })
-        .then((token) => {
-          if (token) {
-            originalRequest.headers.Authorization = `Bearer ${token}`;
-          }
-          return AXIOS_INSTANCE(originalRequest);
-        })
-        .catch((err) => Promise.reject(err));
-    }
-
     originalRequest._retry = true;
-    isRefreshing = true;
 
     try {
-      // Try to refresh the token
-      const response = await AXIOS_INSTANCE.post<{
-        access_token: string;
-        refresh_token: string;
-        expires_in: number;
-      }>('/api/v1/auth/refresh', null, {
-        withCredentials: true,
-      });
-
-      const newToken = response.data.access_token;
-
-      // Update the token manager with the new token
-      setAccessToken(newToken, response.data.expires_in);
-      processQueue(null, newToken);
-
-      originalRequest.headers.Authorization = `Bearer ${newToken}`;
-      return AXIOS_INSTANCE(originalRequest);
+      const { accessToken } = await refreshSession();
+      originalRequest.headers.Authorization = `Bearer ${accessToken}`;
+      return await AXIOS_INSTANCE(originalRequest);
     } catch (refreshError) {
-      processQueue(refreshError, null);
-
-      // Refresh failed, redirect to login
-      if (!window.location.pathname.includes('/login')) {
-        window.location.href = '/login';
+      // Only a rejected refresh token ends the session. Anything else leaves
+      // the caller to handle a failed request the way it would any other.
+      if (refreshError instanceof SessionExpiredError) {
+        redirectToLogin();
       }
-
       return Promise.reject(refreshError);
-    } finally {
-      isRefreshing = false;
     }
   }
 );

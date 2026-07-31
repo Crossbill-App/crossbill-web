@@ -31,12 +31,18 @@ class RefreshTokenRepository:
         await self.db.refresh(orm_model)
         return self.mapper.to_domain(orm_model)
 
-    async def revoke(self, token: RefreshToken) -> None:
-        """Revoke a single refresh token by ID."""
+    async def rotate(self, token: RefreshToken, successor: RefreshToken) -> None:
+        """Spend ``token`` and store ``successor`` in a single transaction.
+
+        One commit, because the two halves are only safe together: a concurrent
+        refresh that observed the spent token without its successor would find
+        nothing to hand back and read the request as a replay.
+        """
+        self.db.add(self.mapper.to_orm(successor))
         stmt = (
             update(RefreshTokenORM)
             .where(RefreshTokenORM.id == token.id.value)
-            .values(revoked_at=datetime.now(UTC))
+            .values(revoked_at=datetime.now(UTC), replaced_by_jti=successor.jti)
         )
         await self.db.execute(stmt)
         await self.db.commit()
