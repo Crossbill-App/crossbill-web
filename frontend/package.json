@@ -44,7 +44,7 @@
     "@tanstack/react-query-devtools": "^5.91.1",
     "@tanstack/react-router-devtools": "^1.143.4",
     "@tanstack/router-cli": "^1.143.4",
-    "@types/dompurify": "^3.0.5",
+    "@types/dompurify": "^3.2.0",
     "@types/lodash": "^4.17.21",
     "@types/luxon": "^3.7.1",
     "@types/react": "^19.2.7",
