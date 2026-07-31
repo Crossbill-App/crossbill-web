@@ -10,11 +10,16 @@ import {
   useRef,
   useState,
 } from 'react';
-import { AXIOS_INSTANCE } from '../api/axios-instance';
+import { AXIOS_INSTANCE, refreshSession, SessionExpiredError } from '../api/axios-instance';
 import { useLogin } from '../api/generated/auth/auth';
 import type { UserDetailsResponse } from '../api/generated/model';
 import { getRegisterMutationOptions } from '../api/generated/users/users';
-import { clearTokens, getAccessToken, setAccessToken } from '../api/token-manager';
+import {
+  clearTokens,
+  getAccessToken,
+  getTokenExpiresAt,
+  setAccessToken,
+} from '../api/token-manager';
 
 interface AuthContextType {
   user: UserDetailsResponse | null;
@@ -26,6 +31,26 @@ interface AuthContextType {
   refreshUser: () => Promise<void>;
 }
 
+// Refresh at three quarters of the token's life, leaving room for the refresh
+// itself to fail and be retried before anything actually expires.
+const REFRESH_AT_FRACTION_OF_LIFETIME = 0.75;
+
+// Backoff for a refresh that failed without the server rejecting the session.
+// The refresh cookie is good for weeks, so waiting out a bad network is nearly
+// always the right move; the last delay repeats for as long as it takes.
+const RETRY_DELAYS_MS = [5_000, 15_000, 60_000];
+
+// How many of those attempts the initial restore waits through before giving up
+// and rendering. Long enough to cover a phone whose network is still coming up,
+// short enough that a genuinely offline start is not a spinner forever.
+const INITIAL_RESTORE_ATTEMPTS = 2;
+
+// Returning to the foreground with a token this close to expiry triggers a
+// refresh straight away. iOS suspends timers in a backgrounded PWA, so the
+// scheduled refresh is often long overdue on resume, and without this the
+// queries that refetch on focus would all 401 at once.
+const REFRESH_ON_FOCUS_MARGIN_MS = 60_000;
+
 const AuthContext = createContext<AuthContextType | null>(null);
 
 export function AuthProvider({ children }: { children: ReactNode }) {
@@ -33,13 +58,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [isLoading, setIsLoading] = useState(true);
   const navigate = useNavigate();
   const queryClient = useQueryClient();
+
   const refreshTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const performTokenRefreshRef = useRef<(() => Promise<boolean>) | null>(null);
+  const retryIndexRef = useRef(0);
+  const initialRestorePendingRef = useRef(true);
+  const syncSessionRef = useRef<(() => Promise<void>) | null>(null);
+  const userRef = useRef<UserDetailsResponse | null>(null);
+
+  useEffect(() => {
+    userRef.current = user;
+  }, [user]);
 
   const loginMutation = useLogin();
   const registerMutation = useMutation(getRegisterMutationOptions());
 
-  // Clear scheduled refresh
   const clearRefreshTimeout = useCallback(() => {
     if (refreshTimeoutRef.current) {
       clearTimeout(refreshTimeoutRef.current);
@@ -47,55 +79,99 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }, []);
 
-  // Perform token refresh using httpOnly cookie and schedule next refresh
-  const performTokenRefresh = useCallback(async (): Promise<boolean> => {
-    try {
-      const response = await AXIOS_INSTANCE.post<{
-        access_token: string;
-        refresh_token: string;
-        expires_in: number;
-      }>('/api/v1/auth/refresh', null, {
-        withCredentials: true,
-      });
-
-      const { access_token, expires_in } = response.data;
-      setAccessToken(access_token, expires_in);
-
-      // Schedule next refresh at 75% of token lifetime
-      const refreshTime = expires_in * 0.75 * 1000;
-      if (refreshTime > 0) {
-        clearRefreshTimeout();
-        refreshTimeoutRef.current = setTimeout(() => {
-          void performTokenRefreshRef.current?.();
-        }, refreshTime);
+  const scheduleRefreshIn = useCallback(
+    (ms: number) => {
+      clearRefreshTimeout();
+      if (ms <= 0) {
+        return;
       }
-
-      return true;
-    } catch {
-      clearTokens();
-      setUser(null);
-      return false;
-    }
-  }, [clearRefreshTimeout]);
-
-  // Keep ref up-to-date with latest function
-  useEffect(() => {
-    performTokenRefreshRef.current = performTokenRefresh;
-  }, [performTokenRefresh]);
-
-  // Helper to schedule next refresh (for login/register)
-  const scheduleNextRefresh = useCallback(
-    (expiresIn: number) => {
-      const refreshTime = expiresIn * 0.75 * 1000;
-      if (refreshTime > 0) {
-        clearRefreshTimeout();
-        refreshTimeoutRef.current = setTimeout(() => {
-          void performTokenRefreshRef.current?.();
-        }, refreshTime);
-      }
+      refreshTimeoutRef.current = setTimeout(() => {
+        void syncSessionRef.current?.();
+      }, ms);
     },
     [clearRefreshTimeout]
   );
+
+  const settleInitialRestore = useCallback(() => {
+    if (!initialRestorePendingRef.current) {
+      return;
+    }
+    initialRestorePendingRef.current = false;
+    setIsLoading(false);
+  }, []);
+
+  /**
+   * Bring the session up to date and schedule the next round.
+   *
+   * Runs on mount, on the scheduled tick, and when the app returns to the
+   * foreground. Those can overlap freely: `refreshSession` is single-flight, so
+   * concurrent triggers share one request rather than presenting the same
+   * refresh token twice and tripping replay detection.
+   */
+  const syncSession = useCallback(async () => {
+    try {
+      const { expiresIn } = await refreshSession();
+      retryIndexRef.current = 0;
+      scheduleRefreshIn(expiresIn * REFRESH_AT_FRACTION_OF_LIFETIME * 1000);
+    } catch (error) {
+      if (error instanceof SessionExpiredError) {
+        clearRefreshTimeout();
+        clearTokens();
+        setUser(null);
+        settleInitialRestore();
+        return;
+      }
+
+      // The session is very likely still valid — the request just never landed.
+      // Keep it and try again instead of presenting a login form that the
+      // user's credentials were never the problem for.
+      const attempt = retryIndexRef.current;
+      retryIndexRef.current = Math.min(attempt + 1, RETRY_DELAYS_MS.length - 1);
+      scheduleRefreshIn(RETRY_DELAYS_MS[attempt]);
+      if (attempt + 1 >= INITIAL_RESTORE_ATTEMPTS) {
+        settleInitialRestore();
+      }
+      return;
+    }
+
+    if (!userRef.current) {
+      try {
+        setUser(await getMe());
+      } catch {
+        clearTokens();
+        setUser(null);
+      }
+    }
+    settleInitialRestore();
+  }, [clearRefreshTimeout, scheduleRefreshIn, settleInitialRestore]);
+
+  useEffect(() => {
+    syncSessionRef.current = syncSession;
+  }, [syncSession]);
+
+  // Restore the session from the httpOnly refresh cookie on mount. Reached
+  // through the ref, which the effect above has already filled: the state
+  // updates happen after the first await, never while this effect is running.
+  useEffect(() => {
+    void syncSessionRef.current?.();
+    return clearRefreshTimeout;
+  }, [clearRefreshTimeout]);
+
+  useEffect(() => {
+    const refreshIfStale = () => {
+      if (document.visibilityState !== 'visible' || !userRef.current) {
+        return;
+      }
+      const expiresAt = getTokenExpiresAt();
+      if (expiresAt !== null && expiresAt - Date.now() > REFRESH_ON_FOCUS_MARGIN_MS) {
+        return;
+      }
+      void syncSessionRef.current?.();
+    };
+
+    document.addEventListener('visibilitychange', refreshIfStale);
+    return () => document.removeEventListener('visibilitychange', refreshIfStale);
+  }, []);
 
   const logout = useCallback(async () => {
     clearRefreshTimeout();
@@ -117,66 +193,36 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const refreshUser = useCallback(async () => {
     try {
-      const userData = await getMe();
-      setUser(userData);
+      setUser(await getMe());
     } catch {
-      // If refresh fails, user might be logged out
-      await logout();
+      // Whether the session is still good is not this call's to decide: a dead
+      // token surfaces as a 401 the response interceptor already acts on, and
+      // anything else is a transient failure the stale user data survives.
     }
-  }, [logout]);
+  }, []);
 
-  // On mount: clean up legacy localStorage and try to restore session via refresh
-  useEffect(() => {
-    const initAuth = async () => {
-      // Try to restore session from httpOnly cookie
-      const success = await performTokenRefresh();
-      if (success) {
-        try {
-          const userData = await getMe();
-          setUser(userData);
-        } catch {
-          // Token was refreshed but user fetch failed
-          clearTokens();
-        }
-      }
-
-      setIsLoading(false);
-    };
-
-    initAuth();
-
-    // Cleanup on unmount
-    return () => {
-      clearRefreshTimeout();
-    };
-  }, [clearRefreshTimeout, performTokenRefresh]);
+  const startSession = useCallback(
+    async (accessToken: string, expiresIn: number) => {
+      setAccessToken(accessToken, expiresIn);
+      retryIndexRef.current = 0;
+      scheduleRefreshIn(expiresIn * REFRESH_AT_FRACTION_OF_LIFETIME * 1000);
+      setUser(await getMe());
+    },
+    [scheduleRefreshIn]
+  );
 
   const login = async (email: string, password: string) => {
     const response = await loginMutation.mutateAsync({
       data: { username: email, password },
     });
-
-    // Store token in memory only
-    setAccessToken(response.access_token, response.expires_in);
-    scheduleNextRefresh(response.expires_in);
-
-    // Fetch user details after login
-    const userData = await getMe();
-    setUser(userData);
+    await startSession(response.access_token, response.expires_in);
   };
 
   const register = async (email: string, password: string) => {
     const response = await registerMutation.mutateAsync({
       data: { email, password },
     });
-
-    // Store token in memory only
-    setAccessToken(response.access_token, response.expires_in);
-    scheduleNextRefresh(response.expires_in);
-
-    // Fetch user details after registration
-    const userData = await getMe();
-    setUser(userData);
+    await startSession(response.access_token, response.expires_in);
   };
 
   return (
