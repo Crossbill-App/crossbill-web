@@ -1,6 +1,7 @@
 import { scrollToElementWithHighlight } from '@/components/animations/scrollUtils';
+import { useResetOnChange } from '@/hooks/useResetOnChange.ts';
 import { useNavigate, useSearch } from '@tanstack/react-router';
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useState } from 'react';
 
 /** Book tab routes that share the tag (and optionally search) URL filters. */
 type BookTabFilterRoute =
@@ -39,9 +40,7 @@ export const useBookTabFilters = (from: BookTabFilterRoute) => {
 
   const [selectedTagId, setSelectedTagId] = useState<number | undefined>(urlTagId);
 
-  useEffect(() => {
-    setSelectedTagId(urlTagId);
-  }, [urlTagId]);
+  useResetOnChange([urlTagId], () => setSelectedTagId(urlTagId));
 
   const handleSearch = useCallback(
     (value: string) => {

@@ -1,3 +1,4 @@
+import { useResetOnChange } from '@/hooks/useResetOnChange.ts';
 import { Box, TextField } from '@mui/material';
 import { debounce } from 'lodash';
 import { useEffect, useMemo, useState } from 'react';
@@ -24,9 +25,7 @@ export const SearchBar = ({
   );
 
   // Update search input when initialValue changes (e.g., browser back/forward)
-  useEffect(() => {
-    setSearchInput(initialValue);
-  }, [initialValue]);
+  useResetOnChange([initialValue], () => setSearchInput(initialValue));
 
   // Cleanup on unmount
   useEffect(() => {

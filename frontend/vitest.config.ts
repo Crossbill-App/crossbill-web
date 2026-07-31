@@ -11,7 +11,7 @@ export default mergeConfig(
     publicDir: 'tests/public',
     resolve: {
       alias: {
-        '@tests': path.resolve(__dirname, './tests'),
+        '@tests': path.resolve(import.meta.dirname,'./tests'),
       },
     },
     // Pre-bundled up front: discovering these mid-run makes Vite reload the page

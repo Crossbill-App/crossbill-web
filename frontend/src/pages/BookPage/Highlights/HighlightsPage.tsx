@@ -9,6 +9,7 @@ import type {
 import { useGetTags } from '@/api/generated/tags/tags.ts';
 import { scrollToElementWithHighlight } from '@/components/animations/scrollUtils';
 import { ContentWithSidebar } from '@/components/layout/Layouts.tsx';
+import { useResetOnChange } from '@/hooks/useResetOnChange.ts';
 import { useBookPage } from '@/pages/BookPage/BookPageContext';
 import { ListSearchSortHeader } from '@/pages/BookPage/common/ListSearchSortHeader.tsx';
 import { useBookTabFilters } from '@/pages/BookPage/common/useBookTabFilters.ts';
@@ -16,7 +17,7 @@ import { useHighlightDialog } from '@/pages/BookPage/Highlights/hooks/useHighlig
 import { Box, Divider } from '@mui/material';
 import { useNavigate, useSearch } from '@tanstack/react-router';
 import { keyBy } from 'lodash';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { FilterFab } from '../common/FilterFab.tsx';
 import { BookmarkList } from '../navigation/BookmarkList.tsx';
@@ -43,9 +44,7 @@ export const HighlightsPage = () => {
 
   const filterEnabled = !!selectedLabelId || !!selectedTagId;
 
-  useEffect(() => {
-    setSelectedLabelId(urlLabelId);
-  }, [urlLabelId]);
+  useResetOnChange([urlLabelId], () => setSelectedLabelId(urlLabelId));
 
   // Fetch available tags for the highlight dialog
   const { data: tagsResponse } = useGetTags(book.id);
