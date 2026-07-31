@@ -165,7 +165,10 @@ export const NoteEditorForm = forwardRef<NoteEditorFormHandle, NoteEditorFormPro
       onStatusChange?.({ isSaving, canSave });
     }, [isSaving, canSave, onStatusChange]);
 
-    const onSubmit = async (values: NoteFormValues) => {
+    // `mutate`, not `mutateAsync`: the mutations report failures through their
+    // own `onError`, and an awaited rejection here would surface as an
+    // unhandled promise rejection.
+    const onSubmit = (values: NoteFormValues) => {
       const payload = {
         title: values.title.trim(),
         body: values.body,
@@ -175,9 +178,9 @@ export const NoteEditorForm = forwardRef<NoteEditorFormHandle, NoteEditorFormPro
         tag_ids: values.tags.map((tag) => tag.id),
       };
       if (note) {
-        await updateMutation.mutateAsync({ noteId: note.id, data: payload });
+        updateMutation.mutate({ noteId: note.id, data: payload });
       } else {
-        await createMutation.mutateAsync({ data: { ...payload, book_id: book.id } });
+        createMutation.mutate({ data: { ...payload, book_id: book.id } });
       }
     };
 
