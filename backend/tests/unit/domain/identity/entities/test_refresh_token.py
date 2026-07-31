@@ -62,3 +62,34 @@ class TestRefreshTokenRevoke:
     def test_is_not_expired(self) -> None:
         token = _create(expires_at=datetime.now(UTC) + timedelta(days=30))
         assert not token.is_expired
+
+
+class TestRefreshTokenSuccessorWithin:
+    GRACE = timedelta(seconds=60)
+
+    def test_a_live_token_has_no_successor(self) -> None:
+        assert _create().successor_within(self.GRACE) is None
+
+    def test_a_rotated_token_names_its_replacement(self) -> None:
+        token = _create()
+        token.rotate_to("successor-jti")
+        assert token.successor_within(self.GRACE) == "successor-jti"
+
+    def test_a_token_revoked_outright_names_nothing(self) -> None:
+        """Logout and password changes revoke without rotating, and must stay final."""
+        token = _create()
+        token.revoke()
+        assert token.successor_within(self.GRACE) is None
+
+    def test_an_old_rotation_names_nothing(self) -> None:
+        token = _create()
+        token.rotate_to("successor-jti")
+        token.revoked_at = datetime.now(UTC) - timedelta(minutes=5)
+        assert token.successor_within(self.GRACE) is None
+
+    def test_a_zero_window_names_nothing(self) -> None:
+        """Setting the grace to zero restores strict single-use rotation."""
+        token = _create()
+        token.rotate_to("successor-jti")
+        token.revoked_at = datetime.now(UTC) - timedelta(seconds=1)
+        assert token.successor_within(timedelta(0)) is None

@@ -12,6 +12,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from src.application.identity.protocols.refresh_token_repository import (
     RefreshTokenRepositoryProtocol,
 )
+from src.application.identity.protocols.token_service import TokenServiceProtocol
 from src.application.identity.protocols.user_repository import UserRepositoryProtocol
 from src.application.jobs.protocols.job_batch_repository import JobBatchRepositoryProtocol
 from src.application.jobs.queries.job_batch import JobBatchQueryProtocol
@@ -60,6 +61,7 @@ from src.infrastructure.identity.repositories.refresh_token_repository import (
     RefreshTokenRepository,
 )
 from src.infrastructure.identity.repositories.user_repository import UserRepository
+from src.infrastructure.identity.services.token_service_adapter import TokenServiceAdapter
 from src.infrastructure.jobs.queries.job_batch_query import JobBatchQuery
 from src.infrastructure.jobs.repositories.job_batch_repository import JobBatchRepository
 from src.infrastructure.learning.queries.book_flashcard_query import BookFlashcardQuery
@@ -103,6 +105,7 @@ def repositories_satisfy_their_protocols(
 ) -> None:
     _user: UserRepositoryProtocol = UserRepository(db)
     _refresh_token: RefreshTokenRepositoryProtocol = RefreshTokenRepository(db)
+    _token_service: TokenServiceProtocol = TokenServiceAdapter()
     _book_library: LibraryBookRepositoryProtocol = BookRepository(db)
     _book_reading: ReadingBookRepositoryProtocol = BookRepository(db)
     _chapter: ChapterRepositoryProtocol = ChapterRepository(db)
