@@ -15,6 +15,7 @@ from src.application.identity.queries.get_user_by_id_use_case import GetUserById
 class IdentityContainer(containers.DeclarativeContainer):
     """Identity module use cases."""
 
+    settings = providers.Dependency()
     user_repository = providers.Dependency()
     password_service = providers.Dependency()
     token_service = providers.Dependency()
@@ -32,6 +33,7 @@ class IdentityContainer(containers.DeclarativeContainer):
         user_repository=user_repository,
         token_service=token_service,
         refresh_token_repository=refresh_token_repository,
+        rotation_grace_seconds=settings.provided.REFRESH_TOKEN_ROTATION_GRACE_SECONDS,
     )
     get_user_by_id_use_case = providers.Factory(
         GetUserByIdUseCase,

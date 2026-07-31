@@ -27,6 +27,7 @@ class RootContainer(containers.DeclarativeContainer):
 
     identity = providers.Container(
         IdentityContainer,
+        settings=settings,
         user_repository=shared.user_repository,
         password_service=shared.password_service,
         token_service=shared.token_service,

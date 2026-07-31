@@ -83,6 +83,16 @@ class Settings(BaseSettings):
     REFRESH_TOKEN_EXPIRE_DAYS: int = 30
     REFRESH_TOKEN_SECRET_KEY: str = ""
     COOKIE_SECURE: bool = True
+
+    # How long a just-rotated refresh token keeps working. Rotation revokes the
+    # presented token before its replacement can possibly reach the client, so a
+    # response lost on the way back — or a second refresh racing the first —
+    # leaves the client holding a token the server considers spent. Treating
+    # that as replay ends the session, which on a phone happens often enough to
+    # be the main cause of unexpected logouts. Within this window the spent
+    # token returns its replacement instead; past it, reuse is still read as
+    # theft and revokes the whole family.
+    REFRESH_TOKEN_ROTATION_GRACE_SECONDS: int = Field(default=60, ge=0)
     PASSWORD_PEPPER: str = ""
 
     # Size of the thread pool that runs Argon2id. Each hash costs ~64 MiB and
