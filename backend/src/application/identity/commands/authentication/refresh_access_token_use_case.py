@@ -26,7 +26,7 @@ class RefreshAccessTokenUseCase:
         user_repository: UserRepositoryProtocol,
         token_service: TokenServiceProtocol,
         refresh_token_repository: RefreshTokenRepositoryProtocol,
-        rotation_grace_seconds: int = 0,
+        rotation_grace_seconds: int,
     ) -> None:
         self.user_repository = user_repository
         self.token_service = token_service
@@ -45,7 +45,7 @@ class RefreshAccessTokenUseCase:
         if presented.is_revoked:
             return await self._answer_spent_token(presented)
 
-        user = await self._require_user(claims.user_id)
+        user = await self._require_user(UserId(claims.user_id))
         return user, await self._rotate(user, presented)
 
     async def _rotate(self, user: User, presented: RefreshToken) -> TokenPairWithMetadata:
@@ -76,7 +76,7 @@ class RefreshAccessTokenUseCase:
             )
             raise InvalidCredentialsError
 
-        user = await self._require_user(presented.user_id.value)
+        user = await self._require_user(presented.user_id)
         logger.info(
             "refresh_token_rotation_retried",
             jti=presented.jti,
@@ -106,8 +106,8 @@ class RefreshAccessTokenUseCase:
             return None
         return successor
 
-    async def _require_user(self, user_id: int) -> User:
-        user = await self.user_repository.find_by_id(UserId(user_id))
+    async def _require_user(self, user_id: UserId) -> User:
+        user = await self.user_repository.find_by_id(user_id)
         if user is None:
             raise InvalidCredentialsError
         return user

@@ -40,11 +40,6 @@ const REFRESH_AT_FRACTION_OF_LIFETIME = 0.75;
 // always the right move; the last delay repeats for as long as it takes.
 const RETRY_DELAYS_MS = [5_000, 15_000, 60_000];
 
-// How many of those attempts the initial restore waits through before giving up
-// and rendering. Long enough to cover a phone whose network is still coming up,
-// short enough that a genuinely offline start is not a spinner forever.
-const INITIAL_RESTORE_ATTEMPTS = 2;
-
 // Returning to the foreground with a token this close to expiry triggers a
 // refresh straight away. iOS suspends timers in a backgrounded PWA, so the
 // scheduled refresh is often long overdue on resume, and without this the
@@ -63,11 +58,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const retryIndexRef = useRef(0);
   const initialRestorePendingRef = useRef(true);
   const syncSessionRef = useRef<(() => Promise<void>) | null>(null);
-  const userRef = useRef<UserDetailsResponse | null>(null);
-
-  useEffect(() => {
-    userRef.current = user;
-  }, [user]);
 
   const loginMutation = useLogin();
   const registerMutation = useMutation(getRegisterMutationOptions());
@@ -92,6 +82,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     [clearRefreshTimeout]
   );
 
+  const scheduleRefreshBeforeExpiry = useCallback(
+    (expiresIn: number) => {
+      retryIndexRef.current = 0;
+      scheduleRefreshIn(expiresIn * REFRESH_AT_FRACTION_OF_LIFETIME * 1000);
+    },
+    [scheduleRefreshIn]
+  );
+
   const settleInitialRestore = useCallback(() => {
     if (!initialRestorePendingRef.current) {
       return;
@@ -111,12 +109,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const syncSession = useCallback(async () => {
     try {
       const { expiresIn } = await refreshSession();
-      retryIndexRef.current = 0;
-      scheduleRefreshIn(expiresIn * REFRESH_AT_FRACTION_OF_LIFETIME * 1000);
+      scheduleRefreshBeforeExpiry(expiresIn);
     } catch (error) {
       if (error instanceof SessionExpiredError) {
         clearRefreshTimeout();
-        clearTokens();
         setUser(null);
         settleInitialRestore();
         return;
@@ -125,16 +121,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       // The session is very likely still valid — the request just never landed.
       // Keep it and try again instead of presenting a login form that the
       // user's credentials were never the problem for.
-      const attempt = retryIndexRef.current;
-      retryIndexRef.current = Math.min(attempt + 1, RETRY_DELAYS_MS.length - 1);
-      scheduleRefreshIn(RETRY_DELAYS_MS[attempt]);
-      if (attempt + 1 >= INITIAL_RESTORE_ATTEMPTS) {
+      const isFirstFailure = retryIndexRef.current === 0;
+      scheduleRefreshIn(RETRY_DELAYS_MS[retryIndexRef.current]);
+      retryIndexRef.current = Math.min(retryIndexRef.current + 1, RETRY_DELAYS_MS.length - 1);
+
+      // Ride out one retry before rendering: a phone whose network is still
+      // coming up recovers inside it, and waiting longer only shows a spinner
+      // the user cannot act on.
+      if (!isFirstFailure) {
         settleInitialRestore();
       }
       return;
     }
 
-    if (!userRef.current) {
+    if (!user) {
       try {
         setUser(await getMe());
       } catch {
@@ -143,7 +143,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
     }
     settleInitialRestore();
-  }, [clearRefreshTimeout, scheduleRefreshIn, settleInitialRestore]);
+  }, [
+    clearRefreshTimeout,
+    scheduleRefreshIn,
+    scheduleRefreshBeforeExpiry,
+    settleInitialRestore,
+    user,
+  ]);
 
   useEffect(() => {
     syncSessionRef.current = syncSession;
@@ -159,7 +165,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     const refreshIfStale = () => {
-      if (document.visibilityState !== 'visible' || !userRef.current) {
+      if (document.visibilityState !== 'visible' || !user) {
         return;
       }
       const expiresAt = getTokenExpiresAt();
@@ -171,7 +177,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     document.addEventListener('visibilitychange', refreshIfStale);
     return () => document.removeEventListener('visibilitychange', refreshIfStale);
-  }, []);
+  }, [user]);
 
   const logout = useCallback(async () => {
     clearRefreshTimeout();
@@ -204,11 +210,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const startSession = useCallback(
     async (accessToken: string, expiresIn: number) => {
       setAccessToken(accessToken, expiresIn);
-      retryIndexRef.current = 0;
-      scheduleRefreshIn(expiresIn * REFRESH_AT_FRACTION_OF_LIFETIME * 1000);
+      scheduleRefreshBeforeExpiry(expiresIn);
       setUser(await getMe());
     },
-    [scheduleRefreshIn]
+    [scheduleRefreshBeforeExpiry]
   );
 
   const login = async (email: string, password: string) => {

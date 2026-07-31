@@ -20,10 +20,6 @@ def _as_utc(value: datetime) -> datetime:
     return value if value.tzinfo is not None else value.replace(tzinfo=UTC)
 
 
-def _as_utc_or_none(value: datetime | None) -> datetime | None:
-    return None if value is None else _as_utc(value)
-
-
 class RefreshTokenMapper:
     """Mapper for RefreshToken ORM <-> Domain conversion."""
 
@@ -33,7 +29,7 @@ class RefreshTokenMapper:
             jti=orm_model.jti,
             user_id=UserId(orm_model.user_id),
             family_id=orm_model.family_id,
-            revoked_at=_as_utc_or_none(orm_model.revoked_at),
+            revoked_at=_as_utc(orm_model.revoked_at) if orm_model.revoked_at else None,
             expires_at=_as_utc(orm_model.expires_at),
             created_at=_as_utc(orm_model.created_at),
             replaced_by_jti=orm_model.replaced_by_jti,

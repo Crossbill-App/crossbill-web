@@ -71,6 +71,9 @@ async function runRefresh(): Promise<RefreshResult> {
       return { accessToken: data.access_token, expiresIn: data.expires_in };
     } catch (error) {
       if (isSessionRejection(error)) {
+        // Dropped here rather than by each caller: this function owns the
+        // stored token on the way in, so it owns clearing it on the way out.
+        clearTokens();
         throw new SessionExpiredError();
       }
       if (attempt >= TRANSIENT_RETRY_DELAYS_MS.length || !isRetryable(error)) {
@@ -97,8 +100,9 @@ function isRetryable(error: unknown): boolean {
   return status === undefined || status >= 500;
 }
 
-function endSession(): void {
-  clearTokens();
+// A hard navigation, not a router push: the session died mid-use, so dropping
+// the cached data of the session that is over is the point.
+function redirectToLogin(): void {
   if (!window.location.pathname.includes('/login')) {
     window.location.href = '/login';
   }
@@ -145,7 +149,7 @@ AXIOS_INSTANCE.interceptors.response.use(
       // Only a rejected refresh token ends the session. Anything else leaves
       // the caller to handle a failed request the way it would any other.
       if (refreshError instanceof SessionExpiredError) {
-        endSession();
+        redirectToLogin();
       }
       return Promise.reject(refreshError);
     }
