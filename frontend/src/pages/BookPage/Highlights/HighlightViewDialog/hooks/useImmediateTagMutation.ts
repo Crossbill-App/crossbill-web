@@ -1,9 +1,10 @@
 import type { TagInBook } from '@/api/generated/model';
 import { useAddTagToHighlight, useRemoveTagFromHighlight } from '@/api/generated/tags/tags.ts';
 import { useMutationErrorHandler } from '@/hooks/useMutationErrorHandler.ts';
+import { useResetOnChange } from '@/hooks/useResetOnChange.ts';
 import { useCacheEvents } from '@/lib/cacheEvents.ts';
 import { filter, map } from 'lodash';
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 
 export interface UseImmediateTagMutationParams {
   /** Book ID for API calls */
@@ -58,9 +59,7 @@ export const useImmediateTagMutation = ({
   const [currentTags, setCurrentTags] = useState<TagInBook[]>(initialTags);
   const [isProcessing, setIsProcessing] = useState(false);
 
-  useEffect(() => {
-    setCurrentTags(initialTags);
-  }, [highlightId, initialTags]);
+  useResetOnChange([highlightId, initialTags], () => setCurrentTags(initialTags));
 
   const addTagMutation = useAddTagToHighlight({
     mutation: {

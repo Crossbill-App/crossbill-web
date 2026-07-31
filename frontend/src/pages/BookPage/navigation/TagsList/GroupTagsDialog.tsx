@@ -2,6 +2,7 @@ import { TagGroupInBook, TagInBook } from '@/api/generated/model';
 import { useUpdateTag } from '@/api/generated/tags/tags.ts';
 import { CommonDialog } from '@/components/dialogs/CommonDialog.tsx';
 import { useMutationErrorHandler } from '@/hooks/useMutationErrorHandler.ts';
+import { useResetOnChange } from '@/hooks/useResetOnChange.ts';
 import { useCacheEvents } from '@/lib/cacheEvents.ts';
 import {
   Box,
@@ -14,7 +15,7 @@ import {
   Typography,
 } from '@mui/material';
 import { sortBy } from 'lodash';
-import { useEffect, useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 
 interface GroupTagsDialogProps {
   group: TagGroupInBook;
@@ -44,7 +45,10 @@ export const GroupTagsDialog = ({
   const [search, setSearch] = useState('');
   const [isSaving, setIsSaving] = useState(false);
 
-  useEffect(() => {
+  // Order and initial selection are snapshotted once per opening: `tags` is read
+  // here but deliberately not tracked, so tags moving in or out of the group
+  // while the dialog is open do not reshuffle the list under the user.
+  useResetOnChange([open], () => {
     if (!open) return;
     const inGroup = sortBy(
       tags.filter((tag) => tag.tag_group_id === group.id),
@@ -57,9 +61,7 @@ export const GroupTagsDialog = ({
     setOrderedTags([...inGroup, ...others]);
     setCheckedIds(new Set(inGroup.map((tag) => tag.id)));
     setSearch('');
-    // Order and initial selection are snapshotted once per opening.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [open]);
+  });
 
   const groupNameById = useMemo(() => new Map(tagGroups.map((g) => [g.id, g.name])), [tagGroups]);
 
