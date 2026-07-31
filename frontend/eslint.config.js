@@ -40,6 +40,13 @@ export default tseslint.config(
         { argsIgnorePattern: '^_' },
       ],
       '@typescript-eslint/no-unnecessary-condition': 'warn',
+      // New in eslint-plugin-react-hooks 7.1.1, which the ESLint 10 upgrade
+      // required. It flags five pre-existing prop/URL-to-state sync effects
+      // (SearchBar, HighlightsPage, useBookTabFilters, useImmediateTagMutation,
+      // GroupTagsDialog). Untangling those changes render behaviour, so it is
+      // deliberately deferred to its own change rather than bundled into a
+      // dependency bump.
+      'react-hooks/set-state-in-effect': 'off',
       'no-console': ['warn', { allow: ['warn', 'error'] }],
       // Invalidation belongs in src/lib/cacheEvents.ts, which owns the query keys
       // and takes them from the generated getters. A hand-written key here once

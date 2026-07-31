@@ -5,8 +5,11 @@
 
 version: 2
 updates:
+  # The npm workspace root: frontend/package.json is a workspace, but the single
+  # package-lock.json lives here. Pointing Dependabot at /frontend updates the
+  # manifest without the lock file, and every PR then fails `npm ci` as out of sync.
   - package-ecosystem: "npm"
-    directory: "/frontend"
+    directory: "/"
     schedule:
       interval: "weekly"
       day: "monday"
