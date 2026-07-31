@@ -72,6 +72,35 @@ test('paging back returns to the start and retires the back control', async () =
   await expect.element(screen.getByRole('button', { name: 'Scroll back' })).not.toBeInTheDocument();
 });
 
+test('items land on the content column when the carousel bleeds past its container', async () => {
+  const screen = await render(
+    <div style={{ width: VIEWPORT_WIDTH, paddingLeft: 24, paddingRight: 24 }}>
+      <Carousel aria-label="Test carousel" bleed={3}>
+        {Array.from({ length: 10 }, (_, index) => (
+          <CarouselItem key={index}>
+            <div style={{ width: ITEM_WIDTH, height: 80 }}>Item {index + 1}</div>
+          </CarouselItem>
+        ))}
+      </Carousel>
+    </div>
+  );
+
+  const restingLeft = document.querySelector('[data-carousel-item]')!.getBoundingClientRect().left;
+
+  await userEvent.click(screen.getByRole('button', { name: 'Scroll forward' }));
+  await expect.poll(() => Math.round(viewport().scrollLeft)).toBeGreaterThan(0);
+
+  // Whichever item a page lands on must sit exactly where item 1 rested. If the
+  // paging maths ignored the viewport's padding it would be a gutter off.
+  await expect
+    .poll(() =>
+      Array.from(document.querySelectorAll('[data-carousel-item]')).some(
+        (item) => Math.abs(item.getBoundingClientRect().left - restingLeft) < 1
+      )
+    )
+    .toBe(true);
+});
+
 test('a drag that stops mid-item settles onto the nearest boundary', async () => {
   const screen = await render(<Strip count={10} />);
   await expect.element(screen.getByRole('button', { name: 'Scroll forward' })).toBeInTheDocument();

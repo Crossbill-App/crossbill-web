@@ -38,16 +38,26 @@ const INITIAL_METRICS: Metrics = {
   canScrollForward: false,
 };
 
+const horizontalPadding = (viewport: HTMLElement) => {
+  const style = getComputedStyle(viewport);
+  return {
+    left: parseFloat(style.paddingLeft) || 0,
+    right: parseFloat(style.paddingRight) || 0,
+  };
+};
+
 /**
  * Scroll positions that start-align each item, in `scrollLeft` units.
  *
  * Measured from bounding rects rather than `offsetLeft` so the numbers stay
- * correct regardless of which ancestor happens to be the offset parent.
+ * correct regardless of which ancestor happens to be the offset parent. The
+ * viewport's own left padding is subtracted, so a full-bleed carousel aligns
+ * items with its content column rather than the gutter it bleeds into.
  */
 const itemStarts = (viewport: HTMLElement): number[] => {
-  const viewportLeft = viewport.getBoundingClientRect().left;
+  const contentLeft = viewport.getBoundingClientRect().left + horizontalPadding(viewport).left;
   return Array.from(viewport.querySelectorAll<HTMLElement>('[data-carousel-item]')).map(
-    (item) => viewport.scrollLeft + item.getBoundingClientRect().left - viewportLeft
+    (item) => viewport.scrollLeft + item.getBoundingClientRect().left - contentLeft
   );
 };
 
@@ -134,7 +144,10 @@ export const useCarouselScroll = (): CarouselScroll => {
 
       stopAnimation();
       const starts = itemStarts(el);
-      const page = el.clientWidth;
+      const padding = horizontalPadding(el);
+      // Travel a page of *visible* track; clientWidth would overshoot by the
+      // bleed and let a page skip an item.
+      const page = el.clientWidth - padding.left - padding.right;
       const max = el.scrollWidth - el.clientWidth;
 
       // Land on the item boundary furthest within one page of travel, so a page
