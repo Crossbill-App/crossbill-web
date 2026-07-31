@@ -34,7 +34,7 @@
     "react": "^19.2.3",
     "react-blurhash": "^0.3.0",
     "react-color": "^2.19.3",
-    "react-dom": "^19.2.3",
+    "react-dom": "^19.2.8",
     "react-hook-form": "^7.69.0",
     "react-markdown": "^10.1.0",
     "react-swipeable": "^7.0.2"
