@@ -12,6 +12,7 @@
 - **ALWAYS** run formatter before making commits: `npm run format`
 - Verify no TypeScript errors: `npm run type-check`
 - Check for unused files, exports and dependencies: `npm run knip`
+- Check for copy-paste duplication: `npm run duplication`
 - Ensure all staged files pass quality checks
 
 > Note: Husky pre-commit hooks will automatically run linter and formatter on staged files, but you should still manually verify before committing.
@@ -33,6 +34,19 @@ Three ways a finding is legitimately resolved, in order of preference:
    why.
 
 Never silence a finding by adding a fake import or re-export.
+
+### Duplication (jscpd)
+
+`npm run duplication` runs jscpd (v5, the Rust engine) over `src` and `tests`
+and reports every copy-pasted block of 5+ lines / 50+ tokens. It exits 1 once
+duplicated lines pass the `threshold` in `frontend/.jscpd.json`.
+
+The generated API client and the generated route tree are excluded: Orval and
+TanStack Router emit repetitive code that is not ours to refactor.
+
+The threshold is a **ratchet** — it may fall, never rise. When a refactor drops
+the percentage, lower the threshold to the new number in the same commit. Never
+raise it to make the check pass; extract the shared code instead.
 
 ## Programming Style
 
