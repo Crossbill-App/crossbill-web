@@ -108,8 +108,12 @@ export const TagGroupSection = ({
           >
             <Typography
               variant="body2"
-              color="text.secondary"
-              sx={{ textAlign: 'center', fontSize: '0.75rem', fontStyle: 'italic' }}
+              sx={{
+                color: 'text.secondary',
+                textAlign: 'center',
+                fontSize: '0.75rem',
+                fontStyle: 'italic',
+              }}
             >
               No tags yet — click to add
             </Typography>

@@ -98,7 +98,11 @@ export const HighlightViewDialog = ({
   // Shared content for both layouts
   const renderContent = () => (
     <Box key={highlight.id}>
-      <Stack gap={2}>
+      <Stack
+        sx={{
+          gap: 2,
+        }}
+      >
         <Toolbar
           highlightId={highlight.id}
           bookId={bookId}

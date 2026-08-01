@@ -123,8 +123,12 @@ export const ChapterNav = ({ chapters, onChapterClick, hideTitle, countType }: C
                   </Typography>
                   <Typography
                     variant="caption"
-                    color="text.secondary"
-                    sx={{ fontSize: '0.75rem', mt: 0.25, display: 'block' }}
+                    sx={{
+                      color: 'text.secondary',
+                      fontSize: '0.75rem',
+                      mt: 0.25,
+                      display: 'block',
+                    }}
                   >
                     {chapter.itemCount} {countType === 'highlight' ? 'highlight' : 'flashcard'}
                     {chapter.itemCount !== 1 ? 's' : ''}

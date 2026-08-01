@@ -41,7 +41,16 @@ export const CommonDialogHorizontalNavigation = ({
         </IconButton>
       )}
 
-      <Box display="flex" flexDirection="column" gap={3} flex={1} minWidth={0} {...swipeHandlers}>
+      <Box
+        {...swipeHandlers}
+        sx={{
+          display: 'flex',
+          flexDirection: 'column',
+          gap: 3,
+          flex: 1,
+          minWidth: 0,
+        }}
+      >
         {children}
       </Box>
 

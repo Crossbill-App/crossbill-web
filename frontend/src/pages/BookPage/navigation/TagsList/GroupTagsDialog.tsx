@@ -169,7 +169,14 @@ export const GroupTagsDialog = ({
             );
           })}
           {filteredTags.length === 0 && (
-            <Typography variant="body2" color="text.secondary" sx={{ px: 1, py: 2 }}>
+            <Typography
+              variant="body2"
+              sx={{
+                color: 'text.secondary',
+                px: 1,
+                py: 2,
+              }}
+            >
               No matching tags.
             </Typography>
           )}

@@ -121,12 +121,23 @@ export const ReflectionPage = () => {
   return (
     <MiddleContentColumn>
       {stageHint && (
-        <Typography variant="body2" color="text.secondary" sx={{ mb: 2, fontStyle: 'italic' }}>
+        <Typography
+          variant="body2"
+          sx={{
+            color: 'text.secondary',
+            mb: 2,
+            fontStyle: 'italic',
+          }}
+        >
           {stageHint}
         </Typography>
       )}
 
-      <Stack gap={4}>
+      <Stack
+        sx={{
+          gap: 4,
+        }}
+      >
         {REFLECTION_QUESTIONS.map((question) => {
           const noteId = server[question.noteIdField];
           const answerNote = noteId != null ? notesById.get(noteId) : undefined;
@@ -134,7 +145,13 @@ export const ReflectionPage = () => {
           return (
             <Box key={question.noteIdField}>
               <SectionTitle>{question.title}</SectionTitle>
-              <Typography variant="body2" color="text.secondary" sx={{ mb: 1.5 }}>
+              <Typography
+                variant="body2"
+                sx={{
+                  color: 'text.secondary',
+                  mb: 1.5,
+                }}
+              >
                 {question.guide}
               </Typography>
 

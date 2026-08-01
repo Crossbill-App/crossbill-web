@@ -121,14 +121,23 @@ export const ChapterReviewSection = ({
       )}
 
       {!isPending && prereadingSummary && prereadingSummary.questions.length === 0 && (
-        <Typography variant="body2" color="text.secondary">
+        <Typography
+          variant="body2"
+          sx={{
+            color: 'text.secondary',
+          }}
+        >
           No pre-reading questions available.
         </Typography>
       )}
 
       {!isPending && prereadingSummary && prereadingSummary.questions.length > 0 && (
         <CollapsibleSection title="Questions to think while reading" defaultExpanded>
-          <Stack gap={1}>
+          <Stack
+            sx={{
+              gap: 1,
+            }}
+          >
             {prereadingSummary.questions.map((q, index) => (
               <Box key={index} sx={{ py: 1 }}>
                 <Typography variant="body2" sx={{ fontWeight: 600, mb: 1.5 }}>

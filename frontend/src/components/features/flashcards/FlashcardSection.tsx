@@ -104,7 +104,13 @@ export const FlashcardSection = ({
 
   return (
     <Box>
-      <Typography variant="subtitle2" color="text.secondary" gutterBottom>
+      <Typography
+        variant="subtitle2"
+        gutterBottom
+        sx={{
+          color: 'text.secondary',
+        }}
+      >
         Flashcards
       </Typography>
 

@@ -42,7 +42,14 @@ export const HighlightContent = ({ highlight, onLabelClick }: HighlightContentPr
   };
 
   return (
-    <Box display="flex" flexDirection="column" gap={3} flex={1}>
+    <Box
+      sx={{
+        display: 'flex',
+        flexDirection: 'column',
+        gap: 3,
+        flex: 1,
+      }}
+    >
       {/* Highlight Text */}
       <Box sx={{ display: 'flex', alignItems: 'start', gap: 2 }}>
         <QuoteIcon
@@ -65,7 +72,12 @@ export const HighlightContent = ({ highlight, onLabelClick }: HighlightContentPr
             color: 'text.secondary',
           }}
         />
-        <Typography variant="body2" color="text.secondary">
+        <Typography
+          variant="body2"
+          sx={{
+            color: 'text.secondary',
+          }}
+        >
           {new Date(highlight.datetime).toLocaleDateString('en-US', {
             year: 'numeric',
             month: 'long',

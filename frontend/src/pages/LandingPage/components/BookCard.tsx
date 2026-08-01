@@ -104,12 +104,12 @@ export const BookCard = ({ book }: BookCardProps) => {
           {/* Book author */}
           <Typography
             variant="body2"
-            color="text.secondary"
+            title={book.author || 'Unknown Author'}
             sx={{
+              color: 'text.secondary',
               maxWidth: BOOK_CARD_WIDTH,
               mt: 0.5,
             }}
-            title={book.author || 'Unknown Author'}
           >
             {truncateText(book.author || 'Unknown Author', 30)}
           </Typography>

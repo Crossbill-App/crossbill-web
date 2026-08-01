@@ -44,10 +44,14 @@ export const DesktopNavLinks = ({ bookId }: DesktopNavLinksProps) => {
                 </ListItemIcon>
                 <ListItemText
                   primary={item.label}
-                  primaryTypographyProps={{
-                    variant: 'body2',
-                    fontWeight: isActive ? 600 : 400,
-                    color: isActive ? 'primary.main' : 'text.primary',
+                  slotProps={{
+                    primary: {
+                      variant: 'body2',
+                      sx: {
+                        fontWeight: isActive ? 600 : 400,
+                        color: isActive ? 'primary.main' : 'text.primary',
+                      },
+                    },
                   }}
                 />
               </ListItemButton>

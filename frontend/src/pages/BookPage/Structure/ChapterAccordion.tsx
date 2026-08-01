@@ -46,8 +46,8 @@ const accordionSx = (depth: number) => (theme: { spacing: (n: number) => string 
 const GistLine = ({ gist }: { gist: string }) => (
   <Typography
     variant="body2"
-    color="text.secondary"
     sx={{
+      color: 'text.secondary',
       display: '-webkit-box',
       WebkitLineClamp: 2,
       WebkitBoxOrient: 'vertical',

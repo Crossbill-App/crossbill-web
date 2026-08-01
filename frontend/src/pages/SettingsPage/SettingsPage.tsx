@@ -67,7 +67,7 @@ const EmailForm = () => {
           label="Email"
           fullWidth
           margin="normal"
-          inputProps={{ maxLength: 100 }}
+          slotProps={{ htmlInput: { maxLength: 100 } }}
         />
         <Button
           type="submit"

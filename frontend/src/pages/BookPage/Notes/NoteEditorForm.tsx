@@ -203,7 +203,12 @@ export const NoteEditorForm = forwardRef<NoteEditorFormHandle, NoteEditorFormPro
             <Typography variant="subtitle2" sx={{ mb: 0.5 }}>
               {guidance.title}
             </Typography>
-            <Typography variant="body2" color="text.secondary">
+            <Typography
+              variant="body2"
+              sx={{
+                color: 'text.secondary',
+              }}
+            >
               {guidance.text}
             </Typography>
           </Box>

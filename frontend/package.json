@@ -22,8 +22,8 @@
   "dependencies": {
     "@emotion/react": "^11.14.0",
     "@emotion/styled": "^11.14.1",
-    "@mui/icons-material": "^7.3.6",
-    "@mui/material": "^7.3.6",
+    "@mui/icons-material": "^9.2.0",
+    "@mui/material": "^9.2.0",
     "@tanstack/react-query": "^5.90.12",
     "@tanstack/react-router": "^1.143.4",
     "axios": "^1.13.5",
@@ -35,7 +35,7 @@
     "react-blurhash": "^0.3.0",
     "react-color": "^2.19.3",
     "react-dom": "^19.2.8",
-    "react-hook-form": "^7.69.0",
+    "react-hook-form": "^7.83.0",
     "react-markdown": "^10.1.0",
     "react-swipeable": "^7.0.2"
   },

@@ -209,7 +209,12 @@ export const NoteViewDialog = ({
         swipeHandlers={swipeHandlers}
         disabled={isDeleting}
       >
-        <Box mt={2} mb={2}>
+        <Box
+          sx={{
+            mt: 2,
+            mb: 2,
+          }}
+        >
           {isEditing && activeNote ? (
             <NoteEditorForm
               ref={formRef}
@@ -220,7 +225,11 @@ export const NoteViewDialog = ({
             />
           ) : activeNote ? (
             <FadeInOut ekey={noteId}>
-              <Stack gap={2}>
+              <Stack
+                sx={{
+                  gap: 2,
+                }}
+              >
                 <Box>
                   {activeNote.body && (
                     <Box sx={markdownStyles(theme)}>
@@ -263,7 +272,11 @@ export const NoteViewDialog = ({
               </Stack>
             </FadeInOut>
           ) : isError ? (
-            <Typography color="text.secondary">
+            <Typography
+              sx={{
+                color: 'text.secondary',
+              }}
+            >
               This note could not be found. It may have been deleted.
             </Typography>
           ) : (
