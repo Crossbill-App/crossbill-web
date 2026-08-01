@@ -7,42 +7,20 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.application.reading.services.label_resolution_service import LabelResolutionService
 from src.domain.common.value_objects.ids import BookId, UserId
-from src.domain.reading.services.highlight_style_resolver import HighlightStyleResolver
 from src.infrastructure.learning.queries.book_flashcard_query import BookFlashcardQuery
-from src.infrastructure.reading.repositories.highlight_style_repository import (
-    HighlightStyleRepository,
-)
-from src.models import Book, Chapter, Flashcard, Highlight, Note, Tag, User
-from tests.conftest import (
-    create_test_book,
-    create_test_highlight,
-    create_test_highlight_style,
-)
+from src.models import Book, Flashcard, Highlight, HighlightStyle, Note, Tag, User
+from tests.conftest import create_test_book, create_test_highlight
+from tests.unit.infrastructure.conftest import AddChapter
 
 DEFAULT_USER_ID = 1
-OTHER_USER_ID = 2
 
 
 @pytest.fixture
-def query(db_session: AsyncSession) -> BookFlashcardQuery:
+def query(
+    db_session: AsyncSession, label_resolution_service: LabelResolutionService
+) -> BookFlashcardQuery:
     """The query service wired the way the container wires it."""
-    return BookFlashcardQuery(
-        db=db_session,
-        label_resolution_service=LabelResolutionService(
-            highlight_style_repository=HighlightStyleRepository(db_session),
-            highlight_style_resolver=HighlightStyleResolver(),
-        ),
-    )
-
-
-@pytest.fixture
-async def other_user(db_session: AsyncSession) -> User:
-    """A second user, to check ownership scoping."""
-    user = User(id=OTHER_USER_ID, email="other@test.com")
-    db_session.add(user)
-    await db_session.commit()
-    await db_session.refresh(user)
-    return user
+    return BookFlashcardQuery(db=db_session, label_resolution_service=label_resolution_service)
 
 
 async def add_flashcard(
@@ -75,15 +53,28 @@ async def add_flashcard(
     return flashcard
 
 
-async def add_chapter(
-    db_session: AsyncSession, book: Book, name: str, chapter_number: int | None = None
-) -> Chapter:
-    """Attach a chapter to a book."""
-    chapter = Chapter(book_id=book.id, name=name, chapter_number=chapter_number)
-    db_session.add(chapter)
-    await db_session.commit()
-    await db_session.refresh(chapter)
-    return chapter
+async def add_highlight(
+    db_session: AsyncSession,
+    book: Book,
+    text: str,
+    chapter_id: int | None = None,
+    page: int | None = None,
+    user_id: int = DEFAULT_USER_ID,
+    highlight_style_id: int | None = None,
+    deleted_at: datetime | None = None,
+) -> Highlight:
+    """A highlight on the book, owned by the default user unless told otherwise."""
+    return await create_test_highlight(
+        db_session=db_session,
+        book=book,
+        user_id=user_id,
+        chapter_id=chapter_id,
+        text=text,
+        page=page,
+        datetime_str="2024-01-15 14:30:22",
+        highlight_style_id=highlight_style_id,
+        deleted_at=deleted_at,
+    )
 
 
 async def tag_highlight(
@@ -121,9 +112,9 @@ async def test_flashcards_come_back_newest_first(
 
 
 async def test_book_level_flashcard_has_no_highlight(
-    query: BookFlashcardQuery, db_session: AsyncSession, test_book: Book
+    query: BookFlashcardQuery, db_session: AsyncSession, test_book: Book, add_chapter: AddChapter
 ) -> None:
-    chapter = await add_chapter(db_session, test_book, "Chapter", chapter_number=1)
+    chapter = await add_chapter(test_book, "Chapter", chapter_number=1)
     await add_flashcard(db_session, test_book, chapter_id=chapter.id)
 
     view = await query.list_for_book(BookId(test_book.id), UserId(DEFAULT_USER_ID))
@@ -151,19 +142,11 @@ async def test_flashcard_made_from_a_note_carries_its_note_id(
 
 
 async def test_highlight_carries_its_chapter_and_tags(
-    query: BookFlashcardQuery,
-    db_session: AsyncSession,
-    test_book: Book,
+    query: BookFlashcardQuery, db_session: AsyncSession, test_book: Book, add_chapter: AddChapter
 ) -> None:
-    chapter = await add_chapter(db_session, test_book, "Crime", chapter_number=3)
-    highlight = await create_test_highlight(
-        db_session=db_session,
-        book=test_book,
-        user_id=DEFAULT_USER_ID,
-        chapter_id=chapter.id,
-        text="Highlighted text",
-        page=42,
-        datetime_str="2024-01-15 14:30:22",
+    chapter = await add_chapter(test_book, "Crime", chapter_number=3)
+    highlight = await add_highlight(
+        db_session, test_book, "Highlighted text", chapter_id=chapter.id, page=42
     )
     tag = await tag_highlight(db_session, test_book, highlight, "Motif")
     await add_flashcard(db_session, test_book, highlight=highlight)
@@ -187,25 +170,14 @@ async def test_highlight_carries_its_chapter_and_tags(
 
 
 async def test_label_comes_from_the_label_resolution_service(
-    query: BookFlashcardQuery, db_session: AsyncSession, test_book: Book
+    query: BookFlashcardQuery,
+    db_session: AsyncSession,
+    test_book: Book,
+    labelled_style: HighlightStyle,
 ) -> None:
     """The rule-derived label is resolved by the shared service, not re-encoded in SQL."""
-    style = await create_test_highlight_style(
-        db_session=db_session,
-        user_id=DEFAULT_USER_ID,
-        book_id=test_book.id,
-        device_color="yellow",
-        device_style="lighten",
-        label="Key idea",
-        ui_color="#ffcc00",
-    )
-    highlight = await create_test_highlight(
-        db_session=db_session,
-        book=test_book,
-        user_id=DEFAULT_USER_ID,
-        text="Labelled",
-        datetime_str="2024-01-15 14:30:22",
-        highlight_style_id=style.id,
+    highlight = await add_highlight(
+        db_session, test_book, "Labelled", highlight_style_id=labelled_style.id
     )
     await add_flashcard(db_session, test_book, highlight=highlight)
 
@@ -215,22 +187,16 @@ async def test_label_comes_from_the_label_resolution_service(
     assert embedded is not None
     assert embedded.label is not None
     assert (embedded.label.highlight_style_id, embedded.label.text, embedded.label.ui_color) == (
-        style.id,
-        "Key idea",
-        "#ffcc00",
+        labelled_style.id,
+        labelled_style.label,
+        labelled_style.ui_color,
     )
 
 
 async def test_unstyled_highlight_has_no_label(
     query: BookFlashcardQuery, db_session: AsyncSession, test_book: Book
 ) -> None:
-    highlight = await create_test_highlight(
-        db_session=db_session,
-        book=test_book,
-        user_id=DEFAULT_USER_ID,
-        text="Unstyled",
-        datetime_str="2024-01-15 14:30:22",
-    )
+    highlight = await add_highlight(db_session, test_book, "Unstyled")
     await add_flashcard(db_session, test_book, highlight=highlight)
 
     view = await query.list_for_book(BookId(test_book.id), UserId(DEFAULT_USER_ID))
@@ -243,14 +209,7 @@ async def test_unstyled_highlight_has_no_label(
 async def test_soft_deleted_highlight_keeps_its_id_but_is_not_rendered(
     query: BookFlashcardQuery, db_session: AsyncSession, test_book: Book
 ) -> None:
-    highlight = await create_test_highlight(
-        db_session=db_session,
-        book=test_book,
-        user_id=DEFAULT_USER_ID,
-        text="Gone",
-        datetime_str="2024-01-15 14:30:22",
-        deleted_at=datetime.now(UTC),
-    )
+    highlight = await add_highlight(db_session, test_book, "Gone", deleted_at=datetime.now(UTC))
     await add_flashcard(db_session, test_book, highlight=highlight)
 
     view = await query.list_for_book(BookId(test_book.id), UserId(DEFAULT_USER_ID))
@@ -268,13 +227,7 @@ async def test_highlight_owned_by_another_user_is_not_rendered(
     other_book = await create_test_book(
         db_session=db_session, user_id=other_user.id, title="Their book"
     )
-    their_highlight = await create_test_highlight(
-        db_session=db_session,
-        book=other_book,
-        user_id=other_user.id,
-        text="Theirs",
-        datetime_str="2024-01-15 14:30:22",
-    )
+    their_highlight = await add_highlight(db_session, other_book, "Theirs", user_id=other_user.id)
     await add_flashcard(db_session, test_book, highlight_id=their_highlight.id)
 
     view = await query.list_for_book(BookId(test_book.id), UserId(DEFAULT_USER_ID))

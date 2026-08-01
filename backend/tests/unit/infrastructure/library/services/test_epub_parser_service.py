@@ -10,6 +10,20 @@ from src.infrastructure.library.services.epub_parser_service import EpubParserSe
 FAKE_IMAGE = b"\x89PNG\r\n\x1a\n\x00\x00\x00\rIHDR fake image bytes"
 
 
+def _write_epub(book: epub.EpubBook, path: Path, filename: str) -> Path:
+    """Give the book the minimal chapter and navigation it needs, then write it out."""
+    chapter = epub.EpubHtml(title="Chapter 1", file_name="chap01.xhtml", lang="en")
+    chapter.content = b"<html><body><p>Hello</p></body></html>"
+    book.add_item(chapter)
+    book.spine = [chapter]
+    book.add_item(epub.EpubNcx())
+    book.add_item(epub.EpubNav())
+
+    epub_path = path / filename
+    epub.write_epub(str(epub_path), book)
+    return epub_path
+
+
 def _create_epub_with_cover_meta(path: Path) -> Path:
     """Create an EPUB where cover is declared via <meta name="cover" content="cover-img"/>
     but ebooklib's get_metadata("OPF", "cover") doesn't return it.
@@ -34,17 +48,7 @@ def _create_epub_with_cover_meta(path: Path) -> Path:
     # This is the standard EPUB 2 way: <meta name="cover" content="cover-img"/>
     book.add_metadata("OPF", "meta", None, {"name": "cover", "content": "cover-img"})
 
-    # Add a minimal chapter so the EPUB is valid
-    c1 = epub.EpubHtml(title="Chapter 1", file_name="chap01.xhtml", lang="en")
-    c1.content = b"<html><body><p>Hello</p></body></html>"
-    book.add_item(c1)
-    book.spine = [c1]
-    book.add_item(epub.EpubNcx())
-    book.add_item(epub.EpubNav())
-
-    epub_path = path / "cover_meta.epub"
-    epub.write_epub(str(epub_path), book)
-    return epub_path
+    return _write_epub(book, path, "cover_meta.epub")
 
 
 def _create_epub_without_cover(path: Path) -> Path:
@@ -54,16 +58,7 @@ def _create_epub_without_cover(path: Path) -> Path:
     book.set_title("No Cover")
     book.set_language("en")
 
-    c1 = epub.EpubHtml(title="Chapter 1", file_name="chap01.xhtml", lang="en")
-    c1.content = b"<html><body><p>Hello</p></body></html>"
-    book.add_item(c1)
-    book.spine = [c1]
-    book.add_item(epub.EpubNcx())
-    book.add_item(epub.EpubNav())
-
-    epub_path = path / "no_cover.epub"
-    epub.write_epub(str(epub_path), book)
-    return epub_path
+    return _write_epub(book, path, "no_cover.epub")
 
 
 @pytest.fixture

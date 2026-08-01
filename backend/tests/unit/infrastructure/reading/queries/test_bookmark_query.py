@@ -26,15 +26,6 @@ async def add_bookmark(db_session: AsyncSession, book: Book, highlight: Highligh
     return bookmark
 
 
-async def add_other_user(db_session: AsyncSession) -> User:
-    """Create a second user to check ownership scoping."""
-    other = User(id=2, email="other@test.com")
-    db_session.add(other)
-    await db_session.commit()
-    await db_session.refresh(other)
-    return other
-
-
 async def test_book_without_bookmarks_returns_empty_tuple(
     query: BookmarkQuery, test_book: Book
 ) -> None:
@@ -80,11 +71,11 @@ async def test_another_users_book_is_invisible(
     db_session: AsyncSession,
     test_book: Book,
     test_highlight: Highlight,
+    other_user: User,
 ) -> None:
     await add_bookmark(db_session, test_book, test_highlight)
-    other = await add_other_user(db_session)
 
-    assert await query.list_for_book(BookId(test_book.id), UserId(other.id)) is None
+    assert await query.list_for_book(BookId(test_book.id), UserId(other_user.id)) is None
 
 
 async def test_bookmarks_of_another_book_are_not_included(
