@@ -25,3 +25,7 @@ using the same Docker image with a different entrypoint (`saq src.worker.worker_
 3. Create a top-level async task function in `src/worker.py` and register it in `worker_settings["functions"]`
 4. Create an enqueue use case in `src/application/jobs/commands/`
 5. Wire it through the DI container (`src/containers/jobs.py`)
+
+The prereading generator is the reference implementation of a batch-producing
+job: `src/infrastructure/jobs/tasks/prereading_task_handler.py`, with
+`job_lifecycle_handler.py` alongside it for the batch bookkeeping.
