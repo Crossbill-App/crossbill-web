@@ -1,6 +1,5 @@
 """Tests for AuthenticateUserUseCase with token rotation."""
 
-from datetime import UTC, datetime, timedelta
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
@@ -12,6 +11,7 @@ from src.application.identity.dtos import TokenPairWithMetadata
 from src.domain.common.value_objects.ids import UserId
 from src.domain.identity.entities.user import User
 from src.domain.identity.exceptions import InvalidCredentialsError
+from tests.unit.application.identity.commands.conftest import make_token_pair
 
 
 def _make_user(user_id: int = 1) -> User:
@@ -24,39 +24,7 @@ def _make_user(user_id: int = 1) -> User:
     )
 
 
-def _make_token_pair() -> TokenPairWithMetadata:
-    return TokenPairWithMetadata(
-        access_token="access",
-        refresh_token="refresh",
-        token_type="bearer",
-        expires_in=900,
-        jti="test-jti",
-        family_id="test-family",
-        refresh_token_expires_at=datetime.now(UTC) + timedelta(days=30),
-    )
-
-
 class TestAuthenticateUserUseCase:
-    @pytest.fixture
-    def user_repository(self) -> AsyncMock:
-        return AsyncMock()
-
-    @pytest.fixture
-    def password_service(self) -> MagicMock:
-        # Hashing is awaited (it runs on a worker thread); get_dummy_hash is not.
-        service = MagicMock()
-        service.hash_password = AsyncMock(return_value="hashed")
-        service.verify_password = AsyncMock(return_value=False)
-        return service
-
-    @pytest.fixture
-    def token_service(self) -> MagicMock:
-        return MagicMock()
-
-    @pytest.fixture
-    def refresh_token_repository(self) -> AsyncMock:
-        return AsyncMock()
-
     @pytest.fixture
     def use_case(
         self,
@@ -83,7 +51,7 @@ class TestAuthenticateUserUseCase:
         user = _make_user()
         user_repository.find_by_email.return_value = user
         password_service.verify_password.return_value = True
-        token_pair = _make_token_pair()
+        token_pair = make_token_pair()
         token_service.create_token_pair.return_value = token_pair
         refresh_token_repository.save.return_value = MagicMock()
         return token_pair
