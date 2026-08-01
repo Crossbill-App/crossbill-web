@@ -1,6 +1,6 @@
 import type { BookReflectionResponse } from '@/api/generated/model';
 
-export type ReflectionNoteIdField =
+type ReflectionNoteIdField =
   | 'what_is_it_about_note_id'
   | 'what_does_it_say_note_id'
   | 'do_i_agree_note_id'

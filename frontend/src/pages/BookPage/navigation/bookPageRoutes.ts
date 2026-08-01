@@ -8,7 +8,7 @@ import {
 } from '@/theme/Icons.tsx';
 import type { SvgIconComponent } from '@mui/icons-material';
 
-export type BookPageRoute =
+type BookPageRoute =
   | '/book/$bookId/structure'
   | '/book/$bookId/highlights'
   | '/book/$bookId/flashcards'
