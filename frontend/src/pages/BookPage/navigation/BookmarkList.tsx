@@ -161,8 +161,12 @@ export const BookmarkList = ({
                       {highlight.page && (
                         <Typography
                           variant="caption"
-                          color="text.secondary"
-                          sx={{ fontSize: '0.75rem', mt: 0.25, display: 'block' }}
+                          sx={{
+                            color: 'text.secondary',
+                            fontSize: '0.75rem',
+                            mt: 0.25,
+                            display: 'block',
+                          }}
                         >
                           Page {highlight.page}
                         </Typography>
@@ -174,7 +178,13 @@ export const BookmarkList = ({
             })}
           </Box>
         ) : (
-          <Typography variant="body2" color="text.secondary" sx={{ fontSize: '0.813rem' }}>
+          <Typography
+            variant="body2"
+            sx={{
+              color: 'text.secondary',
+              fontSize: '0.813rem',
+            }}
+          >
             No bookmarks yet.
           </Typography>
         )}

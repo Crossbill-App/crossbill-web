@@ -34,7 +34,7 @@ interface TagAutocompleteProps<T> {
   preventParentNavigation: boolean;
   chipAriaDescription: string;
   getOptionLabel: (option: T | string) => string;
-  isOptionEqualToValue?: (option: T, value: T) => boolean;
+  isOptionEqualToValue?: (option: T, value: T | string) => boolean;
   label?: string;
   showLabelAsTypography?: boolean;
 }
@@ -76,7 +76,13 @@ export const TagAutocomplete = <T,>({
   return (
     <Box data-prevent-navigation={preventParentNavigation || undefined}>
       {showLabelAsTypography && label && (
-        <Typography variant="subtitle2" color="text.secondary" gutterBottom>
+        <Typography
+          variant="subtitle2"
+          gutterBottom
+          sx={{
+            color: 'text.secondary',
+          }}
+        >
           {label}
         </Typography>
       )}
@@ -161,7 +167,9 @@ export const TagInput = ({
       preventParentNavigation={true}
       chipAriaDescription={chipAriaDescription}
       getOptionLabel={(option) => (typeof option === 'string' ? option : option.name)}
-      isOptionEqualToValue={(option, value) => option.id === value.id}
+      isOptionEqualToValue={(option, value) =>
+        typeof value === 'string' ? option.name === value : option.id === value.id
+      }
       label={label}
       showLabelAsTypography={true}
     />

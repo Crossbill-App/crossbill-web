@@ -57,7 +57,13 @@ export const LoginPage = () => {
               alt="Crossbill"
               sx={{ height: 64, width: 64, mb: 2 }}
             />
-            <Typography variant="h5" component="h1" fontWeight={600}>
+            <Typography
+              variant="h5"
+              component="h1"
+              sx={{
+                fontWeight: 600,
+              }}
+            >
               Sign in to Crossbill
             </Typography>
           </Box>
@@ -103,7 +109,12 @@ export const LoginPage = () => {
 
           <FeatureGate flag="user_registrations" value={true}>
             <Box sx={{ mt: 3, textAlign: 'center' }}>
-              <Typography variant="body2" color="text.secondary">
+              <Typography
+                variant="body2"
+                sx={{
+                  color: 'text.secondary',
+                }}
+              >
                 Don't have an account?{' '}
                 <Link component={RouterLink} to="/register" underline="hover">
                   Create one

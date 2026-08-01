@@ -24,8 +24,12 @@ export const PrereadingContent = ({ content, isGenerating }: PrereadingContentPr
         <CircularProgress size={24} />
         <Typography
           variant="body2"
-          color="text.secondary"
-          sx={(theme) => ({ mt: theme.spacing(1) })}
+          sx={[
+            {
+              color: 'text.secondary',
+            },
+            (theme) => ({ mt: theme.spacing(1) }),
+          ]}
         >
           Generating pre-reading overview...
         </Typography>
@@ -56,8 +60,12 @@ export const PrereadingContent = ({ content, isGenerating }: PrereadingContentPr
 
       <Typography
         variant="caption"
-        color="text.secondary"
-        sx={(theme) => ({ display: 'block', mt: theme.spacing(3) })}
+        sx={[
+          {
+            color: 'text.secondary',
+          },
+          (theme) => ({ display: 'block', mt: theme.spacing(3) }),
+        ]}
       >
         Generated on {new Date(content.generated_at).toLocaleDateString()}
       </Typography>

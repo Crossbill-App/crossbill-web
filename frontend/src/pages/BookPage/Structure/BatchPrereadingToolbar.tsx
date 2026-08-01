@@ -130,7 +130,12 @@ export const BatchPrereadingToolbar = ({ bookId }: BatchPrereadingToolbarProps) 
       <AIFeature>
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
           <CircularProgress size={20} />
-          <Typography variant="body2" color="text.secondary">
+          <Typography
+            variant="body2"
+            sx={{
+              color: 'text.secondary',
+            }}
+          >
             Generating summaries{total > 0 ? ` (${completed}/${total})` : '...'}
           </Typography>
           <IconButtonWithTooltip

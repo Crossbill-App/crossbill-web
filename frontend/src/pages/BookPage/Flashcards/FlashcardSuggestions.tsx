@@ -24,7 +24,13 @@ export const FlashcardSuggestions = ({
   return (
     <>
       {suggestions.length ? (
-        <Typography variant="subtitle2" color="text.secondary" gutterBottom>
+        <Typography
+          variant="subtitle2"
+          gutterBottom
+          sx={{
+            color: 'text.secondary',
+          }}
+        >
           Suggested flashcards
         </Typography>
       ) : (

@@ -31,7 +31,13 @@ export const NotePickerDialog = ({
     <CommonDialog open={open} onClose={onClose} title={title} maxWidth="sm">
       {isLoading && <Spinner />}
       {!isLoading && notes.length === 0 && (
-        <Typography color="text.secondary">No notes in this book yet.</Typography>
+        <Typography
+          sx={{
+            color: 'text.secondary',
+          }}
+        >
+          No notes in this book yet.
+        </Typography>
       )}
       <List>
         {notes.map((note) => (

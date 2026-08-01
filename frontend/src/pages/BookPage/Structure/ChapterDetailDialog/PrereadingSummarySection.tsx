@@ -17,7 +17,12 @@ export const PrereadingSummarySection = ({
       {prereadingSummary ? (
         <PrereadingContent content={prereadingSummary} />
       ) : (
-        <Typography variant="body2" color="text.secondary">
+        <Typography
+          variant="body2"
+          sx={{
+            color: 'text.secondary',
+          }}
+        >
           No chapter summary available
         </Typography>
       )}

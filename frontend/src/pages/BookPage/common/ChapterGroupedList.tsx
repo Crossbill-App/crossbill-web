@@ -46,7 +46,12 @@ export const ChapterGroupedList = <TChapter, TItem>({
   if (isLoading) {
     return (
       <Box sx={{ display: 'flex', justifyContent: 'center', py: 4 }}>
-        <Typography variant="body2" color="text.secondary">
+        <Typography
+          variant="body2"
+          sx={{
+            color: 'text.secondary',
+          }}
+        >
           Searching...
         </Typography>
       </Box>

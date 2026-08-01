@@ -55,7 +55,13 @@ export const LandingPage = () => {
         <Typography variant="h2" component="h1" gutterBottom>
           Welcome to Crossbill
         </Typography>
-        <Typography variant="body1" color="text.secondary" sx={{ fontSize: '1.1rem' }}>
+        <Typography
+          variant="body1"
+          sx={{
+            color: 'text.secondary',
+            fontSize: '1.1rem',
+          }}
+        >
           Your reading companion
         </Typography>
       </Box>
@@ -83,7 +89,12 @@ export const LandingPage = () => {
 
       {data?.items && data.items.length === 0 && (
         <Box sx={{ py: 4, textAlign: 'center' }}>
-          <Typography variant="body1" color="text.secondary">
+          <Typography
+            variant="body1"
+            sx={{
+              color: 'text.secondary',
+            }}
+          >
             No books found. Upload some highlights to get started!
           </Typography>
         </Box>

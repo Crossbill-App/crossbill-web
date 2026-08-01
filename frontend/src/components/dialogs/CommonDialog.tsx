@@ -132,7 +132,13 @@ export const CommonDialog = ({
       }}
     >
       <DialogTitle>
-        <Box display="flex" alignItems="center" justifyContent="space-between">
+        <Box
+          sx={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+          }}
+        >
           {title}
           <IconButton
             edge="end"

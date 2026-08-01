@@ -126,7 +126,13 @@ export const TagsList = ({
           )}
         </Box>
       ) : (
-        <Typography variant="body2" color="text.secondary" sx={{ fontSize: '0.813rem' }}>
+        <Typography
+          variant="body2"
+          sx={{
+            color: 'text.secondary',
+            fontSize: '0.813rem',
+          }}
+        >
           No tagged highlights yet.
         </Typography>
       )}

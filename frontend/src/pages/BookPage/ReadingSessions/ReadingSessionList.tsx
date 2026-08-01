@@ -21,7 +21,14 @@ export const ReadingSessionList = ({
   return (
     <FadeInOut ekey={animationKey}>
       {sessions.length === 0 ? (
-        <Typography variant="body1" color="text.secondary" sx={{ py: 4, textAlign: 'center' }}>
+        <Typography
+          variant="body1"
+          sx={{
+            color: 'text.secondary',
+            py: 4,
+            textAlign: 'center',
+          }}
+        >
           {emptyMessage}
         </Typography>
       ) : (

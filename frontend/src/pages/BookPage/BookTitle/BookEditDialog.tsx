@@ -67,14 +67,22 @@ export const BookEditDialog = ({ book, open, onClose }: BookEditDialogProps) => 
         </>
       }
     >
-      <Box display="flex" flexDirection="column" gap={3}>
+      <Box
+        sx={{
+          display: 'flex',
+          flexDirection: 'column',
+          gap: 3,
+        }}
+      >
         {/* Book Info Display */}
         <Box
-          display="flex"
-          flexDirection={{ xs: 'column', sm: 'row' }}
-          gap={2}
-          alignItems={{ xs: 'center', sm: 'flex-start' }}
-          sx={{ mt: 3 }}
+          sx={{
+            display: 'flex',
+            flexDirection: { xs: 'column', sm: 'row' },
+            gap: 2,
+            alignItems: { xs: 'center', sm: 'flex-start' },
+            mt: 3,
+          }}
         >
           <BookCover
             coverFile={book.cover_file ?? null}
@@ -85,17 +93,32 @@ export const BookEditDialog = ({ book, open, onClose }: BookEditDialogProps) => 
             objectFit="cover"
           />
           <Box
-            flex={1}
-            sx={{ textAlign: { xs: 'center', sm: 'left' }, width: { xs: '100%', sm: 'auto' } }}
+            sx={{
+              flex: 1,
+              textAlign: { xs: 'center', sm: 'left' },
+              width: { xs: '100%', sm: 'auto' },
+            }}
           >
             <Typography variant="h6" gutterBottom>
               {book.title}
             </Typography>
-            <Typography variant="body2" color="text.secondary" gutterBottom>
+            <Typography
+              variant="body2"
+              gutterBottom
+              sx={{
+                color: 'text.secondary',
+              }}
+            >
               {book.author || 'Unknown Author'}
             </Typography>
             {book.isbn && (
-              <Typography variant="body2" color="text.secondary" gutterBottom>
+              <Typography
+                variant="body2"
+                gutterBottom
+                sx={{
+                  color: 'text.secondary',
+                }}
+              >
                 ISBN: {book.isbn}
               </Typography>
             )}

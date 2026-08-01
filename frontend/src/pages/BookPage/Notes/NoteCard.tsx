@@ -49,8 +49,21 @@ export const NoteCard = ({ note, onClick, action }: NoteCardProps) => {
         }
       }}
     >
-      <Stack direction="row" alignItems="center" justifyContent="space-between" sx={{ mb: 0.5 }}>
-        <Stack direction="row" spacing={1} alignItems="center">
+      <Stack
+        direction="row"
+        sx={{
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          mb: 0.5,
+        }}
+      >
+        <Stack
+          direction="row"
+          spacing={1}
+          sx={{
+            alignItems: 'center',
+          }}
+        >
           <Typography variant="h3">{note.title}</Typography>
           {note.kind && <Chip size="small" label={NOTE_KIND_LABELS[note.kind as NoteKindValue]} />}
         </Stack>

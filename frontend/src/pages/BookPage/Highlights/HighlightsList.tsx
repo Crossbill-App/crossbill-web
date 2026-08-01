@@ -46,7 +46,13 @@ export const HighlightsList = ({
       />
     )}
     renderEmptyChapter={() => (
-      <Typography variant="body2" color="text.secondary" sx={{ pl: 0.5 }}>
+      <Typography
+        variant="body2"
+        sx={{
+          color: 'text.secondary',
+          pl: 0.5,
+        }}
+      >
         No highlights found in this chapter.
       </Typography>
     )}

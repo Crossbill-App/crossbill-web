@@ -84,7 +84,12 @@ export const StructurePage = () => {
   if (book.chapters.length === 0) {
     return (
       <Box sx={{ p: 3, textAlign: 'center' }}>
-        <Typography variant="body1" color="text.secondary">
+        <Typography
+          variant="body1"
+          sx={{
+            color: 'text.secondary',
+          }}
+        >
           No chapter structure available for this book.
         </Typography>
       </Box>
