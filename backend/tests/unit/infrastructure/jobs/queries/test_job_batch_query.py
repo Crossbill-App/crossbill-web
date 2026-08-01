@@ -52,15 +52,6 @@ async def add_batch(
     return batch
 
 
-async def add_other_user(db_session: AsyncSession) -> User:
-    """Create a second user to check ownership scoping."""
-    other = User(id=OTHER_USER_ID, email="other@test.com")
-    db_session.add(other)
-    await db_session.commit()
-    await db_session.refresh(other)
-    return other
-
-
 async def test_get_batch_returns_the_progress_counters(
     query: JobBatchQuery, db_session: AsyncSession
 ) -> None:
@@ -90,9 +81,8 @@ async def test_get_batch_returns_none_for_an_unknown_batch(query: JobBatchQuery)
 
 
 async def test_get_batch_hides_another_users_batch(
-    query: JobBatchQuery, db_session: AsyncSession
+    query: JobBatchQuery, db_session: AsyncSession, other_user: User
 ) -> None:
-    await add_other_user(db_session)
     batch = await add_batch(db_session, user_id=OTHER_USER_ID)
 
     assert await query.get_batch(JobBatchId(batch.id), UserId(DEFAULT_USER_ID)) is None
@@ -165,9 +155,8 @@ async def test_another_books_batch_is_not_returned(
 
 
 async def test_another_users_active_batch_is_invisible(
-    query: JobBatchQuery, db_session: AsyncSession
+    query: JobBatchQuery, db_session: AsyncSession, other_user: User
 ) -> None:
-    await add_other_user(db_session)
     await add_batch(db_session, status=JobBatchStatus.RUNNING, user_id=OTHER_USER_ID)
 
     view = await query.get_active_for_reference(

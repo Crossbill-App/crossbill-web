@@ -8,11 +8,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from src.application.reading.services.label_resolution_service import LabelResolutionService
 from src.domain.common.value_objects import XPointRange
 from src.domain.common.value_objects.ids import BookId, UserId
-from src.domain.reading.services.highlight_style_resolver import HighlightStyleResolver
 from src.infrastructure.reading.queries.reading_session_query import ReadingSessionQuery
-from src.infrastructure.reading.repositories.highlight_style_repository import (
-    HighlightStyleRepository,
-)
 from src.models import Book, Highlight, ReadingSession, User
 from tests.conftest import create_test_book, create_test_highlight
 
@@ -61,16 +57,14 @@ def text_extraction_service() -> FakeTextExtractionService:
 @pytest.fixture
 def query(
     db_session: AsyncSession,
+    label_resolution_service: LabelResolutionService,
     file_repository: FakeFileRepository,
     text_extraction_service: FakeTextExtractionService,
 ) -> ReadingSessionQuery:
     """The query service wired the way the container wires it."""
     return ReadingSessionQuery(
         db=db_session,
-        label_resolution_service=LabelResolutionService(
-            highlight_style_repository=HighlightStyleRepository(db_session),
-            highlight_style_resolver=HighlightStyleResolver(),
-        ),
+        label_resolution_service=label_resolution_service,
         file_repository=file_repository,  # pyright: ignore[reportArgumentType]
         text_extraction_service=text_extraction_service,  # pyright: ignore[reportArgumentType]
     )
@@ -113,13 +107,30 @@ async def link(db_session: AsyncSession, session: ReadingSession, highlight: Hig
     await db_session.commit()
 
 
-async def add_other_user(db_session: AsyncSession) -> User:
-    """Create a second user to check ownership scoping."""
-    other = User(id=2, email="other@test.com")
-    db_session.add(other)
-    await db_session.commit()
-    await db_session.refresh(other)
-    return other
+async def add_highlight(
+    db_session: AsyncSession,
+    book: Book,
+    text: str,
+    datetime_str: str,
+    user_id: int = DEFAULT_USER_ID,
+    deleted_at: datetime | None = None,
+) -> Highlight:
+    """A highlight on the book, owned by the default user unless told otherwise."""
+    return await create_test_highlight(
+        db_session=db_session,
+        book=book,
+        user_id=user_id,
+        text=text,
+        datetime_str=datetime_str,
+        deleted_at=deleted_at,
+    )
+
+
+async def list_first_session_highlights(query: ReadingSessionQuery, book: Book) -> list[str]:
+    """The highlight texts of the book's first (newest) session."""
+    page = await query.list_for_book(BookId(book.id), UserId(DEFAULT_USER_ID), 30, 0)
+    assert page is not None
+    return [h.text for h in page.sessions[0].highlights]
 
 
 async def test_missing_book_is_distinguished_from_a_book_without_sessions(
@@ -137,10 +148,9 @@ async def test_missing_book_is_distinguished_from_a_book_without_sessions(
 
 
 async def test_another_users_book_is_invisible(
-    query: ReadingSessionQuery, db_session: AsyncSession, test_book: Book
+    query: ReadingSessionQuery, test_book: Book, other_user: User
 ) -> None:
-    other = await add_other_user(db_session)
-    assert await query.list_for_book(BookId(test_book.id), UserId(other.id), 30, 0) is None
+    assert await query.list_for_book(BookId(test_book.id), UserId(other_user.id), 30, 0) is None
 
 
 async def test_sessions_are_paginated_newest_first_with_an_unpaginated_total(
@@ -176,41 +186,22 @@ async def test_sessions_of_another_book_are_excluded(
 
 
 async def test_soft_deleted_and_other_users_highlights_are_excluded(
-    query: ReadingSessionQuery, db_session: AsyncSession, test_book: Book
+    query: ReadingSessionQuery, db_session: AsyncSession, test_book: Book, other_user: User
 ) -> None:
     session = await add_session(
         db_session, test_book, DEFAULT_USER_ID, datetime(2024, 1, 1, tzinfo=UTC)
     )
-    kept = await create_test_highlight(
-        db_session=db_session,
-        book=test_book,
-        user_id=DEFAULT_USER_ID,
-        text="Kept",
-        datetime_str="2024-01-01 10:00:00",
+    kept = await add_highlight(db_session, test_book, "Kept", "2024-01-01 10:00:00")
+    deleted = await add_highlight(
+        db_session, test_book, "Deleted", "2024-01-01 11:00:00", deleted_at=datetime.now(UTC)
     )
-    deleted = await create_test_highlight(
-        db_session=db_session,
-        book=test_book,
-        user_id=DEFAULT_USER_ID,
-        text="Deleted",
-        datetime_str="2024-01-01 11:00:00",
-        deleted_at=datetime.now(UTC),
-    )
-    other = await add_other_user(db_session)
-    theirs = await create_test_highlight(
-        db_session=db_session,
-        book=test_book,
-        user_id=other.id,
-        text="Theirs",
-        datetime_str="2024-01-01 12:00:00",
+    theirs = await add_highlight(
+        db_session, test_book, "Theirs", "2024-01-01 12:00:00", user_id=other_user.id
     )
     for highlight in (kept, deleted, theirs):
         await link(db_session, session, highlight)
 
-    page = await query.list_for_book(BookId(test_book.id), UserId(DEFAULT_USER_ID), 30, 0)
-
-    assert page is not None
-    assert [h.text for h in page.sessions[0].highlights] == ["Kept"]
+    assert await list_first_session_highlights(query, test_book) == ["Kept"]
 
 
 async def test_highlights_are_ordered_by_position_with_positionless_last(
@@ -221,21 +212,14 @@ async def test_highlights_are_ordered_by_position_with_positionless_last(
     )
     positions: list[list[int] | None] = [[9, 0], None, [2, 5], [2, 1]]
     for index, position in enumerate(positions):
-        highlight = await create_test_highlight(
-            db_session=db_session,
-            book=test_book,
-            user_id=DEFAULT_USER_ID,
-            text=f"Highlight {index}",
-            datetime_str=f"2024-01-01 1{index}:00:00",
+        highlight = await add_highlight(
+            db_session, test_book, f"Highlight {index}", f"2024-01-01 1{index}:00:00"
         )
         highlight.position = position
         await db_session.commit()
         await link(db_session, session, highlight)
 
-    page = await query.list_for_book(BookId(test_book.id), UserId(DEFAULT_USER_ID), 30, 0)
-
-    assert page is not None
-    assert [h.text for h in page.sessions[0].highlights] == [
+    assert await list_first_session_highlights(query, test_book) == [
         "Highlight 3",
         "Highlight 2",
         "Highlight 0",
@@ -296,16 +280,14 @@ async def test_content_is_none_without_an_epub_or_without_a_recorded_range(
 async def test_a_session_whose_extraction_fails_is_still_listed(
     db_session: AsyncSession,
     test_book: Book,
+    label_resolution_service: LabelResolutionService,
     file_repository: FakeFileRepository,
 ) -> None:
     await add_epub(db_session, test_book)
     await add_session(db_session, test_book, DEFAULT_USER_ID, datetime(2024, 1, 1, tzinfo=UTC))
     query = ReadingSessionQuery(
         db=db_session,
-        label_resolution_service=LabelResolutionService(
-            highlight_style_repository=HighlightStyleRepository(db_session),
-            highlight_style_resolver=HighlightStyleResolver(),
-        ),
+        label_resolution_service=label_resolution_service,
         file_repository=file_repository,  # pyright: ignore[reportArgumentType]
         text_extraction_service=FakeTextExtractionService(fail=True),  # pyright: ignore[reportArgumentType]
     )

@@ -18,6 +18,7 @@ from src.domain.notes.entities.note import NoteKind
 from src.infrastructure.notes.queries.note_query import NoteQuery
 from src.models import Book, Chapter, Flashcard, Highlight, Note, Tag, User
 from tests.conftest import create_test_book, create_test_highlight
+from tests.unit.infrastructure.conftest import AddChapter
 
 DEFAULT_USER_ID = 1
 OTHER_USER_ID = 2
@@ -29,16 +30,6 @@ AddNote = Callable[..., Awaitable[Note]]
 def query(db_session: AsyncSession) -> NoteQuery:
     """The query service wired the way the container wires it."""
     return NoteQuery(db=db_session)
-
-
-@pytest.fixture
-async def other_user(db_session: AsyncSession) -> User:
-    """A second user, to check ownership scoping."""
-    user = User(id=OTHER_USER_ID, email="other@test.com")
-    db_session.add(user)
-    await db_session.commit()
-    await db_session.refresh(user)
-    return user
 
 
 @pytest.fixture
@@ -73,15 +64,6 @@ def add_note(db_session: AsyncSession) -> AddNote:
     return _add_note
 
 
-async def add_chapter(db_session: AsyncSession, book: Book, name: str) -> Chapter:
-    """Attach a chapter to a book."""
-    chapter = Chapter(book_id=book.id, name=name)
-    db_session.add(chapter)
-    await db_session.commit()
-    await db_session.refresh(chapter)
-    return chapter
-
-
 async def add_tag(db_session: AsyncSession, book: Book, name: str, user_id: int) -> Tag:
     """Attach a tag to a book."""
     tag = Tag(book_id=book.id, user_id=user_id, name=name)
@@ -110,6 +92,16 @@ async def add_flashcard(
     await db_session.commit()
     await db_session.refresh(flashcard)
     return flashcard
+
+
+@pytest.fixture
+async def note_with_another_users_flashcard(
+    db_session: AsyncSession, test_book: Book, add_note: AddNote, other_user: User
+) -> Note:
+    """One of the viewer's notes, carrying a flashcard somebody else owns."""
+    note = await add_note(test_book)
+    await add_flashcard(db_session, test_book, note.id, "Theirs", user_id=OTHER_USER_ID)
+    return note
 
 
 class TestGetNote:
@@ -205,6 +197,7 @@ class TestGetNote:
         db_session: AsyncSession,
         test_book: Book,
         add_note: AddNote,
+        add_chapter: AddChapter,
         other_user: User,
     ) -> None:
         # A note may point at rows the viewer does not own; the API reports the
@@ -212,7 +205,7 @@ class TestGetNote:
         other_book = await create_test_book(
             db_session=db_session, user_id=OTHER_USER_ID, title="Theirs"
         )
-        other_chapter = await add_chapter(db_session, other_book, "Their chapter")
+        other_chapter = await add_chapter(other_book, "Their chapter")
         other_highlight = await create_test_highlight(
             db_session=db_session,
             book=other_book,
@@ -271,15 +264,9 @@ class TestGetNote:
         assert view.flashcards[0].note_id == note.id
 
     async def test_another_users_flashcard_on_the_note_is_invisible(
-        self,
-        query: NoteQuery,
-        db_session: AsyncSession,
-        test_book: Book,
-        add_note: AddNote,
-        other_user: User,
+        self, query: NoteQuery, note_with_another_users_flashcard: Note
     ) -> None:
-        note = await add_note(test_book)
-        await add_flashcard(db_session, test_book, note.id, "Theirs", user_id=OTHER_USER_ID)
+        note = note_with_another_users_flashcard
 
         view = await query.get_note(NoteId(note.id), UserId(DEFAULT_USER_ID))
 
@@ -336,16 +323,8 @@ class TestListForBook:
         ]
 
     async def test_another_users_flashcard_is_invisible_in_the_list(
-        self,
-        query: NoteQuery,
-        db_session: AsyncSession,
-        test_book: Book,
-        add_note: AddNote,
-        other_user: User,
+        self, query: NoteQuery, test_book: Book, note_with_another_users_flashcard: Note
     ) -> None:
-        note = await add_note(test_book)
-        await add_flashcard(db_session, test_book, note.id, "Theirs", user_id=OTHER_USER_ID)
-
         (view,) = await query.list_for_book(BookId(test_book.id), UserId(DEFAULT_USER_ID))
 
         assert view.flashcards == ()
@@ -365,12 +344,12 @@ class TestListForBook:
     async def test_filters_by_chapter(
         self,
         query: NoteQuery,
-        db_session: AsyncSession,
         test_book: Book,
         test_chapter: Chapter,
         add_note: AddNote,
+        add_chapter: AddChapter,
     ) -> None:
-        other_chapter = await add_chapter(db_session, test_book, "Elsewhere")
+        other_chapter = await add_chapter(test_book, "Elsewhere")
         await add_note(test_book, title="Linked", chapters=[test_chapter])
         await add_note(test_book, title="Unlinked", chapters=[other_chapter])
 
@@ -413,12 +392,12 @@ class TestListForBook:
     async def test_resolves_links_for_every_note_in_the_list(
         self,
         query: NoteQuery,
-        db_session: AsyncSession,
         test_book: Book,
         test_chapter: Chapter,
         add_note: AddNote,
+        add_chapter: AddChapter,
     ) -> None:
-        second_chapter = await add_chapter(db_session, test_book, "Second")
+        second_chapter = await add_chapter(test_book, "Second")
         await add_note(test_book, title="First", chapters=[test_chapter])
         await add_note(test_book, title="Second", chapters=[second_chapter])
 

@@ -20,15 +20,6 @@ def query(db_session: AsyncSession) -> BookListQuery:
     return BookListQuery(db=db_session)
 
 
-async def add_other_user(db_session: AsyncSession) -> User:
-    """Create a second user to check ownership scoping."""
-    other = User(id=OTHER_USER_ID, email="other@test.com")
-    db_session.add(other)
-    await db_session.commit()
-    await db_session.refresh(other)
-    return other
-
-
 async def add_flashcard(db_session: AsyncSession, book: Book, user_id: int) -> Flashcard:
     """Attach a flashcard to a book."""
     card = Flashcard(user_id=user_id, book_id=book.id, question="Q", answer="A")
@@ -42,6 +33,26 @@ async def mark_viewed(db_session: AsyncSession, book: Book, when: datetime) -> N
     """Stamp a book's last_viewed so it shows up in the recently-viewed list."""
     book.last_viewed = when
     await db_session.commit()
+
+
+async def add_one_of_each_countable(db_session: AsyncSession, book: Book) -> None:
+    """A live highlight, a soft-deleted one that must not be counted, and a flashcard."""
+    await create_test_highlight(
+        db_session=db_session,
+        book=book,
+        user_id=DEFAULT_USER_ID,
+        text="Kept",
+        datetime_str="2024-01-15 14:30:22",
+    )
+    await create_test_highlight(
+        db_session=db_session,
+        book=book,
+        user_id=DEFAULT_USER_ID,
+        text="Gone",
+        datetime_str="2024-01-15 14:31:22",
+        deleted_at=datetime(2024, 2, 1, tzinfo=UTC),
+    )
+    await add_flashcard(db_session, book, DEFAULT_USER_ID)
 
 
 async def test_books_are_ordered_by_title_with_zero_counts(
@@ -68,22 +79,7 @@ async def test_books_are_ordered_by_title_with_zero_counts(
 async def test_counts_exclude_soft_deleted_highlights(
     query: BookListQuery, db_session: AsyncSession, test_book: Book
 ) -> None:
-    await create_test_highlight(
-        db_session=db_session,
-        book=test_book,
-        user_id=DEFAULT_USER_ID,
-        text="Kept",
-        datetime_str="2024-01-15 14:30:22",
-    )
-    await create_test_highlight(
-        db_session=db_session,
-        book=test_book,
-        user_id=DEFAULT_USER_ID,
-        text="Gone",
-        datetime_str="2024-01-15 14:31:22",
-        deleted_at=datetime(2024, 2, 1, tzinfo=UTC),
-    )
-    await add_flashcard(db_session, test_book, DEFAULT_USER_ID)
+    await add_one_of_each_countable(db_session, test_book)
 
     page = await query.list_books(
         user_id=UserId(DEFAULT_USER_ID),
@@ -97,9 +93,8 @@ async def test_counts_exclude_soft_deleted_highlights(
 
 
 async def test_another_users_books_are_invisible(
-    query: BookListQuery, db_session: AsyncSession, test_book: Book
+    query: BookListQuery, db_session: AsyncSession, test_book: Book, other_user: User
 ) -> None:
-    await add_other_user(db_session)
     await create_test_book(db_session=db_session, user_id=OTHER_USER_ID, title="Not Mine")
 
     page = await query.list_books(
@@ -210,9 +205,8 @@ async def test_recently_viewed_skips_books_never_opened(
 
 
 async def test_recently_viewed_excludes_another_users_books(
-    query: BookListQuery, db_session: AsyncSession, test_book: Book
+    query: BookListQuery, db_session: AsyncSession, test_book: Book, other_user: User
 ) -> None:
-    await add_other_user(db_session)
     theirs = await create_test_book(db_session=db_session, user_id=OTHER_USER_ID, title="Not Mine")
     await mark_viewed(db_session, test_book, datetime(2024, 1, 1, tzinfo=UTC))
     await mark_viewed(db_session, theirs, datetime(2024, 6, 1, tzinfo=UTC))
@@ -237,22 +231,7 @@ async def test_recently_viewed_honours_the_limit(
 async def test_recently_viewed_carries_the_same_counts_as_the_library_list(
     query: BookListQuery, db_session: AsyncSession, test_book: Book
 ) -> None:
-    await create_test_highlight(
-        db_session=db_session,
-        book=test_book,
-        user_id=DEFAULT_USER_ID,
-        text="Kept",
-        datetime_str="2024-01-15 14:30:22",
-    )
-    await create_test_highlight(
-        db_session=db_session,
-        book=test_book,
-        user_id=DEFAULT_USER_ID,
-        text="Gone",
-        datetime_str="2024-01-15 14:31:22",
-        deleted_at=datetime(2024, 2, 1, tzinfo=UTC),
-    )
-    await add_flashcard(db_session, test_book, DEFAULT_USER_ID)
+    await add_one_of_each_countable(db_session, test_book)
     await mark_viewed(db_session, test_book, datetime(2024, 6, 1, tzinfo=UTC))
 
     books = await query.list_recently_viewed(user_id=UserId(DEFAULT_USER_ID), limit=10)

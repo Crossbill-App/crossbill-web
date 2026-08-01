@@ -82,6 +82,23 @@ async def create_test_book(
     return book
 
 
+async def create_test_chapter(
+    db_session: AsyncSession,
+    book: Book,
+    name: str,
+    chapter_number: int | None = None,
+    parent_id: int | None = None,
+) -> Chapter:
+    """Attach a chapter to a book."""
+    chapter = Chapter(
+        book_id=book.id, name=name, chapter_number=chapter_number, parent_id=parent_id
+    )
+    db_session.add(chapter)
+    await db_session.commit()
+    await db_session.refresh(chapter)
+    return chapter
+
+
 async def create_test_highlight(
     db_session: AsyncSession,
     book: Book,
