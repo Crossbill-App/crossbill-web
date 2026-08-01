@@ -19,7 +19,7 @@
     "test": "npm run routes:generate && vitest run",
     "test:watch": "npm run routes:generate && vitest",
     "knip": "npm run routes:generate && knip",
-    "duplication": "jscpd --no-tips"
+    "duplication-check": "jscpd --no-tips"
   },
   "dependencies": {
     "@emotion/react": "^11.14.0",

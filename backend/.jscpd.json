@@ -11,6 +11,6 @@
   "format": ["python"],
   "minLines": 5,
   "minTokens": 50,
-  "reporters": ["console", "threshold"],
+  "reporters": ["ai", "threshold"],
   "threshold": 3.5
 }

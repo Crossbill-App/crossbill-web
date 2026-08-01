@@ -10,6 +10,6 @@
   "format": ["typescript", "tsx"],
   "minLines": 5,
   "minTokens": 50,
-  "reporters": ["console", "threshold"],
+  "reporters": ["ai", "threshold"],
   "threshold": 1.8
 }

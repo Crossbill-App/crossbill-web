@@ -1,7 +1,7 @@
-.PHONY: help test mutation-test duplication dev-app dev-worker migrate migrate-new lint format api-client release-nightly deploy empty-s3-bucket reset-db
+.PHONY: help test mutation-test duplication-check dev-app dev-worker migrate migrate-new lint format api-client release-nightly deploy empty-s3-bucket reset-db
 
 help: ## Show this help
-	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*?## "}; {printf "  \033[36m%-15s\033[0m %s\n", $$1, $$2}'
+	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*?## "}; {printf "  \033[36m%-18s\033[0m %s\n", $$1, $$2}'
 
 # Backend commands (run from repo root)
 
@@ -18,8 +18,10 @@ mutation-test: ## Run mutation-testing audit on the backend domain layer (slow, 
 # ./node_modules/.bin and npx finds it from anywhere in the tree.
 # Config lives in backend/.jscpd.json; it fails once duplication passes the
 # threshold recorded there, which is a ratchet: lower it as duplication drops,
-# never raise it. The frontend equivalent is `npm run duplication`.
-duplication: ## Report copy-paste duplication in the backend (jscpd)
+# never raise it. The frontend equivalent is `npm run duplication-check`.
+# Output is the compact `ai` reporter; add `--reporters console` for the
+# detailed view with columns and token counts.
+duplication-check: ## Report copy-paste duplication in the backend (jscpd)
 	cd backend && npx jscpd --no-tips
 
 api-client: ## Export the OpenAPI schema and regenerate the frontend API client (no running backend needed)

@@ -158,4 +158,4 @@ jobs:
 
       - name: Check frontend duplication
         working-directory: frontend
-        run: npm run duplication
+        run: npm run duplication-check
