@@ -5,7 +5,7 @@ import { useRef } from 'react';
 /**
  * Base props shared by both form and immediate modes of TagInput
  */
-export interface BaseTagInputProps {
+interface BaseTagInputProps {
   /** Label text for the input field */
   label?: string;
   /** Placeholder text shown when input is empty */
@@ -39,7 +39,7 @@ interface TagAutocompleteProps<T> {
   showLabelAsTypography?: boolean;
 }
 
-export const TagAutocomplete = <T,>({
+const TagAutocomplete = <T,>({
   value,
   onChange,
   onBlur,

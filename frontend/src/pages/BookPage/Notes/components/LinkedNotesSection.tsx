@@ -13,7 +13,7 @@ import { AddIcon, LinkIcon } from '@/theme/Icons.tsx';
 import { Box, Button } from '@mui/material';
 import { useState } from 'react';
 
-export type NoteLinkTarget =
+type NoteLinkTarget =
   | { kind: 'highlight'; id: number; chapterId?: number | null }
   | { kind: 'chapter'; id: number };
 

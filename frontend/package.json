@@ -17,7 +17,8 @@
     "format:check": "prettier --check \"src/**/*.{ts,tsx,json,css,md}\" \"tests/**/*.{ts,tsx}\"",
     "type-check": "npm run routes:generate && tsc --noEmit",
     "test": "npm run routes:generate && vitest run",
-    "test:watch": "npm run routes:generate && vitest"
+    "test:watch": "npm run routes:generate && vitest",
+    "knip": "npm run routes:generate && knip"
   },
   "dependencies": {
     "@emotion/react": "^11.14.0",
@@ -27,7 +28,6 @@
     "@tanstack/react-query": "^5.90.12",
     "@tanstack/react-router": "^1.143.4",
     "axios": "^1.13.5",
-    "dompurify": "^3.3.2",
     "lodash": "^4.18.1",
     "luxon": "^3.7.2",
     "motion": "^12.23.26",
@@ -41,17 +41,12 @@
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
-    "@tanstack/react-query-devtools": "^5.91.1",
-    "@tanstack/react-router-devtools": "^1.143.4",
     "@tanstack/router-cli": "^1.143.4",
-    "@types/dompurify": "^3.2.0",
     "@types/lodash": "^4.17.21",
     "@types/luxon": "^3.7.2",
     "@types/react": "^19.2.7",
     "@types/react-color": "^3.0.13",
     "@types/react-dom": "^19.2.3",
-    "@typescript-eslint/eslint-plugin": "^8.65.0",
-    "@typescript-eslint/parser": "^8.65.0",
     "@vitejs/plugin-react": "^6.0.4",
     "@vitest/browser": "^4.1.10",
     "@vitest/browser-playwright": "^4.1.10",
@@ -59,6 +54,7 @@
     "eslint-plugin-react-hooks": "^7.1.1",
     "eslint-plugin-react-refresh": "^0.5.3",
     "globals": "^17.0.0",
+    "knip": "^6.31.0",
     "msw": "^2.15.0",
     "orval": "8.23.0",
     "playwright": "^1.62.1",

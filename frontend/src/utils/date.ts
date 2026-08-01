@@ -8,34 +8,6 @@ export const formatDate = (date: string | Date): string => {
 };
 
 /**
- * Format a date string to include time
- */
-export const formatDateTime = (date: string | Date): string => {
-  return DateTime.fromISO(date.toString()).toLocaleString(DateTime.DATETIME_MED);
-};
-
-/**
- * Get relative time (e.g., "2 hours ago")
- */
-export const getRelativeTime = (date: string | Date): string => {
-  return DateTime.fromISO(date.toString()).toRelative() || '';
-};
-
-/**
- * Parse ISO date string to DateTime object
- */
-export const parseDate = (date: string): DateTime => {
-  return DateTime.fromISO(date);
-};
-
-/**
- * Check if a date is valid
- */
-export const isValidDate = (date: string): boolean => {
-  return DateTime.fromISO(date).isValid;
-};
-
-/**
  * Format time from ISO string (e.g., "2:30 PM")
  */
 export const formatTime = (date: string | Date): string => {

@@ -8,7 +8,6 @@ export {
   ArrowBack as ArrowBackIcon,
   ArrowForward as ArrowForwardIcon,
   Close as CloseIcon,
-  ExpandLess as ExpandLessIcon,
   ExpandMore as ExpandMoreIcon,
   FilterList as FilterListIcon,
   Menu as MenuIcon,
@@ -22,7 +21,6 @@ export {
   Bookmark as BookmarkFilledIcon,
   BookmarkBorder as BookmarkIcon,
   List as ChapterListIcon,
-  Style as FlashcardsFilledIcon,
   StyleOutlined as FlashcardsIcon,
   MenuBook as HighlightsIcon,
   Notes as NotesIcon,
@@ -52,8 +50,4 @@ export {
 export { Logout as LogoutIcon, Settings as SettingsIcon } from '@mui/icons-material';
 
 // Date/Time icons
-export {
-  CalendarMonth as DateIcon,
-  Timer as DurationIcon,
-  AccessTime as TimeIcon,
-} from '@mui/icons-material';
+export { CalendarMonth as DateIcon } from '@mui/icons-material';

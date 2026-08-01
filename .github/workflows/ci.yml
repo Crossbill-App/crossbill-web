@@ -55,6 +55,10 @@ jobs:
         working-directory: frontend
         run: npm run type-check
 
+      - name: Check for unused files, exports and dependencies with Knip
+        working-directory: frontend
+        run: npm run knip
+
       - name: Resolve Playwright version
         id: playwright
         working-directory: frontend

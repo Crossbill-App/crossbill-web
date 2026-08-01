@@ -19,7 +19,7 @@ import { HighlightTabs } from './components/HighlightTabs.tsx';
 import { LabelEditorPopover } from './components/LabelEditorPopover.tsx';
 import { Toolbar } from './components/Toolbar.tsx';
 
-export interface HighlightViewDialogProps {
+interface HighlightViewDialogProps {
   controller: HighlightDialogController;
   bookId: number;
   availableTags: TagInBook[];
