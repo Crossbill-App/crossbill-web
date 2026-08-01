@@ -17,9 +17,9 @@ export interface ReadingSessionUploadSessionItem {
   start_xpoint?: string | null;
   /** End position (xpoint string) */
   end_xpoint?: string | null;
-  /** Start page for PDFs */
+  /** Start page number */
   start_page?: number | null;
-  /** End page for PDFs */
+  /** End page number */
   end_page?: number | null;
   /** Device identifier */
   device_id?: string | null;

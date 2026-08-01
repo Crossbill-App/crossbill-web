@@ -3,7 +3,7 @@
 import asyncio
 import logging
 
-from src.config import BOOK_COVERS_DIR, EPUBS_DIR, PDFS_DIR  # type: ignore[attr-defined]
+from src.config import BOOK_COVERS_DIR, EPUBS_DIR  # type: ignore[attr-defined]
 
 logger = logging.getLogger(__name__)
 
@@ -15,7 +15,7 @@ def _validate_filename(filename: str) -> None:
 
 
 class FileRepository:
-    """Repository for managing book files (EPUB, PDF, covers)."""
+    """Repository for managing book files (EPUB, covers)."""
 
     async def save_epub(self, filename: str, content: bytes) -> str:
         """Save an EPUB file to disk."""
@@ -24,15 +24,6 @@ class FileRepository:
         file_path = EPUBS_DIR / filename
         await asyncio.to_thread(file_path.write_bytes, content)
         logger.info(f"Saved EPUB file: {file_path}")
-        return file_path.name
-
-    async def save_pdf(self, filename: str, content: bytes) -> str:
-        """Save a PDF file to disk."""
-        _validate_filename(filename)
-        await asyncio.to_thread(lambda: PDFS_DIR.mkdir(parents=True, exist_ok=True))
-        file_path = PDFS_DIR / filename
-        await asyncio.to_thread(file_path.write_bytes, content)
-        logger.info(f"Saved PDF file: {file_path}")
         return file_path.name
 
     async def save_cover(self, filename: str, content: bytes) -> str:
@@ -68,32 +59,6 @@ class FileRepository:
             return True
         except Exception as e:
             logger.error(f"Failed to delete EPUB file {file_path}: {e!s}")
-            return False
-
-    async def delete_pdf(self, filename: str | None) -> bool:
-        """
-        Delete a PDF file by filename.
-
-        Args:
-            filename: Name of the file to delete, or None
-
-        Returns:
-            True if file was deleted, False if not found or filename is None
-        """
-        if filename is None:
-            return False
-        _validate_filename(filename)
-        file_path = PDFS_DIR / filename
-        if not await asyncio.to_thread(file_path.exists):
-            logger.info(f"No PDF file found: {file_path}")
-            return False
-
-        try:
-            await asyncio.to_thread(file_path.unlink)
-            logger.info(f"Deleted PDF file: {file_path}")
-            return True
-        except Exception as e:
-            logger.error(f"Failed to delete PDF file {file_path}: {e!s}")
             return False
 
     async def delete_cover(self, filename: str | None) -> bool:
@@ -136,24 +101,6 @@ class FileRepository:
             return None
         _validate_filename(filename)
         file_path = EPUBS_DIR / filename
-        if not await asyncio.to_thread(file_path.exists):
-            return None
-        return await asyncio.to_thread(file_path.read_bytes)
-
-    async def get_pdf(self, filename: str | None) -> bytes | None:
-        """
-        Get PDF file content by filename.
-
-        Args:
-            filename: Name of the file to read
-
-        Returns:
-            PDF file content as bytes, or None if not found
-        """
-        if filename is None:
-            return None
-        _validate_filename(filename)
-        file_path = PDFS_DIR / filename
         if not await asyncio.to_thread(file_path.exists):
             return None
         return await asyncio.to_thread(file_path.read_bytes)

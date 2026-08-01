@@ -17,7 +17,7 @@ class EbookDeletionUseCase:
 
     async def delete_ebook(self, book: Book) -> bool:
         """
-        Delete ebook file (EPUB or PDF) and cover from storage.
+        Delete ebook file and cover from storage.
 
         Attempts to delete the ebook file and cover. Returns True if an ebook was deleted.
 
@@ -27,17 +27,11 @@ class EbookDeletionUseCase:
         Returns:
             True if at least one ebook file was deleted, False if no files existed
         """
-        epub_deleted = False
-        pdf_deleted = False
-
-        if book.file_type == "pdf":
-            pdf_deleted = await self.file_repository.delete_pdf(book.ebook_file)
-        else:
-            epub_deleted = await self.file_repository.delete_epub(book.ebook_file)
+        epub_deleted = await self.file_repository.delete_epub(book.ebook_file)
 
         await self.file_repository.delete_cover(book.cover_file)
 
-        if epub_deleted or pdf_deleted:
+        if epub_deleted:
             logger.info(f"Deleted ebook file(s) for book {book.id.value}")
             return True
 

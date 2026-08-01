@@ -134,7 +134,7 @@ class ReadingSessionUploadUseCase:
         # Resolve positions for all sessions upfront
         sessions_with_positions: list[
             tuple[ReadingSessionUploadData, Position | None, Position | None]
-        ] = [(s, *self._resolve_positions(s, position_index, book.file_type)) for s in sessions]
+        ] = [(s, *self._resolve_positions(s, position_index)) for s in sessions]
 
         # Filter sessions where start and end are at the same position
         initial_count = len(sessions_with_positions)
@@ -248,20 +248,13 @@ class ReadingSessionUploadUseCase:
         self,
         session: ReadingSessionUploadData,
         position_index: PositionIndex | None,
-        file_type: str | None,
     ) -> tuple[Position | None, Position | None]:
-        """Resolve start/end positions for a session from xpoints or pages."""
+        """Resolve start/end positions for a session from its xpoints."""
         if position_index and session.start_xpoint and session.end_xpoint:
             return (
                 position_index.resolve(session.start_xpoint),
                 position_index.resolve(session.end_xpoint),
             )
-        if file_type == "pdf":
-            start = (
-                Position.from_page(session.start_page) if session.start_page is not None else None
-            )
-            end = Position.from_page(session.end_page) if session.end_page is not None else None
-            return (start, end)
         return (None, None)
 
     async def _link_highlights_to_sessions(
@@ -274,7 +267,7 @@ class ReadingSessionUploadUseCase:
         Link highlights to reading sessions based on position overlap.
 
         For each session, finds highlights whose position falls within the session's
-        reading range (either page-based for PDFs or xpoint-based for EPUBs).
+        xpoint-based reading range.
 
         Args:
             book_id: ID of the book

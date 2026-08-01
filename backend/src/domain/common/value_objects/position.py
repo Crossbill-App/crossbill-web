@@ -2,7 +2,6 @@
 
 Position represents a location in a book as (index, char_index).
 - For EPUBs: index = document-order element number, char_index = character offset
-- For PDFs: index = page number, char_index = 0
 
 Supports natural ordering via @dataclass(order=True).
 """
@@ -31,8 +30,3 @@ class Position:
     def from_json(cls, data: list[int]) -> Self:
         """Deserialize from JSON list [index, char_index]."""
         return cls(index=data[0], char_index=data[1])
-
-    @classmethod
-    def from_page(cls, page: int) -> Self:
-        """Create Position from a PDF page number."""
-        return cls(index=page, char_index=0)

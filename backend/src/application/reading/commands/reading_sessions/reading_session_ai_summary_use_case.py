@@ -94,10 +94,8 @@ class ReadingSessionAISummaryUseCase:
                 start_xpoint=session.start_xpoint.start.to_string(),
                 end_xpoint=session.start_xpoint.end.to_string(),
             )
-        elif session.start_page is not None and session.end_page is not None:
-            raise NotImplementedError("PDF text extraction not yet implemented")
         else:
-            raise ValidationError("Reading session has no position data (no xpoints or pages)")
+            raise ValidationError("Reading session has no position data (no xpoints)")
 
         if not content or not content.strip():
             logger.warning(

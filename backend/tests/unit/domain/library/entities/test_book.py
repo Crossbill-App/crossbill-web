@@ -37,17 +37,6 @@ class TestSetFile:
         assert book.ebook_file == filename
         assert book.file_type == "epub"
 
-    def test_generates_uuid_pdf_filename_when_no_file_set(self) -> None:
-        book = _make_book()
-
-        filename = book.set_file("pdf")
-
-        assert filename.endswith(".pdf")
-        stem = filename.removesuffix(".pdf")
-        uuid.UUID(stem)
-        assert book.ebook_file == filename
-        assert book.file_type == "pdf"
-
     def test_returns_existing_filename_on_reupload(self) -> None:
         book = _make_book(ebook_file="existing-uuid.epub", file_type="epub")
 

@@ -80,7 +80,7 @@ class Book(Entity[BookId]):
 
         Returns the filename (existing or newly generated).
         """
-        if file_type not in ("epub", "pdf"):
+        if file_type != "epub":
             raise DomainError(f"Invalid file type: {file_type}")
         if self.ebook_file is not None:
             self.file_type = file_type

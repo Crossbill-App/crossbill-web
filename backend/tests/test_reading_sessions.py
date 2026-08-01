@@ -281,7 +281,7 @@ class TestUploadReadingSessions:
     async def test_upload_session_with_page_positions(
         self, client: AsyncClient, db_session: AsyncSession, test_book: models.Book
     ) -> None:
-        """Test uploading a session with page positions (for PDFs)."""
+        """Test uploading a session with page positions."""
         response = await client.post(
             "/api/v1/reading_sessions/upload",
             json={

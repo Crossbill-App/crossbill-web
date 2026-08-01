@@ -67,7 +67,7 @@ class EbookUploadUseCase:
         user_id: int,
     ) -> None:
         """
-        Upload and save an ebook file (EPUB or PDF).
+        Upload and save an ebook file (EPUB).
 
         Args:
             client_book_id: Client-provided book identifier
@@ -78,14 +78,11 @@ class EbookUploadUseCase:
         Raises:
             EntityNotFoundError: If book not found for the given client_book_id
             InvalidEbookError: If file validation fails
-            NotImplementedError: If PDF upload is requested (not yet implemented)
         """
         # Route by content type
         if content_type in ["application/epub+zip", "application/epub"]:
             await self._upload_epub(client_book_id, content, UserId(user_id))
             return
-        if content_type == "application/pdf":
-            raise NotImplementedError("PDF upload not yet implemented")
         raise InvalidEbookError(f"Unsupported content type: {content_type}", ebook_type="UNKNOWN")
 
     async def _upload_epub(

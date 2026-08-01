@@ -170,7 +170,6 @@ class ChapterRepository:
         legacy_key = (name, None)
         chapter = tracker.find_by_key(legacy_key)
         # If chapter does not have start point, it has to be legacy
-        # TODO: Except if it is PDF, but those are not supported yet.
         if chapter is not None and tracker.is_from_db(legacy_key) and chapter.start_xpoint is None:
             return chapter
         return None

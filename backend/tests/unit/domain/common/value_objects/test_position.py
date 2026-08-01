@@ -69,9 +69,3 @@ class TestPosition:
         original = Position(index=100, char_index=55)
         restored = Position.from_json(original.to_json())
         assert restored == original
-
-    def test_from_page_number(self) -> None:
-        """PDF page numbers map to Position with char_index=0."""
-        pos = Position.from_page(5)
-        assert pos.index == 5
-        assert pos.char_index == 0

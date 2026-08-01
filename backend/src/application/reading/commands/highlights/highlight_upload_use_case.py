@@ -170,8 +170,6 @@ class HighlightUploadUseCase:
             position: Position | None = None
             if position_index and data.start_xpoint:
                 position = position_index.resolve(data.start_xpoint)
-            elif book.file_type == "pdf" and data.page is not None:
-                position = Position.from_page(data.page)
 
             highlight_style = await self.highlight_style_repository.find_or_create(
                 user_id=user_id_vo,
