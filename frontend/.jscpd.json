@@ -1,0 +1,15 @@
+{
+  "path": ["src", "tests"],
+  "gitignore": true,
+  "ignore": [
+    "**/node_modules/**",
+    "src/api/generated/**",
+    "src/routeTree.gen.ts",
+    "tests/public/**"
+  ],
+  "format": ["typescript", "tsx"],
+  "minLines": 5,
+  "minTokens": 50,
+  "reporters": ["console", "threshold"],
+  "threshold": 1.8
+}

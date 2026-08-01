@@ -18,7 +18,8 @@
     "type-check": "npm run routes:generate && tsc --noEmit",
     "test": "npm run routes:generate && vitest run",
     "test:watch": "npm run routes:generate && vitest",
-    "knip": "npm run routes:generate && knip"
+    "knip": "npm run routes:generate && knip",
+    "duplication": "jscpd --no-tips"
   },
   "dependencies": {
     "@emotion/react": "^11.14.0",
@@ -54,6 +55,7 @@
     "eslint-plugin-react-hooks": "^7.1.1",
     "eslint-plugin-react-refresh": "^0.5.3",
     "globals": "^17.0.0",
+    "jscpd": "^5.0.14",
     "knip": "^6.31.0",
     "msw": "^2.15.0",
     "orval": "8.23.0",
