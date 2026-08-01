@@ -6,6 +6,10 @@ import { theme } from '@/theme/theme.ts';
 import { Box, Typography } from '@mui/material';
 import { Link } from '@tanstack/react-router';
 
+/** Cover width, and therefore the card's width. Grids that lay these out
+ *  need the same number to size their columns. */
+export const BOOK_CARD_WIDTH = 150;
+
 export interface BookCardProps {
   book: BookWithHighlightCount;
 }
@@ -43,7 +47,7 @@ export const BookCard = ({ book }: BookCardProps) => {
               coverFile={book.cover_file ?? null}
               title={book.title}
               blurhash={book.cover_blurhash}
-              width={150}
+              width={BOOK_CARD_WIDTH}
               height={220}
               objectFit="cover"
               sx={{
@@ -90,7 +94,7 @@ export const BookCard = ({ book }: BookCardProps) => {
               fontWeight: 600,
               color: 'text.primary',
               mt: 1.5,
-              maxWidth: 150,
+              maxWidth: BOOK_CARD_WIDTH,
             }}
             title={book.title}
           >
@@ -102,7 +106,7 @@ export const BookCard = ({ book }: BookCardProps) => {
             variant="body2"
             color="text.secondary"
             sx={{
-              maxWidth: 150,
+              maxWidth: BOOK_CARD_WIDTH,
               mt: 0.5,
             }}
             title={book.author || 'Unknown Author'}
