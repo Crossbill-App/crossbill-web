@@ -8,25 +8,17 @@
 [![CI](https://github.com/Tumetsu/Crossbill/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/Tumetsu/Crossbill/actions/workflows/ci.yml)
 [![Docker Image Version](https://img.shields.io/docker/v/tumetsu/crossbill?sort=semver)](https://hub.docker.com/r/tumetsu/crossbill)
 
-A self-hosted reading companion web app for managing highlights, creating flash cards and improve your reading with e-readers using Koreader.
+A self-hosted reading companion web app for guiding your reading process into more active activity. Create summaries of chapters for skimming, manage and organize your highlights, create flash cards and create notes from them. Inspired by [Mortimer J. Adler's How to read a Book](https://www.goodreads.com/book/show/567610.How_to_Read_a_Book)'s ideas on how to encourage more active reading practices for elevated understanding.
 
-## Overview
-
-Crossbill helps you centralize and manage your ebook highlights by providing:
-
-- **Backend API**: FastAPI server with PostgreSQL database for storing highlights
-- **Web Frontend**: Modern React interface for browsing, editing, and organizing your highlights
-- **[KOReader Plugin](https://github.com/Crossbill-Highlights/koreader-plugin)**: Syncs highlights directly from your KOReader e-reader
-- **[Obsidian Plugin](https://github.com/Crossbill-Highlights/obsidian-plugin)**: Integrate highlights into your Obsidian notes
-- [**Anki Plugin**](https://github.com/Crossbill-Highlights/anki-addon): Integrate highlights into your Anki flash cards
+Syncs data from e-readers using Koreader.
 
 ## Features
-
 - Sync highlights from KOReader with automatic deduplication
-- Web interface for viewing and managing highlights by book
-- Organize highlights with notes and metadata
+- Organize highlights
 - Create flash cards from your highlights and sync them to Anki or get AI suggestions from highlights.
-- Create AI summaries from your reading sessions. Ollama, OpenAI, Anthropic and Gemini supported.
+- Create AI summaries from epub book chapters for review and skimming. Ollama, OpenAI, Anthropic and Gemini supported.
+- Create notes and link them to the highlights, chapters etc.
+- Supporting features to reflect on the books you have read
 - Self-hosted - your data stays on your server
 - Multi-user support
 
@@ -35,6 +27,14 @@ Crossbill helps you centralize and manage your ebook highlights by providing:
 <img width="250" alt="image" src="https://github.com/user-attachments/assets/262ba290-ed79-47ff-a8b3-aa6b3f3b59a3" />
 <img width="250" alt="image" src="https://github.com/user-attachments/assets/397be7cd-541d-49be-975b-d5db3caab2c3" />
 <img width="250" alt="image" src="https://github.com/user-attachments/assets/de548aa4-c721-4ff7-b008-3c6aa8de0bdd" />
+
+## Overview of software components
+
+- **Backend API**: FastAPI server with PostgreSQL database
+- **Web Frontend**: Modern React interface for browsing, editing, and organizing your highlights
+- **[KOReader Plugin](https://github.com/Crossbill-Highlights/koreader-plugin)**: Syncs highlights directly from your KOReader e-reader
+- **[Obsidian Plugin](https://github.com/Crossbill-Highlights/obsidian-plugin)**: Integrate highlights into your Obsidian notes
+- [**Anki Plugin**](https://github.com/Crossbill-Highlights/anki-addon): Integrate highlights into your Anki flash cards
 
 ## Installation
 
