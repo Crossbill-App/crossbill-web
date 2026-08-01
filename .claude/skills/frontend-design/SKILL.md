@@ -15,6 +15,3 @@ This app has an established design system; consistency with it beats novelty.
 - Style through MUI components and the `sx` prop. Use semantic components
   (`Button`, `IconButton`) — never `<Box component="button">`; the semantic
   components carry the accessibility and interaction behavior.
-- The UI kit is kept in sync with a claude.ai/design project. When a change
-  alters the design system itself (theme tokens, shared components), say so in
-  the summary so the sync doesn't silently drift.
