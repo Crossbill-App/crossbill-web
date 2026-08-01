@@ -125,7 +125,7 @@ async def get_book_metadata(
     )
 
 
-# Maximum ebook file size (50MB - epubs and PDFs can be large)
+# Maximum ebook file size (50MB - epubs can be large)
 MAX_EBOOK_SIZE = 50 * 1024 * 1024
 
 
@@ -150,7 +150,7 @@ async def upload_book_epub(
 
     Args:
         client_book_id: The client-provided stable book identifier
-        epub: Uploaded ebook file (EPUB or PDF)
+        epub: Uploaded ebook file (EPUB)
         current_user: Authenticated user
 
     Returns:
@@ -162,7 +162,7 @@ async def upload_book_epub(
     # Validate content-type
     allowed_types = {"application/epub+zip"}
     if epub.content_type not in allowed_types:
-        raise ValidationError("Only EPUB and PDF files are allowed")
+        raise ValidationError("Only EPUB files are allowed")
 
     # Read file with size limit
     content = epub.file.read(MAX_EBOOK_SIZE + 1)

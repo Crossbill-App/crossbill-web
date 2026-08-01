@@ -14,7 +14,7 @@ def _validate_filename(filename: str) -> None:
 
 
 class S3FileRepository:
-    """Repository for managing book files (EPUB, PDF, covers) in S3-compatible storage."""
+    """Repository for managing book files (EPUB, covers) in S3-compatible storage."""
 
     def __init__(self, s3_client: Any, bucket_name: str) -> None:  # noqa: ANN401
         self._client = s3_client
@@ -67,14 +67,6 @@ class S3FileRepository:
         logger.info(f"Uploaded EPUB to S3: {key}")
         return filename
 
-    async def save_pdf(self, filename: str, content: bytes) -> str:
-        """Upload a PDF file to S3."""
-        _validate_filename(filename)
-        key = f"pdfs/{filename}"
-        await asyncio.to_thread(self._client.put_object, Bucket=self._bucket, Key=key, Body=content)
-        logger.info(f"Uploaded PDF to S3: {key}")
-        return filename
-
     async def save_cover(self, filename: str, content: bytes) -> str:
         """Upload a cover image to S3."""
         _validate_filename(filename)
@@ -97,21 +89,6 @@ class S3FileRepository:
             return False
         _validate_filename(filename)
         return await asyncio.to_thread(self._delete_object, f"epubs/{filename}")
-
-    async def delete_pdf(self, filename: str | None) -> bool:
-        """
-        Delete a PDF file from S3 by filename.
-
-        Args:
-            filename: Name of the file to delete, or None
-
-        Returns:
-            True if deleted, False if not found, error, or filename is None
-        """
-        if filename is None:
-            return False
-        _validate_filename(filename)
-        return await asyncio.to_thread(self._delete_object, f"pdfs/{filename}")
 
     async def delete_cover(self, filename: str | None) -> bool:
         """
@@ -142,21 +119,6 @@ class S3FileRepository:
             return None
         _validate_filename(filename)
         return await asyncio.to_thread(self._get_object, f"epubs/{filename}")
-
-    async def get_pdf(self, filename: str | None) -> bytes | None:
-        """
-        Retrieve PDF file content from S3 by filename.
-
-        Args:
-            filename: Name of the file to retrieve, or None
-
-        Returns:
-            PDF bytes or None if not found or filename is None
-        """
-        if filename is None:
-            return None
-        _validate_filename(filename)
-        return await asyncio.to_thread(self._get_object, f"pdfs/{filename}")
 
     async def get_cover(self, filename: str | None) -> bytes | None:
         """

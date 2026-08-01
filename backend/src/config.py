@@ -17,7 +17,6 @@ BACKEND_ROOT = Path(__file__).parent.parent.resolve()
 BOOK_FILES_DIR = BACKEND_ROOT / "book-files"
 BOOK_COVERS_DIR = BOOK_FILES_DIR / "book-covers"
 EPUBS_DIR = BOOK_FILES_DIR / "epubs"
-PDFS_DIR = BOOK_FILES_DIR / "pdfs"
 
 
 class Settings(BaseSettings):

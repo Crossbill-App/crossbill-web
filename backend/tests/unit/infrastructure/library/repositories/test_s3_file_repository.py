@@ -41,25 +41,6 @@ async def test_save_epub_uploads_with_correct_key(
 
 
 # ---------------------------------------------------------------------------
-# save_pdf
-# ---------------------------------------------------------------------------
-
-
-@pytest.mark.asyncio
-async def test_save_pdf_uploads_with_correct_key(
-    repo: S3FileRepository, s3_client: MagicMock
-) -> None:
-    filename = await repo.save_pdf("abc123.pdf", b"pdf-bytes")
-
-    s3_client.put_object.assert_called_once_with(
-        Bucket="test-bucket",
-        Key="pdfs/abc123.pdf",
-        Body=b"pdf-bytes",
-    )
-    assert filename == "abc123.pdf"
-
-
-# ---------------------------------------------------------------------------
 # save_cover
 # ---------------------------------------------------------------------------
 
@@ -104,35 +85,6 @@ async def test_get_epub_returns_none_when_not_found(
     s3_client.get_object.side_effect = s3_client.exceptions.NoSuchKey("not found")
 
     result = await repo.get_epub("Missing_42.epub")
-
-    assert result is None
-
-
-# ---------------------------------------------------------------------------
-# get_pdf
-# ---------------------------------------------------------------------------
-
-
-@pytest.mark.asyncio
-async def test_get_pdf_returns_bytes_when_found(
-    repo: S3FileRepository, s3_client: MagicMock
-) -> None:
-    body_mock = MagicMock()
-    body_mock.read.return_value = b"pdf-content"
-    s3_client.get_object.return_value = {"Body": body_mock}
-
-    result = await repo.get_pdf("My_Book_42.pdf")
-
-    assert result == b"pdf-content"
-
-
-@pytest.mark.asyncio
-async def test_get_pdf_returns_none_when_not_found(
-    repo: S3FileRepository, s3_client: MagicMock
-) -> None:
-    s3_client.get_object.side_effect = s3_client.exceptions.NoSuchKey("not found")
-
-    result = await repo.get_pdf("Missing_42.pdf")
 
     assert result is None
 
@@ -202,43 +154,6 @@ async def test_delete_epub_returns_false_on_exception(
     s3_client.delete_object.side_effect = Exception("S3 error")
 
     result = await repo.delete_epub("My_Book_42.epub")
-
-    assert result is False
-
-
-# ---------------------------------------------------------------------------
-# delete_pdf
-# ---------------------------------------------------------------------------
-
-
-@pytest.mark.asyncio
-async def test_delete_pdf_returns_true_when_deleted(
-    repo: S3FileRepository, s3_client: MagicMock
-) -> None:
-    result = await repo.delete_pdf("My_Book_42.pdf")
-
-    assert result is True
-    s3_client.delete_object.assert_called_once_with(Bucket="test-bucket", Key="pdfs/My_Book_42.pdf")
-
-
-@pytest.mark.asyncio
-async def test_delete_pdf_returns_false_when_not_found(
-    repo: S3FileRepository, s3_client: MagicMock
-) -> None:
-    s3_client.head_object.side_effect = Exception("not found")
-
-    result = await repo.delete_pdf("Missing_42.pdf")
-
-    assert result is False
-
-
-@pytest.mark.asyncio
-async def test_delete_pdf_returns_false_on_exception(
-    repo: S3FileRepository, s3_client: MagicMock
-) -> None:
-    s3_client.delete_object.side_effect = Exception("S3 error")
-
-    result = await repo.delete_pdf("My_Book_42.pdf")
 
     assert result is False
 

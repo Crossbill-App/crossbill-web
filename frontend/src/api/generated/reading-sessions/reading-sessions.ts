@@ -297,7 +297,7 @@ export function useGetBookReadingSessions<
  *
  * Raises:
  *     HTTPException 404: If reading session not found or not owned by user
- *     HTTPException 400: If session has no position data or PDF not supported
+ *     HTTPException 400: If session has no position data
  *     HTTPException 500: For unexpected errors
  * @summary Get Reading Session Ai Summary
  */

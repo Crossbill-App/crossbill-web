@@ -17,9 +17,9 @@ export interface ReadingSession {
   start_time: string;
   /** Session end timestamp */
   end_time: string;
-  /** Start page number (for PDFs) */
+  /** Start page number */
   start_page?: number | null;
-  /** End page number (for PDFs) */
+  /** End page number */
   end_page?: number | null;
   /** Extracted text content of the session */
   content?: string | null;

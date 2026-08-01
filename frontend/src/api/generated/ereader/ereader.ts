@@ -266,7 +266,7 @@ export function useGetBookMetadata<
  *
  * Args:
  *     client_book_id: The client-provided stable book identifier
- *     epub: Uploaded ebook file (EPUB or PDF)
+ *     epub: Uploaded ebook file (EPUB)
  *     current_user: Authenticated user
  *
  * Returns:

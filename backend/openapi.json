@@ -393,7 +393,7 @@
           "ereader"
         ],
         "summary": "Upload Book Epub",
-        "description": "Upload an ebook file (EPUB) for a book using client_book_id.\n\nThis endpoint accepts an uploaded ebook file and saves it for the book.\nUsed by KOReader which identifies books by client_book_id.\n\nArgs:\n    client_book_id: The client-provided stable book identifier\n    epub: Uploaded ebook file (EPUB or PDF)\n    current_user: Authenticated user\n\nReturns:\n    SuccessResponse with success status\n\nRaises:\n    HTTPException: 400 for invalid file, 404 if book is not found",
+        "description": "Upload an ebook file (EPUB) for a book using client_book_id.\n\nThis endpoint accepts an uploaded ebook file and saves it for the book.\nUsed by KOReader which identifies books by client_book_id.\n\nArgs:\n    client_book_id: The client-provided stable book identifier\n    epub: Uploaded ebook file (EPUB)\n    current_user: Authenticated user\n\nReturns:\n    SuccessResponse with success status\n\nRaises:\n    HTTPException: 400 for invalid file, 404 if book is not found",
         "operationId": "upload_book_epub",
         "security": [
           {
@@ -1264,7 +1264,7 @@
           "reading_sessions"
         ],
         "summary": "Get Reading Session Ai Summary",
-        "description": "Get AI-generated summary for a reading session.\n\nReturns cached summary if available, otherwise generates new summary\nfrom the read content and caches it.\n\nArgs:\n    reading_session_id: ID of the reading session\n    current_user: Authenticated user\n\nReturns:\n    ReadingSessionAISummaryResponse with the AI summary\n\nRaises:\n    HTTPException 404: If reading session not found or not owned by user\n    HTTPException 400: If session has no position data or PDF not supported\n    HTTPException 500: For unexpected errors",
+        "description": "Get AI-generated summary for a reading session.\n\nReturns cached summary if available, otherwise generates new summary\nfrom the read content and caches it.\n\nArgs:\n    reading_session_id: ID of the reading session\n    current_user: Authenticated user\n\nReturns:\n    ReadingSessionAISummaryResponse with the AI summary\n\nRaises:\n    HTTPException 404: If reading session not found or not owned by user\n    HTTPException 400: If session has no position data\n    HTTPException 500: For unexpected errors",
         "operationId": "get_reading_session_ai_summary",
         "security": [
           {
@@ -6464,7 +6464,7 @@
               }
             ],
             "title": "Start Page",
-            "description": "Start page number (for PDFs)"
+            "description": "Start page number"
           },
           "end_page": {
             "anyOf": [
@@ -6477,7 +6477,7 @@
               }
             ],
             "title": "End Page",
-            "description": "End page number (for PDFs)"
+            "description": "End page number"
           },
           "content": {
             "anyOf": [
@@ -6665,7 +6665,7 @@
               }
             ],
             "title": "Start Page",
-            "description": "Start page for PDFs"
+            "description": "Start page number"
           },
           "end_page": {
             "anyOf": [
@@ -6678,7 +6678,7 @@
               }
             ],
             "title": "End Page",
-            "description": "End page for PDFs"
+            "description": "End page number"
           },
           "device_id": {
             "anyOf": [
