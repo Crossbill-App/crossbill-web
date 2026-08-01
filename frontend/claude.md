@@ -12,6 +12,7 @@
 - **ALWAYS** run formatter before making commits: `npm run format`
 - Verify no TypeScript errors: `npm run type-check`
 - Check for unused files, exports and dependencies: `npm run knip`
+- Check for copy-paste duplication: `npm run duplication-check`
 - Ensure all staged files pass quality checks
 
 > Note: Husky pre-commit hooks will automatically run linter and formatter on staged files, but you should still manually verify before committing.
@@ -33,6 +34,28 @@ Three ways a finding is legitimately resolved, in order of preference:
    why.
 
 Never silence a finding by adding a fake import or re-export.
+
+### Duplication (jscpd)
+
+`npm run duplication-check` runs jscpd (v5, the Rust engine) over `src` and
+`tests` and reports every copy-pasted block of 5+ lines / 50+ tokens. It exits 1
+once duplicated lines pass the `threshold` in `frontend/.jscpd.json`.
+
+The generated API client and the generated route tree are excluded: Orval and
+TanStack Router emit repetitive code that is not ours to refactor.
+
+Output is the compact `ai` reporter, one line per clone; add `--reporters
+console` for columns and token counts.
+
+The threshold is a **ratchet** — it may fall, never rise. When a refactor drops
+the percentage, lower the threshold to the new number in the same commit. Never
+raise it to make the check pass; extract the shared code instead.
+
+A `Stop` hook (`.claude/hooks/check-duplication.sh`) runs jscpd when frontend
+sources are dirty and sends the turn back if the threshold is passed, or if a
+clone overlaps lines the turn changed. Pre-existing clones in files you touched
+stay quiet, so a finding is about code this turn wrote — extract it. See
+`CLAUDE.md > Duplication` at the repo root.
 
 ## Programming Style
 

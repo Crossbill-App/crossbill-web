@@ -1,0 +1,16 @@
+{
+  "path": ["src", "tests"],
+  "gitignore": true,
+  "ignore": [
+    "**/alembic/versions/**",
+    "**/__pycache__/**",
+    "**/.venv/**",
+    "**/mutants/**",
+    "**/book-files/**"
+  ],
+  "format": ["python"],
+  "minLines": 5,
+  "minTokens": 50,
+  "reporters": ["ai", "threshold"],
+  "threshold": 3.5
+}

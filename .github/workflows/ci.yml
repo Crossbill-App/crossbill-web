@@ -124,3 +124,38 @@ jobs:
         env:
           TESTING: "1"
         run: uv run pytest
+
+  # Both stacks in one job: jscpd is a single self-contained binary (installed
+  # via the frontend workspace) and each run takes milliseconds, so the npm
+  # install dominates and is worth paying for only once.
+  duplication:
+    name: Duplication (jscpd)
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v5
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v5
+        with:
+          node-version: "24"
+
+      - name: Cache npm dependencies
+        uses: actions/cache@v4
+        with:
+          path: node_modules
+          key: ${{ runner.os }}-node-${{ hashFiles('package-lock.json') }}
+          restore-keys: |
+            ${{ runner.os }}-node-
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Check backend duplication
+        working-directory: backend
+        run: npx jscpd --no-tips
+
+      - name: Check frontend duplication
+        working-directory: frontend
+        run: npm run duplication-check
