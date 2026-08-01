@@ -11,9 +11,28 @@
 - **ALWAYS** run linter before making commits: `npm run lint:fix`
 - **ALWAYS** run formatter before making commits: `npm run format`
 - Verify no TypeScript errors: `npm run type-check`
+- Check for unused files, exports and dependencies: `npm run knip`
 - Ensure all staged files pass quality checks
 
 > Note: Husky pre-commit hooks will automatically run linter and formatter on staged files, but you should still manually verify before committing.
+
+### Dead code (knip)
+
+`npm run knip` reports files, exports and dependencies nothing references. CI
+fails on any finding, and a `Stop` hook (`.claude/hooks/check-knip.sh`) runs it
+when frontend files are dirty, so a turn that leaves dead code behind gets sent
+back.
+
+Three ways a finding is legitimately resolved, in order of preference:
+
+1. **Delete it** — the usual answer.
+2. **Un-export it** — if the symbol is used inside its own file, drop the
+   `export` rather than the code.
+3. **Ignore it** — only for things knip cannot see (assets loaded by a runner,
+   generated output). Add it to `frontend/knip.config.ts` with a comment saying
+   why.
+
+Never silence a finding by adding a fake import or re-export.
 
 ## Programming Style
 
