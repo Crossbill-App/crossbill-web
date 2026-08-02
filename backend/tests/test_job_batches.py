@@ -53,7 +53,7 @@ class TestGetJobBatch:
         assert response.status_code == status.HTTP_200_OK
         data = response.json()
         assert data["id"] == batch.id
-        assert data["batch_type"] == "chapter_prereading"
+        assert data["batch_type"] == "chapter_digest"
         assert data["reference_id"] == "42"
         assert data["total_jobs"] == 3
         assert data["completed_jobs"] == 1

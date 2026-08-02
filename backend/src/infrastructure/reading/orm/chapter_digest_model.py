@@ -1,4 +1,4 @@
-"""SQLAlchemy ORM model for chapter pre-reading content."""
+"""SQLAlchemy ORM model for chapter digests."""
 
 from datetime import datetime as dt
 from typing import TYPE_CHECKING
@@ -15,9 +15,9 @@ if TYPE_CHECKING:
 
 
 class ChapterDigest(Base):
-    """ORM model for chapter pre-reading content."""
+    """ORM model for a chapter digest."""
 
-    __tablename__ = "chapter_prereading_contents"
+    __tablename__ = "chapter_digests"
 
     id: Mapped[int] = mapped_column(primary_key=True, index=True)
     chapter_id: Mapped[int] = mapped_column(

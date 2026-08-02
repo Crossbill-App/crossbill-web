@@ -39,7 +39,7 @@ async def get_chapter_flashcard_suggestions(
     """
     Get AI-generated flashcard suggestions from a chapter digest.
 
-    Requires the chapter to have a generated pre-reading summary.
+    Requires the chapter to have a generated digest.
     """
     suggestions_data = await use_case.get_suggestions(chapter_id, current_user.id.value)
 

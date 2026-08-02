@@ -16,7 +16,7 @@ class DigestQuestion:
 @dataclass
 class ChapterDigest(Entity[ChapterDigestId]):
     """
-    Chapter pre-reading content entity.
+    Chapter digest entity.
 
     Contains AI-generated summary and keypoints to help readers
     understand what to expect before reading a chapter.
@@ -71,7 +71,7 @@ class ChapterDigest(Entity[ChapterDigestId]):
         generated_at: datetime,
         ai_model: str,
     ) -> "ChapterDigest":
-        """Factory for creating new pre-reading content."""
+        """Factory for creating a new digest."""
         return cls(
             id=ChapterDigestId.generate(),
             chapter_id=chapter_id,

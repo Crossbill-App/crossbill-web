@@ -12,7 +12,7 @@ from src.domain.common.value_objects.ids import JobBatchId, UserId
 class JobBatchType(StrEnum):
     """Supported batch job types."""
 
-    CHAPTER_DIGEST = "chapter_prereading"
+    CHAPTER_DIGEST = "chapter_digest"
 
 
 class JobBatchStatus(StrEnum):

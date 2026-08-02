@@ -6,7 +6,7 @@ from pydantic import BaseModel
 
 
 class DigestQuestionResponse(BaseModel):
-    """Response schema for a pre-reading question/answer pair."""
+    """Response schema for a digest question/answer pair."""
 
     question: str
     answer: str
