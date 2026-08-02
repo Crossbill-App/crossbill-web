@@ -14,6 +14,7 @@ from saq import Queue, Worker
 from saq.types import Context, SettingsDict
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
+from src.application.semantic.content_type import ContentType
 from src.config import get_settings
 from src.database import get_session_factory, initialize_database
 from src.infrastructure.ai.ai_service import AIService
@@ -21,6 +22,7 @@ from src.infrastructure.ai.repositories.ai_usage_repository import AIUsageReposi
 from src.infrastructure.jobs.repositories.job_batch_repository import JobBatchRepository
 from src.infrastructure.jobs.saq_queue import create_queue
 from src.infrastructure.jobs.tasks.digest_task_handler import DigestTaskHandler
+from src.infrastructure.jobs.tasks.embedding_task_handler import EmbeddingTaskHandler
 from src.infrastructure.jobs.tasks.job_lifecycle_handler import JobLifecycleHandler
 from src.infrastructure.library.repositories import BookRepository
 from src.infrastructure.library.repositories.chapter_repository import ChapterRepository
@@ -91,6 +93,29 @@ def _build_digest_handler(db: AsyncSession) -> DigestTaskHandler:
     return DigestTaskHandler(generate_digest_use_case=use_case)
 
 
+def _build_embedding_handler(db: AsyncSession) -> EmbeddingTaskHandler:
+    """Build an EmbeddingTaskHandler with a fresh session (worker wires DI by hand)."""
+    from src.application.semantic.commands.generate_content_embedding_use_case import (  # noqa: PLC0415
+        GenerateContentEmbeddingUseCase,
+    )
+    from src.infrastructure.semantic.clients.openai_embedding_client import (  # noqa: PLC0415
+        build_embedding_client,
+    )
+    from src.infrastructure.semantic.content.content_source import ContentSource  # noqa: PLC0415
+    from src.infrastructure.semantic.repositories.embedding_repository import (  # noqa: PLC0415
+        EmbeddingRepository,
+    )
+
+    settings = _get_app_settings()
+    use_case = GenerateContentEmbeddingUseCase(
+        content_source=ContentSource(db=db, settings=settings),
+        client=build_embedding_client(settings),
+        repo=EmbeddingRepository(db=db),
+        settings=settings,
+    )
+    return EmbeddingTaskHandler(generate_embedding_use_case=use_case)
+
+
 async def startup(ctx: Context) -> None:
     """Initialize worker resources."""
     logger.info("worker_starting")
@@ -127,6 +152,27 @@ async def generate_chapter_digest(
         )
 
 
+async def generate_content_embedding(
+    ctx: Context, *, batch_id: int, content_type: str, content_id: int, user_id: int
+) -> None:
+    """SAQ task: embed a single content unit.
+
+    ``user_id`` is carried for symmetry with the other batch tasks and the
+    ``after_process`` progress hook even though the use case does not need it.
+    """
+    if _session_factory is None:
+        raise RuntimeError("Worker not initialized")
+
+    async with _session_factory() as db:
+        handler = _build_embedding_handler(db)
+        await handler.generate(
+            ctx,
+            batch_id=batch_id,
+            content_type=ContentType(content_type),
+            content_id=content_id,
+        )
+
+
 async def after_process(ctx: Context) -> None:
     """SAQ after_process hook: update batch progress.
 
@@ -144,7 +190,7 @@ def _build_worker_settings() -> SettingsDict[Context]:
     """Build SAQ worker settings lazily (called on first access)."""
     return {
         "queue": _get_queue(),
-        "functions": [generate_chapter_digest],
+        "functions": [generate_chapter_digest, generate_content_embedding],
         "concurrency": _get_app_settings().WORKER_CONCURRENCY,
         "startup": startup,
         "shutdown": shutdown,
@@ -177,7 +223,7 @@ def create_embedded_worker(queue: Queue, concurrency: int = 2) -> EmbeddedWorker
     """Create a Worker instance for running inside the app process."""
     return EmbeddedWorker(
         queue=queue,
-        functions=[generate_chapter_digest],
+        functions=[generate_chapter_digest, generate_content_embedding],
         concurrency=concurrency,
         startup=[startup],
         shutdown=[shutdown],

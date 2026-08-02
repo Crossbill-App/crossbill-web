@@ -56,6 +56,7 @@ from src.infrastructure.reflection.repositories.book_reflection_repository impor
     BookReflectionRepository,
 )
 from src.infrastructure.semantic.clients.openai_embedding_client import build_embedding_client
+from src.infrastructure.semantic.content.content_source import ContentSource
 from src.infrastructure.semantic.repositories.embedding_repository import EmbeddingRepository
 from src.infrastructure.tagging.repositories import TagRepository
 
@@ -173,3 +174,4 @@ class SharedContainer(containers.DeclarativeContainer):
     # per-request like every other db-bound provider.
     embedding_repository = providers.Factory(EmbeddingRepository, db=db)
     embedding_client = providers.Singleton(build_embedding_client, settings=settings)
+    content_source = providers.Factory(ContentSource, db=db, settings=settings)

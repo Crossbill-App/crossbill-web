@@ -8,6 +8,7 @@ from src.containers.library import LibraryContainer
 from src.containers.notes import NotesContainer
 from src.containers.reading import ReadingContainer
 from src.containers.reflection import ReflectionContainer
+from src.containers.semantic import SemanticContainer
 from src.containers.shared import SharedContainer
 from src.containers.tagging import TaggingContainer
 from src.database import current_db_session
@@ -119,4 +120,15 @@ class RootContainer(containers.DeclarativeContainer):
         chapter_repository=shared.chapter_repository,
         book_repository=shared.book_repository,
         chapter_digest_repository=shared.chapter_digest_repository,
+    )
+
+    semantic = providers.Container(
+        SemanticContainer,
+        content_source=shared.content_source,
+        embedding_repository=shared.embedding_repository,
+        embedding_client=shared.embedding_client,
+        settings=settings,
+        job_batch_repository=shared.job_batch_repository,
+        job_queue_service=job_queue_service,
+        book_repository=shared.book_repository,
     )

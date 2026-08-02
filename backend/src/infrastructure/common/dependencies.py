@@ -6,7 +6,7 @@ from typing import Any, TypeVar
 
 from fastapi import HTTPException, status
 
-from src.feature_flags import is_ai_enabled
+from src.feature_flags import is_ai_enabled, is_embeddings_enabled
 
 F = TypeVar("F", bound=Callable[..., Any])
 
@@ -30,6 +30,31 @@ def require_ai_enabled(func: F) -> F:
             raise HTTPException(
                 status_code=status.HTTP_410_GONE,
                 detail="AI features are not enabled on this server",
+            )
+        return await func(*args, **kwargs)
+
+    return wrapper  # type: ignore[return-value]
+
+
+def require_embeddings_enabled(func: F) -> F:
+    """
+    Decorator that requires semantic-search embeddings to be enabled.
+
+    Returns HTTP 403 Forbidden if no embedding provider is configured.
+
+    Usage:
+        @router.post("/endpoint")
+        @require_embeddings_enabled
+        async def my_endpoint():
+            ...
+    """
+
+    @wraps(func)
+    async def wrapper(*args: Any, **kwargs: Any) -> Any:  # noqa: ANN401
+        if not is_embeddings_enabled():
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Semantic-search embeddings are not enabled on this server",
             )
         return await func(*args, **kwargs)
 

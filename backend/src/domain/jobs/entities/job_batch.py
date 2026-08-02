@@ -13,6 +13,7 @@ class JobBatchType(StrEnum):
     """Supported batch job types."""
 
     CHAPTER_DIGEST = "chapter_digest"
+    CONTENT_EMBEDDING = "content_embedding"
 
 
 class JobBatchStatus(StrEnum):

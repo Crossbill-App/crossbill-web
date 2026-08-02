@@ -1,0 +1,217 @@
+"""DB-backed tests for ContentSource (runs against in-memory SQLite)."""
+
+import hashlib
+
+import pytest
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from src.application.semantic.content_type import ContentType
+from src.config import get_settings
+from src.infrastructure.semantic.content.content_source import ContentSource
+from src.models import Book, Chapter, ChapterDigest, Embedding, Highlight, Note
+
+USER_ID = 1
+
+
+def _expected_hash(text: str) -> str:
+    return hashlib.sha256(text.encode("utf-8")).hexdigest()
+
+
+async def _add_book(db: AsyncSession, title: str = "Book") -> Book:
+    book = Book(user_id=USER_ID, title=title)
+    db.add(book)
+    await db.commit()
+    await db.refresh(book)
+    return book
+
+
+async def _add_note(db: AsyncSession, title: str, body: str, books: list[Book]) -> Note:
+    note = Note(user_id=USER_ID, title=title, body=body)
+    note.books.extend(books)
+    db.add(note)
+    await db.commit()
+    await db.refresh(note)
+    return note
+
+
+async def _add_highlight(
+    db: AsyncSession, book: Book, text: str, *, deleted: bool = False
+) -> Highlight:
+    from datetime import UTC, datetime  # noqa: PLC0415
+
+    highlight = Highlight(
+        user_id=USER_ID,
+        book_id=book.id,
+        text=text,
+        datetime="2024-01-15 14:30:22",
+        content_hash=_expected_hash(text)[:64],
+        deleted_at=datetime.now(UTC) if deleted else None,
+    )
+    db.add(highlight)
+    await db.commit()
+    await db.refresh(highlight)
+    return highlight
+
+
+async def _add_digest(
+    db: AsyncSession, book: Book, summary: str, keypoints: list[str]
+) -> ChapterDigest:
+    from datetime import UTC, datetime  # noqa: PLC0415
+
+    chapter = Chapter(book_id=book.id, name="Chapter 1")
+    db.add(chapter)
+    await db.commit()
+    await db.refresh(chapter)
+    digest = ChapterDigest(
+        chapter_id=chapter.id,
+        summary=summary,
+        keypoints=keypoints,
+        questions=[],
+        generated_at=datetime.now(UTC),
+        ai_model="test",
+    )
+    db.add(digest)
+    await db.commit()
+    await db.refresh(digest)
+    return digest
+
+
+@pytest.fixture
+def content_source(db_session: AsyncSession) -> ContentSource:
+    return ContentSource(db_session, get_settings())
+
+
+class TestGetEmbeddable:
+    async def test_note_resolves_text_hash_user_and_single_book(
+        self, content_source: ContentSource, db_session: AsyncSession
+    ) -> None:
+        book = await _add_book(db_session)
+        note = await _add_note(db_session, "Term", "Explanation", [book])
+
+        emb = await content_source.get_embeddable(ContentType.NOTE, note.id)
+
+        assert emb is not None
+        assert emb.text == "Term\n\nExplanation"
+        assert emb.content_hash == _expected_hash("Term\n\nExplanation")
+        assert emb.user_id == USER_ID
+        assert emb.book_id == book.id
+
+    async def test_note_with_empty_body_is_title_only(
+        self, content_source: ContentSource, db_session: AsyncSession
+    ) -> None:
+        note = await _add_note(db_session, "Bare title", "", [])
+
+        emb = await content_source.get_embeddable(ContentType.NOTE, note.id)
+
+        assert emb is not None
+        assert emb.text == "Bare title"
+        assert emb.book_id is None
+
+    async def test_note_with_two_books_has_no_single_book(
+        self, content_source: ContentSource, db_session: AsyncSession
+    ) -> None:
+        book_a = await _add_book(db_session, "A")
+        book_b = await _add_book(db_session, "B")
+        note = await _add_note(db_session, "T", "B", [book_a, book_b])
+
+        emb = await content_source.get_embeddable(ContentType.NOTE, note.id)
+
+        assert emb is not None
+        assert emb.book_id is None
+
+    async def test_highlight_resolves_text_user_and_book(
+        self, content_source: ContentSource, db_session: AsyncSession
+    ) -> None:
+        book = await _add_book(db_session)
+        highlight = await _add_highlight(db_session, book, "A memorable line")
+
+        emb = await content_source.get_embeddable(ContentType.HIGHLIGHT, highlight.id)
+
+        assert emb is not None
+        assert emb.text == "A memorable line"
+        assert emb.content_hash == _expected_hash("A memorable line")
+        assert emb.user_id == USER_ID
+        assert emb.book_id == book.id
+
+    async def test_soft_deleted_highlight_returns_none(
+        self, content_source: ContentSource, db_session: AsyncSession
+    ) -> None:
+        book = await _add_book(db_session)
+        highlight = await _add_highlight(db_session, book, "gone", deleted=True)
+
+        assert await content_source.get_embeddable(ContentType.HIGHLIGHT, highlight.id) is None
+
+    async def test_digest_joins_summary_and_keypoints(
+        self, content_source: ContentSource, db_session: AsyncSession
+    ) -> None:
+        book = await _add_book(db_session)
+        digest = await _add_digest(db_session, book, "Summary", ["one", "two"])
+
+        emb = await content_source.get_embeddable(ContentType.DIGEST, digest.id)
+
+        assert emb is not None
+        assert emb.text == "Summary\n\none\ntwo"
+        assert emb.user_id == USER_ID
+        assert emb.book_id == book.id
+
+    async def test_missing_content_returns_none(self, content_source: ContentSource) -> None:
+        assert await content_source.get_embeddable(ContentType.NOTE, 9999) is None
+
+
+class TestIterWorkItems:
+    async def test_returns_units_missing_an_embedding(
+        self, content_source: ContentSource, db_session: AsyncSession
+    ) -> None:
+        book = await _add_book(db_session)
+        note = await _add_note(db_session, "N", "body", [book])
+        highlight = await _add_highlight(db_session, book, "text")
+        digest = await _add_digest(db_session, book, "s", ["k"])
+
+        items = await content_source.iter_work_items(USER_ID, None)
+
+        by_type = {(item.content_type, item.content_id) for item in items}
+        assert (ContentType.NOTE, note.id) in by_type
+        assert (ContentType.HIGHLIGHT, highlight.id) in by_type
+        assert (ContentType.DIGEST, digest.id) in by_type
+
+    async def test_book_scope_excludes_other_books(
+        self, content_source: ContentSource, db_session: AsyncSession
+    ) -> None:
+        book = await _add_book(db_session, "target")
+        other = await _add_book(db_session, "other")
+        highlight = await _add_highlight(db_session, book, "in scope")
+        out = await _add_highlight(db_session, other, "out of scope")
+
+        items = await content_source.iter_work_items(USER_ID, book.id)
+
+        ids = {item.content_id for item in items if item.content_type == ContentType.HIGHLIGHT}
+        assert highlight.id in ids
+        assert out.id not in ids
+
+    async def test_excludes_units_with_current_embedding(self, db_session: AsyncSession) -> None:
+        configured = get_settings().model_copy(
+            update={"EMBEDDING_MODEL_NAME": "bge-m3", "EMBEDDING_MODEL_VERSION": "1"}
+        )
+        source = ContentSource(db_session, configured)
+        book = await _add_book(db_session)
+        embedded = await _add_highlight(db_session, book, "already embedded")
+        pending = await _add_highlight(db_session, book, "still pending")
+        db_session.add(
+            Embedding(
+                user_id=USER_ID,
+                content_type=ContentType.HIGHLIGHT.value,
+                content_id=embedded.id,
+                book_id=book.id,
+                embedding=[0.1, 0.2],
+                model_name="bge-m3",
+                model_version="1",
+                content_hash="x" * 64,
+            )
+        )
+        await db_session.commit()
+
+        items = await source.iter_work_items(USER_ID, None)
+
+        ids = {item.content_id for item in items if item.content_type == ContentType.HIGHLIGHT}
+        assert pending.id in ids
+        assert embedded.id not in ids
