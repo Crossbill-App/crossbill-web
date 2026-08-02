@@ -55,7 +55,7 @@ def _view_to_response(view: JobBatchView) -> JobBatchResponse:
 
 
 @router.post(
-    "/books/{book_id}/prereading",
+    "/books/{book_id}/digest",
     response_model=JobBatchResponse,
     status_code=status.HTTP_202_ACCEPTED,
 )
@@ -76,7 +76,7 @@ async def enqueue_book_digest(
 
 
 @router.get(
-    "/books/{book_id}/prereading",
+    "/books/{book_id}/digest",
     response_model=JobBatchResponse | None,
     status_code=status.HTTP_200_OK,
 )

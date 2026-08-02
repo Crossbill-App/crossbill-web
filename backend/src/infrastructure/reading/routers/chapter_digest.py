@@ -30,11 +30,11 @@ from src.infrastructure.reading.schemas.chapter_digest_schemas import (
     UpdateDigestAnswersRequest,
 )
 
-router = APIRouter(prefix="/chapters", tags=["prereading"])
+router = APIRouter(prefix="/chapters", tags=["digest"])
 
 
 @router.get(
-    "/{chapter_id}/prereading",
+    "/{chapter_id}/digest",
     response_model=ChapterDigestResponse | None,
     status_code=status.HTTP_200_OK,
 )
@@ -68,7 +68,7 @@ async def get_chapter_digest(
 
 
 @router.post(
-    "/{chapter_id}/prereading/generate",
+    "/{chapter_id}/digest/generate",
     response_model=ChapterDigestResponse,
     status_code=status.HTTP_201_CREATED,
 )
@@ -100,7 +100,7 @@ async def generate_chapter_digest(
 
 
 @router.put(
-    "/{chapter_id}/prereading/answers",
+    "/{chapter_id}/digest/answers",
     response_model=ChapterDigestResponse,
     status_code=status.HTTP_200_OK,
 )
@@ -133,11 +133,11 @@ async def update_digest_answers(
     )
 
 
-book_digest_router = APIRouter(prefix="/books", tags=["prereading"])
+book_digest_router = APIRouter(prefix="/books", tags=["digest"])
 
 
 @book_digest_router.get(
-    "/{book_id}/prereading",
+    "/{book_id}/digest",
     response_model=CollectionResponse[ChapterDigestResponse],
     status_code=status.HTTP_200_OK,
 )

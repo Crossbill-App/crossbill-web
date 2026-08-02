@@ -57,7 +57,7 @@ async def test_returns_items_ordered_by_chapter_number(
     await _add_digest(db_session, ch_a, summary="Exercises summary")
     await _add_digest(db_session, ch_b, summary="Intro summary")
 
-    response = await client.get("/api/v1/ereader/books/client-abc/prereading")
+    response = await client.get("/api/v1/ereader/books/client-abc/digest")
 
     assert response.status_code == 200
     items = response.json()["items"]
@@ -67,6 +67,20 @@ async def test_returns_items_ordered_by_chapter_number(
     assert items[0]["parent_chapter_name"] == "Topic 1"
     assert items[1]["chapter_name"] == "Exercises"
     assert items[1]["summary"] == "Exercises summary"
+
+
+async def test_deprecated_prereading_path_serves_the_same_payload(
+    client: AsyncClient, db_session: AsyncSession, digest_book: Book
+) -> None:
+    """KOReader plugins in the field still call /prereading until they update."""
+    chapter = await create_test_chapter(db_session, digest_book, "Intro", chapter_number=1)
+    await _add_digest(db_session, chapter, summary="Intro summary")
+
+    deprecated = await client.get("/api/v1/ereader/books/client-abc/prereading")
+    current = await client.get("/api/v1/ereader/books/client-abc/digest")
+
+    assert deprecated.status_code == 200
+    assert deprecated.json() == current.json()
 
 
 async def test_duplicate_chapter_names_disambiguated_by_parent(
@@ -83,7 +97,7 @@ async def test_duplicate_chapter_names_disambiguated_by_parent(
     await _add_digest(db_session, ex1)
     await _add_digest(db_session, ex2)
 
-    response = await client.get("/api/v1/ereader/books/client-abc/prereading")
+    response = await client.get("/api/v1/ereader/books/client-abc/digest")
 
     assert response.status_code == 200
     items = response.json()["items"]
@@ -99,7 +113,7 @@ async def test_root_chapter_has_null_parent_name(
     root = await create_test_chapter(db_session, digest_book, "Root Chapter", chapter_number=1)
     await _add_digest(db_session, root)
 
-    response = await client.get("/api/v1/ereader/books/client-abc/prereading")
+    response = await client.get("/api/v1/ereader/books/client-abc/digest")
 
     assert response.status_code == 200
     items = response.json()["items"]
@@ -114,7 +128,7 @@ async def test_chapters_without_digest_are_omitted(
     await create_test_chapter(db_session, digest_book, "No digest", chapter_number=2)
     await _add_digest(db_session, ch_with)
 
-    response = await client.get("/api/v1/ereader/books/client-abc/prereading")
+    response = await client.get("/api/v1/ereader/books/client-abc/digest")
 
     assert response.status_code == 200
     items = response.json()["items"]
@@ -127,14 +141,14 @@ async def test_book_with_zero_digest_returns_empty_list(
 ) -> None:
     await create_test_chapter(db_session, digest_book, "Lonely chapter", chapter_number=1)
 
-    response = await client.get("/api/v1/ereader/books/client-abc/prereading")
+    response = await client.get("/api/v1/ereader/books/client-abc/digest")
 
     assert response.status_code == 200
     assert response.json()["items"] == []
 
 
 async def test_unknown_client_book_id_returns_404(client: AsyncClient) -> None:
-    response = await client.get("/api/v1/ereader/books/does-not-exist/prereading")
+    response = await client.get("/api/v1/ereader/books/does-not-exist/digest")
 
     assert response.status_code == 404
 
@@ -155,7 +169,7 @@ async def test_questions_contain_only_question_strings(
         ],
     )
 
-    response = await client.get("/api/v1/ereader/books/client-abc/prereading")
+    response = await client.get("/api/v1/ereader/books/client-abc/digest")
 
     assert response.status_code == 200
     questions = response.json()["items"][0]["questions"]

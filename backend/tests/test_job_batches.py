@@ -94,7 +94,7 @@ class TestGetActiveBookDigestBatch:
     async def test_returns_null_when_no_batch_exists(
         self, client: AsyncClient, test_book: Book
     ) -> None:
-        response = await client.get(f"/api/v1/jobs/books/{test_book.id}/prereading")
+        response = await client.get(f"/api/v1/jobs/books/{test_book.id}/digest")
 
         assert response.status_code == status.HTTP_200_OK
         assert response.json() is None
@@ -122,7 +122,7 @@ class TestGetActiveBookDigestBatch:
             created_at=now - timedelta(hours=1),
         )
 
-        response = await client.get(f"/api/v1/jobs/books/{test_book.id}/prereading")
+        response = await client.get(f"/api/v1/jobs/books/{test_book.id}/digest")
 
         assert response.status_code == status.HTTP_200_OK
         assert response.json()["id"] == newest_active.id
@@ -136,7 +136,7 @@ class TestGetActiveBookDigestBatch:
             batch_status=JobBatchStatus.CANCELLED,
         )
 
-        response = await client.get(f"/api/v1/jobs/books/{test_book.id}/prereading")
+        response = await client.get(f"/api/v1/jobs/books/{test_book.id}/digest")
 
         assert response.status_code == status.HTTP_200_OK
         assert response.json() is None

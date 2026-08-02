@@ -180,9 +180,19 @@ async def upload_book_epub(
 
 
 @router.get(
+    "/books/{client_book_id}/digest",
+    response_model=CollectionResponse[EreaderChapterDigestItem],
+    status_code=status.HTTP_200_OK,
+)
+@router.get(
+    # Deprecated alias kept for KOReader plugins in the field, which are
+    # shipped to devices and update on their own schedule. Remove once the
+    # plugin release using /digest has been out for a deprecation window.
     "/books/{client_book_id}/prereading",
     response_model=CollectionResponse[EreaderChapterDigestItem],
     status_code=status.HTTP_200_OK,
+    deprecated=True,
+    include_in_schema=False,
 )
 async def get_ereader_book_digest(
     client_book_id: str,
