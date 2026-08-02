@@ -68,11 +68,6 @@ comprehension questions the user can answer. Read before the chapter to support
 Skimming, or after it as review — the artifact is the same either way.
 _Avoid_: prereading content, chapter summary, chapter overview
 
-> The code still calls this _prereading content_ throughout, from the entity down
-> to the e-reader endpoint. The rename is tracked in
-> [#511](https://github.com/Crossbill-Highlights/crossbill-web/issues/511); until
-> it lands, read `prereading` in code as _digest_.
-
 ### Organizing
 
 **Tag**:

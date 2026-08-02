@@ -68,7 +68,7 @@ services:
     networks:
       - crossbill-network
 
-  # Background job worker (SAQ) — processes async tasks like batch AI prereading generation.
+  # Background job worker (SAQ) — processes async tasks like batch AI digest generation.
   # Uses the same image as the app with a different entrypoint. Requires AI_PROVIDER config for AI tasks.
   #
   # NOT NEEDED by default — the app runs the worker in-process (EMBEDDED_WORKER=true).
