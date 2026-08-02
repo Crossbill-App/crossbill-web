@@ -135,6 +135,20 @@ class Settings(BaseSettings):
     # openrouter
     OPENROUTER_API_KEY: str | None = None
 
+    # Embedding configuration (semantic search). Parallel to and independent of
+    # the AI_* config above: embeddings and text generation often want different
+    # providers. Both Ollama and OpenRouter expose OpenAI-compatible /embeddings,
+    # so the provider only selects the base URL and key.
+    EMBEDDING_PROVIDER: Literal["ollama"] | Literal["openrouter"] | None = None
+    EMBEDDING_MODEL_NAME: str | None = None
+    EMBEDDING_DIMENSIONS: int = 1024
+    # Stored alongside every embedding; bumping it forces a re-embed on the next
+    # reconciliation pass without a schema change.
+    EMBEDDING_MODEL_VERSION: str = "1"
+    # ollama: required, e.g. http://localhost:11434/v1
+    # openrouter: optional, defaults to https://openrouter.ai/api/v1
+    EMBEDDING_BASE_URL: str | None = None
+
     # Worker
     EMBEDDED_WORKER: bool = True
     WORKER_CONCURRENCY: int = 2
@@ -151,6 +165,12 @@ class Settings(BaseSettings):
     def ai_enabled(self) -> bool:
         """Whether AI features are enabled."""
         return self.AI_PROVIDER is not None
+
+    @computed_field  # type: ignore[prop-decorator]
+    @property
+    def embeddings_enabled(self) -> bool:
+        """Whether semantic-search embeddings are enabled."""
+        return self.EMBEDDING_PROVIDER is not None
 
     @computed_field  # type: ignore[prop-decorator]
     @property
@@ -244,6 +264,22 @@ class Settings(BaseSettings):
             raise ValueError(msg)
         if self.AI_PROVIDER == "openrouter" and not self.OPENROUTER_API_KEY:
             msg = "OPENROUTER_API_KEY is required when AI_PROVIDER is 'openrouter'"
+            raise ValueError(msg)
+        return self
+
+    @model_validator(mode="after")
+    def validate_embedding_provider_config(self) -> "Settings":
+        """Validate embedding provider configuration."""
+        if self.EMBEDDING_PROVIDER is None:
+            return self
+        if self.EMBEDDING_MODEL_NAME is None:
+            msg = "EMBEDDING_MODEL_NAME is required when EMBEDDING_PROVIDER is set"
+            raise ValueError(msg)
+        if self.EMBEDDING_PROVIDER == "ollama" and not self.EMBEDDING_BASE_URL:
+            msg = "EMBEDDING_BASE_URL is required when EMBEDDING_PROVIDER is 'ollama'"
+            raise ValueError(msg)
+        if self.EMBEDDING_PROVIDER == "openrouter" and not self.OPENROUTER_API_KEY:
+            msg = "OPENROUTER_API_KEY is required when EMBEDDING_PROVIDER is 'openrouter'"
             raise ValueError(msg)
         return self
 

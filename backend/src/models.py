@@ -36,6 +36,7 @@ from src.infrastructure.reading.orm.highlight_style_model import HighlightStyle
 from src.infrastructure.reading.orm.reading_session_model import ReadingSession
 from src.infrastructure.reflection.orm.associations import book_reflection_notes
 from src.infrastructure.reflection.orm.book_reflection_model import BookReflection
+from src.infrastructure.semantic.orm.embedding_model import Embedding
 from src.infrastructure.tagging.orm.tag_group_model import TagGroup
 from src.infrastructure.tagging.orm.tag_model import Tag
 
@@ -48,6 +49,7 @@ __all__ = [
     "Bookmark",
     "Chapter",
     "ChapterDigest",
+    "Embedding",
     "Flashcard",
     "Highlight",
     "HighlightStyle",

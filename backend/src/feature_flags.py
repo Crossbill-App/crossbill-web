@@ -11,11 +11,12 @@ class FeatureFlags(BaseModel):
     """Pydantic model defining all feature flags in the application."""
 
     ai: bool = Field(..., description="Whether AI features are enabled")
+    embeddings: bool = Field(..., description="Whether semantic-search embeddings are enabled")
     user_registrations: bool = Field(..., description="Whether user registration is enabled")
 
 
 # Type alias for valid feature flag keys
-FeatureFlagKey = Literal["ai", "user_registrations"]
+FeatureFlagKey = Literal["ai", "embeddings", "user_registrations"]
 
 
 def get_feature_flags() -> FeatureFlags:
@@ -29,6 +30,7 @@ def get_feature_flags() -> FeatureFlags:
 
     return FeatureFlags(
         ai=settings.ai_enabled,
+        embeddings=settings.embeddings_enabled,
         user_registrations=settings.ALLOW_USER_REGISTRATIONS,
     )
 
@@ -50,6 +52,11 @@ def get_feature_flag(key: FeatureFlagKey) -> bool:
 def is_ai_enabled() -> bool:
     """Check if AI features are enabled."""
     return get_feature_flag("ai")
+
+
+def is_embeddings_enabled() -> bool:
+    """Check if semantic-search embeddings are enabled."""
+    return get_feature_flag("embeddings")
 
 
 def is_user_registrations_enabled() -> bool:

@@ -55,6 +55,8 @@ from src.infrastructure.reading.repositories.reading_session_repository import (
 from src.infrastructure.reflection.repositories.book_reflection_repository import (
     BookReflectionRepository,
 )
+from src.infrastructure.semantic.clients.openai_embedding_client import build_embedding_client
+from src.infrastructure.semantic.repositories.embedding_repository import EmbeddingRepository
 from src.infrastructure.tagging.repositories import TagRepository
 
 
@@ -165,3 +167,9 @@ class SharedContainer(containers.DeclarativeContainer):
     # Jobs
     job_batch_repository = providers.Factory(JobBatchRepository, db=db)
     job_batch_query = providers.Factory(JobBatchQuery, db=db)
+
+    # Semantic search (embeddings). The client is settings-driven and provider
+    # is only a base URL, so a process-wide singleton is fine; the repository is
+    # per-request like every other db-bound provider.
+    embedding_repository = providers.Factory(EmbeddingRepository, db=db)
+    embedding_client = providers.Singleton(build_embedding_client, settings=settings)
