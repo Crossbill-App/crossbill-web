@@ -1,5 +1,5 @@
 import { Box, Tab, Tabs } from '@mui/material';
-import { type ReactNode, useState } from 'react';
+import { type ReactNode, useId, useState } from 'react';
 import type { SwipeableHandlers } from 'react-swipeable';
 
 export interface DialogTabItem {
@@ -39,6 +39,7 @@ export const DialogTabs = ({
   onTabChange,
 }: DialogTabsProps) => {
   const [internalTab, setInternalTab] = useState(0);
+  const instanceId = useId();
   const currentTab = activeTab ?? internalTab;
   const setTab = onTabChange ?? setInternalTab;
 
@@ -56,12 +57,26 @@ export const DialogTabs = ({
         onTouchStart={(e) => e.stopPropagation()}
         onTouchMove={(e) => e.stopPropagation()}
         onTouchEnd={(e) => e.stopPropagation()}
+        // Arrow keys belong to the tab strip while it holds focus; without this
+        // the enclosing modal steals them to page to the previous/next entity.
+        data-prevent-navigation="true"
       >
-        {tabs.map((tab) => (
-          <Tab key={tab.key} label={formatTabLabel(tab.label, tab.count)} />
+        {tabs.map((tab, index) => (
+          <Tab
+            key={tab.key}
+            id={`${instanceId}-tab-${index}`}
+            aria-controls={`${instanceId}-panel-${index}`}
+            label={formatTabLabel(tab.label, tab.count)}
+          />
         ))}
       </Tabs>
-      <Box sx={{ pt: 2, pb: 2 }} {...panelSwipeHandlers}>
+      <Box
+        role="tabpanel"
+        id={`${instanceId}-panel-${safeActiveTab}`}
+        aria-labelledby={`${instanceId}-tab-${safeActiveTab}`}
+        sx={{ pt: 2, pb: 2 }}
+        {...panelSwipeHandlers}
+      >
         {tabs[safeActiveTab]?.content}
       </Box>
     </Box>
