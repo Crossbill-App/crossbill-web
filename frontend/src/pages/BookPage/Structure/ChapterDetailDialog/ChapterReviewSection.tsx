@@ -1,12 +1,12 @@
-import type {
-  ChapterDigestResponse,
-  CollectionResponseChapterDigestResponse,
-} from '@/api/generated/model';
 import {
   getGetBookDigestQueryKey,
   useGenerateChapterDigest,
   useUpdateDigestAnswers,
 } from '@/api/generated/digest/digest';
+import type {
+  ChapterDigestResponse,
+  CollectionResponseChapterDigestResponse,
+} from '@/api/generated/model';
 import { AIActionButton } from '@/components/buttons/AIActionButton.tsx';
 import { AIFeature } from '@/components/features/AIFeature.tsx';
 import { useCacheEvents } from '@/lib/cacheEvents.ts';
@@ -38,9 +38,7 @@ export const ChapterReviewSection = ({
   // Server answers derived from digestSummary
   const serverAnswers = useMemo<Record<number, string>>(() => {
     if (!digestSummary) return {};
-    return Object.fromEntries(
-      digestSummary.questions.map((q, index) => [index, q.user_answer])
-    );
+    return Object.fromEntries(digestSummary.questions.map((q, index) => [index, q.user_answer]));
   }, [digestSummary]);
 
   // Merge server answers with local edits for the current chapter

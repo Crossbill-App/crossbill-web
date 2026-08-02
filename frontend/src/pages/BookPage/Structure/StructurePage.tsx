@@ -1,6 +1,6 @@
+import { useGetBookDigest } from '@/api/generated/digest/digest';
 import type { ChapterDigestResponse, ChapterWithHighlights } from '@/api/generated/model';
 import { useGetNotesForBook } from '@/api/generated/notes/notes.ts';
-import { useGetBookDigest } from '@/api/generated/digest/digest';
 import { useUrlEntityDialog } from '@/components/dialogs/useUrlEntityDialog.ts';
 import { useBookPage } from '@/pages/BookPage/BookPageContext';
 import { Box, Typography } from '@mui/material';

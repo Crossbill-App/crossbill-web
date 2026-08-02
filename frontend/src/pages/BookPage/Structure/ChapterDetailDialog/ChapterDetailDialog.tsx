@@ -27,9 +27,9 @@ import { ChapterReviewSection } from './ChapterReviewSection.tsx';
 import { ChapterToolbar } from './ChapterToolbar.tsx';
 import { ChatDialog } from './ChatDialog.tsx';
 import { CHAT_VARIANT, QUIZ_VARIANT } from './chatVariants.ts';
+import { DigestSummarySection } from './DigestSummarySection.tsx';
 import { FlashcardsSection } from './FlashcardsSection.tsx';
 import { HighlightsSection } from './HighlightsSection.tsx';
-import { DigestSummarySection } from './DigestSummarySection.tsx';
 
 interface ChapterDetailDialogProps {
   controller: UrlEntityDialogController<ChapterWithHighlights>;

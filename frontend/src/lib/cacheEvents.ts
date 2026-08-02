@@ -3,10 +3,10 @@ import {
   getGetBooksQueryKey,
   getGetRecentlyViewedBooksQueryKey,
 } from '@/api/generated/books/books.ts';
+import { getGetBookDigestQueryKey } from '@/api/generated/digest/digest.ts';
 import { getGetBookHighlightLabelsQueryKey } from '@/api/generated/highlight-labels/highlight-labels.ts';
 import { getGetActiveBookDigestBatchQueryKey } from '@/api/generated/jobs/jobs.ts';
 import { getGetNoteQueryKey, getGetNotesForBookQueryKey } from '@/api/generated/notes/notes.ts';
-import { getGetBookDigestQueryKey } from '@/api/generated/digest/digest.ts';
 import { getGetTagsQueryKey } from '@/api/generated/tags/tags.ts';
 import { useQueryClient, type QueryKey } from '@tanstack/react-query';
 import { useMemo } from 'react';
@@ -88,10 +88,7 @@ export const useCacheEvents = () => {
 
       /** A batch digest job reached a terminal state, so its output is ready. */
       digestBatchFinished: (bookId: number) =>
-        invalidate(
-          getGetBookDigestQueryKey(bookId),
-          getGetActiveBookDigestBatchQueryKey(bookId)
-        ),
+        invalidate(getGetBookDigestQueryKey(bookId), getGetActiveBookDigestBatchQueryKey(bookId)),
 
       /** A batch digest job was cancelled; no new digest content exists. */
       digestBatchCancelled: (bookId: number) =>
