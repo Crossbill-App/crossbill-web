@@ -2,7 +2,7 @@
 
 from typing import Annotated
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, Query
 from starlette import status
 
 from src.application.semantic.commands.enqueue_content_embeddings_use_case import (
@@ -81,7 +81,7 @@ async def search_content(
     current_user: Annotated[User, Depends(get_current_user)],
     q: str,
     book_id: int | None = None,
-    limit: int = 10,
+    limit: Annotated[int, Query(ge=1, le=MAX_SEARCH_LIMIT)] = 10,
     use_case: SearchContentUseCase = Depends(
         inject_use_case(container.semantic.search_content_use_case)
     ),
@@ -91,7 +91,7 @@ async def search_content(
         query_text=q,
         user_id=current_user.id.value,
         book_id=book_id,
-        limit=min(limit, MAX_SEARCH_LIMIT),
+        limit=limit,
     )
     return [_result(view) for view in views]
 
@@ -102,7 +102,7 @@ async def related_content(
     current_user: Annotated[User, Depends(get_current_user)],
     content_type: ContentType,
     content_id: int,
-    limit: int = 10,
+    limit: Annotated[int, Query(ge=1, le=MAX_SEARCH_LIMIT)] = 10,
     use_case: RelatedContentUseCase = Depends(
         inject_use_case(container.semantic.related_content_use_case)
     ),
@@ -112,6 +112,6 @@ async def related_content(
         content_type=content_type,
         content_id=content_id,
         user_id=current_user.id.value,
-        limit=min(limit, MAX_SEARCH_LIMIT),
+        limit=limit,
     )
     return [_result(view) for view in views]
