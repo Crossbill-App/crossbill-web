@@ -33,6 +33,7 @@ from src.domain.common.exceptions import (
 from src.infrastructure.common.client_ip import client_ip, client_ip_from_scope, proxy_chain
 from src.infrastructure.common.openapi import operation_id
 from src.infrastructure.common.rate_limit import RateLimitMiddleware, limiter
+from src.infrastructure.common.request_logging import access_log_level
 from src.infrastructure.common.routers import settings as settings_router
 from src.infrastructure.identity.repositories.user_repository import UserRepository
 from src.infrastructure.identity.routers import auth, users
@@ -221,7 +222,10 @@ class RequestIdAndLoggingMiddleware:
         method = scope.get("method")
         path = scope.get("path")
 
-        logger.info(
+        log_path = path or ""
+
+        logger.log(
+            access_log_level(log_path, settings.API_V1_PREFIX),
             "request_started",
             method=method,
             path=path,
@@ -245,7 +249,8 @@ class RequestIdAndLoggingMiddleware:
             await self.app(scope, receive, wrapped_send)
         finally:
             duration = time.time() - start_time
-            logger.info(
+            logger.log(
+                access_log_level(log_path, settings.API_V1_PREFIX, status_code),
                 "request_completed",
                 method=method,
                 path=path,
