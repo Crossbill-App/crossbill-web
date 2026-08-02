@@ -1,21 +1,21 @@
-"""API router for chapter prereading content."""
+"""API router for chapter digests."""
 
 from typing import Annotated
 
 from fastapi import APIRouter, Depends
 from starlette import status
 
-from src.application.reading.commands.chapter_prereading.generate_chapter_prereading_use_case import (
-    GenerateChapterPrereadingUseCase,
+from src.application.reading.commands.chapter_digest.generate_chapter_digest_use_case import (
+    GenerateChapterDigestUseCase,
 )
-from src.application.reading.commands.chapter_prereading.update_prereading_answers_use_case import (
-    UpdatePrereadingAnswersUseCase,
+from src.application.reading.commands.chapter_digest.update_digest_answers_use_case import (
+    UpdateDigestAnswersUseCase,
 )
-from src.application.reading.queries.get_book_prereading_use_case import (
-    GetBookPrereadingUseCase,
+from src.application.reading.queries.get_book_digests_use_case import (
+    GetBookDigestsUseCase,
 )
-from src.application.reading.queries.get_chapter_prereading_use_case import (
-    GetChapterPrereadingUseCase,
+from src.application.reading.queries.get_chapter_digest_use_case import (
+    GetChapterDigestUseCase,
 )
 from src.core import container
 from src.domain.common.value_objects.ids import BookId, ChapterId, UserId
@@ -24,10 +24,10 @@ from src.infrastructure.common.dependencies import require_ai_enabled
 from src.infrastructure.common.di import inject_use_case
 from src.infrastructure.common.schemas import CollectionResponse
 from src.infrastructure.identity import get_current_user
-from src.infrastructure.reading.schemas.chapter_prereading_schemas import (
-    ChapterPrereadingResponse,
-    PrereadingQuestionResponse,
-    UpdatePrereadingAnswersRequest,
+from src.infrastructure.reading.schemas.chapter_digest_schemas import (
+    ChapterDigestResponse,
+    DigestQuestionResponse,
+    UpdateDigestAnswersRequest,
 )
 
 router = APIRouter(prefix="/chapters", tags=["prereading"])
@@ -35,18 +35,18 @@ router = APIRouter(prefix="/chapters", tags=["prereading"])
 
 @router.get(
     "/{chapter_id}/prereading",
-    response_model=ChapterPrereadingResponse | None,
+    response_model=ChapterDigestResponse | None,
     status_code=status.HTTP_200_OK,
 )
-async def get_chapter_prereading(
+async def get_chapter_digest(
     chapter_id: int,
     current_user: Annotated[User, Depends(get_current_user)],
-    use_case: GetChapterPrereadingUseCase = Depends(
-        inject_use_case(container.reading.get_chapter_prereading_use_case)
+    use_case: GetChapterDigestUseCase = Depends(
+        inject_use_case(container.reading.get_chapter_digest_use_case)
     ),
-) -> ChapterPrereadingResponse | None:
-    """Get existing prereading content for a chapter."""
-    result = await use_case.get_prereading_content(
+) -> ChapterDigestResponse | None:
+    """Get a chapter's existing digest."""
+    result = await use_case.get_digest(
         chapter_id=ChapterId(chapter_id),
         user_id=UserId(current_user.id.value),
     )
@@ -54,15 +54,13 @@ async def get_chapter_prereading(
     if not result:
         return None
 
-    return ChapterPrereadingResponse(
+    return ChapterDigestResponse(
         id=result.id.value,
         chapter_id=result.chapter_id.value,
         summary=result.summary,
         keypoints=result.keypoints,
         questions=[
-            PrereadingQuestionResponse(
-                question=q.question, answer=q.answer, user_answer=q.user_answer
-            )
+            DigestQuestionResponse(question=q.question, answer=q.answer, user_answer=q.user_answer)
             for q in result.questions
         ],
         generated_at=result.generated_at,
@@ -71,32 +69,30 @@ async def get_chapter_prereading(
 
 @router.post(
     "/{chapter_id}/prereading/generate",
-    response_model=ChapterPrereadingResponse,
+    response_model=ChapterDigestResponse,
     status_code=status.HTTP_201_CREATED,
 )
 @require_ai_enabled
-async def generate_chapter_prereading(
+async def generate_chapter_digest(
     chapter_id: int,
     current_user: Annotated[User, Depends(get_current_user)],
-    use_case: GenerateChapterPrereadingUseCase = Depends(
-        inject_use_case(container.reading.generate_chapter_prereading_use_case)
+    use_case: GenerateChapterDigestUseCase = Depends(
+        inject_use_case(container.reading.generate_chapter_digest_use_case)
     ),
-) -> ChapterPrereadingResponse:
-    """Generate prereading content for a chapter."""
-    result = await use_case.generate_prereading_content(
+) -> ChapterDigestResponse:
+    """Generate a chapter's digest."""
+    result = await use_case.generate_digest(
         chapter_id=ChapterId(chapter_id),
         user_id=UserId(current_user.id.value),
     )
 
-    return ChapterPrereadingResponse(
+    return ChapterDigestResponse(
         id=result.id.value,
         chapter_id=result.chapter_id.value,
         summary=result.summary,
         keypoints=result.keypoints,
         questions=[
-            PrereadingQuestionResponse(
-                question=q.question, answer=q.answer, user_answer=q.user_answer
-            )
+            DigestQuestionResponse(question=q.question, answer=q.answer, user_answer=q.user_answer)
             for q in result.questions
         ],
         generated_at=result.generated_at,
@@ -105,18 +101,18 @@ async def generate_chapter_prereading(
 
 @router.put(
     "/{chapter_id}/prereading/answers",
-    response_model=ChapterPrereadingResponse,
+    response_model=ChapterDigestResponse,
     status_code=status.HTTP_200_OK,
 )
-async def update_prereading_answers(
+async def update_digest_answers(
     chapter_id: int,
-    body: UpdatePrereadingAnswersRequest,
+    body: UpdateDigestAnswersRequest,
     current_user: Annotated[User, Depends(get_current_user)],
-    use_case: UpdatePrereadingAnswersUseCase = Depends(
-        inject_use_case(container.reading.update_prereading_answers_use_case)
+    use_case: UpdateDigestAnswersUseCase = Depends(
+        inject_use_case(container.reading.update_digest_answers_use_case)
     ),
-) -> ChapterPrereadingResponse:
-    """Update user answers for prereading questions."""
+) -> ChapterDigestResponse:
+    """Update user answers for digest questions."""
     answers = {a.question_index: a.user_answer for a in body.answers}
     result = await use_case.update_answers(
         chapter_id=ChapterId(chapter_id),
@@ -124,51 +120,49 @@ async def update_prereading_answers(
         answers=answers,
     )
 
-    return ChapterPrereadingResponse(
+    return ChapterDigestResponse(
         id=result.id.value,
         chapter_id=result.chapter_id.value,
         summary=result.summary,
         keypoints=result.keypoints,
         questions=[
-            PrereadingQuestionResponse(
-                question=q.question, answer=q.answer, user_answer=q.user_answer
-            )
+            DigestQuestionResponse(question=q.question, answer=q.answer, user_answer=q.user_answer)
             for q in result.questions
         ],
         generated_at=result.generated_at,
     )
 
 
-book_prereading_router = APIRouter(prefix="/books", tags=["prereading"])
+book_digest_router = APIRouter(prefix="/books", tags=["prereading"])
 
 
-@book_prereading_router.get(
+@book_digest_router.get(
     "/{book_id}/prereading",
-    response_model=CollectionResponse[ChapterPrereadingResponse],
+    response_model=CollectionResponse[ChapterDigestResponse],
     status_code=status.HTTP_200_OK,
 )
-async def get_book_prereading(
+async def get_book_digest(
     book_id: int,
     current_user: Annotated[User, Depends(get_current_user)],
-    use_case: GetBookPrereadingUseCase = Depends(
-        inject_use_case(container.reading.get_book_prereading_use_case)
+    use_case: GetBookDigestsUseCase = Depends(
+        inject_use_case(container.reading.get_book_digests_use_case)
     ),
-) -> CollectionResponse[ChapterPrereadingResponse]:
-    """Get all prereading content for chapters in a book."""
-    results = await use_case.get_all_prereading_for_book(
+) -> CollectionResponse[ChapterDigestResponse]:
+    """Get the digest of every chapter in a book."""
+    results = await use_case.get_all_digests_for_book(
         book_id=BookId(book_id),
         user_id=UserId(current_user.id.value),
     )
 
-    return CollectionResponse[ChapterPrereadingResponse](
+    return CollectionResponse[ChapterDigestResponse](
         items=[
-            ChapterPrereadingResponse(
+            ChapterDigestResponse(
                 id=r.id.value,
                 chapter_id=r.chapter_id.value,
                 summary=r.summary,
                 keypoints=r.keypoints,
                 questions=[
-                    PrereadingQuestionResponse(
+                    DigestQuestionResponse(
                         question=q.question, answer=q.answer, user_answer=q.user_answer
                     )
                     for q in r.questions

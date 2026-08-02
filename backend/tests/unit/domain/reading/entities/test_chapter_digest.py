@@ -4,15 +4,15 @@ from typing import Any
 import pytest
 
 from src.domain.common.exceptions import DomainError
-from src.domain.common.value_objects.ids import ChapterId, PrereadingContentId
-from src.domain.reading.entities.chapter_prereading_content import (
-    ChapterPrereadingContent,
-    PrereadingQuestion,
+from src.domain.common.value_objects.ids import ChapterDigestId, ChapterId
+from src.domain.reading.entities.chapter_digest import (
+    ChapterDigest,
+    DigestQuestion,
 )
 
 
-def _create(**overrides: Any) -> ChapterPrereadingContent:  # noqa: ANN401
-    """Create ChapterPrereadingContent with sensible defaults."""
+def _create(**overrides: Any) -> ChapterDigest:  # noqa: ANN401
+    """Create ChapterDigest with sensible defaults."""
     defaults: dict[str, Any] = {
         "chapter_id": ChapterId(1),
         "summary": "This chapter covers the basics of testing.",
@@ -22,16 +22,16 @@ def _create(**overrides: Any) -> ChapterPrereadingContent:  # noqa: ANN401
             "Test behavior, not implementation",
         ],
         "questions": [
-            PrereadingQuestion(question="What is testing?", answer="Verifying correctness."),
+            DigestQuestion(question="What is testing?", answer="Verifying correctness."),
         ],
         "generated_at": datetime.now(UTC),
         "ai_model": "gpt-4",
     }
     defaults.update(overrides)
-    return ChapterPrereadingContent.create(**defaults)  # type: ignore[arg-type]
+    return ChapterDigest.create(**defaults)  # type: ignore[arg-type]
 
 
-def test_create_prereading_content() -> None:
+def test_create_digest() -> None:
     content = _create()
     assert content.chapter_id == ChapterId(1)
     assert "basics of testing" in content.summary
@@ -52,8 +52,8 @@ def test_create_strips_whitespace() -> None:
 
 def test_create_with_id() -> None:
     now = datetime.now(UTC)
-    content = ChapterPrereadingContent.create_with_id(
-        id=PrereadingContentId(42),
+    content = ChapterDigest.create_with_id(
+        id=ChapterDigestId(42),
         chapter_id=ChapterId(1),
         summary="Summary",
         keypoints=["Point 1"],
@@ -61,7 +61,7 @@ def test_create_with_id() -> None:
         generated_at=now,
         ai_model="gpt-4",
     )
-    assert content.id == PrereadingContentId(42)
+    assert content.id == ChapterDigestId(42)
     assert content.generated_at == now
 
 
@@ -90,22 +90,22 @@ def test_empty_ai_model_raises_error() -> None:
         _create(ai_model="")
 
 
-def test_prereading_question_default_user_answer() -> None:
-    q = PrereadingQuestion(question="What?", answer="This.")
+def test_digest_question_default_user_answer() -> None:
+    q = DigestQuestion(question="What?", answer="This.")
     assert q.user_answer == ""
 
 
-def test_prereading_question_with_user_answer() -> None:
-    q = PrereadingQuestion(question="What?", answer="This.", user_answer="My answer")
+def test_digest_question_with_user_answer() -> None:
+    q = DigestQuestion(question="What?", answer="This.", user_answer="My answer")
     assert q.user_answer == "My answer"
 
 
 def test_update_user_answers() -> None:
     content = _create(
         questions=[
-            PrereadingQuestion(question="Q1?", answer="A1"),
-            PrereadingQuestion(question="Q2?", answer="A2"),
-            PrereadingQuestion(question="Q3?", answer="A3"),
+            DigestQuestion(question="Q1?", answer="A1"),
+            DigestQuestion(question="Q2?", answer="A2"),
+            DigestQuestion(question="Q3?", answer="A3"),
         ]
     )
     content.update_user_answers({0: "User A1", 2: "User A3"})
@@ -115,7 +115,7 @@ def test_update_user_answers() -> None:
 
 
 def test_update_user_answers_ignores_out_of_range() -> None:
-    content = _create(questions=[PrereadingQuestion(question="Q1?", answer="A1")])
+    content = _create(questions=[DigestQuestion(question="Q1?", answer="A1")])
     content.update_user_answers({0: "Valid", 5: "Invalid", -1: "Also invalid"})
     assert content.questions[0].user_answer == "Valid"
     assert len(content.questions) == 1

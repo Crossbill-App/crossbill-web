@@ -36,7 +36,7 @@ async def add_batch(
     """Insert a job batch row directly, bypassing the write side."""
     batch = JobBatchModel(
         user_id=user_id,
-        batch_type=JobBatchType.CHAPTER_PREREADING.value,
+        batch_type=JobBatchType.CHAPTER_DIGEST.value,
         reference_id=reference_id,
         total_jobs=total_jobs,
         completed_jobs=completed_jobs,
@@ -68,7 +68,7 @@ async def test_get_batch_returns_the_progress_counters(
 
     assert view is not None
     assert view.id == batch.id
-    assert view.batch_type == JobBatchType.CHAPTER_PREREADING
+    assert view.batch_type == JobBatchType.CHAPTER_DIGEST
     assert view.reference_id == BOOK_REFERENCE
     assert (view.total_jobs, view.completed_jobs, view.failed_jobs) == (5, 2, 1)
     assert view.status == JobBatchStatus.RUNNING
@@ -98,7 +98,7 @@ async def test_active_statuses_are_returned(
     await add_batch(db_session, status=status)
 
     view = await query.get_active_for_reference(
-        JobBatchType.CHAPTER_PREREADING, BOOK_REFERENCE, UserId(DEFAULT_USER_ID)
+        JobBatchType.CHAPTER_DIGEST, BOOK_REFERENCE, UserId(DEFAULT_USER_ID)
     )
 
     assert view is not None
@@ -120,7 +120,7 @@ async def test_finished_batches_are_not_active(
     await add_batch(db_session, status=status)
 
     view = await query.get_active_for_reference(
-        JobBatchType.CHAPTER_PREREADING, BOOK_REFERENCE, UserId(DEFAULT_USER_ID)
+        JobBatchType.CHAPTER_DIGEST, BOOK_REFERENCE, UserId(DEFAULT_USER_ID)
     )
 
     assert view is None
@@ -135,7 +135,7 @@ async def test_the_newest_active_batch_wins(query: JobBatchQuery, db_session: As
     )
 
     view = await query.get_active_for_reference(
-        JobBatchType.CHAPTER_PREREADING, BOOK_REFERENCE, UserId(DEFAULT_USER_ID)
+        JobBatchType.CHAPTER_DIGEST, BOOK_REFERENCE, UserId(DEFAULT_USER_ID)
     )
 
     assert view is not None
@@ -148,7 +148,7 @@ async def test_another_books_batch_is_not_returned(
     await add_batch(db_session, status=JobBatchStatus.RUNNING, reference_id="99")
 
     view = await query.get_active_for_reference(
-        JobBatchType.CHAPTER_PREREADING, BOOK_REFERENCE, UserId(DEFAULT_USER_ID)
+        JobBatchType.CHAPTER_DIGEST, BOOK_REFERENCE, UserId(DEFAULT_USER_ID)
     )
 
     assert view is None
@@ -160,7 +160,7 @@ async def test_another_users_active_batch_is_invisible(
     await add_batch(db_session, status=JobBatchStatus.RUNNING, user_id=OTHER_USER_ID)
 
     view = await query.get_active_for_reference(
-        JobBatchType.CHAPTER_PREREADING, BOOK_REFERENCE, UserId(DEFAULT_USER_ID)
+        JobBatchType.CHAPTER_DIGEST, BOOK_REFERENCE, UserId(DEFAULT_USER_ID)
     )
 
     assert view is None

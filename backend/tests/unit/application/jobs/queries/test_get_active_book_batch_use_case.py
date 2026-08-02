@@ -25,11 +25,11 @@ class TestGetActiveBookBatch:
     ) -> None:
         job_batch_query.get_active_for_reference.return_value = None
 
-        result = await use_case.execute(BookId(42), UserId(1), JobBatchType.CHAPTER_PREREADING)
+        result = await use_case.execute(BookId(42), UserId(1), JobBatchType.CHAPTER_DIGEST)
 
         assert result is None
         job_batch_query.get_active_for_reference.assert_awaited_once_with(
-            batch_type=JobBatchType.CHAPTER_PREREADING,
+            batch_type=JobBatchType.CHAPTER_DIGEST,
             reference_id="42",
             user_id=UserId(1),
         )

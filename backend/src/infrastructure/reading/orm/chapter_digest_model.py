@@ -14,7 +14,7 @@ if TYPE_CHECKING:
     from src.infrastructure.library.orm.chapter_model import Chapter
 
 
-class ChapterPrereadingContent(Base):
+class ChapterDigest(Base):
     """ORM model for chapter pre-reading content."""
 
     __tablename__ = "chapter_prereading_contents"
@@ -34,8 +34,8 @@ class ChapterPrereadingContent(Base):
     ai_model: Mapped[str] = mapped_column(String(100), nullable=False)
 
     # Relationships
-    chapter: Mapped["Chapter"] = relationship(back_populates="prereading_content")
+    chapter: Mapped["Chapter"] = relationship(back_populates="digest")
 
     def __repr__(self) -> str:
-        """String representation of ChapterPrereadingContent."""
-        return f"<ChapterPrereadingContent(id={self.id}, chapter_id={self.chapter_id})>"
+        """String representation of ChapterDigest."""
+        return f"<ChapterDigest(id={self.id}, chapter_id={self.chapter_id})>"

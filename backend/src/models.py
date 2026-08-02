@@ -28,8 +28,8 @@ from src.infrastructure.reading.orm.associations import (
     reading_session_highlights,
 )
 from src.infrastructure.reading.orm.bookmark_model import Bookmark
-from src.infrastructure.reading.orm.chapter_prereading_content_model import (
-    ChapterPrereadingContent,
+from src.infrastructure.reading.orm.chapter_digest_model import (
+    ChapterDigest,
 )
 from src.infrastructure.reading.orm.highlight_model import Highlight
 from src.infrastructure.reading.orm.highlight_style_model import HighlightStyle
@@ -47,7 +47,7 @@ __all__ = [
     "BookReflection",
     "Bookmark",
     "Chapter",
-    "ChapterPrereadingContent",
+    "ChapterDigest",
     "Flashcard",
     "Highlight",
     "HighlightStyle",

@@ -1,26 +1,26 @@
-"""Mapper for ChapterPrereadingContent ORM ↔ Domain conversion."""
+"""Mapper for ChapterDigest ORM ↔ Domain conversion."""
 
-from src.domain.common.value_objects.ids import ChapterId, PrereadingContentId
-from src.domain.reading.entities.chapter_prereading_content import (
-    ChapterPrereadingContent,
-    PrereadingQuestion,
+from src.domain.common.value_objects.ids import ChapterDigestId, ChapterId
+from src.domain.reading.entities.chapter_digest import (
+    ChapterDigest,
+    DigestQuestion,
 )
 from src.infrastructure.common.mappers import orm_id
-from src.infrastructure.reading.orm.chapter_prereading_content_model import (
-    ChapterPrereadingContent as PrereadingContentORM,
+from src.infrastructure.reading.orm.chapter_digest_model import (
+    ChapterDigest as ChapterDigestORM,
 )
 
 
-class ChapterPrereadingMapper:
-    """Mapper between ChapterPrereadingContent domain entity and ORM model."""
+class ChapterDigestMapper:
+    """Mapper between ChapterDigest domain entity and ORM model."""
 
-    def to_domain(self, orm: PrereadingContentORM) -> ChapterPrereadingContent:
+    def to_domain(self, orm: ChapterDigestORM) -> ChapterDigest:
         """Convert ORM model to domain entity."""
-        return ChapterPrereadingContent.create_with_id(
-            id=PrereadingContentId(orm.id),
+        return ChapterDigest.create_with_id(
+            id=ChapterDigestId(orm.id),
             chapter_id=ChapterId(orm.chapter_id),
             questions=[
-                PrereadingQuestion(
+                DigestQuestion(
                     question=q["question"],
                     answer=q["answer"],
                     user_answer=q.get("user_answer", ""),
@@ -34,8 +34,8 @@ class ChapterPrereadingMapper:
         )
 
     def to_orm(
-        self, entity: ChapterPrereadingContent, orm: PrereadingContentORM | None = None
-    ) -> PrereadingContentORM:
+        self, entity: ChapterDigest, orm: ChapterDigestORM | None = None
+    ) -> ChapterDigestORM:
         """Convert domain entity to ORM model."""
         questions = [
             {"question": q.question, "answer": q.answer, "user_answer": q.user_answer}
@@ -43,7 +43,7 @@ class ChapterPrereadingMapper:
         ]
 
         if orm is None:
-            orm = PrereadingContentORM(
+            orm = ChapterDigestORM(
                 id=orm_id(entity.id),
             )
         orm.chapter_id = entity.chapter_id.value

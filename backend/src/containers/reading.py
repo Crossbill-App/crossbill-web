@@ -6,11 +6,11 @@ from src.application.reading.commands.bookmarks.create_bookmark_use_case import 
 from src.application.reading.commands.bookmarks.delete_bookmark_use_case import (
     DeleteBookmarkUseCase,
 )
-from src.application.reading.commands.chapter_prereading.generate_chapter_prereading_use_case import (
-    GenerateChapterPrereadingUseCase,
+from src.application.reading.commands.chapter_digest.generate_chapter_digest_use_case import (
+    GenerateChapterDigestUseCase,
 )
-from src.application.reading.commands.chapter_prereading.update_prereading_answers_use_case import (
-    UpdatePrereadingAnswersUseCase,
+from src.application.reading.commands.chapter_digest.update_digest_answers_use_case import (
+    UpdateDigestAnswersUseCase,
 )
 from src.application.reading.commands.highlight_labels.create_global_highlight_label_use_case import (
     CreateGlobalHighlightLabelUseCase,
@@ -42,11 +42,11 @@ from src.application.reading.commands.tag_associations.remove_tag_from_highlight
 from src.application.reading.queries.chapter_content_use_case import (
     ChapterContentUseCase,
 )
+from src.application.reading.queries.get_book_digests_use_case import (
+    GetBookDigestsUseCase,
+)
 from src.application.reading.queries.get_book_highlight_labels_use_case import (
     GetBookHighlightLabelsUseCase,
-)
-from src.application.reading.queries.get_book_prereading_use_case import (
-    GetBookPrereadingUseCase,
 )
 from src.application.reading.queries.get_book_reading_sessions_use_case import (
     ReadingSessionQueryUseCase,
@@ -54,11 +54,11 @@ from src.application.reading.queries.get_book_reading_sessions_use_case import (
 from src.application.reading.queries.get_bookmarks_use_case import (
     GetBookmarksUseCase,
 )
-from src.application.reading.queries.get_chapter_prereading_use_case import (
-    GetChapterPrereadingUseCase,
+from src.application.reading.queries.get_chapter_digest_use_case import (
+    GetChapterDigestUseCase,
 )
-from src.application.reading.queries.get_ereader_book_prereading_use_case import (
-    GetEreaderBookPrereadingUseCase,
+from src.application.reading.queries.get_ereader_book_digests_use_case import (
+    GetEreaderBookDigestsUseCase,
 )
 from src.application.reading.queries.get_global_highlight_labels_use_case import (
     GetGlobalHighlightLabelsUseCase,
@@ -78,7 +78,7 @@ class ReadingContainer(containers.DeclarativeContainer):
     tag_repository = providers.Dependency()
     chapter_repository = providers.Dependency()
     reading_session_repository = providers.Dependency()
-    chapter_prereading_repository = providers.Dependency()
+    chapter_digest_repository = providers.Dependency()
     highlight_style_repository = providers.Dependency()
     file_repository = providers.Dependency()
     highlight_deduplication_service = providers.Dependency()
@@ -92,7 +92,7 @@ class ReadingContainer(containers.DeclarativeContainer):
     highlight_label_query = providers.Dependency()
     highlight_search_query = providers.Dependency()
     reading_session_query = providers.Dependency()
-    ereader_prereading_query = providers.Dependency()
+    ereader_digest_query = providers.Dependency()
 
     # Bookmarks
     create_bookmark_use_case = providers.Factory(
@@ -191,33 +191,33 @@ class ReadingContainer(containers.DeclarativeContainer):
         ai_summary_service=ai_service,
     )
 
-    # Chapter prereading
-    get_chapter_prereading_use_case = providers.Factory(
-        GetChapterPrereadingUseCase,
-        prereading_repo=chapter_prereading_repository,
+    # Chapter digest
+    get_chapter_digest_use_case = providers.Factory(
+        GetChapterDigestUseCase,
+        digest_repo=chapter_digest_repository,
         chapter_repo=chapter_repository,
     )
-    get_book_prereading_use_case = providers.Factory(
-        GetBookPrereadingUseCase,
-        prereading_repo=chapter_prereading_repository,
+    get_book_digests_use_case = providers.Factory(
+        GetBookDigestsUseCase,
+        digest_repo=chapter_digest_repository,
         chapter_repo=chapter_repository,
     )
-    get_ereader_book_prereading_use_case = providers.Factory(
-        GetEreaderBookPrereadingUseCase,
-        ereader_prereading_query=ereader_prereading_query,
+    get_ereader_book_digests_use_case = providers.Factory(
+        GetEreaderBookDigestsUseCase,
+        ereader_digest_query=ereader_digest_query,
     )
-    generate_chapter_prereading_use_case = providers.Factory(
-        GenerateChapterPrereadingUseCase,
-        prereading_repo=chapter_prereading_repository,
+    generate_chapter_digest_use_case = providers.Factory(
+        GenerateChapterDigestUseCase,
+        digest_repo=chapter_digest_repository,
         chapter_repo=chapter_repository,
         text_extraction_service=ebook_text_extraction_service,
         book_repo=book_repository,
         file_repo=file_repository,
-        ai_prereading_service=ai_service,
+        ai_digest_service=ai_service,
     )
-    update_prereading_answers_use_case = providers.Factory(
-        UpdatePrereadingAnswersUseCase,
-        prereading_repo=chapter_prereading_repository,
+    update_digest_answers_use_case = providers.Factory(
+        UpdateDigestAnswersUseCase,
+        digest_repo=chapter_digest_repository,
         chapter_repo=chapter_repository,
     )
 

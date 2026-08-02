@@ -15,7 +15,7 @@ def _make_batch(batch_id: int = 1, total: int = 3, completed: int = 0) -> JobBat
     return JobBatch.create_with_id(
         id=JobBatchId(batch_id),
         user_id=UserId(1),
-        batch_type=JobBatchType.CHAPTER_PREREADING,
+        batch_type=JobBatchType.CHAPTER_DIGEST,
         reference_id="42",
         total_jobs=total,
         completed_jobs=completed,

@@ -9,16 +9,16 @@ from pydantic_core import to_jsonable_python
 from src.application.ai.ai_usage_context import AIUsageContext
 from src.application.ai.protocols.ai_usage_repository import AIUsageRepositoryProtocol
 from src.application.learning.protocols.ai_flashcard_service import AIFlashcardSuggestion
-from src.application.reading.protocols.ai_prereading_service import (
-    PrereadingQuestion,
-    PrereadingResult,
+from src.application.reading.protocols.ai_digest_service import (
+    DigestQuestion,
+    DigestResult,
 )
 from src.domain.ai.entities.ai_usage_record import AIUsageRecord
 from src.domain.common.types import SerializedMessageHistory
 from src.infrastructure.ai.ai_agents import (
     get_chat_agent,
+    get_digest_agent,
     get_flashcard_agent,
-    get_prereading_agent,
     get_quiz_agent,
     get_summary_agent,
 )
@@ -67,21 +67,18 @@ class AIService:
         )
         return result.output
 
-    async def generate_prereading(
-        self, content: str, usage_context: AIUsageContext
-    ) -> PrereadingResult:
-        agent = get_prereading_agent()
+    async def generate_digest(self, content: str, usage_context: AIUsageContext) -> DigestResult:
+        agent = get_digest_agent()
         result = await agent.run(content[:10000])
         usage = result.usage()
         await self._save_usage(
             usage_context, result.response.model_name, usage.input_tokens, usage.output_tokens
         )
-        return PrereadingResult(
+        return DigestResult(
             summary=result.output.summary,
             keypoints=result.output.keypoints,
             questions=[
-                PrereadingQuestion(q.question, q.answer)
-                for q in result.output.questions_and_answers
+                DigestQuestion(q.question, q.answer) for q in result.output.questions_and_answers
             ],
         )
 

@@ -49,7 +49,7 @@ class LearningContainer(containers.DeclarativeContainer):
     highlight_repository = providers.Dependency()
     book_repository = providers.Dependency()
     chapter_repository = providers.Dependency()
-    chapter_prereading_repository = providers.Dependency()
+    chapter_digest_repository = providers.Dependency()
     file_repository = providers.Dependency()
     ebook_text_extraction_service = providers.Dependency()
     ai_service = providers.Dependency()
@@ -99,7 +99,7 @@ class LearningContainer(containers.DeclarativeContainer):
     )
     get_chapter_flashcard_suggestions_use_case = providers.Factory(
         GetChapterFlashcardSuggestionsUseCase,
-        chapter_prereading_repository=chapter_prereading_repository,
+        chapter_digest_repository=chapter_digest_repository,
         ai_flashcard_service=ai_service,
     )
     get_note_flashcard_suggestions_use_case = providers.Factory(

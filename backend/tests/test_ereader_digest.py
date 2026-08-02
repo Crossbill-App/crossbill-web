@@ -1,4 +1,4 @@
-"""Tests for the ereader book prereading endpoint."""
+"""Tests for the ereader book digest endpoint."""
 
 from datetime import UTC, datetime
 
@@ -7,18 +7,18 @@ from httpx import AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.models import Book, Chapter
-from src.models import ChapterPrereadingContent as PrereadingContentORM
+from src.models import ChapterDigest as ChapterDigestORM
 from tests.conftest import create_test_book, create_test_chapter
 
 
-async def _add_prereading(
+async def _add_digest(
     db_session: AsyncSession,
     chapter: Chapter,
     summary: str = "A summary",
     keypoints: list[str] | None = None,
     questions: list[dict[str, str]] | None = None,
-) -> PrereadingContentORM:
-    content = PrereadingContentORM(
+) -> ChapterDigestORM:
+    content = ChapterDigestORM(
         chapter_id=chapter.id,
         summary=summary,
         keypoints=keypoints or ["Keypoint 1"],
@@ -34,28 +34,28 @@ async def _add_prereading(
 
 
 @pytest.fixture
-async def prereading_book(db_session: AsyncSession, test_user: Book) -> Book:
+async def digest_book(db_session: AsyncSession, test_user: Book) -> Book:
     """A book identified by client_book_id."""
     return await create_test_book(
         db_session=db_session,
         user_id=test_user.id,
-        title="Prereading Book",
+        title="Digest Book",
         client_book_id="client-abc",
     )
 
 
 async def test_returns_items_ordered_by_chapter_number(
-    client: AsyncClient, db_session: AsyncSession, prereading_book: Book
+    client: AsyncClient, db_session: AsyncSession, digest_book: Book
 ) -> None:
-    parent = await create_test_chapter(db_session, prereading_book, "Topic 1", chapter_number=1)
+    parent = await create_test_chapter(db_session, digest_book, "Topic 1", chapter_number=1)
     ch_a = await create_test_chapter(
-        db_session, prereading_book, "Exercises", chapter_number=7, parent_id=parent.id
+        db_session, digest_book, "Exercises", chapter_number=7, parent_id=parent.id
     )
     ch_b = await create_test_chapter(
-        db_session, prereading_book, "Intro", chapter_number=2, parent_id=parent.id
+        db_session, digest_book, "Intro", chapter_number=2, parent_id=parent.id
     )
-    await _add_prereading(db_session, ch_a, summary="Exercises summary")
-    await _add_prereading(db_session, ch_b, summary="Intro summary")
+    await _add_digest(db_session, ch_a, summary="Exercises summary")
+    await _add_digest(db_session, ch_b, summary="Intro summary")
 
     response = await client.get("/api/v1/ereader/books/client-abc/prereading")
 
@@ -70,18 +70,18 @@ async def test_returns_items_ordered_by_chapter_number(
 
 
 async def test_duplicate_chapter_names_disambiguated_by_parent(
-    client: AsyncClient, db_session: AsyncSession, prereading_book: Book
+    client: AsyncClient, db_session: AsyncSession, digest_book: Book
 ) -> None:
-    topic1 = await create_test_chapter(db_session, prereading_book, "Topic 1", chapter_number=1)
-    topic2 = await create_test_chapter(db_session, prereading_book, "Topic 2", chapter_number=2)
+    topic1 = await create_test_chapter(db_session, digest_book, "Topic 1", chapter_number=1)
+    topic2 = await create_test_chapter(db_session, digest_book, "Topic 2", chapter_number=2)
     ex1 = await create_test_chapter(
-        db_session, prereading_book, "Exercises", chapter_number=3, parent_id=topic1.id
+        db_session, digest_book, "Exercises", chapter_number=3, parent_id=topic1.id
     )
     ex2 = await create_test_chapter(
-        db_session, prereading_book, "Exercises", chapter_number=4, parent_id=topic2.id
+        db_session, digest_book, "Exercises", chapter_number=4, parent_id=topic2.id
     )
-    await _add_prereading(db_session, ex1)
-    await _add_prereading(db_session, ex2)
+    await _add_digest(db_session, ex1)
+    await _add_digest(db_session, ex2)
 
     response = await client.get("/api/v1/ereader/books/client-abc/prereading")
 
@@ -94,10 +94,10 @@ async def test_duplicate_chapter_names_disambiguated_by_parent(
 
 
 async def test_root_chapter_has_null_parent_name(
-    client: AsyncClient, db_session: AsyncSession, prereading_book: Book
+    client: AsyncClient, db_session: AsyncSession, digest_book: Book
 ) -> None:
-    root = await create_test_chapter(db_session, prereading_book, "Root Chapter", chapter_number=1)
-    await _add_prereading(db_session, root)
+    root = await create_test_chapter(db_session, digest_book, "Root Chapter", chapter_number=1)
+    await _add_digest(db_session, root)
 
     response = await client.get("/api/v1/ereader/books/client-abc/prereading")
 
@@ -107,27 +107,25 @@ async def test_root_chapter_has_null_parent_name(
     assert items[0]["parent_chapter_name"] is None
 
 
-async def test_chapters_without_prereading_are_omitted(
-    client: AsyncClient, db_session: AsyncSession, prereading_book: Book
+async def test_chapters_without_digest_are_omitted(
+    client: AsyncClient, db_session: AsyncSession, digest_book: Book
 ) -> None:
-    ch_with = await create_test_chapter(
-        db_session, prereading_book, "Has prereading", chapter_number=1
-    )
-    await create_test_chapter(db_session, prereading_book, "No prereading", chapter_number=2)
-    await _add_prereading(db_session, ch_with)
+    ch_with = await create_test_chapter(db_session, digest_book, "Has digest", chapter_number=1)
+    await create_test_chapter(db_session, digest_book, "No digest", chapter_number=2)
+    await _add_digest(db_session, ch_with)
 
     response = await client.get("/api/v1/ereader/books/client-abc/prereading")
 
     assert response.status_code == 200
     items = response.json()["items"]
     assert len(items) == 1
-    assert items[0]["chapter_name"] == "Has prereading"
+    assert items[0]["chapter_name"] == "Has digest"
 
 
-async def test_book_with_zero_prereading_returns_empty_list(
-    client: AsyncClient, db_session: AsyncSession, prereading_book: Book
+async def test_book_with_zero_digest_returns_empty_list(
+    client: AsyncClient, db_session: AsyncSession, digest_book: Book
 ) -> None:
-    await create_test_chapter(db_session, prereading_book, "Lonely chapter", chapter_number=1)
+    await create_test_chapter(db_session, digest_book, "Lonely chapter", chapter_number=1)
 
     response = await client.get("/api/v1/ereader/books/client-abc/prereading")
 
@@ -142,10 +140,10 @@ async def test_unknown_client_book_id_returns_404(client: AsyncClient) -> None:
 
 
 async def test_questions_contain_only_question_strings(
-    client: AsyncClient, db_session: AsyncSession, prereading_book: Book
+    client: AsyncClient, db_session: AsyncSession, digest_book: Book
 ) -> None:
-    chapter = await create_test_chapter(db_session, prereading_book, "Chapter", chapter_number=1)
-    await _add_prereading(
+    chapter = await create_test_chapter(db_session, digest_book, "Chapter", chapter_number=1)
+    await _add_digest(
         db_session,
         chapter,
         questions=[

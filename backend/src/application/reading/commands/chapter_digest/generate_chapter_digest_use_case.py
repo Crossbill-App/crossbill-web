@@ -1,4 +1,4 @@
-"""Use case for generating chapter prereading content."""
+"""Use case for generating a chapter digest."""
 
 from datetime import UTC, datetime
 
@@ -14,48 +14,46 @@ from src.application.library.protocols.chapter_repository import (
 from src.application.library.protocols.file_repository import (
     FileRepositoryProtocol,
 )
-from src.application.reading.protocols.ai_prereading_service import (
-    AIPrereadingServiceProtocol,
+from src.application.reading.protocols.ai_digest_service import (
+    AIDigestServiceProtocol,
 )
-from src.application.reading.protocols.chapter_prereading_repository import (
-    ChapterPrereadingRepositoryProtocol,
+from src.application.reading.protocols.chapter_digest_repository import (
+    ChapterDigestRepositoryProtocol,
 )
 from src.application.reading.protocols.ebook_text_extraction_service import (
     EbookTextExtractionServiceProtocol,
 )
 from src.domain.common.exceptions import DomainError
 from src.domain.common.value_objects.ids import ChapterId, UserId
-from src.domain.reading.entities.chapter_prereading_content import (
-    ChapterPrereadingContent,
+from src.domain.reading.entities.chapter_digest import (
+    ChapterDigest,
 )
 from src.domain.reading.exceptions import BookNotFoundError, ChapterNotFoundError
 
 logger = structlog.get_logger(__name__)
 
 
-class GenerateChapterPrereadingUseCase:
-    """Use case for generating chapter prereading content."""
+class GenerateChapterDigestUseCase:
+    """Use case for generating a chapter digest."""
 
     def __init__(
         self,
-        prereading_repo: ChapterPrereadingRepositoryProtocol,
+        digest_repo: ChapterDigestRepositoryProtocol,
         chapter_repo: ChapterRepositoryProtocol,
         text_extraction_service: EbookTextExtractionServiceProtocol,
         book_repo: BookRepositoryProtocol,
         file_repo: FileRepositoryProtocol,
-        ai_prereading_service: AIPrereadingServiceProtocol,
+        ai_digest_service: AIDigestServiceProtocol,
     ) -> None:
-        self.prereading_repo = prereading_repo
+        self.digest_repo = digest_repo
         self.chapter_repo = chapter_repo
         self.text_extraction = text_extraction_service
         self.book_repo = book_repo
         self.file_repo = file_repo
-        self.ai_prereading_service = ai_prereading_service
+        self.ai_digest_service = ai_digest_service
 
-    async def generate_prereading_content(
-        self, chapter_id: ChapterId, user_id: UserId
-    ) -> ChapterPrereadingContent:
-        """Generate new prereading content for a chapter."""
+    async def generate_digest(self, chapter_id: ChapterId, user_id: UserId) -> ChapterDigest:
+        """Generate a new digest for a chapter."""
         # 1. Verify chapter exists and user owns it
         chapter = await self.chapter_repo.find_by_id(chapter_id, user_id)
         if not chapter:
@@ -90,27 +88,23 @@ class GenerateChapterPrereadingUseCase:
 
         min_chapter_length = 50
         if not chapter_text or len(chapter_text.strip()) < min_chapter_length:
-            raise DomainError(
-                "Chapter content is too short to generate meaningful prereading content"
-            )
+            raise DomainError("Chapter content is too short to generate a meaningful digest")
 
         # 5. Call AI service
         try:
             usage_context = AIUsageContext(
                 user_id=user_id,
-                task_type="prereading",
+                task_type="digest",
                 entity_type="chapter",
                 entity_id=chapter_id.value,
             )
-            ai_result = await self.ai_prereading_service.generate_prereading(
-                chapter_text, usage_context
-            )
+            ai_result = await self.ai_digest_service.generate_digest(chapter_text, usage_context)
         except Exception as e:
             logger.error("ai_service_failed", error=str(e))
-            raise DomainError(f"Failed to generate prereading content: {e}") from e
+            raise DomainError(f"Failed to generate digest: {e}") from e
 
         # 6. Create entity
-        entity = ChapterPrereadingContent.create(
+        entity = ChapterDigest.create(
             chapter_id=chapter_id,
             summary=ai_result.summary,
             keypoints=ai_result.keypoints,
@@ -121,8 +115,8 @@ class GenerateChapterPrereadingUseCase:
 
         # 7. Save and return
         logger.info(
-            "prereading_content_generated",
+            "digest_generated",
             chapter_id=chapter_id.value,
             keypoints_count=len(ai_result.keypoints),
         )
-        return await self.prereading_repo.save(entity)
+        return await self.digest_repo.save(entity)

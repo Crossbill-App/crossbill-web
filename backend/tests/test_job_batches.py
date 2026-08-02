@@ -24,7 +24,7 @@ async def _add_batch(
     stamp = created_at or datetime.now(UTC)
     batch = JobBatchModel(
         user_id=user_id,
-        batch_type=JobBatchType.CHAPTER_PREREADING.value,
+        batch_type=JobBatchType.CHAPTER_DIGEST.value,
         reference_id=reference_id,
         total_jobs=3,
         completed_jobs=1,
@@ -88,8 +88,8 @@ class TestGetJobBatch:
         assert response.status_code == status.HTTP_404_NOT_FOUND
 
 
-class TestGetActiveBookPrereadingBatch:
-    """Test suite for GET /jobs/books/{book_id}/prereading endpoint."""
+class TestGetActiveBookDigestBatch:
+    """Test suite for GET /jobs/books/{book_id}/digest endpoint."""
 
     async def test_returns_null_when_no_batch_exists(
         self, client: AsyncClient, test_book: Book

@@ -20,8 +20,8 @@ from src.infrastructure.ai.ai_service import AIService
 from src.infrastructure.ai.repositories.ai_usage_repository import AIUsageRepository
 from src.infrastructure.jobs.repositories.job_batch_repository import JobBatchRepository
 from src.infrastructure.jobs.saq_queue import create_queue
+from src.infrastructure.jobs.tasks.digest_task_handler import DigestTaskHandler
 from src.infrastructure.jobs.tasks.job_lifecycle_handler import JobLifecycleHandler
-from src.infrastructure.jobs.tasks.prereading_task_handler import PrereadingTaskHandler
 from src.infrastructure.library.repositories import BookRepository
 from src.infrastructure.library.repositories.chapter_repository import ChapterRepository
 from src.infrastructure.library.repositories.file_repository import FileRepository
@@ -29,8 +29,8 @@ from src.infrastructure.library.repositories.s3_file_repository import S3FileRep
 from src.infrastructure.library.services.epub_text_extraction_service import (
     EpubTextExtractionService,
 )
-from src.infrastructure.reading.repositories.chapter_prereading_repository import (
-    ChapterPrereadingRepository,
+from src.infrastructure.reading.repositories.chapter_digest_repository import (
+    ChapterDigestRepository,
 )
 
 logger = structlog.get_logger(__name__)
@@ -74,21 +74,21 @@ def _build_file_repo() -> S3FileRepository | FileRepository:
     return FileRepository()
 
 
-def _build_prereading_handler(db: AsyncSession) -> PrereadingTaskHandler:
-    """Build a PrereadingTaskHandler with a fresh session."""
-    from src.application.reading.commands.chapter_prereading.generate_chapter_prereading_use_case import (  # noqa: PLC0415
-        GenerateChapterPrereadingUseCase,
+def _build_digest_handler(db: AsyncSession) -> DigestTaskHandler:
+    """Build a DigestTaskHandler with a fresh session."""
+    from src.application.reading.commands.chapter_digest.generate_chapter_digest_use_case import (  # noqa: PLC0415
+        GenerateChapterDigestUseCase,
     )
 
-    use_case = GenerateChapterPrereadingUseCase(
-        prereading_repo=ChapterPrereadingRepository(db=db),
+    use_case = GenerateChapterDigestUseCase(
+        digest_repo=ChapterDigestRepository(db=db),
         chapter_repo=ChapterRepository(db=db),
         text_extraction_service=EpubTextExtractionService(),
         book_repo=BookRepository(db=db),
         file_repo=_build_file_repo(),
-        ai_prereading_service=AIService(usage_repository=AIUsageRepository(db=db)),
+        ai_digest_service=AIService(usage_repository=AIUsageRepository(db=db)),
     )
-    return PrereadingTaskHandler(generate_prereading_use_case=use_case)
+    return DigestTaskHandler(generate_digest_use_case=use_case)
 
 
 async def startup(ctx: Context) -> None:
@@ -109,10 +109,10 @@ async def shutdown(ctx: Context) -> None:
     logger.info("worker_stopped")
 
 
-async def generate_chapter_prereading(
+async def generate_chapter_digest(
     ctx: Context, *, batch_id: int, book_id: int, chapter_id: int, user_id: int
 ) -> None:
-    """SAQ task: generate prereading for a single chapter.
+    """SAQ task: generate digest for a single chapter.
 
     Creates a fresh DB session per task invocation to avoid sharing
     sessions across concurrent coroutines.
@@ -121,7 +121,7 @@ async def generate_chapter_prereading(
         raise RuntimeError("Worker not initialized")
 
     async with _session_factory() as db:
-        handler = _build_prereading_handler(db)
+        handler = _build_digest_handler(db)
         await handler.generate(
             ctx, batch_id=batch_id, book_id=book_id, chapter_id=chapter_id, user_id=user_id
         )
@@ -144,7 +144,7 @@ def _build_worker_settings() -> SettingsDict[Context]:
     """Build SAQ worker settings lazily (called on first access)."""
     return {
         "queue": _get_queue(),
-        "functions": [generate_chapter_prereading],
+        "functions": [generate_chapter_digest],
         "concurrency": _get_app_settings().WORKER_CONCURRENCY,
         "startup": startup,
         "shutdown": shutdown,
@@ -177,7 +177,7 @@ def create_embedded_worker(queue: Queue, concurrency: int = 2) -> EmbeddedWorker
     """Create a Worker instance for running inside the app process."""
     return EmbeddedWorker(
         queue=queue,
-        functions=[generate_chapter_prereading],
+        functions=[generate_chapter_digest],
         concurrency=concurrency,
         startup=[startup],
         shutdown=[shutdown],

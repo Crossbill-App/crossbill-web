@@ -12,8 +12,8 @@ from src.application.library.dtos import CreateBookInput
 from src.application.library.queries.get_ereader_metadata_use_case import (
     GetEreaderMetadataUseCase,
 )
-from src.application.reading.queries.get_ereader_book_prereading_use_case import (
-    GetEreaderBookPrereadingUseCase,
+from src.application.reading.queries.get_ereader_book_digests_use_case import (
+    GetEreaderBookDigestsUseCase,
 )
 from src.core import container
 from src.domain.common.exceptions import ValidationError
@@ -26,8 +26,8 @@ from src.infrastructure.library.schemas import (
     BookCreate,
     EreaderBookMetadata,
 )
-from src.infrastructure.reading.schemas.chapter_prereading_schemas import (
-    EreaderChapterPrereadingItem,
+from src.infrastructure.reading.schemas.chapter_digest_schemas import (
+    EreaderChapterDigestItem,
 )
 
 router = APIRouter(prefix="/ereader", tags=["ereader"])
@@ -181,39 +181,39 @@ async def upload_book_epub(
 
 @router.get(
     "/books/{client_book_id}/prereading",
-    response_model=CollectionResponse[EreaderChapterPrereadingItem],
+    response_model=CollectionResponse[EreaderChapterDigestItem],
     status_code=status.HTTP_200_OK,
 )
-async def get_ereader_book_prereading(
+async def get_ereader_book_digest(
     client_book_id: str,
     current_user: Annotated[User, Depends(get_current_user)],
-    use_case: GetEreaderBookPrereadingUseCase = Depends(
-        inject_use_case(container.reading.get_ereader_book_prereading_use_case)
+    use_case: GetEreaderBookDigestsUseCase = Depends(
+        inject_use_case(container.reading.get_ereader_book_digests_use_case)
     ),
-) -> CollectionResponse[EreaderChapterPrereadingItem]:
+) -> CollectionResponse[EreaderChapterDigestItem]:
     """
-    Get all chapter prereading content for a book by client_book_id.
+    Get every chapter digest for a book by client_book_id.
 
-    Returns one item per chapter that has generated prereading content, ordered
+    Returns one item per chapter that has a generated digest, ordered
     by the server-side chapter number. Questions are exposed as plain strings
-    only (no AI or user answers). A book with no prereading yields an empty list.
+    only (no AI or user answers). A book with no digest yields an empty list.
 
     Args:
         client_book_id: The client-provided stable book identifier
         current_user: Authenticated user
 
     Returns:
-        CollectionResponse with one item per chapter that has prereading
+        CollectionResponse with one item per chapter that has a digest
 
     Raises:
         HTTPException: 404 if the book is not found for the given client_book_id
     """
-    items = await use_case.get_prereading_for_client_book(
+    items = await use_case.get_digests_for_client_book(
         client_book_id, UserId(current_user.id.value)
     )
-    return CollectionResponse[EreaderChapterPrereadingItem](
+    return CollectionResponse[EreaderChapterDigestItem](
         items=[
-            EreaderChapterPrereadingItem(
+            EreaderChapterDigestItem(
                 chapter_id=item.chapter_id,
                 chapter_name=item.chapter_name,
                 chapter_number=item.chapter_number,

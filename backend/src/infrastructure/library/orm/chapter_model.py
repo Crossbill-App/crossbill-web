@@ -11,8 +11,8 @@ from src.database import Base
 
 if TYPE_CHECKING:
     from src.infrastructure.library.orm.book_model import Book
-    from src.infrastructure.reading.orm.chapter_prereading_content_model import (
-        ChapterPrereadingContent,
+    from src.infrastructure.reading.orm.chapter_digest_model import (
+        ChapterDigest,
     )
     from src.infrastructure.reading.orm.highlight_model import Highlight
 
@@ -48,7 +48,7 @@ class Chapter(Base):
     # Relationships
     book: Mapped["Book"] = relationship(back_populates="chapters")
     highlights: Mapped[list["Highlight"]] = relationship(back_populates="chapter")
-    prereading_content: Mapped["ChapterPrereadingContent | None"] = relationship(
+    digest: Mapped["ChapterDigest | None"] = relationship(
         back_populates="chapter", uselist=False, cascade="all, delete-orphan"
     )
     # Self-referential relationship for hierarchical chapters

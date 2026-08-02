@@ -3,18 +3,18 @@ from datetime import datetime
 
 from src.domain.common.entity import Entity
 from src.domain.common.exceptions import DomainError
-from src.domain.common.value_objects.ids import ChapterId, PrereadingContentId
+from src.domain.common.value_objects.ids import ChapterDigestId, ChapterId
 
 
 @dataclass(frozen=True)
-class PrereadingQuestion:
+class DigestQuestion:
     question: str
     answer: str
     user_answer: str = ""
 
 
 @dataclass
-class ChapterPrereadingContent(Entity[PrereadingContentId]):
+class ChapterDigest(Entity[ChapterDigestId]):
     """
     Chapter pre-reading content entity.
 
@@ -23,13 +23,13 @@ class ChapterPrereadingContent(Entity[PrereadingContentId]):
     """
 
     # Identity
-    id: PrereadingContentId
+    id: ChapterDigestId
     chapter_id: ChapterId
 
     # Content
     summary: str
     keypoints: list[str]
-    questions: list[PrereadingQuestion]
+    questions: list[DigestQuestion]
 
     # Metadata
     generated_at: datetime
@@ -54,7 +54,7 @@ class ChapterPrereadingContent(Entity[PrereadingContentId]):
         for index, answer_text in answers.items():
             if 0 <= index < len(self.questions):
                 old_q = self.questions[index]
-                self.questions[index] = PrereadingQuestion(
+                self.questions[index] = DigestQuestion(
                     question=old_q.question,
                     answer=old_q.answer,
                     user_answer=answer_text,
@@ -67,13 +67,13 @@ class ChapterPrereadingContent(Entity[PrereadingContentId]):
         chapter_id: ChapterId,
         summary: str,
         keypoints: list[str],
-        questions: list[PrereadingQuestion],
+        questions: list[DigestQuestion],
         generated_at: datetime,
         ai_model: str,
-    ) -> "ChapterPrereadingContent":
+    ) -> "ChapterDigest":
         """Factory for creating new pre-reading content."""
         return cls(
-            id=PrereadingContentId.generate(),
+            id=ChapterDigestId.generate(),
             chapter_id=chapter_id,
             summary=summary.strip(),
             keypoints=[kp.strip() for kp in keypoints],
@@ -85,14 +85,14 @@ class ChapterPrereadingContent(Entity[PrereadingContentId]):
     @classmethod
     def create_with_id(
         cls,
-        id: PrereadingContentId,
+        id: ChapterDigestId,
         chapter_id: ChapterId,
         summary: str,
         keypoints: list[str],
-        questions: list[PrereadingQuestion],
+        questions: list[DigestQuestion],
         generated_at: datetime,
         ai_model: str,
-    ) -> "ChapterPrereadingContent":
+    ) -> "ChapterDigest":
         """Factory for reconstituting from persistence."""
         return cls(
             id=id,

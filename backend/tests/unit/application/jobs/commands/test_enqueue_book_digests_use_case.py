@@ -1,12 +1,12 @@
-"""Tests for EnqueueBookPrereadingUseCase."""
+"""Tests for EnqueueBookDigestsUseCase."""
 
 from datetime import UTC, datetime
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
-from src.application.jobs.commands.enqueue_book_prereading_use_case import (
-    EnqueueBookPrereadingUseCase,
+from src.application.jobs.commands.enqueue_book_digests_use_case import (
+    EnqueueBookDigestsUseCase,
 )
 from src.domain.common.exceptions import DomainError
 from src.domain.common.value_objects.ids import BookId, ChapterId, UserId
@@ -50,7 +50,7 @@ def queue_service() -> AsyncMock:
 
 
 @pytest.fixture
-def prereading_repo() -> AsyncMock:
+def digest_repo() -> AsyncMock:
     repo = AsyncMock()
     repo.find_all_by_book_id.return_value = []
     return repo
@@ -62,21 +62,21 @@ def use_case(
     book_repo: AsyncMock,
     batch_repo: AsyncMock,
     queue_service: AsyncMock,
-    prereading_repo: AsyncMock,
-) -> EnqueueBookPrereadingUseCase:
-    return EnqueueBookPrereadingUseCase(
+    digest_repo: AsyncMock,
+) -> EnqueueBookDigestsUseCase:
+    return EnqueueBookDigestsUseCase(
         chapter_repo=chapter_repo,
         book_repo=book_repo,
         batch_repo=batch_repo,
         queue_service=queue_service,
-        prereading_repo=prereading_repo,
+        digest_repo=digest_repo,
     )
 
 
-class TestEnqueueBookPrereading:
+class TestEnqueueBookDigest:
     async def test_enqueues_one_job_per_chapter(
         self,
-        use_case: EnqueueBookPrereadingUseCase,
+        use_case: EnqueueBookDigestsUseCase,
         chapter_repo: AsyncMock,
         book_repo: AsyncMock,
         queue_service: AsyncMock,
@@ -88,14 +88,14 @@ class TestEnqueueBookPrereading:
         batch = await use_case.execute(BookId(1), UserId(1))
 
         assert batch.total_jobs == 3
-        assert batch.batch_type == JobBatchType.CHAPTER_PREREADING
+        assert batch.batch_type == JobBatchType.CHAPTER_DIGEST
         assert batch.reference_id == "1"
         assert len(batch.job_keys) == 3
         assert queue_service.enqueue.call_count == 3
 
     async def test_skips_chapters_without_xpoint(
         self,
-        use_case: EnqueueBookPrereadingUseCase,
+        use_case: EnqueueBookDigestsUseCase,
         chapter_repo: AsyncMock,
         book_repo: AsyncMock,
         queue_service: AsyncMock,
@@ -116,22 +116,22 @@ class TestEnqueueBookPrereading:
         assert batch.total_jobs == 1
         assert queue_service.enqueue.call_count == 1
 
-    async def test_skips_chapters_with_existing_prereading(
+    async def test_skips_chapters_with_existing_digest(
         self,
-        use_case: EnqueueBookPrereadingUseCase,
+        use_case: EnqueueBookDigestsUseCase,
         chapter_repo: AsyncMock,
         book_repo: AsyncMock,
-        prereading_repo: AsyncMock,
+        digest_repo: AsyncMock,
         queue_service: AsyncMock,
     ) -> None:
         chapters = [_make_chapter(1), _make_chapter(2), _make_chapter(3)]
         chapter_repo.find_all_by_book.return_value = chapters
         book_repo.find_by_id.return_value = MagicMock()
 
-        # Chapter 2 already has prereading
+        # Chapter 2 already has a digest
         existing = MagicMock()
         existing.chapter_id = ChapterId(2)
-        prereading_repo.find_all_by_book_id.return_value = [existing]
+        digest_repo.find_all_by_book_id.return_value = [existing]
 
         batch = await use_case.execute(BookId(1), UserId(1))
 
@@ -140,7 +140,7 @@ class TestEnqueueBookPrereading:
 
     async def test_raises_when_book_not_found(
         self,
-        use_case: EnqueueBookPrereadingUseCase,
+        use_case: EnqueueBookDigestsUseCase,
         book_repo: AsyncMock,
     ) -> None:
         book_repo.find_by_id.return_value = None
@@ -150,7 +150,7 @@ class TestEnqueueBookPrereading:
 
     async def test_raises_when_no_eligible_chapters(
         self,
-        use_case: EnqueueBookPrereadingUseCase,
+        use_case: EnqueueBookDigestsUseCase,
         chapter_repo: AsyncMock,
         book_repo: AsyncMock,
     ) -> None:

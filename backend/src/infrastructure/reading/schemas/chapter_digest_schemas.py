@@ -1,11 +1,11 @@
-"""Pydantic schemas for chapter prereading content API."""
+"""Pydantic schemas for the chapter digest API."""
 
 from datetime import datetime
 
 from pydantic import BaseModel
 
 
-class PrereadingQuestionResponse(BaseModel):
+class DigestQuestionResponse(BaseModel):
     """Response schema for a pre-reading question/answer pair."""
 
     question: str
@@ -13,34 +13,34 @@ class PrereadingQuestionResponse(BaseModel):
     user_answer: str
 
 
-class PrereadingAnswerUpdate(BaseModel):
+class DigestAnswerUpdate(BaseModel):
     """Schema for a single answer update."""
 
     question_index: int
     user_answer: str
 
 
-class UpdatePrereadingAnswersRequest(BaseModel):
-    """Request schema for updating prereading answers."""
+class UpdateDigestAnswersRequest(BaseModel):
+    """Request schema for updating digest answers."""
 
-    answers: list[PrereadingAnswerUpdate]
+    answers: list[DigestAnswerUpdate]
 
 
-class ChapterPrereadingResponse(BaseModel):
-    """Response schema for chapter prereading content."""
+class ChapterDigestResponse(BaseModel):
+    """Response schema for a chapter digest."""
 
     id: int
     chapter_id: int
     summary: str
     keypoints: list[str]
-    questions: list[PrereadingQuestionResponse]
+    questions: list[DigestQuestionResponse]
     generated_at: datetime
 
     model_config = {"from_attributes": True}
 
 
-class EreaderChapterPrereadingItem(BaseModel):
-    """Ereader-friendly prereading content for a single chapter.
+class EreaderChapterDigestItem(BaseModel):
+    """Ereader-friendly digest for a single chapter.
 
     Questions are exposed as plain strings only (no AI or user answers) to keep
     the device payload small and preserve active-recall value.
