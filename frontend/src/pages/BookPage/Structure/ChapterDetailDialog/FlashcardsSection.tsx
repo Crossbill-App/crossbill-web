@@ -3,7 +3,7 @@ import {
   useGetChapterFlashcardSuggestions,
 } from '@/api/generated/flashcards/flashcards.ts';
 import type {
-  ChapterPrereadingResponse,
+  ChapterDigestResponse,
   ChapterWithHighlights,
   Flashcard,
   FlashcardSuggestionItem,
@@ -26,7 +26,7 @@ import { useCallback, useMemo, useState } from 'react';
 interface FlashcardsSectionProps {
   chapter: ChapterWithHighlights;
   bookId: number;
-  prereadingSummary?: ChapterPrereadingResponse;
+  digestSummary?: ChapterDigestResponse;
   bookFlashcards?: Flashcard[];
 }
 
@@ -68,7 +68,7 @@ const useAIFlashcardSuggestions = (
 export const FlashcardsSection = ({
   chapter,
   bookId,
-  prereadingSummary,
+  digestSummary,
   bookFlashcards,
 }: FlashcardsSectionProps) => {
   const [editingFlashcard, setEditingFlashcard] = useState<FlashcardWithContext | null>(null);
@@ -151,7 +151,7 @@ export const FlashcardsSection = ({
         onCancelEdit={() => {}}
       />
 
-      {prereadingSummary && (
+      {digestSummary && (
         <AIFeature>
           <FlashcardSuggestions
             suggestions={suggestions}

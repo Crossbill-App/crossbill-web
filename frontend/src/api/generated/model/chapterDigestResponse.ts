@@ -4,16 +4,16 @@
  * crossbill API
  * OpenAPI spec version: 0.1.0
  */
-import type { PrereadingQuestionResponse } from './prereadingQuestionResponse.ts';
+import type { DigestQuestionResponse } from './digestQuestionResponse.ts';
 
 /**
- * Response schema for chapter prereading content.
+ * Response schema for a chapter digest.
  */
-export interface ChapterPrereadingResponse {
+export interface ChapterDigestResponse {
   id: number;
   chapter_id: number;
   summary: string;
   keypoints: string[];
-  questions: PrereadingQuestionResponse[];
+  questions: DigestQuestionResponse[];
   generated_at: string;
 }

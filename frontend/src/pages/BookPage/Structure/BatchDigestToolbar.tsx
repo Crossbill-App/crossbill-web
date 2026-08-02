@@ -1,7 +1,7 @@
 import {
   useCancelJobBatch,
-  useEnqueueBookPrereading,
-  useGetActiveBookPrereadingBatch,
+  useEnqueueBookDigest,
+  useGetActiveBookDigestBatch,
   useGetJobBatch,
 } from '@/api/generated/jobs/jobs';
 import type { JobBatchResponse } from '@/api/generated/model';
@@ -13,7 +13,7 @@ import { AIIcon, CloseIcon } from '@/theme/Icons';
 import { Box, CircularProgress, Typography } from '@mui/material';
 import { useCallback, useRef, useState } from 'react';
 
-interface BatchPrereadingToolbarProps {
+interface BatchDigestToolbarProps {
   bookId: number;
 }
 
@@ -40,14 +40,14 @@ function showCompletionMessage(
   }
 }
 
-export const BatchPrereadingToolbar = ({ bookId }: BatchPrereadingToolbarProps) => {
+export const BatchDigestToolbar = ({ bookId }: BatchDigestToolbarProps) => {
   const cache = useCacheEvents();
   const { showSnackbar } = useSnackbar();
   const [batchId, setBatchId] = useState<number | null>(null);
   const handledTerminalRef = useRef<number | null>(null);
 
   // Check for an already-active batch on mount (survives page refresh)
-  useGetActiveBookPrereadingBatch(bookId, {
+  useGetActiveBookDigestBatch(bookId, {
     query: {
       select: (response: JobBatchResponse | null) => {
         if (response && !isTerminal(response.status) && batchId === null) {
@@ -60,7 +60,7 @@ export const BatchPrereadingToolbar = ({ bookId }: BatchPrereadingToolbarProps) 
     },
   });
 
-  const { mutate: enqueue, isPending: isEnqueuing } = useEnqueueBookPrereading({
+  const { mutate: enqueue, isPending: isEnqueuing } = useEnqueueBookDigest({
     mutation: {
       onSuccess: (response) => {
         handledTerminalRef.current = null;
@@ -84,7 +84,7 @@ export const BatchPrereadingToolbar = ({ bookId }: BatchPrereadingToolbarProps) 
         if (isTerminal(response.status) && handledTerminalRef.current !== response.id) {
           handledTerminalRef.current = response.id;
 
-          cache.prereadingBatchFinished(bookId);
+          cache.digestBatchFinished(bookId);
 
           showCompletionMessage(response, showSnackbar);
 
@@ -101,7 +101,7 @@ export const BatchPrereadingToolbar = ({ bookId }: BatchPrereadingToolbarProps) 
     mutation: {
       onSuccess: () => {
         showSnackbar('Batch generation cancelled.', 'info');
-        cache.prereadingBatchCancelled(bookId);
+        cache.digestBatchCancelled(bookId);
         setBatchId(null);
       },
       onError: () => {

@@ -6,9 +6,9 @@
  */
 
 /**
- * Response schema for a pre-reading question/answer pair.
+ * Response schema for a digest question/answer pair.
  */
-export interface PrereadingQuestionResponse {
+export interface DigestQuestionResponse {
   question: string;
   answer: string;
   user_answer: string;

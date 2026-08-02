@@ -1,10 +1,10 @@
-import type { ChapterPrereadingResponse } from '@/api/generated/model';
+import type { ChapterDigestResponse } from '@/api/generated/model';
 import { markdownStyles } from '@/theme/theme';
 import { Box, CircularProgress, Typography, styled } from '@mui/material';
 import ReactMarkdown from 'react-markdown';
 
-interface PrereadingContentProps {
-  content?: ChapterPrereadingResponse | null;
+interface DigestContentProps {
+  content?: ChapterDigestResponse | null;
   isGenerating?: boolean;
 }
 
@@ -17,7 +17,7 @@ const MarkdownList = styled('ul')(({ theme }) => ({
   },
 }));
 
-export const PrereadingContent = ({ content, isGenerating }: PrereadingContentProps) => {
+export const DigestContent = ({ content, isGenerating }: DigestContentProps) => {
   if (isGenerating) {
     return (
       <Box sx={(theme) => ({ p: theme.spacing(2), textAlign: 'center' })}>
@@ -31,7 +31,7 @@ export const PrereadingContent = ({ content, isGenerating }: PrereadingContentPr
             (theme) => ({ mt: theme.spacing(1) }),
           ]}
         >
-          Generating pre-reading overview...
+          Generating digest...
         </Typography>
       </Box>
     );

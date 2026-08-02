@@ -1,12 +1,12 @@
 import type {
-  ChapterPrereadingResponse,
-  CollectionResponseChapterPrereadingResponse,
+  ChapterDigestResponse,
+  CollectionResponseChapterDigestResponse,
 } from '@/api/generated/model';
 import {
-  getGetBookPrereadingQueryKey,
-  useGenerateChapterPrereading,
-  useUpdatePrereadingAnswers,
-} from '@/api/generated/prereading/prereading';
+  getGetBookDigestQueryKey,
+  useGenerateChapterDigest,
+  useUpdateDigestAnswers,
+} from '@/api/generated/digest/digest';
 import { AIActionButton } from '@/components/buttons/AIActionButton.tsx';
 import { AIFeature } from '@/components/features/AIFeature.tsx';
 import { useCacheEvents } from '@/lib/cacheEvents.ts';
@@ -18,7 +18,7 @@ import { CollapsibleSection } from './CollapsibleSection.tsx';
 interface ChapterReviewSectionProps {
   chapterId: number;
   bookId: number;
-  prereadingSummary?: ChapterPrereadingResponse;
+  digestSummary?: ChapterDigestResponse;
   onStartQuiz: () => void;
   onStartChat: () => void;
 }
@@ -26,7 +26,7 @@ interface ChapterReviewSectionProps {
 export const ChapterReviewSection = ({
   chapterId,
   bookId,
-  prereadingSummary,
+  digestSummary,
   onStartQuiz,
   onStartChat,
 }: ChapterReviewSectionProps) => {
@@ -35,13 +35,13 @@ export const ChapterReviewSection = ({
 
   // Local edits keyed by chapterId so they reset when switching chapters
   const [localEdits, setLocalEdits] = useState<Record<number, Record<number, string>>>({});
-  // Server answers derived from prereadingSummary
+  // Server answers derived from digestSummary
   const serverAnswers = useMemo<Record<number, string>>(() => {
-    if (!prereadingSummary) return {};
+    if (!digestSummary) return {};
     return Object.fromEntries(
-      prereadingSummary.questions.map((q, index) => [index, q.user_answer])
+      digestSummary.questions.map((q, index) => [index, q.user_answer])
     );
-  }, [prereadingSummary]);
+  }, [digestSummary]);
 
   // Merge server answers with local edits for the current chapter
   const answers: Record<number, string> = {
@@ -49,20 +49,20 @@ export const ChapterReviewSection = ({
     ...(localEdits[chapterId] ?? {}),
   };
 
-  const { mutate: generate, isPending } = useGenerateChapterPrereading({
+  const { mutate: generate, isPending } = useGenerateChapterDigest({
     mutation: {
       onSuccess: () => {
-        cache.prereadingChanged(bookId);
+        cache.digestChanged(bookId);
       },
     },
   });
 
-  const queryKey = getGetBookPrereadingQueryKey(bookId);
+  const queryKey = getGetBookDigestQueryKey(bookId);
 
-  const { mutate: saveAnswers } = useUpdatePrereadingAnswers({
+  const { mutate: saveAnswers } = useUpdateDigestAnswers({
     mutation: {
       onSuccess: (updatedChapter) => {
-        queryClient.setQueryData<CollectionResponseChapterPrereadingResponse>(queryKey, (old) => {
+        queryClient.setQueryData<CollectionResponseChapterDigestResponse>(queryKey, (old) => {
           if (!old) return old;
           return {
             ...old,
@@ -114,31 +114,31 @@ export const ChapterReviewSection = ({
         </Box>
       )}
 
-      {!isPending && !prereadingSummary && (
+      {!isPending && !digestSummary && (
         <Box sx={{ py: 1 }}>
           <AIActionButton text="Generate questions" onClick={handleGenerate} />
         </Box>
       )}
 
-      {!isPending && prereadingSummary && prereadingSummary.questions.length === 0 && (
+      {!isPending && digestSummary && digestSummary.questions.length === 0 && (
         <Typography
           variant="body2"
           sx={{
             color: 'text.secondary',
           }}
         >
-          No pre-reading questions available.
+          No digest questions available.
         </Typography>
       )}
 
-      {!isPending && prereadingSummary && prereadingSummary.questions.length > 0 && (
+      {!isPending && digestSummary && digestSummary.questions.length > 0 && (
         <CollapsibleSection title="Questions to think while reading" defaultExpanded>
           <Stack
             sx={{
               gap: 1,
             }}
           >
-            {prereadingSummary.questions.map((q, index) => (
+            {digestSummary.questions.map((q, index) => (
               <Box key={index} sx={{ py: 1 }}>
                 <Typography variant="body2" sx={{ fontWeight: 600, mb: 1.5 }}>
                   {q.question}

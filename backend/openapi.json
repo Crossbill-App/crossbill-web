@@ -445,14 +445,14 @@
         }
       }
     },
-    "/api/v1/ereader/books/{client_book_id}/prereading": {
+    "/api/v1/ereader/books/{client_book_id}/digest": {
       "get": {
         "tags": [
           "ereader"
         ],
-        "summary": "Get Ereader Book Prereading",
-        "description": "Get all chapter prereading content for a book by client_book_id.\n\nReturns one item per chapter that has generated prereading content, ordered\nby the server-side chapter number. Questions are exposed as plain strings\nonly (no AI or user answers). A book with no prereading yields an empty list.\n\nArgs:\n    client_book_id: The client-provided stable book identifier\n    current_user: Authenticated user\n\nReturns:\n    CollectionResponse with one item per chapter that has prereading\n\nRaises:\n    HTTPException: 404 if the book is not found for the given client_book_id",
-        "operationId": "get_ereader_book_prereading",
+        "summary": "Get Ereader Book Digest",
+        "description": "Get every chapter digest for a book by client_book_id.\n\nReturns one item per chapter that has a generated digest, ordered\nby the server-side chapter number. Questions are exposed as plain strings\nonly (no AI or user answers). A book with no digest yields an empty list.\n\nArgs:\n    client_book_id: The client-provided stable book identifier\n    current_user: Authenticated user\n\nReturns:\n    CollectionResponse with one item per chapter that has a digest\n\nRaises:\n    HTTPException: 404 if the book is not found for the given client_book_id",
+        "operationId": "get_ereader_book_digest",
         "security": [
           {
             "OAuth2PasswordBearer": []
@@ -475,7 +475,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/CollectionResponse_EreaderChapterPrereadingItem_"
+                  "$ref": "#/components/schemas/CollectionResponse_EreaderChapterDigestItem_"
                 }
               }
             }
@@ -1465,14 +1465,14 @@
         }
       }
     },
-    "/api/v1/chapters/{chapter_id}/prereading": {
+    "/api/v1/chapters/{chapter_id}/digest": {
       "get": {
         "tags": [
-          "prereading"
+          "digest"
         ],
-        "summary": "Get Chapter Prereading",
-        "description": "Get existing prereading content for a chapter.",
-        "operationId": "get_chapter_prereading",
+        "summary": "Get Chapter Digest",
+        "description": "Get a chapter's existing digest.",
+        "operationId": "get_chapter_digest",
         "security": [
           {
             "OAuth2PasswordBearer": []
@@ -1497,13 +1497,13 @@
                 "schema": {
                   "anyOf": [
                     {
-                      "$ref": "#/components/schemas/ChapterPrereadingResponse"
+                      "$ref": "#/components/schemas/ChapterDigestResponse"
                     },
                     {
                       "type": "null"
                     }
                   ],
-                  "title": "Response Get Chapter Prereading"
+                  "title": "Response Get Chapter Digest"
                 }
               }
             }
@@ -1521,14 +1521,14 @@
         }
       }
     },
-    "/api/v1/chapters/{chapter_id}/prereading/generate": {
+    "/api/v1/chapters/{chapter_id}/digest/generate": {
       "post": {
         "tags": [
-          "prereading"
+          "digest"
         ],
-        "summary": "Generate Chapter Prereading",
-        "description": "Generate prereading content for a chapter.",
-        "operationId": "generate_chapter_prereading",
+        "summary": "Generate Chapter Digest",
+        "description": "Generate a chapter's digest.",
+        "operationId": "generate_chapter_digest",
         "security": [
           {
             "OAuth2PasswordBearer": []
@@ -1551,7 +1551,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/ChapterPrereadingResponse"
+                  "$ref": "#/components/schemas/ChapterDigestResponse"
                 }
               }
             }
@@ -1569,14 +1569,14 @@
         }
       }
     },
-    "/api/v1/chapters/{chapter_id}/prereading/answers": {
+    "/api/v1/chapters/{chapter_id}/digest/answers": {
       "put": {
         "tags": [
-          "prereading"
+          "digest"
         ],
-        "summary": "Update Prereading Answers",
-        "description": "Update user answers for prereading questions.",
-        "operationId": "update_prereading_answers",
+        "summary": "Update Digest Answers",
+        "description": "Update user answers for digest questions.",
+        "operationId": "update_digest_answers",
         "security": [
           {
             "OAuth2PasswordBearer": []
@@ -1598,7 +1598,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/UpdatePrereadingAnswersRequest"
+                "$ref": "#/components/schemas/UpdateDigestAnswersRequest"
               }
             }
           }
@@ -1609,7 +1609,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/ChapterPrereadingResponse"
+                  "$ref": "#/components/schemas/ChapterDigestResponse"
                 }
               }
             }
@@ -1627,14 +1627,14 @@
         }
       }
     },
-    "/api/v1/books/{book_id}/prereading": {
+    "/api/v1/books/{book_id}/digest": {
       "get": {
         "tags": [
-          "prereading"
+          "digest"
         ],
-        "summary": "Get Book Prereading",
-        "description": "Get all prereading content for chapters in a book.",
-        "operationId": "get_book_prereading",
+        "summary": "Get Book Digest",
+        "description": "Get the digest of every chapter in a book.",
+        "operationId": "get_book_digest",
         "security": [
           {
             "OAuth2PasswordBearer": []
@@ -1657,7 +1657,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/CollectionResponse_ChapterPrereadingResponse_"
+                  "$ref": "#/components/schemas/CollectionResponse_ChapterDigestResponse_"
                 }
               }
             }
@@ -2163,7 +2163,7 @@
           "flashcards"
         ],
         "summary": "Get Chapter Flashcard Suggestions",
-        "description": "Get AI-generated flashcard suggestions from chapter prereading content.\n\nRequires the chapter to have a generated pre-reading summary.",
+        "description": "Get AI-generated flashcard suggestions from a chapter digest.\n\nRequires the chapter to have a generated digest.",
         "operationId": "get_chapter_flashcard_suggestions",
         "security": [
           {
@@ -2855,14 +2855,14 @@
         ]
       }
     },
-    "/api/v1/jobs/books/{book_id}/prereading": {
+    "/api/v1/jobs/books/{book_id}/digest": {
       "post": {
         "tags": [
           "jobs"
         ],
-        "summary": "Enqueue Book Prereading",
-        "description": "Enqueue prereading generation for all chapters of a book.",
-        "operationId": "enqueue_book_prereading",
+        "summary": "Enqueue Book Digest",
+        "description": "Enqueue digest generation for all chapters of a book.",
+        "operationId": "enqueue_book_digest",
         "security": [
           {
             "OAuth2PasswordBearer": []
@@ -2906,9 +2906,9 @@
         "tags": [
           "jobs"
         ],
-        "summary": "Get Active Book Prereading Batch",
-        "description": "Get the active prereading batch for a book, if any.",
-        "operationId": "get_active_book_prereading_batch",
+        "summary": "Get Active Book Digest Batch",
+        "description": "Get the active digest batch for a book, if any.",
+        "operationId": "get_active_book_digest_batch",
         "security": [
           {
             "OAuth2PasswordBearer": []
@@ -2939,7 +2939,7 @@
                       "type": "null"
                     }
                   ],
-                  "title": "Response Get Active Book Prereading Batch"
+                  "title": "Response Get Active Book Digest Batch"
                 }
               }
             }
@@ -4348,7 +4348,7 @@
         "title": "ChapterContentResponse",
         "description": "Response schema for chapter text content."
       },
-      "ChapterPrereadingResponse": {
+      "ChapterDigestResponse": {
         "properties": {
           "id": {
             "type": "integer",
@@ -4371,7 +4371,7 @@
           },
           "questions": {
             "items": {
-              "$ref": "#/components/schemas/PrereadingQuestionResponse"
+              "$ref": "#/components/schemas/DigestQuestionResponse"
             },
             "type": "array",
             "title": "Questions"
@@ -4391,8 +4391,8 @@
           "questions",
           "generated_at"
         ],
-        "title": "ChapterPrereadingResponse",
-        "description": "Response schema for chapter prereading content."
+        "title": "ChapterDigestResponse",
+        "description": "Response schema for a chapter digest."
       },
       "ChapterWithHighlights": {
         "properties": {
@@ -4501,11 +4501,11 @@
         ],
         "title": "CollectionResponse[Bookmark]"
       },
-      "CollectionResponse_ChapterPrereadingResponse_": {
+      "CollectionResponse_ChapterDigestResponse_": {
         "properties": {
           "items": {
             "items": {
-              "$ref": "#/components/schemas/ChapterPrereadingResponse"
+              "$ref": "#/components/schemas/ChapterDigestResponse"
             },
             "type": "array",
             "title": "Items"
@@ -4515,13 +4515,13 @@
         "required": [
           "items"
         ],
-        "title": "CollectionResponse[ChapterPrereadingResponse]"
+        "title": "CollectionResponse[ChapterDigestResponse]"
       },
-      "CollectionResponse_EreaderChapterPrereadingItem_": {
+      "CollectionResponse_EreaderChapterDigestItem_": {
         "properties": {
           "items": {
             "items": {
-              "$ref": "#/components/schemas/EreaderChapterPrereadingItem"
+              "$ref": "#/components/schemas/EreaderChapterDigestItem"
             },
             "type": "array",
             "title": "Items"
@@ -4531,7 +4531,7 @@
         "required": [
           "items"
         ],
-        "title": "CollectionResponse[EreaderChapterPrereadingItem]"
+        "title": "CollectionResponse[EreaderChapterDigestItem]"
       },
       "CollectionResponse_FlashcardSuggestionItem_": {
         "properties": {
@@ -4631,6 +4631,49 @@
         ],
         "title": "CreateChatSessionResponse"
       },
+      "DigestAnswerUpdate": {
+        "properties": {
+          "question_index": {
+            "type": "integer",
+            "title": "Question Index"
+          },
+          "user_answer": {
+            "type": "string",
+            "title": "User Answer"
+          }
+        },
+        "type": "object",
+        "required": [
+          "question_index",
+          "user_answer"
+        ],
+        "title": "DigestAnswerUpdate",
+        "description": "Schema for a single answer update."
+      },
+      "DigestQuestionResponse": {
+        "properties": {
+          "question": {
+            "type": "string",
+            "title": "Question"
+          },
+          "answer": {
+            "type": "string",
+            "title": "Answer"
+          },
+          "user_answer": {
+            "type": "string",
+            "title": "User Answer"
+          }
+        },
+        "type": "object",
+        "required": [
+          "question",
+          "answer",
+          "user_answer"
+        ],
+        "title": "DigestQuestionResponse",
+        "description": "Response schema for a digest question/answer pair."
+      },
       "EreaderBookMetadata": {
         "properties": {
           "book_id": {
@@ -4694,7 +4737,7 @@
         "title": "EreaderBookMetadata",
         "description": "Schema for ereader book metadata response.\n\nThis lightweight response is used by KOReader to get basic book information\nfor deciding whether to upload cover images, epub files, etc."
       },
-      "EreaderChapterPrereadingItem": {
+      "EreaderChapterDigestItem": {
         "properties": {
           "chapter_id": {
             "type": "integer",
@@ -4761,8 +4804,8 @@
           "questions",
           "generated_at"
         ],
-        "title": "EreaderChapterPrereadingItem",
-        "description": "Ereader-friendly prereading content for a single chapter.\n\nQuestions are exposed as plain strings only (no AI or user answers) to keep\nthe device payload small and preserve active-recall value."
+        "title": "EreaderChapterDigestItem",
+        "description": "Ereader-friendly digest for a single chapter.\n\nQuestions are exposed as plain strings only (no AI or user answers) to keep\nthe device payload small and preserve active-recall value."
       },
       "FeatureFlags": {
         "properties": {
@@ -6377,49 +6420,6 @@
         "title": "PositionResponse",
         "description": "Position in a book document."
       },
-      "PrereadingAnswerUpdate": {
-        "properties": {
-          "question_index": {
-            "type": "integer",
-            "title": "Question Index"
-          },
-          "user_answer": {
-            "type": "string",
-            "title": "User Answer"
-          }
-        },
-        "type": "object",
-        "required": [
-          "question_index",
-          "user_answer"
-        ],
-        "title": "PrereadingAnswerUpdate",
-        "description": "Schema for a single answer update."
-      },
-      "PrereadingQuestionResponse": {
-        "properties": {
-          "question": {
-            "type": "string",
-            "title": "Question"
-          },
-          "answer": {
-            "type": "string",
-            "title": "Answer"
-          },
-          "user_answer": {
-            "type": "string",
-            "title": "User Answer"
-          }
-        },
-        "type": "object",
-        "required": [
-          "question",
-          "answer",
-          "user_answer"
-        ],
-        "title": "PrereadingQuestionResponse",
-        "description": "Response schema for a pre-reading question/answer pair."
-      },
       "ReadingSession": {
         "properties": {
           "book_id": {
@@ -7027,11 +7027,11 @@
         "title": "TokenWithRefresh",
         "description": "Pydantic response model for HTTP API responses."
       },
-      "UpdatePrereadingAnswersRequest": {
+      "UpdateDigestAnswersRequest": {
         "properties": {
           "answers": {
             "items": {
-              "$ref": "#/components/schemas/PrereadingAnswerUpdate"
+              "$ref": "#/components/schemas/DigestAnswerUpdate"
             },
             "type": "array",
             "title": "Answers"
@@ -7041,8 +7041,8 @@
         "required": [
           "answers"
         ],
-        "title": "UpdatePrereadingAnswersRequest",
-        "description": "Request schema for updating prereading answers."
+        "title": "UpdateDigestAnswersRequest",
+        "description": "Request schema for updating digest answers."
       },
       "UserDetailsResponse": {
         "properties": {

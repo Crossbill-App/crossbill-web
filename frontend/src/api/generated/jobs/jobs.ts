@@ -40,34 +40,34 @@ const withQueryKey = <T extends object, K>(query: T, queryKey: K): T & { queryKe
 };
 
 /**
- * Enqueue prereading generation for all chapters of a book.
- * @summary Enqueue Book Prereading
+ * Enqueue digest generation for all chapters of a book.
+ * @summary Enqueue Book Digest
  */
-export const enqueueBookPrereading = (bookId: number, signal?: AbortSignal) => {
+export const enqueueBookDigest = (bookId: number, signal?: AbortSignal) => {
   return axiosInstance<JobBatchResponse>({
-    url: `/api/v1/jobs/books/${bookId}/prereading`,
+    url: `/api/v1/jobs/books/${bookId}/digest`,
     method: 'POST',
     signal,
   });
 };
 
-export const getEnqueueBookPrereadingMutationOptions = <
+export const getEnqueueBookDigestMutationOptions = <
   TError = HTTPValidationError,
   TContext = unknown,
 >(options?: {
   mutation?: UseMutationOptions<
-    Awaited<ReturnType<typeof enqueueBookPrereading>>,
+    Awaited<ReturnType<typeof enqueueBookDigest>>,
     TError,
     { bookId: number },
     TContext
   >;
 }): UseMutationOptions<
-  Awaited<ReturnType<typeof enqueueBookPrereading>>,
+  Awaited<ReturnType<typeof enqueueBookDigest>>,
   TError,
   { bookId: number },
   TContext
 > => {
-  const mutationKey = ['enqueueBookPrereading'];
+  const mutationKey = ['enqueueBookDigest'];
   const { mutation: mutationOptions } = options
     ? options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey
       ? options
@@ -75,30 +75,30 @@ export const getEnqueueBookPrereadingMutationOptions = <
     : { mutation: { mutationKey } };
 
   const mutationFn: MutationFunction<
-    Awaited<ReturnType<typeof enqueueBookPrereading>>,
+    Awaited<ReturnType<typeof enqueueBookDigest>>,
     { bookId: number }
   > = (props) => {
     const { bookId } = props ?? {};
 
-    return enqueueBookPrereading(bookId);
+    return enqueueBookDigest(bookId);
   };
 
   return { mutationFn, ...mutationOptions };
 };
 
-export type EnqueueBookPrereadingMutationResult = NonNullable<
-  Awaited<ReturnType<typeof enqueueBookPrereading>>
+export type EnqueueBookDigestMutationResult = NonNullable<
+  Awaited<ReturnType<typeof enqueueBookDigest>>
 >;
 
-export type EnqueueBookPrereadingMutationError = HTTPValidationError;
+export type EnqueueBookDigestMutationError = HTTPValidationError;
 
 /**
- * @summary Enqueue Book Prereading
+ * @summary Enqueue Book Digest
  */
-export const useEnqueueBookPrereading = <TError = HTTPValidationError, TContext = unknown>(
+export const useEnqueueBookDigest = <TError = HTTPValidationError, TContext = unknown>(
   options?: {
     mutation?: UseMutationOptions<
-      Awaited<ReturnType<typeof enqueueBookPrereading>>,
+      Awaited<ReturnType<typeof enqueueBookDigest>>,
       TError,
       { bookId: number },
       TContext
@@ -106,132 +106,132 @@ export const useEnqueueBookPrereading = <TError = HTTPValidationError, TContext 
   },
   queryClient?: QueryClient
 ): UseMutationResult<
-  Awaited<ReturnType<typeof enqueueBookPrereading>>,
+  Awaited<ReturnType<typeof enqueueBookDigest>>,
   TError,
   { bookId: number },
   TContext
 > => {
-  return useMutation(getEnqueueBookPrereadingMutationOptions(options), queryClient);
+  return useMutation(getEnqueueBookDigestMutationOptions(options), queryClient);
 };
 /**
- * Get the active prereading batch for a book, if any.
- * @summary Get Active Book Prereading Batch
+ * Get the active digest batch for a book, if any.
+ * @summary Get Active Book Digest Batch
  */
-export const getActiveBookPrereadingBatch = (bookId: number, signal?: AbortSignal) => {
+export const getActiveBookDigestBatch = (bookId: number, signal?: AbortSignal) => {
   return axiosInstance<JobBatchResponse | null>({
-    url: `/api/v1/jobs/books/${bookId}/prereading`,
+    url: `/api/v1/jobs/books/${bookId}/digest`,
     method: 'GET',
     signal,
   });
 };
 
-export const getGetActiveBookPrereadingBatchQueryKey = (bookId: number) => {
-  return [`/api/v1/jobs/books/${bookId}/prereading`] as const;
+export const getGetActiveBookDigestBatchQueryKey = (bookId: number) => {
+  return [`/api/v1/jobs/books/${bookId}/digest`] as const;
 };
 
-export const getGetActiveBookPrereadingBatchQueryOptions = <
-  TData = Awaited<ReturnType<typeof getActiveBookPrereadingBatch>>,
+export const getGetActiveBookDigestBatchQueryOptions = <
+  TData = Awaited<ReturnType<typeof getActiveBookDigestBatch>>,
   TError = HTTPValidationError,
 >(
   bookId: number,
   options?: {
     query?: Partial<
-      UseQueryOptions<Awaited<ReturnType<typeof getActiveBookPrereadingBatch>>, TError, TData>
+      UseQueryOptions<Awaited<ReturnType<typeof getActiveBookDigestBatch>>, TError, TData>
     >;
   }
 ) => {
   const { query: queryOptions } = options ?? {};
 
-  const queryKey = queryOptions?.queryKey ?? getGetActiveBookPrereadingBatchQueryKey(bookId);
+  const queryKey = queryOptions?.queryKey ?? getGetActiveBookDigestBatchQueryKey(bookId);
 
-  const queryFn: QueryFunction<Awaited<ReturnType<typeof getActiveBookPrereadingBatch>>> = ({
+  const queryFn: QueryFunction<Awaited<ReturnType<typeof getActiveBookDigestBatch>>> = ({
     signal,
-  }) => getActiveBookPrereadingBatch(bookId, signal);
+  }) => getActiveBookDigestBatch(bookId, signal);
 
   return {
     queryKey,
     queryFn,
     enabled: bookId !== null && bookId !== undefined,
     ...queryOptions,
-  } as UseQueryOptions<Awaited<ReturnType<typeof getActiveBookPrereadingBatch>>, TError, TData> & {
+  } as UseQueryOptions<Awaited<ReturnType<typeof getActiveBookDigestBatch>>, TError, TData> & {
     queryKey: DataTag<QueryKey, TData, TError>;
   };
 };
 
-export type GetActiveBookPrereadingBatchQueryResult = NonNullable<
-  Awaited<ReturnType<typeof getActiveBookPrereadingBatch>>
+export type GetActiveBookDigestBatchQueryResult = NonNullable<
+  Awaited<ReturnType<typeof getActiveBookDigestBatch>>
 >;
-export type GetActiveBookPrereadingBatchQueryError = HTTPValidationError;
+export type GetActiveBookDigestBatchQueryError = HTTPValidationError;
 
-export function useGetActiveBookPrereadingBatch<
-  TData = Awaited<ReturnType<typeof getActiveBookPrereadingBatch>>,
+export function useGetActiveBookDigestBatch<
+  TData = Awaited<ReturnType<typeof getActiveBookDigestBatch>>,
   TError = HTTPValidationError,
 >(
   bookId: number,
   options: {
     query: Partial<
-      UseQueryOptions<Awaited<ReturnType<typeof getActiveBookPrereadingBatch>>, TError, TData>
+      UseQueryOptions<Awaited<ReturnType<typeof getActiveBookDigestBatch>>, TError, TData>
     > &
       Pick<
         DefinedInitialDataOptions<
-          Awaited<ReturnType<typeof getActiveBookPrereadingBatch>>,
+          Awaited<ReturnType<typeof getActiveBookDigestBatch>>,
           TError,
-          Awaited<ReturnType<typeof getActiveBookPrereadingBatch>>
+          Awaited<ReturnType<typeof getActiveBookDigestBatch>>
         >,
         'initialData'
       >;
   },
   queryClient?: QueryClient
 ): DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
-export function useGetActiveBookPrereadingBatch<
-  TData = Awaited<ReturnType<typeof getActiveBookPrereadingBatch>>,
+export function useGetActiveBookDigestBatch<
+  TData = Awaited<ReturnType<typeof getActiveBookDigestBatch>>,
   TError = HTTPValidationError,
 >(
   bookId: number,
   options?: {
     query?: Partial<
-      UseQueryOptions<Awaited<ReturnType<typeof getActiveBookPrereadingBatch>>, TError, TData>
+      UseQueryOptions<Awaited<ReturnType<typeof getActiveBookDigestBatch>>, TError, TData>
     > &
       Pick<
         UndefinedInitialDataOptions<
-          Awaited<ReturnType<typeof getActiveBookPrereadingBatch>>,
+          Awaited<ReturnType<typeof getActiveBookDigestBatch>>,
           TError,
-          Awaited<ReturnType<typeof getActiveBookPrereadingBatch>>
+          Awaited<ReturnType<typeof getActiveBookDigestBatch>>
         >,
         'initialData'
       >;
   },
   queryClient?: QueryClient
 ): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
-export function useGetActiveBookPrereadingBatch<
-  TData = Awaited<ReturnType<typeof getActiveBookPrereadingBatch>>,
+export function useGetActiveBookDigestBatch<
+  TData = Awaited<ReturnType<typeof getActiveBookDigestBatch>>,
   TError = HTTPValidationError,
 >(
   bookId: number,
   options?: {
     query?: Partial<
-      UseQueryOptions<Awaited<ReturnType<typeof getActiveBookPrereadingBatch>>, TError, TData>
+      UseQueryOptions<Awaited<ReturnType<typeof getActiveBookDigestBatch>>, TError, TData>
     >;
   },
   queryClient?: QueryClient
 ): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 /**
- * @summary Get Active Book Prereading Batch
+ * @summary Get Active Book Digest Batch
  */
 
-export function useGetActiveBookPrereadingBatch<
-  TData = Awaited<ReturnType<typeof getActiveBookPrereadingBatch>>,
+export function useGetActiveBookDigestBatch<
+  TData = Awaited<ReturnType<typeof getActiveBookDigestBatch>>,
   TError = HTTPValidationError,
 >(
   bookId: number,
   options?: {
     query?: Partial<
-      UseQueryOptions<Awaited<ReturnType<typeof getActiveBookPrereadingBatch>>, TError, TData>
+      UseQueryOptions<Awaited<ReturnType<typeof getActiveBookDigestBatch>>, TError, TData>
     >;
   },
   queryClient?: QueryClient
 ): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
-  const queryOptions = getGetActiveBookPrereadingBatchQueryOptions(bookId, options);
+  const queryOptions = getGetActiveBookDigestBatchQueryOptions(bookId, options);
 
   const query = useQuery(queryOptions, queryClient) as UseQueryResult<TData, TError> & {
     queryKey: DataTag<QueryKey, TData, TError>;

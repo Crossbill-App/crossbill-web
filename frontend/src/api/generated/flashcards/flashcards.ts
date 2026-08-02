@@ -598,9 +598,9 @@ export function useGetHighlightFlashcardSuggestions<
 }
 
 /**
- * Get AI-generated flashcard suggestions from chapter prereading content.
+ * Get AI-generated flashcard suggestions from a chapter digest.
  *
- * Requires the chapter to have a generated pre-reading summary.
+ * Requires the chapter to have a generated digest.
  * @summary Get Chapter Flashcard Suggestions
  */
 export const getChapterFlashcardSuggestions = (chapterId: number, signal?: AbortSignal) => {

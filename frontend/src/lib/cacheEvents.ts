@@ -4,9 +4,9 @@ import {
   getGetRecentlyViewedBooksQueryKey,
 } from '@/api/generated/books/books.ts';
 import { getGetBookHighlightLabelsQueryKey } from '@/api/generated/highlight-labels/highlight-labels.ts';
-import { getGetActiveBookPrereadingBatchQueryKey } from '@/api/generated/jobs/jobs.ts';
+import { getGetActiveBookDigestBatchQueryKey } from '@/api/generated/jobs/jobs.ts';
 import { getGetNoteQueryKey, getGetNotesForBookQueryKey } from '@/api/generated/notes/notes.ts';
-import { getGetBookPrereadingQueryKey } from '@/api/generated/prereading/prereading.ts';
+import { getGetBookDigestQueryKey } from '@/api/generated/digest/digest.ts';
 import { getGetTagsQueryKey } from '@/api/generated/tags/tags.ts';
 import { useQueryClient, type QueryKey } from '@tanstack/react-query';
 import { useMemo } from 'react';
@@ -83,19 +83,19 @@ export const useCacheEvents = () => {
           ...(noteId === undefined ? [] : [getGetNoteQueryKey(noteId)])
         ),
 
-      /** Prereading content was generated or answered for a chapter. */
-      prereadingChanged: (bookId: number) => invalidate(getGetBookPrereadingQueryKey(bookId)),
+      /** Digest content was generated or answered for a chapter. */
+      digestChanged: (bookId: number) => invalidate(getGetBookDigestQueryKey(bookId)),
 
-      /** A batch prereading job reached a terminal state, so its output is ready. */
-      prereadingBatchFinished: (bookId: number) =>
+      /** A batch digest job reached a terminal state, so its output is ready. */
+      digestBatchFinished: (bookId: number) =>
         invalidate(
-          getGetBookPrereadingQueryKey(bookId),
-          getGetActiveBookPrereadingBatchQueryKey(bookId)
+          getGetBookDigestQueryKey(bookId),
+          getGetActiveBookDigestBatchQueryKey(bookId)
         ),
 
-      /** A batch prereading job was cancelled; no new prereading content exists. */
-      prereadingBatchCancelled: (bookId: number) =>
-        invalidate(getGetActiveBookPrereadingBatchQueryKey(bookId)),
+      /** A batch digest job was cancelled; no new digest content exists. */
+      digestBatchCancelled: (bookId: number) =>
+        invalidate(getGetActiveBookDigestBatchQueryKey(bookId)),
 
       /** A highlight label was renamed or recoloured. Book details embeds labels. */
       highlightLabelsChanged: (bookId: number) =>

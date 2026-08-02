@@ -6,12 +6,12 @@
  */
 
 /**
- * Ereader-friendly prereading content for a single chapter.
+ * Ereader-friendly digest for a single chapter.
  *
  * Questions are exposed as plain strings only (no AI or user answers) to keep
  * the device payload small and preserve active-recall value.
  */
-export interface EreaderChapterPrereadingItem {
+export interface EreaderChapterDigestItem {
   chapter_id: number;
   chapter_name: string;
   chapter_number: number | null;

@@ -8,7 +8,7 @@
 /**
  * Schema for a single answer update.
  */
-export interface PrereadingAnswerUpdate {
+export interface DigestAnswerUpdate {
   question_index: number;
   user_answer: string;
 }

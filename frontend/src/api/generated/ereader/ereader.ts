@@ -23,7 +23,7 @@ import { useMutation, useQuery } from '@tanstack/react-query';
 import type {
   BodyUploadBookEpub,
   BookCreate,
-  CollectionResponseEreaderChapterPrereadingItem,
+  CollectionResponseEreaderChapterDigestItem,
   EreaderBookMetadata,
   HTTPValidationError,
   SuccessResponse,
@@ -354,138 +354,137 @@ export const useUploadBookEpub = <TError = HTTPValidationError, TContext = unkno
   return useMutation(getUploadBookEpubMutationOptions(options), queryClient);
 };
 /**
- * Get all chapter prereading content for a book by client_book_id.
+ * Get every chapter digest for a book by client_book_id.
  *
- * Returns one item per chapter that has generated prereading content, ordered
+ * Returns one item per chapter that has a generated digest, ordered
  * by the server-side chapter number. Questions are exposed as plain strings
- * only (no AI or user answers). A book with no prereading yields an empty list.
+ * only (no AI or user answers). A book with no digest yields an empty list.
  *
  * Args:
  *     client_book_id: The client-provided stable book identifier
  *     current_user: Authenticated user
  *
  * Returns:
- *     CollectionResponse with one item per chapter that has prereading
+ *     CollectionResponse with one item per chapter that has a digest
  *
  * Raises:
  *     HTTPException: 404 if the book is not found for the given client_book_id
- * @summary Get Ereader Book Prereading
+ * @summary Get Ereader Book Digest
  */
-export const getEreaderBookPrereading = (clientBookId: string, signal?: AbortSignal) => {
-  return axiosInstance<CollectionResponseEreaderChapterPrereadingItem>({
-    url: `/api/v1/ereader/books/${clientBookId}/prereading`,
+export const getEreaderBookDigest = (clientBookId: string, signal?: AbortSignal) => {
+  return axiosInstance<CollectionResponseEreaderChapterDigestItem>({
+    url: `/api/v1/ereader/books/${clientBookId}/digest`,
     method: 'GET',
     signal,
   });
 };
 
-export const getGetEreaderBookPrereadingQueryKey = (clientBookId: string) => {
-  return [`/api/v1/ereader/books/${clientBookId}/prereading`] as const;
+export const getGetEreaderBookDigestQueryKey = (clientBookId: string) => {
+  return [`/api/v1/ereader/books/${clientBookId}/digest`] as const;
 };
 
-export const getGetEreaderBookPrereadingQueryOptions = <
-  TData = Awaited<ReturnType<typeof getEreaderBookPrereading>>,
+export const getGetEreaderBookDigestQueryOptions = <
+  TData = Awaited<ReturnType<typeof getEreaderBookDigest>>,
   TError = HTTPValidationError,
 >(
   clientBookId: string,
   options?: {
     query?: Partial<
-      UseQueryOptions<Awaited<ReturnType<typeof getEreaderBookPrereading>>, TError, TData>
+      UseQueryOptions<Awaited<ReturnType<typeof getEreaderBookDigest>>, TError, TData>
     >;
   }
 ) => {
   const { query: queryOptions } = options ?? {};
 
-  const queryKey = queryOptions?.queryKey ?? getGetEreaderBookPrereadingQueryKey(clientBookId);
+  const queryKey = queryOptions?.queryKey ?? getGetEreaderBookDigestQueryKey(clientBookId);
 
-  const queryFn: QueryFunction<Awaited<ReturnType<typeof getEreaderBookPrereading>>> = ({
-    signal,
-  }) => getEreaderBookPrereading(clientBookId, signal);
+  const queryFn: QueryFunction<Awaited<ReturnType<typeof getEreaderBookDigest>>> = ({ signal }) =>
+    getEreaderBookDigest(clientBookId, signal);
 
   return {
     queryKey,
     queryFn,
     enabled: clientBookId !== null && clientBookId !== undefined,
     ...queryOptions,
-  } as UseQueryOptions<Awaited<ReturnType<typeof getEreaderBookPrereading>>, TError, TData> & {
+  } as UseQueryOptions<Awaited<ReturnType<typeof getEreaderBookDigest>>, TError, TData> & {
     queryKey: DataTag<QueryKey, TData, TError>;
   };
 };
 
-export type GetEreaderBookPrereadingQueryResult = NonNullable<
-  Awaited<ReturnType<typeof getEreaderBookPrereading>>
+export type GetEreaderBookDigestQueryResult = NonNullable<
+  Awaited<ReturnType<typeof getEreaderBookDigest>>
 >;
-export type GetEreaderBookPrereadingQueryError = HTTPValidationError;
+export type GetEreaderBookDigestQueryError = HTTPValidationError;
 
-export function useGetEreaderBookPrereading<
-  TData = Awaited<ReturnType<typeof getEreaderBookPrereading>>,
+export function useGetEreaderBookDigest<
+  TData = Awaited<ReturnType<typeof getEreaderBookDigest>>,
   TError = HTTPValidationError,
 >(
   clientBookId: string,
   options: {
     query: Partial<
-      UseQueryOptions<Awaited<ReturnType<typeof getEreaderBookPrereading>>, TError, TData>
+      UseQueryOptions<Awaited<ReturnType<typeof getEreaderBookDigest>>, TError, TData>
     > &
       Pick<
         DefinedInitialDataOptions<
-          Awaited<ReturnType<typeof getEreaderBookPrereading>>,
+          Awaited<ReturnType<typeof getEreaderBookDigest>>,
           TError,
-          Awaited<ReturnType<typeof getEreaderBookPrereading>>
+          Awaited<ReturnType<typeof getEreaderBookDigest>>
         >,
         'initialData'
       >;
   },
   queryClient?: QueryClient
 ): DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
-export function useGetEreaderBookPrereading<
-  TData = Awaited<ReturnType<typeof getEreaderBookPrereading>>,
+export function useGetEreaderBookDigest<
+  TData = Awaited<ReturnType<typeof getEreaderBookDigest>>,
   TError = HTTPValidationError,
 >(
   clientBookId: string,
   options?: {
     query?: Partial<
-      UseQueryOptions<Awaited<ReturnType<typeof getEreaderBookPrereading>>, TError, TData>
+      UseQueryOptions<Awaited<ReturnType<typeof getEreaderBookDigest>>, TError, TData>
     > &
       Pick<
         UndefinedInitialDataOptions<
-          Awaited<ReturnType<typeof getEreaderBookPrereading>>,
+          Awaited<ReturnType<typeof getEreaderBookDigest>>,
           TError,
-          Awaited<ReturnType<typeof getEreaderBookPrereading>>
+          Awaited<ReturnType<typeof getEreaderBookDigest>>
         >,
         'initialData'
       >;
   },
   queryClient?: QueryClient
 ): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
-export function useGetEreaderBookPrereading<
-  TData = Awaited<ReturnType<typeof getEreaderBookPrereading>>,
+export function useGetEreaderBookDigest<
+  TData = Awaited<ReturnType<typeof getEreaderBookDigest>>,
   TError = HTTPValidationError,
 >(
   clientBookId: string,
   options?: {
     query?: Partial<
-      UseQueryOptions<Awaited<ReturnType<typeof getEreaderBookPrereading>>, TError, TData>
+      UseQueryOptions<Awaited<ReturnType<typeof getEreaderBookDigest>>, TError, TData>
     >;
   },
   queryClient?: QueryClient
 ): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 /**
- * @summary Get Ereader Book Prereading
+ * @summary Get Ereader Book Digest
  */
 
-export function useGetEreaderBookPrereading<
-  TData = Awaited<ReturnType<typeof getEreaderBookPrereading>>,
+export function useGetEreaderBookDigest<
+  TData = Awaited<ReturnType<typeof getEreaderBookDigest>>,
   TError = HTTPValidationError,
 >(
   clientBookId: string,
   options?: {
     query?: Partial<
-      UseQueryOptions<Awaited<ReturnType<typeof getEreaderBookPrereading>>, TError, TData>
+      UseQueryOptions<Awaited<ReturnType<typeof getEreaderBookDigest>>, TError, TData>
     >;
   },
   queryClient?: QueryClient
 ): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
-  const queryOptions = getGetEreaderBookPrereadingQueryOptions(clientBookId, options);
+  const queryOptions = getGetEreaderBookDigestQueryOptions(clientBookId, options);
 
   const query = useQuery(queryOptions, queryClient) as UseQueryResult<TData, TError> & {
     queryKey: DataTag<QueryKey, TData, TError>;
