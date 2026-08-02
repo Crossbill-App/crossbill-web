@@ -43,6 +43,7 @@ export {
   LinkOff as LinkOffIcon,
   NoteAdd as NoteAddIcon,
   Refresh as RegenerateIcon,
+  Check as SelectedIcon,
   SwapVert as SortIcon,
 } from '@mui/icons-material';
 

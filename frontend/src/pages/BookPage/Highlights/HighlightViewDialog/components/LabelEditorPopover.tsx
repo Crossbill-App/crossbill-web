@@ -1,10 +1,10 @@
 import { useUpdateHighlightLabel } from '@/api/generated/highlight-labels/highlight-labels.ts';
+import { ColorSwatchPicker } from '@/components/inputs/ColorSwatchPicker.tsx';
 import { useMutationErrorHandler } from '@/hooks/useMutationErrorHandler.ts';
 import { useCacheEvents } from '@/lib/cacheEvents.ts';
 import { LABEL_COLORS } from '@/utils/colorUtils.ts';
 import { Box, Popover, TextField, Typography } from '@mui/material';
 import { type MutableRefObject, useEffect, useRef, useState } from 'react';
-import { CirclePicker, type ColorResult } from 'react-color';
 
 interface LabelEditorContentProps {
   styleId: number;
@@ -58,10 +58,10 @@ const LabelEditorContent = ({
     submitRef.current = handleLabelSubmit;
   });
 
-  const handleColorChange = (color: ColorResult) => {
+  const handleColorChange = (color: string) => {
     updateMutation.mutate({
       styleId,
-      data: { ui_color: color.hex },
+      data: { ui_color: color },
     });
   };
 
@@ -89,11 +89,11 @@ const LabelEditorContent = ({
       <Typography variant="caption" sx={{ mb: 1, display: 'block', color: 'text.secondary' }}>
         Color
       </Typography>
-      <CirclePicker
-        color={currentColor || undefined}
+      <ColorSwatchPicker
+        label="Label color"
         colors={LABEL_COLORS}
-        onChangeComplete={handleColorChange}
-        width="100%"
+        value={currentColor}
+        onChange={handleColorChange}
       />
     </Box>
   );
