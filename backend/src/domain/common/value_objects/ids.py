@@ -164,17 +164,17 @@ class BookmarkId(EntityId):
 
 
 @dataclass(frozen=True)
-class PrereadingContentId(EntityId):
-    """Strongly-typed prereading content identifier."""
+class ChapterDigestId(EntityId):
+    """Strongly-typed chapter digest identifier."""
 
     value: int
 
     def __post_init__(self) -> None:
         if self.value < 0:
-            raise ValueError("PrereadingContentId must be non-negative")
+            raise ValueError("ChapterDigestId must be non-negative")
 
     @classmethod
-    def generate(cls) -> "PrereadingContentId":
+    def generate(cls) -> "ChapterDigestId":
         return cls(0)  # Database assigns real ID
 
 

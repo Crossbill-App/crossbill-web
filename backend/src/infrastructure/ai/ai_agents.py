@@ -18,7 +18,7 @@ class QuestionAnswer(BaseModel):
     answer: str
 
 
-class PrereadingContent(BaseModel):
+class GeneratedDigest(BaseModel):
     summary: str
     keypoints: list[str]
     questions_and_answers: list[QuestionAnswer]
@@ -31,7 +31,7 @@ Output only the summary text with no heading in the start of the response. DO NO
 """
 
 
-PREREADING_INSTRUCTIONS = """
+DIGEST_INSTRUCTIONS = """
 1. SUMMARY (2-3 sentences)
 
 Write from inside the content: state what it claims, not what it covers.
@@ -206,8 +206,8 @@ def get_summary_agent() -> Agent[None, str]:
     return _build_agent(str, SUMMARY_INSTRUCTIONS)
 
 
-def get_prereading_agent() -> Agent[None, PrereadingContent]:
-    return _build_agent(PrereadingContent, PREREADING_INSTRUCTIONS)
+def get_digest_agent() -> Agent[None, GeneratedDigest]:
+    return _build_agent(GeneratedDigest, DIGEST_INSTRUCTIONS)
 
 
 def get_flashcard_agent() -> Agent[None, list[QuestionAnswer]]:

@@ -57,7 +57,7 @@ from src.infrastructure.notes.routers import notes as notes_router
 from src.infrastructure.reading.routers import (
     bookmarks,
     chapter_content,
-    chapter_prereading,
+    chapter_digest,
     highlight_labels,
     highlights,
     reading_sessions,
@@ -396,8 +396,8 @@ app.include_router(highlights.router, prefix=settings.API_V1_PREFIX)
 app.include_router(tagging_tags.router, prefix=settings.API_V1_PREFIX)
 app.include_router(reading_sessions.router, prefix=settings.API_V1_PREFIX)
 app.include_router(bookmarks.router, prefix=settings.API_V1_PREFIX)
-app.include_router(chapter_prereading.router, prefix=settings.API_V1_PREFIX)
-app.include_router(chapter_prereading.book_prereading_router, prefix=settings.API_V1_PREFIX)
+app.include_router(chapter_digest.router, prefix=settings.API_V1_PREFIX)
+app.include_router(chapter_digest.book_digest_router, prefix=settings.API_V1_PREFIX)
 app.include_router(chapter_content.router, prefix=settings.API_V1_PREFIX)
 app.include_router(highlight_labels.router, prefix=settings.API_V1_PREFIX)
 

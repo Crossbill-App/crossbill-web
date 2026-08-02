@@ -6,8 +6,8 @@ from fastapi import APIRouter, Depends
 from starlette import status
 
 from src.application.jobs.commands.cancel_job_batch_use_case import CancelJobBatchUseCase
-from src.application.jobs.commands.enqueue_book_prereading_use_case import (
-    EnqueueBookPrereadingUseCase,
+from src.application.jobs.commands.enqueue_book_digests_use_case import (
+    EnqueueBookDigestsUseCase,
 )
 from src.application.jobs.queries.get_active_book_batch_use_case import (
     GetActiveBookBatchUseCase,
@@ -55,19 +55,19 @@ def _view_to_response(view: JobBatchView) -> JobBatchResponse:
 
 
 @router.post(
-    "/books/{book_id}/prereading",
+    "/books/{book_id}/digest",
     response_model=JobBatchResponse,
     status_code=status.HTTP_202_ACCEPTED,
 )
 @require_ai_enabled
-async def enqueue_book_prereading(
+async def enqueue_book_digest(
     book_id: int,
     current_user: Annotated[User, Depends(get_current_user)],
-    use_case: EnqueueBookPrereadingUseCase = Depends(
-        inject_use_case(container.jobs.enqueue_book_prereading_use_case)
+    use_case: EnqueueBookDigestsUseCase = Depends(
+        inject_use_case(container.jobs.enqueue_book_digests_use_case)
     ),
 ) -> JobBatchResponse:
-    """Enqueue prereading generation for all chapters of a book."""
+    """Enqueue digest generation for all chapters of a book."""
     batch = await use_case.execute(
         BookId(book_id),
         UserId(current_user.id.value),
@@ -76,22 +76,22 @@ async def enqueue_book_prereading(
 
 
 @router.get(
-    "/books/{book_id}/prereading",
+    "/books/{book_id}/digest",
     response_model=JobBatchResponse | None,
     status_code=status.HTTP_200_OK,
 )
-async def get_active_book_prereading_batch(
+async def get_active_book_digest_batch(
     book_id: int,
     current_user: Annotated[User, Depends(get_current_user)],
     use_case: GetActiveBookBatchUseCase = Depends(
         inject_use_case(container.jobs.get_active_book_batch_use_case)
     ),
 ) -> JobBatchResponse | None:
-    """Get the active prereading batch for a book, if any."""
+    """Get the active digest batch for a book, if any."""
     view = await use_case.execute(
         BookId(book_id),
         UserId(current_user.id.value),
-        JobBatchType.CHAPTER_PREREADING,
+        JobBatchType.CHAPTER_DIGEST,
     )
     return _view_to_response(view) if view else None
 

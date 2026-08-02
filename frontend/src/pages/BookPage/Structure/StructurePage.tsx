@@ -1,29 +1,29 @@
-import type { ChapterPrereadingResponse, ChapterWithHighlights } from '@/api/generated/model';
+import type { ChapterDigestResponse, ChapterWithHighlights } from '@/api/generated/model';
 import { useGetNotesForBook } from '@/api/generated/notes/notes.ts';
-import { useGetBookPrereading } from '@/api/generated/prereading/prereading';
+import { useGetBookDigest } from '@/api/generated/digest/digest';
 import { useUrlEntityDialog } from '@/components/dialogs/useUrlEntityDialog.ts';
 import { useBookPage } from '@/pages/BookPage/BookPageContext';
 import { Box, Typography } from '@mui/material';
 import { keyBy } from 'lodash';
 import { useMemo } from 'react';
-import { BatchPrereadingToolbar } from './BatchPrereadingToolbar';
+import { BatchDigestToolbar } from './BatchDigestToolbar';
 import { ChapterAccordion } from './ChapterAccordion';
 import { ChapterDetailDialog } from './ChapterDetailDialog/ChapterDetailDialog.tsx';
 
 export const StructurePage = () => {
   const { book } = useBookPage();
 
-  const { data: bookPrereading } = useGetBookPrereading(book.id);
+  const { data: bookDigest } = useGetBookDigest(book.id);
 
-  const prereadingByChapterId = useMemo(() => {
-    const map: Record<number, ChapterPrereadingResponse> = {};
-    if (bookPrereading?.items) {
-      for (const item of bookPrereading.items) {
+  const digestByChapterId = useMemo(() => {
+    const map: Record<number, ChapterDigestResponse> = {};
+    if (bookDigest?.items) {
+      for (const item of bookDigest.items) {
         map[item.chapter_id] = item;
       }
     }
     return map;
-  }, [bookPrereading]);
+  }, [bookDigest]);
 
   const { data: gistNotes } = useGetNotesForBook(book.id, {
     kind: 'gist',
@@ -108,7 +108,7 @@ export const StructurePage = () => {
   return (
     <>
       <Box sx={{ display: 'flex', justifyContent: 'flex-end', px: 1, pt: 1 }}>
-        <BatchPrereadingToolbar bookId={book.id} />
+        <BatchDigestToolbar bookId={book.id} />
       </Box>
       {topLevelChapters.map((chapter, index) => {
         const chapterIsRead = isChapterRead(chapter.start_position);
@@ -137,7 +137,7 @@ export const StructurePage = () => {
         <ChapterDetailDialog
           controller={chapterDialog}
           bookId={book.id}
-          prereadingByChapterId={prereadingByChapterId}
+          digestByChapterId={digestByChapterId}
           bookmarksByHighlightId={bookmarksByHighlightId}
           availableTags={book.tags}
           bookFlashcards={book.book_flashcards}

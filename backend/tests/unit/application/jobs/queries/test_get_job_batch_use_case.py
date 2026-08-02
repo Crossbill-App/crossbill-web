@@ -16,7 +16,7 @@ def _make_view(batch_id: int = 1) -> JobBatchView:
     now = datetime.now(UTC)
     return JobBatchView(
         id=batch_id,
-        batch_type=JobBatchType.CHAPTER_PREREADING,
+        batch_type=JobBatchType.CHAPTER_DIGEST,
         reference_id="42",
         total_jobs=5,
         completed_jobs=2,

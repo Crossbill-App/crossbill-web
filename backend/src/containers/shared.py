@@ -37,7 +37,7 @@ from src.infrastructure.library.services.epub_text_extraction_service import (
 from src.infrastructure.notes.queries.note_query import NoteQuery
 from src.infrastructure.notes.repositories.note_repository import NoteRepository
 from src.infrastructure.reading.queries.bookmark_query import BookmarkQuery
-from src.infrastructure.reading.queries.ereader_prereading_query import EreaderPrereadingQuery
+from src.infrastructure.reading.queries.ereader_digest_query import EreaderDigestQuery
 from src.infrastructure.reading.queries.highlight_label_query import HighlightLabelQuery
 from src.infrastructure.reading.queries.highlight_search_query import HighlightSearchQuery
 from src.infrastructure.reading.queries.reading_session_query import ReadingSessionQuery
@@ -46,8 +46,8 @@ from src.infrastructure.reading.repositories import (
     HighlightRepository,
     HighlightStyleRepository,
 )
-from src.infrastructure.reading.repositories.chapter_prereading_repository import (
-    ChapterPrereadingRepository,
+from src.infrastructure.reading.repositories.chapter_digest_repository import (
+    ChapterDigestRepository,
 )
 from src.infrastructure.reading.repositories.reading_session_repository import (
     ReadingSessionRepository,
@@ -86,7 +86,7 @@ class SharedContainer(containers.DeclarativeContainer):
     book_reflection_repository = providers.Factory(BookReflectionRepository, db=db)
     reading_session_repository = providers.Factory(ReadingSessionRepository, db=db)
     flashcard_repository = providers.Factory(FlashcardRepository, db=db)
-    chapter_prereading_repository = providers.Factory(ChapterPrereadingRepository, db=db)
+    chapter_digest_repository = providers.Factory(ChapterDigestRepository, db=db)
     highlight_style_repository = providers.Factory(HighlightStyleRepository, db=db)
     file_repository = providers.Selector(
         providers.Callable(
@@ -140,7 +140,7 @@ class SharedContainer(containers.DeclarativeContainer):
         label_resolution_service=label_resolution_service,
     )
     bookmark_query = providers.Factory(BookmarkQuery, db=db)
-    ereader_prereading_query = providers.Factory(EreaderPrereadingQuery, db=db)
+    ereader_digest_query = providers.Factory(EreaderDigestQuery, db=db)
     highlight_label_query = providers.Factory(
         HighlightLabelQuery,
         db=db,

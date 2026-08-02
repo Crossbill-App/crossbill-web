@@ -24,7 +24,7 @@ async def _add_batch(
     stamp = created_at or datetime.now(UTC)
     batch = JobBatchModel(
         user_id=user_id,
-        batch_type=JobBatchType.CHAPTER_PREREADING.value,
+        batch_type=JobBatchType.CHAPTER_DIGEST.value,
         reference_id=reference_id,
         total_jobs=3,
         completed_jobs=1,
@@ -53,7 +53,7 @@ class TestGetJobBatch:
         assert response.status_code == status.HTTP_200_OK
         data = response.json()
         assert data["id"] == batch.id
-        assert data["batch_type"] == "chapter_prereading"
+        assert data["batch_type"] == "chapter_digest"
         assert data["reference_id"] == "42"
         assert data["total_jobs"] == 3
         assert data["completed_jobs"] == 1
@@ -88,13 +88,13 @@ class TestGetJobBatch:
         assert response.status_code == status.HTTP_404_NOT_FOUND
 
 
-class TestGetActiveBookPrereadingBatch:
-    """Test suite for GET /jobs/books/{book_id}/prereading endpoint."""
+class TestGetActiveBookDigestBatch:
+    """Test suite for GET /jobs/books/{book_id}/digest endpoint."""
 
     async def test_returns_null_when_no_batch_exists(
         self, client: AsyncClient, test_book: Book
     ) -> None:
-        response = await client.get(f"/api/v1/jobs/books/{test_book.id}/prereading")
+        response = await client.get(f"/api/v1/jobs/books/{test_book.id}/digest")
 
         assert response.status_code == status.HTTP_200_OK
         assert response.json() is None
@@ -122,7 +122,7 @@ class TestGetActiveBookPrereadingBatch:
             created_at=now - timedelta(hours=1),
         )
 
-        response = await client.get(f"/api/v1/jobs/books/{test_book.id}/prereading")
+        response = await client.get(f"/api/v1/jobs/books/{test_book.id}/digest")
 
         assert response.status_code == status.HTTP_200_OK
         assert response.json()["id"] == newest_active.id
@@ -136,7 +136,7 @@ class TestGetActiveBookPrereadingBatch:
             batch_status=JobBatchStatus.CANCELLED,
         )
 
-        response = await client.get(f"/api/v1/jobs/books/{test_book.id}/prereading")
+        response = await client.get(f"/api/v1/jobs/books/{test_book.id}/digest")
 
         assert response.status_code == status.HTTP_200_OK
         assert response.json() is None

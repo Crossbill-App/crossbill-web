@@ -1,4 +1,4 @@
-import { useGenerateChapterPrereading } from '@/api/generated/prereading/prereading';
+import { useGenerateChapterDigest } from '@/api/generated/digest/digest';
 import { IconButtonWithTooltip } from '@/components/buttons/IconButtonWithTooltip.tsx';
 import { DialogToolbar } from '@/components/dialogs/DialogToolbar.tsx';
 import { AIFeature } from '@/components/features/AIFeature.tsx';
@@ -15,10 +15,10 @@ interface ChapterToolbarProps {
 export const ChapterToolbar = ({ chapterId, bookId, hasSummary }: ChapterToolbarProps) => {
   const cache = useCacheEvents();
 
-  const { mutate: generate, isPending } = useGenerateChapterPrereading({
+  const { mutate: generate, isPending } = useGenerateChapterDigest({
     mutation: {
       onSuccess: () => {
-        cache.prereadingChanged(bookId);
+        cache.digestChanged(bookId);
       },
     },
   });

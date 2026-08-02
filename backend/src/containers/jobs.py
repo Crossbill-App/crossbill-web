@@ -3,8 +3,8 @@
 from dependency_injector import containers, providers
 
 from src.application.jobs.commands.cancel_job_batch_use_case import CancelJobBatchUseCase
-from src.application.jobs.commands.enqueue_book_prereading_use_case import (
-    EnqueueBookPrereadingUseCase,
+from src.application.jobs.commands.enqueue_book_digests_use_case import (
+    EnqueueBookDigestsUseCase,
 )
 from src.application.jobs.queries.get_active_book_batch_use_case import (
     GetActiveBookBatchUseCase,
@@ -20,15 +20,15 @@ class JobsContainer(containers.DeclarativeContainer):
     job_queue_service = providers.Dependency()
     chapter_repository = providers.Dependency()
     book_repository = providers.Dependency()
-    chapter_prereading_repository = providers.Dependency()
+    chapter_digest_repository = providers.Dependency()
 
-    enqueue_book_prereading_use_case = providers.Factory(
-        EnqueueBookPrereadingUseCase,
+    enqueue_book_digests_use_case = providers.Factory(
+        EnqueueBookDigestsUseCase,
         chapter_repo=chapter_repository,
         book_repo=book_repository,
         batch_repo=job_batch_repository,
         queue_service=job_queue_service,
-        prereading_repo=chapter_prereading_repository,
+        digest_repo=chapter_digest_repository,
     )
 
     get_job_batch_use_case = providers.Factory(

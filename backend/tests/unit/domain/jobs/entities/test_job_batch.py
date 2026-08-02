@@ -12,7 +12,7 @@ from src.domain.jobs.entities.job_batch import JobBatch, JobBatchStatus, JobBatc
 def _create(**overrides: object) -> JobBatch:
     defaults: dict[str, object] = {
         "user_id": UserId(1),
-        "batch_type": JobBatchType.CHAPTER_PREREADING,
+        "batch_type": JobBatchType.CHAPTER_DIGEST,
         "reference_id": "42",
         "total_jobs": 5,
     }
@@ -25,7 +25,7 @@ class TestJobBatchCreate:
         batch = _create()
         assert batch.id == JobBatchId(0)
         assert batch.user_id == UserId(1)
-        assert batch.batch_type == JobBatchType.CHAPTER_PREREADING
+        assert batch.batch_type == JobBatchType.CHAPTER_DIGEST
         assert batch.reference_id == "42"
         assert batch.total_jobs == 5
         assert batch.completed_jobs == 0
@@ -128,7 +128,7 @@ class TestJobBatchReconstitute:
         batch = JobBatch.create_with_id(
             id=JobBatchId(10),
             user_id=UserId(1),
-            batch_type=JobBatchType.CHAPTER_PREREADING,
+            batch_type=JobBatchType.CHAPTER_DIGEST,
             reference_id="42",
             total_jobs=5,
             completed_jobs=2,

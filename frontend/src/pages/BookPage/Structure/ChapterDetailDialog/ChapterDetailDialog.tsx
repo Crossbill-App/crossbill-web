@@ -1,6 +1,6 @@
 import type {
   Bookmark,
-  ChapterPrereadingResponse,
+  ChapterDigestResponse,
   ChapterWithHighlights,
   Flashcard,
   TagInBook,
@@ -29,12 +29,12 @@ import { ChatDialog } from './ChatDialog.tsx';
 import { CHAT_VARIANT, QUIZ_VARIANT } from './chatVariants.ts';
 import { FlashcardsSection } from './FlashcardsSection.tsx';
 import { HighlightsSection } from './HighlightsSection.tsx';
-import { PrereadingSummarySection } from './PrereadingSummarySection.tsx';
+import { DigestSummarySection } from './DigestSummarySection.tsx';
 
 interface ChapterDetailDialogProps {
   controller: UrlEntityDialogController<ChapterWithHighlights>;
   bookId: number;
-  prereadingByChapterId: Record<number, ChapterPrereadingResponse>;
+  digestByChapterId: Record<number, ChapterDigestResponse>;
   bookmarksByHighlightId: Record<number, Bookmark>;
   availableTags: TagInBook[];
   bookFlashcards?: Flashcard[];
@@ -43,7 +43,7 @@ interface ChapterDetailDialogProps {
 export const ChapterDetailDialog = ({
   controller,
   bookId,
-  prereadingByChapterId,
+  digestByChapterId,
   bookmarksByHighlightId,
   availableTags,
   bookFlashcards,
@@ -79,7 +79,7 @@ export const ChapterDetailDialog = ({
     onNavigate: navigateToIndex,
   });
 
-  const prereadingSummary = prereadingByChapterId[chapter.id];
+  const digestSummary = digestByChapterId[chapter.id];
 
   const { data: notesData, isLoading: notesLoading } = useGetNotesForBook(bookId, {
     chapter_id: chapter.id,
@@ -105,7 +105,7 @@ export const ChapterDetailDialog = ({
         <ChapterReviewSection
           chapterId={chapter.id}
           bookId={bookId}
-          prereadingSummary={prereadingSummary}
+          digestSummary={digestSummary}
           onStartQuiz={() => setQuizOpen(true)}
           onStartChat={() => setChatOpen(true)}
         />
@@ -145,7 +145,7 @@ export const ChapterDetailDialog = ({
         <FlashcardsSection
           chapter={chapter}
           bookId={bookId}
-          prereadingSummary={prereadingSummary}
+          digestSummary={digestSummary}
           bookFlashcards={bookFlashcards}
         />
       ),
@@ -157,10 +157,10 @@ export const ChapterDetailDialog = ({
       <ChapterGistSection chapterId={chapter.id} chapterName={chapter.name} notes={notes} />
 
       <Box {...summarySwipeHandlers}>
-        <PrereadingSummarySection prereadingSummary={prereadingSummary} defaultExpanded={true} />
+        <DigestSummarySection digestSummary={digestSummary} defaultExpanded={true} />
       </Box>
 
-      <ChapterToolbar chapterId={chapter.id} bookId={bookId} hasSummary={!!prereadingSummary} />
+      <ChapterToolbar chapterId={chapter.id} bookId={bookId} hasSummary={!!digestSummary} />
 
       <DialogTabs
         tabs={tabs}

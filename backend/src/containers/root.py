@@ -42,7 +42,7 @@ class RootContainer(containers.DeclarativeContainer):
         tag_repository=shared.tag_repository,
         chapter_repository=shared.chapter_repository,
         reading_session_repository=shared.reading_session_repository,
-        chapter_prereading_repository=shared.chapter_prereading_repository,
+        chapter_digest_repository=shared.chapter_digest_repository,
         highlight_style_repository=shared.highlight_style_repository,
         file_repository=shared.file_repository,
         highlight_deduplication_service=shared.highlight_deduplication_service,
@@ -54,7 +54,7 @@ class RootContainer(containers.DeclarativeContainer):
         highlight_label_query=shared.highlight_label_query,
         highlight_search_query=shared.highlight_search_query,
         reading_session_query=shared.reading_session_query,
-        ereader_prereading_query=shared.ereader_prereading_query,
+        ereader_digest_query=shared.ereader_digest_query,
     )
 
     tagging = providers.Container(
@@ -83,7 +83,7 @@ class RootContainer(containers.DeclarativeContainer):
         highlight_repository=shared.highlight_repository,
         book_repository=shared.book_repository,
         chapter_repository=shared.chapter_repository,
-        chapter_prereading_repository=shared.chapter_prereading_repository,
+        chapter_digest_repository=shared.chapter_digest_repository,
         file_repository=shared.file_repository,
         ebook_text_extraction_service=shared.ebook_text_extraction_service,
         ai_service=shared.ai_service,
@@ -118,5 +118,5 @@ class RootContainer(containers.DeclarativeContainer):
         job_queue_service=job_queue_service,
         chapter_repository=shared.chapter_repository,
         book_repository=shared.book_repository,
-        chapter_prereading_repository=shared.chapter_prereading_repository,
+        chapter_digest_repository=shared.chapter_digest_repository,
     )

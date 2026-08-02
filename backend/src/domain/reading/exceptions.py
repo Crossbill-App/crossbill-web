@@ -45,11 +45,11 @@ class ChapterNotFoundError(EntityNotFoundError):
         super().__init__("Chapter", chapter_id)
 
 
-class ChapterPrereadingNotFoundError(EntityNotFoundError):
-    """Raised when prereading content for a chapter cannot be found."""
+class ChapterDigestNotFoundError(EntityNotFoundError):
+    """Raised when a chapter's digest cannot be found."""
 
     def __init__(self, chapter_id: int) -> None:
-        super().__init__("ChapterPrereading", chapter_id)
+        super().__init__("ChapterDigest", chapter_id)
 
 
 class HighlightStyleNotFoundError(EntityNotFoundError):
