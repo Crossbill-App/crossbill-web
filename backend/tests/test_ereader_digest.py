@@ -69,18 +69,15 @@ async def test_returns_items_ordered_by_chapter_number(
     assert items[1]["summary"] == "Exercises summary"
 
 
-async def test_deprecated_prereading_path_serves_the_same_payload(
+async def test_old_prereading_path_is_gone(
     client: AsyncClient, db_session: AsyncSession, digest_book: Book
 ) -> None:
-    """KOReader plugins in the field still call /prereading until they update."""
+    """The rename is a clean break: plugins older than 0.11 stop fetching digests."""
     chapter = await create_test_chapter(db_session, digest_book, "Intro", chapter_number=1)
     await _add_digest(db_session, chapter, summary="Intro summary")
 
-    deprecated = await client.get("/api/v1/ereader/books/client-abc/prereading")
-    current = await client.get("/api/v1/ereader/books/client-abc/digest")
-
-    assert deprecated.status_code == 200
-    assert deprecated.json() == current.json()
+    assert (await client.get("/api/v1/ereader/books/client-abc/digest")).status_code == 200
+    assert (await client.get("/api/v1/ereader/books/client-abc/prereading")).status_code == 404
 
 
 async def test_duplicate_chapter_names_disambiguated_by_parent(
