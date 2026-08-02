@@ -27,8 +27,6 @@ If any of these files don't exist, **proceed silently**. Don't flag their absenc
 └── mcp-server/
 ```
 
-Existing design docs live under `docs/superpowers/{plans,specs}/` — those are per-feature plans and specs, not domain docs. Read them when working on the feature they name; don't treat them as a glossary.
-
 ## Use the glossary's vocabulary
 
 When your output names a domain concept (in an issue title, a refactor proposal, a hypothesis, a test name), use the term as defined in `CONTEXT.md`. Don't drift to synonyms the glossary explicitly avoids.
