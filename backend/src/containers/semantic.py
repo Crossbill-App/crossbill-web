@@ -8,6 +8,8 @@ from src.application.semantic.commands.enqueue_content_embeddings_use_case impor
 from src.application.semantic.commands.generate_content_embedding_use_case import (
     GenerateContentEmbeddingUseCase,
 )
+from src.application.semantic.queries.related_content_use_case import RelatedContentUseCase
+from src.application.semantic.queries.search_content_use_case import SearchContentUseCase
 
 
 class SemanticContainer(containers.DeclarativeContainer):
@@ -20,6 +22,7 @@ class SemanticContainer(containers.DeclarativeContainer):
     job_batch_repository = providers.Dependency()
     job_queue_service = providers.Dependency()
     book_repository = providers.Dependency()
+    semantic_search_query = providers.Dependency()
 
     generate_content_embedding_use_case = providers.Factory(
         GenerateContentEmbeddingUseCase,
@@ -35,4 +38,17 @@ class SemanticContainer(containers.DeclarativeContainer):
         batch_repo=job_batch_repository,
         queue_service=job_queue_service,
         book_repo=book_repository,
+    )
+
+    search_content_use_case = providers.Factory(
+        SearchContentUseCase,
+        query=semantic_search_query,
+        client=embedding_client,
+        content_source=content_source,
+    )
+
+    related_content_use_case = providers.Factory(
+        RelatedContentUseCase,
+        query=semantic_search_query,
+        content_source=content_source,
     )
