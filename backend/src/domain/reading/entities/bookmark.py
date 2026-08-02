@@ -1,4 +1,4 @@
-"""Bookmark entity for tracking reading progress."""
+"""Bookmark entity for saving highlights to a book's navigation index."""
 
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
@@ -10,7 +10,11 @@ from src.domain.common.value_objects.ids import BookId, BookmarkId, HighlightId
 @dataclass
 class Bookmark(Entity[BookmarkId]):
     """
-    Bookmark that marks a highlight as a reading progress marker.
+    Bookmark that saves a highlight into a book's index of saved highlights.
+
+    A book has many bookmarks; the UI renders them as a jump list for
+    navigating back to highlights worth returning to. Bookmarks say nothing
+    about reading progress.
 
     Business Rules:
     - A bookmark links a highlight within a book
