@@ -87,6 +87,7 @@ async def test_request_id_and_security_headers_present(static_dir: Path) -> None
     assert response.headers.get("x-request-id")
     assert response.headers["x-content-type-options"] == "nosniff"
     assert response.headers["x-frame-options"] == "DENY"
+    assert response.headers["x-robots-tag"] == "noindex, nofollow, noarchive"
 
 
 @pytest.mark.asyncio

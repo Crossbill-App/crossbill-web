@@ -271,6 +271,9 @@ class SecurityHeadersMiddleware:
                 headers["Permissions-Policy"] = (
                     "camera=(), microphone=(), geolocation=(), payment=()"
                 )
+                # robots.txt only asks crawlers not to fetch; this keeps URLs
+                # that leak out anyway from being indexed.
+                headers["X-Robots-Tag"] = "noindex, nofollow, noarchive"
                 if settings.ENVIRONMENT != "development":
                     headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
                     headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains"

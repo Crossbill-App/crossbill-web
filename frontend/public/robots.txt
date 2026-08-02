@@ -1,0 +1,3 @@
+# Crossbill is a private reading library — nothing here should be indexed.
+User-agent: *
+Disallow: /
