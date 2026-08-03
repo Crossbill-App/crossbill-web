@@ -30,7 +30,15 @@ class Embedding(Base):
     )
     content_type: Mapped[str] = mapped_column(String(20), nullable=False)
     content_id: Mapped[int] = mapped_column(Integer, nullable=False)
-    book_id: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    # A real FK, not a loose int: deleting a book is a database-level cascade
+    # (BookRepository.delete issues one DELETE and lets ON DELETE CASCADE clear
+    # highlights, chapters and digests), so no application code ever sees the
+    # rows going away. Without this the book's embeddings would all be orphaned
+    # with nothing to prune them until the next backfill. Indexed because the
+    # cascade and book-scoped search both filter on it.
+    book_id: Mapped[int | None] = mapped_column(
+        ForeignKey("books.id", ondelete="CASCADE"), index=True, nullable=True
+    )
     embedding: Mapped[list[float]] = mapped_column(
         JSON().with_variant(Vector(EMBEDDING_DIMENSIONS), "postgresql"), nullable=False
     )

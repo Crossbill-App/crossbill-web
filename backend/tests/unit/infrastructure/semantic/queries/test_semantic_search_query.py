@@ -5,7 +5,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.application.semantic.content_type import ContentType
 from src.infrastructure.semantic.queries.semantic_search_query import SemanticSearchQuery
-from src.models import Embedding, User
+from src.models import Book, Embedding, User
 
 USER_ID = 1
 OTHER_USER_ID = 2
@@ -91,6 +91,14 @@ class TestNearest:
     async def test_scopes_to_book(
         self, query: SemanticSearchQuery, db_session: AsyncSession
     ) -> None:
+        # embeddings.book_id is a real FK, so the books have to exist.
+        db_session.add_all(
+            [
+                Book(id=10, user_id=USER_ID, title="Scoped"),
+                Book(id=20, user_id=USER_ID, title="Other"),
+            ]
+        )
+        await db_session.commit()
         await _add_embedding(
             db_session, content_type=ContentType.NOTE, content_id=1, vector=[1.0, 0.0], book_id=10
         )

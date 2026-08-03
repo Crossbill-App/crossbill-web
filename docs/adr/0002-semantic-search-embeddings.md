@@ -67,16 +67,24 @@ embeddings(
   id,
   user_id,                 -- ownership filter for NN search
   content_type,            -- 'note' | 'highlight' | 'digest'
-  content_id,              -- id within that type
-  book_id,                 -- book-scoped / related-in-book queries
+  content_id,              -- id within that type (no FK: polymorphic)
+  book_id,                 -- FK -> books ON DELETE CASCADE
   embedding vector(1024),
   model_name, model_version,   -- idempotency spine
   content_hash,                -- idempotency spine
   created_at, updated_at,
   UNIQUE (content_type, content_id)
 )
--- HNSW index on embedding (vector_cosine_ops); btree on user_id
+-- HNSW index on embedding (vector_cosine_ops); btree on user_id, book_id
 ```
+
+`book_id` carries a real foreign key because deleting a book is a *database*
+cascade: `BookRepository.delete` issues one `DELETE` and lets `ON DELETE CASCADE`
+clear the highlights, chapters and digests beneath it, so no application code
+ever sees those rows disappear and no `enqueue_for` seam can fire. The FK is what
+stops a deleted book's embeddings from being orphaned in bulk. `content_id`
+cannot have one — it is polymorphic across three source tables — so per-unit
+deletes are still reconciled by the backfill sweep.
 
 This is infrastructure — the vector has no domain behaviour. It contrasts with
 ADR-0001's "no projections, no separate read store": embeddings **are** a

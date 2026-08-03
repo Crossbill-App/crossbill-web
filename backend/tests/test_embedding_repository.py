@@ -8,6 +8,7 @@ from src.application.semantic.content_type import ContentType
 from src.application.semantic.protocols.embedding_repository import EmbeddingWrite
 from src.infrastructure.semantic.orm.embedding_model import Embedding as EmbeddingORM
 from src.infrastructure.semantic.repositories.embedding_repository import EmbeddingRepository
+from src.models import Book
 
 VECTOR = [0.1, 0.2, 0.3]
 OTHER_VECTOR = [0.9, 0.8, 0.7]
@@ -32,6 +33,18 @@ def _write(
         model_version=model_version,
         content_hash=content_hash,
     )
+
+
+@pytest.fixture(autouse=True)
+async def _referenced_books(db_session: AsyncSession) -> None:  # pyright: ignore[reportUnusedFunction]
+    """embeddings.book_id is a real FK, so the books these writes point at must exist."""
+    db_session.add_all(
+        [
+            Book(id=1, user_id=1, title="Book one"),
+            Book(id=7, user_id=1, title="Book seven"),
+        ]
+    )
+    await db_session.commit()
 
 
 @pytest.fixture

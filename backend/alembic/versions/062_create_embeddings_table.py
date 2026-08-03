@@ -36,7 +36,16 @@ def upgrade() -> None:
         ),
         sa.Column("content_type", sa.String(length=20), nullable=False),
         sa.Column("content_id", sa.Integer(), nullable=False),
-        sa.Column("book_id", sa.Integer(), nullable=True),
+        # Book deletion is a database-level cascade with no per-row application
+        # hook, so the FK is what keeps a deleted book's embeddings from being
+        # orphaned. content_id stays a loose int -- it is polymorphic across
+        # three source tables and cannot carry a constraint.
+        sa.Column(
+            "book_id",
+            sa.Integer(),
+            sa.ForeignKey("books.id", ondelete="CASCADE"),
+            nullable=True,
+        ),
         sa.Column("embedding", Vector(EMBEDDING_DIMENSIONS), nullable=False),
         sa.Column("model_name", sa.String(), nullable=False),
         sa.Column("model_version", sa.String(), nullable=False),
@@ -57,6 +66,9 @@ def upgrade() -> None:
     )
 
     op.create_index("ix_embeddings_user_id", "embeddings", ["user_id"])
+    # Postgres does not index FK columns automatically; the cascade above and
+    # book-scoped search both scan on this.
+    op.create_index("ix_embeddings_book_id", "embeddings", ["book_id"])
     op.create_index("ix_embeddings_content", "embeddings", ["content_type", "content_id"])
     op.create_index(
         "ix_embeddings_embedding_hnsw",
@@ -71,5 +83,6 @@ def downgrade() -> None:
     """Downgrade schema."""
     op.drop_index("ix_embeddings_embedding_hnsw", table_name="embeddings")
     op.drop_index("ix_embeddings_content", table_name="embeddings")
+    op.drop_index("ix_embeddings_book_id", table_name="embeddings")
     op.drop_index("ix_embeddings_user_id", table_name="embeddings")
     op.drop_table("embeddings")
