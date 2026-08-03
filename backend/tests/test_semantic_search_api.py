@@ -1,6 +1,5 @@
 """Tests for the GET /semantic/search and /semantic/related read endpoints."""
 
-import hashlib
 from collections.abc import AsyncGenerator
 from datetime import UTC, datetime
 from unittest.mock import AsyncMock, patch
@@ -10,11 +9,15 @@ from httpx import AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession
 from starlette import status
 
-from src.application.semantic.content_type import ContentType
 from src.infrastructure.semantic.routers.semantic import MAX_QUERY_LENGTH
-from src.models import Book, Embedding, Highlight, User
-
-ENABLED = "src.infrastructure.common.dependencies.is_embeddings_enabled"
+from src.models import Book, Highlight, User
+from tests.semantic_helpers import (
+    ENABLED,
+    get_related,
+    get_search,
+    plant_indexed_highlight,
+    search_content_ids,
+)
 
 
 @pytest.fixture
@@ -27,24 +30,6 @@ async def override_embedding_client() -> AsyncGenerator[AsyncMock, None]:
     container.shared.embedding_client.override(fake)
     yield fake
     container.shared.embedding_client.reset_override()
-
-
-async def _add_embedding(
-    db: AsyncSession, highlight: Highlight, vector: list[float], book: Book
-) -> None:
-    db.add(
-        Embedding(
-            user_id=highlight.user_id,
-            content_type=ContentType.HIGHLIGHT.value,
-            content_id=highlight.id,
-            book_id=book.id,
-            embedding=vector,
-            model_name="bge-m3",
-            model_version="1",
-            content_hash="h" * 64,
-        )
-    )
-    await db.commit()
 
 
 class TestSearchEndpoint:
@@ -68,11 +53,10 @@ class TestSearchEndpoint:
         test_book: Book,
         test_highlight: Highlight,
     ) -> None:
-        near = await _make_highlight(db_session, test_book, "near text", vector=[1.0, 0.0])
-        far = await _make_highlight(db_session, test_book, "far text", vector=[0.0, 1.0])
+        near = await plant_indexed_highlight(db_session, test_book, "near text", vector=[1.0, 0.0])
+        far = await plant_indexed_highlight(db_session, test_book, "far text", vector=[0.0, 1.0])
 
-        with patch(ENABLED, return_value=True):
-            response = await client.get("/api/v1/semantic/search", params={"q": "idea"})
+        response = await get_search(client)
 
         assert response.status_code == status.HTTP_200_OK
         data = response.json()
@@ -99,14 +83,12 @@ class TestRelatedEndpoint:
         db_session: AsyncSession,
         test_book: Book,
     ) -> None:
-        anchor = await _make_highlight(db_session, test_book, "anchor", vector=[1.0, 0.0])
-        neighbour = await _make_highlight(db_session, test_book, "neighbour", vector=[0.9, 0.1])
+        anchor = await plant_indexed_highlight(db_session, test_book, "anchor", vector=[1.0, 0.0])
+        neighbour = await plant_indexed_highlight(
+            db_session, test_book, "neighbour", vector=[0.9, 0.1]
+        )
 
-        with patch(ENABLED, return_value=True):
-            response = await client.get(
-                "/api/v1/semantic/related",
-                params={"content_type": "highlight", "content_id": anchor.id},
-            )
+        response = await get_related(client, content_type="highlight", content_id=anchor.id)
 
         assert response.status_code == status.HTTP_200_OK
         ids = [row["content_id"] for row in response.json()]
@@ -116,31 +98,10 @@ class TestRelatedEndpoint:
     async def test_returns_empty_when_unit_not_indexed(
         self, client: AsyncClient, test_highlight: Highlight
     ) -> None:
-        with patch(ENABLED, return_value=True):
-            response = await client.get(
-                "/api/v1/semantic/related",
-                params={"content_type": "highlight", "content_id": test_highlight.id},
-            )
+        response = await get_related(client, content_type="highlight", content_id=test_highlight.id)
 
         assert response.status_code == status.HTTP_200_OK
         assert response.json() == []
-
-
-async def _make_highlight(
-    db: AsyncSession, book: Book, text: str, *, vector: list[float]
-) -> Highlight:
-    highlight = Highlight(
-        user_id=book.user_id,
-        book_id=book.id,
-        text=text,
-        datetime="2024-01-15 14:30:22",
-        content_hash=hashlib.sha256(text.encode()).hexdigest(),
-    )
-    db.add(highlight)
-    await db.commit()
-    await db.refresh(highlight)
-    await _add_embedding(db, highlight, vector, book)
-    return highlight
 
 
 class TestResultPaging:
@@ -158,17 +119,12 @@ class TestResultPaging:
         between those two commits: the embedding is still indexed and ranks
         first, and must still not be shown.
         """
-        hidden = await _make_highlight(db_session, test_book, "deleted", vector=[1.0, 0.0])
-        visible = await _make_highlight(db_session, test_book, "kept", vector=[0.95, 0.05])
+        hidden = await plant_indexed_highlight(db_session, test_book, "deleted", vector=[1.0, 0.0])
+        visible = await plant_indexed_highlight(db_session, test_book, "kept", vector=[0.95, 0.05])
         hidden.deleted_at = datetime.now(UTC)
         await db_session.commit()
 
-        with patch(ENABLED, return_value=True):
-            response = await client.get("/api/v1/semantic/search", params={"q": "idea"})
-
-        assert response.status_code == status.HTTP_200_OK
-        ids = [row["content_id"] for row in response.json()]
-        assert ids == [visible.id]
+        assert await search_content_ids(client) == [visible.id]
 
     async def test_never_returns_more_than_the_requested_limit(
         self,
@@ -178,15 +134,11 @@ class TestResultPaging:
         test_book: Book,
     ) -> None:
         for index in range(5):
-            await _make_highlight(
+            await plant_indexed_highlight(
                 db_session, test_book, f"text {index}", vector=[1.0 - index / 10, 0.0]
             )
 
-        with patch(ENABLED, return_value=True):
-            response = await client.get("/api/v1/semantic/search", params={"q": "idea", "limit": 2})
-
-        assert response.status_code == status.HTTP_200_OK
-        assert len(response.json()) == 2
+        assert len(await search_content_ids(client, limit=2)) == 2
 
     async def test_does_not_return_another_users_content(
         self,
@@ -196,7 +148,7 @@ class TestResultPaging:
         test_book: Book,
     ) -> None:
         """A dropped user_id filter is this app's worst realistic bug class."""
-        mine = await _make_highlight(db_session, test_book, "mine", vector=[1.0, 0.0])
+        mine = await plant_indexed_highlight(db_session, test_book, "mine", vector=[1.0, 0.0])
         other_user = User(email="someone.else@test.com")
         db_session.add(other_user)
         await db_session.commit()
@@ -205,13 +157,10 @@ class TestResultPaging:
         db_session.add(other_book)
         await db_session.commit()
         await db_session.refresh(other_book)
-        theirs = await _make_highlight(db_session, other_book, "theirs", vector=[1.0, 0.0])
+        theirs = await plant_indexed_highlight(db_session, other_book, "theirs", vector=[1.0, 0.0])
 
-        with patch(ENABLED, return_value=True):
-            response = await client.get("/api/v1/semantic/search", params={"q": "idea"})
+        ids = await search_content_ids(client)
 
-        assert response.status_code == status.HTTP_200_OK
-        ids = [row["content_id"] for row in response.json()]
         assert mine.id in ids
         assert theirs.id not in ids
 
@@ -221,8 +170,7 @@ class TestQueryValidation:
         self, client: AsyncClient, override_embedding_client: AsyncMock
     ) -> None:
         """Every query costs a model call, so an empty one must not reach it."""
-        with patch(ENABLED, return_value=True):
-            response = await client.get("/api/v1/semantic/search", params={"q": ""})
+        response = await get_search(client, q="")
 
         assert response.status_code == status.HTTP_422_UNPROCESSABLE_ENTITY
         override_embedding_client.embed.assert_not_called()
@@ -230,10 +178,7 @@ class TestQueryValidation:
     async def test_rejects_overlong_query_without_calling_the_model(
         self, client: AsyncClient, override_embedding_client: AsyncMock
     ) -> None:
-        with patch(ENABLED, return_value=True):
-            response = await client.get(
-                "/api/v1/semantic/search", params={"q": "x" * (MAX_QUERY_LENGTH + 1)}
-            )
+        response = await get_search(client, q="x" * (MAX_QUERY_LENGTH + 1))
 
         assert response.status_code == status.HTTP_422_UNPROCESSABLE_ENTITY
         override_embedding_client.embed.assert_not_called()
@@ -245,12 +190,9 @@ class TestQueryValidation:
         db_session: AsyncSession,
         test_book: Book,
     ) -> None:
-        await _make_highlight(db_session, test_book, "something", vector=[1.0, 0.0])
+        await plant_indexed_highlight(db_session, test_book, "something", vector=[1.0, 0.0])
 
-        with patch(ENABLED, return_value=True):
-            response = await client.get(
-                "/api/v1/semantic/search", params={"q": "x" * MAX_QUERY_LENGTH}
-            )
+        response = await get_search(client, q="x" * MAX_QUERY_LENGTH)
 
         assert response.status_code == status.HTTP_200_OK
         override_embedding_client.embed.assert_awaited_once()

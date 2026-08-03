@@ -25,18 +25,6 @@ def note_repository(note: MagicMock) -> AsyncMock:
 
 
 @pytest.fixture
-def link_repository() -> AsyncMock:
-    repo = AsyncMock()
-    repo.find_by_ids.return_value = []
-    return repo
-
-
-@pytest.fixture
-def embedding_enqueuer() -> AsyncMock:
-    return AsyncMock()
-
-
-@pytest.fixture
 def use_case(
     note_repository: AsyncMock,
     link_repository: AsyncMock,

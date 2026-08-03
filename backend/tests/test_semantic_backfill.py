@@ -1,8 +1,6 @@
 """Tests for the POST /semantic/backfill ingestion endpoint."""
 
-import hashlib
 from collections.abc import AsyncGenerator
-from datetime import UTC, datetime
 from unittest.mock import AsyncMock, patch
 
 import pytest
@@ -10,11 +8,8 @@ from httpx import AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession
 from starlette import status
 
-from src.application.semantic.content_type import ContentType
-from src.config import get_settings
-from src.models import Book, Embedding, Highlight
-
-ENABLED = "src.infrastructure.common.dependencies.is_embeddings_enabled"
+from src.models import Book, Highlight
+from tests.semantic_helpers import ENABLED, backfill_enqueued_ids, plant_indexed_highlight
 
 
 @pytest.fixture
@@ -66,47 +61,6 @@ class TestBackfillEndpoint:
         override_queue.enqueue.assert_not_called()
 
 
-def _current_model() -> tuple[str, str]:
-    """The model identity a freshly written embedding would carry in this env."""
-    settings = get_settings()
-    return settings.EMBEDDING_MODEL_NAME or "", settings.EMBEDDING_MODEL_VERSION
-
-
-async def _add_highlight(
-    db: AsyncSession, book: Book, text: str, *, deleted: bool = False
-) -> Highlight:
-    highlight = Highlight(
-        user_id=book.user_id,
-        book_id=book.id,
-        text=text,
-        datetime="2024-01-15 14:30:22",
-        content_hash=hashlib.sha256(text.encode()).hexdigest(),
-        deleted_at=datetime.now(UTC) if deleted else None,
-    )
-    db.add(highlight)
-    await db.commit()
-    await db.refresh(highlight)
-    return highlight
-
-
-async def _index(db: AsyncSession, book: Book, highlight: Highlight, hashed_text: str) -> None:
-    """Index a highlight as if `hashed_text` were its content, at the current model."""
-    model_name, model_version = _current_model()
-    db.add(
-        Embedding(
-            user_id=highlight.user_id,
-            content_type=ContentType.HIGHLIGHT.value,
-            content_id=highlight.id,
-            book_id=book.id,
-            embedding=[0.1, 0.2],
-            model_name=model_name,
-            model_version=model_version,
-            content_hash=hashlib.sha256(hashed_text.encode()).hexdigest(),
-        )
-    )
-    await db.commit()
-
-
 class TestBackfillReconciliation:
     async def test_enqueues_content_whose_hash_drifted_but_not_current_content(
         self,
@@ -116,18 +70,12 @@ class TestBackfillReconciliation:
         test_book: Book,
     ) -> None:
         """ADR-0002's drift case: model matches, content changed underneath."""
-        drifted = await _add_highlight(db_session, test_book, "the edited text")
-        await _index(db_session, test_book, drifted, "the original text")
-        current = await _add_highlight(db_session, test_book, "untouched text")
-        await _index(db_session, test_book, current, "untouched text")
+        drifted = await plant_indexed_highlight(
+            db_session, test_book, "the edited text", hashed_text="the original text"
+        )
+        await plant_indexed_highlight(db_session, test_book, "untouched text")
 
-        with patch(ENABLED, return_value=True):
-            response = await client.post("/api/v1/semantic/backfill")
-
-        assert response.status_code == status.HTTP_202_ACCEPTED
-        assert response.json()["total_jobs"] == 1
-        enqueued = {call.kwargs["content_id"] for call in override_queue.enqueue.await_args_list}
-        assert enqueued == {drifted.id}
+        assert await backfill_enqueued_ids(client, override_queue) == {drifted.id}
 
     async def test_enqueues_orphaned_embedding_so_it_gets_pruned(
         self,
@@ -137,13 +85,6 @@ class TestBackfillReconciliation:
         test_book: Book,
     ) -> None:
         """An embedding outliving its source is work: the job deletes it."""
-        gone = await _add_highlight(db_session, test_book, "since deleted", deleted=True)
-        await _index(db_session, test_book, gone, "since deleted")
+        gone = await plant_indexed_highlight(db_session, test_book, "since deleted", deleted=True)
 
-        with patch(ENABLED, return_value=True):
-            response = await client.post("/api/v1/semantic/backfill")
-
-        assert response.status_code == status.HTTP_202_ACCEPTED
-        assert response.json()["total_jobs"] == 1
-        enqueued = {call.kwargs["content_id"] for call in override_queue.enqueue.await_args_list}
-        assert enqueued == {gone.id}
+        assert await backfill_enqueued_ids(client, override_queue) == {gone.id}
