@@ -49,15 +49,15 @@ class EmbeddingRepositoryProtocol(Protocol):
         """Return the stored idempotency state, or ``None`` if not embedded yet."""
         ...
 
-    async def delete_for(self, content_type: ContentType, content_id: int) -> None:
-        """Remove the embedding for a content unit, if present."""
-        ...
+    async def delete_for(self, content_type: ContentType, content_ids: list[int]) -> None:
+        """Remove the embeddings for units of one type, in one statement.
 
-    async def delete_for_many(self, content_type: ContentType, content_ids: list[int]) -> None:
-        """Remove the embeddings for several units of one type, in one statement.
+        Callers must pass ids they have already established the user owns: this
+        filters on ``content_type`` and id alone.
 
-        Used by soft-delete paths, which no foreign key can reach: a soft delete
-        is an ``UPDATE`` of ``deleted_at``, so the source row never leaves the
-        table and the database has nothing to cascade from.
+        Used by soft-delete paths, which no foreign key can reach -- a soft
+        delete is an ``UPDATE`` of ``deleted_at``, so the source row never leaves
+        the table and the database has nothing to cascade from -- and by the job
+        when a unit's source has gone entirely.
         """
         ...

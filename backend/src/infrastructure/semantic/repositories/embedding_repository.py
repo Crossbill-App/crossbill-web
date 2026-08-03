@@ -57,7 +57,9 @@ class EmbeddingRepository:
             "model_version": record.model_version,
             "content_hash": record.content_hash,
             "updated_at": func.now(),
-            **anchors,
+            # No anchors here: the conflict key is (content_type, content_id),
+            # and the anchor is a function of exactly those two, so the row
+            # being updated already carries the value this would write.
         }
 
         insert = pg_insert if is_postgres(self.db) else sqlite_insert
@@ -84,15 +86,7 @@ class EmbeddingRepository:
             model_version=row.model_version,
         )
 
-    async def delete_for(self, content_type: ContentType, content_id: int) -> None:
-        stmt = delete(EmbeddingORM).where(
-            EmbeddingORM.content_type == content_type.value,
-            EmbeddingORM.content_id == content_id,
-        )
-        await self.db.execute(stmt)
-        await self.db.commit()
-
-    async def delete_for_many(self, content_type: ContentType, content_ids: list[int]) -> None:
+    async def delete_for(self, content_type: ContentType, content_ids: list[int]) -> None:
         if not content_ids:
             return
         stmt = delete(EmbeddingORM).where(

@@ -80,6 +80,6 @@ class HighlightDeleteUseCase:
         content_ids = [hid.value for hid in deleted_ids]
         try:
             # One statement for the whole batch rather than a job each.
-            await self._embedding_repository.delete_for_many(ContentType.HIGHLIGHT, content_ids)
+            await self._embedding_repository.delete_for(ContentType.HIGHLIGHT, content_ids)
         except Exception:
             logger.exception("failed_to_delete_highlight_embeddings", highlight_ids=content_ids)

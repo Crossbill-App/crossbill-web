@@ -88,7 +88,7 @@ class TestGenerateContentEmbedding:
 
         await use_case.execute(ContentType.HIGHLIGHT, 9)
 
-        repo.delete_for.assert_awaited_once_with(ContentType.HIGHLIGHT, 9)
+        repo.delete_for.assert_awaited_once_with(ContentType.HIGHLIGHT, [9])
         client.embed.assert_not_called()
         repo.upsert.assert_not_called()
 

@@ -321,7 +321,7 @@ class TestDeleteHighlights:
         await index_highlight(db_session, book, target)
 
         with patch.object(
-            EmbeddingRepository, "delete_for_many", AsyncMock(side_effect=RuntimeError("boom"))
+            EmbeddingRepository, "delete_for", AsyncMock(side_effect=RuntimeError("boom"))
         ):
             response = await client.request(
                 "DELETE",

@@ -152,12 +152,12 @@ class TestDeleteFor:
             _write(ContentType.NOTE, 11, book_id=None, content_hash="d" * 64)
         )
 
-        await embedding_repository.delete_for(ContentType.NOTE, 11)
+        await embedding_repository.delete_for(ContentType.NOTE, [11])
 
         assert await embedding_repository.get_state(ContentType.NOTE, 11) is None
 
     async def test_delete_absent_is_noop(self, embedding_repository: EmbeddingRepository) -> None:
-        await embedding_repository.delete_for(ContentType.NOTE, 123)
+        await embedding_repository.delete_for(ContentType.NOTE, [123])
 
 
 class TestCascadeAnchors:

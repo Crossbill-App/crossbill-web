@@ -33,7 +33,7 @@ class GenerateContentEmbeddingUseCase:
     async def execute(self, content_type: ContentType, content_id: int) -> None:
         emb = await self._content_source.get_embeddable(content_type, content_id)
         if emb is None:
-            await self._repo.delete_for(content_type, content_id)
+            await self._repo.delete_for(content_type, [content_id])
             return
 
         # Re-checking what the backfill already filtered on is deliberate: the

@@ -15,8 +15,10 @@ os.environ.setdefault(
 )
 os.environ.setdefault("RATE_LIMIT_ENABLED", "false")
 
+import inspect
 from collections.abc import AsyncGenerator, Awaitable, Callable
 from datetime import datetime as dt
+from types import SimpleNamespace
 from typing import Any
 from unittest.mock import AsyncMock
 
@@ -218,6 +220,29 @@ async def test_user(db_session: AsyncSession) -> User:
     return user
 
 
+def _fake_job_key(function_name: str, counter: "itertools.count[int]", **kwargs: object) -> str:
+    """Return a fake job key, first checking the kwargs against the real task.
+
+    A bare AsyncMock accepts any keyword, so an enqueue site that renamed or
+    dropped an argument its task requires kept every API test green and broke
+    only in production, as a TypeError inside the worker. Binding to the real
+    signature moves that failure to the test that caused it. ``SimpleNamespace``
+    stands in for the ``ctx`` SAQ supplies positionally.
+    """
+    from src import worker  # noqa: PLC0415
+
+    task = getattr(worker, function_name, None)
+    if task is not None:
+        try:
+            inspect.signature(task).bind(SimpleNamespace(), **kwargs)
+        except TypeError as exc:
+            # pytest.fail raises a BaseException, which matters: both enqueue
+            # seams catch Exception and log, so a plain TypeError here would be
+            # swallowed exactly as it is in production and prove nothing.
+            pytest.fail(f"enqueue({function_name!r}) does not match the task: {exc}")
+    return f"saq:test:{next(counter)}"
+
+
 @pytest.fixture
 async def client(db_session: AsyncSession, test_user: User) -> AsyncGenerator[AsyncClient, None]:
     """Create a test client with database session and mocked authentication."""
@@ -253,7 +278,11 @@ async def client(db_session: AsyncSession, test_user: User) -> AsyncGenerator[As
     job_key_counter = itertools.count()
     fake_queue_service = AsyncMock()
     fake_queue_service.enqueue = AsyncMock(
-        side_effect=lambda *args, **kwargs: f"saq:test:{next(job_key_counter)}"
+        # Mirrors JobQueueServiceProtocol.enqueue, so retries/timeout_seconds are
+        # absorbed here as queue-level arguments rather than reaching the task.
+        side_effect=lambda function_name, retries=3, timeout_seconds=300, **kwargs: _fake_job_key(
+            function_name, job_key_counter, **kwargs
+        )
     )
     container.job_queue_service.override(fake_queue_service)
 
