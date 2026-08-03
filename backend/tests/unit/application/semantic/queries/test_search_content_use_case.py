@@ -6,7 +6,6 @@ import pytest
 
 from src.application.semantic.content_type import ContentType
 from src.application.semantic.protocols.content_source import EmbeddableContent
-from src.application.semantic.queries.hydration import overfetch_limit
 from src.application.semantic.queries.search_content_use_case import SearchContentUseCase
 from src.application.semantic.queries.semantic_search import SemanticSearchHit
 
@@ -70,7 +69,7 @@ class TestSearchContent:
 
         client.embed.assert_awaited_once_with(["idea"])
         query.nearest.assert_awaited_once_with(
-            embedding=[0.1, 0.2, 0.3], user_id=1, book_id=None, limit=overfetch_limit(10)
+            embedding=[0.1, 0.2, 0.3], user_id=1, book_id=None, limit=10
         )
         assert [(view.content_id, view.text, view.score) for view in results] == [
             (1, "first", 0.9),

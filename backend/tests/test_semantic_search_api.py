@@ -144,31 +144,31 @@ async def _make_highlight(
 
 
 class TestResultPaging:
-    async def test_fills_the_page_when_an_indexed_source_was_deleted(
+    async def test_never_returns_content_whose_source_was_deleted(
         self,
         client: AsyncClient,
         override_embedding_client: AsyncMock,
         db_session: AsyncSession,
         test_book: Book,
     ) -> None:
-        """A deleted-but-indexed unit must not consume a slot in the page.
+        """The last line of defence, for the window a cascade cannot cover.
 
-        The index stores no source state, so the NN scan still ranks the deleted
-        highlight; only hydration can drop it. Ranking exactly `limit` rows would
-        hand back one result instead of two.
+        Soft-deleting a highlight leaves the row in place, so its embedding is
+        removed by the use case rather than a foreign key. This simulates the gap
+        between those two commits: the embedding is still indexed and ranks
+        first, and must still not be shown.
         """
-        best = await _make_highlight(db_session, test_book, "closest", vector=[1.0, 0.0])
-        second = await _make_highlight(db_session, test_book, "next", vector=[0.95, 0.05])
-        third = await _make_highlight(db_session, test_book, "third", vector=[0.9, 0.1])
-        best.deleted_at = datetime.now(UTC)
+        hidden = await _make_highlight(db_session, test_book, "deleted", vector=[1.0, 0.0])
+        visible = await _make_highlight(db_session, test_book, "kept", vector=[0.95, 0.05])
+        hidden.deleted_at = datetime.now(UTC)
         await db_session.commit()
 
         with patch(ENABLED, return_value=True):
-            response = await client.get("/api/v1/semantic/search", params={"q": "idea", "limit": 2})
+            response = await client.get("/api/v1/semantic/search", params={"q": "idea"})
 
         assert response.status_code == status.HTTP_200_OK
         ids = [row["content_id"] for row in response.json()]
-        assert ids == [second.id, third.id]
+        assert ids == [visible.id]
 
     async def test_never_returns_more_than_the_requested_limit(
         self,

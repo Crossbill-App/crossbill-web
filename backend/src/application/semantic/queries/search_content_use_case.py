@@ -2,7 +2,7 @@
 
 from src.application.semantic.protocols.content_source import ContentSourceProtocol
 from src.application.semantic.protocols.embedding_client import EmbeddingClientProtocol
-from src.application.semantic.queries.hydration import hydrate_hits, overfetch_limit
+from src.application.semantic.queries.hydration import hydrate_hits
 from src.application.semantic.queries.semantic_search import (
     SemanticSearchQueryProtocol,
     SemanticSearchView,
@@ -28,6 +28,6 @@ class SearchContentUseCase:
         """Return the most similar content units, most similar first."""
         vectors = await self.client.embed([query_text])
         hits = await self.query.nearest(
-            embedding=vectors[0], user_id=user_id, book_id=book_id, limit=overfetch_limit(limit)
+            embedding=vectors[0], user_id=user_id, book_id=book_id, limit=limit
         )
-        return await hydrate_hits(hits, self.content_source, limit)
+        return await hydrate_hits(hits, self.content_source)

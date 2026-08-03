@@ -210,12 +210,25 @@ included).
   indexed vector for that unit (no embedding call), NN search excluding self.
 
 The NN adapter is user-scoped (`WHERE user_id = :u`). It does **not** join the
-source tables to filter soft-deleted content: the index stores no source state,
-and joining three modules' tables into the ranking query would put cross-module
-knowledge in the adapter. Instead, deleted units are dropped during hydration —
-which means ranking exactly `k` rows would silently return fewer than `k`. So the
-read use cases over-fetch (`overfetch_limit`) and trim to `k` after hydrating.
-That is a mitigation, not a guarantee; keeping the index clean is backfill's job.
+source tables to filter deleted content: the index stores no source state, and
+joining three modules' tables into the ranking query would put cross-module
+knowledge in the adapter. It does not need to — the cascade anchors mean a
+deleted source takes its embedding with it, so the index does not accumulate
+rows pointing at dead content.
+
+Hydration still drops a hit it cannot resolve. That is deliberate and cheap: the
+source text must be fetched to render a result anyway, so the check is free, and
+it keeps "deleted content never surfaces" a local guarantee rather than one that
+depends on a foreign key having fired and a cleanup having succeeded. It covers
+the window between a soft delete and its embedding cleanup, and content deleted
+between the ranking query and hydration.
+
+An earlier revision over-fetched `3 x k` candidates so those drops could not
+shorten a page. That is gone: once deletion is handled at the source, drops are
+rare enough that the cushion was paying a permanent cost — batched hydration
+resolves every candidate up front — to defend against an event that should not
+happen. A page short by one in a rare race is harmless; there is no pagination
+cursor to desynchronise.
 
 Result rows carry `(content_type, content_id, book_id, score)`; the read use case
 hydrates display fields through the content source, batched by content type — at
@@ -298,9 +311,8 @@ Ingestion runs whenever a provider is configured.
 - Cross-module ORM reads in `content_source`, and source-module commands
   carrying one embedding dependency each — accepted coupling, concentrated.
 - Result hydration costs up to three extra queries per page (one per content
-  type present), and fetches text for every over-fetched candidate rather than
-  only those that survive the cap. Revisit with a denormalised excerpt column if
-  result sets grow far beyond launch `k`.
+  type present). Revisit with a denormalised excerpt column if result sets grow
+  far beyond launch `k`.
 - pgvector is new operational surface (extension, HNSW build/maintenance).
 
 ## Open questions
