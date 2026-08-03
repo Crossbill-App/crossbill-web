@@ -2,13 +2,16 @@
 
 This is the one sanctioned place where the ``semantic`` context reads other
 modules' ORM directly (ADR-0002): it turns a ``(ContentType, content_id)`` key
-into the text to embed, and enumerates the units whose stored embedding is
-missing or model-stale so the backfill can re-embed exactly those.
+into the text to embed, and enumerates the units the backfill must act on --
+those whose stored embedding is missing, model-stale or content-stale, plus
+those whose embedding outlived its source row.
 """
 
 import hashlib
+from collections.abc import Callable
+from typing import Any
 
-from sqlalchemy import Select, or_, select
+from sqlalchemy import Row, Select, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.application.semantic.content_type import ContentType
@@ -54,11 +57,28 @@ class ContentSource:
 
     async def iter_work_items(self, user_id: int, book_id: int | None) -> list[WorkItem]:
         items: list[WorkItem] = []
-        items.extend(await self._pending(self._note_scope(user_id, book_id), ContentType.NOTE))
         items.extend(
-            await self._pending(self._highlight_scope(user_id, book_id), ContentType.HIGHLIGHT)
+            await self._pending(
+                self._note_scope(user_id, book_id),
+                ContentType.NOTE,
+                lambda row: _note_text(row.title, row.body),
+            )
         )
-        items.extend(await self._pending(self._digest_scope(user_id, book_id), ContentType.DIGEST))
+        items.extend(
+            await self._pending(
+                self._highlight_scope(user_id, book_id),
+                ContentType.HIGHLIGHT,
+                lambda row: row.text,
+            )
+        )
+        items.extend(
+            await self._pending(
+                self._digest_scope(user_id, book_id),
+                ContentType.DIGEST,
+                lambda row: _digest_text(row.summary, row.keypoints),
+            )
+        )
+        items.extend(await self._orphans(user_id, book_id))
         return items
 
     async def _note(self, content_id: int) -> EmbeddableContent | None:
@@ -128,49 +148,110 @@ class ContentSource:
             content_hash=_content_hash(text),
         )
 
-    def _note_scope(self, user_id: int, book_id: int | None) -> Select[tuple[int]]:
-        stmt = select(NoteORM.id).where(NoteORM.user_id == user_id)
+    def _note_scope(self, user_id: int, book_id: int | None) -> Select[Any]:
+        stmt = select(NoteORM.id.label("content_id"), NoteORM.title, NoteORM.body).where(
+            NoteORM.user_id == user_id
+        )
         if book_id is not None:
             stmt = stmt.where(
                 NoteORM.id.in_(select(note_books.c.note_id).where(note_books.c.book_id == book_id))
             )
-        return self._only_pending(stmt, NoteORM.id, ContentType.NOTE)
+        return self._with_embedding_state(stmt, NoteORM.id, ContentType.NOTE)
 
-    def _highlight_scope(self, user_id: int, book_id: int | None) -> Select[tuple[int]]:
-        stmt = select(HighlightORM.id).where(
+    def _highlight_scope(self, user_id: int, book_id: int | None) -> Select[Any]:
+        stmt = select(HighlightORM.id.label("content_id"), HighlightORM.text).where(
             HighlightORM.user_id == user_id,
             HighlightORM.deleted_at.is_(None),
         )
         if book_id is not None:
             stmt = stmt.where(HighlightORM.book_id == book_id)
-        return self._only_pending(stmt, HighlightORM.id, ContentType.HIGHLIGHT)
+        return self._with_embedding_state(stmt, HighlightORM.id, ContentType.HIGHLIGHT)
 
-    def _digest_scope(self, user_id: int, book_id: int | None) -> Select[tuple[int]]:
+    def _digest_scope(self, user_id: int, book_id: int | None) -> Select[Any]:
         stmt = (
-            select(ChapterDigestORM.id)
+            select(
+                ChapterDigestORM.id.label("content_id"),
+                ChapterDigestORM.summary,
+                ChapterDigestORM.keypoints,
+            )
             .join(ChapterORM, ChapterDigestORM.chapter_id == ChapterORM.id)
             .join(BookORM, ChapterORM.book_id == BookORM.id)
             .where(BookORM.user_id == user_id)
         )
         if book_id is not None:
             stmt = stmt.where(BookORM.id == book_id)
-        return self._only_pending(stmt, ChapterDigestORM.id, ContentType.DIGEST)
+        return self._with_embedding_state(stmt, ChapterDigestORM.id, ContentType.DIGEST)
 
-    def _only_pending(
-        self, stmt: Select[tuple[int]], id_column: object, content_type: ContentType
-    ) -> Select[tuple[int]]:
-        return stmt.outerjoin(
+    def _with_embedding_state(
+        self, stmt: Select[Any], id_column: object, content_type: ContentType
+    ) -> Select[Any]:
+        """Outer-join the stored embedding's idempotency state onto a scope query.
+
+        The staleness decision itself happens in Python, not SQL: ``content_hash``
+        is a SHA-256 over text assembled in application code, and there is no
+        portable way to recompute it in both Postgres and SQLite. So this selects
+        the state and lets ``_is_stale`` compare it.
+        """
+        return stmt.add_columns(
+            EmbeddingORM.id.label("embedding_id"),
+            EmbeddingORM.model_name.label("stored_model_name"),
+            EmbeddingORM.model_version.label("stored_model_version"),
+            EmbeddingORM.content_hash.label("stored_content_hash"),
+        ).outerjoin(
             EmbeddingORM,
             (EmbeddingORM.content_type == content_type.value)
             & (EmbeddingORM.content_id == id_column),
-        ).where(
-            or_(
-                EmbeddingORM.id.is_(None),
-                EmbeddingORM.model_name != self._settings.EMBEDDING_MODEL_NAME,
-                EmbeddingORM.model_version != self._settings.EMBEDDING_MODEL_VERSION,
-            )
         )
 
-    async def _pending(self, stmt: Select[tuple[int]], content_type: ContentType) -> list[WorkItem]:
-        ids = (await self.db.execute(stmt)).scalars().all()
-        return [WorkItem(content_type=content_type, content_id=row_id) for row_id in ids]
+    def _is_stale(self, row: Row[Any], text: str) -> bool:
+        """The ADR-0002 spine: missing, model-drifted, or content-drifted."""
+        if row.embedding_id is None:
+            return True
+        # Mirror the coercion GenerateContentEmbeddingUseCase writes with, so an
+        # unset model name compares equal instead of marking every row stale.
+        if row.stored_model_name != (self._settings.EMBEDDING_MODEL_NAME or ""):
+            return True
+        if row.stored_model_version != self._settings.EMBEDDING_MODEL_VERSION:
+            return True
+        return row.stored_content_hash != _content_hash(text)
+
+    async def _pending(
+        self,
+        stmt: Select[Any],
+        content_type: ContentType,
+        to_text: Callable[[Row[Any]], str],
+    ) -> list[WorkItem]:
+        rows = (await self.db.execute(stmt)).all()
+        return [
+            WorkItem(content_type=content_type, content_id=row.content_id)
+            for row in rows
+            if self._is_stale(row, to_text(row))
+        ]
+
+    async def _orphans(self, user_id: int, book_id: int | None) -> list[WorkItem]:
+        """Embeddings whose source row is gone or soft-deleted.
+
+        Handing these back as work items is enough to prune them: the job's
+        ``get_embeddable`` returns ``None`` and the existing "source missing ->
+        delete_for" branch removes the row. No separate delete path needed.
+        """
+        live: dict[ContentType, Select[Any]] = {
+            ContentType.NOTE: select(NoteORM.id),
+            ContentType.HIGHLIGHT: select(HighlightORM.id).where(HighlightORM.deleted_at.is_(None)),
+            ContentType.DIGEST: select(ChapterDigestORM.id),
+        }
+
+        items: list[WorkItem] = []
+        for content_type, live_ids in live.items():
+            stmt = select(EmbeddingORM.content_id).where(
+                EmbeddingORM.user_id == user_id,
+                EmbeddingORM.content_type == content_type.value,
+                EmbeddingORM.content_id.notin_(live_ids),
+            )
+            if book_id is not None:
+                stmt = stmt.where(EmbeddingORM.book_id == book_id)
+            ids = (await self.db.execute(stmt)).scalars().all()
+            items.extend(
+                WorkItem(content_type=content_type, content_id=content_id) for content_id in ids
+            )
+        return items

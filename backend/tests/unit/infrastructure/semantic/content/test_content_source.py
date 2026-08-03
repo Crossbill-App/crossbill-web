@@ -76,6 +76,23 @@ async def _add_digest(
     return digest
 
 
+async def _add_embedding(db: AsyncSession, book: Book, content_id: int, content_hash: str) -> None:
+    """Store a highlight embedding that is current for model bge-m3 @ version 1."""
+    db.add(
+        Embedding(
+            user_id=USER_ID,
+            content_type=ContentType.HIGHLIGHT.value,
+            content_id=content_id,
+            book_id=book.id,
+            embedding=[0.1, 0.2],
+            model_name="bge-m3",
+            model_version="1",
+            content_hash=content_hash,
+        )
+    )
+    await db.commit()
+
+
 @pytest.fixture
 def content_source(db_session: AsyncSession) -> ContentSource:
     return ContentSource(db_session, get_settings())
@@ -196,22 +213,50 @@ class TestIterWorkItems:
         book = await _add_book(db_session)
         embedded = await _add_highlight(db_session, book, "already embedded")
         pending = await _add_highlight(db_session, book, "still pending")
-        db_session.add(
-            Embedding(
-                user_id=USER_ID,
-                content_type=ContentType.HIGHLIGHT.value,
-                content_id=embedded.id,
-                book_id=book.id,
-                embedding=[0.1, 0.2],
-                model_name="bge-m3",
-                model_version="1",
-                content_hash="x" * 64,
-            )
-        )
-        await db_session.commit()
+        # The hash must match the highlight's own text, or the row is content-stale.
+        await _add_embedding(db_session, book, embedded.id, _expected_hash("already embedded"))
 
         items = await source.iter_work_items(USER_ID, None)
 
         ids = {item.content_id for item in items if item.content_type == ContentType.HIGHLIGHT}
         assert pending.id in ids
         assert embedded.id not in ids
+
+    async def test_includes_unit_whose_content_hash_drifted(self, db_session: AsyncSession) -> None:
+        """ADR-0002: stale = content_hash mismatch OR model_version mismatch.
+
+        The drift case — content edited while embeddings were off, or a job that
+        exhausted its retries — leaves a row whose model matches but whose hash
+        is from the previous text. Backfill is the only backstop for it.
+        """
+        configured = get_settings().model_copy(
+            update={"EMBEDDING_MODEL_NAME": "bge-m3", "EMBEDDING_MODEL_VERSION": "1"}
+        )
+        source = ContentSource(db_session, configured)
+        book = await _add_book(db_session)
+        edited = await _add_highlight(db_session, book, "the edited text")
+        await _add_embedding(db_session, book, edited.id, _expected_hash("the original text"))
+
+        items = await source.iter_work_items(USER_ID, None)
+
+        ids = {item.content_id for item in items if item.content_type == ContentType.HIGHLIGHT}
+        assert edited.id in ids
+
+    async def test_includes_orphaned_embedding_so_the_job_prunes_it(
+        self, db_session: AsyncSession
+    ) -> None:
+        """An embedding outliving its source is handed back so the job deletes it."""
+        configured = get_settings().model_copy(
+            update={"EMBEDDING_MODEL_NAME": "bge-m3", "EMBEDDING_MODEL_VERSION": "1"}
+        )
+        source = ContentSource(db_session, configured)
+        book = await _add_book(db_session)
+        deleted = await _add_highlight(db_session, book, "since deleted", deleted=True)
+        await _add_embedding(db_session, book, deleted.id, _expected_hash("since deleted"))
+
+        items = await source.iter_work_items(USER_ID, None)
+
+        ids = {item.content_id for item in items if item.content_type == ContentType.HIGHLIGHT}
+        assert deleted.id in ids
+        # And the job's own resolution step reports it as gone, so it gets deleted.
+        assert await source.get_embeddable(ContentType.HIGHLIGHT, deleted.id) is None
