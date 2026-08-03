@@ -1,15 +1,17 @@
 """Shared setup for the semantic-search API tests.
 
-The backfill suite plants highlights, indexes them, and drives endpoints gated by
-the embeddings feature flag. Keeping that here stops suites repeating each other
--- and stops them drifting on what "an indexed highlight" means.
+The search/related suite and the backfill suite both plant highlights, index
+them, and drive endpoints gated by the embeddings feature flag. Keeping that
+here stops the two files repeating each other -- and stops them drifting on what
+"an indexed highlight" means.
 """
 
 import hashlib
 from datetime import UTC, datetime
 from unittest.mock import AsyncMock, patch
 
-from httpx import AsyncClient
+from httpx import AsyncClient, Response
+from httpx._types import PrimitiveData
 from sqlalchemy.ext.asyncio import AsyncSession
 from starlette import status
 
@@ -83,6 +85,25 @@ async def plant_indexed_highlight(
     )
     await index_highlight(db, book, highlight, vector=vector, hashed_text=hashed_text)
     return highlight
+
+
+async def get_search(client: AsyncClient, **params: PrimitiveData) -> Response:
+    """GET /semantic/search with the feature flag forced on. Status not asserted."""
+    with patch(ENABLED, return_value=True):
+        return await client.get("/api/v1/semantic/search", params={"q": "idea", **params})
+
+
+async def search_content_ids(client: AsyncClient, **params: PrimitiveData) -> list[int]:
+    """Search and return the matched content ids, in ranking order."""
+    response = await get_search(client, **params)
+    assert response.status_code == status.HTTP_200_OK, response.text
+    return [row["content_id"] for row in response.json()]
+
+
+async def get_related(client: AsyncClient, **params: PrimitiveData) -> Response:
+    """GET /semantic/related with the feature flag forced on."""
+    with patch(ENABLED, return_value=True):
+        return await client.get("/api/v1/semantic/related", params=params)
 
 
 async def backfill_enqueued_ids(client: AsyncClient, queue: AsyncMock) -> set[int]:

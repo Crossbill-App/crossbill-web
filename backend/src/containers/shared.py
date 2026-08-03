@@ -57,6 +57,7 @@ from src.infrastructure.reflection.repositories.book_reflection_repository impor
 )
 from src.infrastructure.semantic.clients.lazy_embedding_client import LazyEmbeddingClient
 from src.infrastructure.semantic.content.content_source import ContentSource
+from src.infrastructure.semantic.queries.semantic_search_query import SemanticSearchQuery
 from src.infrastructure.tagging.repositories import TagRepository
 
 
@@ -175,3 +176,4 @@ class SharedContainer(containers.DeclarativeContainer):
     # cannot fail before the feature gate answers.
     embedding_client = providers.Singleton(LazyEmbeddingClient, settings=settings)
     content_source = providers.Factory(ContentSource, db=db, settings=settings)
+    semantic_search_query = providers.Factory(SemanticSearchQuery, db=db)

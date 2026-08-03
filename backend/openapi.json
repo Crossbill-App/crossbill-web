@@ -3520,6 +3520,160 @@
         }
       }
     },
+    "/api/v1/semantic/search": {
+      "get": {
+        "tags": [
+          "semantic"
+        ],
+        "summary": "Search Content",
+        "description": "Rank the user's embedded content by semantic similarity to a free-text query.",
+        "operationId": "search_content",
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "q",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 1000,
+              "title": "Q"
+            }
+          },
+          {
+            "name": "book_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Book Id"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 50,
+              "minimum": 1,
+              "default": 10,
+              "title": "Limit"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/SemanticSearchResult"
+                  },
+                  "title": "Response Search Content"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/semantic/related": {
+      "get": {
+        "tags": [
+          "semantic"
+        ],
+        "summary": "Related Content",
+        "description": "Rank the user's embedded content by similarity to one already-indexed unit.",
+        "operationId": "related_content",
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "content_type",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/ContentType"
+            }
+          },
+          {
+            "name": "content_id",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Content Id"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 50,
+              "minimum": 1,
+              "default": 10,
+              "title": "Limit"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/SemanticSearchResult"
+                  },
+                  "title": "Response Related Content"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/settings": {
       "get": {
         "tags": [
@@ -4667,6 +4821,16 @@
           "items"
         ],
         "title": "CollectionResponse[Tag]"
+      },
+      "ContentType": {
+        "type": "string",
+        "enum": [
+          "note",
+          "highlight",
+          "digest"
+        ],
+        "title": "ContentType",
+        "description": "A kind of natural-language unit that can be embedded."
       },
       "CreateChatSessionResponse": {
         "properties": {
@@ -6780,6 +6944,45 @@
         "type": "object",
         "title": "RefreshTokenRequest",
         "description": "Request body for refresh token (used by plugins)."
+      },
+      "SemanticSearchResult": {
+        "properties": {
+          "content_type": {
+            "$ref": "#/components/schemas/ContentType"
+          },
+          "content_id": {
+            "type": "integer",
+            "title": "Content Id"
+          },
+          "book_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Book Id"
+          },
+          "score": {
+            "type": "number",
+            "title": "Score"
+          },
+          "text": {
+            "type": "string",
+            "title": "Text"
+          }
+        },
+        "type": "object",
+        "required": [
+          "content_type",
+          "content_id",
+          "book_id",
+          "score",
+          "text"
+        ],
+        "title": "SemanticSearchResult"
       },
       "SendChatMessageRequest": {
         "properties": {
