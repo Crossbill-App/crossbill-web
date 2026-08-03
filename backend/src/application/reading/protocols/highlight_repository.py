@@ -42,7 +42,14 @@ class HighlightRepositoryProtocol(Protocol):
         highlight_ids: list[HighlightId],
         user_id: UserId,
         book_id: BookId,
-    ) -> int: ...
+    ) -> list[HighlightId]:
+        """Soft delete the given highlights, returning the IDs actually deleted.
+
+        The requested IDs are unverified caller input; only the returned ones
+        passed the user and book check, so only those may drive cleanup of data
+        derived from a highlight.
+        """
+        ...
 
     # Tag associations (owned by reading; tags themselves live in the tagging module)
 

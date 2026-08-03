@@ -1,9 +1,13 @@
+import structlog
+
 from src.application.common.ownership import require_book
 from src.application.reading.protocols.book_repository import BookRepositoryProtocol
 from src.application.reading.protocols.highlight_repository import HighlightRepositoryProtocol
 from src.application.semantic.content_type import ContentType
 from src.application.semantic.protocols.embedding_repository import EmbeddingRepositoryProtocol
 from src.domain.common.value_objects import BookId, HighlightId, UserId
+
+logger = structlog.get_logger(__name__)
 
 
 class HighlightDeleteUseCase:
@@ -48,15 +52,34 @@ class HighlightDeleteUseCase:
         await require_book(self.book_repository, book_id_vo, user_id_vo)
 
         # Soft delete highlights (cascades to bookmarks and flashcards)
-        deleted = await self.highlight_repository.soft_delete_by_ids(
+        deleted_ids = await self.highlight_repository.soft_delete_by_ids(
             highlight_ids=highlight_ids_vo,
             user_id=user_id_vo,
             book_id=book_id_vo,
         )
 
-        # A soft delete is an UPDATE, so no foreign key cascades the embeddings
-        # away; they have to be removed here. One statement for the whole batch
-        # rather than a job each. The backfill sweep remains the backstop.
-        await self._embedding_repository.delete_for_many(ContentType.HIGHLIGHT, highlight_ids)
+        await self._delete_embeddings_for(deleted_ids)
 
-        return deleted
+        return len(deleted_ids)
+
+    async def _delete_embeddings_for(self, deleted_ids: list[HighlightId]) -> None:
+        """Remove the embeddings of highlights this call actually soft deleted.
+
+        A soft delete is an UPDATE, so no foreign key cascades the embeddings
+        away; they have to be removed here. Only the IDs the repository
+        confirmed — the requested IDs are unverified and could name another
+        user's highlight, whose embedding must not be touched.
+
+        The soft delete has already committed by now, and the two are not one
+        transaction, so a failure here must not fail the user's delete. Log it
+        and let the backfill sweep reconcile, as the enqueue seam does.
+        """
+        if not deleted_ids:
+            return
+
+        content_ids = [hid.value for hid in deleted_ids]
+        try:
+            # One statement for the whole batch rather than a job each.
+            await self._embedding_repository.delete_for_many(ContentType.HIGHLIGHT, content_ids)
+        except Exception:
+            logger.exception("failed_to_delete_highlight_embeddings", highlight_ids=content_ids)
