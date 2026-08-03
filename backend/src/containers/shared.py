@@ -55,6 +55,7 @@ from src.infrastructure.reading.repositories.reading_session_repository import (
 from src.infrastructure.reflection.repositories.book_reflection_repository import (
     BookReflectionRepository,
 )
+from src.infrastructure.semantic.clients.lazy_embedding_client import LazyEmbeddingClient
 from src.infrastructure.tagging.repositories import TagRepository
 
 
@@ -165,3 +166,10 @@ class SharedContainer(containers.DeclarativeContainer):
     # Jobs
     job_batch_repository = providers.Factory(JobBatchRepository, db=db)
     job_batch_query = providers.Factory(JobBatchQuery, db=db)
+
+    # Semantic search (embeddings). The client is settings-driven and provider is
+    # only a base URL, so a process-wide singleton is fine; the repository is
+    # per-request like every other db-bound provider. LazyEmbeddingClient defers
+    # the settings check to first use, so resolving an endpoint's dependencies
+    # cannot fail before the feature gate answers.
+    embedding_client = providers.Singleton(LazyEmbeddingClient, settings=settings)

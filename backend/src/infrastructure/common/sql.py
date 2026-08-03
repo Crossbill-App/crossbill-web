@@ -1,4 +1,15 @@
+from sqlalchemy.ext.asyncio import AsyncSession
+
 LIKE_ESCAPE_CHAR = "\\"
+
+
+def is_postgres(db: AsyncSession) -> bool:
+    """Whether this session talks to PostgreSQL rather than the SQLite test DB.
+
+    Several adapters keep a Python or JSON fallback so the suite can run off
+    Postgres; this is the one place that spells out how the dialect is detected.
+    """
+    return db.bind.dialect.name == "postgresql"
 
 
 def escape_like_pattern(text: str) -> str:

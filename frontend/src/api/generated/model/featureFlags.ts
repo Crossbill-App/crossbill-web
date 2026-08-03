@@ -11,6 +11,8 @@
 export interface FeatureFlags {
   /** Whether AI features are enabled */
   ai: boolean;
+  /** Whether semantic-search embeddings are enabled */
+  embeddings: boolean;
   /** Whether user registration is enabled */
   user_registrations: boolean;
 }

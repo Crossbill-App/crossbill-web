@@ -4814,6 +4814,11 @@
             "title": "Ai",
             "description": "Whether AI features are enabled"
           },
+          "embeddings": {
+            "type": "boolean",
+            "title": "Embeddings",
+            "description": "Whether semantic-search embeddings are enabled"
+          },
           "user_registrations": {
             "type": "boolean",
             "title": "User Registrations",
@@ -4823,6 +4828,7 @@
         "type": "object",
         "required": [
           "ai",
+          "embeddings",
           "user_registrations"
         ],
         "title": "FeatureFlags",

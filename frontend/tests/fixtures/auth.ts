@@ -22,6 +22,7 @@ export const aUser = (overrides: Partial<UserDetailsResponse> = {}): UserDetails
 export const appSettings = (overrides: Partial<AppSettingsResponse> = {}): AppSettingsResponse => ({
   feature_flags: {
     ai: false,
+    embeddings: false,
     user_registrations: false,
   },
   ...overrides,
