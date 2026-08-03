@@ -35,11 +35,16 @@ class GenerateContentEmbeddingUseCase:
             await self._repo.delete_for(content_type, content_id)
             return
 
+        # Read the model name once: comparing and storing must use the identical
+        # value, or an unset EMBEDDING_MODEL_NAME stores "" while comparing None
+        # and every row reads as permanently stale.
+        model_name = self._settings.EMBEDDING_MODEL_NAME or ""
+
         state = await self._repo.get_state(content_type, content_id)
         if (
             state is not None
             and state.content_hash == emb.content_hash
-            and state.model_name == self._settings.EMBEDDING_MODEL_NAME
+            and state.model_name == model_name
             and state.model_version == self._settings.EMBEDDING_MODEL_VERSION
         ):
             return
@@ -52,7 +57,7 @@ class GenerateContentEmbeddingUseCase:
                 user_id=emb.user_id,
                 book_id=emb.book_id,
                 embedding=vectors[0],
-                model_name=self._settings.EMBEDDING_MODEL_NAME or "",
+                model_name=model_name,
                 model_version=self._settings.EMBEDDING_MODEL_VERSION,
                 content_hash=emb.content_hash,
             )
