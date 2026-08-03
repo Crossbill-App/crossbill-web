@@ -9,6 +9,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from starlette import status
 
 from src.models import Book, Highlight
+from tests.conftest import create_test_highlight
 from tests.semantic_helpers import ENABLED, backfill_enqueued_ids, plant_indexed_highlight
 
 
@@ -51,14 +52,50 @@ class TestBackfillEndpoint:
         assert data["status"] == "pending"
         override_queue.enqueue.assert_awaited()
 
-    async def test_returns_error_when_nothing_to_embed(
+    async def test_returns_bad_request_when_nothing_to_embed(
         self, client: AsyncClient, override_queue: AsyncMock, db_session: AsyncSession
     ) -> None:
+        """Everything already indexed is a normal outcome, not a server error.
+
+        The status is pinned exactly: a loose ``>= 400`` cannot tell 400 from
+        the 500-with-traceback an unmapped DomainError produces.
+        """
         with patch(ENABLED, return_value=True):
             response = await client.post("/api/v1/semantic/backfill")
 
-        assert response.status_code >= status.HTTP_400_BAD_REQUEST
+        assert response.status_code == status.HTTP_400_BAD_REQUEST
         override_queue.enqueue.assert_not_called()
+
+    async def test_records_units_it_could_not_enqueue_as_failures(
+        self,
+        client: AsyncClient,
+        override_queue: AsyncMock,
+        db_session: AsyncSession,
+        test_book: Book,
+    ) -> None:
+        """A backfill that breaks partway must not report the rest as done.
+
+        Shrinking total_jobs to what was enqueued made the batch terminate as
+        completed, with nothing to say the remaining units were dropped.
+        """
+        for text in ("first", "second", "third"):
+            await create_test_highlight(
+                db_session,
+                test_book,
+                test_book.user_id,
+                text=text,
+                datetime_str="2024-01-15 14:30:22",
+            )
+        override_queue.enqueue.side_effect = ["saq:1", RuntimeError("queue is down")]
+
+        with patch(ENABLED, return_value=True):
+            response = await client.post("/api/v1/semantic/backfill")
+
+        assert response.status_code == status.HTTP_202_ACCEPTED
+        data = response.json()
+        assert data["total_jobs"] == 3
+        assert data["failed_jobs"] == 2
+        assert data["status"] == "running"
 
 
 class TestBackfillReconciliation:

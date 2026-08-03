@@ -7,7 +7,7 @@ from src.application.jobs.protocols.job_batch_repository import JobBatchReposito
 from src.application.jobs.protocols.job_queue_service import JobQueueServiceProtocol
 from src.application.library.protocols.book_repository import BookRepositoryProtocol
 from src.application.semantic.protocols.content_source import ContentSourceProtocol
-from src.domain.common.exceptions import DomainError
+from src.domain.common.exceptions import BusinessRuleViolationError, DomainError
 from src.domain.common.value_objects.ids import BookId, UserId
 from src.domain.jobs.entities.job_batch import JobBatch, JobBatchType
 
@@ -37,7 +37,10 @@ class EnqueueContentEmbeddingsUseCase:
             user_id.value, book_id.value if book_id else None
         )
         if not items:
-            raise DomainError("No content units need embedding")
+            # Pressing backfill when everything is already indexed is a normal
+            # action, not an internal error: a bare DomainError is unmapped and
+            # would answer 500 with an error-level traceback.
+            raise BusinessRuleViolationError("No content units need embedding")
 
         reference_id = str(book_id.value) if book_id else f"user:{user_id.value}"
         batch = JobBatch.create(
@@ -72,9 +75,19 @@ class EnqueueContentEmbeddingsUseCase:
         if not batch.job_keys:
             batch.cancel()
             await self._batch_repo.save(batch)
+            # Unmapped on purpose: reaching here means the queue itself is
+            # unreachable, which is an internal failure and belongs in the 500
+            # bucket with a traceback.
             raise DomainError("Failed to enqueue any jobs for content embedding")
 
-        batch.total_jobs = min(batch.total_jobs, len(batch.job_keys))
+        # Units the loop never reached will never be embedded, so record them as
+        # failures rather than shrinking total_jobs to what was enqueued: that
+        # let a backfill of 500 units which broke at item 3 terminate as
+        # "completed, total_jobs=3", with nothing to say 497 were dropped. The
+        # batch still reaches a terminal status once the enqueued jobs report —
+        # COMPLETED_WITH_ERRORS instead of COMPLETED.
+        for _ in range(len(items) - len(batch.job_keys)):
+            batch.mark_job_failed()
 
         await self._batch_repo.save(batch)
 
