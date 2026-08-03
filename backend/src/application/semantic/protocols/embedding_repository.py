@@ -52,3 +52,12 @@ class EmbeddingRepositoryProtocol(Protocol):
     async def delete_for(self, content_type: ContentType, content_id: int) -> None:
         """Remove the embedding for a content unit, if present."""
         ...
+
+    async def delete_for_many(self, content_type: ContentType, content_ids: list[int]) -> None:
+        """Remove the embeddings for several units of one type, in one statement.
+
+        Used by soft-delete paths, which no foreign key can reach: a soft delete
+        is an ``UPDATE`` of ``deleted_at``, so the source row never leaves the
+        table and the database has nothing to cascade from.
+        """
+        ...

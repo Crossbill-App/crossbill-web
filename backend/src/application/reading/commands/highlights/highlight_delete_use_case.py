@@ -1,6 +1,8 @@
 from src.application.common.ownership import require_book
 from src.application.reading.protocols.book_repository import BookRepositoryProtocol
 from src.application.reading.protocols.highlight_repository import HighlightRepositoryProtocol
+from src.application.semantic.content_type import ContentType
+from src.application.semantic.protocols.embedding_repository import EmbeddingRepositoryProtocol
 from src.domain.common.value_objects import BookId, HighlightId, UserId
 
 
@@ -9,9 +11,11 @@ class HighlightDeleteUseCase:
         self,
         book_repository: BookRepositoryProtocol,
         highlight_repository: HighlightRepositoryProtocol,
+        embedding_repository: EmbeddingRepositoryProtocol,
     ) -> None:
         self.book_repository = book_repository
         self.highlight_repository = highlight_repository
+        self._embedding_repository = embedding_repository
 
     async def delete_highlights(self, book_id: int, highlight_ids: list[int], user_id: int) -> int:
         """
@@ -44,8 +48,15 @@ class HighlightDeleteUseCase:
         await require_book(self.book_repository, book_id_vo, user_id_vo)
 
         # Soft delete highlights (cascades to bookmarks and flashcards)
-        return await self.highlight_repository.soft_delete_by_ids(
+        deleted = await self.highlight_repository.soft_delete_by_ids(
             highlight_ids=highlight_ids_vo,
             user_id=user_id_vo,
             book_id=book_id_vo,
         )
+
+        # A soft delete is an UPDATE, so no foreign key cascades the embeddings
+        # away; they have to be removed here. One statement for the whole batch
+        # rather than a job each. The backfill sweep remains the backstop.
+        await self._embedding_repository.delete_for_many(ContentType.HIGHLIGHT, highlight_ids)
+
+        return deleted

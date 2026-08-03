@@ -176,13 +176,22 @@ class TestDeleteBook:
         them. Without it they would survive until the next backfill.
         """
         book = book_with_chapter_and_highlight.book
+        doomed = book_with_chapter_and_highlight.highlights[0]
         survivor = await create_test_book(db_session, user_id=DEFAULT_USER_ID, title="Keep me")
-        for target, content_id in ((book, 1), (survivor, 2)):
+        kept = await create_test_highlight(
+            db_session,
+            survivor,
+            DEFAULT_USER_ID,
+            text="keep",
+            datetime_str="2024-01-15 14:30:22",
+        )
+        for target, highlight in ((book, doomed), (survivor, kept)):
             db_session.add(
                 models.Embedding(
                     user_id=DEFAULT_USER_ID,
                     content_type="highlight",
-                    content_id=content_id,
+                    content_id=highlight.id,
+                    highlight_id=highlight.id,
                     book_id=target.id,
                     embedding=[0.1, 0.2],
                     model_name="bge-m3",
@@ -209,6 +218,45 @@ class TestDeleteBook:
 
 class TestDeleteHighlights:
     """Test suite for DELETE /books/:id/highlight endpoint."""
+
+    async def test_soft_deleting_highlights_removes_their_embeddings(
+        self,
+        client: AsyncClient,
+        db_session: AsyncSession,
+        book_with_highlights: BookWithHighlights,
+    ) -> None:
+        """No FK can reach this: a soft delete is an UPDATE, so nothing cascades.
+
+        The use case has to remove them explicitly, or they linger in the index
+        until the next backfill.
+        """
+        book = book_with_highlights.book
+        deleted, kept = book_with_highlights.highlights
+        for highlight in (deleted, kept):
+            db_session.add(
+                models.Embedding(
+                    user_id=DEFAULT_USER_ID,
+                    content_type="highlight",
+                    content_id=highlight.id,
+                    highlight_id=highlight.id,
+                    book_id=book.id,
+                    embedding=[0.1, 0.2],
+                    model_name="bge-m3",
+                    model_version="1",
+                    content_hash="h" * 64,
+                )
+            )
+        await db_session.commit()
+
+        response = await client.request(
+            "DELETE",
+            f"/api/v1/books/{book.id}/highlight",
+            json={"highlight_ids": [deleted.id]},
+        )
+
+        assert response.status_code == status.HTTP_200_OK
+        remaining = (await db_session.execute(select(models.Embedding))).scalars().all()
+        assert [row.content_id for row in remaining] == [kept.id]
 
     async def test_delete_highlights_success(
         self,

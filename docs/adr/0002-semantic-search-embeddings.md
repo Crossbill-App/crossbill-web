@@ -68,7 +68,8 @@ embeddings(
   user_id,                 -- ownership filter for NN search
   content_type,            -- 'note' | 'highlight' | 'digest'
   content_id,              -- id within that type (no FK: polymorphic)
-  book_id,                 -- FK -> books ON DELETE CASCADE
+  note_id, highlight_id, digest_id,   -- cascade anchors, exactly one set
+  book_id,                 -- FK -> books ON DELETE SET NULL (scope, not identity)
   embedding vector(1024),
   model_name, model_version,   -- idempotency spine
   content_hash,                -- idempotency spine
@@ -78,13 +79,31 @@ embeddings(
 -- HNSW index on embedding (vector_cosine_ops); btree on user_id, book_id
 ```
 
-`book_id` carries a real foreign key because deleting a book is a *database*
-cascade: `BookRepository.delete` issues one `DELETE` and lets `ON DELETE CASCADE`
-clear the highlights, chapters and digests beneath it, so no application code
-ever sees those rows disappear and no `enqueue_for` seam can fire. The FK is what
-stops a deleted book's embeddings from being orphaned in bulk. `content_id`
-cannot have one — it is polymorphic across three source tables — so per-unit
-deletes are still reconciled by the backfill sweep.
+**Deletion is the database's job, not the enqueuer's.** `content_type` +
+`content_id` stays the logical key, but a polymorphic id cannot carry a
+constraint, so nothing would prune an embedding whose note or digest was
+deleted — and deletion often bypasses application code entirely
+(`BookRepository.delete` issues one `DELETE` and lets `ON DELETE CASCADE` clear
+the highlights, chapters and digests beneath it; no `enqueue_for` seam can fire).
+
+Hence three nullable **cascade anchors**, `note_id` / `highlight_id` /
+`digest_id`, each a real FK with `ON DELETE CASCADE`. Exactly one is set and it
+always equals `content_id`, enforced by a `CHECK` so the duplication cannot
+drift. Queries continue to use `content_type` + `content_id`; the anchors exist
+only so the database can prune.
+
+`book_id` is `ON DELETE SET NULL`, not `CASCADE`: it is a scoping hint, not
+identity. A note can outlive the book it was linked to, so deleting that book
+must clear the scope rather than drop a live note's embedding.
+
+This leaves exactly one gap, and it is structural: **soft deletes**. Soft-deleting
+a highlight is an `UPDATE` of `deleted_at`, so the row never leaves the table and
+no foreign key can fire. `HighlightDeleteUseCase` therefore removes those
+embeddings explicitly via `delete_for_many` — one statement per batch, not a job
+each. That is why `reading` depends on two semantic ports rather than one: the
+enqueuer for writes, the embedding repository for soft-delete cleanup.
+
+The backfill sweep remains the backstop for every path.
 
 This is infrastructure — the vector has no domain behaviour. It contrasts with
 ADR-0001's "no projections, no separate read store": embeddings **are** a
@@ -113,9 +132,11 @@ Cross-module coupling is concentrated in exactly two accepted places:
 
 - **`content/content_source.py` reads other modules' ORM** to fetch embeddable
   text. Infra cross-module ORM reads are already sanctioned by ADR-0001.
-- **Source-module commands depend on one semantic port** (`EmbeddingEnqueuer`),
-  application composing across modules — allowed. `notes` never imports
-  embedding internals; it calls `enqueue_for("note", id)`.
+- **Source-module commands depend on semantic ports**, application composing
+  across modules — allowed. Write paths use `EmbeddingEnqueuer`: `notes` never
+  imports embedding internals, it calls `enqueue_for("note", id)`.
+  `HighlightDeleteUseCase` additionally depends on `EmbeddingRepository`, because
+  a soft delete is the one case no foreign key can prune (see *Storage* below).
 
 ### The idempotency spine
 

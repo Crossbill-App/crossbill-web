@@ -3,7 +3,15 @@
 from datetime import datetime as dt
 
 from pgvector.sqlalchemy import Vector
-from sqlalchemy import DateTime, ForeignKey, Integer, String, UniqueConstraint, func
+from sqlalchemy import (
+    CheckConstraint,
+    DateTime,
+    ForeignKey,
+    Integer,
+    String,
+    UniqueConstraint,
+    func,
+)
 from sqlalchemy.orm import Mapped, mapped_column
 from sqlalchemy.types import JSON
 
@@ -30,14 +38,25 @@ class Embedding(Base):
     )
     content_type: Mapped[str] = mapped_column(String(20), nullable=False)
     content_id: Mapped[int] = mapped_column(Integer, nullable=False)
-    # A real FK, not a loose int: deleting a book is a database-level cascade
-    # (BookRepository.delete issues one DELETE and lets ON DELETE CASCADE clear
-    # highlights, chapters and digests), so no application code ever sees the
-    # rows going away. Without this the book's embeddings would all be orphaned
-    # with nothing to prune them until the next backfill. Indexed because the
-    # cascade and book-scoped search both filter on it.
+    # Cascade anchors. content_type + content_id remains the logical key, but a
+    # polymorphic id cannot carry a constraint, so nothing would prune a row
+    # whose note or digest was deleted. Exactly one of these is set and always
+    # equals content_id (see the CHECK below), letting the database do it.
+    note_id: Mapped[int | None] = mapped_column(
+        ForeignKey("notes.id", ondelete="CASCADE"), index=True, nullable=True
+    )
+    highlight_id: Mapped[int | None] = mapped_column(
+        ForeignKey("highlights.id", ondelete="CASCADE"), index=True, nullable=True
+    )
+    digest_id: Mapped[int | None] = mapped_column(
+        ForeignKey("chapter_digests.id", ondelete="CASCADE"), index=True, nullable=True
+    )
+    # SET NULL, not CASCADE: book_id is a scoping hint, not identity. A note can
+    # outlive the book it was linked to, so deleting that book must clear the
+    # scope rather than drop a live note's embedding. Content that genuinely
+    # dies with the book is cascaded by the typed FKs above.
     book_id: Mapped[int | None] = mapped_column(
-        ForeignKey("books.id", ondelete="CASCADE"), index=True, nullable=True
+        ForeignKey("books.id", ondelete="SET NULL"), index=True, nullable=True
     )
     embedding: Mapped[list[float]] = mapped_column(
         JSON().with_variant(Vector(EMBEDDING_DIMENSIONS), "postgresql"), nullable=False
@@ -55,7 +74,18 @@ class Embedding(Base):
         nullable=False,
     )
 
-    __table_args__ = (UniqueConstraint("content_type", "content_id", name="uq_embeddings_content"),)
+    __table_args__ = (
+        UniqueConstraint("content_type", "content_id", name="uq_embeddings_content"),
+        CheckConstraint(
+            "(content_type = 'note' AND note_id = content_id "
+            "AND highlight_id IS NULL AND digest_id IS NULL) OR "
+            "(content_type = 'highlight' AND highlight_id = content_id "
+            "AND note_id IS NULL AND digest_id IS NULL) OR "
+            "(content_type = 'digest' AND digest_id = content_id "
+            "AND note_id IS NULL AND highlight_id IS NULL)",
+            name="ck_embeddings_one_typed_id",
+        ),
+    )
 
     def __repr__(self) -> str:
         """String representation of Embedding."""

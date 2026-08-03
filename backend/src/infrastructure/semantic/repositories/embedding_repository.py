@@ -12,6 +12,22 @@ from src.infrastructure.semantic.orm.embedding_model import Embedding as Embeddi
 
 _CONFLICT_KEYS = ["content_type", "content_id"]
 
+#: Which cascade-anchor column each content type populates. The CHECK constraint
+#: on the table requires exactly one to be set and to equal content_id.
+_ANCHOR_COLUMN = {
+    ContentType.NOTE: "note_id",
+    ContentType.HIGHLIGHT: "highlight_id",
+    ContentType.DIGEST: "digest_id",
+}
+
+
+def _anchors(content_type: ContentType, content_id: int) -> dict[str, int | None]:
+    """Set this type's anchor column to content_id and null the other two."""
+    return {
+        column: (content_id if column == _ANCHOR_COLUMN[content_type] else None)
+        for column in _ANCHOR_COLUMN.values()
+    }
+
 
 class EmbeddingRepository:
     """Upsert-style store for content embeddings keyed by (content_type, content_id)."""
@@ -20,6 +36,7 @@ class EmbeddingRepository:
         self.db = db
 
     async def upsert(self, record: EmbeddingWrite) -> None:
+        anchors = _anchors(record.content_type, record.content_id)
         values = {
             "user_id": record.user_id,
             "content_type": record.content_type.value,
@@ -29,6 +46,7 @@ class EmbeddingRepository:
             "model_name": record.model_name,
             "model_version": record.model_version,
             "content_hash": record.content_hash,
+            **anchors,
         }
         updates = {
             "user_id": record.user_id,
@@ -38,6 +56,7 @@ class EmbeddingRepository:
             "model_version": record.model_version,
             "content_hash": record.content_hash,
             "updated_at": func.now(),
+            **anchors,
         }
 
         insert = pg_insert if self.db.bind.dialect.name == "postgresql" else sqlite_insert
@@ -68,6 +87,16 @@ class EmbeddingRepository:
         stmt = delete(EmbeddingORM).where(
             EmbeddingORM.content_type == content_type.value,
             EmbeddingORM.content_id == content_id,
+        )
+        await self.db.execute(stmt)
+        await self.db.commit()
+
+    async def delete_for_many(self, content_type: ContentType, content_ids: list[int]) -> None:
+        if not content_ids:
+            return
+        stmt = delete(EmbeddingORM).where(
+            EmbeddingORM.content_type == content_type.value,
+            EmbeddingORM.content_id.in_(content_ids),
         )
         await self.db.execute(stmt)
         await self.db.commit()

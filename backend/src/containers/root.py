@@ -70,6 +70,7 @@ class RootContainer(containers.DeclarativeContainer):
         reading_session_query=shared.reading_session_query,
         ereader_digest_query=shared.ereader_digest_query,
         embedding_enqueuer=embedding_enqueuer,
+        embedding_repository=shared.embedding_repository,
     )
 
     tagging = providers.Container(
