@@ -5,10 +5,43 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.application.semantic.content_type import ContentType
 from src.infrastructure.semantic.queries.semantic_search_query import SemanticSearchQuery
-from src.models import Book, Embedding, User
+from src.models import Book, Embedding, Highlight, Note, User
 
 USER_ID = 1
 OTHER_USER_ID = 2
+
+#: Which cascade anchor each content type populates, as the repository sets it.
+_ANCHOR_COLUMN = {
+    ContentType.NOTE: "note_id",
+    ContentType.HIGHLIGHT: "highlight_id",
+}
+
+
+async def _add_source(
+    db: AsyncSession, content_type: ContentType, content_id: int, user_id: int
+) -> None:
+    """Create the row the embedding's anchor points at.
+
+    The anchor is a real foreign key and the CHECK requires it to be set, so an
+    embedding cannot be planted for content that does not exist.
+    """
+    if content_type is ContentType.NOTE:
+        db.add(Note(id=content_id, user_id=user_id, title=f"note {content_id}", body=""))
+    else:
+        book = Book(user_id=user_id, title=f"book for highlight {content_id}")
+        db.add(book)
+        await db.flush()
+        db.add(
+            Highlight(
+                id=content_id,
+                user_id=user_id,
+                book_id=book.id,
+                text=f"highlight {content_id}",
+                datetime="2024-01-15 14:30:22",
+                content_hash="c" * 64,
+            )
+        )
+    await db.flush()
 
 
 async def _add_embedding(
@@ -20,6 +53,7 @@ async def _add_embedding(
     user_id: int = USER_ID,
     book_id: int | None = None,
 ) -> None:
+    await _add_source(db, content_type, content_id, user_id)
     db.add(
         Embedding(
             user_id=user_id,
@@ -30,6 +64,7 @@ async def _add_embedding(
             model_name="bge-m3",
             model_version="1",
             content_hash="h" * 64,
+            **{_ANCHOR_COLUMN[content_type]: content_id},
         )
     )
     await db.commit()

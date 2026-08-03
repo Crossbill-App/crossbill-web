@@ -75,12 +75,15 @@ class Embedding(Base):
 
     __table_args__ = (
         UniqueConstraint("content_type", "content_id", name="uq_embeddings_content"),
+        # Byte-identical to migration 063. The IS NOT NULL tests are what make
+        # this reject an anchorless row: comparing a NULL anchor to content_id
+        # yields NULL, and SQL satisfies any CHECK that is not false.
         CheckConstraint(
-            "(content_type = 'note' AND note_id = content_id "
+            "(content_type = 'note' AND note_id IS NOT NULL AND note_id = content_id "
             "AND highlight_id IS NULL AND digest_id IS NULL) OR "
-            "(content_type = 'highlight' AND highlight_id = content_id "
+            "(content_type = 'highlight' AND highlight_id IS NOT NULL AND highlight_id = content_id "
             "AND note_id IS NULL AND digest_id IS NULL) OR "
-            "(content_type = 'digest' AND digest_id = content_id "
+            "(content_type = 'digest' AND digest_id IS NOT NULL AND digest_id = content_id "
             "AND note_id IS NULL AND highlight_id IS NULL)",
             name="ck_embeddings_one_typed_id",
         ),

@@ -232,3 +232,27 @@ class TestCascadeAnchors:
         with pytest.raises(IntegrityError):
             await db_session.commit()
         await db_session.rollback()
+
+    async def test_row_with_no_anchor_at_all_is_rejected(self, db_session: AsyncSession) -> None:
+        """The case the CHECK used to wave through, and the worst one.
+
+        Comparing a NULL anchor to content_id yields NULL, the disjunction yields
+        NULL, and SQL satisfies any CHECK that is not false -- so the row the
+        anchors exist to prevent was the one row they let past. Nothing cascades
+        it and the orphan sweep, which reads the anchor, cannot see it either.
+        """
+        db_session.add(
+            EmbeddingORM(
+                user_id=1,
+                content_type="highlight",
+                content_id=42,
+                book_id=None,
+                embedding=VECTOR,
+                model_name="bge-m3",
+                model_version="1",
+                content_hash="a" * 64,
+            )
+        )
+        with pytest.raises(IntegrityError):
+            await db_session.commit()
+        await db_session.rollback()
