@@ -55,8 +55,8 @@ def _batch_to_response(batch: JobBatch) -> JobBatchResponse:
     "/backfill",
     response_model=JobBatchResponse,
     status_code=status.HTTP_202_ACCEPTED,
+    dependencies=[Depends(require_embeddings_enabled)],
 )
-@require_embeddings_enabled
 async def backfill_embeddings(
     current_user: Annotated[User, Depends(get_current_user)],
     book_id: int | None = None,
@@ -75,8 +75,11 @@ async def backfill_embeddings(
     return _batch_to_response(batch)
 
 
-@router.get("/search", response_model=list[SemanticSearchResult])
-@require_embeddings_enabled
+@router.get(
+    "/search",
+    response_model=list[SemanticSearchResult],
+    dependencies=[Depends(require_embeddings_enabled)],
+)
 async def search_content(
     current_user: Annotated[User, Depends(get_current_user)],
     q: str,
@@ -96,8 +99,11 @@ async def search_content(
     return [_result(view) for view in views]
 
 
-@router.get("/related", response_model=list[SemanticSearchResult])
-@require_embeddings_enabled
+@router.get(
+    "/related",
+    response_model=list[SemanticSearchResult],
+    dependencies=[Depends(require_embeddings_enabled)],
+)
 async def related_content(
     current_user: Annotated[User, Depends(get_current_user)],
     content_type: ContentType,

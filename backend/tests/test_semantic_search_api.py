@@ -46,14 +46,17 @@ async def _add_embedding(
 
 
 class TestSearchEndpoint:
-    async def test_blocked_when_embeddings_disabled(
-        self, client: AsyncClient, override_embedding_client: AsyncMock
-    ) -> None:
+    async def test_blocked_when_embeddings_disabled(self, client: AsyncClient) -> None:
+        """Deliberately does not override the embedding client.
+
+        With no provider configured, ``build_embedding_client`` raises, so this
+        only returns 403 if the feature gate runs before the use case (and its
+        client) is constructed. Overriding the client here would mask that.
+        """
         with patch(ENABLED, return_value=False):
             response = await client.get("/api/v1/semantic/search", params={"q": "idea"})
 
         assert response.status_code == status.HTTP_403_FORBIDDEN
-        override_embedding_client.embed.assert_not_called()
 
     async def test_returns_ranked_results(
         self,

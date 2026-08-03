@@ -36,26 +36,26 @@ def require_ai_enabled(func: F) -> F:
     return wrapper  # type: ignore[return-value]
 
 
-def require_embeddings_enabled(func: F) -> F:
+def require_embeddings_enabled() -> None:
     """
-    Decorator that requires semantic-search embeddings to be enabled.
+    FastAPI dependency requiring semantic-search embeddings to be enabled.
 
-    Returns HTTP 403 Forbidden if no embedding provider is configured.
+    Raises HTTP 403 Forbidden if no embedding provider is configured.
+
+    A dependency rather than a decorator (unlike ``require_ai_enabled``) because
+    it must run *before* the endpoint's own parameter dependencies: the search
+    endpoint injects a use case whose construction builds the embedding client,
+    and that raises when no provider is configured. FastAPI solves route-level
+    dependencies ahead of parameter dependencies, so the gate answers 403 rather
+    than letting the client error surface as a 500.
 
     Usage:
-        @router.post("/endpoint")
-        @require_embeddings_enabled
+        @router.post("/endpoint", dependencies=[Depends(require_embeddings_enabled)])
         async def my_endpoint():
             ...
     """
-
-    @wraps(func)
-    async def wrapper(*args: Any, **kwargs: Any) -> Any:  # noqa: ANN401
-        if not is_embeddings_enabled():
-            raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN,
-                detail="Semantic-search embeddings are not enabled on this server",
-            )
-        return await func(*args, **kwargs)
-
-    return wrapper  # type: ignore[return-value]
+    if not is_embeddings_enabled():
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Semantic-search embeddings are not enabled on this server",
+        )
