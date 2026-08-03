@@ -7,6 +7,7 @@
 
 export * from './apiRoot200.ts';
 export * from './appSettingsResponse.ts';
+export * from './backfillEmbeddingsParams.ts';
 export * from './bodyLogin.ts';
 export * from './bodyUploadBookEpub.ts';
 export * from './bookCreate.ts';

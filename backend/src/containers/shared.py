@@ -56,6 +56,7 @@ from src.infrastructure.reflection.repositories.book_reflection_repository impor
     BookReflectionRepository,
 )
 from src.infrastructure.semantic.clients.lazy_embedding_client import LazyEmbeddingClient
+from src.infrastructure.semantic.content.content_source import ContentSource
 from src.infrastructure.tagging.repositories import TagRepository
 
 
@@ -173,3 +174,4 @@ class SharedContainer(containers.DeclarativeContainer):
     # the settings check to first use, so resolving an endpoint's dependencies
     # cannot fail before the feature gate answers.
     embedding_client = providers.Singleton(LazyEmbeddingClient, settings=settings)
+    content_source = providers.Factory(ContentSource, db=db, settings=settings)

@@ -3465,6 +3465,61 @@
         }
       }
     },
+    "/api/v1/semantic/backfill": {
+      "post": {
+        "tags": [
+          "semantic"
+        ],
+        "summary": "Backfill Embeddings",
+        "description": "Enqueue an embedding batch for the user's content, optionally scoped to a book.\n\nPoll progress through ``GET /jobs/batches/{id}``.",
+        "operationId": "backfill_embeddings",
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "book_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Book Id"
+            }
+          }
+        ],
+        "responses": {
+          "202": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/JobBatchResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/settings": {
       "get": {
         "tags": [

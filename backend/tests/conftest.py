@@ -14,9 +14,13 @@ os.environ.setdefault(
 )
 os.environ.setdefault("RATE_LIMIT_ENABLED", "false")
 
+import inspect
+import itertools
 from collections.abc import AsyncGenerator, Awaitable, Callable
 from datetime import datetime as dt
+from types import SimpleNamespace
 from typing import Any
+from unittest.mock import AsyncMock
 
 import pytest
 from httpx import ASGITransport, AsyncClient
@@ -214,6 +218,42 @@ async def test_user(db_session: AsyncSession) -> User:
     user = result.scalar_one_or_none()
     assert user is not None
     return user
+
+
+def contract_checked_queue() -> AsyncMock:
+    """A fake job queue that checks each enqueue against the real SAQ task.
+
+    A bare AsyncMock accepts any method and any keyword, so an enqueue site that
+    renamed or dropped an argument its task requires would keep every test green
+    and fail only in production, inside the worker. Binding the kwargs to the
+    real task's signature moves that failure to the test that caused it.
+
+    It reports through ``pytest.fail`` rather than raising ``TypeError`` on
+    purpose: the enqueue seams catch ``Exception`` and log, so a plain error
+    would be swallowed here exactly as it is in production and prove nothing.
+    """
+    counter = itertools.count()
+
+    def enqueue(  # noqa: ANN202
+        function_name: str,
+        retries: int = 3,
+        timeout_seconds: int = 300,
+        **kwargs: object,
+    ):
+        from src import worker  # noqa: PLC0415
+
+        task = getattr(worker, function_name, None)
+        if task is not None:
+            try:
+                # SimpleNamespace stands in for the ctx SAQ passes positionally.
+                inspect.signature(task).bind(SimpleNamespace(), **kwargs)
+            except TypeError as exc:
+                pytest.fail(f"enqueue({function_name!r}) does not match the task: {exc}")
+        return f"saq:test:{next(counter)}"
+
+    fake = AsyncMock()
+    fake.enqueue = AsyncMock(side_effect=enqueue)
+    return fake
 
 
 @pytest.fixture
