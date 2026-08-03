@@ -193,11 +193,24 @@ Enqueue paths (all via `EmbeddingEnqueuer`, which no-ops when
   nothing — it is catch-up for old content and post-model-swap re-embeds. Batch
   progress is visible for free through the existing batch views.
 
-  Work items also include **orphans** — embeddings whose source row is gone or
-  soft-deleted. They need no special delete path: the job's `get_embeddable`
+  Work items also include **orphans** — embeddings a soft-deleted highlight
+  left behind. They need no special delete path: the job's `get_embeddable`
   returns `None` and the spine's "source missing → `delete_for`" branch prunes
   the row. Deleting content therefore does not enqueue anything; the index is
-  reconciled on the next backfill.
+  reconciled on the next backfill. Only highlights can strand an embedding:
+  notes and digests are hard-deleted only, and their typed FK anchors cascade
+  the row away in either race ordering, so sweeping for them found nothing by
+  construction.
+
+  Two backfills can **overlap**, and nothing dedups the jobs they enqueue.
+  Refusing a new batch while one is active was considered and rejected: the
+  enqueue loop runs inside the HTTP request, so a request that dies partway
+  leaves a batch that never reaches a terminal status, and gating on "a batch is
+  active" would then lock the user out of backfill permanently. Wasted work is
+  the better failure of the two — most duplicates lose the hash race and cost
+  nothing. The fix belongs at the queue instead, as deterministic job keys, so
+  that re-enqueueing a unit collapses into the pending job rather than being
+  gated. Tracked in issue #531.
 
 ### Read side
 
