@@ -2,6 +2,7 @@
 
 import hashlib
 from collections.abc import AsyncGenerator
+from datetime import UTC, datetime
 from unittest.mock import AsyncMock, patch
 
 import pytest
@@ -10,7 +11,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from starlette import status
 
 from src.application.semantic.content_type import ContentType
-from src.models import Book, Embedding, Highlight
+from src.models import Book, Embedding, Highlight, User
 
 ENABLED = "src.infrastructure.common.dependencies.is_embeddings_enabled"
 
@@ -139,3 +140,76 @@ async def _make_highlight(
     await db.refresh(highlight)
     await _add_embedding(db, highlight, vector, book)
     return highlight
+
+
+class TestResultPaging:
+    async def test_fills_the_page_when_an_indexed_source_was_deleted(
+        self,
+        client: AsyncClient,
+        override_embedding_client: AsyncMock,
+        db_session: AsyncSession,
+        test_book: Book,
+    ) -> None:
+        """A deleted-but-indexed unit must not consume a slot in the page.
+
+        The index stores no source state, so the NN scan still ranks the deleted
+        highlight; only hydration can drop it. Ranking exactly `limit` rows would
+        hand back one result instead of two.
+        """
+        best = await _make_highlight(db_session, test_book, "closest", vector=[1.0, 0.0])
+        second = await _make_highlight(db_session, test_book, "next", vector=[0.95, 0.05])
+        third = await _make_highlight(db_session, test_book, "third", vector=[0.9, 0.1])
+        best.deleted_at = datetime.now(UTC)
+        await db_session.commit()
+
+        with patch(ENABLED, return_value=True):
+            response = await client.get("/api/v1/semantic/search", params={"q": "idea", "limit": 2})
+
+        assert response.status_code == status.HTTP_200_OK
+        ids = [row["content_id"] for row in response.json()]
+        assert ids == [second.id, third.id]
+
+    async def test_never_returns_more_than_the_requested_limit(
+        self,
+        client: AsyncClient,
+        override_embedding_client: AsyncMock,
+        db_session: AsyncSession,
+        test_book: Book,
+    ) -> None:
+        for index in range(5):
+            await _make_highlight(
+                db_session, test_book, f"text {index}", vector=[1.0 - index / 10, 0.0]
+            )
+
+        with patch(ENABLED, return_value=True):
+            response = await client.get("/api/v1/semantic/search", params={"q": "idea", "limit": 2})
+
+        assert response.status_code == status.HTTP_200_OK
+        assert len(response.json()) == 2
+
+    async def test_does_not_return_another_users_content(
+        self,
+        client: AsyncClient,
+        override_embedding_client: AsyncMock,
+        db_session: AsyncSession,
+        test_book: Book,
+    ) -> None:
+        """A dropped user_id filter is this app's worst realistic bug class."""
+        mine = await _make_highlight(db_session, test_book, "mine", vector=[1.0, 0.0])
+        other_user = User(email="someone.else@test.com")
+        db_session.add(other_user)
+        await db_session.commit()
+        await db_session.refresh(other_user)
+        other_book = Book(user_id=other_user.id, title="Someone else's")
+        db_session.add(other_book)
+        await db_session.commit()
+        await db_session.refresh(other_book)
+        theirs = await _make_highlight(db_session, other_book, "theirs", vector=[1.0, 0.0])
+
+        with patch(ENABLED, return_value=True):
+            response = await client.get("/api/v1/semantic/search", params={"q": "idea"})
+
+        assert response.status_code == status.HTTP_200_OK
+        ids = [row["content_id"] for row in response.json()]
+        assert mine.id in ids
+        assert theirs.id not in ids

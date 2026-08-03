@@ -117,6 +117,13 @@ single rule makes both live recalculation and backfill idempotent and makes the
 three drift scenarios (flag toggled on after content existed, content edited
 while off, model swapped) all resolve to one reconciliation query.
 
+The reconciliation query outer-joins the stored state but evaluates staleness in
+**Python, not SQL**: `content_hash` is a SHA-256 over text assembled in
+application code, and there is no portable way to recompute it in both Postgres
+and SQLite. Filtering on model identity alone in SQL would miss content drift
+entirely — the case where a job exhausted its retries is exactly the one backfill
+exists to catch.
+
 `GenerateContentEmbeddingUseCase` (the task core):
 
 1. `content_source.get_embeddable(type, id)` → text + hash + `book_id`, or
@@ -154,6 +161,12 @@ Enqueue paths (all via `EmbeddingEnqueuer`, which no-ops when
   nothing — it is catch-up for old content and post-model-swap re-embeds. Batch
   progress is visible for free through the existing batch views.
 
+  Work items also include **orphans** — embeddings whose source row is gone or
+  soft-deleted. They need no special delete path: the job's `get_embeddable`
+  returns `None` and the spine's "source missing → `delete_for`" branch prunes
+  the row. Deleting content therefore does not enqueue anything; the index is
+  reconciled on the next backfill.
+
 ### Read side
 
 Both are `queries/` read use cases (ADR-0001: routers call use cases, reads
@@ -164,11 +177,17 @@ included).
 - **`RelatedContentUseCase(content_type, content_id)`** — reads the already
   indexed vector for that unit (no embedding call), NN search excluding self.
 
-The NN adapter is user-scoped (`WHERE user_id = :u`) and excludes content whose
-source row is soft-deleted (join + `deleted_at IS NULL`); backfill additionally
-prunes embeddings whose source is gone. Result rows carry `(content_type,
-content_id, book_id, score)`; the read use case hydrates display fields through
-existing per-module queries (acceptable N+1 at `k ≈ 10–20`).
+The NN adapter is user-scoped (`WHERE user_id = :u`). It does **not** join the
+source tables to filter soft-deleted content: the index stores no source state,
+and joining three modules' tables into the ranking query would put cross-module
+knowledge in the adapter. Instead, deleted units are dropped during hydration —
+which means ranking exactly `k` rows would silently return fewer than `k`. So the
+read use cases over-fetch (`overfetch_limit`) and trim to `k` after hydrating.
+That is a mitigation, not a guarantee; keeping the index clean is backfill's job.
+
+Result rows carry `(content_type, content_id, book_id, score)`; the read use case
+hydrates display fields through existing per-module queries (acceptable N+1 at
+`k ≈ 10–20`).
 
 Query adapters obey ADR-0001 Rule 1 (queries never decide): they select, join,
 filter, order — no business rules in SQL.

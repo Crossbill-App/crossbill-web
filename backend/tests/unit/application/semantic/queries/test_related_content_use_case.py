@@ -6,6 +6,7 @@ import pytest
 
 from src.application.semantic.content_type import ContentType
 from src.application.semantic.protocols.content_source import EmbeddableContent
+from src.application.semantic.queries.hydration import overfetch_limit
 from src.application.semantic.queries.related_content_use_case import RelatedContentUseCase
 from src.application.semantic.queries.semantic_search import SemanticSearchHit
 
@@ -74,7 +75,7 @@ class TestRelatedContent:
             embedding=[0.1, 0.2, 0.3],
             user_id=1,
             book_id=None,
-            limit=10,
+            limit=overfetch_limit(10),
             exclude=(ContentType.HIGHLIGHT, 5),
         )
         assert [(view.content_id, view.text, view.score) for view in results] == [

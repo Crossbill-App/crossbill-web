@@ -2,7 +2,7 @@
 
 from src.application.semantic.content_type import ContentType
 from src.application.semantic.protocols.content_source import ContentSourceProtocol
-from src.application.semantic.queries.hydration import hydrate_hits
+from src.application.semantic.queries.hydration import hydrate_hits, overfetch_limit
 from src.application.semantic.queries.semantic_search import (
     SemanticSearchQueryProtocol,
     SemanticSearchView,
@@ -31,7 +31,7 @@ class RelatedContentUseCase:
             embedding=vector,
             user_id=user_id,
             book_id=None,
-            limit=limit,
+            limit=overfetch_limit(limit),
             exclude=(content_type, content_id),
         )
-        return await hydrate_hits(hits, self.content_source)
+        return await hydrate_hits(hits, self.content_source, limit)
