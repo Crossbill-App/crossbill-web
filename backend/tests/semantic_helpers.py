@@ -16,6 +16,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from starlette import status
 
 from src.application.semantic.content_type import ContentType
+from src.application.semantic.idempotency import current_model_name
 from src.config import get_settings
 from src.models import Book, Embedding, Highlight
 from tests.conftest import create_test_highlight
@@ -52,7 +53,7 @@ async def index_highlight(
             highlight_id=highlight.id,
             book_id=book.id,
             embedding=vector if vector is not None else [0.1, 0.2],
-            model_name=settings.EMBEDDING_MODEL_NAME or "",
+            model_name=current_model_name(settings),
             model_version=settings.EMBEDDING_MODEL_VERSION,
             content_hash=content_hash(hashed_text if hashed_text is not None else highlight.text),
         )

@@ -83,6 +83,10 @@ async def _add_embedding(db: AsyncSession, book: Book, content_id: int, content_
             user_id=USER_ID,
             content_type=ContentType.HIGHLIGHT.value,
             content_id=content_id,
+            # The cascade anchor the repository always writes. Leaving it unset
+            # produced a row no production write can make: the CHECK evaluates
+            # to NULL rather than false, so the database accepts it.
+            highlight_id=content_id,
             book_id=book.id,
             embedding=[0.1, 0.2],
             model_name="bge-m3",

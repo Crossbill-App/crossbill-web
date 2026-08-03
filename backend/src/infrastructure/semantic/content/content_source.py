@@ -15,7 +15,9 @@ from sqlalchemy import Row, Select, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.application.semantic.content_type import ContentType
+from src.application.semantic.idempotency import is_current
 from src.application.semantic.protocols.content_source import EmbeddableContent, WorkItem
+from src.application.semantic.protocols.embedding_repository import EmbeddingState
 from src.config import Settings
 from src.infrastructure.library.orm.book_model import Book as BookORM
 from src.infrastructure.library.orm.chapter_model import Chapter as ChapterORM
@@ -247,16 +249,21 @@ class ContentSource:
         )
 
     def _is_stale(self, row: Row[Any], text: str) -> bool:
-        """The ADR-0002 spine: missing, model-drifted, or content-drifted."""
+        """The ADR-0002 spine: missing, model-drifted, or content-drifted.
+
+        Scope is deliberately not compared: a note whose book links changed with
+        its text untouched would keep a stale ``book_id`` forever. Unreachable
+        today only because ``UpdateNoteUseCase`` passes the note's existing
+        ``book_ids`` straight through; revisit when book links become editable.
+        """
         if row.embedding_id is None:
             return True
-        # Mirror the coercion GenerateContentEmbeddingUseCase writes with, so an
-        # unset model name compares equal instead of marking every row stale.
-        if row.stored_model_name != (self._settings.EMBEDDING_MODEL_NAME or ""):
-            return True
-        if row.stored_model_version != self._settings.EMBEDDING_MODEL_VERSION:
-            return True
-        return row.stored_content_hash != _content_hash(text)
+        stored = EmbeddingState(
+            content_hash=row.stored_content_hash,
+            model_name=row.stored_model_name,
+            model_version=row.stored_model_version,
+        )
+        return not is_current(stored, _content_hash(text), self._settings)
 
     async def _pending(
         self,
@@ -272,29 +279,37 @@ class ContentSource:
         ]
 
     async def _orphans(self, user_id: int, book_id: int | None) -> list[WorkItem]:
-        """Embeddings whose source row is gone or soft-deleted.
+        """Embeddings left behind by a soft-deleted highlight.
+
+        Only a highlight can strand one. Notes and digests are hard-deleted
+        only, and their typed FK anchors cascade the embedding away in either
+        race ordering: the FK check takes ``FOR KEY SHARE`` on the referenced
+        row, so a concurrent DELETE either waits for the insert and then
+        cascades it, or wins and the insert fails on the FK -- leaving the retry
+        to resolve ``None`` and delete. Sweeping them too meant an unindexed
+        anti-join across all of the user's notes and digests, per backfill,
+        hunting rows that cannot exist.
+
+        A soft delete is an UPDATE, which no foreign key can see, so this
+        remains the backstop for a highlight: for the window where a job in
+        flight across ``embed()`` re-inserts a row for content just deleted, and
+        for a cleanup that failed outright.
 
         Handing these back as work items is enough to prune them: the job's
         ``get_embeddable`` returns ``None`` and the existing "source missing ->
         delete_for" branch removes the row. No separate delete path needed.
         """
-        live: dict[ContentType, Select[Any]] = {
-            ContentType.NOTE: select(NoteORM.id),
-            ContentType.HIGHLIGHT: select(HighlightORM.id).where(HighlightORM.deleted_at.is_(None)),
-            ContentType.DIGEST: select(ChapterDigestORM.id),
-        }
-
-        items: list[WorkItem] = []
-        for content_type, live_ids in live.items():
-            stmt = select(EmbeddingORM.content_id).where(
-                EmbeddingORM.user_id == user_id,
-                EmbeddingORM.content_type == content_type.value,
-                EmbeddingORM.content_id.notin_(live_ids),
-            )
-            if book_id is not None:
-                stmt = stmt.where(EmbeddingORM.book_id == book_id)
-            ids = (await self.db.execute(stmt)).scalars().all()
-            items.extend(
-                WorkItem(content_type=content_type, content_id=content_id) for content_id in ids
-            )
-        return items
+        # Positive form on the anchor column, which has a partial index --
+        # cheaper than an anti-join against every live highlight.
+        soft_deleted = select(HighlightORM.id).where(HighlightORM.deleted_at.is_not(None))
+        stmt = select(EmbeddingORM.content_id).where(
+            EmbeddingORM.user_id == user_id,
+            EmbeddingORM.highlight_id.in_(soft_deleted),
+        )
+        if book_id is not None:
+            stmt = stmt.where(EmbeddingORM.book_id == book_id)
+        ids = (await self.db.execute(stmt)).scalars().all()
+        return [
+            WorkItem(content_type=ContentType.HIGHLIGHT, content_id=content_id)
+            for content_id in ids
+        ]

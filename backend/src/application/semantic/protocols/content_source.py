@@ -53,5 +53,11 @@ class ContentSourceProtocol(Protocol):
         ...
 
     async def iter_work_items(self, user_id: int, book_id: int | None) -> list[WorkItem]:
-        """List the user's content units whose embedding is missing or model-stale."""
+        """List the user's content units the backfill has to act on.
+
+        Everything whose embedding is missing, model-stale or content-stale,
+        plus the embeddings a soft-deleted highlight left behind -- those come
+        back as work items too, because the job prunes them by resolving no
+        source (see ``ContentSource._orphans``).
+        """
         ...

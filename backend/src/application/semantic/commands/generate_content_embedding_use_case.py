@@ -1,6 +1,7 @@
 """Use case for embedding a single content unit (the task core)."""
 
 from src.application.semantic.content_type import ContentType
+from src.application.semantic.idempotency import current_model_name, is_current
 from src.application.semantic.protocols.content_source import ContentSourceProtocol
 from src.application.semantic.protocols.embedding_client import EmbeddingClientProtocol
 from src.application.semantic.protocols.embedding_repository import (
@@ -35,18 +36,11 @@ class GenerateContentEmbeddingUseCase:
             await self._repo.delete_for(content_type, content_id)
             return
 
-        # Read the model name once: comparing and storing must use the identical
-        # value, or an unset EMBEDDING_MODEL_NAME stores "" while comparing None
-        # and every row reads as permanently stale.
-        model_name = self._settings.EMBEDDING_MODEL_NAME or ""
-
+        # Re-checking what the backfill already filtered on is deliberate: the
+        # content can change between the two, and a model call is what is at
+        # stake. The rule itself lives in one place so the two cannot disagree.
         state = await self._repo.get_state(content_type, content_id)
-        if (
-            state is not None
-            and state.content_hash == emb.content_hash
-            and state.model_name == model_name
-            and state.model_version == self._settings.EMBEDDING_MODEL_VERSION
-        ):
+        if is_current(state, emb.content_hash, self._settings):
             return
 
         vectors = await self._client.embed([emb.text])
@@ -57,7 +51,7 @@ class GenerateContentEmbeddingUseCase:
                 user_id=emb.user_id,
                 book_id=emb.book_id,
                 embedding=vectors[0],
-                model_name=model_name,
+                model_name=current_model_name(self._settings),
                 model_version=self._settings.EMBEDDING_MODEL_VERSION,
                 content_hash=emb.content_hash,
             )
