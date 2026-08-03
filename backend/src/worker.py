@@ -6,7 +6,7 @@ For embedded mode (in-process with FastAPI), use create_embedded_worker().
 """
 
 import signal
-from typing import ClassVar
+from typing import TYPE_CHECKING, ClassVar
 
 import boto3
 import structlog
@@ -34,6 +34,9 @@ from src.infrastructure.library.services.epub_text_extraction_service import (
 from src.infrastructure.reading.repositories.chapter_digest_repository import (
     ChapterDigestRepository,
 )
+
+if TYPE_CHECKING:
+    from src.application.semantic.services.embedding_enqueuer import EmbeddingEnqueuer
 
 logger = structlog.get_logger(__name__)
 
@@ -76,6 +79,20 @@ def _build_file_repo() -> S3FileRepository | FileRepository:
     return FileRepository()
 
 
+def _build_embedding_enqueuer(db: AsyncSession) -> "EmbeddingEnqueuer":
+    """Build an EmbeddingEnqueuer wired onto the worker's own SAQ queue."""
+    from src.application.semantic.services.embedding_enqueuer import (  # noqa: PLC0415
+        EmbeddingEnqueuer,
+    )
+    from src.infrastructure.jobs.saq_job_queue_service import SaqJobQueueService  # noqa: PLC0415
+
+    return EmbeddingEnqueuer(
+        queue_service=SaqJobQueueService(_get_queue()),
+        batch_repo=JobBatchRepository(db=db),
+        settings=_get_app_settings(),
+    )
+
+
 def _build_digest_handler(db: AsyncSession) -> DigestTaskHandler:
     """Build a DigestTaskHandler with a fresh session."""
     from src.application.reading.commands.chapter_digest.generate_chapter_digest_use_case import (  # noqa: PLC0415
@@ -89,6 +106,7 @@ def _build_digest_handler(db: AsyncSession) -> DigestTaskHandler:
         book_repo=BookRepository(db=db),
         file_repo=_build_file_repo(),
         ai_digest_service=AIService(usage_repository=AIUsageRepository(db=db)),
+        embedding_enqueuer=_build_embedding_enqueuer(db),
     )
     return DigestTaskHandler(generate_digest_use_case=use_case)
 
@@ -153,7 +171,12 @@ async def generate_chapter_digest(
 
 
 async def generate_content_embedding(
-    ctx: Context, *, batch_id: int, content_type: str, content_id: int, user_id: int
+    ctx: Context,
+    *,
+    content_type: str,
+    content_id: int,
+    user_id: int,
+    batch_id: int | None = None,
 ) -> None:
     """SAQ task: embed a single content unit.
 

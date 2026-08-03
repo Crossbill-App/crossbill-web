@@ -8,6 +8,8 @@ from src.application.library.protocols.chapter_repository import ChapterReposito
 from src.application.notes.commands.helpers import parse_note_kind, validate_link_targets
 from src.application.notes.protocols.note_repository import NoteRepositoryProtocol
 from src.application.reading.protocols.highlight_repository import HighlightRepositoryProtocol
+from src.application.semantic.content_type import ContentType
+from src.application.semantic.protocols.embedding_enqueuer import EmbeddingEnqueuerProtocol
 from src.application.tagging.protocols.tag_repository import (
     TagRepositoryProtocol,
 )
@@ -27,12 +29,14 @@ class CreateNoteUseCase:
         chapter_repository: ChapterRepositoryProtocol,
         highlight_repository: HighlightRepositoryProtocol,
         tag_repository: TagRepositoryProtocol,
+        embedding_enqueuer: EmbeddingEnqueuerProtocol,
     ) -> None:
         self.note_repository = note_repository
         self.book_repository = book_repository
         self.chapter_repository = chapter_repository
         self.highlight_repository = highlight_repository
         self.tag_repository = tag_repository
+        self._embedding_enqueuer = embedding_enqueuer
 
     async def create_note(
         self,
@@ -72,6 +76,8 @@ class CreateNoteUseCase:
             tag_ids=tag_ids,
         )
         note = await self.note_repository.save(note)
+
+        await self._embedding_enqueuer.enqueue_for(ContentType.NOTE, note.id.value, user_id)
 
         logger.info("created_note", note_id=note.id.value, book_id=book_id)
         return note

@@ -1,5 +1,6 @@
 """Pytest configuration and fixtures."""
 
+import itertools
 import logging
 import os
 
@@ -17,6 +18,7 @@ os.environ.setdefault("RATE_LIMIT_ENABLED", "false")
 from collections.abc import AsyncGenerator, Awaitable, Callable
 from datetime import datetime as dt
 from typing import Any
+from unittest.mock import AsyncMock
 
 import pytest
 from httpx import ASGITransport, AsyncClient
@@ -244,10 +246,22 @@ async def client(db_session: AsyncSession, test_user: User) -> AsyncGenerator[As
 
     container.shared.file_repository.override(FileRepository())
 
+    # The SAQ queue is wired in the app lifespan, which ASGITransport skips, so
+    # provide a fake here. It returns string job keys so paths that persist a
+    # JobBatch (e.g. the highlight-upload embedding enqueue) round-trip; tests
+    # that assert enqueue behaviour override it again.
+    job_key_counter = itertools.count()
+    fake_queue_service = AsyncMock()
+    fake_queue_service.enqueue = AsyncMock(
+        side_effect=lambda *args, **kwargs: f"saq:test:{next(job_key_counter)}"
+    )
+    container.job_queue_service.override(fake_queue_service)
+
     transport = ASGITransport(app=app)
     async with AsyncClient(transport=transport, base_url="http://test") as test_client:
         yield test_client
 
+    container.job_queue_service.reset_override()
     container.shared.file_repository.reset_override()
     app.dependency_overrides.clear()
 

@@ -1,5 +1,6 @@
 from dependency_injector import containers, providers
 
+from src.application.semantic.services.embedding_enqueuer import EmbeddingEnqueuer
 from src.config import get_settings
 from src.containers.identity import IdentityContainer
 from src.containers.jobs import JobsContainer
@@ -25,6 +26,18 @@ class RootContainer(containers.DeclarativeContainer):
     settings = providers.Object(get_settings())
 
     shared = providers.Container(SharedContainer, db=db, settings=settings)
+
+    # Job queue is a process-wide dependency overridden in main.py once the SAQ
+    # queue is connected; the embedding enqueuer is the one seam source-module
+    # write use cases call, so it lives here where it can see the queue.
+    job_queue_service = providers.Dependency()
+
+    embedding_enqueuer = providers.Factory(
+        EmbeddingEnqueuer,
+        queue_service=job_queue_service,
+        batch_repo=shared.job_batch_repository,
+        settings=settings,
+    )
 
     identity = providers.Container(
         IdentityContainer,
@@ -56,6 +69,7 @@ class RootContainer(containers.DeclarativeContainer):
         highlight_search_query=shared.highlight_search_query,
         reading_session_query=shared.reading_session_query,
         ereader_digest_query=shared.ereader_digest_query,
+        embedding_enqueuer=embedding_enqueuer,
     )
 
     tagging = providers.Container(
@@ -101,6 +115,7 @@ class RootContainer(containers.DeclarativeContainer):
         highlight_repository=shared.highlight_repository,
         tag_repository=shared.tag_repository,
         note_query=shared.note_query,
+        embedding_enqueuer=embedding_enqueuer,
     )
 
     reflection = providers.Container(
@@ -109,8 +124,6 @@ class RootContainer(containers.DeclarativeContainer):
         book_repository=shared.book_repository,
         note_repository=shared.note_repository,
     )
-
-    job_queue_service = providers.Dependency()
 
     jobs = providers.Container(
         JobsContainer,

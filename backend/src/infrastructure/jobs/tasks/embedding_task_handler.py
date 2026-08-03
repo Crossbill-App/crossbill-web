@@ -22,9 +22,9 @@ class EmbeddingTaskHandler:
         self,
         _ctx: Context,
         *,
-        batch_id: int,
         content_type: ContentType,
         content_id: int,
+        batch_id: int | None = None,
     ) -> None:
         logger.info(
             "embedding_task_started",
