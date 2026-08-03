@@ -16,10 +16,7 @@ from sqlalchemy.orm import Mapped, mapped_column
 from sqlalchemy.types import JSON
 
 from src.database import Base
-
-# The embedding dimension is fixed to bge-m3 (1024) and mirrors
-# EMBEDDING_DIMENSIONS; a dimension change is a new migration by design.
-EMBEDDING_DIMENSIONS = 1024
+from src.infrastructure.semantic.dimensions import EMBEDDING_DIMENSIONS
 
 
 class Embedding(Base):

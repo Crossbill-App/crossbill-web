@@ -11,6 +11,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from starlette import status
 
 from src.application.semantic.content_type import ContentType
+from src.infrastructure.semantic.routers.semantic import MAX_QUERY_LENGTH
 from src.models import Book, Embedding, Highlight, User
 
 ENABLED = "src.infrastructure.common.dependencies.is_embeddings_enabled"
@@ -213,3 +214,43 @@ class TestResultPaging:
         ids = [row["content_id"] for row in response.json()]
         assert mine.id in ids
         assert theirs.id not in ids
+
+
+class TestQueryValidation:
+    async def test_rejects_empty_query_without_calling_the_model(
+        self, client: AsyncClient, override_embedding_client: AsyncMock
+    ) -> None:
+        """Every query costs a model call, so an empty one must not reach it."""
+        with patch(ENABLED, return_value=True):
+            response = await client.get("/api/v1/semantic/search", params={"q": ""})
+
+        assert response.status_code == status.HTTP_422_UNPROCESSABLE_ENTITY
+        override_embedding_client.embed.assert_not_called()
+
+    async def test_rejects_overlong_query_without_calling_the_model(
+        self, client: AsyncClient, override_embedding_client: AsyncMock
+    ) -> None:
+        with patch(ENABLED, return_value=True):
+            response = await client.get(
+                "/api/v1/semantic/search", params={"q": "x" * (MAX_QUERY_LENGTH + 1)}
+            )
+
+        assert response.status_code == status.HTTP_422_UNPROCESSABLE_ENTITY
+        override_embedding_client.embed.assert_not_called()
+
+    async def test_accepts_a_query_at_the_limit(
+        self,
+        client: AsyncClient,
+        override_embedding_client: AsyncMock,
+        db_session: AsyncSession,
+        test_book: Book,
+    ) -> None:
+        await _make_highlight(db_session, test_book, "something", vector=[1.0, 0.0])
+
+        with patch(ENABLED, return_value=True):
+            response = await client.get(
+                "/api/v1/semantic/search", params={"q": "x" * MAX_QUERY_LENGTH}
+            )
+
+        assert response.status_code == status.HTTP_200_OK
+        override_embedding_client.embed.assert_awaited_once()

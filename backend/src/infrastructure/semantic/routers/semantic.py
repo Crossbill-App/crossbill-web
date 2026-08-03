@@ -25,6 +25,10 @@ from src.infrastructure.semantic.schemas.semantic_schemas import SemanticSearchR
 router = APIRouter(prefix="/semantic", tags=["semantic"])
 
 MAX_SEARCH_LIMIT = 50
+# Bounded because every query costs a model call: an empty string would buy a
+# vector for nothing, and an unbounded one is billed by the token and would
+# eventually exceed bge-m3's 8K context.
+MAX_QUERY_LENGTH = 1000
 
 
 def _result(view: SemanticSearchView) -> SemanticSearchResult:
@@ -82,7 +86,7 @@ async def backfill_embeddings(
 )
 async def search_content(
     current_user: Annotated[User, Depends(get_current_user)],
-    q: str,
+    q: Annotated[str, Query(min_length=1, max_length=MAX_QUERY_LENGTH)],
     book_id: int | None = None,
     limit: Annotated[int, Query(ge=1, le=MAX_SEARCH_LIMIT)] = 10,
     use_case: SearchContentUseCase = Depends(

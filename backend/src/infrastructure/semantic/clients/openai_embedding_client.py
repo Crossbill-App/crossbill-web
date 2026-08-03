@@ -4,6 +4,7 @@ import httpx
 
 from src.application.semantic.protocols.embedding_client import EmbeddingClientProtocol
 from src.config import Settings
+from src.infrastructure.semantic.dimensions import EMBEDDING_DIMENSIONS
 
 # OpenRouter caps a single /embeddings request at 96 inputs; chunk to stay under it.
 _MAX_INPUTS_PER_REQUEST = 96
@@ -119,6 +120,6 @@ def build_embedding_client(settings: Settings) -> EmbeddingClientProtocol:
     return OpenAIEmbeddingClient(
         base_url=base_url,
         model_name=settings.EMBEDDING_MODEL_NAME,
-        dimensions=settings.EMBEDDING_DIMENSIONS,
+        dimensions=EMBEDDING_DIMENSIONS,
         api_key=api_key,
     )

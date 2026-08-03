@@ -85,6 +85,9 @@ def upgrade() -> None:
             server_default=sa.func.now(),
             nullable=False,
         ),
+        # This also provides the lookup index for (content_type, content_id) --
+        # a unique constraint is backed by a unique index, so a separate one
+        # would only add write cost.
         sa.UniqueConstraint("content_type", "content_id", name="uq_embeddings_content"),
         # Keeps the anchor columns from drifting out of step with the logical
         # key: exactly one typed id is set, and it matches content_id.
@@ -111,7 +114,6 @@ def upgrade() -> None:
             [column],
             postgresql_where=sa.text(f"{column} IS NOT NULL"),
         )
-    op.create_index("ix_embeddings_content", "embeddings", ["content_type", "content_id"])
     op.create_index(
         "ix_embeddings_embedding_hnsw",
         "embeddings",
@@ -124,7 +126,6 @@ def upgrade() -> None:
 def downgrade() -> None:
     """Downgrade schema."""
     op.drop_index("ix_embeddings_embedding_hnsw", table_name="embeddings")
-    op.drop_index("ix_embeddings_content", table_name="embeddings")
     for column in ("digest_id", "highlight_id", "note_id"):
         op.drop_index(f"ix_embeddings_{column}", table_name="embeddings")
     op.drop_index("ix_embeddings_book_id", table_name="embeddings")

@@ -15,6 +15,7 @@ from sqlalchemy.sql.elements import ColumnElement
 
 from src.application.semantic.content_type import ContentType
 from src.application.semantic.queries.semantic_search import SemanticSearchHit
+from src.infrastructure.common.sql import is_postgres
 from src.infrastructure.semantic.orm.embedding_model import Embedding as EmbeddingORM
 
 
@@ -40,7 +41,7 @@ class SemanticSearchQuery:
         exclude: tuple[ContentType, int] | None = None,
     ) -> list[SemanticSearchHit]:
         filters = self._filters(user_id, book_id, exclude)
-        if self.db.bind.dialect.name == "postgresql":
+        if is_postgres(self.db):
             return await self._nearest_postgres(embedding, filters, limit)
         return await self._nearest_python(embedding, filters, limit)
 

@@ -8,6 +8,7 @@ from sqlalchemy.sql import func
 
 from src.application.semantic.content_type import ContentType
 from src.application.semantic.protocols.embedding_repository import EmbeddingState, EmbeddingWrite
+from src.infrastructure.common.sql import is_postgres
 from src.infrastructure.semantic.orm.embedding_model import Embedding as EmbeddingORM
 
 _CONFLICT_KEYS = ["content_type", "content_id"]
@@ -59,7 +60,7 @@ class EmbeddingRepository:
             **anchors,
         }
 
-        insert = pg_insert if self.db.bind.dialect.name == "postgresql" else sqlite_insert
+        insert = pg_insert if is_postgres(self.db) else sqlite_insert
         stmt = insert(EmbeddingORM).values(values)
         stmt = stmt.on_conflict_do_update(index_elements=_CONFLICT_KEYS, set_=updates)
         await self.db.execute(stmt)

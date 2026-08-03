@@ -141,7 +141,6 @@ class Settings(BaseSettings):
     # so the provider only selects the base URL and key.
     EMBEDDING_PROVIDER: Literal["ollama"] | Literal["openrouter"] | None = None
     EMBEDDING_MODEL_NAME: str | None = None
-    EMBEDDING_DIMENSIONS: int = 1024
     # Stored alongside every embedding; bumping it forces a re-embed on the next
     # reconciliation pass without a schema change.
     EMBEDDING_MODEL_VERSION: str = "1"

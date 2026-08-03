@@ -1,8 +1,11 @@
 """Read model for semantic (nearest-neighbour) search over content embeddings.
 
 These are view DTOs and a query port, not domain types: an embedding row is
-derived data with no aggregate (ADR-0002). ``score`` is cosine similarity in
-``[0, 1]`` -- higher means more similar -- so callers never see raw distances.
+derived data with no aggregate (ADR-0002). ``score`` is cosine *similarity* --
+higher means more similar -- so callers never see raw distances. Its range is
+``[-1, 1]``: pgvector's ``<=>`` yields cosine distance in ``[0, 2]`` and the
+adapter reports ``1 - distance``. In practice text embeddings cluster well above
+zero, but nothing clamps the value, so do not treat it as a ``[0, 1]`` fraction.
 """
 
 from dataclasses import dataclass
