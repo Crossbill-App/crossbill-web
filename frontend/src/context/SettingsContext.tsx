@@ -26,6 +26,7 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
         setSettings({
           feature_flags: {
             ai: false,
+            embeddings: false,
             user_registrations: false,
           },
         });
