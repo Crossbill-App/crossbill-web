@@ -7,10 +7,12 @@ from sqlalchemy import (
     CheckConstraint,
     DateTime,
     ForeignKey,
+    Index,
     Integer,
     String,
     UniqueConstraint,
     func,
+    text,
 )
 from sqlalchemy.orm import Mapped, mapped_column
 from sqlalchemy.types import JSON
@@ -40,13 +42,13 @@ class Embedding(Base):
     # whose note or digest was deleted. Exactly one of these is set and always
     # equals content_id (see the CHECK below), letting the database do it.
     note_id: Mapped[int | None] = mapped_column(
-        ForeignKey("notes.id", ondelete="CASCADE"), index=True, nullable=True
+        ForeignKey("notes.id", ondelete="CASCADE"), nullable=True
     )
     highlight_id: Mapped[int | None] = mapped_column(
-        ForeignKey("highlights.id", ondelete="CASCADE"), index=True, nullable=True
+        ForeignKey("highlights.id", ondelete="CASCADE"), nullable=True
     )
     digest_id: Mapped[int | None] = mapped_column(
-        ForeignKey("chapter_digests.id", ondelete="CASCADE"), index=True, nullable=True
+        ForeignKey("chapter_digests.id", ondelete="CASCADE"), nullable=True
     )
     # SET NULL, not CASCADE: book_id is a scoping hint, not identity. A note can
     # outlive the book it was linked to, so deleting that book must clear the
@@ -81,6 +83,16 @@ class Embedding(Base):
             "(content_type = 'digest' AND digest_id = content_id "
             "AND note_id IS NULL AND highlight_id IS NULL)",
             name="ck_embeddings_one_typed_id",
+        ),
+        # Partial, exactly as migration 062 creates them: each anchor is set on
+        # only the rows of its own content type. Declaring them here rather than
+        # as index=True on the columns is what keeps the two in step -- plain
+        # index=True builds a non-partial index of the same name, which makes
+        # autogenerate report a diff forever and gives create_all (tests, dev
+        # databases) a different index shape than production.
+        *(
+            Index(f"ix_embeddings_{column}", column, postgresql_where=text(f"{column} IS NOT NULL"))
+            for column in ("note_id", "highlight_id", "digest_id")
         ),
     )
 
