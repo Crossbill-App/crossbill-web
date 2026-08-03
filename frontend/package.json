@@ -28,7 +28,7 @@
     "@mui/material": "^9.2.0",
     "@tanstack/react-query": "^5.90.12",
     "@tanstack/react-router": "^1.143.4",
-    "axios": "^1.13.5",
+    "axios": "^1.19.0",
     "lodash": "^4.18.1",
     "luxon": "^3.7.2",
     "motion": "^12.23.26",
