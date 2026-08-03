@@ -61,10 +61,10 @@ class TestSearchContent:
         content_source: AsyncMock,
     ) -> None:
         query.nearest.return_value = [_hit(1, 0.9), _hit(2, 0.7)]
-        content_source.get_embeddable.side_effect = [
-            _embeddable(1, "first"),
-            _embeddable(2, "second"),
-        ]
+        content_source.get_embeddable_many.return_value = {
+            1: _embeddable(1, "first"),
+            2: _embeddable(2, "second"),
+        }
 
         results = await use_case.execute(query_text="idea", user_id=1, book_id=None, limit=10)
 
@@ -84,7 +84,8 @@ class TestSearchContent:
         content_source: AsyncMock,
     ) -> None:
         query.nearest.return_value = [_hit(1, 0.9), _hit(2, 0.7)]
-        content_source.get_embeddable.side_effect = [None, _embeddable(2, "second")]
+        # Id 1 is absent from the batch: its source row is gone.
+        content_source.get_embeddable_many.return_value = {2: _embeddable(2, "second")}
 
         results = await use_case.execute(query_text="idea", user_id=1, book_id=None, limit=10)
 

@@ -41,6 +41,17 @@ class ContentSourceProtocol(Protocol):
         """Resolve one unit's text, or ``None`` if its source row is gone or soft-deleted."""
         ...
 
+    async def get_embeddable_many(
+        self, content_type: ContentType, content_ids: list[int]
+    ) -> dict[int, EmbeddableContent]:
+        """Resolve many units of one type at once, keyed by id.
+
+        Ids whose source row is gone or soft-deleted are absent from the result
+        rather than mapping to ``None``. Search hydration uses this so a page of
+        hits costs one query per content type instead of one per hit.
+        """
+        ...
+
     async def iter_work_items(self, user_id: int, book_id: int | None) -> list[WorkItem]:
         """List the user's content units whose embedding is missing or model-stale."""
         ...

@@ -49,11 +49,21 @@ class ContentSource:
     async def get_embeddable(
         self, content_type: ContentType, content_id: int
     ) -> EmbeddableContent | None:
+        """Resolve one unit. A special case of the bulk path, so the two cannot drift."""
+        found = await self.get_embeddable_many(content_type, [content_id])
+        return found.get(content_id)
+
+    async def get_embeddable_many(
+        self, content_type: ContentType, content_ids: list[int]
+    ) -> dict[int, EmbeddableContent]:
+        """Resolve many units of one type, keyed by id; missing ids are simply absent."""
+        if not content_ids:
+            return {}
         if content_type == ContentType.NOTE:
-            return await self._note(content_id)
+            return await self._notes(content_ids)
         if content_type == ContentType.HIGHLIGHT:
-            return await self._highlight(content_id)
-        return await self._digest(content_id)
+            return await self._highlights(content_ids)
+        return await self._digests(content_ids)
 
     async def iter_work_items(self, user_id: int, book_id: int | None) -> list[WorkItem]:
         items: list[WorkItem] = []
@@ -81,77 +91,105 @@ class ContentSource:
         items.extend(await self._orphans(user_id, book_id))
         return items
 
-    async def _note(self, content_id: int) -> EmbeddableContent | None:
-        note = (
-            await self.db.execute(select(NoteORM).where(NoteORM.id == content_id))
-        ).scalar_one_or_none()
-        if note is None:
-            return None
-        linked = (
-            (
-                await self.db.execute(
-                    select(note_books.c.book_id).where(note_books.c.note_id == content_id)
+    async def _notes(self, content_ids: list[int]) -> dict[int, EmbeddableContent]:
+        # Columns, not entities: selecting the mapped class drags in its
+        # selectin-loaded relationships, costing an extra query per relationship
+        # for data hydration never reads.
+        notes = (
+            await self.db.execute(
+                select(NoteORM.id, NoteORM.user_id, NoteORM.title, NoteORM.body).where(
+                    NoteORM.id.in_(content_ids)
                 )
             )
-            .scalars()
-            .all()
-        )
-        text = _note_text(note.title, note.body)
-        return EmbeddableContent(
-            content_type=ContentType.NOTE,
-            content_id=content_id,
-            user_id=note.user_id,
-            # Only a note linked to exactly one book gets a scope. A note spanning
-            # two books has no single correct value, and picking one arbitrarily
-            # would make `?book_id=` results depend on link order -- so it stays
-            # NULL and such notes surface in unscoped search only. Backfill still
-            # embeds them under a book's scope; they just aren't filterable by it.
-            book_id=linked[0] if len(linked) == 1 else None,
-            text=text,
-            content_hash=_content_hash(text),
-        )
+        ).all()
+        if not notes:
+            return {}
 
-    async def _highlight(self, content_id: int) -> EmbeddableContent | None:
-        highlight = (
+        # One pass for every note's book links, grouped in memory, rather than a
+        # follow-up query per note.
+        links: dict[int, list[int]] = {}
+        rows = await self.db.execute(
+            select(note_books.c.note_id, note_books.c.book_id).where(
+                note_books.c.note_id.in_(content_ids)
+            )
+        )
+        for note_id, book_id in rows:
+            links.setdefault(note_id, []).append(book_id)
+
+        resolved: dict[int, EmbeddableContent] = {}
+        for note in notes:
+            linked = links.get(note.id, [])
+            text = _note_text(note.title, note.body)
+            resolved[note.id] = EmbeddableContent(
+                content_type=ContentType.NOTE,
+                content_id=note.id,
+                user_id=note.user_id,
+                # Only a note linked to exactly one book gets a scope. A note
+                # spanning two books has no single correct value, and picking one
+                # arbitrarily would make `?book_id=` results depend on link order
+                # -- so it stays NULL and such notes surface in unscoped search
+                # only. Backfill still embeds them under a book's scope; they just
+                # aren't filterable by it.
+                book_id=linked[0] if len(linked) == 1 else None,
+                text=text,
+                content_hash=_content_hash(text),
+            )
+        return resolved
+
+    async def _highlights(self, content_ids: list[int]) -> dict[int, EmbeddableContent]:
+        highlights = (
             await self.db.execute(
-                select(HighlightORM).where(
-                    HighlightORM.id == content_id,
+                select(
+                    HighlightORM.id,
+                    HighlightORM.user_id,
+                    HighlightORM.book_id,
+                    HighlightORM.text,
+                ).where(
+                    HighlightORM.id.in_(content_ids),
                     HighlightORM.deleted_at.is_(None),
                 )
             )
-        ).scalar_one_or_none()
-        if highlight is None:
-            return None
-        return EmbeddableContent(
-            content_type=ContentType.HIGHLIGHT,
-            content_id=content_id,
-            user_id=highlight.user_id,
-            book_id=highlight.book_id,
-            text=highlight.text,
-            content_hash=_content_hash(highlight.text),
-        )
+        ).all()
+        return {
+            highlight.id: EmbeddableContent(
+                content_type=ContentType.HIGHLIGHT,
+                content_id=highlight.id,
+                user_id=highlight.user_id,
+                book_id=highlight.book_id,
+                text=highlight.text,
+                content_hash=_content_hash(highlight.text),
+            )
+            for highlight in highlights
+        }
 
-    async def _digest(self, content_id: int) -> EmbeddableContent | None:
-        row = (
+    async def _digests(self, content_ids: list[int]) -> dict[int, EmbeddableContent]:
+        rows = (
             await self.db.execute(
-                select(ChapterDigestORM, ChapterORM.book_id, BookORM.user_id)
+                select(
+                    ChapterDigestORM.id,
+                    ChapterDigestORM.summary,
+                    ChapterDigestORM.keypoints,
+                    ChapterORM.book_id,
+                    BookORM.user_id,
+                )
                 .join(ChapterORM, ChapterDigestORM.chapter_id == ChapterORM.id)
                 .join(BookORM, ChapterORM.book_id == BookORM.id)
-                .where(ChapterDigestORM.id == content_id)
+                .where(ChapterDigestORM.id.in_(content_ids))
             )
-        ).one_or_none()
-        if row is None:
-            return None
-        digest, book_id, user_id = row
-        text = _digest_text(digest.summary, digest.keypoints)
-        return EmbeddableContent(
-            content_type=ContentType.DIGEST,
-            content_id=content_id,
-            user_id=user_id,
-            book_id=book_id,
-            text=text,
-            content_hash=_content_hash(text),
-        )
+        ).all()
+
+        resolved: dict[int, EmbeddableContent] = {}
+        for digest_id, summary, keypoints, book_id, user_id in rows:
+            text = _digest_text(summary, keypoints)
+            resolved[digest_id] = EmbeddableContent(
+                content_type=ContentType.DIGEST,
+                content_id=digest_id,
+                user_id=user_id,
+                book_id=book_id,
+                text=text,
+                content_hash=_content_hash(text),
+            )
+        return resolved
 
     def _note_scope(self, user_id: int, book_id: int | None) -> Select[Any]:
         stmt = select(NoteORM.id.label("content_id"), NoteORM.title, NoteORM.body).where(

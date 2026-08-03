@@ -260,3 +260,56 @@ class TestIterWorkItems:
         assert deleted.id in ids
         # And the job's own resolution step reports it as gone, so it gets deleted.
         assert await source.get_embeddable(ContentType.HIGHLIGHT, deleted.id) is None
+
+
+class TestGetEmbeddableMany:
+    async def test_resolves_a_batch_and_omits_dead_sources(
+        self, content_source: ContentSource, db_session: AsyncSession
+    ) -> None:
+        book = await _add_book(db_session)
+        alive = await _add_highlight(db_session, book, "still here")
+        gone = await _add_highlight(db_session, book, "soft deleted", deleted=True)
+
+        found = await content_source.get_embeddable_many(
+            ContentType.HIGHLIGHT, [alive.id, gone.id, 9999]
+        )
+
+        assert set(found) == {alive.id}
+        assert found[alive.id].text == "still here"
+        assert found[alive.id].content_hash == _expected_hash("still here")
+
+    async def test_batches_note_book_links_without_a_query_per_note(
+        self, content_source: ContentSource, db_session: AsyncSession
+    ) -> None:
+        """Book scope must survive batching: one link query, grouped in memory."""
+        one = await _add_book(db_session, "one")
+        two = await _add_book(db_session, "two")
+        single = await _add_note(db_session, "single", "body", [one])
+        spanning = await _add_note(db_session, "spanning", "body", [one, two])
+        unlinked = await _add_note(db_session, "unlinked", "body", [])
+
+        found = await content_source.get_embeddable_many(
+            ContentType.NOTE, [single.id, spanning.id, unlinked.id]
+        )
+
+        assert found[single.id].book_id == one.id
+        assert found[spanning.id].book_id is None
+        assert found[unlinked.id].book_id is None
+
+    async def test_empty_input_touches_the_database_not_at_all(
+        self, content_source: ContentSource
+    ) -> None:
+        assert await content_source.get_embeddable_many(ContentType.NOTE, []) == {}
+
+    async def test_single_lookup_agrees_with_the_batch(
+        self, content_source: ContentSource, db_session: AsyncSession
+    ) -> None:
+        """get_embeddable delegates to the batch path, so the two cannot drift."""
+        book = await _add_book(db_session)
+        digest = await _add_digest(db_session, book, "summary", ["a", "b"])
+
+        one = await content_source.get_embeddable(ContentType.DIGEST, digest.id)
+        many = await content_source.get_embeddable_many(ContentType.DIGEST, [digest.id])
+
+        assert one is not None
+        assert many[digest.id] == one

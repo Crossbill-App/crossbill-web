@@ -62,7 +62,7 @@ class TestRelatedContent:
                 content_type=ContentType.HIGHLIGHT, content_id=9, book_id=3, score=0.8
             )
         ]
-        content_source.get_embeddable.return_value = _embeddable(9, "related text")
+        content_source.get_embeddable_many.return_value = {9: _embeddable(9, "related text")}
 
         results = await use_case.execute(
             content_type=ContentType.HIGHLIGHT, content_id=5, user_id=1, limit=10

@@ -53,7 +53,10 @@ remain separate data populations regardless.
 New settings in `config.py`, parallel to and independent of the chat/digest
 `AI_*` config (embeddings and generation will often want different providers):
 `EMBEDDING_PROVIDER` (`ollama | openrouter | None`), `EMBEDDING_MODEL_NAME`,
-`EMBEDDING_DIMENSIONS`, reusing the existing `OPENROUTER_API_KEY`.
+`EMBEDDING_BASE_URL`, `EMBEDDING_MODEL_VERSION`, reusing the existing
+`OPENROUTER_API_KEY`. The vector width is deliberately *not* a setting: it is
+fixed by the column, so it lives in `infrastructure/semantic/dimensions.py` where
+the ORM and the client's response validation both read it.
 
 ### Storage — one polymorphic table
 
@@ -215,8 +218,11 @@ read use cases over-fetch (`overfetch_limit`) and trim to `k` after hydrating.
 That is a mitigation, not a guarantee; keeping the index clean is backfill's job.
 
 Result rows carry `(content_type, content_id, book_id, score)`; the read use case
-hydrates display fields through existing per-module queries (acceptable N+1 at
-`k ≈ 10–20`).
+hydrates display fields through the content source, batched by content type — at
+most three queries per page regardless of `k`, selecting only the columns
+hydration reads rather than whole ORM entities (which would drag in
+selectin-loaded relationships). The earlier per-hit N+1 this ADR accepted at
+launch `k` is gone.
 
 Query adapters obey ADR-0001 Rule 1 (queries never decide): they select, join,
 filter, order — no business rules in SQL.
@@ -291,15 +297,17 @@ Ingestion runs whenever a provider is configured.
   running; the reconciliation query is the backstop.
 - Cross-module ORM reads in `content_source`, and source-module commands
   carrying one embedding dependency each — accepted coupling, concentrated.
-- Result hydration is N+1 over per-module queries at small `k`; revisit with a
-  denormalised excerpt column if result sets grow.
+- Result hydration costs up to three extra queries per page (one per content
+  type present), and fetches text for every over-fetched candidate rather than
+  only those that survive the cap. Revisit with a denormalised excerpt column if
+  result sets grow far beyond launch `k`.
 - pgvector is new operational surface (extension, HNSW build/maintenance).
 
 ## Open questions
 
 - Denormalise a `content_excerpt` onto `embeddings` for zero-join result
-  rendering, accepting display-only staleness? (Deferred; N+1 is fine at launch
-  `k`.)
+  rendering, accepting display-only staleness? (Deferred; batched hydration is
+  cheap enough at launch `k`.)
 - Backfill scope granularity: whole-library vs per-book `POST` — start per-book
   to bound batch size?
 - Filtered HNSW recall under `WHERE user_id` at larger corpora — measure before
