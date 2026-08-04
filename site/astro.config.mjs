@@ -4,21 +4,54 @@ import starlight from '@astrojs/starlight';
 
 // https://astro.build/config
 export default defineConfig({
+	site: 'https://crossbill-highlights.github.io',
+	base: '/crossbill-web',
 	integrations: [
 		starlight({
-			title: 'My Docs',
-			social: [{ icon: 'github', label: 'GitHub', href: 'https://github.com/withastro/starlight' }],
+			title: 'Crossbill',
+			description:
+				'A self-hosted reading companion that turns e-reader highlights into active reading.',
+			favicon: '/favicon.png',
+			logo: {
+				src: './src/assets/crossbill-logo.png',
+				alt: '',
+			},
+			social: [
+				{
+					icon: 'github',
+					label: 'GitHub',
+					href: 'https://github.com/Crossbill-Highlights/crossbill-web',
+				},
+			],
 			sidebar: [
 				{
-					label: 'Guides',
+					label: 'Getting Started',
 					items: [
-						// Each item here is one entry in the navigation menu.
-						{ label: 'Example Guide', slug: 'guides/example' },
+						{ label: 'Introduction', slug: 'getting-started/introduction' },
+						{ label: 'Installation', slug: 'getting-started/installation' },
+						{ label: 'KOReader plugin', slug: 'getting-started/koreader-plugin' },
+						{ label: 'Optional components', slug: 'getting-started/optional-components' },
 					],
 				},
 				{
-					label: 'Reference',
-					items: [{ autogenerate: { directory: 'reference' } }],
+					label: 'Features',
+					items: [
+						{ label: 'Highlights', slug: 'features/highlights' },
+						{ label: 'Tags and organization', slug: 'features/tags-and-organization' },
+						{ label: 'Notes', slug: 'features/notes' },
+						{ label: 'Chapter digests', slug: 'features/chapter-digests' },
+						{ label: 'Flashcards', slug: 'features/flashcards' },
+						{ label: 'Book reflections', slug: 'features/book-reflections' },
+						{ label: 'Semantic search', slug: 'features/semantic-search' },
+					],
+				},
+				{
+					label: 'Integrations',
+					items: [
+						{ label: 'KOReader', slug: 'integrations/koreader' },
+						{ label: 'Obsidian', slug: 'integrations/obsidian' },
+						{ label: 'Anki', slug: 'integrations/anki' },
+					],
 				},
 			],
 		}),

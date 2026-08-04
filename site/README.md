@@ -1,49 +1,47 @@
-# Starlight Starter Kit: Basics
+# Crossbill project site
 
-[![Built with Starlight](https://astro.badg.es/v2/built-with-starlight/tiny.svg)](https://starlight.astro.build)
+The public site for Crossbill: the landing page, the user documentation, and an
+unlisted blog section. Built with [Astro](https://astro.build/) and the
+[Starlight](https://starlight.astro.build/) docs theme.
 
-```
-npm create astro@latest -- --template starlight
-```
+## Running it
 
-> 🧑‍🚀 **Seasoned astronaut?** Delete this file. Have fun!
-
-## 🚀 Project Structure
-
-Inside of your Astro + Starlight project, you'll see the following folders and files:
-
-```
-.
-├── public/
-├── src/
-│   ├── assets/
-│   ├── content/
-│   │   └── docs/
-│   └── content.config.ts
-├── astro.config.mjs
-├── package.json
-└── tsconfig.json
+```bash
+cd site
+npm install
+npm run dev      # http://localhost:4321/crossbill-web/
+npm run build    # static output in site/dist/
+npm run preview  # serve the built output
 ```
 
-Starlight looks for `.md` or `.mdx` files in the `src/content/docs/` directory. Each file is exposed as a route based on its file name.
+The site is configured for GitHub Pages under a base path, so the dev server
+serves it at `/crossbill-web/`, not `/`.
 
-Images can be added to `src/assets/` and embedded in Markdown with a relative link.
+## Layout
 
-Static assets, like favicons, can be placed in the `public/` directory.
+- `src/content/docs/index.mdx` — the landing page (Starlight `splash` template).
+- `src/content/docs/getting-started/`, `features/`, `integrations/` — the
+  documentation. The sidebar is declared explicitly in `astro.config.mjs`; add a
+  page there when you add a file.
+- `src/content/blog/` — an unlisted blog collection. `src/pages/blog/` renders
+  `/blog/` and one route per post. Nothing links to it from the navigation; drop
+  a Markdown file into `src/content/blog/` with `title` and `date` frontmatter
+  to start. Until then the build logs "The collection `blog` … is empty", which
+  is expected.
+- `src/styles/custom.css` — the theme, ported from the app's design source of
+  truth, `frontend/src/theme/theme.ts`.
 
-## 🧞 Commands
+Internal links are written **relative** so they survive the `/crossbill-web`
+base path; do not hard-code root-absolute paths like `/features/notes/`.
 
-All commands are run from the root of the project, from a terminal:
+## Deployment
 
-| Command                   | Action                                           |
-| :------------------------ | :----------------------------------------------- |
-| `npm install`             | Installs dependencies                            |
-| `npm run dev`             | Starts local dev server at `localhost:4321`      |
-| `npm run build`           | Build your production site to `./dist/`          |
-| `npm run preview`         | Preview your build locally, before deploying     |
-| `npm run astro ...`       | Run CLI commands like `astro add`, `astro check` |
-| `npm run astro -- --help` | Get help using the Astro CLI                     |
+`.github/workflows/deploy-site.yml` builds and publishes to GitHub Pages on
+every push to `main` that touches `site/**`, and on manual dispatch. The
+repository's Pages source must be set to **GitHub Actions**.
 
-## 👀 Want to learn more?
+## Writing docs
 
-Check out [Starlight’s docs](https://starlight.astro.build/), read [the Astro documentation](https://docs.astro.build), or jump into the [Astro Discord server](https://astro.build/chat).
+Use the project's ubiquitous language from `CONTEXT.md` at the repository root —
+Highlight, Tag, Label, Chapter Digest, Note, Book Reflection, Flashcard, Reading
+Stage, Reading Session, Bookmark. Do not describe features that do not exist.

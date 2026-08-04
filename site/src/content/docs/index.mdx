@@ -1,40 +1,78 @@
 ---
-title: Welcome to Starlight
-description: Get started building your docs site with Starlight.
-template: splash # Remove or comment out this line to display the site sidebar on this page.
+title: Crossbill
+description: A self-hosted reading companion that turns e-reader highlights into active reading — chapter digests, flashcards, notes and reflections.
+template: splash
 hero:
-  tagline: Congrats on setting up a new Starlight project!
+  tagline: A self-hosted reading companion. Crossbill collects what you marked on your e-reader and gives you the tools to work it into understanding — chapter digests for skimming, flashcards, notes and reflections. Inspired by Mortimer J. Adler's <em>How to Read a Book</em>.
   image:
-    file: ../../assets/houston.webp
+    file: ../../assets/crossbill-logo.png
+    alt: ''
   actions:
-    - text: Example Guide
-      link: /guides/example/
+    - text: Get started
+      link: getting-started/installation/
       icon: right-arrow
-    - text: Read the Starlight docs
-      link: https://starlight.astro.build
+    - text: View on GitHub
+      link: https://github.com/Crossbill-Highlights/crossbill-web
       icon: external
-      variant: minimal
+      variant: secondary
 ---
 
-import { Card, CardGrid } from '@astrojs/starlight/components';
+import { Card, CardGrid, LinkCard } from '@astrojs/starlight/components';
 
-## Next steps
+## What it does
 
-<CardGrid stagger>
-	<Card title="Update content" icon="pencil">
-		Edit `src/content/docs/index.mdx` to see this page change.
+<CardGrid>
+	<Card title="Sync from KOReader" icon="cloud-download">
+		The KOReader plugin uploads your highlights, their highlight styles and your
+		reading sessions. Re-syncing the same book does not duplicate anything.
 	</Card>
-	<Card title="Change page layout" icon="document">
-		Delete `template: splash` in `src/content/docs/index.mdx` to display a
-		sidebar on this page.
+	<Card title="Organize" icon="list-format">
+		Group highlights and notes with your own tags, cluster those tags into tag
+		groups, and name the labels your e-reader's highlight styles stand for.
 	</Card>
-	<Card title="Add new content" icon="add-document">
-		Add Markdown or MDX files to `src/content/docs` to create new pages.
+	<Card title="Write notes" icon="pencil">
+		Author notes about a term, a character, a concept or the gist of a chapter,
+		and link them to the book's chapters, highlights and tags.
 	</Card>
-	<Card title="Configure your site" icon="setting">
-		Edit your `sidebar` and other config in `astro.config.mjs`.
+	<Card title="Chapter digests" icon="open-book">
+		Generate a summary, key points and comprehension questions for a chapter —
+		read them before the chapter to skim, or after it as review. Ollama, OpenAI,
+		Anthropic and Gemini are supported.
 	</Card>
-	<Card title="Read the docs" icon="open-book">
-		Learn more in [the Starlight Docs](https://starlight.astro.build/).
+	<Card title="Flashcards" icon="random">
+		Turn highlights, chapters and notes into question-and-answer cards, let the
+		AI suggest them for you, and study them in Anki.
 	</Card>
+	<Card title="Book reflections" icon="approve-check-circle">
+		Answer Adler's four analytical-reading questions about a book, and track
+		where each book stands with a reading stage.
+	</Card>
+</CardGrid>
+
+Crossbill is **self-hosted and multi-user** — every book, highlight and note
+belongs to one account on your own server, and your reading stays there.
+
+## The ecosystem
+
+<CardGrid>
+	<LinkCard
+		title="KOReader plugin"
+		href="https://github.com/Crossbill-Highlights/koreader-plugin"
+		description="Syncs highlights, highlight styles and reading sessions from your e-reader, and pulls chapter digests back down to it."
+	/>
+	<LinkCard
+		title="Obsidian plugin"
+		href="https://github.com/Crossbill-Highlights/obsidian-plugin"
+		description="Brings your highlights into your Obsidian vault."
+	/>
+	<LinkCard
+		title="Anki add-on"
+		href="https://github.com/Crossbill-Highlights/anki-addon"
+		description="Syncs the flashcards you made in Crossbill into your Anki collection."
+	/>
+	<LinkCard
+		title="Docker image"
+		href="https://hub.docker.com/r/tumetsu/crossbill"
+		description="tumetsu/crossbill — the published image the sample docker compose setup runs."
+	/>
 </CardGrid>
