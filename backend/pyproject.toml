@@ -4,7 +4,7 @@ version = "0.1.0"
 description = "crossbill backend - KOReader highlights sync server"
 authors = [{ name = "User", email = "user@example.com" }]
 readme = "README.md"
-requires-python = ">=3.11,<4.0"
+requires-python = ">=3.12,<4.0"
 dependencies = [
   "fastapi>=0.139.0,<0.141.0",
   "uvicorn[standard]>=0.44.0,<0.45.0",
@@ -50,7 +50,7 @@ build-backend = "hatchling.build"
 packages = ["src"]
 
 [tool.pyright]
-pythonVersion = "3.11"
+pythonVersion = "3.12"
 typeCheckingMode = "strict"
 reportMissingTypeStubs = false
 reportUnknownMemberType = false
@@ -60,7 +60,7 @@ reportUnknownLambdaType = false
 
 [tool.ruff]
 line-length = 100
-target-version = "py311"
+target-version = "py312"
 
 [tool.ruff.lint]
 select = [
@@ -92,6 +92,13 @@ ignore = [
   "E501",    # Line too long (handled by formatter)
   "S101",    # Use of assert detected (ok in tests)
   "PLR0913", # Too many arguments in function definitions (api endpoints might have more)
+  # PEP 695 type parameters (`class Entity[T]:` over `Generic[T]`). Unlocked by
+  # the 3.12 floor, but rewriting Entity, AggregateRoot, BaseRepository and the
+  # pydantic response wrappers is a migration of its own -- type parameters are
+  # lazily evaluated, so it is a behaviour change where pydantic reads them, not
+  # a formatting one. Not something a version bump should do on its way past.
+  "UP046",   # Generic class uses Generic subclass instead of type parameters
+  "UP047",   # Generic function should use type parameters
 ]
 
 [tool.ruff.lint.per-file-ignores]

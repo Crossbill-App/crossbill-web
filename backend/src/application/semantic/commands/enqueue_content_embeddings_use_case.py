@@ -1,5 +1,7 @@
 """Use case for enqueuing a backfill batch of content embeddings."""
 
+from itertools import batched
+
 import structlog
 
 from src.application.common.ownership import require_book
@@ -34,13 +36,10 @@ def _slices(items: list[WorkItem]) -> list[tuple[ContentType, list[int]]]:
     by_type: dict[ContentType, list[int]] = {}
     for item in items:
         by_type.setdefault(item.content_type, []).append(item.content_id)
-    # Sliced by hand rather than with itertools.batched: the project supports
-    # 3.11, where that does not exist. Same idiom the embedding client chunks
-    # its requests with.
     return [
-        (content_type, content_ids[start : start + EMBEDDING_SLICE_SIZE])
+        (content_type, list(chunk))
         for content_type, content_ids in by_type.items()
-        for start in range(0, len(content_ids), EMBEDDING_SLICE_SIZE)
+        for chunk in batched(content_ids, EMBEDDING_SLICE_SIZE)
     ]
 
 
