@@ -1,6 +1,6 @@
 ---
 name: start-github-ticket
-description: Use when the user provides a GitHub issue/ticket URL (e.g. github.com/Crossbill-Highlights/crossbill-web/issues/NNN) and asks to start working on it — fetches the ticket, moves it to In Progress on the project board, creates a branch, and begins implementation.
+description: Use when the user provides a GitHub issue/ticket URL (e.g. github.com/Crossbill-App/crossbill-web/issues/NNN) and asks to start working on it — fetches the ticket, moves it to In Progress on the project board, creates a branch, and begins implementation.
 ---
 
 # Start GitHub Ticket
@@ -8,7 +8,7 @@ description: Use when the user provides a GitHub issue/ticket URL (e.g. github.c
 ## 1. Fetch the ticket
 
 ```bash
-gh issue view <number> --repo Crossbill-Highlights/crossbill-web --json number,title,body,labels,projectItems,url
+gh issue view <number> --repo Crossbill-App/crossbill-web --json number,title,body,labels,projectItems,url
 ```
 
 The body is the spec — read it carefully.
@@ -19,8 +19,8 @@ The issue's `projectItems` contains the project item id(s). Find the Status
 field and option ids, then set the status:
 
 ```bash
-gh project list --owner Crossbill-Highlights
-gh project field-list <project-number> --owner Crossbill-Highlights --format json
+gh project list --owner Crossbill-App
+gh project field-list <project-number> --owner Crossbill-App --format json
 gh project item-edit --project-id <PROJECT_ID> --id <ITEM_ID> \
   --field-id <STATUS_FIELD_ID> --single-select-option-id <IN_PROGRESS_OPTION_ID>
 ```
