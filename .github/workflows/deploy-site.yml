@@ -29,6 +29,8 @@ jobs:
         uses: withastro/action@v3
         with:
           path: site
+          # Astro 7 needs Node >= 22.12; the action defaults to 20.
+          node-version: 24
 
   deploy:
     needs: build
