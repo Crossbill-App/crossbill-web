@@ -39,8 +39,8 @@ account, and everything you sync afterwards belongs to it.
 
 ## What's next
 
-- Turn on the extras you want — the background worker for AI, semantic search,
-  or S3-compatible storage: [Optional components](../optional-components/).
+- Turn on the extras you want — the background worker for AI or S3-compatible
+  storage: [Optional components](../optional-components/).
 - Find out what the API offers: the interactive documentation is served at
   `<backend host>/api/v1/docs` while the backend is running.
 - Running Crossbill from source instead? Each component has its own development

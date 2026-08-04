@@ -1,6 +1,6 @@
 ---
 title: Optional components
-description: The background worker, semantic search and S3-compatible storage — what each one adds and how to configure it.
+description: The background worker and S3-compatible storage — what each one adds and how to configure it.
 ---
 
 Crossbill runs without any of these. Turn on the ones you want.
@@ -20,39 +20,6 @@ For development, run the worker separately:
 ```bash
 make dev-worker
 ```
-
-## Semantic search
-
-Semantic search embeds notes, highlights and chapter digests into a pgvector
-index so related content surfaces across books and languages. It is off unless
-an embedding provider is configured.
-
-```
-# Local development, via Ollama
-EMBEDDING_PROVIDER=ollama
-EMBEDDING_MODEL_NAME=bge-m3
-EMBEDDING_BASE_URL=http://localhost:11434/v1
-
-# Hosted, via OpenRouter (reuses OPENROUTER_API_KEY)
-EMBEDDING_PROVIDER=openrouter
-EMBEDDING_MODEL_NAME=baai/bge-m3
-```
-
-`EMBEDDING_BASE_URL` is required for `ollama` and optional for `openrouter`
-(defaults to `https://openrouter.ai/api/v1`). `EMBEDDING_MODEL_VERSION`
-(default `1`) is stored with every vector: bump it to force a re-embed on the
-next backfill without a schema change.
-
-The vector width is fixed at 1024 (bge-m3) by the database column, so switching
-to a model of a different dimension is a migration plus a full re-embed, not a
-setting. Postgres must have the `vector` extension available, **version 0.8 or
-newer** — search sets `hnsw.iterative_scan`, without which a query can come back
-empty once one user's vectors sit nearer the index than another's. The bundled
-`pgvector/pgvector:pg18` image ships 0.8.6.
-
-Embeddings are written by background jobs. Existing content is indexed by
-`POST /api/v1/semantic/backfill`, which also prunes entries whose source is
-gone; progress is visible through the usual job-batch views.
 
 ## S3-compatible storage
 

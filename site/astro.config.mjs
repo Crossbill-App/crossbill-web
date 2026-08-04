@@ -50,7 +50,6 @@ export default defineConfig({
 						{ label: 'Chapter digests', slug: 'features/chapter-digests' },
 						{ label: 'Flashcards', slug: 'features/flashcards' },
 						{ label: 'Book reflections', slug: 'features/book-reflections' },
-						{ label: 'Semantic search', slug: 'features/semantic-search' },
 					],
 				},
 				{
