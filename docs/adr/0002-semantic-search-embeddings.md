@@ -220,17 +220,41 @@ is visible when book links become editable.
 
 Add `CONTENT_EMBEDDING` to `JobBatchType`; the `JobBatch` entity, ORM,
 atomic-increment progress, and `after_process` hook are type-agnostic and need
-no changes. Add `generate_content_embedding(ctx, *, batch_id, content_type,
-content_id, user_id)` to `worker.py` with a `_build_embedding_handler(db)` (the
+no changes. Add `generate_content_embeddings(ctx, *, batch_id, content_type,
+content_ids, user_id)` to `worker.py` with a `_build_embedding_handler(db)` (the
 worker wires DI by hand), registered in both worker-settings function lists.
 
 **Backfill is the only ingestion trigger in this ADR's scope.**
 `EnqueueContentEmbeddingsUseCase` runs the reconciliation query (missing or
 stale, optionally scoped to a book), creates a `JobBatch`, and enqueues one job
-per work item. Triggered manually via `POST`; it gates nothing — it is catch-up
-for existing content and post-model-swap re-embeds. Batch progress is visible
-for free through the existing batch views. Live enqueue-on-write is deferred
-(see *Deferred*), so until it lands the index is populated by running a backfill.
+per **slice** of work items. Triggered manually via `POST`; it gates nothing — it
+is catch-up for existing content and post-model-swap re-embeds. Batch progress is
+visible for free through the existing batch views. Live enqueue-on-write is
+deferred (see *Deferred*), so until it lands the index is populated by running a
+backfill.
+
+A job takes a slice of ids of one content type (32) rather than a single id.
+One job per unit made the unit of work match the unit of failure, which is
+tidy, but it also made it the unit of *cost*: one queue round trip per unit
+inside the request, and one provider request per unit in the worker, when the
+embeddings API accepts many inputs per call. A slice amortises both by the
+slice size. It is deliberately below the client's own per-request cap (96,
+OpenRouter's limit, which the client chunks at independently): the number that
+matters is how much text a local Ollama GPU is asked to hold at once, not the
+provider's ceiling.
+
+`total_jobs` counts slices, so batch progress is per slice. The cost is blast
+radius — a slice fails as a unit, so one unit whose text the provider rejects
+takes its slice down with it on every retry. Accepted for now, since no such
+unit exists yet: the fallback (embed one at a time on the error path) is noted
+as a `TODO` at the call site, and the task handler logs the slice's ids on
+failure so the offender is identifiable without a code change. Note that
+staleness is still decided per unit, not per slice — a slice re-embeds only its
+stale members, or one drifted note would pay to re-embed 31 current ones.
+
+What this does **not** fix is the reconciliation scan that feeds it, which still
+loads every candidate unit's text into the request to hash it. Tracked
+separately in issue #534.
 
 Work items also include **orphans** — embeddings a soft-deleted highlight left
 behind. They need no special delete path: the job's `get_embeddable` returns

@@ -107,15 +107,17 @@ async def get_related(client: AsyncClient, **params: PrimitiveData) -> Response:
 
 
 async def backfill_enqueued_ids(client: AsyncClient, queue: AsyncMock) -> set[int]:
-    """Run a backfill and return the content ids it enqueued.
+    """Run a backfill and return the content ids it enqueued, across every slice.
 
-    Also pins the invariant that the batch is sized to what was actually
-    enqueued, so callers only have to assert *which* units were picked up.
+    Also pins the invariant that the batch is sized to the number of *jobs*
+    enqueued -- one per slice, not one per unit -- so callers only have to assert
+    *which* units were picked up.
     """
     with patch(ENABLED, return_value=True):
         response = await client.post("/api/v1/semantic/backfill")
 
     assert response.status_code == status.HTTP_202_ACCEPTED, response.text
-    enqueued = {call.kwargs["content_id"] for call in queue.enqueue.await_args_list}
-    assert response.json()["total_jobs"] == len(enqueued)
+    calls = queue.enqueue.await_args_list
+    enqueued = {content_id for call in calls for content_id in call.kwargs["content_ids"]}
+    assert response.json()["total_jobs"] == len(calls)
     return enqueued

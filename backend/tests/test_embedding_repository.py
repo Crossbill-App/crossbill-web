@@ -86,7 +86,7 @@ class TestUpsert:
     async def test_insert_creates_row(
         self, embedding_repository: EmbeddingRepository, db_session: AsyncSession
     ) -> None:
-        await embedding_repository.upsert(_write(ContentType.NOTE, 42))
+        await embedding_repository.upsert_many([_write(ContentType.NOTE, 42)])
 
         result = await db_session.execute(select(EmbeddingORM).where(EmbeddingORM.content_id == 42))
         row = result.scalar_one()
@@ -102,15 +102,17 @@ class TestUpsert:
             (VECTOR, "a" * 64, 7),
             (OTHER_VECTOR, "b" * 64, None),
         ):
-            await embedding_repository.upsert(
-                _write(
-                    ContentType.HIGHLIGHT,
-                    5,
-                    book_id=book_id,
-                    embedding=embedding,
-                    model_version="2",
-                    content_hash=content_hash,
-                )
+            await embedding_repository.upsert_many(
+                [
+                    _write(
+                        ContentType.HIGHLIGHT,
+                        5,
+                        book_id=book_id,
+                        embedding=embedding,
+                        model_version="2",
+                        content_hash=content_hash,
+                    )
+                ]
             )
 
         result = await db_session.execute(
@@ -125,36 +127,113 @@ class TestUpsert:
         assert rows[0].content_hash == "b" * 64
         assert rows[0].model_version == "2"
 
+    async def test_writes_every_record_of_a_slice(
+        self, embedding_repository: EmbeddingRepository, db_session: AsyncSession
+    ) -> None:
+        await embedding_repository.upsert_many(
+            [
+                _write(ContentType.NOTE, 11, book_id=None, embedding=VECTOR),
+                _write(ContentType.NOTE, 42, embedding=OTHER_VECTOR),
+            ]
+        )
 
-class TestGetState:
+        rows = (
+            await db_session.execute(
+                select(EmbeddingORM)
+                .where(EmbeddingORM.content_type == "note")
+                .order_by(EmbeddingORM.content_id)
+            )
+        ).scalars()
+        assert [(row.content_id, row.embedding) for row in rows] == [
+            (11, VECTOR),
+            (42, OTHER_VECTOR),
+        ]
+
+    async def test_gives_each_row_of_a_slice_its_own_values_on_conflict(
+        self, embedding_repository: EmbeddingRepository, db_session: AsyncSession
+    ) -> None:
+        """One statement carries many rows, so the update must read the rejected row.
+
+        An update built from a single captured record would write that record's
+        vector over every conflicting row in the slice.
+        """
+        await embedding_repository.upsert_many(
+            [
+                _write(ContentType.NOTE, 11, embedding=VECTOR, content_hash="a" * 64),
+                _write(ContentType.NOTE, 42, embedding=VECTOR, content_hash="a" * 64),
+            ]
+        )
+
+        await embedding_repository.upsert_many(
+            [
+                _write(ContentType.NOTE, 11, embedding=[1.0, 1.0, 1.0], content_hash="b" * 64),
+                _write(ContentType.NOTE, 42, embedding=OTHER_VECTOR, content_hash="c" * 64),
+            ]
+        )
+
+        rows = (
+            await db_session.execute(
+                select(EmbeddingORM)
+                .where(EmbeddingORM.content_type == "note")
+                .order_by(EmbeddingORM.content_id)
+            )
+        ).scalars()
+        assert [(row.content_id, row.embedding, row.content_hash) for row in rows] == [
+            (11, [1.0, 1.0, 1.0], "b" * 64),
+            (42, OTHER_VECTOR, "c" * 64),
+        ]
+
+    async def test_empty_slice_writes_nothing(
+        self, embedding_repository: EmbeddingRepository, db_session: AsyncSession
+    ) -> None:
+        await embedding_repository.upsert_many([])
+
+        assert (await db_session.execute(select(EmbeddingORM))).scalars().all() == []
+
+
+class TestGetStates:
     async def test_returns_none_when_absent(
         self, embedding_repository: EmbeddingRepository
     ) -> None:
-        assert await embedding_repository.get_state(ContentType.DIGEST, 999) is None
+        assert await embedding_repository.get_states(ContentType.DIGEST, [999]) == {}
 
     async def test_returns_stored_idempotency_state(
         self, embedding_repository: EmbeddingRepository
     ) -> None:
-        await embedding_repository.upsert(
-            _write(ContentType.DIGEST, 3, book_id=1, content_hash="c" * 64)
+        await embedding_repository.upsert_many(
+            [_write(ContentType.DIGEST, 3, book_id=1, content_hash="c" * 64)]
         )
 
-        state = await embedding_repository.get_state(ContentType.DIGEST, 3)
-        assert state is not None
-        assert state.content_hash == "c" * 64
-        assert state.model_name == "bge-m3"
-        assert state.model_version == "1"
+        states = await embedding_repository.get_states(ContentType.DIGEST, [3])
+        assert states[3].content_hash == "c" * 64
+        assert states[3].model_name == "bge-m3"
+        assert states[3].model_version == "1"
+
+    async def test_returns_only_the_ids_that_are_embedded(
+        self, embedding_repository: EmbeddingRepository
+    ) -> None:
+        """A slice asks about all its ids at once; the absent ones must simply be missing."""
+        await embedding_repository.upsert_many([_write(ContentType.NOTE, 42)])
+
+        states = await embedding_repository.get_states(ContentType.NOTE, [11, 42])
+
+        assert list(states) == [42]
+
+    async def test_empty_id_list_asks_nothing(
+        self, embedding_repository: EmbeddingRepository
+    ) -> None:
+        assert await embedding_repository.get_states(ContentType.NOTE, []) == {}
 
 
 class TestDeleteFor:
     async def test_removes_matching_row(self, embedding_repository: EmbeddingRepository) -> None:
-        await embedding_repository.upsert(
-            _write(ContentType.NOTE, 11, book_id=None, content_hash="d" * 64)
+        await embedding_repository.upsert_many(
+            [_write(ContentType.NOTE, 11, book_id=None, content_hash="d" * 64)]
         )
 
         await embedding_repository.delete_for(ContentType.NOTE, [11])
 
-        assert await embedding_repository.get_state(ContentType.NOTE, 11) is None
+        assert await embedding_repository.get_states(ContentType.NOTE, [11]) == {}
 
     async def test_delete_absent_is_noop(self, embedding_repository: EmbeddingRepository) -> None:
         await embedding_repository.delete_for(ContentType.NOTE, [123])
@@ -164,7 +243,7 @@ class TestCascadeAnchors:
     async def test_upsert_sets_only_the_matching_anchor(
         self, embedding_repository: EmbeddingRepository, db_session: AsyncSession
     ) -> None:
-        await embedding_repository.upsert(_write(ContentType.NOTE, 42))
+        await embedding_repository.upsert_many([_write(ContentType.NOTE, 42)])
 
         row = (
             await db_session.execute(select(EmbeddingORM).where(EmbeddingORM.content_id == 42))
@@ -177,18 +256,18 @@ class TestCascadeAnchors:
         self, embedding_repository: EmbeddingRepository, db_session: AsyncSession
     ) -> None:
         """No FK on the polymorphic content_id; the note_id anchor is what cascades."""
-        await embedding_repository.upsert(_write(ContentType.NOTE, 42))
+        await embedding_repository.upsert_many([_write(ContentType.NOTE, 42)])
 
         note = (await db_session.execute(select(Note).where(Note.id == 42))).scalar_one()
         await db_session.delete(note)
         await db_session.commit()
 
-        assert await embedding_repository.get_state(ContentType.NOTE, 42) is None
+        assert await embedding_repository.get_states(ContentType.NOTE, [42]) == {}
 
     async def test_deleting_the_digest_cascades_the_embedding(
         self, embedding_repository: EmbeddingRepository, db_session: AsyncSession
     ) -> None:
-        await embedding_repository.upsert(_write(ContentType.DIGEST, 3, book_id=7))
+        await embedding_repository.upsert_many([_write(ContentType.DIGEST, 3, book_id=7)])
 
         digest = (
             await db_session.execute(select(ChapterDigest).where(ChapterDigest.id == 3))
@@ -196,13 +275,13 @@ class TestCascadeAnchors:
         await db_session.delete(digest)
         await db_session.commit()
 
-        assert await embedding_repository.get_state(ContentType.DIGEST, 3) is None
+        assert await embedding_repository.get_states(ContentType.DIGEST, [3]) == {}
 
     async def test_deleting_the_book_clears_scope_but_keeps_the_note(
         self, embedding_repository: EmbeddingRepository, db_session: AsyncSession
     ) -> None:
         """book_id is SET NULL: a note outlives its book, so its embedding must too."""
-        await embedding_repository.upsert(_write(ContentType.NOTE, 42, book_id=7))
+        await embedding_repository.upsert_many([_write(ContentType.NOTE, 42, book_id=7)])
 
         book = (await db_session.execute(select(Book).where(Book.id == 7))).scalar_one()
         await db_session.delete(book)

@@ -12,6 +12,12 @@ from src.models import Book, Highlight
 from tests.conftest import contract_checked_queue, create_test_highlight
 from tests.semantic_helpers import ENABLED, backfill_enqueued_ids, plant_indexed_highlight
 
+#: Patch target for the slice size, so a test can force several slices without
+#: planting 33 highlights to get past the real one.
+SLICE_SIZE = (
+    "src.application.semantic.commands.enqueue_content_embeddings_use_case.EMBEDDING_SLICE_SIZE"
+)
+
 
 @pytest.fixture
 async def override_queue() -> AsyncGenerator[AsyncMock, None]:
@@ -69,7 +75,34 @@ class TestBackfillEndpoint:
         assert response.status_code == status.HTTP_400_BAD_REQUEST
         override_queue.enqueue.assert_not_called()
 
-    async def test_records_units_it_could_not_enqueue_as_failures(
+    async def test_packs_units_into_one_job_per_slice(
+        self,
+        client: AsyncClient,
+        override_queue: AsyncMock,
+        db_session: AsyncSession,
+        test_book: Book,
+    ) -> None:
+        """A backfill of N units costs ceil(N / slice) jobs, not N.
+
+        One job per unit meant one queue round trip per unit in this request and
+        one provider round trip per unit in the worker.
+        """
+        for index in range(5):
+            await create_test_highlight(
+                db_session,
+                test_book,
+                test_book.user_id,
+                text=f"highlight {index}",
+                datetime_str="2024-01-15 14:30:22",
+            )
+
+        with patch(SLICE_SIZE, 2):
+            enqueued = await backfill_enqueued_ids(client, override_queue)
+
+        assert len(enqueued) == 5
+        assert override_queue.enqueue.await_count == 3
+
+    async def test_records_slices_it_could_not_enqueue_as_failures(
         self,
         client: AsyncClient,
         override_queue: AsyncMock,
@@ -79,7 +112,7 @@ class TestBackfillEndpoint:
         """A backfill that breaks partway must not report the rest as done.
 
         Shrinking total_jobs to what was enqueued made the batch terminate as
-        completed, with nothing to say the remaining units were dropped.
+        completed, with nothing to say the remaining slices were dropped.
         """
         for text in ("first", "second", "third"):
             await create_test_highlight(
@@ -91,7 +124,7 @@ class TestBackfillEndpoint:
             )
         override_queue.enqueue.side_effect = ["saq:1", RuntimeError("queue is down")]
 
-        with patch(ENABLED, return_value=True):
+        with patch(ENABLED, return_value=True), patch(SLICE_SIZE, 1):
             response = await client.post("/api/v1/semantic/backfill")
 
         assert response.status_code == status.HTTP_202_ACCEPTED

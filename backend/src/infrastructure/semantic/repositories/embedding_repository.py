@@ -36,55 +36,70 @@ class EmbeddingRepository:
     def __init__(self, db: AsyncSession) -> None:
         self.db = db
 
-    async def upsert(self, record: EmbeddingWrite) -> None:
-        anchors = _anchors(record.content_type, record.content_id)
-        values = {
-            "user_id": record.user_id,
-            "content_type": record.content_type.value,
-            "content_id": record.content_id,
-            "book_id": record.book_id,
-            "embedding": record.embedding,
-            "model_name": record.model_name,
-            "model_version": record.model_version,
-            "content_hash": record.content_hash,
-            **anchors,
-        }
-        updates = {
-            "user_id": record.user_id,
-            "book_id": record.book_id,
-            "embedding": record.embedding,
-            "model_name": record.model_name,
-            "model_version": record.model_version,
-            "content_hash": record.content_hash,
-            "updated_at": func.now(),
-            # No anchors here: the conflict key is (content_type, content_id),
-            # and the anchor is a function of exactly those two, so the row
-            # being updated already carries the value this would write.
-        }
+    async def upsert_many(self, records: list[EmbeddingWrite]) -> None:
+        if not records:
+            return
+        values = [
+            {
+                "user_id": record.user_id,
+                "content_type": record.content_type.value,
+                "content_id": record.content_id,
+                "book_id": record.book_id,
+                "embedding": record.embedding,
+                "model_name": record.model_name,
+                "model_version": record.model_version,
+                "content_hash": record.content_hash,
+                **_anchors(record.content_type, record.content_id),
+            }
+            for record in records
+        ]
 
         insert = pg_insert if is_postgres(self.db) else sqlite_insert
         stmt = insert(EmbeddingORM).values(values)
-        stmt = stmt.on_conflict_do_update(index_elements=_CONFLICT_KEYS, set_=updates)
+        stmt = stmt.on_conflict_do_update(
+            index_elements=_CONFLICT_KEYS,
+            # Read from the rejected row rather than from a captured record:
+            # one statement carries many rows, so the update has to take each
+            # row's own values. No anchors here — the conflict key is
+            # (content_type, content_id) and the anchor is a function of exactly
+            # those two, so the row being updated already carries the value this
+            # would write.
+            set_={
+                "user_id": stmt.excluded.user_id,
+                "book_id": stmt.excluded.book_id,
+                "embedding": stmt.excluded.embedding,
+                "model_name": stmt.excluded.model_name,
+                "model_version": stmt.excluded.model_version,
+                "content_hash": stmt.excluded.content_hash,
+                "updated_at": func.now(),
+            },
+        )
         await self.db.execute(stmt)
         await self.db.commit()
 
-    async def get_state(self, content_type: ContentType, content_id: int) -> EmbeddingState | None:
+    async def get_states(
+        self, content_type: ContentType, content_ids: list[int]
+    ) -> dict[int, EmbeddingState]:
+        if not content_ids:
+            return {}
         stmt = select(
+            EmbeddingORM.content_id,
             EmbeddingORM.content_hash,
             EmbeddingORM.model_name,
             EmbeddingORM.model_version,
         ).where(
             EmbeddingORM.content_type == content_type.value,
-            EmbeddingORM.content_id == content_id,
+            EmbeddingORM.content_id.in_(content_ids),
         )
-        row = (await self.db.execute(stmt)).one_or_none()
-        if row is None:
-            return None
-        return EmbeddingState(
-            content_hash=row.content_hash,
-            model_name=row.model_name,
-            model_version=row.model_version,
-        )
+        rows = (await self.db.execute(stmt)).all()
+        return {
+            row.content_id: EmbeddingState(
+                content_hash=row.content_hash,
+                model_name=row.model_name,
+                model_version=row.model_version,
+            )
+            for row in rows
+        }
 
     async def delete_for(self, content_type: ContentType, content_ids: list[int]) -> None:
         if not content_ids:

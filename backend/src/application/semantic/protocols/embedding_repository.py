@@ -41,12 +41,18 @@ class EmbeddingWrite:
 class EmbeddingRepositoryProtocol(Protocol):
     """Upsert-style store for content embeddings."""
 
-    async def upsert(self, record: EmbeddingWrite) -> None:
-        """Insert or replace the embedding for a content unit."""
+    async def upsert_many(self, records: list[EmbeddingWrite]) -> None:
+        """Insert or replace the embeddings for a slice of content units, in one statement.
+
+        Records must be unique by ``(content_type, content_id)``: a single
+        statement cannot apply ``ON CONFLICT DO UPDATE`` to the same row twice.
+        """
         ...
 
-    async def get_state(self, content_type: ContentType, content_id: int) -> EmbeddingState | None:
-        """Return the stored idempotency state, or ``None`` if not embedded yet."""
+    async def get_states(
+        self, content_type: ContentType, content_ids: list[int]
+    ) -> dict[int, EmbeddingState]:
+        """Return the stored idempotency state per id; ids not embedded yet are absent."""
         ...
 
     async def delete_for(self, content_type: ContentType, content_ids: list[int]) -> None:

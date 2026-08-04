@@ -100,8 +100,8 @@ def _build_embedding_handler(db: AsyncSession) -> EmbeddingTaskHandler:
     here because a job exists, so a misconfigured provider should fail loudly at
     construction rather than part-way through embedding.
     """
-    from src.application.semantic.commands.generate_content_embedding_use_case import (  # noqa: PLC0415
-        GenerateContentEmbeddingUseCase,
+    from src.application.semantic.commands.generate_content_embeddings_use_case import (  # noqa: PLC0415
+        GenerateContentEmbeddingsUseCase,
     )
     from src.infrastructure.semantic.clients.openai_embedding_client import (  # noqa: PLC0415
         build_embedding_client,
@@ -112,13 +112,13 @@ def _build_embedding_handler(db: AsyncSession) -> EmbeddingTaskHandler:
     )
 
     settings = _get_app_settings()
-    use_case = GenerateContentEmbeddingUseCase(
+    use_case = GenerateContentEmbeddingsUseCase(
         content_source=ContentSource(db=db, settings=settings),
         client=build_embedding_client(settings),
         repo=EmbeddingRepository(db=db),
         settings=settings,
     )
-    return EmbeddingTaskHandler(generate_embedding_use_case=use_case)
+    return EmbeddingTaskHandler(generate_embeddings_use_case=use_case)
 
 
 async def startup(ctx: Context) -> None:
@@ -157,15 +157,15 @@ async def generate_chapter_digest(
         )
 
 
-async def generate_content_embedding(
+async def generate_content_embeddings(
     ctx: Context,
     *,
     content_type: str,
-    content_id: int,
+    content_ids: list[int],
     user_id: int,
     batch_id: int,
 ) -> None:
-    """SAQ task: embed a single content unit.
+    """SAQ task: embed a slice of content units of one type.
 
     ``user_id`` is carried for symmetry with the other batch tasks and the
     ``after_process`` progress hook even though the use case does not need it.
@@ -179,7 +179,7 @@ async def generate_content_embedding(
             ctx,
             batch_id=batch_id,
             content_type=ContentType(content_type),
-            content_id=content_id,
+            content_ids=content_ids,
         )
 
 
@@ -200,7 +200,7 @@ def _build_worker_settings() -> SettingsDict[Context]:
     """Build SAQ worker settings lazily (called on first access)."""
     return {
         "queue": _get_queue(),
-        "functions": [generate_chapter_digest, generate_content_embedding],
+        "functions": [generate_chapter_digest, generate_content_embeddings],
         "concurrency": _get_app_settings().WORKER_CONCURRENCY,
         "startup": startup,
         "shutdown": shutdown,
@@ -233,7 +233,7 @@ def create_embedded_worker(queue: Queue, concurrency: int = 2) -> EmbeddedWorker
     """Create a Worker instance for running inside the app process."""
     return EmbeddedWorker(
         queue=queue,
-        functions=[generate_chapter_digest, generate_content_embedding],
+        functions=[generate_chapter_digest, generate_content_embeddings],
         concurrency=concurrency,
         startup=[startup],
         shutdown=[shutdown],
