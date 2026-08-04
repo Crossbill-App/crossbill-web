@@ -97,6 +97,7 @@ ignore = [
   # pydantic response wrappers is a migration of its own -- type parameters are
   # lazily evaluated, so it is a behaviour change where pydantic reads them, not
   # a formatting one. Not something a version bump should do on its way past.
+  # Tracked in issue #535; removing these two entries is what closes it.
   "UP046",   # Generic class uses Generic subclass instead of type parameters
   "UP047",   # Generic function should use type parameters
 ]
