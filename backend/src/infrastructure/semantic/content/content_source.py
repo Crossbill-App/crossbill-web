@@ -27,14 +27,47 @@ from src.infrastructure.reading.orm.chapter_digest_model import ChapterDigest as
 from src.infrastructure.reading.orm.highlight_model import Highlight as HighlightORM
 from src.infrastructure.semantic.orm.embedding_model import Embedding as EmbeddingORM
 
+#: Longest text sent to the embedding model, in characters.
+#:
+#: ADR-0002 asserts every unit fits ``bge-m3``'s 8K-token context and does not
+#: chunk. Nothing enforced that: ``notes.body`` is an unbounded ``Text`` column
+#: with no length validation on the way in, so a long enough note is whatever
+#: the provider decides -- Ollama truncates quietly, OpenRouter is likelier to
+#: reject the request. A rejection is the expensive outcome, because a unit that
+#: cannot be embedded stays stale forever: every backfill picks it up again and
+#: spends a job and its retries on it.
+#:
+#: 8000 characters is deliberately conservative. The reading data is mixed
+#: Finnish/English, and Finnish tokenises far worse than English, so even at a
+#: pessimistic 2 characters per token this stays under half the context.
+#:
+#: The tail of an over-long unit is simply not indexed. That follows from the
+#: ADR's "one vector per unit" -- chunking is what would index it, and that was
+#: explicitly not adopted.
+MAX_EMBEDDABLE_CHARS = 8000
+
+
+def _truncate(text: str) -> str:
+    return text[:MAX_EMBEDDABLE_CHARS]
+
 
 def _note_text(title: str, body: str) -> str:
-    return f"{title}\n\n{body}" if body else title
+    return _truncate(f"{title}\n\n{body}" if body else title)
+
+
+def _highlight_text(text: str) -> str:
+    """Exists so the highlight path truncates in one place, like the other two.
+
+    Both the reconciliation scan and ``get_embeddable_many`` have to arrive at
+    the same string: they hash independently, and a unit whose two hashes differ
+    is stale on every pass no matter how often it is embedded.
+    """
+    return _truncate(text)
 
 
 def _digest_text(summary: str, keypoints: list[str]) -> str:
     joined = "\n".join(keypoints)
-    return f"{summary}\n\n{joined}" if joined else summary
+    return _truncate(f"{summary}\n\n{joined}" if joined else summary)
 
 
 def _content_hash(text: str) -> str:
@@ -80,7 +113,7 @@ class ContentSource:
             await self._pending(
                 self._highlight_scope(user_id, book_id),
                 ContentType.HIGHLIGHT,
-                lambda row: row.text,
+                lambda row: _highlight_text(row.text),
             )
         )
         items.extend(
@@ -152,17 +185,18 @@ class ContentSource:
                 )
             )
         ).all()
-        return {
-            highlight.id: EmbeddableContent(
+        resolved: dict[int, EmbeddableContent] = {}
+        for highlight in highlights:
+            text = _highlight_text(highlight.text)
+            resolved[highlight.id] = EmbeddableContent(
                 content_type=ContentType.HIGHLIGHT,
                 content_id=highlight.id,
                 user_id=highlight.user_id,
                 book_id=highlight.book_id,
-                text=highlight.text,
-                content_hash=_content_hash(highlight.text),
+                text=text,
+                content_hash=_content_hash(text),
             )
-            for highlight in highlights
-        }
+        return resolved
 
     async def _digests(self, content_ids: list[int]) -> dict[int, EmbeddableContent]:
         rows = (

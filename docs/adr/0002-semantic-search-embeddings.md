@@ -420,8 +420,15 @@ Sequenced deliberately, so each lands as its own reviewable change:
 
 ## Explicitly NOT adopted
 
-- **Chunking / document-splitting.** All units are short (notes, highlights,
-  digest summaries) and fit `bge-m3`'s 8K context — one vector per unit.
+- **Chunking / document-splitting.** Units are short in practice (notes,
+  highlights, digest summaries) — one vector per unit. "In practice" is not a
+  guarantee, though: `notes.body` is an unbounded `Text` column with no length
+  validation on the way in, so `ContentSource` truncates at a character budget
+  (`MAX_EMBEDDABLE_CHARS`) rather than trusting the assumption. Both the
+  reconciliation scan and `get_embeddable_many` truncate through the same
+  helpers, because they hash independently and a unit whose two hashes disagree
+  is stale on every pass. The tail of an over-long unit is not indexed; indexing
+  it is what chunking would buy, and that is the thing not being adopted here.
 - **A visibility feature flag / coverage gating.** Partial coverage is fine.
 - **Hybrid lexical+semantic ranking.** The existing highlight FTS
   (`plainto_tsquery`) stays as-is and complementary; fusing the two is possible

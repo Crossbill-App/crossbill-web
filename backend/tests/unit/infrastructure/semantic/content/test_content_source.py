@@ -7,7 +7,10 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.application.semantic.content_type import ContentType
 from src.config import get_settings
-from src.infrastructure.semantic.content.content_source import ContentSource
+from src.infrastructure.semantic.content.content_source import (
+    MAX_EMBEDDABLE_CHARS,
+    ContentSource,
+)
 from src.models import Book, Chapter, ChapterDigest, Embedding, Highlight, Note
 
 USER_ID = 1
@@ -317,3 +320,87 @@ class TestGetEmbeddableMany:
 
         assert one is not None
         assert many[digest.id] == one
+
+
+class TestTruncation:
+    """Over-long units are cut to the model's budget before they are embedded.
+
+    Nothing bounded the text before, so a long enough note was whatever the
+    provider decided — and a rejection is permanent, because the unit stays
+    stale and every later backfill pays for it again.
+    """
+
+    async def test_truncates_an_over_long_note(
+        self, content_source: ContentSource, db_session: AsyncSession
+    ) -> None:
+        book = await _add_book(db_session)
+        note = await _add_note(db_session, "Title", "x" * (MAX_EMBEDDABLE_CHARS * 2), [book])
+
+        emb = await content_source.get_embeddable(ContentType.NOTE, note.id)
+
+        assert emb is not None
+        assert len(emb.text) == MAX_EMBEDDABLE_CHARS
+        assert emb.content_hash == _expected_hash(emb.text)
+
+    async def test_truncates_an_over_long_highlight(
+        self, content_source: ContentSource, db_session: AsyncSession
+    ) -> None:
+        book = await _add_book(db_session)
+        highlight = await _add_highlight(db_session, book, "y" * (MAX_EMBEDDABLE_CHARS + 1))
+
+        emb = await content_source.get_embeddable(ContentType.HIGHLIGHT, highlight.id)
+
+        assert emb is not None
+        assert len(emb.text) == MAX_EMBEDDABLE_CHARS
+
+    async def test_truncates_an_over_long_digest(
+        self, content_source: ContentSource, db_session: AsyncSession
+    ) -> None:
+        book = await _add_book(db_session)
+        digest = await _add_digest(
+            db_session, book, "z" * MAX_EMBEDDABLE_CHARS, ["and a keypoint past the budget"]
+        )
+
+        emb = await content_source.get_embeddable(ContentType.DIGEST, digest.id)
+
+        assert emb is not None
+        assert len(emb.text) == MAX_EMBEDDABLE_CHARS
+
+    async def test_leaves_text_within_the_budget_untouched(
+        self, content_source: ContentSource, db_session: AsyncSession
+    ) -> None:
+        book = await _add_book(db_session)
+        highlight = await _add_highlight(db_session, book, "w" * MAX_EMBEDDABLE_CHARS)
+
+        emb = await content_source.get_embeddable(ContentType.HIGHLIGHT, highlight.id)
+
+        assert emb is not None
+        assert emb.text == "w" * MAX_EMBEDDABLE_CHARS
+
+    async def test_an_embedded_over_long_unit_stops_being_work(
+        self, db_session: AsyncSession
+    ) -> None:
+        """The convergence that makes truncation safe, and the trap it avoids.
+
+        The scan and the job hash independently. If one hashed the full text and
+        the other the truncated text, an over-long unit would read as stale on
+        every pass — embedded, re-enqueued, re-embedded, forever, which is a
+        worse version of the failure truncation is here to prevent.
+        """
+        configured = get_settings().model_copy(
+            update={"EMBEDDING_MODEL_NAME": "bge-m3", "EMBEDDING_MODEL_VERSION": "1"}
+        )
+        source = ContentSource(db_session, configured)
+        book = await _add_book(db_session)
+        huge = await _add_highlight(db_session, book, "q" * (MAX_EMBEDDABLE_CHARS * 3))
+
+        assert huge.id in {item.content_id for item in await source.iter_work_items(USER_ID, None)}
+
+        # Store exactly what the job would: the hash of the text it embedded.
+        embedded = await source.get_embeddable(ContentType.HIGHLIGHT, huge.id)
+        assert embedded is not None
+        await _add_embedding(db_session, book, huge.id, embedded.content_hash)
+
+        items = await source.iter_work_items(USER_ID, None)
+
+        assert huge.id not in {item.content_id for item in items}
