@@ -3471,7 +3471,7 @@
           "semantic"
         ],
         "summary": "Backfill Embeddings",
-        "description": "Enqueue an embedding batch for the user's content, optionally scoped to a book.\n\nPoll progress through ``GET /jobs/batches/{id}``.",
+        "description": "Enqueue an embedding batch for the user's content, optionally scoped to a book.\n\nAnswers 202 with the batch to poll through ``GET /jobs/batches/{id}``, or 200\nwith ``total_jobs`` 0 when everything is already indexed. The second is a\nnormal outcome of pressing backfill twice, which is why it is not a 4xx: a\ncaller cannot tell a rejected request from a satisfied one.",
         "operationId": "backfill_embeddings",
         "security": [
           {
@@ -3502,7 +3502,17 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/JobBatchResponse"
+                  "$ref": "#/components/schemas/BackfillResponse"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "Everything was already indexed; no batch was created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BackfillResponse"
                 }
               }
             }
@@ -3756,6 +3766,31 @@
         ],
         "title": "AppSettingsResponse",
         "description": "Schema for returning public application settings."
+      },
+      "BackfillResponse": {
+        "properties": {
+          "total_jobs": {
+            "type": "integer",
+            "title": "Total Jobs"
+          },
+          "batch": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/JobBatchResponse"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "type": "object",
+        "required": [
+          "total_jobs",
+          "batch"
+        ],
+        "title": "BackfillResponse",
+        "description": "What a backfill request did.\n\n``total_jobs`` is the field to key on, because it is the only one present in\nboth outcomes: it is 0 exactly when nothing needed embedding, and then\n``batch`` is null because no batch was created and there is nothing to poll."
       },
       "Body_login": {
         "properties": {

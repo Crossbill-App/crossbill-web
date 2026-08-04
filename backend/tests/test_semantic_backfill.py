@@ -56,23 +56,28 @@ class TestBackfillEndpoint:
 
         assert response.status_code == status.HTTP_202_ACCEPTED
         data = response.json()
-        assert data["batch_type"] == "content_embedding"
         assert data["total_jobs"] >= 1
-        assert data["status"] == "pending"
+        assert data["batch"]["batch_type"] == "content_embedding"
+        assert data["batch"]["status"] == "pending"
         override_queue.enqueue.assert_awaited()
 
-    async def test_returns_bad_request_when_nothing_to_embed(
+    async def test_reports_nothing_to_do_without_failing_the_request(
         self, client: AsyncClient, override_queue: AsyncMock, db_session: AsyncSession
     ) -> None:
-        """Everything already indexed is a normal outcome, not a server error.
+        """Pressing backfill twice is normal, so the second press is not an error.
 
-        The status is pinned exactly: a loose ``>= 400`` cannot tell 400 from
-        the 500-with-traceback an unmapped DomainError produces.
+        This answered 400 before, carrying the generic "The request could not be
+        processed." — a caller could not tell "already indexed" from a malformed
+        request. The status is pinned exactly, and so is total_jobs: 200 alone
+        would not say which outcome it was.
         """
         with patch(ENABLED, return_value=True):
             response = await client.post("/api/v1/semantic/backfill")
 
-        assert response.status_code == status.HTTP_400_BAD_REQUEST
+        assert response.status_code == status.HTTP_200_OK
+        data = response.json()
+        assert data["total_jobs"] == 0
+        assert data["batch"] is None
         override_queue.enqueue.assert_not_called()
 
     async def test_packs_units_into_one_job_per_slice(
@@ -130,8 +135,8 @@ class TestBackfillEndpoint:
         assert response.status_code == status.HTTP_202_ACCEPTED
         data = response.json()
         assert data["total_jobs"] == 3
-        assert data["failed_jobs"] == 2
-        assert data["status"] == "running"
+        assert data["batch"]["failed_jobs"] == 2
+        assert data["batch"]["status"] == "running"
 
 
 class TestBackfillReconciliation:

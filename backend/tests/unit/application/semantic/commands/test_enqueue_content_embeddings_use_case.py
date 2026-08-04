@@ -10,7 +10,6 @@ from src.application.semantic.commands.enqueue_content_embeddings_use_case impor
 )
 from src.application.semantic.content_type import ContentType
 from src.application.semantic.protocols.content_source import WorkItem
-from src.domain.common.exceptions import DomainError
 from src.domain.common.value_objects.ids import BookId, UserId
 from src.domain.jobs.entities.job_batch import JobBatchType
 from src.domain.reading.exceptions import BookNotFoundError
@@ -72,6 +71,7 @@ class TestEnqueueContentEmbeddings:
         ]
 
         batch = await use_case.execute(UserId(1), None)
+        assert batch is not None
 
         assert batch.total_jobs == 3
         assert batch.batch_type == JobBatchType.CONTENT_EMBEDDING
@@ -97,6 +97,7 @@ class TestEnqueueContentEmbeddings:
         ]
 
         batch = await use_case.execute(UserId(1), None)
+        assert batch is not None
 
         assert batch.total_jobs == 3
         assert queue_service.enqueue.call_count == 3
@@ -143,6 +144,7 @@ class TestEnqueueContentEmbeddings:
         queue_service.enqueue.side_effect = ["saq:note:0", RuntimeError("queue is down")]
 
         batch = await use_case.execute(UserId(1), None)
+        assert batch is not None
 
         assert batch.total_jobs == 3
         assert len(batch.job_keys) == 1
@@ -158,6 +160,7 @@ class TestEnqueueContentEmbeddings:
         content_source.iter_work_items.return_value = [WorkItem(ContentType.HIGHLIGHT, 5)]
 
         batch = await use_case.execute(UserId(1), BookId(9))
+        assert batch is not None
 
         assert batch.reference_id == "9"
         content_source.iter_work_items.assert_awaited_once_with(1, 9)
@@ -172,12 +175,22 @@ class TestEnqueueContentEmbeddings:
         with pytest.raises(BookNotFoundError):
             await use_case.execute(UserId(1), BookId(404))
 
-    async def test_raises_when_nothing_to_embed(
+    async def test_returns_none_when_nothing_to_embed(
         self,
         use_case: EnqueueContentEmbeddingsUseCase,
         content_source: AsyncMock,
+        batch_repo: AsyncMock,
+        queue_service: AsyncMock,
     ) -> None:
+        """Everything already indexed is an outcome, not an error.
+
+        No batch is created for it either — a batch of nothing would be a row
+        that exists only to say nothing happened, and JobBatch forbids
+        total_jobs of 0 anyway.
+        """
         content_source.iter_work_items.return_value = []
 
-        with pytest.raises(DomainError, match="No content units"):
-            await use_case.execute(UserId(1), None)
+        assert await use_case.execute(UserId(1), None) is None
+
+        batch_repo.save.assert_not_called()
+        queue_service.enqueue.assert_not_called()

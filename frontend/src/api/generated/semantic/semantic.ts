@@ -22,8 +22,8 @@ import { useMutation, useQuery } from '@tanstack/react-query';
 
 import type {
   BackfillEmbeddingsParams,
+  BackfillResponse,
   HTTPValidationError,
-  JobBatchResponse,
   RelatedContentParams,
   SearchContentParams,
   SemanticSearchResult,
@@ -49,11 +49,14 @@ const withQueryKey = <T extends object, K>(query: T, queryKey: K): T & { queryKe
 /**
  * Enqueue an embedding batch for the user's content, optionally scoped to a book.
  *
- * Poll progress through ``GET /jobs/batches/{id}``.
+ * Answers 202 with the batch to poll through ``GET /jobs/batches/{id}``, or 200
+ * with ``total_jobs`` 0 when everything is already indexed. The second is a
+ * normal outcome of pressing backfill twice, which is why it is not a 4xx: a
+ * caller cannot tell a rejected request from a satisfied one.
  * @summary Backfill Embeddings
  */
 export const backfillEmbeddings = (params?: BackfillEmbeddingsParams, signal?: AbortSignal) => {
-  return axiosInstance<JobBatchResponse>({
+  return axiosInstance<BackfillResponse>({
     url: `/api/v1/semantic/backfill`,
     method: 'POST',
     params,

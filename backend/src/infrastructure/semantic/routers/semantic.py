@@ -2,7 +2,7 @@
 
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Depends, Query, Response
 from starlette import status
 
 from src.application.semantic.commands.enqueue_content_embeddings_use_case import (
@@ -20,7 +20,10 @@ from src.infrastructure.common.dependencies import require_embeddings_enabled
 from src.infrastructure.common.di import inject_use_case
 from src.infrastructure.identity import get_current_user
 from src.infrastructure.jobs.schemas.job_batch_schemas import JobBatchResponse
-from src.infrastructure.semantic.schemas.semantic_schemas import SemanticSearchResult
+from src.infrastructure.semantic.schemas.semantic_schemas import (
+    BackfillResponse,
+    SemanticSearchResult,
+)
 
 router = APIRouter(prefix="/semantic", tags=["semantic"])
 
@@ -57,26 +60,42 @@ def _batch_to_response(batch: JobBatch) -> JobBatchResponse:
 
 @router.post(
     "/backfill",
-    response_model=JobBatchResponse,
+    response_model=BackfillResponse,
     status_code=status.HTTP_202_ACCEPTED,
+    responses={
+        status.HTTP_200_OK: {
+            "description": "Everything was already indexed; no batch was created",
+            # Same body as the 202, or the spec describes 200 as empty and a
+            # generated client has nothing to read total_jobs from.
+            "model": BackfillResponse,
+        }
+    },
 )
 @require_embeddings_enabled
 async def backfill_embeddings(
+    response: Response,
     current_user: Annotated[User, Depends(get_current_user)],
     book_id: int | None = None,
     use_case: EnqueueContentEmbeddingsUseCase = Depends(
         inject_use_case(container.semantic.enqueue_content_embeddings_use_case)
     ),
-) -> JobBatchResponse:
+) -> BackfillResponse:
     """Enqueue an embedding batch for the user's content, optionally scoped to a book.
 
-    Poll progress through ``GET /jobs/batches/{id}``.
+    Answers 202 with the batch to poll through ``GET /jobs/batches/{id}``, or 200
+    with ``total_jobs`` 0 when everything is already indexed. The second is a
+    normal outcome of pressing backfill twice, which is why it is not a 4xx: a
+    caller cannot tell a rejected request from a satisfied one.
     """
     batch = await use_case.execute(
         UserId(current_user.id.value),
         BookId(book_id) if book_id is not None else None,
     )
-    return _batch_to_response(batch)
+    if batch is None:
+        # 200, not the route's default 202: nothing was accepted for processing.
+        response.status_code = status.HTTP_200_OK
+        return BackfillResponse(total_jobs=0, batch=None)
+    return BackfillResponse(total_jobs=batch.total_jobs, batch=_batch_to_response(batch))
 
 
 @router.get("/search", response_model=list[SemanticSearchResult])

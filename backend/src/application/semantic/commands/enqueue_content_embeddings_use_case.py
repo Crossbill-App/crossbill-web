@@ -10,7 +10,7 @@ from src.application.jobs.protocols.job_queue_service import JobQueueServiceProt
 from src.application.library.protocols.book_repository import BookRepositoryProtocol
 from src.application.semantic.content_type import ContentType
 from src.application.semantic.protocols.content_source import ContentSourceProtocol, WorkItem
-from src.domain.common.exceptions import BusinessRuleViolationError, DomainError
+from src.domain.common.exceptions import DomainError
 from src.domain.common.value_objects.ids import BookId, UserId
 from src.domain.jobs.entities.job_batch import JobBatch, JobBatchType
 
@@ -58,7 +58,7 @@ class EnqueueContentEmbeddingsUseCase:
         self._queue_service = queue_service
         self._book_repo = book_repo
 
-    async def execute(self, user_id: UserId, book_id: BookId | None) -> JobBatch:
+    async def execute(self, user_id: UserId, book_id: BookId | None) -> JobBatch | None:
         if book_id is not None:
             await require_book(self._book_repo, book_id, user_id)
 
@@ -66,10 +66,12 @@ class EnqueueContentEmbeddingsUseCase:
             user_id.value, book_id.value if book_id else None
         )
         if not items:
-            # Pressing backfill when everything is already indexed is a normal
-            # action, not an internal error: a bare DomainError is unmapped and
-            # would answer 500 with an error-level traceback.
-            raise BusinessRuleViolationError("No content units need embedding")
+            # Everything is already indexed. That is an outcome, not a failure,
+            # so it is not an exception either: the router reports it as 200 with
+            # total_jobs 0. It used to raise, which answered 400 carrying the
+            # generic "The request could not be processed." -- indistinguishable
+            # from a malformed request, which is a poor thing to hand a UI.
+            return None
 
         slices = _slices(items)
 
