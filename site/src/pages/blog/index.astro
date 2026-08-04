@@ -1,0 +1,31 @@
+---
+import { getCollection } from 'astro:content';
+import StarlightPage from '@astrojs/starlight/components/StarlightPage.astro';
+
+const posts = (await getCollection('blog', ({ data }) => !data.draft)).sort(
+	(a, b) => b.data.date.valueOf() - a.data.date.valueOf()
+);
+
+const dateFormat = new Intl.DateTimeFormat('en-GB', { dateStyle: 'long' });
+---
+
+<StarlightPage frontmatter={{ title: 'Blog' }} hasSidebar={false}>
+	{
+		posts.length === 0 ? (
+			<p>No posts yet.</p>
+		) : (
+			<ul>
+				{posts.map((post) => (
+					<li>
+						<a href={`${post.id}/`}>{post.data.title}</a>
+						<br />
+						<time datetime={post.data.date.toISOString()}>
+							{dateFormat.format(post.data.date)}
+						</time>
+						{post.data.description && <p>{post.data.description}</p>}
+					</li>
+				))}
+			</ul>
+		)
+	}
+</StarlightPage>

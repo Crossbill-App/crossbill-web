@@ -86,7 +86,7 @@ numbers disagree with the v5 CLI that the hook and CI run.
 
 ## Agent docs
 
-- **Issue tracker**: GitHub issues in `Crossbill-Highlights/crossbill-web` via
+- **Issue tracker**: GitHub issues in `Crossbill-App/crossbill-web` via
   the `gh` CLI — `docs/agents/issue-tracker.md`.
 - **Triage labels**: the five canonical roles use their default label strings —
   `docs/agents/triage-labels.md`.

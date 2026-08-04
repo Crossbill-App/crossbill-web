@@ -1,0 +1,235 @@
+/*
+ * Crossbill site theme.
+ *
+ * Ported from the app's design source of truth, frontend/src/theme/theme.ts:
+ * Lora on a warm stone/amber palette, generous line height, soft layered
+ * shadows. The dark palette has no counterpart in the app (the app is
+ * light-only) and is derived here from the same stone/amber families.
+ *
+ * These rules are deliberately unlayered so they win over Starlight's
+ * `starlight.base` layer without needing `!important`.
+ */
+
+:root {
+	/* --- App tokens ------------------------------------------------------ */
+	--crossbill-amber-600: #685a4b;
+	--crossbill-amber-700: #43311e;
+	--crossbill-amber-800: #2e2215;
+
+	--crossbill-stone-50: #fafaf9;
+	--crossbill-stone-400: #a8a29e;
+	--crossbill-stone-600: #78716c;
+	--crossbill-stone-700: #57534e;
+	--crossbill-stone-900: #1c1917;
+
+	--crossbill-radius-input: 12px;
+	--crossbill-radius-card: 16px;
+
+	--crossbill-shadow-sm: 0 1px 3px 0 rgb(0 0 0 / 0.1), 0 1px 2px -1px rgb(0 0 0 / 0.1);
+	--crossbill-shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+	--crossbill-shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1);
+
+	/* --- Typography ------------------------------------------------------ */
+	--sl-font: 'Lora', Georgia, serif;
+
+	/* --- Dark palette (Starlight's default theme) ------------------------ */
+	--sl-color-white: #faf8f5;
+	--sl-color-gray-1: #f0ebe3;
+	--sl-color-gray-2: #d9d3ca;
+	--sl-color-gray-3: #a89f92;
+	--sl-color-gray-4: #7a7167;
+	--sl-color-gray-5: #4a443d;
+	--sl-color-gray-6: #292524;
+	--sl-color-gray-7: #201d1b;
+	--sl-color-black: #1c1917;
+
+	--sl-color-accent-low: #3a2c1c;
+	--sl-color-accent: #b8a68f;
+	--sl-color-accent-high: #cbbba4;
+
+	--sl-color-bg: var(--sl-color-black);
+	--sl-color-bg-nav: #211e1c;
+	--sl-color-bg-sidebar: #211e1c;
+	--sl-color-bg-inline-code: #332e2a;
+	--sl-color-hairline-light: #423b34;
+	--sl-color-hairline: #322c27;
+	--sl-color-hairline-shade: #141110;
+
+	--sl-color-backdrop-overlay: rgb(28 25 23 / 0.7);
+
+	--sl-shadow-sm: 0 1px 3px 0 rgb(0 0 0 / 0.4), 0 1px 2px -1px rgb(0 0 0 / 0.4);
+	--sl-shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.45), 0 2px 4px -2px rgb(0 0 0 / 0.45);
+	--sl-shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.5), 0 4px 6px -4px rgb(0 0 0 / 0.5);
+
+	/* Surface colour for cards and other raised blocks. */
+	--crossbill-surface: #232020;
+	--crossbill-surface-border: #423b34;
+}
+
+:root[data-theme='light'] {
+	--sl-color-white: #0c0a09;
+	--sl-color-gray-1: #0c0a09;
+	--sl-color-gray-2: var(--crossbill-stone-900);
+	--sl-color-gray-3: var(--crossbill-stone-700);
+	--sl-color-gray-4: var(--crossbill-stone-600);
+	--sl-color-gray-5: var(--crossbill-stone-400);
+	--sl-color-gray-6: #e7e5e4;
+	--sl-color-gray-7: #f5f5f4;
+	--sl-color-black: #ffffff;
+
+	--sl-color-accent-low: #eae3da;
+	--sl-color-accent: var(--crossbill-amber-700);
+	--sl-color-accent-high: var(--crossbill-amber-800);
+
+	--sl-color-bg: var(--crossbill-stone-50);
+	--sl-color-bg-nav: #ffffff;
+	--sl-color-bg-sidebar: #ffffff;
+	--sl-color-bg-inline-code: #f0efed;
+	--sl-color-hairline-light: #e0ddd9;
+	--sl-color-hairline: #ebe9e6;
+	--sl-color-hairline-shade: #e7e5e4;
+
+	--sl-color-backdrop-overlay: rgb(28 25 23 / 0.55);
+
+	--sl-shadow-sm: var(--crossbill-shadow-sm);
+	--sl-shadow-md: var(--crossbill-shadow-md);
+	--sl-shadow-lg: var(--crossbill-shadow-lg);
+
+	--crossbill-surface: #ffffff;
+	--crossbill-surface-border: var(--crossbill-stone-400);
+}
+
+/* --- Headings ----------------------------------------------------------- */
+
+/*
+ * The app's scale: a very heavy h1 with tight tracking, then progressively
+ * lighter headings. 700 is Lora's heaviest weight; the app asks for 900 but
+ * gets it from a system font.
+ */
+h1,
+h2,
+h3,
+h4,
+h5,
+h6,
+.site-title {
+	font-weight: 600;
+	letter-spacing: -0.01em;
+}
+
+h1,
+.hero h1 {
+	font-weight: 700;
+	letter-spacing: -0.02em;
+	line-height: 1.2;
+}
+
+h2 {
+	font-weight: 600;
+}
+
+h3,
+h4 {
+	font-weight: 600;
+	letter-spacing: 0.01em;
+}
+
+/* --- Body --------------------------------------------------------------- */
+
+body {
+	font-weight: 400;
+	line-height: 1.75;
+	letter-spacing: 0.01em;
+	-webkit-font-smoothing: antialiased;
+}
+
+.sl-markdown-content {
+	letter-spacing: 0.01em;
+}
+
+/* --- Chrome ------------------------------------------------------------- */
+
+header.header {
+	border-bottom: 1px solid var(--sl-color-hairline-light);
+	box-shadow: var(--sl-shadow-sm);
+}
+
+#starlight__sidebar {
+	border-right: 1px solid var(--sl-color-hairline-light);
+}
+
+/* Search box and other inputs pick up the app's 12px corner. */
+site-search button[data-open-modal],
+.sl-flex input,
+input[type='text'],
+input[type='search'] {
+	border-radius: var(--crossbill-radius-input);
+}
+
+dialog.sl-search-dialog,
+dialog#starlight__search {
+	border-radius: var(--crossbill-radius-card);
+}
+
+/* --- Cards -------------------------------------------------------------- */
+
+.card {
+	background: var(--crossbill-surface);
+	border: 1px solid var(--crossbill-surface-border);
+	border-radius: var(--crossbill-radius-card);
+	box-shadow: var(--crossbill-shadow-md);
+	padding: 1.25rem;
+}
+
+.card .title {
+	font-weight: 600;
+	letter-spacing: -0.01em;
+}
+
+.sl-link-card,
+.starlight-aside {
+	border-radius: var(--crossbill-radius-card);
+}
+
+.sl-link-card {
+	box-shadow: var(--crossbill-shadow-sm);
+}
+
+/* --- Buttons ------------------------------------------------------------ */
+
+.sl-link-button {
+	border-radius: 24px;
+	font-weight: 500;
+	padding: 0.5rem 1.25rem;
+}
+
+.sl-link-button.primary {
+	box-shadow: var(--crossbill-shadow-sm);
+}
+
+.sl-link-button.secondary {
+	border-color: var(--crossbill-surface-border);
+}
+
+/* --- Code --------------------------------------------------------------- */
+
+.sl-markdown-content code:not(:where(.not-content *)) {
+	border-radius: 6px;
+}
+
+.expressive-code .frame pre,
+.expressive-code figure {
+	border-radius: var(--crossbill-radius-input);
+}
+
+/* --- Landing page ------------------------------------------------------- */
+
+.hero > img,
+.hero .hero-html {
+	border-radius: var(--crossbill-radius-card);
+}
+
+.hero .tagline {
+	font-style: italic;
+	color: var(--sl-color-gray-3);
+}

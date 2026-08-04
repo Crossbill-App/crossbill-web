@@ -32,9 +32,9 @@ Syncs data from e-readers using Koreader.
 
 - **Backend API**: FastAPI server with PostgreSQL database
 - **Web Frontend**: Modern React interface for browsing, editing, and organizing your highlights
-- **[KOReader Plugin](https://github.com/Crossbill-Highlights/koreader-plugin)**: Syncs highlights directly from your KOReader e-reader
-- **[Obsidian Plugin](https://github.com/Crossbill-Highlights/obsidian-plugin)**: Integrate highlights into your Obsidian notes
-- [**Anki Plugin**](https://github.com/Crossbill-Highlights/anki-addon): Integrate highlights into your Anki flash cards
+- **[KOReader Plugin](https://github.com/Crossbill-App/koreader-plugin)**: Syncs highlights directly from your KOReader e-reader
+- **[Obsidian Plugin](https://github.com/Crossbill-App/obsidian-plugin)**: Integrate highlights into your Obsidian notes
+- [**Anki Plugin**](https://github.com/Crossbill-App/anki-addon): Integrate highlights into your Anki flash cards
 
 ## Installation
 
