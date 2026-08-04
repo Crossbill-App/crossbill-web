@@ -18,6 +18,6 @@ from.
 
 Installation and configuration instructions are kept with the plugin:
 
-- [Crossbill-Highlights/obsidian-plugin](https://github.com/Crossbill-Highlights/obsidian-plugin)
+- [Crossbill-App/obsidian-plugin](https://github.com/Crossbill-App/obsidian-plugin)
 
 You will need your Crossbill server address and an account on it.

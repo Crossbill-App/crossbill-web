@@ -31,10 +31,10 @@ got to — you set it by hand; Crossbill never guesses it.
   library and serves both the web frontend and the plugins.
 - **Web frontend** — the React interface where you browse, edit and organize
   everything.
-- **[KOReader plugin](https://github.com/Crossbill-Highlights/koreader-plugin)**
+- **[KOReader plugin](https://github.com/Crossbill-App/koreader-plugin)**
   — runs on your e-reader and syncs highlights up to Crossbill.
-- **[Obsidian plugin](https://github.com/Crossbill-Highlights/obsidian-plugin)**
-  and **[Anki add-on](https://github.com/Crossbill-Highlights/anki-addon)** —
+- **[Obsidian plugin](https://github.com/Crossbill-App/obsidian-plugin)**
+  and **[Anki add-on](https://github.com/Crossbill-App/anki-addon)** —
   optional bridges to the tools you may already use for notes and study.
 
 Two more services are optional: a **background worker** for long-running AI

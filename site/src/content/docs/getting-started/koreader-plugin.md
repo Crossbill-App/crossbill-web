@@ -4,7 +4,7 @@ description: What the KOReader plugin syncs between your e-reader and Crossbill,
 ---
 
 Crossbill gets its content from your e-reader. The
-[KOReader plugin](https://github.com/Crossbill-Highlights/koreader-plugin) runs
+[KOReader plugin](https://github.com/Crossbill-App/koreader-plugin) runs
 inside KOReader on the device and talks to your Crossbill server.
 
 ## What it syncs
@@ -29,7 +29,7 @@ Downwards, from Crossbill to the e-reader:
 The plugin has its own installation instructions, kept with the plugin so they
 stay current with KOReader:
 
-- [Crossbill-Highlights/koreader-plugin](https://github.com/Crossbill-Highlights/koreader-plugin)
+- [Crossbill-App/koreader-plugin](https://github.com/Crossbill-App/koreader-plugin)
 
 In outline, you copy the plugin folder into KOReader's `plugins` directory on
 the device, restart KOReader, and point the plugin at your Crossbill server's

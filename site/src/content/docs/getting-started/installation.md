@@ -5,7 +5,7 @@ description: Run Crossbill with the sample docker compose setup, then install th
 
 The easiest way to install and run Crossbill is with the sample
 `docker-compose.yml` at the top level of the
-[crossbill-web repository](https://github.com/Crossbill-Highlights/crossbill-web).
+[crossbill-web repository](https://github.com/Crossbill-App/crossbill-web).
 It runs the published Docker image,
 [`tumetsu/crossbill`](https://hub.docker.com/r/tumetsu/crossbill), together with
 a PostgreSQL database.
@@ -28,7 +28,7 @@ docker compose up
 ## 3. Install the KOReader plugin
 
 Then install the KOReader
-[plugin on your e-reader](https://github.com/Crossbill-Highlights/koreader-plugin).
+[plugin on your e-reader](https://github.com/Crossbill-App/koreader-plugin).
 It is what sends your highlights to Crossbill; without it, Crossbill has nothing
 to show. See [KOReader plugin](../koreader-plugin/) for what the plugin syncs.
 

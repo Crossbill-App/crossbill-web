@@ -4,7 +4,7 @@ import starlight from '@astrojs/starlight';
 
 // https://astro.build/config
 export default defineConfig({
-	site: 'https://crossbill-highlights.github.io',
+	site: 'https://crossbill-app.github.io',
 	base: '/crossbill-web',
 	integrations: [
 		starlight({
@@ -20,7 +20,7 @@ export default defineConfig({
 				{
 					icon: 'github',
 					label: 'GitHub',
-					href: 'https://github.com/Crossbill-Highlights/crossbill-web',
+					href: 'https://github.com/Crossbill-App/crossbill-web',
 				},
 			],
 			customCss: [

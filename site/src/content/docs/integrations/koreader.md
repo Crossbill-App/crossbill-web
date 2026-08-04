@@ -25,7 +25,7 @@ from.
 Installation instructions live with the plugin, so they stay current with
 KOReader itself:
 
-- [Crossbill-Highlights/koreader-plugin](https://github.com/Crossbill-Highlights/koreader-plugin)
+- [Crossbill-App/koreader-plugin](https://github.com/Crossbill-App/koreader-plugin)
 
 See also [KOReader plugin](../../getting-started/koreader-plugin/) for what to
 expect after your first sync.

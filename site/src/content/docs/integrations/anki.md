@@ -18,6 +18,6 @@ and Anki's scheduler takes it from there.
 
 Installation and configuration instructions are kept with the add-on:
 
-- [Crossbill-Highlights/anki-addon](https://github.com/Crossbill-Highlights/anki-addon)
+- [Crossbill-App/anki-addon](https://github.com/Crossbill-App/anki-addon)
 
 You will need your Crossbill server address and an account on it.
