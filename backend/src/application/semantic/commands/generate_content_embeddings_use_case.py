@@ -57,14 +57,16 @@ class GenerateContentEmbeddingsUseCase:
         if not pending:
             return
 
-        # TODO: a slice fails as a unit, so one unit that cannot be embedded --
-        # text the provider rejects, most likely for length -- takes the rest of
-        # its slice down with it, on every retry and on every later backfill.
-        # The fix is to fall back to embedding one unit at a time on the error
-        # path, so only the genuine offender fails. Deliberately not done yet: it
-        # buys nothing until such a unit exists, and the task handler logs the
-        # slice's ids on failure, so identifying one costs a log search rather
-        # than a code change.
+        # TODO(#536): a slice fails as a unit, so one unit that cannot be
+        # embedded takes the rest of its slice down with it, on every retry and
+        # on every later backfill. The fix is to fall back to embedding one unit
+        # at a time on the error path, so only the genuine offender fails.
+        # Deliberately not done yet: truncation removed the trigger we expected
+        # (over-long text), and the task handler logs the slice's ids on failure,
+        # so identifying an offender costs a log search rather than a code
+        # change. Sequencing matters if this is picked up -- #536 wants a failure
+        # marker on the row, and without this fallback a failure is attributed to
+        # the slice, so it would quarantine 32 units because one is bad.
         vectors = await self._client.embed([content.text for content in pending])
         await self._repo.upsert_many(
             [
