@@ -1,4 +1,4 @@
-.PHONY: help test mutation-test duplication-check dev-app dev-worker migrate migrate-new lint format api-client release-nightly deploy empty-s3-bucket reset-db
+.PHONY: help test mutation-test duplication-check dev-app dev-worker migrate migrate-new lint format api-client release-nightly deploy empty-s3-bucket reset-db clone-production-db
 
 help: ## Show this help
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*?## "}; {printf "  \033[36m%-18s\033[0m %s\n", $$1, $$2}'
@@ -66,6 +66,13 @@ deploy: ## Build+push nightly image and deploy it to Railway
 
 empty-s3-bucket: ## Remove all objects from the local S3 bucket
 	aws --endpoint-url http://localhost:3900 s3 rm s3://crossbill-files --recursive
+
+# Reads the same git-ignored .env.deploy as `deploy` (RAILWAY_API_TOKEN and
+# RAILWAY_ENVIRONMENT_ID); the Postgres service itself is discovered via the API.
+# DESTRUCTIVE: drops the local database. Pass flags with ARGS, e.g.
+# `make clone-production-db ARGS="--yes --no-migrate"` (see --help).
+clone-production-db: ## Replace the local dev database with a clone of production (destructive)
+	set -a; [ -f .env.deploy ] && . ./.env.deploy; set +a; ./scripts/clone-production-db.sh $(ARGS)
 
 reset-db: ## Reset the database (removes volume and re-runs migrations)
 	docker compose -f docker-compose.dev.yml down -v postgres
