@@ -12,6 +12,8 @@ A self-hosted reading companion web app for guiding your reading process into mo
 
 Syncs data from e-readers using Koreader.
 
+[Read docs](https://crossbill-app.github.io/crossbill-web/)
+
 ## Features
 - Sync highlights from KOReader with automatic deduplication
 - Organize highlights
