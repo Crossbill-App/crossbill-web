@@ -23,6 +23,14 @@ export default defineConfig({
 					href: 'https://github.com/Crossbill-Highlights/crossbill-web',
 				},
 			],
+			customCss: [
+				'@fontsource/lora/400.css',
+				'@fontsource/lora/400-italic.css',
+				'@fontsource/lora/500.css',
+				'@fontsource/lora/600.css',
+				'@fontsource/lora/700.css',
+				'./src/styles/custom.css',
+			],
 			sidebar: [
 				{
 					label: 'Getting Started',
