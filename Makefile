@@ -67,11 +67,14 @@ deploy: ## Build+push nightly image and deploy it to Railway
 empty-s3-bucket: ## Remove all objects from the local S3 bucket
 	aws --endpoint-url http://localhost:3900 s3 rm s3://crossbill-files --recursive
 
+# Clones both the database and the book files, since either alone leaves rows
+# pointing at objects that are not there.
 # Reads the same git-ignored .env.deploy as `deploy` (RAILWAY_API_TOKEN and
-# RAILWAY_ENVIRONMENT_ID); the Postgres service itself is discovered via the API.
-# DESTRUCTIVE: drops the local database. Pass flags with ARGS, e.g.
-# `make clone-production-db ARGS="--yes --no-migrate"` (see --help).
-clone-production-db: ## Replace the local dev database with a clone of production (destructive)
+# RAILWAY_ENVIRONMENT_ID); the Postgres and storage services are discovered via
+# the API. DESTRUCTIVE: drops the local database and mirrors local book storage
+# onto production's. Pass flags with ARGS, e.g.
+# `make clone-production-db ARGS="--yes --no-files"` (see --help).
+clone-production-db: ## Replace the local dev database and book files with a clone of production (destructive)
 	set -a; [ -f .env.deploy ] && . ./.env.deploy; set +a; ./scripts/clone-production-db.sh $(ARGS)
 
 reset-db: ## Reset the database (removes volume and re-runs migrations)
