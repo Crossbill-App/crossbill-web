@@ -9,7 +9,7 @@ from src.application.jobs.protocols.job_batch_repository import JobBatchReposito
 from src.application.jobs.protocols.job_queue_service import JobQueueServiceProtocol
 from src.application.library.protocols.book_repository import BookRepositoryProtocol
 from src.application.semantic.content_type import ContentType
-from src.application.semantic.protocols.content_source import ContentSourceProtocol, WorkItem
+from src.application.semantic.protocols.content_source import ContentSourceProtocol, PendingUnit
 from src.domain.common.exceptions import DomainError
 from src.domain.common.value_objects.ids import BookId, UserId
 from src.domain.jobs.entities.job_batch import JobBatch, JobBatchType
@@ -27,8 +27,8 @@ logger = structlog.get_logger(__name__)
 EMBEDDING_SLICE_SIZE = 32
 
 
-def _slices(items: list[WorkItem]) -> list[tuple[ContentType, list[int]]]:
-    """Group work items by content type, then cut each group into job-sized slices.
+def _slices(items: list[PendingUnit]) -> list[tuple[ContentType, list[int]]]:
+    """Group pending units by content type, then cut each group into job-sized slices.
 
     One slice never mixes types: the job resolves its ids through a single
     ``get_embeddable_many`` call, which reads one type's table.
@@ -62,26 +62,20 @@ class EnqueueContentEmbeddingsUseCase:
         if book_id is not None:
             await require_book(self._book_repo, book_id, user_id)
 
-        items = await self._content_source.iter_work_items(
+        items_to_generate_embeddings = await self._content_source.find_units_needing_embedding(
             user_id.value, book_id.value if book_id else None
         )
-        if not items:
-            # Everything is already indexed. That is an outcome, not a failure,
-            # so it is not an exception either: the router reports it as 200 with
-            # total_jobs 0. It used to raise, which answered 400 carrying the
-            # generic "The request could not be processed." -- indistinguishable
-            # from a malformed request, which is a poor thing to hand a UI.
+        if not items_to_generate_embeddings:
+            # Everything is already indexed.
             return None
 
-        slices = _slices(items)
+        slices = _slices(items_to_generate_embeddings)
 
         reference_id = str(book_id.value) if book_id else f"user:{user_id.value}"
         batch = JobBatch.create(
             user_id=user_id,
             batch_type=JobBatchType.CONTENT_EMBEDDING,
             reference_id=reference_id,
-            # Slices, not units: the batch counts jobs, and progress is reported
-            # per job by the after_process hook.
             total_jobs=len(slices),
         )
         batch = await self._batch_repo.save(batch)
@@ -110,9 +104,6 @@ class EnqueueContentEmbeddingsUseCase:
         if not batch.job_keys:
             batch.cancel()
             await self._batch_repo.save(batch)
-            # Unmapped on purpose: reaching here means the queue itself is
-            # unreachable, which is an internal failure and belongs in the 500
-            # bucket with a traceback.
             raise DomainError("Failed to enqueue any jobs for content embedding")
 
         # Slices the loop never reached will never be embedded, so record them as

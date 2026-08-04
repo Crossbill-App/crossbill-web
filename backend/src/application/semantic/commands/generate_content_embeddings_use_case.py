@@ -44,10 +44,14 @@ class GenerateContentEmbeddingsUseCase:
         missing = [content_id for content_id in content_ids if content_id not in resolved]
         await self._repo.delete_for(content_type, missing)
 
-        # Re-checking what the backfill already filtered on is deliberate: the
-        # content can change between the two, and a slice of model calls is what
-        # is at stake. The rule itself lives in one place so the two cannot
-        # disagree.
+        # Deliberately re-checking what the backfill scan already filtered on.
+        # That scan ran in the request that enqueued this job; this runs in the
+        # worker, and the gap between them is queue latency. Within it the slice
+        # may already have been embedded -- by a retry of this job that committed
+        # before the worker died, or by an overlapping backfill, which nothing
+        # dedupes yet (#531). One indexed SELECT here is what stops either from
+        # paying for a second slice of model calls. The rule itself lives in one
+        # place, so the two checks cannot disagree about what "current" means.
         states = await self._repo.get_states(content_type, list(resolved))
         pending = [
             content

@@ -182,7 +182,7 @@ class TestGetEmbeddable:
         assert await content_source.get_embeddable(ContentType.NOTE, 9999) is None
 
 
-class TestIterWorkItems:
+class TestFindUnitsNeedingEmbedding:
     async def test_returns_units_missing_an_embedding(
         self, content_source: ContentSource, db_session: AsyncSession
     ) -> None:
@@ -191,7 +191,7 @@ class TestIterWorkItems:
         highlight = await _add_highlight(db_session, book, "text")
         digest = await _add_digest(db_session, book, "s", ["k"])
 
-        items = await content_source.iter_work_items(USER_ID, None)
+        items = await content_source.find_units_needing_embedding(USER_ID, None)
 
         by_type = {(item.content_type, item.content_id) for item in items}
         assert (ContentType.NOTE, note.id) in by_type
@@ -206,7 +206,7 @@ class TestIterWorkItems:
         highlight = await _add_highlight(db_session, book, "in scope")
         out = await _add_highlight(db_session, other, "out of scope")
 
-        items = await content_source.iter_work_items(USER_ID, book.id)
+        items = await content_source.find_units_needing_embedding(USER_ID, book.id)
 
         ids = {item.content_id for item in items if item.content_type == ContentType.HIGHLIGHT}
         assert highlight.id in ids
@@ -223,7 +223,7 @@ class TestIterWorkItems:
         # The hash must match the highlight's own text, or the row is content-stale.
         await _add_embedding(db_session, book, embedded.id, _expected_hash("already embedded"))
 
-        items = await source.iter_work_items(USER_ID, None)
+        items = await source.find_units_needing_embedding(USER_ID, None)
 
         ids = {item.content_id for item in items if item.content_type == ContentType.HIGHLIGHT}
         assert pending.id in ids
@@ -244,7 +244,7 @@ class TestIterWorkItems:
         edited = await _add_highlight(db_session, book, "the edited text")
         await _add_embedding(db_session, book, edited.id, _expected_hash("the original text"))
 
-        items = await source.iter_work_items(USER_ID, None)
+        items = await source.find_units_needing_embedding(USER_ID, None)
 
         ids = {item.content_id for item in items if item.content_type == ContentType.HIGHLIGHT}
         assert edited.id in ids
@@ -261,7 +261,7 @@ class TestIterWorkItems:
         deleted = await _add_highlight(db_session, book, "since deleted", deleted=True)
         await _add_embedding(db_session, book, deleted.id, _expected_hash("since deleted"))
 
-        items = await source.iter_work_items(USER_ID, None)
+        items = await source.find_units_needing_embedding(USER_ID, None)
 
         ids = {item.content_id for item in items if item.content_type == ContentType.HIGHLIGHT}
         assert deleted.id in ids
@@ -394,13 +394,15 @@ class TestTruncation:
         book = await _add_book(db_session)
         huge = await _add_highlight(db_session, book, "q" * (MAX_EMBEDDABLE_CHARS * 3))
 
-        assert huge.id in {item.content_id for item in await source.iter_work_items(USER_ID, None)}
+        assert huge.id in {
+            item.content_id for item in await source.find_units_needing_embedding(USER_ID, None)
+        }
 
         # Store exactly what the job would: the hash of the text it embedded.
         embedded = await source.get_embeddable(ContentType.HIGHLIGHT, huge.id)
         assert embedded is not None
         await _add_embedding(db_session, book, huge.id, embedded.content_hash)
 
-        items = await source.iter_work_items(USER_ID, None)
+        items = await source.find_units_needing_embedding(USER_ID, None)
 
         assert huge.id not in {item.content_id for item in items}

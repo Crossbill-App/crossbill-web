@@ -25,7 +25,7 @@ class EmbeddableContent:
 
 
 @dataclass(frozen=True)
-class WorkItem:
+class PendingUnit:
     """A content unit that needs (re-)embedding, keyed by type + id."""
 
     content_type: ContentType
@@ -52,12 +52,15 @@ class ContentSourceProtocol(Protocol):
         """
         ...
 
-    async def iter_work_items(self, user_id: int, book_id: int | None) -> list[WorkItem]:
+    async def find_units_needing_embedding(
+        self, user_id: int, book_id: int | None
+    ) -> list[PendingUnit]:
         """List the user's content units the backfill has to act on.
 
         Everything whose embedding is missing, model-stale or content-stale,
-        plus the embeddings a soft-deleted highlight left behind -- those come
-        back as work items too, because the job prunes them by resolving no
-        source (see ``ContentSource._orphans``).
+        plus any embedding that outlived its source. The second kind comes back
+        as work rather than being deleted here: the job resolves no source for
+        it and prunes it down the same path, so there is no separate delete
+        step to keep in step with this one.
         """
         ...

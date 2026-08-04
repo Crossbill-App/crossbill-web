@@ -9,7 +9,7 @@ from src.application.semantic.commands.enqueue_content_embeddings_use_case impor
     EnqueueContentEmbeddingsUseCase,
 )
 from src.application.semantic.content_type import ContentType
-from src.application.semantic.protocols.content_source import WorkItem
+from src.application.semantic.protocols.content_source import PendingUnit
 from src.domain.common.value_objects.ids import BookId, UserId
 from src.domain.jobs.entities.job_batch import JobBatchType
 from src.domain.reading.exceptions import BookNotFoundError
@@ -64,10 +64,10 @@ class TestEnqueueContentEmbeddings:
         queue_service: AsyncMock,
     ) -> None:
         """Three units of three types are three jobs — because a slice never mixes types."""
-        content_source.iter_work_items.return_value = [
-            WorkItem(ContentType.NOTE, 1),
-            WorkItem(ContentType.HIGHLIGHT, 2),
-            WorkItem(ContentType.DIGEST, 3),
+        content_source.find_units_needing_embedding.return_value = [
+            PendingUnit(ContentType.NOTE, 1),
+            PendingUnit(ContentType.HIGHLIGHT, 2),
+            PendingUnit(ContentType.DIGEST, 3),
         ]
 
         batch = await use_case.execute(UserId(1), None)
@@ -92,8 +92,8 @@ class TestEnqueueContentEmbeddings:
     ) -> None:
         """The whole point: N units cost ceil(N / slice) jobs, not N."""
         units = EMBEDDING_SLICE_SIZE * 2 + 5
-        content_source.iter_work_items.return_value = [
-            WorkItem(ContentType.HIGHLIGHT, content_id) for content_id in range(units)
+        content_source.find_units_needing_embedding.return_value = [
+            PendingUnit(ContentType.HIGHLIGHT, content_id) for content_id in range(units)
         ]
 
         batch = await use_case.execute(UserId(1), None)
@@ -117,10 +117,10 @@ class TestEnqueueContentEmbeddings:
         queue_service: AsyncMock,
     ) -> None:
         """A job resolves its ids through one type's table, so a mixed slice would lose rows."""
-        content_source.iter_work_items.return_value = [
-            WorkItem(ContentType.NOTE, 1),
-            WorkItem(ContentType.HIGHLIGHT, 2),
-            WorkItem(ContentType.NOTE, 3),
+        content_source.find_units_needing_embedding.return_value = [
+            PendingUnit(ContentType.NOTE, 1),
+            PendingUnit(ContentType.HIGHLIGHT, 2),
+            PendingUnit(ContentType.NOTE, 3),
         ]
 
         await use_case.execute(UserId(1), None)
@@ -138,8 +138,9 @@ class TestEnqueueContentEmbeddings:
         queue_service: AsyncMock,
     ) -> None:
         """total_jobs counts slices, so the failure accounting has to as well."""
-        content_source.iter_work_items.return_value = [
-            WorkItem(ContentType.NOTE, content_id) for content_id in range(EMBEDDING_SLICE_SIZE * 3)
+        content_source.find_units_needing_embedding.return_value = [
+            PendingUnit(ContentType.NOTE, content_id)
+            for content_id in range(EMBEDDING_SLICE_SIZE * 3)
         ]
         queue_service.enqueue.side_effect = ["saq:note:0", RuntimeError("queue is down")]
 
@@ -157,13 +158,15 @@ class TestEnqueueContentEmbeddings:
         book_repo: AsyncMock,
     ) -> None:
         book_repo.find_by_id.return_value = MagicMock()
-        content_source.iter_work_items.return_value = [WorkItem(ContentType.HIGHLIGHT, 5)]
+        content_source.find_units_needing_embedding.return_value = [
+            PendingUnit(ContentType.HIGHLIGHT, 5)
+        ]
 
         batch = await use_case.execute(UserId(1), BookId(9))
         assert batch is not None
 
         assert batch.reference_id == "9"
-        content_source.iter_work_items.assert_awaited_once_with(1, 9)
+        content_source.find_units_needing_embedding.assert_awaited_once_with(1, 9)
 
     async def test_raises_when_book_not_found(
         self,
@@ -188,7 +191,7 @@ class TestEnqueueContentEmbeddings:
         that exists only to say nothing happened, and JobBatch forbids
         total_jobs of 0 anyway.
         """
-        content_source.iter_work_items.return_value = []
+        content_source.find_units_needing_embedding.return_value = []
 
         assert await use_case.execute(UserId(1), None) is None
 

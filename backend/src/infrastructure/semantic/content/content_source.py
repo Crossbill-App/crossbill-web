@@ -16,7 +16,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.application.semantic.content_type import ContentType
 from src.application.semantic.idempotency import is_current
-from src.application.semantic.protocols.content_source import EmbeddableContent, WorkItem
+from src.application.semantic.protocols.content_source import EmbeddableContent, PendingUnit
 from src.application.semantic.protocols.embedding_repository import EmbeddingState
 from src.config import Settings
 from src.infrastructure.library.orm.book_model import Book as BookORM
@@ -100,8 +100,10 @@ class ContentSource:
             return await self._highlights(content_ids)
         return await self._digests(content_ids)
 
-    async def iter_work_items(self, user_id: int, book_id: int | None) -> list[WorkItem]:
-        items: list[WorkItem] = []
+    async def find_units_needing_embedding(
+        self, user_id: int, book_id: int | None
+    ) -> list[PendingUnit]:
+        items: list[PendingUnit] = []
         items.extend(
             await self._pending(
                 self._note_scope(user_id, book_id),
@@ -159,6 +161,12 @@ class ContentSource:
                 content_type=ContentType.NOTE,
                 content_id=note.id,
                 user_id=note.user_id,
+                # TODO: a note linked to two books gets NULL here, so `?book_id=`
+                # cannot find it at all. note_books already exists -- what is
+                # missing is room for more than one book per embedding (a scope
+                # join table), or filtering notes through note_books in the
+                # search adapter, which ADR-0002 avoided so the ranking query
+                # stays clear of other modules' tables.
                 # Only a note linked to exactly one book gets a scope. A note
                 # spanning two books has no single correct value, and picking one
                 # arbitrarily would make `?book_id=` results depend on link order
@@ -304,15 +312,15 @@ class ContentSource:
         stmt: Select[Any],
         content_type: ContentType,
         to_text: Callable[[Row[Any]], str],
-    ) -> list[WorkItem]:
+    ) -> list[PendingUnit]:
         rows = (await self.db.execute(stmt)).all()
         return [
-            WorkItem(content_type=content_type, content_id=row.content_id)
+            PendingUnit(content_type=content_type, content_id=row.content_id)
             for row in rows
             if self._is_stale(row, to_text(row))
         ]
 
-    async def _orphans(self, user_id: int, book_id: int | None) -> list[WorkItem]:
+    async def _orphans(self, user_id: int, book_id: int | None) -> list[PendingUnit]:
         """Embeddings left behind by a soft-deleted highlight.
 
         Only a highlight can strand one. Notes and digests are hard-deleted
@@ -329,7 +337,7 @@ class ContentSource:
         flight across ``embed()`` re-inserts a row for content just deleted, and
         for a cleanup that failed outright.
 
-        Handing these back as work items is enough to prune them: the job's
+        Handing these back as pending units is enough to prune them: the job's
         ``get_embeddable`` returns ``None`` and the existing "source missing ->
         delete_for" branch removes the row. No separate delete path needed.
         """
@@ -344,6 +352,6 @@ class ContentSource:
             stmt = stmt.where(EmbeddingORM.book_id == book_id)
         ids = (await self.db.execute(stmt)).scalars().all()
         return [
-            WorkItem(content_type=ContentType.HIGHLIGHT, content_id=content_id)
+            PendingUnit(content_type=ContentType.HIGHLIGHT, content_id=content_id)
             for content_id in ids
         ]
