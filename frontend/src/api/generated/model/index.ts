@@ -7,6 +7,8 @@
 
 export * from './apiRoot200.ts';
 export * from './appSettingsResponse.ts';
+export * from './backfillEmbeddingsParams.ts';
+export * from './backfillResponse.ts';
 export * from './bodyLogin.ts';
 export * from './bodyUploadBookEpub.ts';
 export * from './bookCreate.ts';
@@ -32,6 +34,7 @@ export * from './collectionResponseFlashcardWithHighlight.ts';
 export * from './collectionResponseHighlightLabelInBook.ts';
 export * from './collectionResponseNoteWithLinks.ts';
 export * from './collectionResponseTag.ts';
+export * from './contentType.ts';
 export * from './createChatSessionResponse.ts';
 export * from './digestAnswerUpdate.ts';
 export * from './digestQuestionResponse.ts';
@@ -86,7 +89,10 @@ export * from './readingSessionUploadRequest.ts';
 export * from './readingSessionUploadResponse.ts';
 export * from './readingSessionUploadSessionItem.ts';
 export * from './refreshTokenRequest.ts';
+export * from './relatedContentParams.ts';
 export * from './searchBookHighlightsParams.ts';
+export * from './searchContentParams.ts';
+export * from './semanticSearchResult.ts';
 export * from './sendChatMessageRequest.ts';
 export * from './sendChatMessageResponse.ts';
 export * from './successResponse.ts';

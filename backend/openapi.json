@@ -3465,6 +3465,225 @@
         }
       }
     },
+    "/api/v1/semantic/backfill": {
+      "post": {
+        "tags": [
+          "semantic"
+        ],
+        "summary": "Backfill Embeddings",
+        "description": "Enqueue an embedding batch for the user's content, optionally scoped to a book.\n\nAnswers 202 with the batch to poll through ``GET /jobs/batches/{id}``, or 200\nwith ``total_jobs`` 0 when everything is already indexed. The second is a\nnormal outcome of pressing backfill twice, which is why it is not a 4xx: a\ncaller cannot tell a rejected request from a satisfied one.",
+        "operationId": "backfill_embeddings",
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "book_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Book Id"
+            }
+          }
+        ],
+        "responses": {
+          "202": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BackfillResponse"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "Everything was already indexed; no batch was created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BackfillResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/semantic/search": {
+      "get": {
+        "tags": [
+          "semantic"
+        ],
+        "summary": "Search Content",
+        "description": "Rank the user's embedded content by semantic similarity to a free-text query.",
+        "operationId": "search_content",
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "q",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 1000,
+              "title": "Q"
+            }
+          },
+          {
+            "name": "book_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Book Id"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 50,
+              "minimum": 1,
+              "default": 10,
+              "title": "Limit"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/SemanticSearchResult"
+                  },
+                  "title": "Response Search Content"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/semantic/related": {
+      "get": {
+        "tags": [
+          "semantic"
+        ],
+        "summary": "Related Content",
+        "description": "Rank the user's embedded content by similarity to one already-indexed unit.",
+        "operationId": "related_content",
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "content_type",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/ContentType"
+            }
+          },
+          {
+            "name": "content_id",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Content Id"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 50,
+              "minimum": 1,
+              "default": 10,
+              "title": "Limit"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/SemanticSearchResult"
+                  },
+                  "title": "Response Related Content"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/settings": {
       "get": {
         "tags": [
@@ -3547,6 +3766,31 @@
         ],
         "title": "AppSettingsResponse",
         "description": "Schema for returning public application settings."
+      },
+      "BackfillResponse": {
+        "properties": {
+          "total_jobs": {
+            "type": "integer",
+            "title": "Total Jobs"
+          },
+          "batch": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/JobBatchResponse"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "type": "object",
+        "required": [
+          "total_jobs",
+          "batch"
+        ],
+        "title": "BackfillResponse",
+        "description": "What a backfill request did.\n\n``total_jobs`` is the field to key on, because it is the only one present in\nboth outcomes: it is 0 exactly when nothing needed embedding, and then\n``batch`` is null because no batch was created and there is nothing to poll."
       },
       "Body_login": {
         "properties": {
@@ -4613,6 +4857,16 @@
         ],
         "title": "CollectionResponse[Tag]"
       },
+      "ContentType": {
+        "type": "string",
+        "enum": [
+          "note",
+          "highlight",
+          "digest"
+        ],
+        "title": "ContentType",
+        "description": "A kind of natural-language unit that can be embedded."
+      },
       "CreateChatSessionResponse": {
         "properties": {
           "session_id": {
@@ -4814,6 +5068,11 @@
             "title": "Ai",
             "description": "Whether AI features are enabled"
           },
+          "embeddings": {
+            "type": "boolean",
+            "title": "Embeddings",
+            "description": "Whether semantic-search embeddings are enabled"
+          },
           "user_registrations": {
             "type": "boolean",
             "title": "User Registrations",
@@ -4823,6 +5082,7 @@
         "type": "object",
         "required": [
           "ai",
+          "embeddings",
           "user_registrations"
         ],
         "title": "FeatureFlags",
@@ -6719,6 +6979,45 @@
         "type": "object",
         "title": "RefreshTokenRequest",
         "description": "Request body for refresh token (used by plugins)."
+      },
+      "SemanticSearchResult": {
+        "properties": {
+          "content_type": {
+            "$ref": "#/components/schemas/ContentType"
+          },
+          "content_id": {
+            "type": "integer",
+            "title": "Content Id"
+          },
+          "book_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Book Id"
+          },
+          "score": {
+            "type": "number",
+            "title": "Score"
+          },
+          "text": {
+            "type": "string",
+            "title": "Text"
+          }
+        },
+        "type": "object",
+        "required": [
+          "content_type",
+          "content_id",
+          "book_id",
+          "score",
+          "text"
+        ],
+        "title": "SemanticSearchResult"
       },
       "SendChatMessageRequest": {
         "properties": {

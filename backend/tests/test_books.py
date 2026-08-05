@@ -163,6 +163,50 @@ class TestDeleteBook:
         highlights = result.scalars().all()
         assert len(highlights) == 0
 
+    async def test_delete_book_cascades_to_its_embeddings_only(
+        self,
+        client: AsyncClient,
+        db_session: AsyncSession,
+        book_with_chapter_and_highlight: BookWithChapterAndHighlights,
+    ) -> None:
+        """Deleting a book must not leave its embeddings orphaned.
+
+        Book deletion is a database-level cascade with no per-row application
+        hook, so the foreign keys are the only thing that prunes them. Without
+        them they would survive until the next backfill.
+        """
+        book = book_with_chapter_and_highlight.book
+        doomed = book_with_chapter_and_highlight.highlights[0]
+        survivor = await create_test_book(db_session, user_id=DEFAULT_USER_ID, title="Keep me")
+        kept = await create_test_highlight(
+            db_session,
+            survivor,
+            DEFAULT_USER_ID,
+            text="keep",
+            datetime_str="2024-01-15 14:30:22",
+        )
+        for target, highlight in ((book, doomed), (survivor, kept)):
+            db_session.add(
+                models.Embedding(
+                    user_id=DEFAULT_USER_ID,
+                    content_type="highlight",
+                    content_id=highlight.id,
+                    highlight_id=highlight.id,
+                    book_id=target.id,
+                    embedding=[0.1, 0.2],
+                    model_name="bge-m3",
+                    model_version="1",
+                    content_hash="h" * 64,
+                )
+            )
+        await db_session.commit()
+
+        response = await client.delete(f"/api/v1/books/{book.id}")
+
+        assert response.status_code == status.HTTP_204_NO_CONTENT
+        remaining = (await db_session.execute(select(models.Embedding))).scalars().all()
+        assert [row.book_id for row in remaining] == [survivor.id]
+
     async def test_delete_book_not_found(self, client: AsyncClient) -> None:
         """Test deletion of non-existent book."""
         response = await client.delete("/api/v1/books/99999")

@@ -73,7 +73,7 @@ jobs:
 
       - name: Setup Python
         if: matrix.component == 'backend'
-        run: uv python install 3.11
+        run: uv python install 3.12
 
       - name: Install dependencies
         if: matrix.component == 'backend'

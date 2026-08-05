@@ -69,6 +69,39 @@ For development, run the worker separately:
 make dev-worker
 ```
 
+### Semantic Search (Optional)
+
+Semantic search embeds notes, highlights and chapter digests into a pgvector
+index so related content surfaces across books and languages. It is off unless
+an embedding provider is configured.
+
+```
+# Local development, via Ollama
+EMBEDDING_PROVIDER=ollama
+EMBEDDING_MODEL_NAME=bge-m3
+EMBEDDING_BASE_URL=http://localhost:11434/v1
+
+# Hosted, via OpenRouter (reuses OPENROUTER_API_KEY)
+EMBEDDING_PROVIDER=openrouter
+EMBEDDING_MODEL_NAME=baai/bge-m3
+```
+
+`EMBEDDING_BASE_URL` is required for `ollama` and optional for `openrouter`
+(defaults to `https://openrouter.ai/api/v1`). `EMBEDDING_MODEL_VERSION`
+(default `1`) is stored with every vector: bump it to force a re-embed on the
+next backfill without a schema change.
+
+The vector width is fixed at 1024 (bge-m3) by the database column, so switching
+to a model of a different dimension is a migration plus a full re-embed, not a
+setting. Postgres must have the `vector` extension available, **version 0.8 or
+newer** — search sets `hnsw.iterative_scan`, without which a query can come back
+empty once one user's vectors sit nearer the index than another's. The bundled
+`pgvector/pgvector:pg18` image ships 0.8.6.
+
+Embeddings are written by background jobs. Existing content is indexed by
+`POST /api/v1/semantic/backfill`, which also prunes entries whose source is
+gone; progress is visible through the usual job-batch views.
+
 ### S3-Compatible Storage (Optional)
 
 By default, Crossbill stores ebook files and covers on the local filesystem. For multi-container deployments (e.g., Railway) where the app and worker containers cannot share a filesystem, you can configure S3-compatible storage so both containers access the same files.

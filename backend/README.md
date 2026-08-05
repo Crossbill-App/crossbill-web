@@ -16,7 +16,7 @@ Backend API for crossbill - a self-hosted web app to sync highlights from KORead
 
 ## Prerequisites
 
-- Python 3.11+
+- Python 3.12+
 - [uv](https://docs.astral.sh/uv/)
 - Docker and Docker Compose (for PostgreSQL)
 
