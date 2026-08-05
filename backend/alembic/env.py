@@ -8,6 +8,7 @@ from alembic import context
 # add your model's MetaData object here
 # for 'autogenerate' support
 # Import your models here to enable autogenerate
+from src.config import normalize_database_url
 from src.models import Base
 
 # this is the Alembic Config object, which provides
@@ -21,9 +22,12 @@ if config.config_file_name is not None:
 
 target_metadata = Base.metadata
 
-# Get database URL from environment variable
-database_url = os.getenv(
-    "DATABASE_URL", "postgresql://crossbill:crossbill_dev_password@localhost:5432/crossbill"
+# Get database URL from environment variable. Read here rather than through
+# Settings, so the scheme has to be normalized again on this path.
+database_url = normalize_database_url(
+    os.getenv(
+        "DATABASE_URL", "postgresql://crossbill:crossbill_dev_password@localhost:5432/crossbill"
+    )
 )
 if database_url:
     config.set_main_option("sqlalchemy.url", database_url)

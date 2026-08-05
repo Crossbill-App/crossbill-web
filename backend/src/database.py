@@ -15,7 +15,7 @@ from sqlalchemy.ext.asyncio import (
 from sqlalchemy.orm import DeclarativeBase
 from sqlalchemy.pool import StaticPool
 
-from src.config import Settings, get_settings
+from src.config import Settings, get_settings, normalize_database_url
 
 
 class Base(DeclarativeBase):
@@ -27,8 +27,9 @@ _engine: AsyncEngine | None = None
 _session_factory: async_sessionmaker[AsyncSession] | None = None
 
 
-def _make_async_url(url: str) -> str:
+def make_async_url(url: str) -> str:
     """Convert a database URL to its async-compatible dialect."""
+    url = normalize_database_url(url)
     if url.startswith("sqlite://"):
         return url.replace("sqlite://", "sqlite+aiosqlite://", 1)
     if url.startswith("postgresql://"):
@@ -48,7 +49,7 @@ def initialize_database(settings: Settings) -> None:
     if _engine is not None:
         return
 
-    async_url = _make_async_url(settings.DATABASE_URL)
+    async_url = make_async_url(settings.DATABASE_URL)
 
     # Connection pool configuration
     if async_url.startswith("sqlite"):

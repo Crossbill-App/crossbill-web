@@ -19,6 +19,19 @@ BOOK_COVERS_DIR = BOOK_FILES_DIR / "book-covers"
 EPUBS_DIR = BOOK_FILES_DIR / "epubs"
 
 
+def normalize_database_url(url: str) -> str:
+    """Rewrite the legacy `postgres://` scheme to the `postgresql://` SQLAlchemy needs.
+
+    Hosted Postgres providers still hand out `postgres://` URLs — Railway's pgvector
+    image is one — but SQLAlchemy dropped that dialect alias in 1.4 and fails the whole
+    process with `NoSuchModuleError`. Normalizing at the edge keeps every consumer
+    (engine, Alembic, SAQ) working whichever spelling the provider chose.
+    """
+    if url.startswith("postgres://"):
+        return url.replace("postgres://", "postgresql://", 1)
+    return url
+
+
 class Settings(BaseSettings):
     """Application settings."""
 
@@ -162,6 +175,12 @@ class Settings(BaseSettings):
             and self.S3_SECRET_ACCESS_KEY is not None
             and self.S3_BUCKET_NAME is not None
         )
+
+    @field_validator("DATABASE_URL", mode="after")
+    @classmethod
+    def normalize_database_scheme(cls, value: str) -> str:
+        """Accept a provider-issued `postgres://` URL without breaking SQLAlchemy."""
+        return normalize_database_url(value)
 
     @field_validator("ADMIN_PASSWORD", mode="after")
     @classmethod
