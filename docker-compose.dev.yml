@@ -2,7 +2,9 @@
 # Frontend and backend run on the host.
 services:
   postgres:
-    image: postgres:18-alpine
+    # pgvector/pgvector:pgNN is the official Postgres image plus the `vector`
+    # extension, required by the semantic-search embeddings table.
+    image: pgvector/pgvector:pg18
     container_name: crossbill-postgres
     restart: unless-stopped
     ports:
