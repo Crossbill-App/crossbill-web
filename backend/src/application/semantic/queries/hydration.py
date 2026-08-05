@@ -45,6 +45,9 @@ async def hydrate_hits(
         for content_id, content in found.items():
             resolved[(content_type, content_id)] = content
 
+    # TODO(#543): ``text`` is the embedding input, not a display field -- it is
+    # truncated and lossily concatenated, so a note cannot render its title as a
+    # title. Hydrate through the modules' own read models instead.
     return [
         SemanticSearchView(
             content_type=hit.content_type,
