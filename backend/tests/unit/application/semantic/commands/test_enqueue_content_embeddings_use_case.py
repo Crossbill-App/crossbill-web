@@ -4,8 +4,8 @@ from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
+from src.application.semantic.batching import EMBEDDING_SLICE_SIZE
 from src.application.semantic.commands.enqueue_content_embeddings_use_case import (
-    EMBEDDING_SLICE_SIZE,
     EnqueueContentEmbeddingsUseCase,
 )
 from src.application.semantic.content_type import ContentType

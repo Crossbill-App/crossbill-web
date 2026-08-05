@@ -14,9 +14,7 @@ from tests.semantic_helpers import ENABLED, backfill_enqueued_ids, plant_indexed
 
 #: Patch target for the slice size, so a test can force several slices without
 #: planting 33 highlights to get past the real one.
-SLICE_SIZE = (
-    "src.application.semantic.commands.enqueue_content_embeddings_use_case.EMBEDDING_SLICE_SIZE"
-)
+SLICE_SIZE = "src.application.semantic.batching.EMBEDDING_SLICE_SIZE"
 
 
 @pytest.fixture

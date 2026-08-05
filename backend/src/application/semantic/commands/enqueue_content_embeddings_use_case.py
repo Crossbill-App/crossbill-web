@@ -1,13 +1,12 @@
 """Use case for enqueuing a backfill batch of content embeddings."""
 
-from itertools import batched
-
 import structlog
 
 from src.application.common.ownership import require_book
 from src.application.jobs.protocols.job_batch_repository import JobBatchRepositoryProtocol
 from src.application.jobs.protocols.job_queue_service import JobQueueServiceProtocol
 from src.application.library.protocols.book_repository import BookRepositoryProtocol
+from src.application.semantic.batching import record_dropped_slices, slice_ids
 from src.application.semantic.content_type import ContentType
 from src.application.semantic.protocols.content_source import ContentSourceProtocol, PendingUnit
 from src.domain.common.exceptions import DomainError
@@ -15,16 +14,6 @@ from src.domain.common.value_objects.ids import BookId, UserId
 from src.domain.jobs.entities.job_batch import JobBatch, JobBatchType
 
 logger = structlog.get_logger(__name__)
-
-#: How many content units one embedding job handles.
-#:
-#: A job per unit meant a queue round trip per unit inside this request *and* a
-#: provider round trip per unit in the worker; a slice amortises both. Well
-#: below the client's own per-request cap (96, OpenRouter's limit, which the
-#: client chunks at independently and which is not this layer's business):
-#: a slice of long notes is a large payload to ask a local Ollama GPU to hold at
-#: once, and 32 already removes 31 of every 32 requests.
-EMBEDDING_SLICE_SIZE = 32
 
 
 def _slices(items: list[PendingUnit]) -> list[tuple[ContentType, list[int]]]:
@@ -37,9 +26,9 @@ def _slices(items: list[PendingUnit]) -> list[tuple[ContentType, list[int]]]:
     for item in items:
         by_type.setdefault(item.content_type, []).append(item.content_id)
     return [
-        (content_type, list(chunk))
+        (content_type, chunk)
         for content_type, content_ids in by_type.items()
-        for chunk in batched(content_ids, EMBEDDING_SLICE_SIZE)
+        for chunk in slice_ids(content_ids)
     ]
 
 
@@ -106,16 +95,7 @@ class EnqueueContentEmbeddingsUseCase:
             await self._batch_repo.save(batch)
             raise DomainError("Failed to enqueue any jobs for content embedding")
 
-        # Slices the loop never reached will never be embedded, so record them as
-        # failures rather than shrinking total_jobs to what was enqueued: that
-        # let a backfill of 500 slices which broke at slice 3 terminate as
-        # "completed, total_jobs=3", with nothing to say 497 were dropped. The
-        # batch still reaches a terminal status once the enqueued jobs report —
-        # COMPLETED_WITH_ERRORS instead of COMPLETED.
-        for _ in range(len(slices) - len(batch.job_keys)):
-            batch.mark_job_failed()
-
-        await self._batch_repo.save(batch)
+        batch = await record_dropped_slices(batch, len(slices), self._batch_repo)
 
         logger.info(
             "content_embedding_batch_enqueued",
