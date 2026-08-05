@@ -16,11 +16,15 @@
 # the same file `make deploy` uses, so no extra setup is needed.
 #
 # Both production endpoints are discovered through the Railway API rather than
-# being configured here, so no resource IDs live in the repo: the database is the
-# service exposing DATABASE_PUBLIC_URL, and object storage comes from the service
-# exposing S3_BUCKET_NAME. Pin either with RAILWAY_POSTGRES_SERVICE_ID /
-# RAILWAY_SERVICE_ID, or bypass discovery with PRODUCTION_DATABASE_URL and the
-# PRODUCTION_S3_* variables.
+# being configured here, so no resource IDs live in the repo. The database is
+# whichever one the app actually connects to: the service holding DATABASE_URL
+# without PGDATA is the app, and the Postgres service whose private domain that
+# URL names is production. Anything keyed off variable names alone — "the service
+# exposing DATABASE_PUBLIC_URL" — silently picks a retired database once a project
+# holds two of them, which is what happened when production moved to pgvector.
+# Object storage still comes from the service exposing S3_BUCKET_NAME.
+# Pin either with RAILWAY_POSTGRES_SERVICE_ID / RAILWAY_SERVICE_ID, or bypass
+# discovery with PRODUCTION_DATABASE_URL and the PRODUCTION_S3_* variables.
 #
 # The local database comes from LOCAL_DATABASE_URL, else DATABASE_URL in the root
 # .env, else the dev default. It must point at localhost — cloning over a remote
@@ -178,6 +182,70 @@ find_service_by_variable() {
   esac
 }
 
+# Sets FOUND_VARS / FOUND_SERVICE to the one service that uses a database
+# without being one: it holds DATABASE_URL but no PGDATA, which every Railway
+# Postgres image sets. That is the app, and what it points at defines production.
+find_database_consumer() {
+  local i matches=() names=()
+  discover_services
+  for i in "${!SERVICE_NAMES[@]}"; do
+    echo "${SERVICE_VARS[$i]}" | jq -e '.DATABASE_URL and (.PGDATA | not)' >/dev/null 2>&1 &&
+      matches+=("$i")
+  done
+
+  case "${#matches[@]}" in
+    1)
+      FOUND_SERVICE="${SERVICE_NAMES[${matches[0]}]}"
+      FOUND_VARS="${SERVICE_VARS[${matches[0]}]}"
+      ;;
+    0)
+      echo "No service in this Railway environment connects to a database." >&2
+      return 1
+      ;;
+    *)
+      for i in "${matches[@]}"; do names+=("${SERVICE_NAMES[$i]}"); done
+      echo "Several services connect to a database: ${names[*]}" >&2
+      echo "Pin the app with RAILWAY_SERVICE_ID, or set PRODUCTION_DATABASE_URL." >&2
+      return 1
+      ;;
+  esac
+}
+
+# Sets FOUND_VARS / FOUND_SERVICE to the service whose private domain is $1.
+find_service_by_private_domain() {
+  local domain="$1" i
+  discover_services
+  for i in "${!SERVICE_NAMES[@]}"; do
+    [ "$(echo "${SERVICE_VARS[$i]}" | jq -r '.RAILWAY_PRIVATE_DOMAIN // empty')" = "$domain" ] || continue
+    FOUND_SERVICE="${SERVICE_NAMES[$i]}"
+    FOUND_VARS="${SERVICE_VARS[$i]}"
+    return 0
+  done
+  return 1
+}
+
+# Echoes the hostname of a connection URL.
+url_host() {
+  local authority="${1#*://}"
+  authority="${authority%%/*}"
+  authority="${authority##*@}"
+  echo "${authority%%:*}"
+}
+
+# Echoes a URL for the database service whose variables are $1 that resolves from
+# outside Railway, or nothing if it only publishes a private endpoint. A service
+# without a TCP proxy still sets DATABASE_URL, pointing at .railway.internal,
+# which is unreachable here and would fail much later as a DNS error.
+public_database_url() {
+  local vars="$1" url
+  url="$(echo "$vars" | jq -r '.DATABASE_PUBLIC_URL // empty')"
+  [ -n "$url" ] || url="$(echo "$vars" | jq -r '.DATABASE_URL // empty')"
+  case "$(url_host "$url")" in
+    '' | *.railway.internal) return 0 ;;
+  esac
+  printf '%s' "$url"
+}
+
 # Strips the userinfo from a connection URL so it can be printed safely.
 redact() {
   echo "$1" | sed -E 's#(://)[^/@]*@#\1<credentials>@#'
@@ -215,20 +283,31 @@ if [ "$CLONE_DB" = true ]; then
     echo "Using PRODUCTION_DATABASE_URL from the environment."
   elif [ -n "${RAILWAY_POSTGRES_SERVICE_ID:-}" ]; then
     discover_services
-    PRODUCTION_DATABASE_URL="$(service_variables "$RAILWAY_POSTGRES_SERVICE_ID" | jq -r '.DATABASE_PUBLIC_URL // empty')"
+    PRODUCTION_DATABASE_URL="$(public_database_url "$(service_variables "$RAILWAY_POSTGRES_SERVICE_ID")")"
     [ -n "$PRODUCTION_DATABASE_URL" ] || {
-      echo "Service ${RAILWAY_POSTGRES_SERVICE_ID} exposes no DATABASE_PUBLIC_URL." >&2
+      echo "Service ${RAILWAY_POSTGRES_SERVICE_ID} publishes no endpoint reachable from here." >&2
       echo "Enable its public TCP proxy in the Railway dashboard, or set PRODUCTION_DATABASE_URL." >&2
       exit 1
     }
   else
     echo "Resolving the production database from Railway..."
-    find_service_by_variable DATABASE_PUBLIC_URL || {
-      echo "Enable the database's public TCP proxy, pin RAILWAY_POSTGRES_SERVICE_ID, or set PRODUCTION_DATABASE_URL." >&2
+    find_database_consumer || exit 1
+    APP_SERVICE="$FOUND_SERVICE"
+    APP_DB_HOST="$(url_host "$(echo "$FOUND_VARS" | jq -r '.DATABASE_URL')")"
+
+    find_service_by_private_domain "$APP_DB_HOST" || {
+      echo "The '${APP_SERVICE}' service points at ${APP_DB_HOST}, which is not a service" >&2
+      echo "in this environment. Pin RAILWAY_POSTGRES_SERVICE_ID, or set PRODUCTION_DATABASE_URL." >&2
       exit 1
     }
-    PRODUCTION_DATABASE_URL="$(echo "$FOUND_VARS" | jq -r '.DATABASE_PUBLIC_URL')"
-    echo "Found the '${FOUND_SERVICE}' service."
+
+    PRODUCTION_DATABASE_URL="$(public_database_url "$FOUND_VARS")"
+    [ -n "$PRODUCTION_DATABASE_URL" ] || {
+      echo "The '${FOUND_SERVICE}' database publishes no endpoint reachable from here." >&2
+      echo "Enable its public TCP proxy in the Railway dashboard, or set PRODUCTION_DATABASE_URL." >&2
+      exit 1
+    }
+    echo "Found the '${FOUND_SERVICE}' database, which '${APP_SERVICE}' connects to."
   fi
 fi
 
