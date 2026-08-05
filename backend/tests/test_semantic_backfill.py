@@ -8,7 +8,12 @@ from starlette import status
 
 from src.models import Book, Highlight
 from tests.conftest import create_test_highlight
-from tests.semantic_helpers import ENABLED, backfill_enqueued_ids, plant_indexed_highlight
+from tests.semantic_helpers import (
+    backfill_enqueued_ids,
+    embeddings_disabled,
+    embeddings_enabled,
+    plant_indexed_highlight,
+)
 
 #: Patch target for the slice size, so a test can force several slices without
 #: planting 33 highlights to get past the real one.
@@ -19,7 +24,7 @@ class TestBackfillEndpoint:
     async def test_blocked_when_embeddings_disabled(
         self, client: AsyncClient, job_queue: AsyncMock
     ) -> None:
-        with patch(ENABLED, return_value=False):
+        with embeddings_disabled():
             response = await client.post("/api/v1/semantic/backfill")
 
         assert response.status_code == status.HTTP_403_FORBIDDEN
@@ -32,7 +37,7 @@ class TestBackfillEndpoint:
         test_book: Book,
         test_highlight: Highlight,
     ) -> None:
-        with patch(ENABLED, return_value=True):
+        with embeddings_enabled():
             response = await client.post("/api/v1/semantic/backfill")
 
         assert response.status_code == status.HTTP_202_ACCEPTED
@@ -52,7 +57,7 @@ class TestBackfillEndpoint:
         request. The status is pinned exactly, and so is total_jobs: 200 alone
         would not say which outcome it was.
         """
-        with patch(ENABLED, return_value=True):
+        with embeddings_enabled():
             response = await client.post("/api/v1/semantic/backfill")
 
         assert response.status_code == status.HTTP_200_OK
@@ -110,7 +115,7 @@ class TestBackfillEndpoint:
             )
         job_queue.enqueue.side_effect = ["saq:1", RuntimeError("queue is down")]
 
-        with patch(ENABLED, return_value=True), patch(SLICE_SIZE, 1):
+        with embeddings_enabled(), patch(SLICE_SIZE, 1):
             response = await client.post("/api/v1/semantic/backfill")
 
         assert response.status_code == status.HTTP_202_ACCEPTED

@@ -6,12 +6,12 @@ from src.application.common.ownership import require_book
 from src.application.jobs.protocols.job_batch_repository import JobBatchRepositoryProtocol
 from src.application.jobs.protocols.job_queue_service import JobQueueServiceProtocol
 from src.application.library.protocols.book_repository import BookRepositoryProtocol
-from src.application.semantic.batching import record_dropped_slices, slice_ids
+from src.application.semantic.batching import enqueue_embedding_batch, slice_ids
 from src.application.semantic.content_type import ContentType
 from src.application.semantic.protocols.content_source import ContentSourceProtocol, PendingUnit
 from src.domain.common.exceptions import DomainError
 from src.domain.common.value_objects.ids import BookId, UserId
-from src.domain.jobs.entities.job_batch import JobBatch, JobBatchType
+from src.domain.jobs.entities.job_batch import JobBatch
 
 logger = structlog.get_logger(__name__)
 
@@ -58,44 +58,19 @@ class EnqueueContentEmbeddingsUseCase:
             # Everything is already indexed.
             return None
 
-        slices = _slices(items_to_generate_embeddings)
-
         reference_id = str(book_id.value) if book_id else f"user:{user_id.value}"
-        batch = JobBatch.create(
+        batch = await enqueue_embedding_batch(
+            _slices(items_to_generate_embeddings),
             user_id=user_id,
-            batch_type=JobBatchType.CONTENT_EMBEDDING,
             reference_id=reference_id,
-            total_jobs=len(slices),
+            queue_service=self._queue_service,
+            batch_repo=self._batch_repo,
         )
-        batch = await self._batch_repo.save(batch)
 
-        for content_type, content_ids in slices:
-            try:
-                job_key = await self._queue_service.enqueue(
-                    "generate_content_embeddings",
-                    retries=3,
-                    timeout_seconds=300,
-                    batch_id=batch.id.value,
-                    content_type=content_type.value,
-                    content_ids=content_ids,
-                    user_id=user_id.value,
-                )
-                batch.add_job_key(job_key)
-            except Exception:
-                logger.exception(
-                    "failed_to_enqueue_job",
-                    content_type=content_type.value,
-                    content_ids=content_ids,
-                    batch_id=batch.id.value,
-                )
-                break
-
+        # Unlike the live enqueuer, this is a button the user pressed: getting
+        # nowhere has to be reported, not logged and swallowed.
         if not batch.job_keys:
-            batch.cancel()
-            await self._batch_repo.save(batch)
             raise DomainError("Failed to enqueue any jobs for content embedding")
-
-        batch = await record_dropped_slices(batch, len(slices), self._batch_repo)
 
         logger.info(
             "content_embedding_batch_enqueued",

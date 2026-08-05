@@ -4,13 +4,13 @@ The subject is the seam, not the embedding: what these pin is *which* units a
 create, an edit or an upload hands to the queue, and -- at least as important --
 that a queue which is off or broken never costs the user their write.
 
-The flag here is ``embeddings_enabled``, the write-path gate, which is a
-different lever from the ``ENABLED`` the router tests patch; see the helper.
+``embeddings_enabled`` / ``embeddings_disabled`` move the feature gate, which
+production reads through two doors; the helper closes both.
 """
 
 from collections.abc import AsyncGenerator
 from typing import Any
-from unittest.mock import AsyncMock, patch
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 from httpx import AsyncClient
@@ -19,7 +19,6 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from starlette import status
 
 from src import models
-from src.application.ai.ai_usage_context import AIUsageContext
 from src.application.reading.protocols.ai_digest_service import DigestResult
 from src.domain.reading.entities.chapter_digest import DigestQuestion
 from src.models import Book, Chapter, Note
@@ -29,8 +28,6 @@ from tests.semantic_helpers import embeddings_disabled, embeddings_enabled
 #: Patch target for the slice size, so an upload can be cut into several jobs
 #: without posting 33 highlights.
 SLICE_SIZE = "src.application.semantic.batching.EMBEDDING_SLICE_SIZE"
-
-_EPUB_BYTES = b"PK\x03\x04 not really an epub"
 
 
 def embedding_calls(job_queue: AsyncMock) -> list[dict[str, Any]]:
@@ -70,8 +67,14 @@ async def upload_highlights(
 
 class TestNoteWrites:
     async def test_create_enqueues_one_bare_job_for_the_note(
-        self, client: AsyncClient, job_queue: AsyncMock, test_book: Book
+        self, client: AsyncClient, job_queue: AsyncMock, db_session: AsyncSession, test_book: Book
     ) -> None:
+        """One job, and no batch: a single edit has no progress worth tracking.
+
+        The kwargs are pinned by equality, so the absent ``batch_id`` is part of
+        the assertion -- a JobBatch per note save would put a row in the batch
+        table for every edit, each of them a batch of one.
+        """
         with embeddings_enabled():
             note = await create_note(client, test_book)
 
@@ -84,19 +87,6 @@ class TestNoteWrites:
                 "user_id": test_book.user_id,
             }
         ]
-
-    async def test_create_does_not_open_a_batch(
-        self, client: AsyncClient, job_queue: AsyncMock, db_session: AsyncSession, test_book: Book
-    ) -> None:
-        """A single edit is one job, so there is no progress to track.
-
-        A JobBatch per note save would put a row in the batch table for every
-        edit, and every one of them would be a batch of one.
-        """
-        with embeddings_enabled():
-            await create_note(client, test_book)
-
-        assert "batch_id" not in embedding_calls(job_queue)[0]
         batches = (await db_session.execute(select(models.JobBatchModel))).scalars().all()
         assert batches == []
 
@@ -262,26 +252,24 @@ async def digest_chapter(
     chapter.end_xpoint = "/body/DocFragment[2]"
     await db_session.commit()
 
-    extraction = AsyncMock()
-    # Comfortably past the use case's 50-character floor for "worth digesting".
-    extraction.extract_chapter_text = lambda **_: (
+    # MagicMock, not AsyncMock: extract_chapter_text is a synchronous protocol
+    # method, and the text is comfortably past the use case's 50-character floor
+    # for "worth digesting".
+    extraction = MagicMock()
+    extraction.extract_chapter_text.return_value = (
         "Raskolnikov paces his garret and talks himself into the theory that "
         "some men are permitted to step over the line."
     )
 
     ai_service = AsyncMock()
-
-    async def generate_digest(content: str, usage_context: AIUsageContext) -> DigestResult:
-        return DigestResult(
-            summary="Raskolnikov commits the murder",
-            keypoints=["Poverty", "Theory of the extraordinary man"],
-            questions=[DigestQuestion(question="Why?", answer="Pride")],
-        )
-
-    ai_service.generate_digest = generate_digest
+    ai_service.generate_digest.return_value = DigestResult(
+        summary="Raskolnikov commits the murder",
+        keypoints=["Poverty", "Theory of the extraordinary man"],
+        questions=[DigestQuestion(question="Why?", answer="Pride")],
+    )
 
     file_repo = AsyncMock()
-    file_repo.get_epub = AsyncMock(return_value=_EPUB_BYTES)
+    file_repo.get_epub.return_value = b"PK\x03\x04 not really an epub"
 
     container.shared.ebook_text_extraction_service.override(extraction)
     container.shared.ai_service.override(ai_service)
@@ -292,7 +280,7 @@ async def digest_chapter(
     container.shared.ebook_text_extraction_service.reset_last_overriding()
 
 
-async def generate_digest(client: AsyncClient, chapter: Chapter) -> dict[str, Any]:
+async def generate_chapter_digest(client: AsyncClient, chapter: Chapter) -> dict[str, Any]:
     with patch("src.infrastructure.common.dependencies.is_ai_enabled", return_value=True):
         response = await client.post(f"/api/v1/chapters/{chapter.id}/digest/generate")
     assert response.status_code == status.HTTP_201_CREATED, response.text
@@ -304,7 +292,7 @@ class TestDigestGeneration:
         self, client: AsyncClient, job_queue: AsyncMock, digest_chapter: Chapter, test_book: Book
     ) -> None:
         with embeddings_enabled():
-            digest = await generate_digest(client, digest_chapter)
+            digest = await generate_chapter_digest(client, digest_chapter)
 
         assert digest["summary"] == "Raskolnikov commits the murder"
         assert embedding_calls(job_queue) == [
@@ -322,7 +310,7 @@ class TestDigestGeneration:
     ) -> None:
         """Only summary and keypoints are embedded, so an answer cannot stale it."""
         with embeddings_enabled():
-            await generate_digest(client, digest_chapter)
+            await generate_chapter_digest(client, digest_chapter)
             job_queue.enqueue.reset_mock()
             response = await client.put(
                 f"/api/v1/chapters/{digest_chapter.id}/digest/answers",
@@ -338,6 +326,6 @@ class TestDigestGeneration:
         job_queue.enqueue.side_effect = RuntimeError("redis is down")
 
         with embeddings_enabled():
-            digest = await generate_digest(client, digest_chapter)
+            digest = await generate_chapter_digest(client, digest_chapter)
 
         assert digest["keypoints"] == ["Poverty", "Theory of the extraordinary man"]

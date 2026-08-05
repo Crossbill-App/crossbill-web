@@ -1,45 +1,23 @@
 """Tests for the GET /semantic/search and /semantic/related read endpoints."""
 
-from collections.abc import AsyncGenerator, Generator
+from collections.abc import AsyncGenerator
 from datetime import UTC, datetime
-from unittest.mock import AsyncMock, patch
+from unittest.mock import AsyncMock
 
 import pytest
 from httpx import AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession
 from starlette import status
 
-from src.config import get_settings
 from src.infrastructure.semantic.routers.semantic import MAX_QUERY_LENGTH
 from src.models import Book, Highlight, User
 from tests.semantic_helpers import (
-    ENABLED,
+    embeddings_disabled,
     get_related,
     get_search,
     plant_indexed_highlight,
     search_content_ids,
 )
-
-
-@pytest.fixture
-def unconfigured_embeddings() -> Generator[None, None, None]:
-    """Force the container's settings to have no embedding provider.
-
-    Without this the test depends on local config: a developer whose ../.env
-    sets EMBEDDING_PROVIDER would have a client that builds happily, so the
-    disabled path would pass whether or not construction is deferred, and the
-    regression would only appear on CI.
-    """
-    from src.core import container  # noqa: PLC0415
-
-    settings = get_settings().model_copy(update={"EMBEDDING_PROVIDER": None})
-    container.settings.override(settings)
-    # The client is a Singleton, so a cached instance built from the real
-    # settings would survive the override and defeat the point of the fixture.
-    container.shared.reset_singletons()
-    yield
-    container.settings.reset_override()
-    container.shared.reset_singletons()
 
 
 @pytest.fixture
@@ -55,9 +33,7 @@ async def override_embedding_client() -> AsyncGenerator[AsyncMock, None]:
 
 
 class TestSearchEndpoint:
-    async def test_blocked_when_embeddings_disabled(
-        self, client: AsyncClient, unconfigured_embeddings: None
-    ) -> None:
+    async def test_blocked_when_embeddings_disabled(self, client: AsyncClient) -> None:
         """Deliberately does not override the embedding client.
 
         With no provider configured ``build_embedding_client`` raises, and this
@@ -66,7 +42,7 @@ class TestSearchEndpoint:
         ``LazyEmbeddingClient`` buys. Overriding the client would mask it, and
         the endpoint would answer 500 in production while the test passed.
         """
-        with patch(ENABLED, return_value=False):
+        with embeddings_disabled():
             response = await client.get("/api/v1/semantic/search", params={"q": "idea"})
 
         assert response.status_code == status.HTTP_403_FORBIDDEN
@@ -95,7 +71,7 @@ class TestSearchEndpoint:
 
 class TestRelatedEndpoint:
     async def test_blocked_when_embeddings_disabled(self, client: AsyncClient) -> None:
-        with patch(ENABLED, return_value=False):
+        with embeddings_disabled():
             response = await client.get(
                 "/api/v1/semantic/related",
                 params={"content_type": "highlight", "content_id": 1},

@@ -255,7 +255,18 @@ class EmbeddedWorker(Worker[Context]):
 
 
 def create_embedded_worker(queue: Queue, concurrency: int = 2) -> EmbeddedWorker:
-    """Create a Worker instance for running inside the app process."""
+    """Create a Worker instance for running inside the app process.
+
+    Binds the app's already-connected queue as this module's queue. A task that
+    enqueues follow-up work reaches for ``_get_queue()``, and in embedded mode
+    nothing else ever populates it: the lazy branch would build a *second*
+    ``Queue`` whose pool is opened only by ``connect()``, so every such enqueue
+    would fail on a closed pool. The embedding enqueuer swallows enqueue
+    failures by design, which is exactly what would have made that silent.
+    """
+    global _queue  # noqa: PLW0603
+    _queue = queue
+
     return EmbeddedWorker(
         queue=queue,
         functions=[generate_chapter_digest, generate_content_embeddings],
