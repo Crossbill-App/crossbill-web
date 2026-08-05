@@ -27,7 +27,7 @@
     "@mui/icons-material": "^9.2.0",
     "@mui/material": "^9.2.0",
     "@tanstack/react-query": "^5.90.12",
-    "@tanstack/react-router": "^1.143.4",
+    "@tanstack/react-router": "^1.170.18",
     "axios": "^1.19.0",
     "lodash": "^4.18.1",
     "luxon": "^3.7.2",
