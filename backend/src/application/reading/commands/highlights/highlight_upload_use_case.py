@@ -19,6 +19,8 @@ from src.application.reading.protocols.highlight_repository import (
 from src.application.reading.protocols.highlight_style_repository import (
     HighlightStyleRepositoryProtocol,
 )
+from src.application.semantic.content_type import ContentType
+from src.application.semantic.protocols.embedding_enqueuer import EmbeddingEnqueuerProtocol
 from src.domain.common.value_objects import ChapterId, UserId, XPointRange
 from src.domain.common.value_objects.position import Position
 from src.domain.reading.entities.highlight import Highlight
@@ -56,6 +58,7 @@ class HighlightUploadUseCase:
         position_index_service: PositionIndexServiceProtocol,
         file_repository: FileRepositoryProtocol,
         highlight_style_repository: HighlightStyleRepositoryProtocol,
+        embedding_enqueuer: EmbeddingEnqueuerProtocol,
     ) -> None:
         """
         Initialize use case with dependencies.
@@ -68,6 +71,7 @@ class HighlightUploadUseCase:
             position_index_service: Service for building position indices from EPUBs
             file_repository: Repository for file operations
             highlight_style_repository: Repository for highlight style persistence
+            embedding_enqueuer: Seam for enqueuing embedding jobs for new highlights
         """
         self.highlight_repository = highlight_repository
         self.book_repository = book_repository
@@ -76,6 +80,7 @@ class HighlightUploadUseCase:
         self.position_index_service = position_index_service
         self.file_repository = file_repository
         self.highlight_style_repository = highlight_style_repository
+        self._embedding_enqueuer = embedding_enqueuer
 
     async def upload_highlights(
         self,
@@ -201,7 +206,16 @@ class HighlightUploadUseCase:
 
         # Step 5: Bulk save unique highlights
         if unique:
-            await self.highlight_repository.bulk_save(unique)
+            saved = await self.highlight_repository.bulk_save(unique)
+            # Only the ids the save actually produced -- the duplicates were
+            # already embedded when they first arrived, and a KOReader sync
+            # resends the whole book every time.
+            await self._embedding_enqueuer.enqueue_many(
+                ContentType.HIGHLIGHT,
+                [highlight.id.value for highlight in saved],
+                user_id,
+                reference_id=str(book_id.value),
+            )
 
         logger.info(
             "upload_complete",

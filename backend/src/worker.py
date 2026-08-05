@@ -15,6 +15,7 @@ from saq.types import Context, SettingsDict
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from src.application.semantic.content_type import ContentType
+from src.application.semantic.protocols.embedding_enqueuer import EmbeddingEnqueuerProtocol
 from src.config import get_settings
 from src.database import get_session_factory, initialize_database
 from src.infrastructure.ai.ai_service import AIService
@@ -76,6 +77,25 @@ def _build_file_repo() -> S3FileRepository | FileRepository:
     return FileRepository()
 
 
+def _build_embedding_enqueuer(db: AsyncSession) -> EmbeddingEnqueuerProtocol:
+    """Build an EmbeddingEnqueuer wired onto the worker's own SAQ queue.
+
+    A digest is generated here rather than in a request, so the enqueue that
+    follows it has to happen here too -- the API container's enqueuer is not
+    reachable from a worker process.
+    """
+    from src.application.semantic.services.embedding_enqueuer import (  # noqa: PLC0415
+        EmbeddingEnqueuer,
+    )
+    from src.infrastructure.jobs.saq_job_queue_service import SaqJobQueueService  # noqa: PLC0415
+
+    return EmbeddingEnqueuer(
+        queue_service=SaqJobQueueService(_get_queue()),
+        batch_repo=JobBatchRepository(db=db),
+        settings=_get_app_settings(),
+    )
+
+
 def _build_digest_handler(db: AsyncSession) -> DigestTaskHandler:
     """Build a DigestTaskHandler with a fresh session."""
     from src.application.reading.commands.chapter_digest.generate_chapter_digest_use_case import (  # noqa: PLC0415
@@ -89,6 +109,7 @@ def _build_digest_handler(db: AsyncSession) -> DigestTaskHandler:
         book_repo=BookRepository(db=db),
         file_repo=_build_file_repo(),
         ai_digest_service=AIService(usage_repository=AIUsageRepository(db=db)),
+        embedding_enqueuer=_build_embedding_enqueuer(db),
     )
     return DigestTaskHandler(generate_digest_use_case=use_case)
 
@@ -163,12 +184,16 @@ async def generate_content_embeddings(
     content_type: str,
     content_ids: list[int],
     user_id: int,
-    batch_id: int,
+    batch_id: int | None = None,
 ) -> None:
     """SAQ task: embed a slice of content units of one type.
 
     ``user_id`` is carried for symmetry with the other batch tasks and the
     ``after_process`` progress hook even though the use case does not need it.
+
+    ``batch_id`` is optional because a live enqueue on a single note or digest
+    edit has no batch: one job, nothing to report progress against. Only the
+    backfill and the highlight-upload path cut work into slices worth tracking.
     """
     if _session_factory is None:
         raise RuntimeError("Worker not initialized")

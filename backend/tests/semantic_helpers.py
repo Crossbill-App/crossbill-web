@@ -7,6 +7,8 @@ here stops the two files repeating each other -- and stops them drifting on what
 """
 
 import hashlib
+from collections.abc import Iterator
+from contextlib import AbstractContextManager, contextmanager
 from datetime import UTC, datetime
 from unittest.mock import AsyncMock, patch
 
@@ -23,6 +25,50 @@ from tests.conftest import create_test_highlight
 
 #: Patch target for the feature flag the semantic routers gate on.
 ENABLED = "src.infrastructure.common.dependencies.is_embeddings_enabled"
+
+
+@contextmanager
+def _embedding_provider(provider: str | None) -> Iterator[None]:
+    """Force the *write-path* embedding gate for the duration of the block.
+
+    Deliberately not the same lever as ``ENABLED``. The routers gate on
+    ``is_embeddings_enabled()``, which reads the lru-cached module-level
+    settings; ``EmbeddingEnqueuer`` gates on the ``Settings`` object the DI
+    container holds. Patching the first does nothing to a note save, so a test
+    that used it would assert an enqueue that never happens -- or, worse, pass
+    while asserting one does not.
+
+    Both directions are forced explicitly because the ambient value is not the
+    same everywhere: a developer with EMBEDDING_PROVIDER in a ``.env`` above the
+    repo runs the suite with embeddings on, CI runs it with them off. A test
+    that leant on the default would pass on one and fail on the other.
+    """
+    from src.core import container  # noqa: PLC0415
+
+    container.settings.override(
+        get_settings().model_copy(
+            update={
+                "EMBEDDING_PROVIDER": provider,
+                "EMBEDDING_MODEL_NAME": "test-embedding-model",
+                "EMBEDDING_BASE_URL": "http://localhost:11434",
+            }
+        )
+    )
+    try:
+        yield
+    finally:
+        container.settings.reset_last_overriding()
+
+
+def embeddings_enabled() -> AbstractContextManager[None]:
+    """Write paths enqueue embeddings inside this block."""
+    return _embedding_provider("ollama")
+
+
+def embeddings_disabled() -> AbstractContextManager[None]:
+    """Write paths must not enqueue anything inside this block."""
+    return _embedding_provider(None)
+
 
 _HIGHLIGHT_DATETIME = "2024-01-15 14:30:22"
 

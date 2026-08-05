@@ -23,6 +23,8 @@ from src.application.reading.protocols.chapter_digest_repository import (
 from src.application.reading.protocols.ebook_text_extraction_service import (
     EbookTextExtractionServiceProtocol,
 )
+from src.application.semantic.content_type import ContentType
+from src.application.semantic.protocols.embedding_enqueuer import EmbeddingEnqueuerProtocol
 from src.domain.common.exceptions import DomainError
 from src.domain.common.value_objects.ids import ChapterId, UserId
 from src.domain.reading.entities.chapter_digest import (
@@ -44,6 +46,7 @@ class GenerateChapterDigestUseCase:
         book_repo: BookRepositoryProtocol,
         file_repo: FileRepositoryProtocol,
         ai_digest_service: AIDigestServiceProtocol,
+        embedding_enqueuer: EmbeddingEnqueuerProtocol,
     ) -> None:
         self.digest_repo = digest_repo
         self.chapter_repo = chapter_repo
@@ -51,6 +54,7 @@ class GenerateChapterDigestUseCase:
         self.book_repo = book_repo
         self.file_repo = file_repo
         self.ai_digest_service = ai_digest_service
+        self._embedding_enqueuer = embedding_enqueuer
 
     async def generate_digest(self, chapter_id: ChapterId, user_id: UserId) -> ChapterDigest:
         """Generate a new digest for a chapter."""
@@ -119,4 +123,13 @@ class GenerateChapterDigestUseCase:
             chapter_id=chapter_id.value,
             keypoints_count=len(ai_result.keypoints),
         )
-        return await self.digest_repo.save(entity)
+        saved = await self.digest_repo.save(entity)
+
+        # The digest's id only exists after the save, and its text is what gets
+        # embedded -- summary and keypoints, which is why answering the digest's
+        # questions later does not re-enqueue.
+        await self._embedding_enqueuer.enqueue_for(
+            ContentType.DIGEST, saved.id.value, user_id.value
+        )
+
+        return saved
