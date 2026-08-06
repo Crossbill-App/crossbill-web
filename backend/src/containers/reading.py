@@ -87,6 +87,7 @@ class ReadingContainer(containers.DeclarativeContainer):
     ebook_text_extraction_service = providers.Dependency()
     ai_service = providers.Dependency()
     embedding_enqueuer = providers.Dependency()
+    embedding_repository = providers.Dependency()
 
     # Query services (read models)
     bookmark_query = providers.Dependency()
@@ -121,6 +122,7 @@ class ReadingContainer(containers.DeclarativeContainer):
         HighlightDeleteUseCase,
         book_repository=book_repository,
         highlight_repository=highlight_repository,
+        embedding_repository=embedding_repository,
     )
     highlight_upload_use_case = providers.Factory(
         HighlightUploadUseCase,

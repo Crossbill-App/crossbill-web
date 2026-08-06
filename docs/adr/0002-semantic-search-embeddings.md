@@ -50,17 +50,31 @@ time.
    lets `ON DELETE CASCADE` clear the highlights, chapters and digests beneath
    it, so no application seam can fire. Typed FK cascade anchors are what prune
    the index (see *Storage*).
-4. **Soft deletes are reconciled by the backfill orphan sweep.** A soft delete
-   is an `UPDATE` of `deleted_at`; the row never leaves the table and no foreign
-   key can see it. Rule 2 means such an embedding is invisible in the meantime,
-   so the sweep is sufficient and nothing has to happen at the delete site.
+4. **Soft deletes are cleaned up at the delete site, with the sweep as the
+   backstop.** A soft delete is an `UPDATE` of `deleted_at`; the row never
+   leaves the table and no foreign key can see it, so it is the one case the
+   database cannot prune. `HighlightDeleteUseCase` therefore removes those
+   embeddings itself — one statement per batch, not a job each. Rule 2 means
+   the embedding is invisible in the meantime, so this is index hygiene rather
+   than a correctness requirement, and rule 1 is why the cleanup only logs on
+   failure: the soft delete has already committed and the two are not one
+   transaction, so raising would fail a delete that succeeded. The backfill
+   orphan sweep still reconciles whatever the cleanup misses.
 
-Consequence worth stating plainly, because it is what keeps this PR small:
-**no existing domain module is touched.** The only cross-module contact is
+   The ids in a delete request are unverified caller input, and `delete_for`
+   filters on `content_type` and id alone, so the cleanup is driven by the ids
+   `soft_delete_by_ids` reports it *actually* deleted. Passing the requested
+   ids instead lets one user prune another's embeddings — their highlight stays
+   live while their content vanishes from search until a full backfill. A
+   `user_id` filter on the delete would not be enough; it cannot see ids of
+   one's own from a different book.
+
+The cross-module cost, stated plainly: **no domain module is touched, but two
+source-module application commands now depend on semantic ports** — the
+enqueuer for writes, the embedding repository for soft-delete cleanup. The only
+other cross-module contact is
 `infrastructure/semantic/content/content_source.py` reading other modules' ORM,
-which ADR-0001 already sanctions. Explicit cleanup at delete sites — the thing
-that would make a source module depend on a semantic port — is deliberately
-deferred (see *Deferred*).
+which ADR-0001 already sanctions.
 
 ## Decision
 
@@ -229,9 +243,9 @@ worker wires DI by hand), registered in both worker-settings function lists.
 stale, optionally scoped to a book), creates a `JobBatch`, and enqueues one job
 per **slice** of work items. Triggered manually via `POST`; it gates nothing — it
 is catch-up for existing content and post-model-swap re-embeds. Batch progress is
-visible for free through the existing batch views. Live enqueue-on-write is
-deferred (see *Deferred*), so until it lands the index is populated by running a
-backfill.
+visible for free through the existing batch views. Live enqueue-on-write has
+since landed alongside it, so backfill is now catch-up and reconciliation rather
+than the only way the index is populated.
 
 A job takes a slice of ids of one content type (32) rather than a single id.
 One job per unit made the unit of work match the unit of failure, which is
@@ -374,20 +388,10 @@ aligning the AI endpoints is a small follow-up, not a reason to propagate it.
 
 ## Deferred
 
-Sequenced deliberately, so each lands as its own reviewable change:
+Sequenced deliberately, so each lands as its own reviewable change. Live
+enqueue-on-write and explicit soft-delete cleanup have since landed; what
+remains:
 
-- **Live enqueue-on-write.** An `EmbeddingEnqueuer` application service called
-  from note create/update, highlight upload and digest generation, so new and
-  edited content is embedded without a manual backfill. It no-ops when the flag
-  is off and swallows enqueue failures — a missed embedding must never fail a
-  user's write. This is the first thing that makes a source module depend on a
-  semantic port.
-- **Explicit soft-delete cleanup.** Removing a soft-deleted highlight's
-  embedding at the delete site rather than waiting for the sweep. This is worth
-  care disproportionate to its size: the ids in a delete request are unverified
-  caller input, so the cleanup must be driven by the ids the repository
-  *actually* deleted, not the ids that were asked for — otherwise one user can
-  prune another's embeddings.
 - **Deterministic job keys** so overlapping backfills collapse (issue #531).
 - **Frontend.** Surfacing search and related content in the UI.
 - **Production wiring.** OpenRouter `baai/bge-m3`, confirming pgvector on
