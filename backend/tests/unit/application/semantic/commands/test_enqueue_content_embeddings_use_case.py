@@ -74,7 +74,7 @@ class TestEnqueueContentEmbeddings:
         assert batch is not None
 
         assert batch.total_jobs == 3
-        assert batch.batch_type == JobBatchType.CONTENT_EMBEDDING
+        assert batch.batch_type == JobBatchType.CONTENT_EMBEDDING_BACKFILL
         assert batch.reference_id == "user:1"
         assert len(batch.job_keys) == 3
         assert queue_service.enqueue.call_count == 3

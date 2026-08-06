@@ -11,7 +11,7 @@ from src.application.semantic.content_type import ContentType
 from src.application.semantic.protocols.content_source import ContentSourceProtocol, PendingUnit
 from src.domain.common.exceptions import DomainError
 from src.domain.common.value_objects.ids import BookId, UserId
-from src.domain.jobs.entities.job_batch import JobBatch
+from src.domain.jobs.entities.job_batch import JobBatch, JobBatchType
 
 logger = structlog.get_logger(__name__)
 
@@ -62,6 +62,7 @@ class EnqueueContentEmbeddingsUseCase:
             _slices(items_to_generate_embeddings),
             user_id=user_id,
             reference_id=reference_id,
+            batch_type=JobBatchType.CONTENT_EMBEDDING_BACKFILL,
             queue_service=self._queue_service,
             batch_repo=self._batch_repo,
         )

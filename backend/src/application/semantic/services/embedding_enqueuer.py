@@ -21,6 +21,7 @@ from src.application.semantic.batching import (
 from src.application.semantic.content_type import ContentType
 from src.config import Settings
 from src.domain.common.value_objects.ids import UserId
+from src.domain.jobs.entities.job_batch import JobBatchType
 
 logger = structlog.get_logger(__name__)
 
@@ -76,6 +77,7 @@ class EmbeddingEnqueuer:
                 [(content_type, content_slice) for content_slice in slice_ids(content_ids)],
                 user_id=UserId(user_id),
                 reference_id=reference_id,
+                batch_type=JobBatchType.CONTENT_EMBEDDING,
                 queue_service=self._queue_service,
                 batch_repo=self._batch_repo,
             )
