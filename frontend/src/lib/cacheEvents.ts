@@ -7,6 +7,7 @@ import { getGetBookDigestQueryKey } from '@/api/generated/digest/digest.ts';
 import { getGetBookHighlightLabelsQueryKey } from '@/api/generated/highlight-labels/highlight-labels.ts';
 import { getGetActiveBookDigestBatchQueryKey } from '@/api/generated/jobs/jobs.ts';
 import { getGetNoteQueryKey, getGetNotesForBookQueryKey } from '@/api/generated/notes/notes.ts';
+import { getGetActiveBackfillQueryKey } from '@/api/generated/semantic/semantic.ts';
 import { getGetTagsQueryKey } from '@/api/generated/tags/tags.ts';
 import { useQueryClient, type QueryKey } from '@tanstack/react-query';
 import { useMemo } from 'react';
@@ -93,6 +94,15 @@ export const useCacheEvents = () => {
       /** A batch digest job was cancelled; no new digest content exists. */
       digestBatchCancelled: (bookId: number) =>
         invalidate(getGetActiveBookDigestBatchQueryKey(bookId)),
+
+      /**
+       * The embedding backfill started, ended or was cancelled.
+       *
+       * One event rather than the digest batch's pair: nothing caches embedded
+       * content — search is fetched on demand — so only the "is one running"
+       * query is ever affected.
+       */
+      embeddingBackfillChanged: () => invalidate(getGetActiveBackfillQueryKey()),
 
       /** A highlight label was renamed or recoloured. Book details embeds labels. */
       highlightLabelsChanged: (bookId: number) =>

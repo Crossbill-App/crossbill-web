@@ -1,27 +1,16 @@
-import {
-  useCancelJobBatch,
-  useEnqueueBookDigest,
-  useGetActiveBookDigestBatch,
-  useGetJobBatch,
-} from '@/api/generated/jobs/jobs';
+import { useEnqueueBookDigest, useGetActiveBookDigestBatch } from '@/api/generated/jobs/jobs';
 import type { JobBatchResponse } from '@/api/generated/model';
 import { IconButtonWithTooltip } from '@/components/buttons/IconButtonWithTooltip';
 import { AIFeature } from '@/components/features/AIFeature';
 import { useSnackbar } from '@/context/SnackbarContext';
+import { useJobBatchProgress } from '@/hooks/useJobBatchProgress';
 import { useCacheEvents } from '@/lib/cacheEvents.ts';
 import { AIIcon, CloseIcon } from '@/theme/Icons';
 import { Box, CircularProgress, Typography } from '@mui/material';
-import { useCallback, useRef, useState } from 'react';
+import { useCallback } from 'react';
 
 interface BatchDigestToolbarProps {
   bookId: number;
-}
-
-const TERMINAL_STATUSES = ['completed', 'completed_with_errors', 'failed', 'cancelled'];
-const POLL_INTERVAL = 3000;
-
-function isTerminal(status: string | undefined): boolean {
-  return !!status && TERMINAL_STATUSES.includes(status);
 }
 
 function showCompletionMessage(
@@ -43,28 +32,26 @@ function showCompletionMessage(
 export const BatchDigestToolbar = ({ bookId }: BatchDigestToolbarProps) => {
   const cache = useCacheEvents();
   const { showSnackbar } = useSnackbar();
-  const [batchId, setBatchId] = useState<number | null>(null);
-  const handledTerminalRef = useRef<number | null>(null);
 
-  // Check for an already-active batch on mount (survives page refresh)
-  useGetActiveBookDigestBatch(bookId, {
-    query: {
-      select: (response: JobBatchResponse | null) => {
-        if (response && !isTerminal(response.status) && batchId === null) {
-          queueMicrotask(() => {
-            setBatchId(response.id);
-          });
-        }
-        return response;
-      },
+  // An already-active batch, so the progress display survives a page refresh.
+  const { data: activeBatch } = useGetActiveBookDigestBatch(bookId);
+
+  const { batch, isActive, track, cancel } = useJobBatchProgress({
+    activeBatch,
+    onFinished: (finished) => {
+      cache.digestBatchFinished(bookId);
+      showCompletionMessage(finished, showSnackbar);
+    },
+    onCancelled: () => {
+      cache.digestBatchCancelled(bookId);
+      showSnackbar('Batch generation cancelled.', 'info');
     },
   });
 
   const { mutate: enqueue, isPending: isEnqueuing } = useEnqueueBookDigest({
     mutation: {
       onSuccess: (response) => {
-        handledTerminalRef.current = null;
-        setBatchId(response.id);
+        track(response.id);
       },
       onError: () => {
         showSnackbar('Failed to start batch generation.', 'error');
@@ -72,55 +59,9 @@ export const BatchDigestToolbar = ({ bookId }: BatchDigestToolbarProps) => {
     },
   });
 
-  const { data: batch } = useGetJobBatch(batchId ?? 0, {
-    query: {
-      enabled: batchId !== null,
-      refetchInterval: (query) => {
-        const status = query.state.data?.status;
-        if (isTerminal(status)) return false;
-        return POLL_INTERVAL;
-      },
-      select: (response: JobBatchResponse) => {
-        if (isTerminal(response.status) && handledTerminalRef.current !== response.id) {
-          handledTerminalRef.current = response.id;
-
-          cache.digestBatchFinished(bookId);
-
-          showCompletionMessage(response, showSnackbar);
-
-          queueMicrotask(() => {
-            setBatchId(null);
-          });
-        }
-        return response;
-      },
-    },
-  });
-
-  const { mutate: cancelBatch } = useCancelJobBatch({
-    mutation: {
-      onSuccess: () => {
-        showSnackbar('Batch generation cancelled.', 'info');
-        cache.digestBatchCancelled(bookId);
-        setBatchId(null);
-      },
-      onError: () => {
-        showSnackbar('Failed to cancel batch.', 'error');
-      },
-    },
-  });
-
-  const isActive = batchId !== null && (!batch || !isTerminal(batch.status));
-
   const handleEnqueue = useCallback(() => {
     enqueue({ bookId });
   }, [enqueue, bookId]);
-
-  const handleCancel = useCallback(() => {
-    if (batchId) {
-      cancelBatch({ batchId });
-    }
-  }, [cancelBatch, batchId]);
 
   if (isEnqueuing || isActive) {
     const completed = batch ? batch.completed_jobs + batch.failed_jobs : 0;
@@ -140,7 +81,7 @@ export const BatchDigestToolbar = ({ bookId }: BatchDigestToolbarProps) => {
           </Typography>
           <IconButtonWithTooltip
             title="Cancel generation"
-            onClick={handleCancel}
+            onClick={cancel}
             ariaLabel="Cancel batch generation"
             icon={<CloseIcon />}
           />

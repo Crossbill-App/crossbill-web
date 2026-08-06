@@ -1,10 +1,12 @@
 import { useUpdateMe } from '@/api/generated/users/users';
+import { EmbeddingFeature } from '@/components/features/EmbeddingFeature.tsx';
 import { RHFTextField } from '@/components/inputs/RHFTextField.tsx';
 import { PageContainer } from '@/components/layout/Layouts.tsx';
 import { useAuth } from '@/context/AuthContext';
 import { Alert, Box, Button, Divider, Typography } from '@mui/material';
 import { useState } from 'react';
 import { useForm } from 'react-hook-form';
+import { EmbeddingBackfillSection } from './EmbeddingBackfillSection.tsx';
 
 interface EmailFormValues {
   email: string;
@@ -218,6 +220,10 @@ export const SettingsPage = () => {
 
       <EmailForm />
       <PasswordForm />
+
+      <EmbeddingFeature>
+        <EmbeddingBackfillSection />
+      </EmbeddingFeature>
     </PageContainer>
   );
 };
