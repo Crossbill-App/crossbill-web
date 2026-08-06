@@ -263,15 +263,20 @@ async def client(db_session: AsyncSession, test_user: User) -> AsyncGenerator[As
     async def override_get_db() -> AsyncGenerator[AsyncSession, None]:
         yield db_session
 
+    # Read off the ORM user once, here, rather than per request. Every test
+    # shares one session, so a request that rolls back -- a rejected insert, say
+    # -- expires this instance, and the next request's attribute access would
+    # try to reload it from a dependency that cannot await.
+    current_user = DomainUser.create_with_id(
+        id=UserId(test_user.id),
+        email=test_user.email,
+        hashed_password=test_user.hashed_password,
+        created_at=test_user.created_at,
+        updated_at=test_user.updated_at,
+    )
+
     async def override_get_current_user() -> DomainUser:
-        # Convert ORM User to domain User entity for tests
-        return DomainUser.create_with_id(
-            id=UserId(test_user.id),
-            email=test_user.email,
-            hashed_password=test_user.hashed_password,
-            created_at=test_user.created_at,
-            updated_at=test_user.updated_at,
-        )
+        return current_user
 
     app.dependency_overrides[get_db] = override_get_db
     app.dependency_overrides[get_current_user] = override_get_current_user
