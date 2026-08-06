@@ -6,7 +6,7 @@ authors = [{ name = "User", email = "user@example.com" }]
 readme = "README.md"
 requires-python = ">=3.12,<4.0"
 dependencies = [
-  "fastapi>=0.139.0,<0.141.0",
+  "fastapi>=0.139.0,<0.142.0",
   "uvicorn[standard]>=0.44.0,<0.45.0",
   "sqlalchemy[asyncio]>=2.0.44,<3.0.0",
   "alembic>=1.17.1,<2.0.0",
