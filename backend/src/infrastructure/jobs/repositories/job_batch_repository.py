@@ -1,10 +1,12 @@
 """SQLAlchemy repository for job batches."""
 
 from sqlalchemy import case, select, update
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.domain.common.value_objects.ids import JobBatchId, UserId
-from src.domain.jobs.entities.job_batch import JobBatch, JobBatchStatus
+from src.domain.jobs.entities.job_batch import JobBatch, JobBatchStatus, JobBatchType
+from src.domain.jobs.exceptions import ActiveJobBatchExistsError
 from src.infrastructure.jobs.mappers.job_batch_mapper import JobBatchMapper
 from src.infrastructure.jobs.orm.job_batch_model import JobBatchModel
 
@@ -14,6 +16,17 @@ class JobBatchRepository:
         self._db = db
 
     async def save(self, batch: JobBatch) -> JobBatch:
+        """Persist a batch, translating the one-active-backfill index into a domain error.
+
+        The index is the only unique constraint on the table, and the only
+        batch type it covers is the backfill, so an integrity error inserting a
+        backfill row means a second one is already active. Postgres and SQLite
+        word that error differently, hence the type check rather than a match on
+        the constraint name. An update is excluded because no row can collide
+        with itself -- an integrity error there is some other fault, and
+        reporting it as "a backfill is already running" would send the caller
+        after a batch that does not exist.
+        """
         existing_model: JobBatchModel | None = None
         if batch.id.value > 0:
             existing_model = await self._db.get(JobBatchModel, batch.id.value)
@@ -22,7 +35,14 @@ class JobBatchRepository:
         if not existing_model:
             self._db.add(model)
 
-        await self._db.commit()
+        try:
+            await self._db.commit()
+        except IntegrityError:
+            await self._db.rollback()
+            if not existing_model and batch.batch_type is JobBatchType.CONTENT_EMBEDDING_BACKFILL:
+                raise ActiveJobBatchExistsError(batch.batch_type) from None
+            raise
+
         await self._db.refresh(model)
         return JobBatchMapper.to_domain(model)
 
