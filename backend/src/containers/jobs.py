@@ -9,6 +9,9 @@ from src.application.jobs.commands.enqueue_book_digests_use_case import (
 from src.application.jobs.queries.get_active_book_batch_use_case import (
     GetActiveBookBatchUseCase,
 )
+from src.application.jobs.queries.get_active_user_batch_use_case import (
+    GetActiveUserBatchUseCase,
+)
 from src.application.jobs.queries.get_job_batch_use_case import GetJobBatchUseCase
 
 
@@ -44,5 +47,10 @@ class JobsContainer(containers.DeclarativeContainer):
 
     get_active_book_batch_use_case = providers.Factory(
         GetActiveBookBatchUseCase,
+        job_batch_query=job_batch_query,
+    )
+
+    get_active_user_batch_use_case = providers.Factory(
+        GetActiveUserBatchUseCase,
         job_batch_query=job_batch_query,
     )

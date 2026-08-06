@@ -3471,7 +3471,7 @@
           "semantic"
         ],
         "summary": "Backfill Embeddings",
-        "description": "Enqueue an embedding batch for the user's content, optionally scoped to a book.\n\nAnswers 202 with the batch to poll through ``GET /jobs/batches/{id}``, or 200\nwith ``total_jobs`` 0 when everything is already indexed. The second is a\nnormal outcome of pressing backfill twice, which is why it is not a 4xx: a\ncaller cannot tell a rejected request from a satisfied one.",
+        "description": "Enqueue an embedding batch for the user's content, optionally scoped to a book.\n\nAnswers 202 with the batch to poll through ``GET /jobs/batches/{id}``, or 200\nwith ``total_jobs`` 0 when everything is already indexed. The second is a\nnormal outcome of pressing backfill twice, which is why it is not a 4xx: a\ncaller cannot tell a rejected request from a satisfied one.\n\n409 when a backfill is already running -- ``GET /semantic/backfill/active``\nnames it, and cancelling it clears the way.",
         "operationId": "backfill_embeddings",
         "security": [
           {
@@ -3517,6 +3517,9 @@
               }
             }
           },
+          "409": {
+            "description": "A backfill is already running; cancel it or wait"
+          },
           "422": {
             "description": "Validation Error",
             "content": {
@@ -3528,6 +3531,41 @@
             }
           }
         }
+      }
+    },
+    "/api/v1/semantic/backfill/active": {
+      "get": {
+        "tags": [
+          "semantic"
+        ],
+        "summary": "Get Active Backfill",
+        "description": "Get the user's running backfill, if any -- what a 409 from POST refers to.",
+        "operationId": "get_active_backfill",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/components/schemas/JobBatchResponse"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "title": "Response Get Active Backfill"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ]
       }
     },
     "/api/v1/semantic/search": {

@@ -35,3 +35,9 @@ class JobBatchQueryProtocol(Protocol):
     ) -> JobBatchView | None:
         """Return the newest batch for the reference that is still active."""
         ...
+
+    async def get_active_for_user(
+        self, batch_type: JobBatchType, user_id: UserId
+    ) -> JobBatchView | None:
+        """Return the user's active batch of this type, across all references."""
+        ...

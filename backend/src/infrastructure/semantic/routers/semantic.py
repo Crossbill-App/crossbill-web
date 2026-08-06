@@ -5,6 +5,9 @@ from typing import Annotated
 from fastapi import APIRouter, Depends, Query, Response
 from starlette import status
 
+from src.application.jobs.queries.get_active_user_batch_use_case import (
+    GetActiveUserBatchUseCase,
+)
 from src.application.semantic.commands.enqueue_content_embeddings_use_case import (
     EnqueueContentEmbeddingsUseCase,
 )
@@ -15,11 +18,15 @@ from src.application.semantic.queries.semantic_search import SemanticSearchView
 from src.core import container
 from src.domain.common.value_objects.ids import BookId, UserId
 from src.domain.identity import User
-from src.domain.jobs.entities.job_batch import JobBatch
+from src.domain.jobs.entities.job_batch import JobBatchType
 from src.infrastructure.common.dependencies import require_embeddings_enabled
 from src.infrastructure.common.di import inject_use_case
 from src.infrastructure.identity import get_current_user
-from src.infrastructure.jobs.schemas.job_batch_schemas import JobBatchResponse
+from src.infrastructure.jobs.schemas.job_batch_schemas import (
+    JobBatchResponse,
+    batch_to_response,
+    view_to_response,
+)
 from src.infrastructure.semantic.schemas.semantic_schemas import (
     BackfillResponse,
     SemanticSearchResult,
@@ -44,20 +51,6 @@ def _result(view: SemanticSearchView) -> SemanticSearchResult:
     )
 
 
-def _batch_to_response(batch: JobBatch) -> JobBatchResponse:
-    return JobBatchResponse(
-        id=batch.id.value,
-        batch_type=batch.batch_type.value,
-        reference_id=batch.reference_id,
-        total_jobs=batch.total_jobs,
-        completed_jobs=batch.completed_jobs,
-        failed_jobs=batch.failed_jobs,
-        status=batch.status.value,
-        created_at=batch.created_at,
-        updated_at=batch.updated_at,
-    )
-
-
 @router.post(
     "/backfill",
     response_model=BackfillResponse,
@@ -68,7 +61,10 @@ def _batch_to_response(batch: JobBatch) -> JobBatchResponse:
             # Same body as the 202, or the spec describes 200 as empty and a
             # generated client has nothing to read total_jobs from.
             "model": BackfillResponse,
-        }
+        },
+        status.HTTP_409_CONFLICT: {
+            "description": "A backfill is already running; cancel it or wait",
+        },
     },
 )
 @require_embeddings_enabled
@@ -86,6 +82,9 @@ async def backfill_embeddings(
     with ``total_jobs`` 0 when everything is already indexed. The second is a
     normal outcome of pressing backfill twice, which is why it is not a 4xx: a
     caller cannot tell a rejected request from a satisfied one.
+
+    409 when a backfill is already running -- ``GET /semantic/backfill/active``
+    names it, and cancelling it clears the way.
     """
     batch = await use_case.execute(
         UserId(current_user.id.value),
@@ -95,7 +94,27 @@ async def backfill_embeddings(
         # 200, not the route's default 202: nothing was accepted for processing.
         response.status_code = status.HTTP_200_OK
         return BackfillResponse(total_jobs=0, batch=None)
-    return BackfillResponse(total_jobs=batch.total_jobs, batch=_batch_to_response(batch))
+    return BackfillResponse(total_jobs=batch.total_jobs, batch=batch_to_response(batch))
+
+
+@router.get(
+    "/backfill/active",
+    response_model=JobBatchResponse | None,
+    status_code=status.HTTP_200_OK,
+)
+@require_embeddings_enabled
+async def get_active_backfill(
+    current_user: Annotated[User, Depends(get_current_user)],
+    use_case: GetActiveUserBatchUseCase = Depends(
+        inject_use_case(container.jobs.get_active_user_batch_use_case)
+    ),
+) -> JobBatchResponse | None:
+    """Get the user's running backfill, if any -- what a 409 from POST refers to."""
+    view = await use_case.execute(
+        UserId(current_user.id.value),
+        JobBatchType.CONTENT_EMBEDDING_BACKFILL,
+    )
+    return view_to_response(view) if view else None
 
 
 @router.get("/search", response_model=list[SemanticSearchResult])
