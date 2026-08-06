@@ -245,7 +245,7 @@ class HighlightRepository:
         highlight_ids: list[HighlightId],
         user_id: UserId,
         book_id: BookId,
-    ) -> int:
+    ) -> list[HighlightId]:
         """
         Soft delete highlights by IDs with value objects.
 
@@ -257,33 +257,35 @@ class HighlightRepository:
             book_id: Book ID for validation
 
         Returns:
-            Number of highlights soft deleted
+            The IDs actually soft deleted -- those of the requested IDs that
+            belong to this user's book and were still live. Callers cleaning up
+            data derived from a highlight must use these, never the requested
+            IDs, which are unverified and may name another user's highlight.
         """
         # Convert value objects to primitives for query
         highlight_id_values = [hid.value for hid in highlight_ids]
 
-        # Subquery to get valid highlight IDs (belong to book/user, not already deleted)
-        valid_highlight_ids_subquery = (
-            select(HighlightORM.id)
-            .where(
-                HighlightORM.id.in_(highlight_id_values),
-                HighlightORM.book_id == book_id.value,
-                HighlightORM.user_id == user_id.value,
-                HighlightORM.deleted_at.is_(None),
-            )
-            .scalar_subquery()
+        # Resolve the deletable IDs up front rather than as a subquery: the
+        # caller needs them back, and once the UPDATE lands the predicate that
+        # selects them no longer matches.
+        stmt_valid_ids = select(HighlightORM.id).where(
+            HighlightORM.id.in_(highlight_id_values),
+            HighlightORM.book_id == book_id.value,
+            HighlightORM.user_id == user_id.value,
+            HighlightORM.deleted_at.is_(None),
         )
+        valid_ids = list((await self.db.execute(stmt_valid_ids)).scalars().all())
+        if not valid_ids:
+            return []
 
         # Bulk delete all bookmarks for valid highlights
-        stmt_delete_bookmarks = delete(BookmarkORM).where(
-            BookmarkORM.highlight_id.in_(valid_highlight_ids_subquery)
-        )
+        stmt_delete_bookmarks = delete(BookmarkORM).where(BookmarkORM.highlight_id.in_(valid_ids))
         result = await self.db.execute(stmt_delete_bookmarks)
         bookmarks_deleted = getattr(result, "rowcount", 0) or 0
 
         # Bulk delete all flashcards for valid highlights
         stmt_delete_flashcards = delete(FlashcardORM).where(
-            FlashcardORM.highlight_id.in_(valid_highlight_ids_subquery)
+            FlashcardORM.highlight_id.in_(valid_ids)
         )
         result = await self.db.execute(stmt_delete_flashcards)
         flashcards_deleted = getattr(result, "rowcount", 0) or 0
@@ -291,23 +293,17 @@ class HighlightRepository:
         # Bulk soft delete all valid highlights in a single query
         stmt_soft_delete = (
             update(HighlightORM)
-            .where(
-                HighlightORM.id.in_(highlight_id_values),
-                HighlightORM.book_id == book_id.value,
-                HighlightORM.user_id == user_id.value,
-                HighlightORM.deleted_at.is_(None),
-            )
+            .where(HighlightORM.id.in_(valid_ids))
             .values(deleted_at=datetime.now(UTC))
         )
-        result = await self.db.execute(stmt_soft_delete)
-        count = getattr(result, "rowcount", 0) or 0
+        await self.db.execute(stmt_soft_delete)
 
         await self.db.commit()
         logger.info(
-            f"Soft deleted {count} highlights, {bookmarks_deleted} associated bookmarks, "
+            f"Soft deleted {len(valid_ids)} highlights, {bookmarks_deleted} associated bookmarks, "
             f"and {flashcards_deleted} associated flashcards for book_id={book_id.value}, user_id={user_id.value}"
         )
-        return count
+        return [HighlightId(hid) for hid in valid_ids]
 
     async def find_by_book_id(self, book_id: BookId, user_id: UserId) -> list[Highlight]:
         """

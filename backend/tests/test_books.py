@@ -2,6 +2,7 @@
 
 from datetime import UTC, datetime
 from typing import NamedTuple
+from unittest.mock import AsyncMock, patch
 
 import pytest
 from fastapi import status
@@ -10,7 +11,9 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src import models
+from src.infrastructure.semantic.repositories.embedding_repository import EmbeddingRepository
 from tests.conftest import create_test_book, create_test_highlight
+from tests.semantic_helpers import index_highlight, plant_indexed_highlight
 
 # Default user ID used by services (matches conftest default user)
 DEFAULT_USER_ID = 1
@@ -218,6 +221,105 @@ class TestDeleteBook:
 
 class TestDeleteHighlights:
     """Test suite for DELETE /books/:id/highlight endpoint."""
+
+    async def test_soft_deleting_highlights_removes_their_embeddings(
+        self,
+        client: AsyncClient,
+        db_session: AsyncSession,
+        book_with_highlights: BookWithHighlights,
+    ) -> None:
+        """No FK can reach this: a soft delete is an UPDATE, so nothing cascades.
+
+        The use case has to remove them explicitly, or they linger in the index
+        until the next backfill.
+        """
+        book = book_with_highlights.book
+        deleted, kept = book_with_highlights.highlights
+        for highlight in (deleted, kept):
+            await index_highlight(db_session, book, highlight)
+
+        response = await client.request(
+            "DELETE",
+            f"/api/v1/books/{book.id}/highlight",
+            json={"highlight_ids": [deleted.id]},
+        )
+
+        assert response.status_code == status.HTTP_200_OK
+        remaining = (await db_session.execute(select(models.Embedding.content_id))).scalars().all()
+        assert list(remaining) == [kept.id]
+
+    async def test_leaves_embeddings_of_highlights_it_did_not_delete(
+        self,
+        client: AsyncClient,
+        db_session: AsyncSession,
+        book_with_highlights: BookWithHighlights,
+    ) -> None:
+        """The requested ids are unverified input, so only what was deleted may be pruned.
+
+        A stranger's id used to erase their embedding while their highlight
+        stayed live — their content silently vanished from semantic search until
+        a full backfill. An id of one's own from another book did the same.
+        """
+        book = book_with_highlights.book
+        mine, _ = book_with_highlights.highlights
+        await index_highlight(db_session, book, mine)
+
+        victim = models.User(email="victim@test.com")
+        db_session.add(victim)
+        await db_session.commit()
+        await db_session.refresh(victim)
+        their_book = await create_test_book(
+            db_session=db_session, user_id=victim.id, title="Someone else's"
+        )
+        theirs = await plant_indexed_highlight(db_session, their_book, "theirs")
+
+        my_other_book = await create_test_book(
+            db_session=db_session, user_id=DEFAULT_USER_ID, title="My other book"
+        )
+        elsewhere = await plant_indexed_highlight(db_session, my_other_book, "elsewhere")
+
+        response = await client.request(
+            "DELETE",
+            f"/api/v1/books/{book.id}/highlight",
+            json={"highlight_ids": [mine.id, theirs.id, elsewhere.id]},
+        )
+
+        assert response.status_code == status.HTTP_200_OK
+        assert response.json()["deleted_count"] == 1
+        surviving = (await db_session.execute(select(models.Embedding.content_id))).scalars().all()
+        assert set(surviving) == {theirs.id, elsewhere.id}
+        for untouched in (theirs, elsewhere):
+            await db_session.refresh(untouched)
+            assert untouched.deleted_at is None
+
+    async def test_embedding_cleanup_failure_does_not_fail_the_delete(
+        self,
+        client: AsyncClient,
+        db_session: AsyncSession,
+        book_with_highlights: BookWithHighlights,
+    ) -> None:
+        """The soft delete commits first, and the two are not one transaction.
+
+        Embedding bookkeeping must never fail a user write; the backfill sweep
+        reconciles what this leaves behind.
+        """
+        book = book_with_highlights.book
+        target, _ = book_with_highlights.highlights
+        await index_highlight(db_session, book, target)
+
+        with patch.object(
+            EmbeddingRepository, "delete_for", AsyncMock(side_effect=RuntimeError("boom"))
+        ):
+            response = await client.request(
+                "DELETE",
+                f"/api/v1/books/{book.id}/highlight",
+                json={"highlight_ids": [target.id]},
+            )
+
+        assert response.status_code == status.HTTP_200_OK
+        assert response.json()["deleted_count"] == 1
+        await db_session.refresh(target)
+        assert target.deleted_at is not None
 
     async def test_delete_highlights_success(
         self,
