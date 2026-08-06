@@ -284,12 +284,35 @@ async def client(db_session: AsyncSession, test_user: User) -> AsyncGenerator[As
 
     container.shared.file_repository.override(FileRepository())
 
+    # The SAQ queue is wired in the app lifespan, which ASGITransport skips.
+    # Without a stand-in, every write path that enqueues an embedding fails at
+    # DI resolution -- before the enqueuer's own error handling can swallow
+    # anything -- so a note create would 500 in tests and nowhere else.
+    container.job_queue_service.override(contract_checked_queue())
+
     transport = ASGITransport(app=app)
     async with AsyncClient(transport=transport, base_url="http://test") as test_client:
         yield test_client
 
+    container.job_queue_service.reset_override()
     container.shared.file_repository.reset_override()
     app.dependency_overrides.clear()
+
+
+@pytest.fixture
+def job_queue(client: AsyncClient) -> AsyncMock:
+    """The contract-checked queue fake the ``client`` fixture put on the container.
+
+    Reached through the container rather than installed per-suite so there is
+    exactly one fake queue per test: a second override would shadow the first,
+    and assertions would read an empty call list while the enqueues went
+    somewhere else.
+    """
+    from src.core import container  # noqa: PLC0415
+
+    queue = container.job_queue_service()
+    assert isinstance(queue, AsyncMock)
+    return queue
 
 
 @pytest.fixture

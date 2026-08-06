@@ -1,57 +1,43 @@
 """Tests for the POST /semantic/backfill ingestion endpoint."""
 
-from collections.abc import AsyncGenerator
 from unittest.mock import AsyncMock, patch
 
-import pytest
 from httpx import AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession
 from starlette import status
 
 from src.models import Book, Highlight
-from tests.conftest import contract_checked_queue, create_test_highlight
-from tests.semantic_helpers import ENABLED, backfill_enqueued_ids, plant_indexed_highlight
+from tests.conftest import create_test_highlight
+from tests.semantic_helpers import (
+    backfill_enqueued_ids,
+    embeddings_disabled,
+    embeddings_enabled,
+    plant_indexed_highlight,
+)
 
 #: Patch target for the slice size, so a test can force several slices without
 #: planting 33 highlights to get past the real one.
-SLICE_SIZE = (
-    "src.application.semantic.commands.enqueue_content_embeddings_use_case.EMBEDDING_SLICE_SIZE"
-)
-
-
-@pytest.fixture
-async def override_queue() -> AsyncGenerator[AsyncMock, None]:
-    """Override the SAQ queue service (normally wired by the app lifespan).
-
-    Uses the shared contract-checked fake rather than a bare AsyncMock, so a
-    mismatch between this enqueue site and the worker task it names fails here.
-    """
-    from src.core import container  # noqa: PLC0415
-
-    fake = contract_checked_queue()
-    container.job_queue_service.override(fake)
-    yield fake
-    container.job_queue_service.reset_override()
+SLICE_SIZE = "src.application.semantic.batching.EMBEDDING_SLICE_SIZE"
 
 
 class TestBackfillEndpoint:
     async def test_blocked_when_embeddings_disabled(
-        self, client: AsyncClient, override_queue: AsyncMock
+        self, client: AsyncClient, job_queue: AsyncMock
     ) -> None:
-        with patch(ENABLED, return_value=False):
+        with embeddings_disabled():
             response = await client.post("/api/v1/semantic/backfill")
 
         assert response.status_code == status.HTTP_403_FORBIDDEN
-        override_queue.enqueue.assert_not_called()
+        job_queue.enqueue.assert_not_called()
 
     async def test_enqueues_a_batch_when_enabled(
         self,
         client: AsyncClient,
-        override_queue: AsyncMock,
+        job_queue: AsyncMock,
         test_book: Book,
         test_highlight: Highlight,
     ) -> None:
-        with patch(ENABLED, return_value=True):
+        with embeddings_enabled():
             response = await client.post("/api/v1/semantic/backfill")
 
         assert response.status_code == status.HTTP_202_ACCEPTED
@@ -59,10 +45,10 @@ class TestBackfillEndpoint:
         assert data["total_jobs"] >= 1
         assert data["batch"]["batch_type"] == "content_embedding"
         assert data["batch"]["status"] == "pending"
-        override_queue.enqueue.assert_awaited()
+        job_queue.enqueue.assert_awaited()
 
     async def test_reports_nothing_to_do_without_failing_the_request(
-        self, client: AsyncClient, override_queue: AsyncMock, db_session: AsyncSession
+        self, client: AsyncClient, job_queue: AsyncMock, db_session: AsyncSession
     ) -> None:
         """Pressing backfill twice is normal, so the second press is not an error.
 
@@ -71,19 +57,19 @@ class TestBackfillEndpoint:
         request. The status is pinned exactly, and so is total_jobs: 200 alone
         would not say which outcome it was.
         """
-        with patch(ENABLED, return_value=True):
+        with embeddings_enabled():
             response = await client.post("/api/v1/semantic/backfill")
 
         assert response.status_code == status.HTTP_200_OK
         data = response.json()
         assert data["total_jobs"] == 0
         assert data["batch"] is None
-        override_queue.enqueue.assert_not_called()
+        job_queue.enqueue.assert_not_called()
 
     async def test_packs_units_into_one_job_per_slice(
         self,
         client: AsyncClient,
-        override_queue: AsyncMock,
+        job_queue: AsyncMock,
         db_session: AsyncSession,
         test_book: Book,
     ) -> None:
@@ -102,15 +88,15 @@ class TestBackfillEndpoint:
             )
 
         with patch(SLICE_SIZE, 2):
-            enqueued = await backfill_enqueued_ids(client, override_queue)
+            enqueued = await backfill_enqueued_ids(client, job_queue)
 
         assert len(enqueued) == 5
-        assert override_queue.enqueue.await_count == 3
+        assert job_queue.enqueue.await_count == 3
 
     async def test_records_slices_it_could_not_enqueue_as_failures(
         self,
         client: AsyncClient,
-        override_queue: AsyncMock,
+        job_queue: AsyncMock,
         db_session: AsyncSession,
         test_book: Book,
     ) -> None:
@@ -127,9 +113,9 @@ class TestBackfillEndpoint:
                 text=text,
                 datetime_str="2024-01-15 14:30:22",
             )
-        override_queue.enqueue.side_effect = ["saq:1", RuntimeError("queue is down")]
+        job_queue.enqueue.side_effect = ["saq:1", RuntimeError("queue is down")]
 
-        with patch(ENABLED, return_value=True), patch(SLICE_SIZE, 1):
+        with embeddings_enabled(), patch(SLICE_SIZE, 1):
             response = await client.post("/api/v1/semantic/backfill")
 
         assert response.status_code == status.HTTP_202_ACCEPTED
@@ -143,7 +129,7 @@ class TestBackfillReconciliation:
     async def test_enqueues_content_whose_hash_drifted_but_not_current_content(
         self,
         client: AsyncClient,
-        override_queue: AsyncMock,
+        job_queue: AsyncMock,
         db_session: AsyncSession,
         test_book: Book,
     ) -> None:
@@ -153,16 +139,16 @@ class TestBackfillReconciliation:
         )
         await plant_indexed_highlight(db_session, test_book, "untouched text")
 
-        assert await backfill_enqueued_ids(client, override_queue) == {drifted.id}
+        assert await backfill_enqueued_ids(client, job_queue) == {drifted.id}
 
     async def test_enqueues_orphaned_embedding_so_it_gets_pruned(
         self,
         client: AsyncClient,
-        override_queue: AsyncMock,
+        job_queue: AsyncMock,
         db_session: AsyncSession,
         test_book: Book,
     ) -> None:
         """An embedding outliving its source is work: the job deletes it."""
         gone = await plant_indexed_highlight(db_session, test_book, "since deleted", deleted=True)
 
-        assert await backfill_enqueued_ids(client, override_queue) == {gone.id}
+        assert await backfill_enqueued_ids(client, job_queue) == {gone.id}

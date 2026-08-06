@@ -7,6 +7,8 @@ here stops the two files repeating each other -- and stops them drifting on what
 """
 
 import hashlib
+from collections.abc import Iterator
+from contextlib import AbstractContextManager, contextmanager
 from datetime import UTC, datetime
 from unittest.mock import AsyncMock, patch
 
@@ -16,13 +18,68 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from starlette import status
 
 from src.application.semantic.content_type import ContentType
-from src.application.semantic.idempotency import current_model_name
 from src.config import get_settings
 from src.models import Book, Embedding, Highlight
 from tests.conftest import create_test_highlight
 
 #: Patch target for the feature flag the semantic routers gate on.
 ENABLED = "src.infrastructure.common.dependencies.is_embeddings_enabled"
+
+#: The model an "indexed" fixture is indexed under, and the one the gate below
+#: configures. One constant rather than whatever the ambient config happens to
+#: say: an embedding planted under a different model name is model-stale by
+#: definition, so plant and check have to agree or every fixture reads as stale.
+TEST_MODEL_NAME = "test-embedding-model"
+
+
+@contextmanager
+def _embedding_provider(provider: str | None) -> Iterator[None]:
+    """Force the embedding feature gate on or off for the duration of the block.
+
+    Production reads the flag through two doors, and this closes both. The
+    routers gate on ``is_embeddings_enabled()``, which walks the lru-cached
+    module-level settings; ``EmbeddingEnqueuer`` gates on the ``Settings``
+    object the DI container snapshotted at import. Moving only one leaves a test
+    asserting an enqueue that never happens -- or, worse, passing while
+    asserting one does not.
+
+    Both directions are forced explicitly because the ambient value is not the
+    same everywhere: a developer with EMBEDDING_PROVIDER in a ``.env`` above the
+    repo runs the suite with embeddings on, CI runs it with them off. A test
+    that leant on the default would pass on one and fail on the other.
+
+    The embedding client is a Singleton, so a cached instance built from the
+    real settings would survive the override and defeat the point.
+    """
+    from src.core import container  # noqa: PLC0415
+
+    container.settings.override(
+        get_settings().model_copy(
+            update={
+                "EMBEDDING_PROVIDER": provider,
+                "EMBEDDING_MODEL_NAME": TEST_MODEL_NAME,
+                "EMBEDDING_BASE_URL": "http://localhost:11434",
+            }
+        )
+    )
+    container.shared.reset_singletons()
+    try:
+        with patch(ENABLED, return_value=provider is not None):
+            yield
+    finally:
+        container.settings.reset_last_overriding()
+        container.shared.reset_singletons()
+
+
+def embeddings_enabled() -> AbstractContextManager[None]:
+    """Embeddings are configured inside this block: routers answer, writes enqueue."""
+    return _embedding_provider("ollama")
+
+
+def embeddings_disabled() -> AbstractContextManager[None]:
+    """No embedding provider inside this block: routers refuse, writes enqueue nothing."""
+    return _embedding_provider(None)
+
 
 _HIGHLIGHT_DATETIME = "2024-01-15 14:30:22"
 
@@ -57,7 +114,7 @@ async def index_highlight(
             highlight_id=highlight.id,
             book_id=book.id,
             embedding=vector if vector is not None else [0.1, 0.2],
-            model_name=current_model_name(settings),
+            model_name=TEST_MODEL_NAME,
             model_version=settings.EMBEDDING_MODEL_VERSION,
             content_hash=content_hash(hashed_text if hashed_text is not None else highlight.text),
         )
@@ -89,7 +146,7 @@ async def plant_indexed_highlight(
 
 async def get_search(client: AsyncClient, **params: PrimitiveData) -> Response:
     """GET /semantic/search with the feature flag forced on. Status not asserted."""
-    with patch(ENABLED, return_value=True):
+    with embeddings_enabled():
         return await client.get("/api/v1/semantic/search", params={"q": "idea", **params})
 
 
@@ -102,7 +159,7 @@ async def search_content_ids(client: AsyncClient, **params: PrimitiveData) -> li
 
 async def get_related(client: AsyncClient, **params: PrimitiveData) -> Response:
     """GET /semantic/related with the feature flag forced on."""
-    with patch(ENABLED, return_value=True):
+    with embeddings_enabled():
         return await client.get("/api/v1/semantic/related", params=params)
 
 
@@ -113,7 +170,7 @@ async def backfill_enqueued_ids(client: AsyncClient, queue: AsyncMock) -> set[in
     enqueued -- one per slice, not one per unit -- so callers only have to assert
     *which* units were picked up.
     """
-    with patch(ENABLED, return_value=True):
+    with embeddings_enabled():
         response = await client.post("/api/v1/semantic/backfill")
 
     assert response.status_code == status.HTTP_202_ACCEPTED, response.text

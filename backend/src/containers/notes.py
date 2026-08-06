@@ -16,6 +16,7 @@ class NotesContainer(containers.DeclarativeContainer):
     chapter_repository = providers.Dependency()
     highlight_repository = providers.Dependency()
     tag_repository = providers.Dependency()
+    embedding_enqueuer = providers.Dependency()
 
     # Read models: the query adapter (a port implementation) plus the read use
     # cases that routers call, mirroring how commands are exposed.
@@ -28,6 +29,7 @@ class NotesContainer(containers.DeclarativeContainer):
         chapter_repository=chapter_repository,
         highlight_repository=highlight_repository,
         tag_repository=tag_repository,
+        embedding_enqueuer=embedding_enqueuer,
     )
     get_note_use_case = providers.Factory(
         GetNoteUseCase,
@@ -44,6 +46,7 @@ class NotesContainer(containers.DeclarativeContainer):
         chapter_repository=chapter_repository,
         highlight_repository=highlight_repository,
         tag_repository=tag_repository,
+        embedding_enqueuer=embedding_enqueuer,
     )
     delete_note_use_case = providers.Factory(
         DeleteNoteUseCase,

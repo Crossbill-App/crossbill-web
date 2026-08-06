@@ -78,6 +78,17 @@ class JobBatch(Entity[JobBatchId]):
         self.failed_jobs += 1
         self._recompute_status()
 
+    def mark_unenqueued_jobs_failed(self) -> None:
+        """Count the jobs an enqueue loop never reached as failures.
+
+        Deliberately not ``total_jobs = len(job_keys)``: shrinking the total let
+        a batch of 500 that broke at job 3 terminate as "completed,
+        total_jobs=3". Failures keep the total honest and still reach a terminal
+        status -- COMPLETED_WITH_ERRORS rather than COMPLETED.
+        """
+        for _ in range(self.total_jobs - len(self.job_keys)):
+            self.mark_job_failed()
+
     def cancel(self) -> None:
         terminal = {
             JobBatchStatus.COMPLETED,

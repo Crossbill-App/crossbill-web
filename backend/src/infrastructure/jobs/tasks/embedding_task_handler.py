@@ -24,7 +24,7 @@ class EmbeddingTaskHandler:
         *,
         content_type: ContentType,
         content_ids: list[int],
-        batch_id: int,
+        batch_id: int | None = None,
     ) -> None:
         log = logger.bind(
             batch_id=batch_id,

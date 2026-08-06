@@ -86,6 +86,7 @@ class ReadingContainer(containers.DeclarativeContainer):
     epub_position_index_service = providers.Dependency()
     ebook_text_extraction_service = providers.Dependency()
     ai_service = providers.Dependency()
+    embedding_enqueuer = providers.Dependency()
 
     # Query services (read models)
     bookmark_query = providers.Dependency()
@@ -130,6 +131,7 @@ class ReadingContainer(containers.DeclarativeContainer):
         position_index_service=epub_position_index_service,
         file_repository=file_repository,
         highlight_style_repository=highlight_style_repository,
+        embedding_enqueuer=embedding_enqueuer,
     )
 
     # Tag associations
@@ -214,6 +216,7 @@ class ReadingContainer(containers.DeclarativeContainer):
         book_repo=book_repository,
         file_repo=file_repository,
         ai_digest_service=ai_service,
+        embedding_enqueuer=embedding_enqueuer,
     )
     update_digest_answers_use_case = providers.Factory(
         UpdateDigestAnswersUseCase,
