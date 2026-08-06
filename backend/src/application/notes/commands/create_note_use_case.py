@@ -77,8 +77,6 @@ class CreateNoteUseCase:
         )
         note = await self.note_repository.save(note)
 
-        # After the save, never before: the repository commits, so a job picked
-        # up the instant it is enqueued still reads the note that was written.
         await self._embedding_enqueuer.enqueue_for(ContentType.NOTE, note.id.value, user_id)
 
         logger.info("created_note", note_id=note.id.value, book_id=book_id)

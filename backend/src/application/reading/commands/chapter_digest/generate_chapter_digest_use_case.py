@@ -125,9 +125,6 @@ class GenerateChapterDigestUseCase:
         )
         saved = await self.digest_repo.save(entity)
 
-        # The digest's id only exists after the save, and its text is what gets
-        # embedded -- summary and keypoints, which is why answering the digest's
-        # questions later does not re-enqueue.
         await self._embedding_enqueuer.enqueue_for(
             ContentType.DIGEST, saved.id.value, user_id.value
         )

@@ -19,7 +19,7 @@ logger = structlog.get_logger(__name__)
 def _slices(items: list[PendingUnit]) -> list[tuple[ContentType, list[int]]]:
     """Group pending units by content type, then cut each group into job-sized slices.
 
-    One slice never mixes types: the job resolves its ids through a single
+    One slice never mixes types -- the job resolves its ids through a single
     ``get_embeddable_many`` call, which reads one type's table.
     """
     by_type: dict[ContentType, list[int]] = {}
@@ -55,7 +55,6 @@ class EnqueueContentEmbeddingsUseCase:
             user_id.value, book_id.value if book_id else None
         )
         if not items_to_generate_embeddings:
-            # Everything is already indexed.
             return None
 
         reference_id = str(book_id.value) if book_id else f"user:{user_id.value}"
@@ -67,8 +66,7 @@ class EnqueueContentEmbeddingsUseCase:
             batch_repo=self._batch_repo,
         )
 
-        # Unlike the live enqueuer, this is a button the user pressed: getting
-        # nowhere has to be reported, not logged and swallowed.
+        # A button the user pressed: getting nowhere has to be reported.
         if not batch.job_keys:
             raise DomainError("Failed to enqueue any jobs for content embedding")
 

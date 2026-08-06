@@ -71,8 +71,6 @@ class UpdateNoteUseCase:
         )
         note = await self.note_repository.save(note)
 
-        # After the save, so the re-embedding reads the edited text rather than
-        # the row it is replacing.
         await self._embedding_enqueuer.enqueue_for(ContentType.NOTE, note.id.value, user_id)
 
         logger.info("updated_note", note_id=note_id)

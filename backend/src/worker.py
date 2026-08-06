@@ -80,9 +80,8 @@ def _build_file_repo() -> S3FileRepository | FileRepository:
 def _build_embedding_enqueuer(db: AsyncSession) -> EmbeddingEnqueuerProtocol:
     """Build an EmbeddingEnqueuer wired onto the worker's own SAQ queue.
 
-    A digest is generated here rather than in a request, so the enqueue that
-    follows it has to happen here too -- the API container's enqueuer is not
-    reachable from a worker process.
+    Digests are generated here rather than in a request, so the API container's
+    enqueuer is out of reach.
     """
     from src.application.semantic.services.embedding_enqueuer import (  # noqa: PLC0415
         EmbeddingEnqueuer,
@@ -191,9 +190,8 @@ async def generate_content_embeddings(
     ``user_id`` is carried for symmetry with the other batch tasks and the
     ``after_process`` progress hook even though the use case does not need it.
 
-    ``batch_id`` is optional because a live enqueue on a single note or digest
-    edit has no batch: one job, nothing to report progress against. Only the
-    backfill and the highlight-upload path cut work into slices worth tracking.
+    ``batch_id`` is optional: a live enqueue on a single edit is one job, with
+    no progress to report against.
     """
     if _session_factory is None:
         raise RuntimeError("Worker not initialized")
@@ -257,12 +255,10 @@ class EmbeddedWorker(Worker[Context]):
 def create_embedded_worker(queue: Queue, concurrency: int = 2) -> EmbeddedWorker:
     """Create a Worker instance for running inside the app process.
 
-    Binds the app's already-connected queue as this module's queue. A task that
-    enqueues follow-up work reaches for ``_get_queue()``, and in embedded mode
-    nothing else ever populates it: the lazy branch would build a *second*
-    ``Queue`` whose pool is opened only by ``connect()``, so every such enqueue
-    would fail on a closed pool. The embedding enqueuer swallows enqueue
-    failures by design, which is exactly what would have made that silent.
+    Binds the app's connected queue as this module's ``_queue``: otherwise
+    ``_get_queue()`` would lazily build a second, never-connected one and every
+    task-side enqueue would fail on a closed pool -- silently, since the
+    embedding enqueuer swallows enqueue failures.
     """
     global _queue  # noqa: PLW0603
     _queue = queue

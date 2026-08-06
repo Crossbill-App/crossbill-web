@@ -1,16 +1,9 @@
 """How embedding work is cut into jobs and handed to the queue as a tracked batch.
 
-Two paths enqueue embeddings -- the backfill reconciles a whole library, the
-live enqueuer cuts a highlight upload -- and they must agree on all of it: the
-slice size, because a slice is what the worker task takes; the enqueue kwargs,
-because they are a contract with ``generate_content_embeddings``; and the
-bookkeeping, because a batch reporting "completed" while slices were silently
-dropped is worse than one reporting failures.
-
-What the two paths do *not* share is what to do when nothing lands at all. The
-backfill raises, so the user learns the button did nothing; the live enqueuer
-returns quietly, because it is a side effect of a write that already succeeded.
-So this returns the batch and lets each caller read ``job_keys`` and decide.
+Shared by the backfill and the live enqueuer so the slice size, the enqueue
+kwargs (a contract with ``generate_content_embeddings``) and the batch
+bookkeeping stay in one place. The two differ only in what to do when nothing
+lands, so this returns the batch and lets each caller read ``job_keys``.
 """
 
 from itertools import batched
@@ -25,14 +18,10 @@ from src.domain.jobs.entities.job_batch import JobBatch, JobBatchType
 
 logger = structlog.get_logger(__name__)
 
-#: How many content units one embedding job handles.
-#:
-#: A job per unit meant a queue round trip per unit inside this request *and* a
-#: provider round trip per unit in the worker; a slice amortises both. Well
-#: below the client's own per-request cap (96, OpenRouter's limit, which the
-#: client chunks at independently and which is not this layer's business):
-#: a slice of long notes is a large payload to ask a local Ollama GPU to hold at
-#: once, and 32 already removes 31 of every 32 requests.
+#: How many content units one embedding job handles. A slice amortises both the
+#: queue and the provider round trip. Kept well below the client's own 96-unit
+#: cap, which it chunks at independently: a slice of long notes is a large
+#: payload for a local Ollama GPU, and 32 already removes 31 of every 32 calls.
 EMBEDDING_SLICE_SIZE = 32
 
 _TASK = "generate_content_embeddings"
@@ -54,11 +43,9 @@ async def enqueue_embedding_batch(
 ) -> JobBatch:
     """Open a batch, enqueue one job per slice, and persist what actually landed.
 
-    Stops at the first slice that fails to enqueue: a queue that just rejected
-    one job is unlikely to accept the next, and continuing would spend the
-    request's remaining time finding that out. The batch is returned either way
-    -- with empty ``job_keys`` when nothing landed, which is the caller's signal
-    that it got nowhere.
+    Stops at the first failed enqueue -- a queue that just rejected one job is
+    unlikely to accept the next. Empty ``job_keys`` on the returned batch is the
+    caller's signal that nothing landed.
     """
     batch = JobBatch.create(
         user_id=user_id,
@@ -105,9 +92,8 @@ async def enqueue_embedding_job(
 ) -> None:
     """Enqueue one slice as a bare job, outside any batch.
 
-    Same task and same kwargs as the batched path minus ``batch_id``, which the
-    task takes as optional precisely so a single edit does not need a batch row
-    to report the progress of its one job.
+    Same task and kwargs as the batched path minus ``batch_id``, which the task
+    takes as optional so a single edit needs no batch row.
     """
     await queue_service.enqueue(
         _TASK,

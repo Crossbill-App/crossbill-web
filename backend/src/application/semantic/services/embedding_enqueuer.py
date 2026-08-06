@@ -1,17 +1,12 @@
 """Application service that enqueues embedding jobs, gated by the feature flag.
 
-Called from source-module write use cases as a fire-and-forget side effect of a
-save. It no-ops when embeddings are disabled and swallows enqueue failures -- a
-missed embedding is reconciled later by the backfill path, and must never fail
-the user's create or upload.
+A fire-and-forget side effect of a write: it no-ops when embeddings are
+disabled and swallows enqueue failures, since the backfill reconciles a missed
+embedding later and a create or upload must never fail over one.
 
-Callers invoke it *after* the repository save, not before: the repositories
-commit inside ``save``/``bulk_save``, so a job that starts running the instant
-it is enqueued still reads committed content rather than the pre-edit row.
-
-The mechanics of talking to the queue live in ``batching`` alongside the
-backfill's; what is here is only this path's policy -- gated, batched only when
-there is progress worth tracking, and silent on failure.
+Call it *after* the repository save -- the repositories commit inside
+``save``/``bulk_save``, so a job starting immediately still reads the new row.
+The queue mechanics live in ``batching``; only this path's policy is here.
 """
 
 import structlog
@@ -46,9 +41,8 @@ class EmbeddingEnqueuer:
     async def enqueue_for(self, content_type: ContentType, content_id: int, user_id: int) -> None:
         """Enqueue one unit as a bare job -- no batch.
 
-        A single edit has no progress worth reporting, and a JobBatch per note
-        save would put a row in the batch table for every keystroke-sized
-        change. The worker task's ``batch_id`` is optional for exactly this.
+        A single edit has no progress worth reporting, and a batch row per note
+        save would mean one row per keystroke-sized change.
         """
         if not self._settings.embeddings_enabled:
             return
@@ -71,9 +65,8 @@ class EmbeddingEnqueuer:
     ) -> None:
         """Enqueue many units of one type as a tracked batch of slices.
 
-        A highlight upload can carry hundreds of units, so this is the one write
-        path where progress is worth reporting -- and where the slice size
-        actually bites.
+        A highlight upload can carry hundreds of units -- the one write path
+        where progress is worth reporting.
         """
         if not self._settings.embeddings_enabled or not content_ids:
             return
@@ -87,10 +80,8 @@ class EmbeddingEnqueuer:
                 batch_repo=self._batch_repo,
             )
         except Exception:
-            # enqueue_embedding_batch tolerates a failing enqueue on its own;
-            # this catches everything around it -- persisting the batch, above
-            # all -- because the caller's write has committed and must not be
-            # reported failed.
+            # enqueue_embedding_batch already tolerates a failing enqueue; this
+            # catches everything around it, above all persisting the batch.
             logger.exception(
                 "failed_to_enqueue_embedding_batch",
                 content_type=content_type.value,
@@ -98,8 +89,8 @@ class EmbeddingEnqueuer:
             )
             return
 
-        # Getting nowhere is already logged per slice, and the batch it leaves
-        # behind is CANCELLED. Nothing to raise about: the highlights are saved.
+        # Getting nowhere is already logged per slice and leaves a CANCELLED
+        # batch -- nothing to raise about, the highlights are saved.
         if batch.job_keys:
             logger.info(
                 "content_embedding_batch_enqueued",

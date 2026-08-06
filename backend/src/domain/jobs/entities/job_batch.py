@@ -81,12 +81,10 @@ class JobBatch(Entity[JobBatchId]):
     def mark_unenqueued_jobs_failed(self) -> None:
         """Count the jobs an enqueue loop never reached as failures.
 
-        Deliberately not ``total_jobs = len(job_keys)``. Shrinking the total let
-        a batch of 500 which broke at job 3 terminate as "completed,
-        total_jobs=3", with nothing to say the other 497 were dropped. Counting
-        them as failures keeps the total honest and still lets the batch reach a
-        terminal status once the enqueued jobs report -- COMPLETED_WITH_ERRORS
-        instead of COMPLETED.
+        Deliberately not ``total_jobs = len(job_keys)``: shrinking the total let
+        a batch of 500 that broke at job 3 terminate as "completed,
+        total_jobs=3". Failures keep the total honest and still reach a terminal
+        status -- COMPLETED_WITH_ERRORS rather than COMPLETED.
         """
         for _ in range(self.total_jobs - len(self.job_keys)):
             self.mark_job_failed()

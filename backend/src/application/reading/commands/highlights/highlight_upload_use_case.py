@@ -207,9 +207,6 @@ class HighlightUploadUseCase:
         # Step 5: Bulk save unique highlights
         if unique:
             saved = await self.highlight_repository.bulk_save(unique)
-            # Only the ids the save actually produced -- the duplicates were
-            # already embedded when they first arrived, and a KOReader sync
-            # resends the whole book every time.
             await self._embedding_enqueuer.enqueue_many(
                 ContentType.HIGHLIGHT,
                 [highlight.id.value for highlight in saved],

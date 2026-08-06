@@ -27,11 +27,9 @@ class RootContainer(containers.DeclarativeContainer):
 
     shared = providers.Container(SharedContainer, db=db, settings=settings)
 
-    # Declared before the sub-containers that consume it. The SAQ queue is
-    # process-wide and overridden in main.py once it is connected; the embedding
-    # enqueuer is the one seam source-module write use cases call to trigger
-    # embedding, so it lives here, where it can see both the queue and the
-    # shared batch repository.
+    # Declared before the sub-containers that consume it. The enqueuer lives at
+    # the root because it needs both the process-wide queue (overridden in
+    # main.py once connected) and the shared batch repository.
     job_queue_service = providers.Dependency()
 
     embedding_enqueuer = providers.Factory(
