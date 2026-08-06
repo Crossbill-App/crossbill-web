@@ -23,7 +23,11 @@ from src.application.reading.protocols.ai_digest_service import DigestResult
 from src.domain.reading.entities.chapter_digest import DigestQuestion
 from src.models import Book, Chapter, Note
 from tests.conftest import CreateBookFunc, create_test_chapter
-from tests.semantic_helpers import embeddings_disabled, embeddings_enabled
+from tests.semantic_helpers import (
+    embeddings_disabled,
+    embeddings_enabled,
+    upload_highlights,
+)
 
 #: Patch target for the slice size, so an upload can be cut into several jobs
 #: without posting 33 highlights.
@@ -46,23 +50,6 @@ async def create_note(client: AsyncClient, book: Book) -> dict[str, Any]:
     )
     assert response.status_code == status.HTTP_201_CREATED, response.text
     return response.json()["note"]
-
-
-async def upload_highlights(
-    client: AsyncClient, client_book_id: str, *texts: str
-) -> dict[str, Any]:
-    response = await client.post(
-        "/api/v1/highlights/upload",
-        json={
-            "client_book_id": client_book_id,
-            "highlights": [
-                {"text": text, "page": index, "datetime": f"2024-01-15 14:30:{index:02d}"}
-                for index, text in enumerate(texts)
-            ],
-        },
-    )
-    assert response.status_code == status.HTTP_200_OK, response.text
-    return response.json()
 
 
 class TestNoteWrites:

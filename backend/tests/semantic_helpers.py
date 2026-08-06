@@ -144,6 +144,24 @@ async def plant_indexed_highlight(
     return highlight
 
 
+async def upload_highlights(
+    client: AsyncClient, client_book_id: str, *texts: str
+) -> dict[str, PrimitiveData]:
+    """Upload highlights through the API -- the one write path that opens a batch."""
+    response = await client.post(
+        "/api/v1/highlights/upload",
+        json={
+            "client_book_id": client_book_id,
+            "highlights": [
+                {"text": text, "page": index, "datetime": f"2024-01-15 14:30:{index:02d}"}
+                for index, text in enumerate(texts)
+            ],
+        },
+    )
+    assert response.status_code == status.HTTP_200_OK, response.text
+    return response.json()
+
+
 async def get_search(client: AsyncClient, **params: PrimitiveData) -> Response:
     """GET /semantic/search with the feature flag forced on. Status not asserted."""
     with embeddings_enabled():

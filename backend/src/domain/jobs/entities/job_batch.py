@@ -10,10 +10,17 @@ from src.domain.common.value_objects.ids import JobBatchId, UserId
 
 
 class JobBatchType(StrEnum):
-    """Supported batch job types."""
+    """Supported batch job types.
+
+    Embedding work carries two: ``CONTENT_EMBEDDING`` for batches a write raises
+    (an upload), ``CONTENT_EMBEDDING_BACKFILL`` for the user-triggered
+    reconcile. Only the latter is limited to one active batch per user, so an
+    upload is never refused because a backfill is running.
+    """
 
     CHAPTER_DIGEST = "chapter_digest"
     CONTENT_EMBEDDING = "content_embedding"
+    CONTENT_EMBEDDING_BACKFILL = "content_embedding_backfill"
 
 
 class JobBatchStatus(StrEnum):

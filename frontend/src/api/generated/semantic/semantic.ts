@@ -24,6 +24,7 @@ import type {
   BackfillEmbeddingsParams,
   BackfillResponse,
   HTTPValidationError,
+  JobBatchResponse,
   RelatedContentParams,
   SearchContentParams,
   SemanticSearchResult,
@@ -53,6 +54,9 @@ const withQueryKey = <T extends object, K>(query: T, queryKey: K): T & { queryKe
  * with ``total_jobs`` 0 when everything is already indexed. The second is a
  * normal outcome of pressing backfill twice, which is why it is not a 4xx: a
  * caller cannot tell a rejected request from a satisfied one.
+ *
+ * 409 when a backfill is already running -- ``GET /semantic/backfill/active``
+ * names it, and cancelling it clears the way.
  * @summary Backfill Embeddings
  */
 export const backfillEmbeddings = (params?: BackfillEmbeddingsParams, signal?: AbortSignal) => {
@@ -65,7 +69,7 @@ export const backfillEmbeddings = (params?: BackfillEmbeddingsParams, signal?: A
 };
 
 export const getBackfillEmbeddingsMutationOptions = <
-  TError = HTTPValidationError,
+  TError = void | HTTPValidationError,
   TContext = unknown,
 >(options?: {
   mutation?: UseMutationOptions<
@@ -103,12 +107,12 @@ export type BackfillEmbeddingsMutationResult = NonNullable<
   Awaited<ReturnType<typeof backfillEmbeddings>>
 >;
 
-export type BackfillEmbeddingsMutationError = HTTPValidationError;
+export type BackfillEmbeddingsMutationError = void | HTTPValidationError;
 
 /**
  * @summary Backfill Embeddings
  */
-export const useBackfillEmbeddings = <TError = HTTPValidationError, TContext = unknown>(
+export const useBackfillEmbeddings = <TError = void | HTTPValidationError, TContext = unknown>(
   options?: {
     mutation?: UseMutationOptions<
       Awaited<ReturnType<typeof backfillEmbeddings>>,
@@ -126,6 +130,112 @@ export const useBackfillEmbeddings = <TError = HTTPValidationError, TContext = u
 > => {
   return useMutation(getBackfillEmbeddingsMutationOptions(options), queryClient);
 };
+/**
+ * Get the user's running backfill, if any -- what a 409 from POST refers to.
+ * @summary Get Active Backfill
+ */
+export const getActiveBackfill = (signal?: AbortSignal) => {
+  return axiosInstance<JobBatchResponse | null>({
+    url: `/api/v1/semantic/backfill/active`,
+    method: 'GET',
+    signal,
+  });
+};
+
+export const getGetActiveBackfillQueryKey = () => {
+  return [`/api/v1/semantic/backfill/active`] as const;
+};
+
+export const getGetActiveBackfillQueryOptions = <
+  TData = Awaited<ReturnType<typeof getActiveBackfill>>,
+  TError = unknown,
+>(options?: {
+  query?: Partial<UseQueryOptions<Awaited<ReturnType<typeof getActiveBackfill>>, TError, TData>>;
+}) => {
+  const { query: queryOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getGetActiveBackfillQueryKey();
+
+  const queryFn: QueryFunction<Awaited<ReturnType<typeof getActiveBackfill>>> = ({ signal }) =>
+    getActiveBackfill(signal);
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof getActiveBackfill>>,
+    TError,
+    TData
+  > & { queryKey: DataTag<QueryKey, TData, TError> };
+};
+
+export type GetActiveBackfillQueryResult = NonNullable<
+  Awaited<ReturnType<typeof getActiveBackfill>>
+>;
+export type GetActiveBackfillQueryError = unknown;
+
+export function useGetActiveBackfill<
+  TData = Awaited<ReturnType<typeof getActiveBackfill>>,
+  TError = unknown,
+>(
+  options: {
+    query: Partial<UseQueryOptions<Awaited<ReturnType<typeof getActiveBackfill>>, TError, TData>> &
+      Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getActiveBackfill>>,
+          TError,
+          Awaited<ReturnType<typeof getActiveBackfill>>
+        >,
+        'initialData'
+      >;
+  },
+  queryClient?: QueryClient
+): DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+export function useGetActiveBackfill<
+  TData = Awaited<ReturnType<typeof getActiveBackfill>>,
+  TError = unknown,
+>(
+  options?: {
+    query?: Partial<UseQueryOptions<Awaited<ReturnType<typeof getActiveBackfill>>, TError, TData>> &
+      Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getActiveBackfill>>,
+          TError,
+          Awaited<ReturnType<typeof getActiveBackfill>>
+        >,
+        'initialData'
+      >;
+  },
+  queryClient?: QueryClient
+): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+export function useGetActiveBackfill<
+  TData = Awaited<ReturnType<typeof getActiveBackfill>>,
+  TError = unknown,
+>(
+  options?: {
+    query?: Partial<UseQueryOptions<Awaited<ReturnType<typeof getActiveBackfill>>, TError, TData>>;
+  },
+  queryClient?: QueryClient
+): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+/**
+ * @summary Get Active Backfill
+ */
+
+export function useGetActiveBackfill<
+  TData = Awaited<ReturnType<typeof getActiveBackfill>>,
+  TError = unknown,
+>(
+  options?: {
+    query?: Partial<UseQueryOptions<Awaited<ReturnType<typeof getActiveBackfill>>, TError, TData>>;
+  },
+  queryClient?: QueryClient
+): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+  const queryOptions = getGetActiveBackfillQueryOptions(options);
+
+  const query = useQuery(queryOptions, queryClient) as UseQueryResult<TData, TError> & {
+    queryKey: DataTag<QueryKey, TData, TError>;
+  };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
 /**
  * Rank the user's embedded content by semantic similarity to a free-text query.
  * @summary Search Content

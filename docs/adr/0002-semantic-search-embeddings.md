@@ -286,14 +286,33 @@ are recorded as failures** rather than trimmed out of `total_jobs`. Trimming
 made a backfill of 500 units that broke at item 3 terminate as "completed,
 total_jobs=3", with nothing to say the other 497 were dropped.
 
-Two backfills can **overlap**, and nothing dedups the jobs they enqueue.
-Refusing a new batch while one is active was considered and rejected: the
-enqueue loop runs inside the HTTP request, so a request that dies partway leaves
-a batch that never reaches a terminal status, and gating on "a batch is active"
-would then lock the user out of backfill permanently. Wasted work is the better
-failure of the two — most duplicates lose the hash race and cost nothing. The
-fix belongs at the queue instead, as deterministic job keys, so that
-re-enqueueing a unit collapses into the pending job rather than being gated.
+Two backfills can **overlap**, and nothing dedups the jobs they enqueue. The
+fix is to **refuse a second active backfill per user**, enforced by a partial
+unique index on `user_id` over the active statuses rather than by a
+read-then-insert check, which a double-tap races straight through.
+
+Two things the guard must *not* be keyed on. Not `reference_id`: a book
+backfill and a whole-library one carry different references but overlapping
+content, so a per-reference guard would miss the case it exists for. And not
+`CONTENT_EMBEDDING` as a whole, which a highlight upload also raises a batch
+under — an upload is content arriving, not a button, and must never be refused
+because a backfill happens to be running. Backfill therefore gets its own
+`JobBatchType`, and the index constrains only that type.
+
+This was first rejected on the grounds that a request dying mid-loop leaves a
+batch that never terminates, locking the user out of backfill for good. That
+holds only without a way back: `DELETE /jobs/batches/{id}` already cancels any
+batch type, so the lockout is a button press, not a hand-edited row. The
+cancel does not necessarily stop the *work* — `job_keys` is persisted after the
+enqueue loop, so a batch stranded mid-loop has no keys to abort and its jobs
+run on — but it clears the guard, which is what the lockout argument turns on.
+
+Deterministic job keys were the earlier plan and are not pursued: they leave
+open what `total_jobs` should count when an enqueue collapses into an existing
+job, which is the never-terminating batch again from the other side. Duplicates
+on the **live** enqueue path (a rapid edit-save-edit-save queuing several jobs
+for one note) are accepted as-is. A generation is cheap; what justifies the
+guard is the multiplier of doubling an entire library, not redundancy per se.
 Tracked in issue #531.
 
 ### Read side
@@ -392,7 +411,8 @@ Sequenced deliberately, so each lands as its own reviewable change. Live
 enqueue-on-write and explicit soft-delete cleanup have since landed; what
 remains:
 
-- **Deterministic job keys** so overlapping backfills collapse (issue #531).
+- **One active backfill per user**, guarded by a unique index and recoverable
+  through the existing batch cancel (issue #531).
 - **Frontend.** Surfacing search and related content in the UI.
 - **Production wiring.** OpenRouter `baai/bge-m3`, confirming pgvector on
   Railway — **0.8 or newer**, since the read path sets `hnsw.iterative_scan` —

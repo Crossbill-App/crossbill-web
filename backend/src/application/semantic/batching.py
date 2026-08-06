@@ -38,6 +38,7 @@ async def enqueue_embedding_batch(
     slices: list[tuple[ContentType, list[int]]],
     user_id: UserId,
     reference_id: str,
+    batch_type: JobBatchType,
     queue_service: JobQueueServiceProtocol,
     batch_repo: JobBatchRepositoryProtocol,
 ) -> JobBatch:
@@ -46,10 +47,14 @@ async def enqueue_embedding_batch(
     Stops at the first failed enqueue -- a queue that just rejected one job is
     unlikely to accept the next. Empty ``job_keys`` on the returned batch is the
     caller's signal that nothing landed.
+
+    ``batch_type`` separates the backfill from write-driven batches; see
+    ``JobBatchType``. Saving the batch can raise, which is how the backfill's
+    one-active-per-user constraint reaches its caller.
     """
     batch = JobBatch.create(
         user_id=user_id,
-        batch_type=JobBatchType.CONTENT_EMBEDDING,
+        batch_type=batch_type,
         reference_id=reference_id,
         total_jobs=len(slices),
     )

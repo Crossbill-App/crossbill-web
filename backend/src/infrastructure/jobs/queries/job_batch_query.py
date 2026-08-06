@@ -10,6 +10,7 @@ from datetime import datetime as dt
 
 from sqlalchemy import Select, select
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.sql.elements import ColumnElement
 
 from src.application.jobs.queries.job_batch import JobBatchView
 from src.domain.common.value_objects.ids import JobBatchId, UserId
@@ -83,13 +84,34 @@ class JobBatchQuery:
         self, batch_type: JobBatchType, reference_id: str, user_id: UserId
     ) -> JobBatchView | None:
         """Return the newest batch for the reference that is still active."""
+        return await self._newest_active(
+            batch_type, user_id, JobBatchModel.reference_id == reference_id
+        )
+
+    async def get_active_for_user(
+        self, batch_type: JobBatchType, user_id: UserId
+    ) -> JobBatchView | None:
+        """Return the user's active batch of this type, across all references.
+
+        How a client finds the batch to cancel after a backfill was refused: the
+        409 says only that one is running, and for backfills the index
+        guarantees this returns at most one row.
+        """
+        return await self._newest_active(batch_type, user_id)
+
+    async def _newest_active(
+        self,
+        batch_type: JobBatchType,
+        user_id: UserId,
+        *conditions: ColumnElement[bool],
+    ) -> JobBatchView | None:
         result = await self.db.execute(
             _select_view()
             .where(
                 JobBatchModel.batch_type == batch_type.value,
-                JobBatchModel.reference_id == reference_id,
                 JobBatchModel.user_id == user_id.value,
                 JobBatchModel.status.in_(sorted(s.value for s in ACTIVE_JOB_BATCH_STATUSES)),
+                *conditions,
             )
             .order_by(JobBatchModel.created_at.desc())
             .limit(1)
