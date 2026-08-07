@@ -14,7 +14,7 @@ export type SearchContentParams = {
   book_id?: number | null;
   /**
    * @minimum 1
-   * @maximum 50
+   * @maximum 100
    */
   limit?: number;
 };

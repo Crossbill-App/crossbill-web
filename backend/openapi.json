@@ -3574,7 +3574,7 @@
           "semantic"
         ],
         "summary": "Search Content",
-        "description": "Rank the user's embedded content by semantic similarity to a free-text query.",
+        "description": "Rank the user's embedded content by semantic similarity, grouped by content type.\n\n``limit`` applies per group, so no content type can crowd out another. Every\nitem carries its similarity score on one scale, and enough identifiers to\nopen the highlight, note or chapter it came from.",
         "operationId": "search_content",
         "security": [
           {
@@ -3615,7 +3615,7 @@
             "required": false,
             "schema": {
               "type": "integer",
-              "maximum": 50,
+              "maximum": 100,
               "minimum": 1,
               "default": 10,
               "title": "Limit"
@@ -3628,11 +3628,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "array",
-                  "items": {
-                    "$ref": "#/components/schemas/SemanticSearchResult"
-                  },
-                  "title": "Response Search Content"
+                  "$ref": "#/components/schemas/SemanticSearchResults"
                 }
               }
             }
@@ -4966,6 +4962,70 @@
         "title": "DigestQuestionResponse",
         "description": "Response schema for a digest question/answer pair."
       },
+      "DigestSearchItem": {
+        "properties": {
+          "score": {
+            "type": "number",
+            "title": "Score"
+          },
+          "id": {
+            "type": "integer",
+            "title": "Id"
+          },
+          "book_id": {
+            "type": "integer",
+            "title": "Book Id"
+          },
+          "book_title": {
+            "type": "string",
+            "title": "Book Title"
+          },
+          "chapter_id": {
+            "type": "integer",
+            "title": "Chapter Id"
+          },
+          "chapter_name": {
+            "type": "string",
+            "title": "Chapter Name"
+          },
+          "chapter_number": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Chapter Number"
+          },
+          "summary": {
+            "type": "string",
+            "title": "Summary"
+          },
+          "keypoints": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Keypoints"
+          }
+        },
+        "type": "object",
+        "required": [
+          "score",
+          "id",
+          "book_id",
+          "book_title",
+          "chapter_id",
+          "chapter_name",
+          "chapter_number",
+          "summary",
+          "keypoints"
+        ],
+        "title": "DigestSearchItem",
+        "description": "A matched chapter digest.\n\n``id`` is the digest -- the unit that was embedded, and what ``score``\nbelongs to. ``chapter_id`` is what ``/book/{book_id}/structure?chapterId=``\nopens."
+      },
       "EreaderBookMetadata": {
         "properties": {
           "book_id": {
@@ -6039,6 +6099,93 @@
         "title": "HighlightResponseBase",
         "description": "Base schema for Highlight response (without flashcards).\n\nUse this when you need highlight data but don't want nested flashcards."
       },
+      "HighlightSearchItem": {
+        "properties": {
+          "score": {
+            "type": "number",
+            "title": "Score"
+          },
+          "id": {
+            "type": "integer",
+            "title": "Id"
+          },
+          "book_id": {
+            "type": "integer",
+            "title": "Book Id"
+          },
+          "book_title": {
+            "type": "string",
+            "title": "Book Title"
+          },
+          "chapter_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Chapter Id"
+          },
+          "chapter_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Chapter Name"
+          },
+          "chapter_number": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Chapter Number"
+          },
+          "text": {
+            "type": "string",
+            "title": "Text"
+          },
+          "page": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Page"
+          },
+          "datetime": {
+            "type": "string",
+            "title": "Datetime"
+          }
+        },
+        "type": "object",
+        "required": [
+          "score",
+          "id",
+          "book_id",
+          "book_title",
+          "chapter_id",
+          "chapter_name",
+          "chapter_number",
+          "text",
+          "page",
+          "datetime"
+        ],
+        "title": "HighlightSearchItem",
+        "description": "A matched highlight, shaped for a highlight list row.\n\n``id`` opens the highlight view at\n``/book/{book_id}/highlights?highlightId={id}``."
+      },
       "HighlightUploadRequest": {
         "properties": {
           "client_book_id": {
@@ -6432,6 +6579,55 @@
         ],
         "title": "NoteLinkedTag",
         "description": "Lightweight summary of a tag linked to a note."
+      },
+      "NoteSearchItem": {
+        "properties": {
+          "score": {
+            "type": "number",
+            "title": "Score"
+          },
+          "id": {
+            "type": "integer",
+            "title": "Id"
+          },
+          "books": {
+            "items": {
+              "$ref": "#/components/schemas/SearchBookRef"
+            },
+            "type": "array",
+            "title": "Books"
+          },
+          "title": {
+            "type": "string",
+            "title": "Title"
+          },
+          "body": {
+            "type": "string",
+            "title": "Body"
+          },
+          "kind": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Kind"
+          }
+        },
+        "type": "object",
+        "required": [
+          "score",
+          "id",
+          "books",
+          "title",
+          "body",
+          "kind"
+        ],
+        "title": "NoteSearchItem",
+        "description": "A matched note. ``books`` may be empty; a note need not link to any."
       },
       "NoteUpdateRequest": {
         "properties": {
@@ -7018,6 +7214,25 @@
         "title": "RefreshTokenRequest",
         "description": "Request body for refresh token (used by plugins)."
       },
+      "SearchBookRef": {
+        "properties": {
+          "id": {
+            "type": "integer",
+            "title": "Id"
+          },
+          "title": {
+            "type": "string",
+            "title": "Title"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "title"
+        ],
+        "title": "SearchBookRef",
+        "description": "A book a search result belongs to."
+      },
       "SemanticSearchResult": {
         "properties": {
           "content_type": {
@@ -7056,6 +7271,39 @@
           "text"
         ],
         "title": "SemanticSearchResult"
+      },
+      "SemanticSearchResults": {
+        "properties": {
+          "highlights": {
+            "items": {
+              "$ref": "#/components/schemas/HighlightSearchItem"
+            },
+            "type": "array",
+            "title": "Highlights"
+          },
+          "notes": {
+            "items": {
+              "$ref": "#/components/schemas/NoteSearchItem"
+            },
+            "type": "array",
+            "title": "Notes"
+          },
+          "digests": {
+            "items": {
+              "$ref": "#/components/schemas/DigestSearchItem"
+            },
+            "type": "array",
+            "title": "Digests"
+          }
+        },
+        "type": "object",
+        "required": [
+          "highlights",
+          "notes",
+          "digests"
+        ],
+        "title": "SemanticSearchResults",
+        "description": "One search's matches, grouped by content type.\n\nEvery group is present even when empty, and every item carries its score on\none scale, so a client can merge the groups back into a single ranked list."
       },
       "SendChatMessageRequest": {
         "properties": {
