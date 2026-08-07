@@ -12,11 +12,6 @@ from src.application.semantic.commands.enqueue_content_embeddings_use_case impor
     EnqueueContentEmbeddingsUseCase,
 )
 from src.application.semantic.content_type import ContentType
-from src.application.semantic.queries.content_search import (
-    DigestSearchView,
-    HighlightSearchView,
-    NoteSearchView,
-)
 from src.application.semantic.queries.related_content_use_case import RelatedContentUseCase
 from src.application.semantic.queries.search_content_use_case import SearchContentUseCase
 from src.application.semantic.queries.semantic_search import SemanticSearchView
@@ -34,10 +29,6 @@ from src.infrastructure.jobs.schemas.job_batch_schemas import (
 )
 from src.infrastructure.semantic.schemas.semantic_schemas import (
     BackfillResponse,
-    DigestSearchItem,
-    HighlightSearchItem,
-    NoteSearchItem,
-    SearchBookRef,
     SemanticSearchResult,
     SemanticSearchResults,
 )
@@ -64,46 +55,6 @@ def _result(view: SemanticSearchView) -> SemanticSearchResult:
         book_id=view.book_id,
         score=view.score,
         text=view.text,
-    )
-
-
-def _highlight_item(view: HighlightSearchView) -> HighlightSearchItem:
-    return HighlightSearchItem(
-        score=view.score,
-        id=view.id,
-        book_id=view.book_id,
-        book_title=view.book_title,
-        chapter_id=view.chapter_id,
-        chapter_name=view.chapter_name,
-        chapter_number=view.chapter_number,
-        text=view.text,
-        page=view.page,
-        datetime=view.datetime,
-    )
-
-
-def _note_item(view: NoteSearchView) -> NoteSearchItem:
-    return NoteSearchItem(
-        score=view.score,
-        id=view.id,
-        books=[SearchBookRef(id=book.id, title=book.title) for book in view.books],
-        title=view.title,
-        body=view.body,
-        kind=view.kind,
-    )
-
-
-def _digest_item(view: DigestSearchView) -> DigestSearchItem:
-    return DigestSearchItem(
-        score=view.score,
-        id=view.id,
-        book_id=view.book_id,
-        book_title=view.book_title,
-        chapter_id=view.chapter_id,
-        chapter_name=view.chapter_name,
-        chapter_number=view.chapter_number,
-        summary=view.summary,
-        keypoints=list(view.keypoints),
     )
 
 
@@ -196,11 +147,7 @@ async def search_content(
         book_id=book_id,
         limit=limit,
     )
-    return SemanticSearchResults(
-        highlights=[_highlight_item(view) for view in results.highlights],
-        notes=[_note_item(view) for view in results.notes],
-        digests=[_digest_item(view) for view in results.digests],
-    )
+    return SemanticSearchResults.model_validate(results)
 
 
 @router.get("/related", response_model=list[SemanticSearchResult])

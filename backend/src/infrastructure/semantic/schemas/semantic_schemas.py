@@ -1,6 +1,6 @@
 """Pydantic schemas for semantic-search API responses."""
 
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict
 
 from src.application.semantic.content_type import ContentType
 from src.infrastructure.jobs.schemas.job_batch_schemas import JobBatchResponse
@@ -26,8 +26,18 @@ class SemanticSearchResult(BaseModel):
     text: str
 
 
+#: The grouped-search schemas are validated straight off the read model's view
+#: dataclasses (``application/semantic/queries/content_search.py``) rather than
+#: copied field by field, so each field name here must match the view's. A
+#: mismatch is a ValidationError on the first request, which the API tests
+#: assert every field of.
+_FROM_VIEW = ConfigDict(from_attributes=True)
+
+
 class SearchBookRef(BaseModel):
     """A book a search result belongs to."""
+
+    model_config = _FROM_VIEW
 
     id: int
     title: str
@@ -39,6 +49,8 @@ class HighlightSearchItem(BaseModel):
     ``id`` opens the highlight view at
     ``/book/{book_id}/highlights?highlightId={id}``.
     """
+
+    model_config = _FROM_VIEW
 
     score: float
     id: int
@@ -55,6 +67,8 @@ class HighlightSearchItem(BaseModel):
 class NoteSearchItem(BaseModel):
     """A matched note. ``books`` may be empty; a note need not link to any."""
 
+    model_config = _FROM_VIEW
+
     score: float
     id: int
     books: list[SearchBookRef]
@@ -70,6 +84,8 @@ class DigestSearchItem(BaseModel):
     belongs to. ``chapter_id`` is what ``/book/{book_id}/structure?chapterId=``
     opens.
     """
+
+    model_config = _FROM_VIEW
 
     score: float
     id: int
@@ -88,6 +104,8 @@ class SemanticSearchResults(BaseModel):
     Every group is present even when empty, and every item carries its score on
     one scale, so a client can merge the groups back into a single ranked list.
     """
+
+    model_config = _FROM_VIEW
 
     highlights: list[HighlightSearchItem]
     notes: list[NoteSearchItem]
