@@ -45,9 +45,15 @@ class SemanticSearchQueryProtocol(Protocol):
         user_id: int,
         book_id: int | None,
         limit: int,
+        content_type: ContentType | None = None,
         exclude: tuple[ContentType, int] | None = None,
     ) -> list[SemanticSearchHit]:
-        """Rank the user's embeddings by similarity to ``embedding``, most similar first."""
+        """Rank the user's embeddings by similarity to ``embedding``, most similar first.
+
+        ``content_type`` narrows the scan to one kind of unit; ``None`` scans
+        every kind. The grouped search runs one scan per type so no type can
+        crowd the others out of a single ranked page.
+        """
         ...
 
     async def get_vector(

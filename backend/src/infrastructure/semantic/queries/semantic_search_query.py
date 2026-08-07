@@ -16,6 +16,7 @@ from sqlalchemy.sql.elements import ColumnElement
 from src.application.semantic.content_type import ContentType
 from src.application.semantic.queries.semantic_search import SemanticSearchHit
 from src.infrastructure.common.sql import is_postgres
+from src.infrastructure.notes.orm.associations import note_books
 from src.infrastructure.semantic.orm.embedding_model import Embedding as EmbeddingORM
 
 #: Resume the HNSW scan when the ``user_id`` filter rejects its candidates.
@@ -70,9 +71,10 @@ class SemanticSearchQuery:
         user_id: int,
         book_id: int | None,
         limit: int,
+        content_type: ContentType | None = None,
         exclude: tuple[ContentType, int] | None = None,
     ) -> list[SemanticSearchHit]:
-        filters = self._filters(user_id, book_id, exclude)
+        filters = self._filters(user_id, book_id, content_type, exclude)
         if is_postgres(self.db):
             return await self._nearest_postgres(embedding, filters, limit)
         return await self._nearest_python(embedding, filters, limit)
@@ -91,11 +93,17 @@ class SemanticSearchQuery:
         return [float(value) for value in row]
 
     def _filters(
-        self, user_id: int, book_id: int | None, exclude: tuple[ContentType, int] | None
+        self,
+        user_id: int,
+        book_id: int | None,
+        content_type: ContentType | None,
+        exclude: tuple[ContentType, int] | None,
     ) -> list[ColumnElement[bool]]:
         filters: list[ColumnElement[bool]] = [EmbeddingORM.user_id == user_id]
+        if content_type is not None:
+            filters.append(EmbeddingORM.content_type == content_type.value)
         if book_id is not None:
-            filters.append(EmbeddingORM.book_id == book_id)
+            filters.append(self._book_filter(book_id, content_type))
         if exclude is not None:
             exclude_type, exclude_id = exclude
             filters.append(
@@ -107,6 +115,22 @@ class SemanticSearchQuery:
                 )
             )
         return filters
+
+    def _book_filter(self, book_id: int, content_type: ContentType | None) -> ColumnElement[bool]:
+        """Scope to a book -- through ``note_books`` when the scan is notes only.
+
+        ``embeddings.book_id`` is NULL for a note linked to zero or several
+        books, because no single value is correct and picking one would make
+        ``?book_id=`` depend on link order. Filtering notes on that column
+        therefore cannot find such a note at all. ADR-0002 kept the link table
+        out of the ranking query to hold it clear of other modules' tables; that
+        cost is bounded now the note scan is its own statement.
+        """
+        if content_type is not ContentType.NOTE:
+            return EmbeddingORM.book_id == book_id
+        return EmbeddingORM.content_id.in_(
+            select(note_books.c.note_id).where(note_books.c.book_id == book_id)
+        )
 
     async def _nearest_postgres(
         self, embedding: list[float], filters: list[ColumnElement[bool]], limit: int

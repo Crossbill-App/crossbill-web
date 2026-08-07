@@ -4,6 +4,7 @@ import pytest
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.application.semantic.content_type import ContentType
+from src.infrastructure.notes.orm.associations import note_books
 from src.infrastructure.semantic.queries.semantic_search_query import SemanticSearchQuery
 from src.models import Book, Embedding, Highlight, Note, User
 
@@ -18,7 +19,11 @@ _ANCHOR_COLUMN = {
 
 
 async def _add_source(
-    db: AsyncSession, content_type: ContentType, content_id: int, user_id: int
+    db: AsyncSession,
+    content_type: ContentType,
+    content_id: int,
+    user_id: int,
+    linked_book_ids: tuple[int, ...] = (),
 ) -> None:
     """Create the row the embedding's anchor points at.
 
@@ -27,6 +32,9 @@ async def _add_source(
     """
     if content_type is ContentType.NOTE:
         db.add(Note(id=content_id, user_id=user_id, title=f"note {content_id}", body=""))
+        await db.flush()
+        for book_id in linked_book_ids:
+            await db.execute(note_books.insert().values(note_id=content_id, book_id=book_id))
     else:
         book = Book(user_id=user_id, title=f"book for highlight {content_id}")
         db.add(book)
@@ -52,8 +60,9 @@ async def _add_embedding(
     vector: list[float],
     user_id: int = USER_ID,
     book_id: int | None = None,
+    linked_book_ids: tuple[int, ...] = (),
 ) -> None:
-    await _add_source(db, content_type, content_id, user_id)
+    await _add_source(db, content_type, content_id, user_id, linked_book_ids)
     db.add(
         Embedding(
             user_id=user_id,
@@ -164,6 +173,69 @@ class TestNearest:
         )
 
         assert [(hit.content_type, hit.content_id) for hit in hits] == [(ContentType.NOTE, 1)]
+
+    async def test_filters_to_a_single_content_type(
+        self, query: SemanticSearchQuery, db_session: AsyncSession
+    ) -> None:
+        await _add_embedding(
+            db_session, content_type=ContentType.NOTE, content_id=1, vector=[1.0, 0.0]
+        )
+        await _add_embedding(
+            db_session, content_type=ContentType.HIGHLIGHT, content_id=2, vector=[1.0, 0.0]
+        )
+
+        hits = await query.nearest(
+            embedding=[1.0, 0.0],
+            user_id=USER_ID,
+            book_id=None,
+            limit=10,
+            content_type=ContentType.NOTE,
+        )
+
+        assert [(hit.content_type, hit.content_id) for hit in hits] == [(ContentType.NOTE, 1)]
+
+    async def test_scopes_notes_through_the_book_link_table(
+        self, query: SemanticSearchQuery, db_session: AsyncSession
+    ) -> None:
+        """A note linked to two books has a NULL embedding scope but is still in the book.
+
+        ``embeddings.book_id`` stays NULL because no single book is the right
+        answer. Filtering on that column would make this note unfindable by
+        ``?book_id=``, which is the bug this scoping fixes.
+        """
+        wanted = Book(user_id=USER_ID, title="Wanted")
+        other = Book(user_id=USER_ID, title="Other")
+        db_session.add_all([wanted, other])
+        await db_session.commit()
+        await db_session.refresh(wanted)
+        await db_session.refresh(other)
+
+        await _add_embedding(
+            db_session,
+            content_type=ContentType.NOTE,
+            content_id=1,
+            vector=[1.0, 0.0],
+            book_id=None,
+            linked_book_ids=(wanted.id, other.id),
+        )
+        await _add_embedding(
+            db_session,
+            content_type=ContentType.NOTE,
+            content_id=2,
+            vector=[1.0, 0.0],
+            book_id=None,
+            linked_book_ids=(other.id,),
+        )
+
+        hits = await query.nearest(
+            embedding=[1.0, 0.0],
+            user_id=USER_ID,
+            book_id=wanted.id,
+            limit=10,
+            content_type=ContentType.NOTE,
+        )
+
+        assert [hit.content_id for hit in hits] == [1]
 
 
 class TestGetVector:
