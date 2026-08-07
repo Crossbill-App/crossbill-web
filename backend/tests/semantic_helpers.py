@@ -10,6 +10,7 @@ import hashlib
 from collections.abc import Iterator
 from contextlib import AbstractContextManager, contextmanager
 from datetime import UTC, datetime
+from typing import Any
 from unittest.mock import AsyncMock, patch
 
 from httpx import AsyncClient, Response
@@ -19,7 +20,8 @@ from starlette import status
 
 from src.application.semantic.content_type import ContentType
 from src.config import get_settings
-from src.models import Book, Embedding, Highlight
+from src.infrastructure.notes.orm.associations import note_books
+from src.models import Book, Chapter, ChapterDigest, Embedding, Highlight, Note
 from tests.conftest import create_test_highlight
 
 #: Patch target for the feature flag the semantic routers gate on.
@@ -144,6 +146,95 @@ async def plant_indexed_highlight(
     return highlight
 
 
+async def plant_indexed_note(
+    db: AsyncSession,
+    user_id: int,
+    title: str,
+    *,
+    body: str = "",
+    kind: str | None = None,
+    books: tuple[Book, ...] = (),
+    vector: list[float] | None = None,
+) -> Note:
+    """Create a note, link it to books, and index it.
+
+    ``book_id`` on the embedding follows the production rule: set only when the
+    note links to exactly one book, because no single value is correct otherwise.
+    """
+    settings = get_settings()
+    note = Note(user_id=user_id, title=title, body=body, kind=kind)
+    db.add(note)
+    await db.commit()
+    await db.refresh(note)
+    for linked in books:
+        await db.execute(note_books.insert().values(note_id=note.id, book_id=linked.id))
+    await db.commit()
+
+    db.add(
+        Embedding(
+            user_id=user_id,
+            content_type=ContentType.NOTE.value,
+            content_id=note.id,
+            note_id=note.id,
+            book_id=books[0].id if len(books) == 1 else None,
+            embedding=vector if vector is not None else [0.1, 0.2],
+            model_name=TEST_MODEL_NAME,
+            model_version=settings.EMBEDDING_MODEL_VERSION,
+            content_hash=content_hash(f"{title}\n\n{body}" if body else title),
+        )
+    )
+    await db.commit()
+    return note
+
+
+async def plant_indexed_digest(
+    db: AsyncSession,
+    book: Book,
+    chapter_name: str,
+    *,
+    chapter_number: int | None = None,
+    summary: str = "A summary",
+    keypoints: list[str] | None = None,
+    vector: list[float] | None = None,
+) -> tuple[Chapter, ChapterDigest]:
+    """Create a chapter with a digest and index the digest."""
+    settings = get_settings()
+    points = keypoints if keypoints is not None else ["one", "two"]
+    chapter = Chapter(book_id=book.id, name=chapter_name, chapter_number=chapter_number)
+    db.add(chapter)
+    await db.commit()
+    await db.refresh(chapter)
+
+    digest = ChapterDigest(
+        chapter_id=chapter.id,
+        summary=summary,
+        keypoints=points,
+        questions=[],
+        generated_at=datetime.now(UTC),
+        ai_model="test",
+    )
+    db.add(digest)
+    await db.commit()
+    await db.refresh(digest)
+
+    joined = "\n".join(points)
+    db.add(
+        Embedding(
+            user_id=book.user_id,
+            content_type=ContentType.DIGEST.value,
+            content_id=digest.id,
+            digest_id=digest.id,
+            book_id=book.id,
+            embedding=vector if vector is not None else [0.1, 0.2],
+            model_name=TEST_MODEL_NAME,
+            model_version=settings.EMBEDDING_MODEL_VERSION,
+            content_hash=content_hash(f"{summary}\n\n{joined}" if joined else summary),
+        )
+    )
+    await db.commit()
+    return chapter, digest
+
+
 async def upload_highlights(
     client: AsyncClient, client_book_id: str, *texts: str
 ) -> dict[str, PrimitiveData]:
@@ -168,11 +259,16 @@ async def get_search(client: AsyncClient, **params: PrimitiveData) -> Response:
         return await client.get("/api/v1/semantic/search", params={"q": "idea", **params})
 
 
-async def search_content_ids(client: AsyncClient, **params: PrimitiveData) -> list[int]:
-    """Search and return the matched content ids, in ranking order."""
+async def search_groups(client: AsyncClient, **params: PrimitiveData) -> dict[str, Any]:
+    """Search and return the grouped body, asserting the request succeeded."""
     response = await get_search(client, **params)
     assert response.status_code == status.HTTP_200_OK, response.text
-    return [row["content_id"] for row in response.json()]
+    return response.json()
+
+
+async def search_highlight_ids(client: AsyncClient, **params: PrimitiveData) -> list[int]:
+    """Search and return the matched highlight ids, in ranking order."""
+    return [item["id"] for item in (await search_groups(client, **params))["highlights"]]
 
 
 async def get_related(client: AsyncClient, **params: PrimitiveData) -> Response:

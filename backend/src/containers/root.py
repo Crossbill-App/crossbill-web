@@ -144,4 +144,5 @@ class RootContainer(containers.DeclarativeContainer):
         job_queue_service=job_queue_service,
         book_repository=shared.book_repository,
         semantic_search_query=shared.semantic_search_query,
+        search_hydration_query=shared.search_hydration_query,
     )

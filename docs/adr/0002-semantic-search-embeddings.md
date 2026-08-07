@@ -503,3 +503,60 @@ remains:
   but only as far as `hnsw.max_scan_tuples` (20 000) reaches. Raise it, or
   partition the index by user, if a single user's rows ever sit behind that many
   of another's?
+
+## Amendment 2026-08-07 — grouped, per-type search
+
+`GET /semantic/search` now runs **one nearest-neighbour scan per
+`ContentType`**, with `limit` applying per type rather than to one combined
+page. The original single-scan design let one type crowd out the others: a
+book with thousands of highlights could fill the whole ranked page before a
+single note or digest was ever considered. Three scans instead of one is the
+direct fix, at the cost of three round trips instead of one — acceptable at
+launch `k`, and `/related` (whose ranking still spans every type on one axis)
+is unaffected.
+
+Search results are now hydrated through
+`application/semantic/queries/content_search.py`, not `hydration.hydrate_hits`.
+`hydrate_hits` resolves the *embedding input* — text truncated at
+`MAX_EMBEDDABLE_CHARS` and lossily concatenated for notes — which was never a
+display field to begin with; a note's `text` could not be split back into a
+title and a body. `hydrate_hits` still serves `/related`, which has no list UI
+of its own yet to demand better fields.
+
+The note scan now scopes to a book through `note_books` rather than
+`embeddings.book_id`. This reverses the Read side's original decision to keep
+the ranking query clear of other modules' tables. That cost is bounded now
+that the note scan is its own statement rather than a branch inside a combined
+one, and the original choice had a real cost of its own: `embeddings.book_id`
+is NULL for any note linked to zero or several books (see *Storage* and
+`content_source.py::_notes`), so such a note was unfindable by `?book_id=`
+regardless of how exact its index copy was. The coupling is read-only, which is
+what makes it tolerable — but it is not compile-time checked, so a shape
+change to `note_books` in the notes module breaks the search adapter silently
+rather than at review time.
+
+ADR-0002's consistency model rule 2 — deleted content never surfaces — is now
+enforced in two places instead of one: `hydrate_hits` for `/related`, and
+`SearchHydrationQuery` for `/search`. Each hydrates through its own queries and
+each drops a hit whose source row does not resolve, so the guarantee holds
+independently on both paths rather than through one shared implementation.
+
+Per-type scanning also changes the recall picture the Read side already
+documents for `hnsw.max_scan_tuples`. The HNSW index is global over
+`embedding`; `content_type` is a `String(20)` with no index of its own,
+filtered only after the index scan returns candidates. A per-type scan for a
+minority type therefore has to walk past every other type's tuples before it
+accumulates `k` of its own, and the same 20 000-tuple bound that governs
+filtered `user_id` recall governs this: the guarantee holds while roughly
+`k × N_total / N_type` stays under it. At the default `k=10`, a type at 5% of
+a user's embeddings costs about 200 tuples — nowhere near the bound. At the new
+per-type maximum, `k=100` (double the old ceiling),
+a rare type at 0.1% of a large corpus costs about 100 000 tuples, past the
+bound, and that group comes back short or empty. Correctness is unaffected —
+hydration still drops anything unresolved — but this is the same failure the
+amendment exists to prevent, digests losing to a crowded type, relocated from
+the ranking step into the index scan itself. The mitigation is the same shape
+as the anchor indexes already in `Embedding.__table_args__`
+(`infrastructure/semantic/orm/embedding_model.py`): a partial HNSW index per
+content type, so each type's scan never has to cross another's tuples to fill
+its page.

@@ -30,11 +30,18 @@ from src.infrastructure.jobs.schemas.job_batch_schemas import (
 from src.infrastructure.semantic.schemas.semantic_schemas import (
     BackfillResponse,
     SemanticSearchResult,
+    SemanticSearchResults,
 )
 
 router = APIRouter(prefix="/semantic", tags=["semantic"])
 
 MAX_SEARCH_LIMIT = 50
+#: Per-content-type cap for the grouped search.
+#:
+#: Higher than MAX_SEARCH_LIMIT because it bounds one group rather than a whole
+#: page, and a caller assembling its own mixed ranking wants room to work with.
+#: /related keeps MAX_SEARCH_LIMIT: it ranks every type into one list.
+MAX_SEARCH_ITEMS_PER_TYPE = 100
 # Bounded because every query costs a model call: an empty string would buy a
 # vector for nothing, and an unbounded one is billed by the token and would
 # eventually exceed bge-m3's 8K context.
@@ -117,25 +124,30 @@ async def get_active_backfill(
     return view_to_response(view) if view else None
 
 
-@router.get("/search", response_model=list[SemanticSearchResult])
+@router.get("/search", response_model=SemanticSearchResults)
 @require_embeddings_enabled
 async def search_content(
     current_user: Annotated[User, Depends(get_current_user)],
     q: Annotated[str, Query(min_length=1, max_length=MAX_QUERY_LENGTH)],
     book_id: int | None = None,
-    limit: Annotated[int, Query(ge=1, le=MAX_SEARCH_LIMIT)] = 10,
+    limit: Annotated[int, Query(ge=1, le=MAX_SEARCH_ITEMS_PER_TYPE)] = 10,
     use_case: SearchContentUseCase = Depends(
         inject_use_case(container.semantic.search_content_use_case)
     ),
-) -> list[SemanticSearchResult]:
-    """Rank the user's embedded content by semantic similarity to a free-text query."""
-    views = await use_case.execute(
+) -> SemanticSearchResults:
+    """Rank the user's embedded content by semantic similarity, grouped by content type.
+
+    ``limit`` applies per group, so no content type can crowd out another. Every
+    item carries its similarity score on one scale, and enough identifiers to
+    open the highlight, note or chapter it came from.
+    """
+    results = await use_case.execute(
         query_text=q,
         user_id=current_user.id.value,
         book_id=book_id,
         limit=limit,
     )
-    return [_result(view) for view in views]
+    return SemanticSearchResults.model_validate(results)
 
 
 @router.get("/related", response_model=list[SemanticSearchResult])

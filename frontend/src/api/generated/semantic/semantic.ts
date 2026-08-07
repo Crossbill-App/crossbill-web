@@ -28,6 +28,7 @@ import type {
   RelatedContentParams,
   SearchContentParams,
   SemanticSearchResult,
+  SemanticSearchResults,
 } from '../model';
 
 import { axiosInstance } from '../../axios-instance.ts';
@@ -237,11 +238,15 @@ export function useGetActiveBackfill<
 }
 
 /**
- * Rank the user's embedded content by semantic similarity to a free-text query.
+ * Rank the user's embedded content by semantic similarity, grouped by content type.
+ *
+ * ``limit`` applies per group, so no content type can crowd out another. Every
+ * item carries its similarity score on one scale, and enough identifiers to
+ * open the highlight, note or chapter it came from.
  * @summary Search Content
  */
 export const searchContent = (params: SearchContentParams, signal?: AbortSignal) => {
-  return axiosInstance<SemanticSearchResult[]>({
+  return axiosInstance<SemanticSearchResults>({
     url: `/api/v1/semantic/search`,
     method: 'GET',
     params,

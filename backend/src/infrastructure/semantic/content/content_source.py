@@ -161,18 +161,13 @@ class ContentSource:
                 content_type=ContentType.NOTE,
                 content_id=note.id,
                 user_id=note.user_id,
-                # TODO: a note linked to two books gets NULL here, so `?book_id=`
-                # cannot find it at all. note_books already exists -- what is
-                # missing is room for more than one book per embedding (a scope
-                # join table), or filtering notes through note_books in the
-                # search adapter, which ADR-0002 avoided so the ranking query
-                # stays clear of other modules' tables.
-                # Only a note linked to exactly one book gets a scope. A note
-                # spanning two books has no single correct value, and picking one
-                # arbitrarily would make `?book_id=` results depend on link order
-                # -- so it stays NULL and such notes surface in unscoped search
-                # only. Backfill still embeds them under a book's scope; they just
-                # aren't filterable by it.
+                # A note linked to two books gets NULL here: no single value is
+                # correct, and picking one would make `?book_id=` depend on link
+                # order. Search no longer suffers for it -- the note scan filters
+                # through note_books (``SemanticSearchQuery._book_filter``) rather
+                # than this column. The column stays NULL, so anything else that
+                # scopes on it still cannot see such a note. Backfill still embeds
+                # them under a book's scope.
                 book_id=linked[0] if len(linked) == 1 else None,
                 text=text,
                 content_hash=_content_hash(text),
