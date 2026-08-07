@@ -1,7 +1,8 @@
 """Read model for the grouped semantic-search response.
 
-Search hits are hydrated here rather than through ``hydration.hydrate_hits``,
-which resolves the *embedding input*: text truncated at
+Search hits are hydrated here rather than the way /related does it
+(``RelatedContentUseCase._hydrate``), which resolves the *embedding input*:
+text truncated at
 ``MAX_EMBEDDABLE_CHARS`` and lossily concatenated, so a note cannot render its
 title as a title. These views read each source module's own columns instead.
 
