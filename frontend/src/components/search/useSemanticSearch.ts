@@ -1,5 +1,6 @@
 import type { SemanticSearchResults } from '@/api/generated/model';
 import { useSearchContent } from '@/api/generated/semantic/semantic.ts';
+import { useSettings } from '@/context/SettingsContext.tsx';
 import { keepPreviousData } from '@tanstack/react-query';
 import { useMemo } from 'react';
 
@@ -28,7 +29,10 @@ interface SemanticSearchState {
   results: SemanticSearchResults | undefined;
   isFetching: boolean;
   isError: boolean;
-  /** True when the trimmed query is non-empty — i.e. the page should filter. */
+  /**
+   * True when embeddings are enabled and the trimmed query is non-empty —
+   * i.e. the page should filter.
+   */
   hasQuery: boolean;
 }
 
@@ -46,14 +50,17 @@ export const useSemanticSearch = ({
   query,
   bookId,
 }: UseSemanticSearchOptions): SemanticSearchState => {
+  const { featureFlags } = useSettings();
   const q = query.trim();
-  const hasQuery = q.length > 0;
+  // Gated here, not just in the field: a page must never filter on a query
+  // the user cannot see or clear because the flag hid the input that owns it.
+  const hasQuery = featureFlags?.embeddings === true && q.length > 0;
 
   const { data, isFetching, isError } = useSearchContent(
     { q, book_id: bookId, limit: LIMIT },
     // `q` is a required param with minLength 1; `enabled` is what keeps an
-    // empty query off the wire. keepPreviousData stops the filtered list
-    // flashing empty between keystrokes.
+    // empty query (or a disabled feature) off the wire. keepPreviousData
+    // stops the filtered list flashing empty between keystrokes.
     { query: { enabled: hasQuery, placeholderData: keepPreviousData } }
   );
 

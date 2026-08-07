@@ -26,9 +26,7 @@ export const SemanticSearchField = ({
   <EmbeddingFeature>
     <Box>
       <SearchBar onSearch={onChange} placeholder={placeholder} initialValue={value} />
-      <LinearProgress
-        sx={{ height: 2, borderRadius: 1, visibility: isFetching ? 'visible' : 'hidden' }}
-      />
+      {isFetching && <LinearProgress sx={{ height: 2, borderRadius: 1 }} />}
     </Box>
   </EmbeddingFeature>
 );

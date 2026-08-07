@@ -10,7 +10,7 @@ type BookTabFilterRoute =
   | '/book/$bookId/notes'
   | '/book/$bookId/structure';
 
-/** The URL filters read/written by these tabs. `search` is absent on the notes tab. */
+/** The URL filters read/written by these tabs. */
 interface BookTabSearch {
   search?: string;
   tagId?: number;
@@ -27,9 +27,9 @@ interface BookTabSearch {
  */
 export const useBookTabFilters = (from: BookTabFilterRoute) => {
   const search = useSearch({ from }) as BookTabSearch;
-  // The navigate signature differs per route (the notes route has no `search`
-  // param); this hook drives all three, so widen the search updater to a plain
-  // record. Call sites remain fully typed via the literal `from` argument.
+  // The navigate signature differs per route; this hook drives all four, so
+  // widen the search updater to a plain record. Call sites remain fully
+  // typed via the literal `from` argument.
   const navigate = useNavigate({ from }) as unknown as (opts: {
     search: (prev: Record<string, unknown>) => Record<string, unknown>;
     replace?: boolean;

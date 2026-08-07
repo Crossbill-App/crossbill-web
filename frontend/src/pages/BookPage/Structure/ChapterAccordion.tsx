@@ -21,9 +21,15 @@ interface ChapterAccordionProps {
   gistByChapterId: Map<number, string>;
   bookId: number;
   depth?: number;
-  isRead?: boolean;
-  isCurrent?: boolean;
   readingPosition?: PositionResponse | null;
+  /**
+   * Ids of chapters on the current reading-position path, derived once from
+   * unfiltered document order (see `StructurePage`). Membership, not sibling
+   * position, is what decides "current" — a search filters and re-sorts
+   * `childrenByParentId`, so peeking at the next rendered sibling would not
+   * mean the next chapter in the book.
+   */
+  currentChapterIds: Set<number>;
   preExpanded?: boolean;
   onChapterClick?: (chapterId: number) => void;
 }
@@ -85,7 +91,7 @@ const ExpandableChapter = ({
       }}
     >
       <Box sx={{ display: 'flex', alignItems: 'flex-start', gap: 1 }}>
-        {readStatus && <ChapterReadIndicator status={readStatus} />}
+        {readStatus && <ChapterReadIndicator status={readStatus} chapterName={name} />}
         <Box>
           <Typography variant="body1" sx={{ fontWeight: 600 }}>
             {name}
@@ -142,7 +148,7 @@ const LeafChapterRow = ({
       })}
     >
       <Box sx={{ display: 'flex', alignItems: 'flex-start', gap: 1 }}>
-        {readStatus && <ChapterReadIndicator status={readStatus} />}
+        {readStatus && <ChapterReadIndicator status={readStatus} chapterName={chapter.name} />}
         <Box>
           <Typography variant="body1" sx={{ fontWeight: 600 }}>
             {chapter.name}
@@ -174,12 +180,16 @@ export const ChapterAccordion = ({
   gistByChapterId,
   bookId,
   depth = 0,
-  isRead,
-  isCurrent,
   readingPosition,
+  currentChapterIds,
   preExpanded = false,
   onChapterClick,
 }: ChapterAccordionProps) => {
+  const isRead =
+    readingPosition != null &&
+    chapter.start_position != null &&
+    readingPosition.index >= chapter.start_position.index;
+  const isCurrent = currentChapterIds.has(chapter.id);
   const readStatus: ReadStatus | undefined =
     readingPosition == null ? undefined : isCurrent ? 'current' : isRead ? 'read' : 'unread';
   const [expanded, setExpanded] = useState(isCurrent || readingPosition == null || preExpanded);
@@ -200,35 +210,20 @@ export const ChapterAccordion = ({
         readStatus={readStatus}
       >
         <Box>
-          {childChapters.map((child, index) => {
-            const childIsRead =
-              readingPosition != null && child.start_position != null
-                ? readingPosition.index >= child.start_position.index
-                : undefined;
-            // Current = this child is read but the next sibling is not
-            const isLastChild = index === childChapters.length - 1;
-            const nextIsRead = isLastChild
-              ? false
-              : readingPosition != null && childChapters[index + 1].start_position != null
-                ? readingPosition.index >= childChapters[index + 1].start_position!.index
-                : false;
-            const childIsCurrent = isCurrent === true && childIsRead === true && !nextIsRead;
-
-            return (
-              <ChapterAccordion
-                key={child.id}
-                chapter={child}
-                childrenByParentId={childrenByParentId}
-                gistByChapterId={gistByChapterId}
-                bookId={bookId}
-                depth={depth + 1}
-                isRead={childIsRead}
-                isCurrent={childIsCurrent}
-                readingPosition={readingPosition}
-                onChapterClick={onChapterClick}
-              />
-            );
-          })}
+          {childChapters.map((child) => (
+            <ChapterAccordion
+              key={child.id}
+              chapter={child}
+              childrenByParentId={childrenByParentId}
+              gistByChapterId={gistByChapterId}
+              bookId={bookId}
+              depth={depth + 1}
+              readingPosition={readingPosition}
+              currentChapterIds={currentChapterIds}
+              preExpanded={preExpanded}
+              onChapterClick={onChapterClick}
+            />
+          ))}
         </Box>
       </ExpandableChapter>
     );

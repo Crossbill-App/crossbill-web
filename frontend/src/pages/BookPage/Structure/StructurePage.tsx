@@ -1,5 +1,9 @@
 import { useGetBookDigest } from '@/api/generated/digest/digest';
-import type { ChapterDigestResponse, ChapterWithHighlights } from '@/api/generated/model';
+import type {
+  ChapterDigestResponse,
+  ChapterWithHighlights,
+  PositionResponse,
+} from '@/api/generated/model';
 import { useGetNotesForBook } from '@/api/generated/notes/notes.ts';
 import { EmptyStateText } from '@/components/EmptyStateText.tsx';
 import { useUrlEntityDialog } from '@/components/dialogs/useUrlEntityDialog.ts';
@@ -14,6 +18,38 @@ import { BatchDigestToolbar } from './BatchDigestToolbar';
 import { ChapterAccordion } from './ChapterAccordion';
 import { ChapterDetailDialog } from './ChapterDetailDialog/ChapterDetailDialog.tsx';
 import { chapterMatchesFromDigests } from './chapterMatches.ts';
+
+/**
+ * Chapter ids along the reading-position path, walked once over *unfiltered*
+ * document order. A search filters and re-sorts `childrenByParentId` by
+ * score, so deriving "current" from that map (e.g. by peeking at the next
+ * rendered sibling) would put the indicator on whichever chapter happens to
+ * render next rather than the next chapter in the book. At each level the
+ * current chapter is the one that is read while its next document-order
+ * sibling is not; its children are then walked the same way.
+ */
+const currentChapterIdsAlongReadingPath = (
+  childrenByParentId: Map<number | null, ChapterWithHighlights[]>,
+  readingPosition: PositionResponse | null | undefined
+): Set<number> => {
+  const ids = new Set<number>();
+  if (!readingPosition) return ids;
+
+  const isRead = (chapter: ChapterWithHighlights) =>
+    chapter.start_position != null && readingPosition.index >= chapter.start_position.index;
+
+  let parentId: number | null = null;
+  for (;;) {
+    const siblings: ChapterWithHighlights[] = childrenByParentId.get(parentId) ?? [];
+    const current: ChapterWithHighlights | undefined = siblings.find(
+      (chapter, index) => isRead(chapter) && !(siblings[index + 1] && isRead(siblings[index + 1]))
+    );
+    if (!current) break;
+    ids.add(current.id);
+    parentId = current.id;
+  }
+  return ids;
+};
 
 export const StructurePage = () => {
   const { book } = useBookPage();
@@ -111,6 +147,15 @@ export const StructurePage = () => {
     return map;
   }, [childrenByParentId, matches]);
 
+  const readingPosition = book.reading_position;
+
+  // Derived from the unfiltered tree so a search can never move the
+  // current-chapter indicator (see the function's own doc comment).
+  const currentChapterIds = useMemo(
+    () => currentChapterIdsAlongReadingPath(childrenByParentId, readingPosition),
+    [childrenByParentId, readingPosition]
+  );
+
   if (book.chapters.length === 0) {
     return (
       <Box sx={{ p: 3, textAlign: 'center' }}>
@@ -127,13 +172,6 @@ export const StructurePage = () => {
   }
 
   const topLevelChapters = visibleChildrenByParentId.get(null) ?? [];
-
-  const readingPosition = book.reading_position;
-
-  const isChapterRead = (startPosition: { index: number } | null | undefined): boolean => {
-    if (!readingPosition || !startPosition) return false;
-    return readingPosition.index >= startPosition.index;
-  };
 
   return (
     <>
@@ -160,31 +198,21 @@ export const StructurePage = () => {
           <EmptyStateText>No chapters match “{searchText}”.</EmptyStateText>
         </Box>
       ) : (
-        topLevelChapters.map((chapter, index) => {
-          const chapterIsRead = isChapterRead(chapter.start_position);
-          const isLastChapter = index === topLevelChapters.length - 1;
-          const nextIsRead = isLastChapter
-            ? false
-            : isChapterRead(topLevelChapters[index + 1].start_position);
-          const chapterIsCurrent = chapterIsRead && !nextIsRead;
-
-          return (
-            <ChapterAccordion
-              // Keyed by the query so a new search remounts the branch and its
-              // `expanded` state re-initialises from `preExpanded`.
-              key={`${chapter.id}:${searchText}`}
-              chapter={chapter}
-              childrenByParentId={visibleChildrenByParentId}
-              gistByChapterId={gistByChapterId}
-              bookId={book.id}
-              isRead={chapterIsRead}
-              isCurrent={chapterIsCurrent}
-              readingPosition={readingPosition}
-              preExpanded={search.hasQuery}
-              onChapterClick={chapterDialog.open}
-            />
-          );
-        })
+        topLevelChapters.map((chapter) => (
+          <ChapterAccordion
+            // Keyed by the query so a new search remounts the branch and its
+            // `expanded` state re-initialises from `preExpanded`.
+            key={`${chapter.id}:${searchText}`}
+            chapter={chapter}
+            childrenByParentId={visibleChildrenByParentId}
+            gistByChapterId={gistByChapterId}
+            bookId={book.id}
+            readingPosition={readingPosition}
+            currentChapterIds={currentChapterIds}
+            preExpanded={search.hasQuery}
+            onChapterClick={chapterDialog.open}
+          />
+        ))
       )}
 
       {chapterDialog.activeItem && (

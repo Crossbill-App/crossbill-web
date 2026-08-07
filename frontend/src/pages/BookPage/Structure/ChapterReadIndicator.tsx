@@ -4,17 +4,28 @@ type ReadStatus = 'read' | 'current' | 'unread';
 
 interface ChapterReadIndicatorProps {
   status: ReadStatus;
+  /** Chapter this indicator belongs to, folded into the accessible name so a
+   * test (or a screen reader) can tell which chapter is "current". */
+  chapterName: string;
 }
 
 const SIZE = 20;
 
-export const ChapterReadIndicator = ({ status }: ChapterReadIndicatorProps) => {
+const STATUS_LABEL: Record<ReadStatus, string> = {
+  read: 'Read chapter',
+  current: 'Current chapter',
+  unread: 'Unread chapter',
+};
+
+export const ChapterReadIndicator = ({ status, chapterName }: ChapterReadIndicatorProps) => {
   const theme = useTheme();
   const brown = theme.palette.secondary.dark;
   const gray = theme.palette.text.disabled;
 
   return (
     <svg
+      role="img"
+      aria-label={`${chapterName}: ${STATUS_LABEL[status]}`}
       width={SIZE}
       height={SIZE}
       viewBox={`0 0 ${SIZE} ${SIZE}`}

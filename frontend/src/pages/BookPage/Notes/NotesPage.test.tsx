@@ -19,6 +19,21 @@ const openNoteForEditing = async (screen: Screen, title: string) => {
   await userEvent.click(screen.getByRole('button', { name: 'Edit note' }));
 };
 
+/**
+ * Two notes on the page — enough for a search to prove it intersects with
+ * the page's own list rather than rendering hits verbatim. Author overridden:
+ * the default 'Ada Lovelace' collides with a note of the same title, and the
+ * book title heading persists through filtering.
+ */
+const aTwoNoteBook = () =>
+  bookApi({
+    book: aBookDetails({ author: 'Grace Hopper' }),
+    notes: [
+      aNote({ id: 100, title: 'Ada Lovelace' }),
+      aNote({ id: 101, title: 'Difference Engine' }),
+    ],
+  });
+
 test('renaming a note updates the notes list', async () => {
   const { handlers } = bookApi({
     book: aBookDetails(),
@@ -68,15 +83,7 @@ test('a failed save reports the error and leaves the note unchanged', async () =
 });
 
 test('searching notes lists only the notes on this page that matched', async () => {
-  const { handlers } = bookApi({
-    // Author overridden: the default 'Ada Lovelace' collides with a note of
-    // the same title, and the book title heading persists through filtering.
-    book: aBookDetails({ author: 'Grace Hopper' }),
-    notes: [
-      aNote({ id: 100, title: 'Ada Lovelace' }),
-      aNote({ id: 101, title: 'Difference Engine' }),
-    ],
-  });
+  const { handlers } = aTwoNoteBook();
   worker.use(
     settingsWithEmbeddings(true),
     ...semanticSearchApi({
@@ -102,6 +109,27 @@ test('searching notes lists only the notes on this page that matched', async () 
     .not.toBeInTheDocument();
   await expect.element(screen.getByRole('heading', { name: 'Difference Engine' })).toBeVisible();
   expect(screen.getByRole('heading', { name: 'Analytical Engine' }).elements()).toHaveLength(0);
+});
+
+test('a query that matches none of the notes on this page shows the search empty state', async () => {
+  const { handlers } = aTwoNoteBook();
+  worker.use(
+    settingsWithEmbeddings(true),
+    // Unlisted query → every group comes back empty, i.e. nothing matched.
+    ...semanticSearchApi({ underwater: {} }),
+    ...handlers
+  );
+
+  const screen = await renderApp({ path: '/book/1/notes' });
+  await expect.element(screen.getByRole('heading', { name: 'Ada Lovelace' })).toBeVisible();
+
+  await userEvent.fill(screen.getByPlaceholder(NOTES_SEARCH_PLACEHOLDER), 'underwater');
+
+  await expect.element(screen.getByText(/No notes match/)).toBeVisible();
+  await expect
+    .element(screen.getByRole('heading', { name: 'Ada Lovelace' }))
+    .not.toBeInTheDocument();
+  expect(screen.getByRole('heading', { name: 'Difference Engine' }).elements()).toHaveLength(0);
 });
 
 test('a failed search reports the error and keeps every note listed', async () => {

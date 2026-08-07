@@ -1,6 +1,6 @@
 import type { ChapterWithHighlights, DigestSearchItem } from '@/api/generated/model';
 
-export interface ChapterMatches {
+interface ChapterMatches {
   /** Chapters to render: every match plus its ancestors, so the tree keeps its spine. */
   visibleIds: Set<number>;
   /** Best score on the chapter itself or any descendant — what the tree is ordered by. */
