@@ -3,6 +3,8 @@ import { useGetNotesForBook } from '@/api/generated/notes/notes.ts';
 import { CardList } from '@/components/CardList.tsx';
 import { EmptyStateText } from '@/components/EmptyStateText.tsx';
 import { Spinner } from '@/components/animations/Spinner.tsx';
+import { SemanticSearchField } from '@/components/search/SemanticSearchField.tsx';
+import { useSemanticSearch } from '@/components/search/useSemanticSearch.ts';
 import { useBookPage } from '@/pages/BookPage/BookPageContext';
 import { useBookTabFilters } from '@/pages/BookPage/common/useBookTabFilters.ts';
 import { AddIcon } from '@/theme/Icons.tsx';
@@ -31,7 +33,8 @@ export const NotesPage = () => {
   const navigate = useNavigate({ from: '/book/$bookId/notes' });
   const { kinds, chapterId } = useSearch({ from: '/book/$bookId/notes' });
 
-  const { selectedTagId, handleTagClick } = useBookTabFilters('/book/$bookId/notes');
+  const { searchText, handleSearch, selectedTagId, handleTagClick } =
+    useBookTabFilters('/book/$bookId/notes');
   const [filterDrawerOpen, setFilterDrawerOpen] = useState(false);
 
   const selectedKinds = kinds ?? DEFAULT_NOTE_KINDS;
@@ -46,7 +49,19 @@ export const NotesPage = () => {
   // so the generated GET hook's `data` is the payload itself, not an AxiosResponse.
   const notes = data?.items ?? [];
   const visibleNotes = notes.filter((note) => selectedKinds.includes(noteKindOf(note.kind)));
-  const noteDialogs = useNoteDialogs({ allNotes: visibleNotes });
+
+  const search = useSemanticSearch({ query: searchText, bookId: book.id });
+  const scoreByNoteId = new Map(search.results?.notes.map((hit) => [hit.id, hit.score]) ?? []);
+
+  // The search intersects with the kind and tag filters rather than replacing
+  // them: a note must pass all of them. Matches are ordered best first.
+  const notesToShow = search.results
+    ? visibleNotes
+        .filter((note) => scoreByNoteId.has(note.id))
+        .sort((a, b) => (scoreByNoteId.get(b.id) ?? 0) - (scoreByNoteId.get(a.id) ?? 0))
+    : visibleNotes;
+
+  const noteDialogs = useNoteDialogs({ allNotes: notesToShow });
 
   const handleKindsChange = (next: NoteKindValue[]) => {
     void navigate({
@@ -103,24 +118,40 @@ export const NotesPage = () => {
           leftSidebarEl
         )}
 
-      <Box sx={{ display: 'flex', justifyContent: 'flex-end', mb: 2 }}>
+      <Box sx={{ display: 'flex', gap: 1, alignItems: 'flex-start', mb: 2 }}>
+        <Box sx={{ flexGrow: 1 }}>
+          <SemanticSearchField
+            value={searchText}
+            onChange={handleSearch}
+            placeholder="Search notes by meaning…"
+            isFetching={search.isFetching}
+          />
+        </Box>
         <Button variant="contained" startIcon={<AddIcon />} onClick={noteDialogs.openCreate}>
           New note
         </Button>
       </Box>
 
+      {search.isError && (
+        <Alert severity="warning" sx={{ mb: 2 }}>
+          Search failed. Showing all notes.
+        </Alert>
+      )}
+
       {isLoading && <Spinner />}
       {isError && <Alert severity="error">Failed to load notes.</Alert>}
-      {!isLoading && !isError && visibleNotes.length === 0 && (
+      {!isLoading && !isError && notesToShow.length === 0 && (
         <EmptyStateText>
-          {notes.length > 0
-            ? 'No notes match the selected filters.'
-            : 'No notes yet. Create notes about characters, terms, and concepts as you read.'}
+          {search.hasQuery && visibleNotes.length > 0
+            ? `No notes match “${searchText}”.`
+            : notes.length > 0
+              ? 'No notes match the selected filters.'
+              : 'No notes yet. Create notes about characters, terms, and concepts as you read.'}
         </EmptyStateText>
       )}
 
       <CardList>
-        {visibleNotes.map((note) => (
+        {notesToShow.map((note) => (
           <li key={note.id}>
             <NoteCard note={note} onClick={() => noteDialogs.openView(note)} />
           </li>
