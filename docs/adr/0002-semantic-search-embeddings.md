@@ -548,9 +548,9 @@ filtered only after the index scan returns candidates. A per-type scan for a
 minority type therefore has to walk past every other type's tuples before it
 accumulates `k` of its own, and the same 20 000-tuple bound that governs
 filtered `user_id` recall governs this: the guarantee holds while roughly
-`k × N_total / N_type` stays under it. At the old single combined scan and
-`k=10`, a type at 5% of a user's embeddings costs about 200 tuples — nowhere
-near the bound. At the new per-type maximum, `k=100` (double the old ceiling),
+`k × N_total / N_type` stays under it. At the default `k=10`, a type at 5% of
+a user's embeddings costs about 200 tuples — nowhere near the bound. At the new
+per-type maximum, `k=100` (double the old ceiling),
 a rare type at 0.1% of a large corpus costs about 100 000 tuples, past the
 bound, and that group comes back short or empty. Correctness is unaffected —
 hydration still drops anything unresolved — but this is the same failure the
