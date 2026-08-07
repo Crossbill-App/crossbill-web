@@ -33,7 +33,11 @@ from src.infrastructure.reading.orm.highlight_model import Highlight as Highligh
 
 
 def _scores(hits: Sequence[SemanticSearchHit]) -> dict[int, float]:
-    """Map content id to score, preserving the ranking order of ``hits``."""
+    """Map content id to score, preserving the ranking order of ``hits``.
+
+    One entry per content id, never a collision: every scan is single-type and
+    ``uq_embeddings_content`` makes ``(content_type, content_id)`` unique.
+    """
     return {hit.content_id: hit.score for hit in hits}
 
 
@@ -99,7 +103,7 @@ class SearchHydrationQuery:
             NoteORM.id.in_(list(scores)), NoteORM.user_id == user_id
         )
         found = {row.id: row for row in (await self.db.execute(stmt)).all()}
-        links = await self._note_books(list(found))
+        links = await self._note_books(list(found), user_id)
         return tuple(
             NoteSearchView(
                 score=score,
@@ -156,14 +160,21 @@ class SearchHydrationQuery:
             if (row := found.get(content_id)) is not None
         )
 
-    async def _note_books(self, note_ids: list[int]) -> dict[int, tuple[BookRef, ...]]:
-        """Group every note's linked books in one pass, rather than a query per note."""
+    async def _note_books(
+        self, note_ids: list[int], user_id: int
+    ) -> dict[int, tuple[BookRef, ...]]:
+        """Group every note's linked books in one pass, rather than a query per note.
+
+        ``note_ids`` is already restricted to the caller's own notes, but this
+        re-asserts ownership on the book itself rather than trusting that --
+        every other read in this module does the same.
+        """
         if not note_ids:
             return {}
         stmt = (
             select(note_books.c.note_id, BookORM.id, BookORM.title)
             .join(BookORM, note_books.c.book_id == BookORM.id)
-            .where(note_books.c.note_id.in_(note_ids))
+            .where(note_books.c.note_id.in_(note_ids), BookORM.user_id == user_id)
             .order_by(BookORM.id)
         )
         grouped: dict[int, list[BookRef]] = {}

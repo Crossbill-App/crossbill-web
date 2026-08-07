@@ -9,6 +9,7 @@ from httpx import AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession
 from starlette import status
 
+from src.application.semantic.content_type import ContentType
 from src.infrastructure.semantic.routers.semantic import (
     MAX_QUERY_LENGTH,
     MAX_SEARCH_ITEMS_PER_TYPE,
@@ -37,6 +38,22 @@ async def override_embedding_client() -> AsyncGenerator[AsyncMock, None]:
     container.shared.embedding_client.override(fake)
     yield fake
     container.shared.embedding_client.reset_override()
+
+
+class TestContentTypeCoverage:
+    def test_every_content_type_has_a_scan_and_a_response_group(self) -> None:
+        """Guards the link between ``ContentType`` and ``SearchContentUseCase``.
+
+        ``SearchContentUseCase.execute`` hardcodes ``HIGHLIGHT``/``NOTE``/
+        ``DIGEST`` rather than iterating ``ContentType`` -- the right call, since
+        the response has three named fields -- but that decouples the enum from
+        the scan. ``ContentSource`` *does* iterate ``ContentType`` for the
+        backfill, so a fourth member would get indexed while ``/search`` quietly
+        never scanned it. This test is what would fail to say so; adding a
+        member means adding both a scan and a field to
+        ``SearchContentUseCase.execute`` and ``SemanticSearchResultsView``.
+        """
+        assert set(ContentType) == {ContentType.HIGHLIGHT, ContentType.NOTE, ContentType.DIGEST}
 
 
 class TestSearchEndpoint:
@@ -72,6 +89,7 @@ class TestSearchEndpoint:
         ids = [item["id"] for item in highlights]
         assert ids[0] == near.id
         assert far.id in ids
+        assert len(ids) == 2  # test_highlight is unindexed and must not surface
         assert highlights[0]["score"] >= highlights[-1]["score"]
         assert highlights[0]["text"] == "near text"
 
@@ -135,6 +153,27 @@ class TestGrouping:
 
         assert groups["notes"] == []
         assert groups["digests"] == []
+
+    async def test_digests_are_ordered_by_score_descending(
+        self,
+        client: AsyncClient,
+        override_embedding_client: AsyncMock,
+        db_session: AsyncSession,
+        test_book: Book,
+    ) -> None:
+        """Only the highlight group's ordering is pinned elsewhere; every group shares the code path."""
+        _, near = await plant_indexed_digest(
+            db_session, test_book, "Near Chapter", vector=[1.0, 0.0]
+        )
+        _, far = await plant_indexed_digest(db_session, test_book, "Far Chapter", vector=[0.0, 1.0])
+
+        groups = await search_groups(client)
+
+        digests = groups["digests"]
+        ids = [item["id"] for item in digests]
+        assert ids[0] == near.id
+        assert far.id in ids
+        assert digests[0]["score"] >= digests[-1]["score"]
 
 
 class TestRenderableFields:
@@ -300,6 +339,36 @@ class TestBookScoping:
 
         assert await search_highlight_ids(client, book_id=test_book.id) == [mine.id]
 
+    async def test_does_not_leak_another_users_book_through_a_note_link(
+        self,
+        client: AsyncClient,
+        override_embedding_client: AsyncMock,
+        db_session: AsyncSession,
+        test_book: Book,
+    ) -> None:
+        """``note_books`` carries no ownership check of its own; hydration must supply it.
+
+        The note is mine, but its ``note_books`` row points at someone else's
+        book -- a shape the association table's foreign keys do not forbid. The
+        note itself must still surface; only the leaked book link must not.
+        """
+        other_user = User(email="book-owner@test.com")
+        db_session.add(other_user)
+        await db_session.commit()
+        await db_session.refresh(other_user)
+        other_book = Book(user_id=other_user.id, title="Not Yours")
+        db_session.add(other_book)
+        await db_session.commit()
+        await db_session.refresh(other_book)
+        note = await plant_indexed_note(
+            db_session, test_book.user_id, "Mine", books=(other_book,), vector=[1.0, 0.0]
+        )
+
+        groups = await search_groups(client)
+
+        assert [item["id"] for item in groups["notes"]] == [note.id]
+        assert groups["notes"][0]["books"] == []
+
 
 class TestLimitValidation:
     async def test_accepts_the_maximum_per_type_limit(
@@ -314,13 +383,14 @@ class TestLimitValidation:
         response = await get_search(client, limit=MAX_SEARCH_ITEMS_PER_TYPE)
 
         assert response.status_code == status.HTTP_200_OK
+        assert len(response.json()["highlights"]) == 1
 
     async def test_rejects_a_limit_above_the_maximum(
         self, client: AsyncClient, override_embedding_client: AsyncMock
     ) -> None:
         response = await get_search(client, limit=MAX_SEARCH_ITEMS_PER_TYPE + 1)
 
-        assert response.status_code == status.HTTP_422_UNPROCESSABLE_ENTITY
+        assert response.status_code == status.HTTP_422_UNPROCESSABLE_CONTENT
         override_embedding_client.embed.assert_not_called()
 
 
@@ -429,7 +499,7 @@ class TestQueryValidation:
         """Every query costs a model call, so an empty one must not reach it."""
         response = await get_search(client, q="")
 
-        assert response.status_code == status.HTTP_422_UNPROCESSABLE_ENTITY
+        assert response.status_code == status.HTTP_422_UNPROCESSABLE_CONTENT
         override_embedding_client.embed.assert_not_called()
 
     async def test_rejects_overlong_query_without_calling_the_model(
@@ -437,7 +507,7 @@ class TestQueryValidation:
     ) -> None:
         response = await get_search(client, q="x" * (MAX_QUERY_LENGTH + 1))
 
-        assert response.status_code == status.HTTP_422_UNPROCESSABLE_ENTITY
+        assert response.status_code == status.HTTP_422_UNPROCESSABLE_CONTENT
         override_embedding_client.embed.assert_not_called()
 
     async def test_accepts_a_query_at_the_limit(
