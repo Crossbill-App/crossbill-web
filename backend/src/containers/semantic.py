@@ -18,6 +18,7 @@ class SemanticContainer(containers.DeclarativeContainer):
     job_queue_service = providers.Dependency()
     book_repository = providers.Dependency()
     semantic_search_query = providers.Dependency()
+    search_hydration_query = providers.Dependency()
 
     enqueue_content_embeddings_use_case = providers.Factory(
         EnqueueContentEmbeddingsUseCase,
@@ -31,7 +32,7 @@ class SemanticContainer(containers.DeclarativeContainer):
         SearchContentUseCase,
         query=semantic_search_query,
         client=embedding_client,
-        content_source=content_source,
+        hydration=search_hydration_query,
     )
 
     related_content_use_case = providers.Factory(

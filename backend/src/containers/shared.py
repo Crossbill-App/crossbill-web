@@ -57,6 +57,7 @@ from src.infrastructure.reflection.repositories.book_reflection_repository impor
 )
 from src.infrastructure.semantic.clients.lazy_embedding_client import LazyEmbeddingClient
 from src.infrastructure.semantic.content.content_source import ContentSource
+from src.infrastructure.semantic.queries.search_hydration_query import SearchHydrationQuery
 from src.infrastructure.semantic.queries.semantic_search_query import SemanticSearchQuery
 from src.infrastructure.semantic.repositories.embedding_repository import EmbeddingRepository
 from src.infrastructure.tagging.repositories import TagRepository
@@ -179,3 +180,4 @@ class SharedContainer(containers.DeclarativeContainer):
     embedding_repository = providers.Factory(EmbeddingRepository, db=db)
     content_source = providers.Factory(ContentSource, db=db, settings=settings)
     semantic_search_query = providers.Factory(SemanticSearchQuery, db=db)
+    search_hydration_query = providers.Factory(SearchHydrationQuery, db=db)

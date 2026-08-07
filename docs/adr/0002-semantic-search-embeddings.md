@@ -503,3 +503,37 @@ remains:
   but only as far as `hnsw.max_scan_tuples` (20 000) reaches. Raise it, or
   partition the index by user, if a single user's rows ever sit behind that many
   of another's?
+
+## Amendment 2026-08-07 — grouped, per-type search
+
+`GET /semantic/search` now runs **one nearest-neighbour scan per
+`ContentType`**, with `limit` applying per type rather than to one combined
+page. The original single-scan design let one type crowd out the others: a
+book with thousands of highlights could fill the whole ranked page before a
+single note or digest was ever considered. Three scans instead of one is the
+direct fix, at the cost of three round trips instead of one — acceptable at
+launch `k`, and `/related` (whose ranking still spans every type on one axis)
+is unaffected.
+
+Search results are now hydrated through
+`application/semantic/queries/content_search.py`, not `hydration.hydrate_hits`.
+`hydrate_hits` resolves the *embedding input* — text truncated at
+`MAX_EMBEDDABLE_CHARS` and lossily concatenated for notes — which was never a
+display field to begin with; a note's `text` could not be split back into a
+title and a body. `hydrate_hits` still serves `/related`, which has no list UI
+of its own yet to demand better fields.
+
+The note scan now scopes to a book through `note_books` rather than
+`embeddings.book_id`. This reverses the Read side's original decision to keep
+the ranking query clear of other modules' tables. That cost is bounded now
+that the note scan is its own statement rather than a branch inside a combined
+one, and the original choice had a real cost of its own: `embeddings.book_id`
+is NULL for any note linked to zero or several books (see *Storage* and
+`content_source.py::_notes`), so such a note was unfindable by `?book_id=`
+regardless of how exact its index copy was.
+
+ADR-0002's consistency model rule 2 — deleted content never surfaces — is now
+enforced in two places instead of one: `hydrate_hits` for `/related`, and
+`SearchHydrationQuery` for `/search`. Each hydrates through its own queries and
+each drops a hit whose source row does not resolve, so the guarantee holds
+independently on both paths rather than through one shared implementation.

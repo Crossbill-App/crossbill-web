@@ -1,8 +1,7 @@
 """Shared text hydration for semantic-search read use cases.
 
-Both the free-text search and the related-content view rank the same index and
-then need each hit's source text. That resolution is the one thing they share,
-so it lives here rather than in either use case.
+The related-content view ranks the index and then needs each hit's source
+text. That resolution lives here rather than in the use case.
 
 Hits whose source row cannot be resolved are dropped, and that check is what
 makes "deleted content never surfaces" true (ADR-0002's consistency model, rule
@@ -45,9 +44,11 @@ async def hydrate_hits(
         for content_id, content in found.items():
             resolved[(content_type, content_id)] = content
 
-    # TODO(#543): ``text`` is the embedding input, not a display field -- it is
-    # truncated and lossily concatenated, so a note cannot render its title as a
-    # title. Hydrate through the modules' own read models instead.
+    # Only /related hydrates this way. ``text`` is the embedding input -- truncated
+    # and lossily concatenated -- so it cannot render a note's title as a title.
+    # The grouped search resolves display fields through
+    # ``application/semantic/queries/content_search.py`` instead; /related should
+    # follow when it grows a UI of its own.
     return [
         SemanticSearchView(
             content_type=hit.content_type,
