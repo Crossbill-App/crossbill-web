@@ -1,4 +1,4 @@
-"""Shared text hydration for semantic-search read use cases.
+"""Hydrates the text the related-content view needs for each of its hits.
 
 The related-content view ranks the index and then needs each hit's source
 text. That resolution lives here rather than in the use case.

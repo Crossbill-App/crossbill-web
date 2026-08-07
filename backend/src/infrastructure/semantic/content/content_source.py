@@ -166,13 +166,8 @@ class ContentSource:
                 # order. Search no longer suffers for it -- the note scan filters
                 # through note_books (``SemanticSearchQuery._book_filter``) rather
                 # than this column. The column stays NULL, so anything else that
-                # scopes on it still cannot see such a note.
-                # Only a note linked to exactly one book gets a scope. A note
-                # spanning two books has no single correct value, and picking one
-                # arbitrarily would make `?book_id=` results depend on link order
-                # -- so it stays NULL and such notes surface in unscoped search
-                # only. Backfill still embeds them under a book's scope; they just
-                # aren't filterable by it.
+                # scopes on it still cannot see such a note. Backfill still embeds
+                # them under a book's scope.
                 book_id=linked[0] if len(linked) == 1 else None,
                 text=text,
                 content_hash=_content_hash(text),
