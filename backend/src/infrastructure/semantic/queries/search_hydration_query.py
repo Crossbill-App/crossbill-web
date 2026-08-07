@@ -12,9 +12,10 @@ soft-deleted highlight, whose embedding survives until the next backfill sweep
 because no foreign key can see an UPDATE of ``deleted_at``.
 """
 
-from collections.abc import Sequence
+from collections.abc import Callable, Sequence
+from typing import Any
 
-from sqlalchemy import select
+from sqlalchemy import Row, Select, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.application.semantic.queries.content_search import (
@@ -32,49 +33,60 @@ from src.infrastructure.reading.orm.chapter_digest_model import ChapterDigest as
 from src.infrastructure.reading.orm.highlight_model import Highlight as HighlightORM
 
 
-def _scores(hits: Sequence[SemanticSearchHit]) -> dict[int, float]:
-    """Map content id to score, preserving the ranking order of ``hits``.
-
-    One entry per content id, never a collision: every scan is single-type and
-    ``uq_embeddings_content`` makes ``(content_type, content_id)`` unique.
-    """
-    return {hit.content_id: hit.score for hit in hits}
-
-
 class SearchHydrationQuery:
     """Resolves search hits into the items each content type's list renders."""
 
     def __init__(self, db: AsyncSession) -> None:
         self.db = db
 
+    async def _matched(
+        self, hits: Sequence[SemanticSearchHit], statement: Callable[[list[int]], Select[Any]]
+    ) -> list[tuple[float, Row[Any]]]:
+        """Score and source row for every hit that resolves, in ranking order.
+
+        ``statement`` receives the hit ids and must select the source rows with
+        their own ``id``. Rows come back in whatever order the IN clause yields,
+        so the ranking is re-imposed here from the hits themselves. One entry per
+        content id, never a collision: every scan is single-type and
+        ``uq_embeddings_content`` makes ``(content_type, content_id)`` unique.
+        """
+        scores = {hit.content_id: hit.score for hit in hits}
+        if not scores:
+            return []
+        rows = {row.id: row for row in (await self.db.execute(statement(list(scores)))).all()}
+        return [
+            (score, row)
+            for content_id, score in scores.items()
+            if (row := rows.get(content_id)) is not None
+        ]
+
     async def highlights(
         self, hits: Sequence[SemanticSearchHit], user_id: int
     ) -> tuple[HighlightSearchView, ...]:
         """Resolve highlight hits, dropping any that are gone or soft-deleted."""
-        scores = _scores(hits)
-        if not scores:
-            return ()
-        stmt = (
-            select(
-                HighlightORM.id,
-                HighlightORM.book_id,
-                BookORM.title.label("book_title"),
-                HighlightORM.chapter_id,
-                ChapterORM.name.label("chapter_name"),
-                ChapterORM.chapter_number,
-                HighlightORM.text,
-                HighlightORM.page,
-                HighlightORM.datetime,
-            )
-            .join(BookORM, HighlightORM.book_id == BookORM.id)
-            .outerjoin(ChapterORM, HighlightORM.chapter_id == ChapterORM.id)
-            .where(
-                HighlightORM.id.in_(list(scores)),
-                HighlightORM.user_id == user_id,
-                HighlightORM.deleted_at.is_(None),
-            )
+        matched = await self._matched(
+            hits,
+            lambda ids: (
+                select(
+                    HighlightORM.id,
+                    HighlightORM.book_id,
+                    BookORM.title.label("book_title"),
+                    HighlightORM.chapter_id,
+                    ChapterORM.name.label("chapter_name"),
+                    ChapterORM.chapter_number,
+                    HighlightORM.text,
+                    HighlightORM.page,
+                    HighlightORM.datetime,
+                )
+                .join(BookORM, HighlightORM.book_id == BookORM.id)
+                .outerjoin(ChapterORM, HighlightORM.chapter_id == ChapterORM.id)
+                .where(
+                    HighlightORM.id.in_(ids),
+                    HighlightORM.user_id == user_id,
+                    HighlightORM.deleted_at.is_(None),
+                )
+            ),
         )
-        found = {row.id: row for row in (await self.db.execute(stmt)).all()}
         return tuple(
             HighlightSearchView(
                 score=score,
@@ -88,22 +100,20 @@ class SearchHydrationQuery:
                 page=row.page,
                 datetime=row.datetime,
             )
-            for content_id, score in scores.items()
-            if (row := found.get(content_id)) is not None
+            for score, row in matched
         )
 
     async def notes(
         self, hits: Sequence[SemanticSearchHit], user_id: int
     ) -> tuple[NoteSearchView, ...]:
         """Resolve note hits together with the books each links to."""
-        scores = _scores(hits)
-        if not scores:
-            return ()
-        stmt = select(NoteORM.id, NoteORM.title, NoteORM.body, NoteORM.kind).where(
-            NoteORM.id.in_(list(scores)), NoteORM.user_id == user_id
+        matched = await self._matched(
+            hits,
+            lambda ids: select(NoteORM.id, NoteORM.title, NoteORM.body, NoteORM.kind).where(
+                NoteORM.id.in_(ids), NoteORM.user_id == user_id
+            ),
         )
-        found = {row.id: row for row in (await self.db.execute(stmt)).all()}
-        links = await self._note_books(list(found), user_id)
+        links = await self._note_books([row.id for _, row in matched], user_id)
         return tuple(
             NoteSearchView(
                 score=score,
@@ -113,8 +123,7 @@ class SearchHydrationQuery:
                 body=row.body,
                 kind=row.kind,
             )
-            for content_id, score in scores.items()
-            if (row := found.get(content_id)) is not None
+            for score, row in matched
         )
 
     async def digests(
@@ -125,25 +134,24 @@ class SearchHydrationQuery:
         A digest has no ``user_id`` of its own, so ownership is enforced on the
         book the chapter belongs to -- the same join the scope query uses.
         """
-        scores = _scores(hits)
-        if not scores:
-            return ()
-        stmt = (
-            select(
-                ChapterDigestORM.id,
-                ChapterDigestORM.summary,
-                ChapterDigestORM.keypoints,
-                ChapterORM.id.label("chapter_id"),
-                ChapterORM.name.label("chapter_name"),
-                ChapterORM.chapter_number,
-                BookORM.id.label("book_id"),
-                BookORM.title.label("book_title"),
-            )
-            .join(ChapterORM, ChapterDigestORM.chapter_id == ChapterORM.id)
-            .join(BookORM, ChapterORM.book_id == BookORM.id)
-            .where(ChapterDigestORM.id.in_(list(scores)), BookORM.user_id == user_id)
+        matched = await self._matched(
+            hits,
+            lambda ids: (
+                select(
+                    ChapterDigestORM.id,
+                    ChapterDigestORM.summary,
+                    ChapterDigestORM.keypoints,
+                    ChapterORM.id.label("chapter_id"),
+                    ChapterORM.name.label("chapter_name"),
+                    ChapterORM.chapter_number,
+                    BookORM.id.label("book_id"),
+                    BookORM.title.label("book_title"),
+                )
+                .join(ChapterORM, ChapterDigestORM.chapter_id == ChapterORM.id)
+                .join(BookORM, ChapterORM.book_id == BookORM.id)
+                .where(ChapterDigestORM.id.in_(ids), BookORM.user_id == user_id)
+            ),
         )
-        found = {row.id: row for row in (await self.db.execute(stmt)).all()}
         return tuple(
             DigestSearchView(
                 score=score,
@@ -156,8 +164,7 @@ class SearchHydrationQuery:
                 summary=row.summary,
                 keypoints=tuple(row.keypoints),
             )
-            for content_id, score in scores.items()
-            if (row := found.get(content_id)) is not None
+            for score, row in matched
         )
 
     async def _note_books(
