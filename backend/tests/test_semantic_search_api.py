@@ -14,6 +14,7 @@ from src.infrastructure.semantic.routers.semantic import (
     MAX_SEARCH_ITEMS_PER_TYPE,
 )
 from src.models import Book, Chapter, Highlight, User
+from tests.conftest import create_test_highlight
 from tests.semantic_helpers import (
     embeddings_disabled,
     get_related,
@@ -145,6 +146,13 @@ class TestRenderableFields:
         test_book: Book,
         test_chapter: Chapter,
     ) -> None:
+        # A spacer highlight keeps highlight.id from coincidentally matching
+        # test_chapter.id: both tables' autoincrement starts at 1 in a fresh
+        # test database, and the test wants to prove the item carries two
+        # genuinely distinct ids.
+        await create_test_highlight(
+            db_session, test_book, test_book.user_id, "spacer", "2024-01-15 14:29:00"
+        )
         highlight = await plant_indexed_highlight(
             db_session, test_book, "the text", vector=[1.0, 0.0]
         )
@@ -154,6 +162,7 @@ class TestRenderableFields:
         item = (await search_groups(client))["highlights"][0]
 
         assert item["id"] == highlight.id
+        assert item["id"] != item["chapter_id"]
         assert item["book_id"] == test_book.id
         assert item["book_title"] == "Test Book"
         assert item["chapter_id"] == test_chapter.id
@@ -201,6 +210,13 @@ class TestRenderableFields:
         test_book: Book,
     ) -> None:
         """``id`` is the digest; ``chapter_id`` is what the chapter view opens on."""
+        # A spacer chapter keeps chapter.id from coincidentally matching
+        # digest.id: both tables' autoincrement starts at 1 in a fresh test
+        # database, and the test wants to prove the item carries two
+        # genuinely distinct ids.
+        db_session.add(Chapter(book_id=test_book.id, name="Spacer"))
+        await db_session.commit()
+
         chapter, digest = await plant_indexed_digest(
             db_session,
             test_book,
@@ -215,6 +231,7 @@ class TestRenderableFields:
 
         assert item["id"] == digest.id
         assert item["chapter_id"] == chapter.id
+        assert item["id"] != item["chapter_id"]
         assert item["chapter_name"] == "Chapter Seven"
         assert item["chapter_number"] == 7
         assert item["book_id"] == test_book.id
