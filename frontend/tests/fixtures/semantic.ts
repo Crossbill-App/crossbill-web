@@ -13,10 +13,6 @@ export const aDigestHit = (overrides: Partial<DigestSearchItem> = {}): DigestSea
   ...overrides,
 });
 
-/**
- * @public Unused within this task — the Notes tab's search tests are the next
- * consumer.
- */
 export const aNoteHit = (overrides: Partial<NoteSearchItem> = {}): NoteSearchItem => ({
   score: 0.7,
   id: 100,

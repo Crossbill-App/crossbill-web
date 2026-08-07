@@ -22,6 +22,9 @@ const config: KnipConfig = {
     // MSW's worker script, served as a static asset during tests rather than
     // imported, so nothing links to it.
     'tests/public/**',
+    // `aNoteHit` is the fixture Task 2's Notes tab search tests consume — it's
+    // exported ahead of its importer, which lands in that follow-up task.
+    'tests/fixtures/semantic.ts',
   ],
   ignoreDependencies: [
     // Required by Vitest browser mode and loaded by the runner, never imported
