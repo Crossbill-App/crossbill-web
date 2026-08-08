@@ -125,8 +125,7 @@ AXIOS_INSTANCE.interceptors.response.use(
   (response) => response,
   async (error: AxiosError) => {
     const originalRequest = error.config as
-      | (InternalAxiosRequestConfig & { _retry?: boolean })
-      | undefined;
+      (InternalAxiosRequestConfig & { _retry?: boolean }) | undefined;
 
     // Only handle 401 errors that haven't been retried
     if (!originalRequest || error.response?.status !== 401 || originalRequest._retry) {

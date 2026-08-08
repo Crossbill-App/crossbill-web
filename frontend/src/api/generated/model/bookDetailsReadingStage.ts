@@ -9,8 +9,7 @@
  * Manual reading stage set by the user
  */
 export type BookDetailsReadingStage =
-  | (typeof BookDetailsReadingStage)[keyof typeof BookDetailsReadingStage]
-  | null;
+  (typeof BookDetailsReadingStage)[keyof typeof BookDetailsReadingStage] | null;
 
 export const BookDetailsReadingStage = {
   to_read: 'to_read',

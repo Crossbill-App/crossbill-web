@@ -6,8 +6,7 @@
  */
 
 export type GetNotesForBookKind =
-  | (typeof GetNotesForBookKind)[keyof typeof GetNotesForBookKind]
-  | null;
+  (typeof GetNotesForBookKind)[keyof typeof GetNotesForBookKind] | null;
 
 export const GetNotesForBookKind = {
   character: 'character',

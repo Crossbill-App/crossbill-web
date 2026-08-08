@@ -9,8 +9,7 @@
  * Optional note kind
  */
 export type NoteUpdateRequestKind =
-  | (typeof NoteUpdateRequestKind)[keyof typeof NoteUpdateRequestKind]
-  | null;
+  (typeof NoteUpdateRequestKind)[keyof typeof NoteUpdateRequestKind] | null;
 
 export const NoteUpdateRequestKind = {
   character: 'character',
