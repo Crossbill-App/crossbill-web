@@ -21,7 +21,11 @@ const aStructuredBook = () =>
     ],
   });
 
-test('searching narrows the chapter tree to matches and their parents', async () => {
+/**
+ * The structure tab of a book where "attention" matches chapter 11 only,
+ * rendered and settled — "Roman roads" on screen is the unfiltered tree.
+ */
+const renderStructureWithAttentionMatch = async () => {
   worker.use(
     settingsWithEmbeddings(true),
     ...semanticSearchApi({
@@ -36,8 +40,15 @@ test('searching narrows the chapter tree to matches and their parents', async ()
 
   const screen = await renderApp({ path: '/book/1/structure' });
   await expect.element(screen.getByText('Roman roads')).toBeVisible();
+  return screen;
+};
 
+test('searching narrows the chapter tree to matches and their parents', async () => {
+  const screen = await renderStructureWithAttentionMatch();
+
+  // The field searches on Enter, not per keystroke.
   await userEvent.fill(screen.getByPlaceholder(SEARCH_PLACEHOLDER), 'attention');
+  await userEvent.keyboard('{Enter}');
 
   // The non-matching branch disappearing is what proves the search landed.
   await expect.element(screen.getByText('Roman roads')).not.toBeInTheDocument();
@@ -47,8 +58,19 @@ test('searching narrows the chapter tree to matches and their parents', async ()
 
   // Clearing restores the whole tree.
   await userEvent.fill(screen.getByPlaceholder(SEARCH_PLACEHOLDER), '');
+  await userEvent.keyboard('{Enter}');
   await expect.element(screen.getByText('Roman roads')).toBeVisible();
   await expect.element(screen.getByText('Part Two')).toBeVisible();
+});
+
+test('leaving the search field runs the search without pressing Enter', async () => {
+  const screen = await renderStructureWithAttentionMatch();
+
+  await userEvent.fill(screen.getByPlaceholder(SEARCH_PLACEHOLDER), 'attention');
+  await userEvent.tab();
+
+  await expect.element(screen.getByText('Roman roads')).not.toBeInTheDocument();
+  await expect.element(screen.getByText('Attention and memory')).toBeVisible();
 });
 
 /**
@@ -124,6 +146,7 @@ test('a search reveals a deeply-nested match and leaves the current-chapter indi
   await expect.element(screen.getByText('Part Three')).toBeVisible();
 
   await userEvent.fill(screen.getByPlaceholder(SEARCH_PLACEHOLDER), 'deep');
+  await userEvent.keyboard('{Enter}');
 
   // The non-matching top-level chapter disappearing is what proves the
   // search landed before the assertions below are trusted.
@@ -157,6 +180,7 @@ test('a match below the score cutoff counts as no match', async () => {
 
   const screen = await renderApp({ path: '/book/1/structure' });
   await userEvent.fill(screen.getByPlaceholder(SEARCH_PLACEHOLDER), 'quantum');
+  await userEvent.keyboard('{Enter}');
 
   await expect.element(screen.getByText(/No chapters match/)).toBeVisible();
   expect(screen.getByText('Attention and memory').elements()).toHaveLength(0);
