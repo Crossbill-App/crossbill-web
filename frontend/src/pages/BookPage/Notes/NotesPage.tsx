@@ -124,7 +124,6 @@ export const NotesPage = () => {
             value={searchText}
             onChange={handleSearch}
             placeholder="Search notes by meaning…"
-            isFetching={search.isFetching}
           />
         </Box>
         <Button variant="contained" startIcon={<AddIcon />} onClick={noteDialogs.openCreate}>

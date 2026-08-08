@@ -181,7 +181,6 @@ export const StructurePage = () => {
             value={searchText}
             onChange={handleSearch}
             placeholder="Search chapters by meaning…"
-            isFetching={search.isFetching}
           />
         </Box>
         <BatchDigestToolbar bookId={book.id} />
