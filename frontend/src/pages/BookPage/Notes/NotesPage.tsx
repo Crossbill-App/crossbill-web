@@ -125,7 +125,6 @@ export const NotesPage = () => {
           gap: 1,
           alignItems: 'flex-start',
           justifyContent: 'space-between',
-          mb: 2,
         }}
       >
         <PageTitle text="Notes" />

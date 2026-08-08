@@ -182,13 +182,12 @@ export const StructurePage = () => {
           gap: 1,
           alignItems: 'flex-start',
           justifyContent: 'space-between',
-          mb: 2,
         }}
       >
         <PageTitle text="Structure of the book" />
         <BatchDigestToolbar bookId={book.id} />
       </Box>
-      <Box sx={{ display: 'flex', alignItems: 'flex-start', gap: 1, pt: 1 }}>
+      <Box sx={{ display: 'flex', alignItems: 'flex-start', gap: 1 }}>
         <Box sx={{ flexGrow: 1 }}>
           <SemanticSearchField
             value={searchText}
