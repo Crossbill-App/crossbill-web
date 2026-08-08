@@ -8,12 +8,13 @@ import { useSemanticSearch } from '@/components/search/useSemanticSearch.ts';
 import { useBookPage } from '@/pages/BookPage/BookPageContext';
 import { useBookTabFilters } from '@/pages/BookPage/common/useBookTabFilters.ts';
 import { AddIcon } from '@/theme/Icons.tsx';
-import { Alert, Box, Button, Divider } from '@mui/material';
+import { Alert, Box, Divider, IconButton } from '@mui/material';
 import { useNavigate, useSearch } from '@tanstack/react-router';
 import { useState } from 'react';
 import { createPortal } from 'react-dom';
 
 import { MiddleContentColumn } from '@/components/layout/Layouts.tsx';
+import { PageTitle } from '@/components/typography/PageTitle.tsx';
 import { FilterFab } from '../common/FilterFab.tsx';
 import { FilterDrawer, type FilterTab } from '../navigation/FilterDrawer.tsx';
 import { TagsList } from '../navigation/TagsList/TagsList.tsx';
@@ -118,6 +119,21 @@ export const NotesPage = () => {
           leftSidebarEl
         )}
 
+      <Box
+        sx={{
+          display: 'flex',
+          gap: 1,
+          alignItems: 'flex-start',
+          justifyContent: 'space-between',
+          mb: 2,
+        }}
+      >
+        <PageTitle text="Notes" />
+        <IconButton aria-label="Add note" color="primary" onClick={noteDialogs.openCreate}>
+          <AddIcon />
+        </IconButton>
+      </Box>
+
       <Box sx={{ display: 'flex', gap: 1, alignItems: 'flex-start', mb: 2 }}>
         <Box sx={{ flexGrow: 1 }}>
           <SemanticSearchField
@@ -126,9 +142,6 @@ export const NotesPage = () => {
             placeholder="Search notes by meaning…"
           />
         </Box>
-        <Button variant="contained" startIcon={<AddIcon />} onClick={noteDialogs.openCreate}>
-          New note
-        </Button>
       </Box>
 
       {search.isError && (
