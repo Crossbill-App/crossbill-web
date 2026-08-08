@@ -14,8 +14,7 @@ import { Box, Button } from '@mui/material';
 import { useState } from 'react';
 
 type NoteLinkTarget =
-  | { kind: 'highlight'; id: number; chapterId?: number | null }
-  | { kind: 'chapter'; id: number };
+  { kind: 'highlight'; id: number; chapterId?: number | null } | { kind: 'chapter'; id: number };
 
 interface LinkedNotesSectionProps {
   bookId: number;

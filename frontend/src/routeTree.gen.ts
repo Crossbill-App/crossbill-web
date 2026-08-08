@@ -9,27 +9,22 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
-import { Route as SettingsRouteImport } from './routes/settings'
-import { Route as RegisterRouteImport } from './routes/register'
-import { Route as LoginRouteImport } from './routes/login'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as LoginRouteImport } from './routes/login'
+import { Route as RegisterRouteImport } from './routes/register'
+import { Route as SettingsRouteImport } from './routes/settings'
 import { Route as BookBookIdRouteImport } from './routes/book.$bookId'
 import { Route as BookBookIdIndexRouteImport } from './routes/book.$bookId/index'
-import { Route as BookBookIdStructureRouteImport } from './routes/book.$bookId/structure'
-import { Route as BookBookIdSessionsRouteImport } from './routes/book.$bookId/sessions'
-import { Route as BookBookIdReflectionRouteImport } from './routes/book.$bookId/reflection'
-import { Route as BookBookIdNotesRouteImport } from './routes/book.$bookId/notes'
-import { Route as BookBookIdHighlightsRouteImport } from './routes/book.$bookId/highlights'
 import { Route as BookBookIdFlashcardsRouteImport } from './routes/book.$bookId/flashcards'
+import { Route as BookBookIdHighlightsRouteImport } from './routes/book.$bookId/highlights'
+import { Route as BookBookIdNotesRouteImport } from './routes/book.$bookId/notes'
+import { Route as BookBookIdReflectionRouteImport } from './routes/book.$bookId/reflection'
+import { Route as BookBookIdSessionsRouteImport } from './routes/book.$bookId/sessions'
+import { Route as BookBookIdStructureRouteImport } from './routes/book.$bookId/structure'
 
-const SettingsRoute = SettingsRouteImport.update({
-  id: '/settings',
-  path: '/settings',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const RegisterRoute = RegisterRouteImport.update({
-  id: '/register',
-  path: '/register',
+const IndexRoute = IndexRouteImport.update({
+  id: '/',
+  path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
 const LoginRoute = LoginRouteImport.update({
@@ -37,9 +32,14 @@ const LoginRoute = LoginRouteImport.update({
   path: '/login',
   getParentRoute: () => rootRouteImport,
 } as any)
-const IndexRoute = IndexRouteImport.update({
-  id: '/',
-  path: '/',
+const RegisterRoute = RegisterRouteImport.update({
+  id: '/register',
+  path: '/register',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const SettingsRoute = SettingsRouteImport.update({
+  id: '/settings',
+  path: '/settings',
   getParentRoute: () => rootRouteImport,
 } as any)
 const BookBookIdRoute = BookBookIdRouteImport.update({
@@ -52,24 +52,9 @@ const BookBookIdIndexRoute = BookBookIdIndexRouteImport.update({
   path: '/',
   getParentRoute: () => BookBookIdRoute,
 } as any)
-const BookBookIdStructureRoute = BookBookIdStructureRouteImport.update({
-  id: '/structure',
-  path: '/structure',
-  getParentRoute: () => BookBookIdRoute,
-} as any)
-const BookBookIdSessionsRoute = BookBookIdSessionsRouteImport.update({
-  id: '/sessions',
-  path: '/sessions',
-  getParentRoute: () => BookBookIdRoute,
-} as any)
-const BookBookIdReflectionRoute = BookBookIdReflectionRouteImport.update({
-  id: '/reflection',
-  path: '/reflection',
-  getParentRoute: () => BookBookIdRoute,
-} as any)
-const BookBookIdNotesRoute = BookBookIdNotesRouteImport.update({
-  id: '/notes',
-  path: '/notes',
+const BookBookIdFlashcardsRoute = BookBookIdFlashcardsRouteImport.update({
+  id: '/flashcards',
+  path: '/flashcards',
   getParentRoute: () => BookBookIdRoute,
 } as any)
 const BookBookIdHighlightsRoute = BookBookIdHighlightsRouteImport.update({
@@ -77,9 +62,24 @@ const BookBookIdHighlightsRoute = BookBookIdHighlightsRouteImport.update({
   path: '/highlights',
   getParentRoute: () => BookBookIdRoute,
 } as any)
-const BookBookIdFlashcardsRoute = BookBookIdFlashcardsRouteImport.update({
-  id: '/flashcards',
-  path: '/flashcards',
+const BookBookIdNotesRoute = BookBookIdNotesRouteImport.update({
+  id: '/notes',
+  path: '/notes',
+  getParentRoute: () => BookBookIdRoute,
+} as any)
+const BookBookIdReflectionRoute = BookBookIdReflectionRouteImport.update({
+  id: '/reflection',
+  path: '/reflection',
+  getParentRoute: () => BookBookIdRoute,
+} as any)
+const BookBookIdSessionsRoute = BookBookIdSessionsRouteImport.update({
+  id: '/sessions',
+  path: '/sessions',
+  getParentRoute: () => BookBookIdRoute,
+} as any)
+const BookBookIdStructureRoute = BookBookIdStructureRouteImport.update({
+  id: '/structure',
+  path: '/structure',
   getParentRoute: () => BookBookIdRoute,
 } as any)
 
@@ -179,18 +179,11 @@ export interface RootRouteChildren {
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
-    '/settings': {
-      id: '/settings'
-      path: '/settings'
-      fullPath: '/settings'
-      preLoaderRoute: typeof SettingsRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/register': {
-      id: '/register'
-      path: '/register'
-      fullPath: '/register'
-      preLoaderRoute: typeof RegisterRouteImport
+    '/': {
+      id: '/'
+      path: '/'
+      fullPath: '/'
+      preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/login': {
@@ -200,11 +193,18 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof LoginRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/': {
-      id: '/'
-      path: '/'
-      fullPath: '/'
-      preLoaderRoute: typeof IndexRouteImport
+    '/register': {
+      id: '/register'
+      path: '/register'
+      fullPath: '/register'
+      preLoaderRoute: typeof RegisterRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/settings': {
+      id: '/settings'
+      path: '/settings'
+      fullPath: '/settings'
+      preLoaderRoute: typeof SettingsRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/book/$bookId': {
@@ -221,32 +221,11 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof BookBookIdIndexRouteImport
       parentRoute: typeof BookBookIdRoute
     }
-    '/book/$bookId/structure': {
-      id: '/book/$bookId/structure'
-      path: '/structure'
-      fullPath: '/book/$bookId/structure'
-      preLoaderRoute: typeof BookBookIdStructureRouteImport
-      parentRoute: typeof BookBookIdRoute
-    }
-    '/book/$bookId/sessions': {
-      id: '/book/$bookId/sessions'
-      path: '/sessions'
-      fullPath: '/book/$bookId/sessions'
-      preLoaderRoute: typeof BookBookIdSessionsRouteImport
-      parentRoute: typeof BookBookIdRoute
-    }
-    '/book/$bookId/reflection': {
-      id: '/book/$bookId/reflection'
-      path: '/reflection'
-      fullPath: '/book/$bookId/reflection'
-      preLoaderRoute: typeof BookBookIdReflectionRouteImport
-      parentRoute: typeof BookBookIdRoute
-    }
-    '/book/$bookId/notes': {
-      id: '/book/$bookId/notes'
-      path: '/notes'
-      fullPath: '/book/$bookId/notes'
-      preLoaderRoute: typeof BookBookIdNotesRouteImport
+    '/book/$bookId/flashcards': {
+      id: '/book/$bookId/flashcards'
+      path: '/flashcards'
+      fullPath: '/book/$bookId/flashcards'
+      preLoaderRoute: typeof BookBookIdFlashcardsRouteImport
       parentRoute: typeof BookBookIdRoute
     }
     '/book/$bookId/highlights': {
@@ -256,11 +235,32 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof BookBookIdHighlightsRouteImport
       parentRoute: typeof BookBookIdRoute
     }
-    '/book/$bookId/flashcards': {
-      id: '/book/$bookId/flashcards'
-      path: '/flashcards'
-      fullPath: '/book/$bookId/flashcards'
-      preLoaderRoute: typeof BookBookIdFlashcardsRouteImport
+    '/book/$bookId/notes': {
+      id: '/book/$bookId/notes'
+      path: '/notes'
+      fullPath: '/book/$bookId/notes'
+      preLoaderRoute: typeof BookBookIdNotesRouteImport
+      parentRoute: typeof BookBookIdRoute
+    }
+    '/book/$bookId/reflection': {
+      id: '/book/$bookId/reflection'
+      path: '/reflection'
+      fullPath: '/book/$bookId/reflection'
+      preLoaderRoute: typeof BookBookIdReflectionRouteImport
+      parentRoute: typeof BookBookIdRoute
+    }
+    '/book/$bookId/sessions': {
+      id: '/book/$bookId/sessions'
+      path: '/sessions'
+      fullPath: '/book/$bookId/sessions'
+      preLoaderRoute: typeof BookBookIdSessionsRouteImport
+      parentRoute: typeof BookBookIdRoute
+    }
+    '/book/$bookId/structure': {
+      id: '/book/$bookId/structure'
+      path: '/structure'
+      fullPath: '/book/$bookId/structure'
+      preLoaderRoute: typeof BookBookIdStructureRouteImport
       parentRoute: typeof BookBookIdRoute
     }
   }
