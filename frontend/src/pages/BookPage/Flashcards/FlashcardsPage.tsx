@@ -11,6 +11,7 @@ import {
   type FlashcardWithContext,
 } from '@/components/features/flashcards/FlashcardChapterList.tsx';
 import { ContentWithSidebar } from '@/components/layout/Layouts.tsx';
+import { PageTitle } from '@/components/typography/PageTitle.tsx';
 import { useBookPage } from '@/pages/BookPage/BookPageContext';
 import { ListSearchSortHeader } from '@/pages/BookPage/common/ListSearchSortHeader.tsx';
 import { useBookTabFilters } from '@/pages/BookPage/common/useBookTabFilters.ts';
@@ -184,6 +185,7 @@ export const FlashcardsPage = () => {
       {isDesktop ? (
         <ContentWithSidebar>
           <Box>
+            <PageTitle text="Flashcards" />
             <ListSearchSortHeader
               onSearch={handleSearch}
               searchPlaceholder="Search flashcards..."
@@ -207,6 +209,7 @@ export const FlashcardsPage = () => {
         </ContentWithSidebar>
       ) : (
         <>
+          <PageTitle text="Flashcards" />
           <ListSearchSortHeader
             onSearch={handleSearch}
             searchPlaceholder="Search flashcards..."

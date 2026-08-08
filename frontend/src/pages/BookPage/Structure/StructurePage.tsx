@@ -9,6 +9,7 @@ import { EmptyStateText } from '@/components/EmptyStateText.tsx';
 import { useUrlEntityDialog } from '@/components/dialogs/useUrlEntityDialog.ts';
 import { SemanticSearchField } from '@/components/search/SemanticSearchField.tsx';
 import { useSemanticSearch } from '@/components/search/useSemanticSearch.ts';
+import { PageTitle } from '@/components/typography/PageTitle.tsx';
 import { useBookPage } from '@/pages/BookPage/BookPageContext';
 import { useBookTabFilters } from '@/pages/BookPage/common/useBookTabFilters.ts';
 import { Alert, Box, Typography } from '@mui/material';
@@ -175,7 +176,19 @@ export const StructurePage = () => {
 
   return (
     <>
-      <Box sx={{ display: 'flex', alignItems: 'flex-start', gap: 1, px: 1, pt: 1 }}>
+      <Box
+        sx={{
+          display: 'flex',
+          gap: 1,
+          alignItems: 'flex-start',
+          justifyContent: 'space-between',
+          mb: 2,
+        }}
+      >
+        <PageTitle text="Structure of the book" />
+        <BatchDigestToolbar bookId={book.id} />
+      </Box>
+      <Box sx={{ display: 'flex', alignItems: 'flex-start', gap: 1, pt: 1 }}>
         <Box sx={{ flexGrow: 1 }}>
           <SemanticSearchField
             value={searchText}
@@ -183,7 +196,6 @@ export const StructurePage = () => {
             placeholder="Search chapters by meaning…"
           />
         </Box>
-        <BatchDigestToolbar bookId={book.id} />
       </Box>
 
       {search.isError && (
