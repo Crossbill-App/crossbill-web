@@ -413,7 +413,9 @@ remains:
 
 - **One active backfill per user**, guarded by a unique index and recoverable
   through the existing batch cancel (issue #531).
-- **Frontend.** Surfacing search and related content in the UI.
+- **Frontend.** A global search page across every content type and book, and
+  surfacing related content in the UI. (Search within a book's Structure and
+  Notes tabs has landed.)
 - **Production wiring.** OpenRouter `baai/bge-m3`, confirming pgvector on
   Railway — **0.8 or newer**, since the read path sets `hnsw.iterative_scan` —
   and running the migration there.

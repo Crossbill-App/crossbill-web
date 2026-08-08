@@ -9,6 +9,7 @@ import type {
 import { useGetTags } from '@/api/generated/tags/tags.ts';
 import { scrollToElementWithHighlight } from '@/components/animations/scrollUtils';
 import { ContentWithSidebar } from '@/components/layout/Layouts.tsx';
+import { PageTitle } from '@/components/typography/PageTitle.tsx';
 import { useResetOnChange } from '@/hooks/useResetOnChange.ts';
 import { useBookPage } from '@/pages/BookPage/BookPageContext';
 import { ListSearchSortHeader } from '@/pages/BookPage/common/ListSearchSortHeader.tsx';
@@ -176,6 +177,7 @@ export const HighlightsPage = () => {
       {isDesktop ? (
         <ContentWithSidebar>
           <Box>
+            <PageTitle text="Highlights" />
             <ListSearchSortHeader
               onSearch={handleSearch}
               searchPlaceholder="Search highlights..."
@@ -208,6 +210,7 @@ export const HighlightsPage = () => {
         </ContentWithSidebar>
       ) : (
         <>
+          <PageTitle text="Highlights" />
           <ListSearchSortHeader
             onSearch={handleSearch}
             searchPlaceholder="Search highlights..."

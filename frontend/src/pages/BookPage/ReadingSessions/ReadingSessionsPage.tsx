@@ -2,6 +2,7 @@ import type { ReadingSession } from '@/api/generated/model';
 import { useGetBookReadingSessions } from '@/api/generated/reading-sessions/reading-sessions';
 import { useGetTags } from '@/api/generated/tags/tags';
 import { Spinner } from '@/components/animations/Spinner.tsx';
+import { PageTitle } from '@/components/typography/PageTitle.tsx';
 import { useBookPage } from '@/pages/BookPage/BookPageContext';
 import { HighlightViewDialog } from '@/pages/BookPage/Highlights/HighlightViewDialog/HighlightViewDialog';
 import {
@@ -80,6 +81,7 @@ export const ReadingSessionsPage = () => {
   return (
     <>
       <Box>
+        <PageTitle text="Reading sessions" />
         {isLoading && <Spinner />}
 
         {isError && (

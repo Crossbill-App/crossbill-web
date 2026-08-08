@@ -7,9 +7,10 @@ import { useCallback, useState } from 'react';
 type BookTabFilterRoute =
   | '/book/$bookId/highlights'
   | '/book/$bookId/flashcards'
-  | '/book/$bookId/notes';
+  | '/book/$bookId/notes'
+  | '/book/$bookId/structure';
 
-/** The URL filters read/written by these tabs. `search` is absent on the notes tab. */
+/** The URL filters read/written by these tabs. */
 interface BookTabSearch {
   search?: string;
   tagId?: number;
@@ -21,14 +22,14 @@ interface BookTabSearch {
  * Owns the `selectedTagId` mirror of the `tagId` search param (kept in local
  * state so the sidebar highlights immediately) plus the navigate callbacks that
  * were re-implemented near-identically across the highlights, flashcards and
- * notes tabs. `handleSearch`/`handleChapterClick` apply to the two tabs with a
- * search field; the notes tab only uses the tag pieces.
+ * notes tabs. `handleChapterClick` applies only to the tabs that scroll to a
+ * chapter; every tab may use the search and tag pieces.
  */
 export const useBookTabFilters = (from: BookTabFilterRoute) => {
   const search = useSearch({ from }) as BookTabSearch;
-  // The navigate signature differs per route (the notes route has no `search`
-  // param); this hook drives all three, so widen the search updater to a plain
-  // record. Call sites remain fully typed via the literal `from` argument.
+  // The navigate signature differs per route; this hook drives all four, so
+  // widen the search updater to a plain record. Call sites remain fully
+  // typed via the literal `from` argument.
   const navigate = useNavigate({ from }) as unknown as (opts: {
     search: (prev: Record<string, unknown>) => Record<string, unknown>;
     replace?: boolean;

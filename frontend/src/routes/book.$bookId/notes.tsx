@@ -7,6 +7,7 @@ type NotesSearch = {
   chapterId?: number;
   tagId?: number;
   noteId?: number;
+  search?: string;
 };
 
 export const Route = createFileRoute('/book/$bookId/notes')({
@@ -16,5 +17,6 @@ export const Route = createFileRoute('/book/$bookId/notes')({
     chapterId: (search.chapterId as number | undefined) || undefined,
     tagId: (search.tagId as number | undefined) || undefined,
     noteId: (search.noteId as number | undefined) || undefined,
+    search: (search.search as string | undefined) || undefined,
   }),
 });

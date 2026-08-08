@@ -1,6 +1,6 @@
-import { appSettings } from '@tests/fixtures/auth';
 import { aJobBatch } from '@tests/fixtures/jobs';
 import { renderApp } from '@tests/harness/renderApp';
+import { settingsWithEmbeddings } from '@tests/msw/auth';
 import { semanticApi } from '@tests/msw/semanticApi';
 import { worker } from '@tests/msw/worker';
 import { http, HttpResponse, type RequestHandler } from 'msw';
@@ -13,16 +13,9 @@ const RUN_BUTTON = 'Run text embedding for the library';
 // One poll interval plus room for the request itself.
 const POLL_TIMEOUT = 8000;
 
-const embeddingsFlag = (enabled: boolean) =>
-  http.get('/api/v1/settings', () =>
-    HttpResponse.json(
-      appSettings({ feature_flags: { ai: false, embeddings: enabled, user_registrations: false } })
-    )
-  );
-
 /** Settings with embeddings on, over `handlers` — the first match there wins. */
 const renderSettings = (handlers: RequestHandler[] = []) => {
-  worker.use(embeddingsFlag(true), ...handlers);
+  worker.use(settingsWithEmbeddings(true), ...handlers);
   return renderApp({ path: '/settings' });
 };
 
@@ -100,7 +93,7 @@ test('a failed start reports the error and leaves the button ready', async () =>
 });
 
 test('the section is hidden when embeddings are disabled', async () => {
-  worker.use(embeddingsFlag(false));
+  worker.use(settingsWithEmbeddings(false));
 
   const screen = await renderApp({ path: '/settings' });
   await expect.element(screen.getByRole('heading', { name: 'Settings' })).toBeVisible();

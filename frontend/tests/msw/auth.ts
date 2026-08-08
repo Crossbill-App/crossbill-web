@@ -7,3 +7,11 @@ export const authHandlers = [
   http.get('/api/v1/users/me', () => HttpResponse.json(aUser())),
   http.get('/api/v1/settings', () => HttpResponse.json(appSettings())),
 ];
+
+/** Settings with the embeddings feature flag forced on or off. */
+export const settingsWithEmbeddings = (enabled: boolean) =>
+  http.get('/api/v1/settings', () =>
+    HttpResponse.json(
+      appSettings({ feature_flags: { ai: false, embeddings: enabled, user_registrations: false } })
+    )
+  );

@@ -13,6 +13,7 @@ import {
 import { Spinner } from '@/components/animations/Spinner.tsx';
 import { IconButtonWithTooltip } from '@/components/buttons/IconButtonWithTooltip.tsx';
 import { MiddleContentColumn } from '@/components/layout/Layouts.tsx';
+import { PageTitle } from '@/components/typography/PageTitle.tsx';
 import { SectionTitle } from '@/components/typography/SectionTitle.tsx';
 import { useMutationErrorHandler } from '@/hooks/useMutationErrorHandler.ts';
 import { useBookPage } from '@/pages/BookPage/BookPageContext';
@@ -120,6 +121,7 @@ export const ReflectionPage = () => {
 
   return (
     <MiddleContentColumn>
+      <PageTitle text="Reflection" />
       {stageHint && (
         <Typography
           variant="body2"
