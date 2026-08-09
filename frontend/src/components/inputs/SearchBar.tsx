@@ -7,12 +7,19 @@ interface SearchBarProps {
   onSearch: (searchText: string) => void;
   placeholder?: string;
   initialValue?: string;
+  /**
+   * `change` searches while typing, debounced — right for filtering data the
+   * page already has. `submit` waits for Enter or blur, so an expensive search
+   * runs once per finished query rather than once per keystroke.
+   */
+  commitOn?: 'change' | 'submit';
 }
 
 export const SearchBar = ({
   onSearch,
   placeholder = 'Search...',
   initialValue = '',
+  commitOn = 'change',
 }: SearchBarProps) => {
   const [searchInput, setSearchInput] = useState(initialValue);
 
@@ -37,7 +44,15 @@ export const SearchBar = ({
   const handleChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     const value = event.target.value;
     setSearchInput(value);
-    debouncedSearch(value);
+    if (commitOn === 'change') {
+      debouncedSearch(value);
+    }
+  };
+
+  const handleCommit = () => {
+    if (commitOn === 'submit') {
+      onSearch(searchInput);
+    }
   };
 
   const handleClear = () => {
@@ -53,9 +68,13 @@ export const SearchBar = ({
         placeholder={placeholder}
         value={searchInput}
         onChange={handleChange}
+        onBlur={handleCommit}
         onKeyDown={(e) => {
           if (e.key === 'Escape') {
             handleClear();
+          }
+          if (e.key === 'Enter') {
+            handleCommit();
           }
         }}
         slotProps={{
@@ -63,6 +82,9 @@ export const SearchBar = ({
             endAdornment: searchInput && (
               <Box
                 component="span"
+                // Keep the focus in the field: a blur here would commit the
+                // text the click is about to throw away.
+                onMouseDown={(e: React.MouseEvent) => e.preventDefault()}
                 onClick={handleClear}
                 sx={{
                   cursor: 'pointer',

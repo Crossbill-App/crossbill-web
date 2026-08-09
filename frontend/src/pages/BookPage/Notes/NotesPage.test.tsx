@@ -103,6 +103,7 @@ test('searching notes lists only the notes on this page that matched', async () 
   await expect.element(screen.getByRole('heading', { name: 'Ada Lovelace' })).toBeVisible();
 
   await userEvent.fill(screen.getByPlaceholder(NOTES_SEARCH_PLACEHOLDER), 'engines');
+  await userEvent.keyboard('{Enter}');
 
   await expect
     .element(screen.getByRole('heading', { name: 'Ada Lovelace' }))
@@ -124,6 +125,7 @@ test('a query that matches none of the notes on this page shows the search empty
   await expect.element(screen.getByRole('heading', { name: 'Ada Lovelace' })).toBeVisible();
 
   await userEvent.fill(screen.getByPlaceholder(NOTES_SEARCH_PLACEHOLDER), 'underwater');
+  await userEvent.keyboard('{Enter}');
 
   await expect.element(screen.getByText(/No notes match/)).toBeVisible();
   await expect
@@ -146,6 +148,7 @@ test('a failed search reports the error and keeps every note listed', async () =
 
   const screen = await renderApp({ path: '/book/1/notes' });
   await userEvent.fill(screen.getByPlaceholder(NOTES_SEARCH_PLACEHOLDER), 'engines');
+  await userEvent.keyboard('{Enter}');
 
   await expect
     .element(screen.getByRole('alert').filter({ hasText: 'Search failed' }))
