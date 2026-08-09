@@ -1,14 +1,23 @@
 import { BookCover } from '@/components/BookCover.tsx';
 import type { GlobalSearchRow } from '@/components/search/globalSearchRows.ts';
 import { Box, Chip, ListItemButton, Stack, Typography } from '@mui/material';
-import { Link, linkOptions } from '@tanstack/react-router';
-import type { ComponentProps } from 'react';
+import { createLink, linkOptions } from '@tanstack/react-router';
 
 const CHIP_LABELS: Record<GlobalSearchRow['type'], string> = {
   highlight: 'Highlight',
   note: 'Note',
   chapter: 'Chapter',
 };
+
+/**
+ * MUI's `ListItemButton` injects an `href` prop when given `component={Link}`
+ * directly (it copies `to` to `href` for anchor semantics). TanStack Router's
+ * `Link` then treats that injected `href` as authoritative and re-parses
+ * `search` off its (empty) query string, silently dropping the real search
+ * params. `createLink` wires the component in the way the router expects,
+ * without that collision.
+ */
+const LinkListItemButton = createLink(ListItemButton);
 
 /**
  * Router props for a row, as a switch rather than strings on the row itself:
@@ -54,9 +63,8 @@ interface GlobalSearchResultRowProps {
 }
 
 export const GlobalSearchResultRow = ({ row, isActive, onSelect }: GlobalSearchResultRowProps) => (
-  <ListItemButton
-    component={Link}
-    {...(rowLinkProps(row) as unknown as ComponentProps<typeof Link>)}
+  <LinkListItemButton
+    {...rowLinkProps(row)}
     id={`global-search-${row.key}`}
     role="option"
     aria-selected={isActive}
@@ -89,5 +97,5 @@ export const GlobalSearchResultRow = ({ row, isActive, onSelect }: GlobalSearchR
         {row.chapterLabel ? `${row.bookTitle} · ${row.chapterLabel}` : row.bookTitle}
       </Typography>
     </Stack>
-  </ListItemButton>
+  </LinkListItemButton>
 );

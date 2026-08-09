@@ -1,4 +1,5 @@
-import { aBookDetails } from '@tests/fixtures/book';
+import { aBookDetails, aChapter, aHighlight } from '@tests/fixtures/book';
+import { aNote } from '@tests/fixtures/notes';
 import { aDigestHit, aHighlightHit, aNoteHit } from '@tests/fixtures/semantic';
 import { renderApp } from '@tests/harness/renderApp';
 import { settingsWithEmbeddings } from '@tests/msw/auth';
@@ -30,8 +31,11 @@ test('the app bar has no search field when embeddings are off', async () => {
 });
 
 /** Renders the app at a book page with the app bar's search wired to `results`. */
-const renderWithResults = async (results: Parameters<typeof semanticSearchApi>[0]) => {
-  const { handlers } = bookApi({ book: aBookDetails() });
+const renderWithResults = async (
+  results: Parameters<typeof semanticSearchApi>[0],
+  book = aBookDetails()
+) => {
+  const { handlers } = bookApi({ book, notes: [] });
   worker.use(settingsWithEmbeddings(true), ...handlers, ...semanticSearchApi(results));
   return renderApp({ path: '/book/1' });
 };
@@ -102,4 +106,64 @@ test('a note with no linked book is left out, having no page to open', async () 
 
   await expect.element(screen.getByText('Anchored note')).toBeVisible();
   await expect.element(screen.getByText('Homeless note')).not.toBeInTheDocument();
+});
+
+test('clicking a highlight row opens the highlight dialog on the book page', async () => {
+  const screen = await renderWithResults(
+    {
+      attention: {
+        highlights: [aHighlightHit({ id: 300, text: 'The map is not the territory.' })],
+      },
+    },
+    aBookDetails({
+      chapters: [aChapter({ id: 10, highlights: [aHighlight({ id: 300 })] })],
+    })
+  );
+
+  await search(screen, 'attention');
+  await userEvent.click(screen.getByRole('option').first());
+
+  await expect
+    .element(screen.getByRole('dialog').getByText('The map is not the territory.'))
+    .toBeVisible();
+  expect(window.location.pathname).toBe('/book/1/highlights');
+  expect(window.location.search).toContain('highlightId=300');
+});
+
+test('clicking a note row opens the note dialog on the book page', async () => {
+  const { handlers } = bookApi({
+    book: aBookDetails(),
+    notes: [aNote({ id: 100, title: 'Ada Lovelace' })],
+  });
+  worker.use(
+    settingsWithEmbeddings(true),
+    ...handlers,
+    ...semanticSearchApi({ attention: { notes: [aNoteHit({ id: 100, title: 'Ada Lovelace' })] } })
+  );
+  const screen = await renderApp({ path: '/book/1' });
+
+  await search(screen, 'attention');
+  await userEvent.click(screen.getByRole('option').first());
+
+  await expect.element(screen.getByRole('dialog').getByText('Ada Lovelace')).toBeVisible();
+  expect(window.location.pathname).toBe('/book/1/notes');
+  expect(window.location.search).toContain('noteId=100');
+});
+
+test('clicking a chapter row opens the chapter dialog on the book page', async () => {
+  const screen = await renderWithResults(
+    {
+      attention: {
+        digests: [aDigestHit({ id: 500, chapter_id: 10, chapter_name: 'On Attention' })],
+      },
+    },
+    aBookDetails({ chapters: [aChapter({ id: 10, name: 'On Attention' })] })
+  );
+
+  await search(screen, 'attention');
+  await userEvent.click(screen.getByRole('option').first());
+
+  await expect.element(screen.getByRole('dialog').getByText('On Attention')).toBeVisible();
+  expect(window.location.pathname).toBe('/book/1/structure');
+  expect(window.location.search).toContain('chapterId=10');
 });
