@@ -6,6 +6,7 @@ import { settingsWithEmbeddings } from '@tests/msw/auth';
 import { bookApi } from '@tests/msw/bookApi';
 import { semanticSearchApi } from '@tests/msw/semanticSearchApi';
 import { worker } from '@tests/msw/worker';
+import { http, HttpResponse } from 'msw';
 import { expect, test } from 'vitest';
 import { userEvent } from 'vitest/browser';
 
@@ -221,4 +222,26 @@ test('arrow keys move through results and Enter opens the active one', async () 
 
   expect(window.location.pathname).toBe('/book/1/structure');
   expect(window.location.search).toContain('chapterId=10');
+});
+
+test('a query that matches nothing says so, rather than showing an empty box', async () => {
+  const screen = await renderWithResults({});
+
+  await search(screen, 'attention');
+
+  await expect.element(screen.getByText('No matches')).toBeVisible();
+});
+
+test('a failing search reports the failure', async () => {
+  const { handlers } = bookApi({ book: aBookDetails() });
+  worker.use(
+    settingsWithEmbeddings(true),
+    ...handlers,
+    http.get('/api/v1/semantic/search', () => new HttpResponse(null, { status: 500 }))
+  );
+  const screen = await renderApp({ path: '/book/1' });
+
+  await search(screen, 'attention');
+
+  await expect.element(screen.getByText('Search failed. Try again.')).toBeVisible();
 });
