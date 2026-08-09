@@ -1,12 +1,14 @@
 import { EmbeddingFeature } from '@/components/features/EmbeddingFeature.tsx';
 import { SearchBar } from '@/components/inputs/SearchBar.tsx';
-import { Box } from '@mui/material';
+import { Box, type SxProps, type Theme } from '@mui/material';
 
 interface SemanticSearchFieldProps {
   value: string;
   /** Called with the submitted query text. Must be a stable callback. */
   onChange: (value: string) => void;
   placeholder: string;
+  /** Applied to the input, for callers on a non-default background. */
+  sx?: SxProps<Theme>;
 }
 
 /**
@@ -18,7 +20,12 @@ interface SemanticSearchFieldProps {
  * nothing about results. Callers pair it with `useSemanticSearch` and decide
  * what a match means.
  */
-export const SemanticSearchField = ({ value, onChange, placeholder }: SemanticSearchFieldProps) => (
+export const SemanticSearchField = ({
+  value,
+  onChange,
+  placeholder,
+  sx,
+}: SemanticSearchFieldProps) => (
   <EmbeddingFeature>
     <Box>
       <SearchBar
@@ -26,6 +33,7 @@ export const SemanticSearchField = ({ value, onChange, placeholder }: SemanticSe
         placeholder={placeholder}
         initialValue={value}
         commitOn="submit"
+        sx={sx}
       />
     </Box>
   </EmbeddingFeature>

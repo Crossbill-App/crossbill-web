@@ -1,5 +1,5 @@
 import { useResetOnChange } from '@/hooks/useResetOnChange.ts';
-import { Box, TextField } from '@mui/material';
+import { Box, TextField, type SxProps, type Theme } from '@mui/material';
 import { debounce } from 'lodash';
 import { useEffect, useMemo, useState } from 'react';
 
@@ -13,6 +13,8 @@ interface SearchBarProps {
    * runs once per finished query rather than once per keystroke.
    */
   commitOn?: 'change' | 'submit';
+  /** Applied to the TextField, for callers on a non-default background. */
+  sx?: SxProps<Theme>;
 }
 
 export const SearchBar = ({
@@ -20,6 +22,7 @@ export const SearchBar = ({
   placeholder = 'Search...',
   initialValue = '',
   commitOn = 'change',
+  sx,
 }: SearchBarProps) => {
   const [searchInput, setSearchInput] = useState(initialValue);
 
@@ -68,6 +71,7 @@ export const SearchBar = ({
         placeholder={placeholder}
         value={searchInput}
         onChange={handleChange}
+        sx={sx}
         onBlur={handleCommit}
         onKeyDown={(e) => {
           if (e.key === 'Escape') {

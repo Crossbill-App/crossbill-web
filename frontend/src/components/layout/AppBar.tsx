@@ -1,3 +1,4 @@
+import { GlobalSearch } from '@/components/search/GlobalSearch.tsx';
 import { LogoutIcon, MenuIcon, SettingsIcon } from '@/theme/Icons.tsx';
 import {
   Box,
@@ -78,6 +79,11 @@ export function AppBar() {
               Crossbill
             </Typography>
           </Box>
+
+          {/* Spacer */}
+          <Box sx={{ flexGrow: 1 }} />
+
+          <GlobalSearch />
 
           {/* Spacer */}
           <Box sx={{ flexGrow: 1 }} />
