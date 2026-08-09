@@ -167,3 +167,58 @@ test('clicking a chapter row opens the chapter dialog on the book page', async (
   expect(window.location.pathname).toBe('/book/1/structure');
   expect(window.location.search).toContain('chapterId=10');
 });
+
+test('Escape closes the dropdown and keeps the query, a second Escape clears it', async () => {
+  const screen = await renderWithResults({
+    attention: { notes: [aNoteHit({ id: 100, title: 'Ada Lovelace' })] },
+  });
+
+  await search(screen, 'attention');
+  await expect.element(screen.getByRole('option').first()).toBeVisible();
+
+  await userEvent.keyboard('{Escape}');
+
+  await expect.element(screen.getByRole('listbox')).not.toBeInTheDocument();
+  await expect.element(screen.getByPlaceholder(PLACEHOLDER)).toHaveValue('attention');
+
+  await userEvent.keyboard('{Escape}');
+
+  await expect.element(screen.getByPlaceholder(PLACEHOLDER)).toHaveValue('');
+});
+
+test('arrowing down points aria-activedescendant at the first row', async () => {
+  const screen = await renderWithResults({
+    attention: { notes: [aNoteHit({ id: 100, title: 'Ada Lovelace' })] },
+  });
+
+  await search(screen, 'attention');
+  const firstRow = screen.getByRole('option').first();
+  await expect.element(firstRow).toBeVisible();
+  const firstRowId = firstRow.element().id;
+
+  await userEvent.keyboard('{ArrowDown}');
+
+  await expect
+    .element(screen.getByRole('listbox'))
+    .toHaveAttribute('aria-activedescendant', firstRowId);
+});
+
+test('arrow keys move through results and Enter opens the active one', async () => {
+  const screen = await renderWithResults(
+    {
+      attention: {
+        notes: [aNoteHit({ id: 100, score: 0.9, title: 'Ada Lovelace' })],
+        digests: [
+          aDigestHit({ id: 500, score: 0.8, chapter_id: 10, chapter_name: 'On Attention' }),
+        ],
+      },
+    },
+    aBookDetails({ chapters: [aChapter({ id: 10, name: 'On Attention' })] })
+  );
+
+  await search(screen, 'attention');
+  await userEvent.keyboard('{ArrowDown}{ArrowDown}{Enter}');
+
+  expect(window.location.pathname).toBe('/book/1/structure');
+  expect(window.location.search).toContain('chapterId=10');
+});

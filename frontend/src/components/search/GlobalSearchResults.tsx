@@ -1,8 +1,9 @@
 import { EmptyStateText } from '@/components/EmptyStateText.tsx';
 import { GlobalSearchResultRow } from '@/components/search/GlobalSearchResultRow.tsx';
 import {
-  type GlobalSearchRow,
+  globalSearchRowDomId,
   MAX_GLOBAL_SEARCH_ROWS,
+  type GlobalSearchRow,
 } from '@/components/search/globalSearchRows.ts';
 import { Box, CircularProgress, LinearProgress, List, Typography } from '@mui/material';
 
@@ -54,11 +55,20 @@ export const GlobalSearchResults = ({
     );
   }
 
+  // Absent rather than pointing nowhere when the cursor is in the field: a
+  // screen reader should not announce an active option that doesn't exist.
+  const activeRow = activeIndex >= 0 ? rows[activeIndex] : undefined;
+
   return (
     <Box>
       {/* Old rows stay put while the next query runs; this is the only hint. */}
       {isFetching && <LinearProgress />}
-      <List role="listbox" aria-label="Search results" disablePadding>
+      <List
+        role="listbox"
+        aria-label="Search results"
+        aria-activedescendant={activeRow ? globalSearchRowDomId(activeRow) : undefined}
+        disablePadding
+      >
         {rows.map((row, index) => (
           <GlobalSearchResultRow
             key={row.key}

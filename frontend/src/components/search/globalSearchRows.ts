@@ -1,4 +1,5 @@
 import type { SemanticSearchResults } from '@/api/generated/model';
+import { linkOptions } from '@tanstack/react-router';
 
 /** Not exported: consumers index `GlobalSearchRow['type']`, and knip fails CI
  *  on an export nothing imports. */
@@ -96,4 +97,41 @@ export const toGlobalSearchRows = (
   return [...highlights, ...notes, ...chapters]
     .sort((a, b) => b.score - a.score)
     .slice(0, MAX_GLOBAL_SEARCH_ROWS);
+};
+
+/**
+ * The DOM id a row's element carries. Shared by the row itself and by
+ * `aria-activedescendant` on the listbox, so the two cannot drift apart.
+ */
+export const globalSearchRowDomId = (row: GlobalSearchRow) => `global-search-${row.key}`;
+
+/**
+ * Router props for a row, as a switch rather than strings on the row itself:
+ * TanStack Router types `to` against the route tree, and a `to: string` field
+ * would throw that away.
+ *
+ * Lives beside `GlobalSearchRow` rather than in the row component: it is a
+ * pure function of the row, and both `GlobalSearchResultRow` (click) and
+ * `GlobalSearch` (Enter) need it, so it can't be component-local without
+ * either duplicating it or exporting it from a component file — the latter
+ * trips `react-refresh/only-export-components`.
+ */
+export const rowLinkProps = (row: GlobalSearchRow) => {
+  const params = { bookId: String(row.bookId) };
+  switch (row.type) {
+    case 'highlight':
+      return linkOptions({
+        to: '/book/$bookId/highlights',
+        params,
+        search: { highlightId: row.id },
+      });
+    case 'note':
+      return linkOptions({ to: '/book/$bookId/notes', params, search: { noteId: row.id } });
+    case 'chapter':
+      return linkOptions({
+        to: '/book/$bookId/structure',
+        params,
+        search: { chapterId: row.id },
+      });
+  }
 };

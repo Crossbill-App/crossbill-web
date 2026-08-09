@@ -1,7 +1,11 @@
 import { BookCover } from '@/components/BookCover.tsx';
-import type { GlobalSearchRow } from '@/components/search/globalSearchRows.ts';
+import {
+  globalSearchRowDomId,
+  rowLinkProps,
+  type GlobalSearchRow,
+} from '@/components/search/globalSearchRows.ts';
 import { Box, Chip, ListItemButton, Stack, Typography } from '@mui/material';
-import { createLink, linkOptions } from '@tanstack/react-router';
+import { createLink } from '@tanstack/react-router';
 
 const CHIP_LABELS: Record<GlobalSearchRow['type'], string> = {
   highlight: 'Highlight',
@@ -18,34 +22,6 @@ const CHIP_LABELS: Record<GlobalSearchRow['type'], string> = {
  * without that collision.
  */
 const LinkListItemButton = createLink(ListItemButton);
-
-/**
- * Router props for a row, as a switch rather than strings on the row itself:
- * TanStack Router types `to` against the route tree, and a `to: string` field
- * would throw that away.
- *
- * Left un-exported until Task 6 imports it — knip fails CI on an export nothing
- * references yet.
- */
-const rowLinkProps = (row: GlobalSearchRow) => {
-  const params = { bookId: String(row.bookId) };
-  switch (row.type) {
-    case 'highlight':
-      return linkOptions({
-        to: '/book/$bookId/highlights',
-        params,
-        search: { highlightId: row.id },
-      });
-    case 'note':
-      return linkOptions({ to: '/book/$bookId/notes', params, search: { noteId: row.id } });
-    case 'chapter':
-      return linkOptions({
-        to: '/book/$bookId/structure',
-        params,
-        search: { chapterId: row.id },
-      });
-  }
-};
 
 /** Two lines of matched text, clamped rather than truncated in JS. */
 const clampToTwoLines = {
@@ -65,7 +41,7 @@ interface GlobalSearchResultRowProps {
 export const GlobalSearchResultRow = ({ row, isActive, onSelect }: GlobalSearchResultRowProps) => (
   <LinkListItemButton
     {...rowLinkProps(row)}
-    id={`global-search-${row.key}`}
+    id={globalSearchRowDomId(row)}
     role="option"
     aria-selected={isActive}
     selected={isActive}
