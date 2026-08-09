@@ -22,4 +22,6 @@ export interface HighlightSearchItem {
   text: string;
   page: number | null;
   datetime: string;
+  cover_file: string | null;
+  cover_blurhash: string | null;
 }

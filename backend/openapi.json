@@ -5009,6 +5009,28 @@
             },
             "type": "array",
             "title": "Keypoints"
+          },
+          "cover_file": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cover File"
+          },
+          "cover_blurhash": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cover Blurhash"
           }
         },
         "type": "object",
@@ -5021,7 +5043,9 @@
           "chapter_name",
           "chapter_number",
           "summary",
-          "keypoints"
+          "keypoints",
+          "cover_file",
+          "cover_blurhash"
         ],
         "title": "DigestSearchItem",
         "description": "A matched chapter digest.\n\n``id`` is the digest -- the unit that was embedded, and what ``score``\nbelongs to. ``chapter_id`` is what ``/book/{book_id}/structure?chapterId=``\nopens."
@@ -6168,6 +6192,28 @@
           "datetime": {
             "type": "string",
             "title": "Datetime"
+          },
+          "cover_file": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cover File"
+          },
+          "cover_blurhash": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cover Blurhash"
           }
         },
         "type": "object",
@@ -6181,7 +6227,9 @@
           "chapter_number",
           "text",
           "page",
-          "datetime"
+          "datetime",
+          "cover_file",
+          "cover_blurhash"
         ],
         "title": "HighlightSearchItem",
         "description": "A matched highlight, shaped for a highlight list row.\n\n``id`` opens the highlight view at\n``/book/{book_id}/highlights?highlightId={id}``."
@@ -7223,12 +7271,36 @@
           "title": {
             "type": "string",
             "title": "Title"
+          },
+          "cover_file": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cover File"
+          },
+          "cover_blurhash": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cover Blurhash"
           }
         },
         "type": "object",
         "required": [
           "id",
-          "title"
+          "title",
+          "cover_file",
+          "cover_blurhash"
         ],
         "title": "SearchBookRef",
         "description": "A book a search result belongs to."

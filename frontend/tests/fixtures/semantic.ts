@@ -10,13 +10,15 @@ export const aDigestHit = (overrides: Partial<DigestSearchItem> = {}): DigestSea
   chapter_number: 1,
   summary: 'A summary of the chapter.',
   keypoints: [],
+  cover_file: null,
+  cover_blurhash: null,
   ...overrides,
 });
 
 export const aNoteHit = (overrides: Partial<NoteSearchItem> = {}): NoteSearchItem => ({
   score: 0.7,
   id: 100,
-  books: [{ id: 1, title: 'The Pragmatic Reader' }],
+  books: [{ id: 1, title: 'The Pragmatic Reader', cover_file: null, cover_blurhash: null }],
   title: 'Ada Lovelace',
   body: 'The first programmer.',
   kind: 'character',
