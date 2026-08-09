@@ -13,6 +13,7 @@ export {
   Menu as MenuIcon,
   MoreHoriz as MoreIcon,
   KeyboardArrowUp as ScrollToTopIcon,
+  Search as SearchIcon,
 } from '@mui/icons-material';
 
 // Content icons

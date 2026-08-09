@@ -85,8 +85,8 @@ export function AppBar() {
 
           <GlobalSearch />
 
-          {/* Spacer */}
-          <Box sx={{ flexGrow: 1 }} />
+          {/* Spacer: collapses below `md` so the compact search icon sits against the hamburger, matching the desktop field's centring above it. */}
+          <Box sx={{ flexGrow: { xs: 0, md: 1 } }} />
 
           {/* Hamburger menu */}
           <IconButton

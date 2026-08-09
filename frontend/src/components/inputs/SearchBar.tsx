@@ -15,6 +15,8 @@ interface SearchBarProps {
   commitOn?: 'change' | 'submit';
   /** Applied to the TextField, for callers on a non-default background. */
   sx?: SxProps<Theme>;
+  /** Off by default: only a caller that owns the field's only focus target (e.g. a just-opened dialog) should set this. */
+  autoFocus?: boolean;
 }
 
 export const SearchBar = ({
@@ -23,6 +25,7 @@ export const SearchBar = ({
   initialValue = '',
   commitOn = 'change',
   sx,
+  autoFocus = false,
 }: SearchBarProps) => {
   const [searchInput, setSearchInput] = useState(initialValue);
 
@@ -68,6 +71,7 @@ export const SearchBar = ({
     <Box>
       <TextField
         fullWidth
+        autoFocus={autoFocus}
         placeholder={placeholder}
         value={searchInput}
         onChange={handleChange}

@@ -9,6 +9,8 @@ interface SemanticSearchFieldProps {
   placeholder: string;
   /** Applied to the input, for callers on a non-default background. */
   sx?: SxProps<Theme>;
+  /** Off by default: only a caller that owns the field's only focus target (e.g. a just-opened dialog) should set this. */
+  autoFocus?: boolean;
 }
 
 /**
@@ -25,6 +27,7 @@ export const SemanticSearchField = ({
   onChange,
   placeholder,
   sx,
+  autoFocus,
 }: SemanticSearchFieldProps) => (
   <EmbeddingFeature>
     <Box>
@@ -34,6 +37,7 @@ export const SemanticSearchField = ({
         initialValue={value}
         commitOn="submit"
         sx={sx}
+        autoFocus={autoFocus}
       />
     </Box>
   </EmbeddingFeature>

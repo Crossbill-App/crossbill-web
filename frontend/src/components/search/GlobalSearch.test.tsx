@@ -8,7 +8,7 @@ import { semanticSearchApi } from '@tests/msw/semanticSearchApi';
 import { worker } from '@tests/msw/worker';
 import { http, HttpResponse } from 'msw';
 import { expect, test } from 'vitest';
-import { userEvent } from 'vitest/browser';
+import { page, userEvent } from 'vitest/browser';
 
 const PLACEHOLDER = 'Search everything…';
 
@@ -45,6 +45,22 @@ const search = async (screen: Awaited<ReturnType<typeof renderApp>>, query: stri
   await userEvent.fill(screen.getByPlaceholder(PLACEHOLDER), query);
   await userEvent.keyboard('{Enter}');
 };
+
+/**
+ * A single highlight hit wired to a book with a matching chapter, shared by
+ * the desktop and mobile click-through tests.
+ */
+const renderWithHighlightResult = () =>
+  renderWithResults(
+    {
+      attention: {
+        highlights: [aHighlightHit({ id: 300, text: 'The map is not the territory.' })],
+      },
+    },
+    aBookDetails({
+      chapters: [aChapter({ id: 10, highlights: [aHighlight({ id: 300 })] })],
+    })
+  );
 
 test('results from every type are ranked together, not grouped by type', async () => {
   const screen = await renderWithResults({
@@ -110,16 +126,7 @@ test('a note with no linked book is left out, having no page to open', async () 
 });
 
 test('clicking a highlight row opens the highlight dialog on the book page', async () => {
-  const screen = await renderWithResults(
-    {
-      attention: {
-        highlights: [aHighlightHit({ id: 300, text: 'The map is not the territory.' })],
-      },
-    },
-    aBookDetails({
-      chapters: [aChapter({ id: 10, highlights: [aHighlight({ id: 300 })] })],
-    })
-  );
+  const screen = await renderWithHighlightResult();
 
   await search(screen, 'attention');
   await userEvent.click(screen.getByRole('option').first());
@@ -244,4 +251,113 @@ test('a failing search reports the failure', async () => {
   await search(screen, 'attention');
 
   await expect.element(screen.getByText('Search failed. Try again.')).toBeVisible();
+});
+
+/**
+ * Runs `fn` with the browser resized below `md`, always restoring the
+ * config's 1440×900 default afterward — even if `fn` throws — so a resize
+ * from one test can never leak into the next.
+ */
+const atCompactViewport = async (fn: () => Promise<void>) => {
+  await page.viewport(400, 800);
+  try {
+    await fn();
+  } finally {
+    await page.viewport(1440, 900);
+  }
+};
+
+/**
+ * Renders a book page below `md` with embeddings on, where only the search
+ * icon (not the inline field) is in the DOM, shared by the tests that only
+ * care about that icon rather than a query's results.
+ */
+const renderCompactSearchIcon = (
+  fn: (screen: Awaited<ReturnType<typeof renderApp>>) => Promise<void>
+) => {
+  const { handlers } = bookApi({ book: aBookDetails() });
+  worker.use(settingsWithEmbeddings(true), ...handlers);
+  return atCompactViewport(async () => {
+    const screen = await renderApp({ path: '/book/1' });
+    await fn(screen);
+  });
+};
+
+test('below md, a search icon replaces the inline field', async () => {
+  await renderCompactSearchIcon(async (screen) => {
+    await expect.element(screen.getByRole('button', { name: 'Search' })).toBeVisible();
+    await expect.element(screen.getByPlaceholder(PLACEHOLDER)).not.toBeInTheDocument();
+  });
+});
+
+test('tapping the search icon opens a full-screen dialog with the field', async () => {
+  await renderCompactSearchIcon(async (screen) => {
+    await userEvent.click(screen.getByRole('button', { name: 'Search' }));
+
+    await expect.element(screen.getByRole('dialog')).toBeVisible();
+    await expect.element(screen.getByPlaceholder(PLACEHOLDER)).toBeVisible();
+  });
+});
+
+test('the field is focused when the mobile dialog opens, so the keyboard appears without a second tap', async () => {
+  await renderCompactSearchIcon(async (screen) => {
+    await userEvent.click(screen.getByRole('button', { name: 'Search' }));
+
+    await expect.element(screen.getByPlaceholder(PLACEHOLDER)).toHaveFocus();
+  });
+});
+
+test('a query in the mobile dialog shows the same result rows as desktop', async () => {
+  await atCompactViewport(async () => {
+    const screen = await renderWithResults({
+      attention: { notes: [aNoteHit({ id: 100, title: 'Ada Lovelace' })] },
+    });
+
+    await userEvent.click(screen.getByRole('button', { name: 'Search' }));
+    await search(screen, 'attention');
+
+    await expect.element(screen.getByRole('option')).toHaveTextContent('Ada Lovelace');
+  });
+});
+
+test('selecting a row in the mobile dialog navigates and closes it', async () => {
+  await atCompactViewport(async () => {
+    const screen = await renderWithHighlightResult();
+
+    await userEvent.click(screen.getByRole('button', { name: 'Search' }));
+    await search(screen, 'attention');
+    await userEvent.click(screen.getByRole('option').first());
+
+    expect(window.location.pathname).toBe('/book/1/highlights');
+    expect(window.location.search).toContain('highlightId=300');
+    await expect.element(screen.getByPlaceholder(PLACEHOLDER)).not.toBeInTheDocument();
+  });
+});
+
+test('a search with no results can still be dismissed via the close button', async () => {
+  await atCompactViewport(async () => {
+    const screen = await renderWithResults({});
+
+    await userEvent.click(screen.getByRole('button', { name: 'Search' }));
+    await search(screen, 'attention');
+    await expect.element(screen.getByText('No matches')).toBeVisible();
+
+    await userEvent.click(screen.getByRole('button', { name: 'Close dialog' }));
+
+    await expect.element(screen.getByRole('dialog')).not.toBeInTheDocument();
+  });
+});
+
+test('with embeddings off, no search icon appears below md', async () => {
+  const { handlers } = bookApi({ book: aBookDetails() });
+  worker.use(settingsWithEmbeddings(false), ...handlers);
+
+  await atCompactViewport(async () => {
+    const screen = await renderApp({ path: '/book/1' });
+
+    await expect
+      .element(screen.getByRole('heading', { name: 'The Pragmatic Reader' }))
+      .toBeVisible();
+    await expect.element(screen.getByRole('button', { name: 'Search' })).not.toBeInTheDocument();
+  });
 });

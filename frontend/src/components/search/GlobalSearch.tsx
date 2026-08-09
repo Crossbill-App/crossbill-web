@@ -3,7 +3,19 @@ import { GlobalSearchResults } from '@/components/search/GlobalSearchResults.tsx
 import { rowLinkProps, toGlobalSearchRows } from '@/components/search/globalSearchRows.ts';
 import { SemanticSearchField } from '@/components/search/SemanticSearchField.tsx';
 import { useSemanticSearch } from '@/components/search/useSemanticSearch.ts';
-import { Box, ClickAwayListener, Paper, Popper, type SxProps, type Theme } from '@mui/material';
+import { CloseIcon, SearchIcon } from '@/theme/Icons.tsx';
+import {
+  Box,
+  ClickAwayListener,
+  Dialog,
+  IconButton,
+  Paper,
+  Popper,
+  type SxProps,
+  type Theme,
+  useMediaQuery,
+  useTheme,
+} from '@mui/material';
 import { useNavigate } from '@tanstack/react-router';
 import { useCallback, useMemo, useState } from 'react';
 
@@ -42,9 +54,15 @@ const RESULTS_PER_TYPE = 10;
  * The query lives here rather than in the URL: each route validates its own
  * search params, so a global `q` would mean editing every `validateSearch` and
  * navigating on every submit — a steep price for a dropdown of ten rows.
+ *
+ * Below the `md` breakpoint the app bar has no room for a field, so a search
+ * icon opens the same state in a full-screen dialog instead.
  */
 export const GlobalSearch = () => {
   const navigate = useNavigate();
+  const theme = useTheme();
+  const isCompact = useMediaQuery(theme.breakpoints.down('md'));
+  const [isMobileOpen, setIsMobileOpen] = useState(false);
   // State, not a ref: `anchorEl` and the width below are read during render,
   // and the lint rule for refs forbids reading `.current` there.
   const [anchorEl, setAnchorEl] = useState<HTMLDivElement | null>(null);
@@ -103,6 +121,54 @@ export const GlobalSearch = () => {
       close();
     }
   };
+
+  const closeMobile = () => {
+    setIsMobileOpen(false);
+    close();
+  };
+
+  if (isCompact) {
+    return (
+      <EmbeddingFeature>
+        <IconButton
+          aria-label="Search"
+          onClick={() => setIsMobileOpen(true)}
+          sx={{ color: 'primary.contrastText' }}
+        >
+          <SearchIcon />
+        </IconButton>
+        <Dialog fullScreen open={isMobileOpen} onClose={closeMobile}>
+          <Box
+            onKeyDownCapture={handleKeyDown}
+            sx={{ p: 2, display: 'flex', alignItems: 'center', gap: 1 }}
+          >
+            <Box sx={{ flex: 1 }}>
+              <SemanticSearchField
+                value={query}
+                onChange={handleSearch}
+                placeholder={GLOBAL_SEARCH_PLACEHOLDER}
+                autoFocus
+              />
+            </Box>
+            {/* The only way to dismiss a dead-end search: Escape has no keyboard on
+                a phone, and a query with no results leaves no row to tap instead. */}
+            <IconButton edge="end" color="inherit" onClick={closeMobile} aria-label="Close dialog">
+              <CloseIcon />
+            </IconButton>
+          </Box>
+          {isOpen && (
+            <GlobalSearchResults
+              rows={rows}
+              isFetching={isFetching}
+              isError={isError}
+              activeIndex={activeIndex}
+              onSelect={closeMobile}
+            />
+          )}
+        </Dialog>
+      </EmbeddingFeature>
+    );
+  }
 
   return (
     <EmbeddingFeature>
