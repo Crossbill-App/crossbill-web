@@ -11,6 +11,9 @@ interface SemanticSearchFieldProps {
   sx?: SxProps<Theme>;
   /** Off by default: only a caller that owns the field's only focus target (e.g. a just-opened dialog) should set this. */
   autoFocus?: boolean;
+  /** Extra attributes merged onto the native `<input>`, e.g. ARIA combobox
+   *  wiring for a caller that owns a listbox of its own. */
+  slotProps?: { htmlInput?: React.InputHTMLAttributes<HTMLInputElement> };
 }
 
 /**
@@ -28,6 +31,7 @@ export const SemanticSearchField = ({
   placeholder,
   sx,
   autoFocus,
+  slotProps,
 }: SemanticSearchFieldProps) => (
   <EmbeddingFeature>
     <Box>
@@ -38,6 +42,7 @@ export const SemanticSearchField = ({
         commitOn="submit"
         sx={sx}
         autoFocus={autoFocus}
+        slotProps={slotProps}
       />
     </Box>
   </EmbeddingFeature>

@@ -4,9 +4,10 @@ import { aDigestHit, aHighlightHit, aNoteHit } from '@tests/fixtures/semantic';
 import { renderApp } from '@tests/harness/renderApp';
 import { settingsWithEmbeddings } from '@tests/msw/auth';
 import { bookApi } from '@tests/msw/bookApi';
+import { coversApi } from '@tests/msw/covers';
 import { semanticSearchApi } from '@tests/msw/semanticSearchApi';
 import { worker } from '@tests/msw/worker';
-import { http, HttpResponse } from 'msw';
+import { delay, http, HttpResponse } from 'msw';
 import { expect, test } from 'vitest';
 import { page, userEvent } from 'vitest/browser';
 
@@ -107,6 +108,7 @@ test('the list is capped at ten rows after merging, not per type', async () => {
   // Ranks 11-12, excluded only by the merged cap.
   await expect.element(screen.getByText('Highlight 5')).not.toBeInTheDocument();
   await expect.element(screen.getByText('Note 5')).not.toBeInTheDocument();
+  await expect.element(screen.getByText('Showing top 10')).toBeVisible();
 });
 
 test('a note with no linked book is left out, having no page to open', async () => {
@@ -123,6 +125,48 @@ test('a note with no linked book is left out, having no page to open', async () 
 
   await expect.element(screen.getByText('Anchored note')).toBeVisible();
   await expect.element(screen.getByText('Homeless note')).not.toBeInTheDocument();
+});
+
+test('a row with a cover renders it as an image from the covers endpoint', async () => {
+  const { handlers } = bookApi({ book: aBookDetails(), notes: [] });
+  worker.use(
+    settingsWithEmbeddings(true),
+    ...handlers,
+    ...coversApi(),
+    ...semanticSearchApi({
+      attention: {
+        highlights: [aHighlightHit({ id: 300, cover_file: 'cover-one.jpg' })],
+      },
+    })
+  );
+  const screen = await renderApp({ path: '/book/1' });
+
+  await search(screen, 'attention');
+
+  const cover = screen.getByRole('option').first().getByRole('img');
+  await expect.element(cover).toBeVisible();
+  await expect
+    .poll(() => cover.element().getAttribute('src'))
+    .toContain('/api/v1/covers/cover-one.jpg');
+});
+
+test('the initial fetch shows a spinner before any rows arrive', async () => {
+  const { handlers } = bookApi({ book: aBookDetails() });
+  worker.use(
+    settingsWithEmbeddings(true),
+    ...handlers,
+    // Never resolves: `waitForIdle` in the test harness bounds its wait, so
+    // this can't hang the run, and it keeps `isFetching` true for the whole
+    // test without a fake timer.
+    http.get('/api/v1/semantic/search', async () => {
+      await delay('infinite');
+    })
+  );
+  const screen = await renderApp({ path: '/book/1' });
+
+  await search(screen, 'attention');
+
+  await expect.element(screen.getByRole('progressbar', { name: 'Searching' })).toBeVisible();
 });
 
 test('clicking a highlight row opens the highlight dialog on the book page', async () => {
@@ -194,6 +238,19 @@ test('Escape closes the dropdown and keeps the query, a second Escape clears it'
   await expect.element(screen.getByPlaceholder(PLACEHOLDER)).toHaveValue('');
 });
 
+test('tabbing away closes the dropdown instead of reopening it', async () => {
+  const screen = await renderWithResults({
+    attention: { notes: [aNoteHit({ id: 100, title: 'Ada Lovelace' })] },
+  });
+
+  await search(screen, 'attention');
+  await expect.element(screen.getByRole('option').first()).toBeVisible();
+
+  await userEvent.tab();
+
+  await expect.element(screen.getByRole('listbox')).not.toBeInTheDocument();
+});
+
 test('arrowing down points aria-activedescendant at the first row', async () => {
   const screen = await renderWithResults({
     attention: { notes: [aNoteHit({ id: 100, title: 'Ada Lovelace' })] },
@@ -207,7 +264,7 @@ test('arrowing down points aria-activedescendant at the first row', async () => 
   await userEvent.keyboard('{ArrowDown}');
 
   await expect
-    .element(screen.getByRole('listbox'))
+    .element(screen.getByPlaceholder(PLACEHOLDER))
     .toHaveAttribute('aria-activedescendant', firstRowId);
 });
 

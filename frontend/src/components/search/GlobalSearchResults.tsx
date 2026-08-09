@@ -1,7 +1,6 @@
 import { EmptyStateText } from '@/components/EmptyStateText.tsx';
 import { GlobalSearchResultRow } from '@/components/search/GlobalSearchResultRow.tsx';
 import {
-  globalSearchRowDomId,
   MAX_GLOBAL_SEARCH_ROWS,
   type GlobalSearchRow,
 } from '@/components/search/globalSearchRows.ts';
@@ -14,6 +13,8 @@ interface GlobalSearchResultsProps {
   /** Index of the keyboard cursor, or -1 when the cursor is in the field. */
   activeIndex: number;
   onSelect: () => void;
+  /** DOM id for the listbox `<ul>`, matching the field's `aria-controls`. */
+  listboxId: string;
 }
 
 /**
@@ -28,6 +29,7 @@ export const GlobalSearchResults = ({
   isError,
   activeIndex,
   onSelect,
+  listboxId,
 }: GlobalSearchResultsProps) => {
   if (isError) {
     return (
@@ -42,7 +44,7 @@ export const GlobalSearchResults = ({
   if (isFetching && rows.length === 0) {
     return (
       <Box sx={{ display: 'flex', justifyContent: 'center', p: 3 }}>
-        <CircularProgress size={24} />
+        <CircularProgress size={24} aria-label="Searching" />
       </Box>
     );
   }
@@ -55,20 +57,11 @@ export const GlobalSearchResults = ({
     );
   }
 
-  // Absent rather than pointing nowhere when the cursor is in the field: a
-  // screen reader should not announce an active option that doesn't exist.
-  const activeRow = activeIndex >= 0 ? rows[activeIndex] : undefined;
-
   return (
     <Box>
       {/* Old rows stay put while the next query runs; this is the only hint. */}
       {isFetching && <LinearProgress />}
-      <List
-        role="listbox"
-        aria-label="Search results"
-        aria-activedescendant={activeRow ? globalSearchRowDomId(activeRow) : undefined}
-        disablePadding
-      >
+      <List id={listboxId} role="listbox" aria-label="Search results" disablePadding>
         {rows.map((row, index) => (
           <GlobalSearchResultRow
             key={row.key}
