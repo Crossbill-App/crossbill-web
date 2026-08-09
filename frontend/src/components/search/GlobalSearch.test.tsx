@@ -1,10 +1,12 @@
 import { aBookDetails } from '@tests/fixtures/book';
+import { aDigestHit, aHighlightHit, aNoteHit } from '@tests/fixtures/semantic';
 import { renderApp } from '@tests/harness/renderApp';
 import { settingsWithEmbeddings } from '@tests/msw/auth';
 import { bookApi } from '@tests/msw/bookApi';
 import { semanticSearchApi } from '@tests/msw/semanticSearchApi';
 import { worker } from '@tests/msw/worker';
 import { expect, test } from 'vitest';
+import { userEvent } from 'vitest/browser';
 
 const PLACEHOLDER = 'Search everything…';
 
@@ -25,4 +27,79 @@ test('the app bar has no search field when embeddings are off', async () => {
 
   await expect.element(screen.getByRole('heading', { name: 'The Pragmatic Reader' })).toBeVisible();
   await expect.element(screen.getByPlaceholder(PLACEHOLDER)).not.toBeInTheDocument();
+});
+
+/** Renders the app at a book page with the app bar's search wired to `results`. */
+const renderWithResults = async (results: Parameters<typeof semanticSearchApi>[0]) => {
+  const { handlers } = bookApi({ book: aBookDetails() });
+  worker.use(settingsWithEmbeddings(true), ...handlers, ...semanticSearchApi(results));
+  return renderApp({ path: '/book/1' });
+};
+
+const search = async (screen: Awaited<ReturnType<typeof renderApp>>, query: string) => {
+  await userEvent.fill(screen.getByPlaceholder(PLACEHOLDER), query);
+  await userEvent.keyboard('{Enter}');
+};
+
+test('results from every type are ranked together, not grouped by type', async () => {
+  const screen = await renderWithResults({
+    attention: {
+      highlights: [aHighlightHit({ id: 300, score: 0.5, text: 'A middling highlight' })],
+      notes: [aNoteHit({ id: 100, score: 0.9, title: 'The best note' })],
+      digests: [aDigestHit({ id: 500, score: 0.7, summary: 'A decent chapter' })],
+    },
+  });
+
+  await search(screen, 'attention');
+
+  const rows = screen.getByRole('option');
+  await expect.element(rows.nth(0)).toHaveTextContent('The best note');
+  await expect.element(rows.nth(1)).toHaveTextContent('A decent chapter');
+  await expect.element(rows.nth(2)).toHaveTextContent('A middling highlight');
+});
+
+test('the list is capped at ten rows after merging, not per type', async () => {
+  // Six of each type: under the cap individually, twelve combined. A
+  // per-type cap applied before merging would let all twelve through.
+  // Interleaved scores also mean the true global top ten mixes both types,
+  // rather than favouring whichever type happens to be capped last.
+  const screen = await renderWithResults({
+    attention: {
+      highlights: Array.from({ length: 6 }, (_, index) =>
+        aHighlightHit({ id: 300 + index, score: 0.95 - index * 0.1, text: `Highlight ${index}` })
+      ),
+      notes: Array.from({ length: 6 }, (_, index) =>
+        aNoteHit({ id: 100 + index, score: 0.9 - index * 0.1, title: `Note ${index}` })
+      ),
+    },
+  });
+
+  await search(screen, 'attention');
+
+  const rows = screen.getByRole('option');
+  await expect.element(rows.nth(9)).toBeVisible();
+  expect(rows.elements()).toHaveLength(10);
+
+  // Ranks 1-10 by score: Highlight 0/1/2/3/4 and Note 0/1/2/3/4.
+  await expect.element(screen.getByText('Highlight 4')).toBeVisible();
+  await expect.element(screen.getByText('Note 4')).toBeVisible();
+  // Ranks 11-12, excluded only by the merged cap.
+  await expect.element(screen.getByText('Highlight 5')).not.toBeInTheDocument();
+  await expect.element(screen.getByText('Note 5')).not.toBeInTheDocument();
+});
+
+test('a note with no linked book is left out, having no page to open', async () => {
+  const screen = await renderWithResults({
+    attention: {
+      notes: [
+        aNoteHit({ id: 100, score: 0.9, title: 'Homeless note', books: [] }),
+        aNoteHit({ id: 101, score: 0.8, title: 'Anchored note' }),
+      ],
+    },
+  });
+
+  await search(screen, 'attention');
+
+  await expect.element(screen.getByText('Anchored note')).toBeVisible();
+  await expect.element(screen.getByText('Homeless note')).not.toBeInTheDocument();
 });
