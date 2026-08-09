@@ -41,6 +41,8 @@ class SearchBookRef(BaseModel):
 
     id: int
     title: str
+    cover_file: str | None
+    cover_blurhash: str | None
 
 
 class HighlightSearchItem(BaseModel):
@@ -62,6 +64,8 @@ class HighlightSearchItem(BaseModel):
     text: str
     page: int | None
     datetime: str
+    cover_file: str | None
+    cover_blurhash: str | None
 
 
 class NoteSearchItem(BaseModel):
@@ -96,6 +100,8 @@ class DigestSearchItem(BaseModel):
     chapter_number: int | None
     summary: str
     keypoints: list[str]
+    cover_file: str | None
+    cover_blurhash: str | None
 
 
 class SemanticSearchResults(BaseModel):
