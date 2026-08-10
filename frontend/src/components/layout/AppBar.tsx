@@ -42,7 +42,7 @@ export function AppBar() {
       }}
     >
       <Container maxWidth="xl" disableGutters>
-        <Toolbar sx={{ gap: 2 }}>
+        <Toolbar>
           {/* Crossbill Icon and Title - Clickable */}
           <Box
             component={Link}
