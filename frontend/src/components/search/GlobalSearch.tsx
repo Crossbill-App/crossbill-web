@@ -23,13 +23,8 @@ import {
 import { useNavigate } from '@tanstack/react-router';
 import { useCallback, useId, useMemo, useState } from 'react';
 
-/**
- * Not exported: the test restates the copy rather than importing it, matching
- * `StructurePage.test.tsx`, and knip fails CI on an export nothing imports.
- */
-const GLOBAL_SEARCH_PLACEHOLDER = 'Search everything…';
+const GLOBAL_SEARCH_PLACEHOLDER = 'Search...';
 
-/** The field sits on `primary.main`, where the default outlined look vanishes. */
 const appBarFieldSx: SxProps<Theme> = (theme) => ({
   '& .MuiOutlinedInput-root': {
     backgroundColor: theme.customColors.whiteOverlay.light,
@@ -49,7 +44,6 @@ const appBarFieldSx: SxProps<Theme> = (theme) => ({
   },
 });
 
-/** Ten per type is enough to guarantee the true global top ten after merging. */
 const RESULTS_PER_TYPE = 10;
 
 /**
@@ -67,16 +61,12 @@ export const GlobalSearch = () => {
   const theme = useTheme();
   const isCompact = useMediaQuery(theme.breakpoints.down('md'));
   const [isMobileOpen, setIsMobileOpen] = useState(false);
-  // State, not a ref: `anchorEl` and the width below are read during render,
-  // and the lint rule for refs forbids reading `.current` there.
   const [anchorEl, setAnchorEl] = useState<HTMLDivElement | null>(null);
   const [query, setQuery] = useState('');
   // Closing keeps the query: the user scans the list, opens one hit, and comes
   // back for the next without retyping.
   const [isDismissed, setIsDismissed] = useState(false);
   const [activeIndex, setActiveIndex] = useState(-1);
-  // Stable across the component's lifetime, unlike a plain string constant:
-  // two instances (e.g. a future split of desktop/mobile) would never collide.
   const listboxId = useId();
 
   // Adjusted during render, not an effect: the mobile dialog only exists
@@ -102,12 +92,7 @@ export const GlobalSearch = () => {
   });
   const rows = useMemo(() => toGlobalSearchRows(results), [results]);
   const isOpen = hasQuery && !isDismissed;
-  // Absent rather than pointing nowhere when the cursor is in the field: a
-  // screen reader should not announce an active option that doesn't exist.
   const activeRow = activeIndex >= 0 ? rows[activeIndex] : undefined;
-  // Combobox wiring belongs on the input itself: assistive tech only honours
-  // `aria-activedescendant` on the element holding DOM focus, and focus stays
-  // in the field while the cursor moves through rows.
   const comboboxHtmlInputProps = {
     role: 'combobox',
     'aria-expanded': isOpen,
@@ -190,8 +175,6 @@ export const GlobalSearch = () => {
                 slotProps={{ htmlInput: comboboxHtmlInputProps }}
               />
             </Box>
-            {/* The only way to dismiss a dead-end search: Escape has no keyboard on
-                a phone, and a query with no results leaves no row to tap instead. */}
             <IconButton edge="end" color="inherit" onClick={closeMobile} aria-label="Close dialog">
               <CloseIcon />
             </IconButton>
@@ -216,8 +199,6 @@ export const GlobalSearch = () => {
       <ClickAwayListener onClickAway={close}>
         <Box
           ref={setAnchorEl}
-          // Capture phase: `SearchBar`'s own Escape handler runs on bubble and
-          // would clear the field before `stopPropagation` here could stop it.
           onKeyDownCapture={handleKeyDown}
           // Focus events bubble in React, so this reopens after a dismissal
           // without SearchBar having to expose an onFocus of its own.

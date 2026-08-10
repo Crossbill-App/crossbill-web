@@ -1,24 +1,15 @@
 import type { SemanticSearchResults } from '@/api/generated/model';
 import { linkOptions } from '@tanstack/react-router';
 
-/** Not exported: consumers index `GlobalSearchRow['type']`, and knip fails CI
- *  on an export nothing imports. */
 type GlobalSearchRowType = 'highlight' | 'note' | 'chapter';
 
 export interface GlobalSearchRow {
-  /**
-   * React key. Content ids collide across types, and a digest's own id is not
-   * the chapter id it opens, so both are folded in.
-   */
   key: string;
   type: GlobalSearchRowType;
   score: number;
-  /** The entity the row opens: a highlight, a note, or a chapter. */
   id: number;
   bookId: number;
-  /** Bold single line above the text. Only notes have one. */
   title: string | null;
-  /** Clamped to two lines by CSS, never truncated here. */
   text: string;
   bookTitle: string;
   chapterLabel: string | null;
@@ -26,7 +17,6 @@ export interface GlobalSearchRow {
   coverBlurhash: string | null;
 }
 
-/** Rows in the app bar dropdown. A full results page will raise this. */
 export const MAX_GLOBAL_SEARCH_ROWS = 10;
 
 /**

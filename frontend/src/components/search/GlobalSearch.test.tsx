@@ -11,7 +11,7 @@ import { delay, http, HttpResponse } from 'msw';
 import { expect, test } from 'vitest';
 import { page, userEvent } from 'vitest/browser';
 
-const PLACEHOLDER = 'Search everything…';
+const PLACEHOLDER = 'Search...';
 
 test('the app bar offers a global search field when embeddings are on', async () => {
   const { handlers } = bookApi({ book: aBookDetails() });
