@@ -263,7 +263,7 @@ export const GlobalSearch = () => {
             placement="bottom-start"
             sx={{ zIndex: (theme) => theme.zIndex.appBar + 1, width: anchorEl?.clientWidth }}
           >
-            <Paper elevation={8} sx={{ mt: 1, maxHeight: 480, overflowY: 'auto' }}>
+            <Paper elevation={8} sx={{ mt: 1, maxHeight: 680, overflowY: 'auto' }}>
               <GlobalSearchResults
                 rows={rows}
                 isFetching={isFetching}

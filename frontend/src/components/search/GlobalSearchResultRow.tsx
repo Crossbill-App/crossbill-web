@@ -46,31 +46,31 @@ export const GlobalSearchResultRow = ({ row, isActive, onSelect }: GlobalSearchR
     aria-selected={isActive}
     selected={isActive}
     onClick={onSelect}
-    sx={{ alignItems: 'flex-start', gap: 1.5, py: 1.5 }}
+    sx={{ alignItems: 'center', gap: 1.5, py: 1.5, display: 'flex' }}
   >
     <BookCover
       coverFile={row.coverFile}
       blurhash={row.coverBlurhash}
       title={row.bookTitle}
-      width={40}
-      height={56}
+      width={52}
+      height={72}
       objectFit="cover"
-      sx={{ borderRadius: 1, flexShrink: 0 }}
+      sx={{ borderRadius: 0.5, flexShrink: 0 }}
     />
     <Stack sx={{ minWidth: 0 }} spacing={0.25}>
-      <Box>
-        <Chip label={CHIP_LABELS[row.type]} size="small" variant="outlined" />
-      </Box>
       {row.title && (
         <Typography variant="subtitle2" noWrap>
           {row.title}
         </Typography>
       )}
-      <Typography variant="body2" sx={clampToTwoLines}>
+      <Box sx={{ gap: 1, display: 'flex', alignItems: 'center' }}>
+        <Chip label={CHIP_LABELS[row.type]} size="small" variant="outlined" />
+        <Typography variant="caption" color="text.secondary" noWrap>
+          {row.chapterLabel ? `${row.bookTitle} · ${row.chapterLabel}` : row.bookTitle}
+        </Typography>
+      </Box>
+      <Typography variant="body1" sx={clampToTwoLines}>
         {row.text}
-      </Typography>
-      <Typography variant="caption" color="text.secondary" noWrap>
-        {row.chapterLabel ? `${row.bookTitle} · ${row.chapterLabel}` : row.bookTitle}
       </Typography>
     </Stack>
   </LinkListItemButton>
