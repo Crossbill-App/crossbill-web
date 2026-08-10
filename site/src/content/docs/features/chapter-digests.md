@@ -24,6 +24,9 @@ and its gist if you wrote one.
 - **Generate summaries for all chapters** runs the whole book at once. Progress
   is shown as it goes, and you can cancel a run partway.
 
+The Structure tab also has a [semantic search](../semantic-search/) field, which
+keeps the chapters whose digest matches what you are looking for.
+
 Batch generation is what the optional
 [background worker](../../getting-started/optional-components/) is for — it
 processes the jobs outside the request, so you can close the page.

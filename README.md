@@ -20,6 +20,7 @@ Syncs data from e-readers using Koreader.
 - Create flash cards from your highlights and sync them to Anki or get AI suggestions from highlights.
 - Create AI summaries from epub book chapters for review and skimming. Ollama, OpenAI, Anthropic and Gemini supported.
 - Create notes and link them to the highlights, chapters etc.
+- Semantic search over highlights, notes and chapter summaries - find them by meaning instead of exact words, across books and languages. Optional, requires an embedding provider (Ollama or OpenRouter).
 - Supporting features to reflect on the books you have read
 - Self-hosted - your data stays on your server
 - Multi-user support

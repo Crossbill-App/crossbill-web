@@ -13,13 +13,22 @@ same Docker image as the main app with a different entrypoint.
 
 The worker requires AI provider configuration (`AI_PROVIDER`, API keys) to
 process AI-related tasks. You can adjust concurrency via `WORKER_CONCURRENCY`
-(default: 5).
+(default: 5). It is also what writes the embeddings behind
+[semantic search](../../features/semantic-search/).
 
 For development, run the worker separately:
 
 ```bash
 make dev-worker
 ```
+
+## Semantic search
+
+Searching highlights, notes and chapter digests by meaning is off unless an
+embedding provider is configured. It also needs the background worker above and
+a PostgreSQL with pgvector 0.8 or newer — the `docker-compose.yml` database
+image already has it. The environment variables are in
+[Semantic search](../../features/semantic-search/#turning-it-on).
 
 ## S3-compatible storage
 
