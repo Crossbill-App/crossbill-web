@@ -29,6 +29,8 @@ export function bookApi(initial: Partial<BookApiState> = {}) {
       HttpResponse.json({ items: [], total: 0, offset: 0, limit: 1 })
     ),
     http.get('/api/v1/jobs/books/:bookId/digest', () => HttpResponse.json(null)),
+    http.get('/api/v1/books/:bookId/tags', () => HttpResponse.json({ items: [] })),
+    http.get('/api/v1/books/:bookId/highlight-labels', () => HttpResponse.json({ items: [] })),
 
     http.get('/api/v1/notes/:noteId', ({ params }) => {
       const note = findNote(params.noteId);

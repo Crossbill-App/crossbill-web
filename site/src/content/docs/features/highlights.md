@@ -30,6 +30,10 @@ Click a highlight to open it. From there you can step to the previous or next
 highlight, copy its text, copy a link to it, add tags, delete it, and switch
 between its linked notes and its flashcards.
 
+The tab's own search matches the words in a highlight. To find a passage by what
+it was about, across every book, use [semantic search](../semantic-search/) in
+the app bar.
+
 ## Highlight styles and labels
 
 A **highlight style** is the highlighter appearance you used on the device — a

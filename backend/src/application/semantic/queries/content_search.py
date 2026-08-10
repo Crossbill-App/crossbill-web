@@ -31,6 +31,8 @@ class BookRef:
 
     id: int
     title: str
+    cover_file: str | None
+    cover_blurhash: str | None
 
 
 @dataclass(frozen=True)
@@ -47,6 +49,8 @@ class HighlightSearchView:
     text: str
     page: int | None
     datetime: str
+    cover_file: str | None
+    cover_blurhash: str | None
 
 
 @dataclass(frozen=True)
@@ -78,6 +82,8 @@ class DigestSearchView:
     chapter_number: int | None
     summary: str
     keypoints: tuple[str, ...]
+    cover_file: str | None
+    cover_blurhash: str | None
 
 
 @dataclass(frozen=True)

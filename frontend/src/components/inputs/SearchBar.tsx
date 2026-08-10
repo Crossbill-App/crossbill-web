@@ -1,5 +1,5 @@
 import { useResetOnChange } from '@/hooks/useResetOnChange.ts';
-import { Box, TextField } from '@mui/material';
+import { Box, TextField, type SxProps, type Theme } from '@mui/material';
 import { debounce } from 'lodash';
 import { useEffect, useMemo, useState } from 'react';
 
@@ -13,6 +13,13 @@ interface SearchBarProps {
    * runs once per finished query rather than once per keystroke.
    */
   commitOn?: 'change' | 'submit';
+  /** Applied to the TextField, for callers on a non-default background. */
+  sx?: SxProps<Theme>;
+  /** Off by default: only a caller that owns the field's only focus target (e.g. a just-opened dialog) should set this. */
+  autoFocus?: boolean;
+  /** Extra attributes merged onto the native `<input>`, e.g. ARIA combobox
+   *  wiring for a caller that owns a listbox of its own. Off by default. */
+  slotProps?: { htmlInput?: React.InputHTMLAttributes<HTMLInputElement> };
 }
 
 export const SearchBar = ({
@@ -20,6 +27,9 @@ export const SearchBar = ({
   placeholder = 'Search...',
   initialValue = '',
   commitOn = 'change',
+  sx,
+  autoFocus = false,
+  slotProps,
 }: SearchBarProps) => {
   const [searchInput, setSearchInput] = useState(initialValue);
 
@@ -65,9 +75,11 @@ export const SearchBar = ({
     <Box>
       <TextField
         fullWidth
+        autoFocus={autoFocus}
         placeholder={placeholder}
         value={searchInput}
         onChange={handleChange}
+        sx={sx}
         onBlur={handleCommit}
         onKeyDown={(e) => {
           if (e.key === 'Escape') {
@@ -96,6 +108,7 @@ export const SearchBar = ({
               </Box>
             ),
           },
+          htmlInput: slotProps?.htmlInput,
         }}
       />
     </Box>

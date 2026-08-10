@@ -11,4 +11,6 @@
 export interface SearchBookRef {
   id: number;
   title: string;
+  cover_file: string | null;
+  cover_blurhash: string | null;
 }

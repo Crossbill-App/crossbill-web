@@ -1,3 +1,4 @@
+import { GlobalSearch } from '@/components/search/GlobalSearch.tsx';
 import { LogoutIcon, MenuIcon, SettingsIcon } from '@/theme/Icons.tsx';
 import {
   Box,
@@ -41,7 +42,7 @@ export function AppBar() {
       }}
     >
       <Container maxWidth="xl" disableGutters>
-        <Toolbar sx={{ gap: 2 }}>
+        <Toolbar>
           {/* Crossbill Icon and Title - Clickable */}
           <Box
             component={Link}
@@ -81,6 +82,10 @@ export function AppBar() {
 
           {/* Spacer */}
           <Box sx={{ flexGrow: 1 }} />
+
+          <GlobalSearch />
+
+          <Box sx={{ flexGrow: { xs: 0, md: 1 } }} />
 
           {/* Hamburger menu */}
           <IconButton

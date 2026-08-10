@@ -28,6 +28,7 @@ const customColors = {
   // Hover and interaction colors
   whiteOverlay: {
     light: 'rgba(255, 255, 255, 0.1)', // White overlay for hover effects (AppBar)
+    hover: 'rgba(255, 255, 255, 0.18)', // Search field surface on hover (AppBar)
     group: 'rgba(255, 255, 255, 0.6)', // Tag group surface over page background (TagsList)
     ungrouped: 'rgba(255, 255, 255, 0.4)', // Ungrouped tag bucket surface (TagsList)
   },

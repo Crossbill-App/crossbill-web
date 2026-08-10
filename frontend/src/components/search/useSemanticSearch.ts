@@ -14,14 +14,16 @@ import { useMemo } from 'react';
  */
 const MIN_SCORE = 0.35;
 
-/** Results per content type. The endpoint's maximum is 100. */
-const LIMIT = 25;
+/** Default results per content type. The endpoint's maximum is 100. */
+const DEFAULT_LIMIT = 25;
 
 interface UseSemanticSearchOptions {
   /** Current query text. The caller owns where it is stored. */
   query: string;
   /** Scope to one book. Omit to search every book. */
   bookId?: number;
+  /** Results per content type. Defaults to 25; the endpoint's maximum is 100. */
+  limit?: number;
 }
 
 interface SemanticSearchState {
@@ -49,6 +51,7 @@ const strongEnough = <T extends { score: number }>(items: T[]) =>
 export const useSemanticSearch = ({
   query,
   bookId,
+  limit = DEFAULT_LIMIT,
 }: UseSemanticSearchOptions): SemanticSearchState => {
   const { featureFlags } = useSettings();
   const q = query.trim();
@@ -57,7 +60,7 @@ export const useSemanticSearch = ({
   const hasQuery = featureFlags?.embeddings === true && q.length > 0;
 
   const { data, isFetching, isError } = useSearchContent(
-    { q, book_id: bookId, limit: LIMIT },
+    { q, book_id: bookId, limit },
     // `q` is a required param with minLength 1; `enabled` is what keeps an
     // empty query (or a disabled feature) off the wire. keepPreviousData
     // stops the filtered list flashing empty between keystrokes.

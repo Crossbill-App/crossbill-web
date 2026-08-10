@@ -278,6 +278,65 @@ class TestRenderableFields:
         assert item["summary"] == "What happened"
         assert item["keypoints"] == ["first", "second"]
 
+    async def test_highlight_item_carries_its_books_cover(
+        self,
+        client: AsyncClient,
+        override_embedding_client: AsyncMock,
+        db_session: AsyncSession,
+        test_book: Book,
+    ) -> None:
+        """A result row shows a cover, and the row's own payload has to carry it."""
+        test_book.cover_file = "cover-one.jpg"
+        test_book.cover_blurhash = "L6PZfSi_.AyE_3t7t7R**0o#DgR4"
+        await plant_indexed_highlight(db_session, test_book, "the text", vector=[1.0, 0.0])
+        await db_session.commit()
+
+        item = (await search_groups(client))["highlights"][0]
+
+        assert item["cover_file"] == "cover-one.jpg"
+        assert item["cover_blurhash"] == "L6PZfSi_.AyE_3t7t7R**0o#DgR4"
+
+    async def test_digest_item_and_note_books_carry_covers_and_tolerate_none(
+        self,
+        client: AsyncClient,
+        override_embedding_client: AsyncMock,
+        db_session: AsyncSession,
+        test_book: Book,
+    ) -> None:
+        """A book with no cover is normal, so both fields must be nullable end to end."""
+        second = Book(user_id=test_book.user_id, title="Second Book", cover_file="cover-two.jpg")
+        db_session.add(second)
+        await db_session.commit()
+        await db_session.refresh(second)
+        await plant_indexed_digest(
+            db_session,
+            test_book,
+            "Chapter Seven",
+            chapter_number=7,
+            summary="What happened",
+            keypoints=["first"],
+            vector=[1.0, 0.0],
+        )
+        await plant_indexed_note(
+            db_session,
+            test_book.user_id,
+            "A Title",
+            body="A body",
+            kind="concept",
+            books=(test_book, second),
+            vector=[1.0, 0.0],
+        )
+
+        groups = await search_groups(client)
+
+        # test_book has no cover: null, not a missing key.
+        digest = groups["digests"][0]
+        assert digest["cover_file"] is None
+        assert digest["cover_blurhash"] is None
+
+        covers = {book["title"]: book["cover_file"] for book in groups["notes"][0]["books"]}
+        assert covers == {"Test Book": None, "Second Book": "cover-two.jpg"}
+
 
 class TestBookScoping:
     async def test_finds_a_note_linked_to_two_books(

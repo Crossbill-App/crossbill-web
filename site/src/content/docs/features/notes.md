@@ -36,7 +36,9 @@ Notes are most useful attached to something.
 
 ## Finding them again
 
-The Notes tab filters by note kind and by tag, and each note opens in a reader
+The Notes tab has a [semantic search](../semantic-search/) field that finds
+notes by meaning rather than by wording, and it filters by note kind and by tag.
+Each note opens in a reader
 view where you can step to the next and previous note, copy its content or a
 link to it, edit it, or delete it. Notes can also be turned into
 [flashcards](../flashcards/).

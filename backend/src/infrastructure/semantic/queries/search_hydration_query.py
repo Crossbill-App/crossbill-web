@@ -77,6 +77,8 @@ class SearchHydrationQuery:
                     HighlightORM.text,
                     HighlightORM.page,
                     HighlightORM.datetime,
+                    BookORM.cover_file,
+                    BookORM.cover_blurhash,
                 )
                 .join(BookORM, HighlightORM.book_id == BookORM.id)
                 .outerjoin(ChapterORM, HighlightORM.chapter_id == ChapterORM.id)
@@ -99,6 +101,8 @@ class SearchHydrationQuery:
                 text=row.text,
                 page=row.page,
                 datetime=row.datetime,
+                cover_file=row.cover_file,
+                cover_blurhash=row.cover_blurhash,
             )
             for score, row in matched
         )
@@ -146,6 +150,8 @@ class SearchHydrationQuery:
                     ChapterORM.chapter_number,
                     BookORM.id.label("book_id"),
                     BookORM.title.label("book_title"),
+                    BookORM.cover_file,
+                    BookORM.cover_blurhash,
                 )
                 .join(ChapterORM, ChapterDigestORM.chapter_id == ChapterORM.id)
                 .join(BookORM, ChapterORM.book_id == BookORM.id)
@@ -163,6 +169,8 @@ class SearchHydrationQuery:
                 chapter_number=row.chapter_number,
                 summary=row.summary,
                 keypoints=tuple(row.keypoints),
+                cover_file=row.cover_file,
+                cover_blurhash=row.cover_blurhash,
             )
             for score, row in matched
         )
@@ -179,12 +187,27 @@ class SearchHydrationQuery:
         if not note_ids:
             return {}
         stmt = (
-            select(note_books.c.note_id, BookORM.id, BookORM.title)
+            select(
+                note_books.c.note_id,
+                BookORM.id,
+                BookORM.title,
+                BookORM.cover_file,
+                BookORM.cover_blurhash,
+            )
             .join(BookORM, note_books.c.book_id == BookORM.id)
             .where(note_books.c.note_id.in_(note_ids), BookORM.user_id == user_id)
             .order_by(BookORM.id)
         )
         grouped: dict[int, list[BookRef]] = {}
-        for note_id, book_id, title in (await self.db.execute(stmt)).all():
-            grouped.setdefault(note_id, []).append(BookRef(id=book_id, title=title))
+        for note_id, book_id, title, cover_file, cover_blurhash in (
+            await self.db.execute(stmt)
+        ).all():
+            grouped.setdefault(note_id, []).append(
+                BookRef(
+                    id=book_id,
+                    title=title,
+                    cover_file=cover_file,
+                    cover_blurhash=cover_blurhash,
+                )
+            )
         return {note_id: tuple(refs) for note_id, refs in grouped.items()}

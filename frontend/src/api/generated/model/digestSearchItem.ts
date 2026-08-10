@@ -22,4 +22,6 @@ export interface DigestSearchItem {
   chapter_number: number | null;
   summary: string;
   keypoints: string[];
+  cover_file: string | null;
+  cover_blurhash: string | null;
 }

@@ -1,4 +1,20 @@
-import type { BookDetails, ChapterWithHighlights } from '@/api/generated/model';
+import type { BookDetails, ChapterWithHighlights, Highlight } from '@/api/generated/model';
+
+export const aHighlight = (overrides: Partial<Highlight> = {}): Highlight => ({
+  id: 300,
+  book_id: 1,
+  chapter_id: 10,
+  chapter: 'Chapter One',
+  chapter_number: 1,
+  page: 42,
+  text: 'The map is not the territory.',
+  datetime: '2026-01-01 00:00:00',
+  tags: [],
+  flashcards: [],
+  created_at: '2026-01-01T00:00:00Z',
+  updated_at: '2026-01-01T00:00:00Z',
+  ...overrides,
+});
 
 export const aChapter = (
   overrides: Partial<ChapterWithHighlights> = {}
