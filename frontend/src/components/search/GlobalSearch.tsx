@@ -237,7 +237,18 @@ export const GlobalSearch = () => {
               document.getElementById(listboxId)?.contains(nextFocus);
             if (!staysInWidget) close();
           }}
-          sx={{ flexGrow: 1, maxWidth: 480, mx: 'auto' }}
+          sx={{
+            flexGrow: 1,
+            width: {
+              md: 680,
+              lg: 800,
+            },
+            maxWidth: {
+              md: 680,
+              lg: 800,
+            },
+            mx: 'auto',
+          }}
         >
           <SemanticSearchField
             value={query}
