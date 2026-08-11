@@ -165,6 +165,40 @@ test('a search reveals a deeply-nested match and leaves the current-chapter indi
   expect(screen.getByRole('img', { name: 'Part One: Current chapter' }).elements()).toHaveLength(0);
 });
 
+test('a parent chapter opens its own dialog, and the chevron only expands', async () => {
+  worker.use(...bookApi({ book: aStructuredBook() }).handlers);
+
+  const screen = await renderApp({ path: '/book/1/structure' });
+  await expect.element(screen.getByText('Part One')).toBeVisible();
+
+  // The chevron owns expansion, so it must leave the dialog alone.
+  await userEvent.click(screen.getByRole('button', { name: 'Collapse Part One' }));
+  await expect.element(screen.getByText('Attention and memory')).not.toBeInTheDocument();
+  expect(screen.getByRole('dialog').elements()).toHaveLength(0);
+
+  await userEvent.click(screen.getByText('Part One'));
+
+  await expect
+    .element(screen.getByRole('dialog').getByRole('tab', { name: 'Chapter review' }))
+    .toBeVisible();
+});
+
+/**
+ * The case a related-content link hits: parents are digested and embedded like
+ * any other chapter, so a semantic result can address one directly. While the
+ * dialog resolved against leaves only, that URL rendered nothing at all — no
+ * dialog, no error, the search param simply unread.
+ */
+test('a link straight to a parent chapter opens its dialog', async () => {
+  worker.use(...bookApi({ book: aStructuredBook() }).handlers);
+
+  const screen = await renderApp({ path: '/book/1/structure?chapterId=10' });
+
+  await expect
+    .element(screen.getByRole('dialog').getByRole('tab', { name: 'Chapter review' }))
+    .toBeVisible();
+});
+
 test('a match below the score cutoff counts as no match', async () => {
   worker.use(
     settingsWithEmbeddings(true),
