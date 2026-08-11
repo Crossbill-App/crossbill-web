@@ -1,9 +1,11 @@
-import type { NoteWithLinks } from '@/api/generated/model';
+import type { NoteSearchItem, NoteWithLinks } from '@/api/generated/model';
 import { CardList } from '@/components/CardList.tsx';
 import { EmptyStateText } from '@/components/EmptyStateText.tsx';
 import { Spinner } from '@/components/animations/Spinner.tsx';
 import { UnlinkButton } from '@/components/buttons/UnlinkButton.tsx';
 import { DialogToolbar } from '@/components/dialogs/DialogToolbar.tsx';
+import { RelatedContentSection } from '@/components/search/RelatedContentSection.tsx';
+import { noteRows } from '@/components/search/globalSearchRows.ts';
 import { NoteCard } from '@/pages/BookPage/Notes/NoteCard';
 import { NoteDialogs } from '@/pages/BookPage/Notes/NoteDialogs';
 import { NotePickerDialog } from '@/pages/BookPage/Notes/components/NotePickerDialog.tsx';
@@ -22,6 +24,8 @@ interface LinkedNotesSectionProps {
   target: NoteLinkTarget;
   /** Notes linked to the target; the query lives in the caller for the tab count. */
   notes: NoteWithLinks[];
+  /** Semantic matches for the target, shown after its own notes. */
+  relatedContent?: NoteSearchItem[];
   isLoading: boolean;
   disabled?: boolean;
 }
@@ -36,6 +40,7 @@ export const LinkedNotesSection = ({
   bookId,
   target,
   notes,
+  relatedContent = [],
   isLoading,
   disabled = false,
 }: LinkedNotesSectionProps) => {
@@ -119,6 +124,8 @@ export const LinkedNotesSection = ({
         title={target.kind === 'highlight' ? 'Add highlight to note' : 'Add chapter to note'}
         onSelect={handleLink}
       />
+
+      <RelatedContentSection title="Related notes" rows={noteRows(relatedContent)} />
     </Box>
   );
 };

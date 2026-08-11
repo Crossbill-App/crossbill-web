@@ -8,7 +8,7 @@ import { useNavigate, useSearch } from '@tanstack/react-router';
 import { BookList } from './components/BookList';
 import { RecentlyViewedBooks } from './components/RecentlyViewedBooks';
 
-const BOOKS_PER_PAGE = 30;
+const BOOKS_PER_PAGE = 32;
 
 export const LandingPage = () => {
   const navigate = useNavigate({ from: '/' });

@@ -1,16 +1,8 @@
 import type { ChapterWithHighlights, PositionResponse } from '@/api/generated/model';
 import { ExpandMoreIcon, FlashcardsIcon, HighlightsIcon } from '@/theme/Icons.tsx';
-import {
-  Accordion,
-  AccordionDetails,
-  AccordionSummary,
-  Box,
-  ButtonBase,
-  Typography,
-} from '@mui/material';
+import { Box, ButtonBase, Collapse, IconButton, Typography, type Theme } from '@mui/material';
 import { sumBy } from 'lodash';
-import type { ReactNode } from 'react';
-import { useState } from 'react';
+import { useId, useState } from 'react';
 import { ChapterReadIndicator } from './ChapterReadIndicator';
 
 type ReadStatus = 'read' | 'current' | 'unread';
@@ -34,21 +26,6 @@ interface ChapterAccordionProps {
   onChapterClick?: (chapterId: number) => void;
 }
 
-const accordionSx = (depth: number) => (theme: { spacing: (n: number) => string }) => ({
-  boxShadow: 'none',
-  '&:before': { display: 'none' },
-  '&.Mui-expanded': { m: 0 },
-  bgcolor: 'transparent',
-  ml: theme.spacing(depth * 2),
-  borderBottom: '1px solid',
-  borderColor: 'divider',
-  '&:last-of-type': {
-    borderBottom: depth > 0 ? 'none' : '1px solid',
-    borderRadius: 0,
-    borderColor: 'divider',
-  },
-});
-
 const GistLine = ({ gist }: { gist: string }) => (
   <Typography
     variant="body2"
@@ -64,115 +41,152 @@ const GistLine = ({ gist }: { gist: string }) => (
   </Typography>
 );
 
-const ExpandableChapter = ({
-  name,
-  gist,
-  depth,
-  expanded,
-  onToggle,
-  readStatus,
-  children,
-}: {
-  name: string;
-  gist?: string;
-  depth: number;
-  expanded: boolean;
-  onToggle: () => void;
-  readStatus?: ReadStatus;
-  children: ReactNode;
-}) => (
-  <Accordion expanded={expanded} onChange={onToggle} sx={accordionSx(depth)}>
-    <AccordionSummary
-      expandIcon={<ExpandMoreIcon />}
-      sx={{
-        borderRadius: 0,
-        '&.Mui-expanded': { minHeight: 48 },
-        '& .MuiAccordionSummary-content.Mui-expanded': { my: '12px' },
-      }}
-    >
-      <Box sx={{ display: 'flex', alignItems: 'flex-start', gap: 1 }}>
-        {readStatus && <ChapterReadIndicator status={readStatus} chapterName={name} />}
-        <Box>
-          <Typography variant="body1" sx={{ fontWeight: 600 }}>
-            {name}
-          </Typography>
-          {gist && <GistLine gist={gist} />}
-        </Box>
-      </Box>
-    </AccordionSummary>
-    <AccordionDetails sx={{ pt: 0 }}>{children}</AccordionDetails>
-  </Accordion>
-);
-
-const LeafChapterRow = ({
+const ChapterLabel = ({
   chapter,
   gist,
-  depth,
   readStatus,
-  onClick,
 }: {
   chapter: ChapterWithHighlights;
   gist?: string;
-  depth: number;
   readStatus?: ReadStatus;
-  onClick?: () => void;
-}) => {
+}) => (
+  <Box sx={{ display: 'flex', alignItems: 'flex-start', gap: 1, minWidth: 0 }}>
+    {readStatus && <ChapterReadIndicator status={readStatus} chapterName={chapter.name} />}
+    <Box sx={{ minWidth: 0, textAlign: 'left' }}>
+      <Typography variant="body1" sx={{ fontWeight: 600 }}>
+        {chapter.name}
+      </Typography>
+      {gist && <GistLine gist={gist} />}
+    </Box>
+  </Box>
+);
+
+const ChapterCounts = ({ chapter }: { chapter: ChapterWithHighlights }) => {
   const highlightCount = chapter.highlights.length;
   const flashcardCount = sumBy(chapter.highlights, (h) => h.flashcards.length);
 
   return (
-    <ButtonBase
-      onClick={onClick}
-      sx={(theme) => ({
-        ml: theme.spacing(depth * 2),
-        borderBottom: '1px solid',
-        borderColor: 'divider',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'space-between',
-        py: theme.spacing(1),
-        px: theme.spacing(2),
-        minHeight: 48,
-        width: '100%',
-        textAlign: 'left',
-        transition: 'background-color 0.2s ease',
-        '@media (hover: hover)': {
-          '&:hover': {
-            bgcolor: 'action.hover',
-          },
-        },
-        '&:last-of-type': {
-          borderBottom: depth > 0 ? 'none' : '1px solid',
-          borderColor: 'divider',
-        },
-      })}
-    >
-      <Box sx={{ display: 'flex', alignItems: 'flex-start', gap: 1 }}>
-        {readStatus && <ChapterReadIndicator status={readStatus} chapterName={chapter.name} />}
-        <Box>
-          <Typography variant="body1" sx={{ fontWeight: 600 }}>
-            {chapter.name}
-          </Typography>
-          {gist && <GistLine gist={gist} />}
+    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, color: 'text.secondary' }}>
+      {highlightCount > 0 && (
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+          <HighlightsIcon sx={{ fontSize: 16 }} />
+          <Typography variant="caption">{highlightCount}</Typography>
         </Box>
-      </Box>
-      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, color: 'text.secondary' }}>
-        {highlightCount > 0 && (
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-            <HighlightsIcon sx={{ fontSize: 16 }} />
-            <Typography variant="caption">{highlightCount}</Typography>
-          </Box>
-        )}
-        {flashcardCount > 0 && (
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-            <FlashcardsIcon sx={{ fontSize: 16 }} />
-            <Typography variant="caption">{flashcardCount}</Typography>
-          </Box>
-        )}
-      </Box>
-    </ButtonBase>
+      )}
+      {flashcardCount > 0 && (
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+          <FlashcardsIcon sx={{ fontSize: 16 }} />
+          <Typography variant="caption">{flashcardCount}</Typography>
+        </Box>
+      )}
+    </Box>
   );
 };
+
+const rowSx = (depth: number) => (theme: Theme) => ({
+  ml: theme.spacing(depth * 2),
+  borderBottom: '1px solid',
+  borderColor: 'divider',
+  display: 'flex',
+  alignItems: 'center',
+  '&:last-of-type': {
+    borderBottom: depth > 0 ? 'none' : '1px solid',
+    borderColor: 'divider',
+  },
+});
+
+/** Shared geometry, so a parent row and a leaf row are the same height. */
+const rowBodySx = (theme: Theme) => ({
+  flex: 1,
+  minWidth: 0,
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'space-between',
+  gap: 1,
+  py: theme.spacing(1),
+  px: theme.spacing(2),
+  minHeight: 48,
+});
+
+const hoverSx = {
+  transition: 'background-color 0.2s ease',
+  '@media (hover: hover)': {
+    '&:hover': { bgcolor: 'action.hover' },
+  },
+};
+
+interface ChapterRowProps {
+  chapter: ChapterWithHighlights;
+  gist?: string;
+  depth: number;
+  readStatus?: ReadStatus;
+  onOpen: () => void;
+}
+
+/** A chapter with no children: the whole row opens it, nothing competes. */
+const LeafChapterRow = ({ chapter, gist, depth, readStatus, onOpen }: ChapterRowProps) => (
+  <Box sx={rowSx(depth)}>
+    <ButtonBase onClick={onOpen} sx={[rowBodySx, hoverSx]}>
+      <ChapterLabel chapter={chapter} gist={gist} readStatus={readStatus} />
+      <ChapterCounts chapter={chapter} />
+    </ButtonBase>
+  </Box>
+);
+
+interface ParentChapterRowProps extends ChapterRowProps {
+  expanded: boolean;
+  onToggle: () => void;
+  childrenId: string;
+}
+
+/**
+ * A chapter with children, which has two things to offer and so splits the row
+ * between them: the title opens the chapter, everything else works the
+ * children list. Both actions have their own focusable control — the title and
+ * the chevron — and the row's own handler is a mouse convenience on top of
+ * them, which is why it sits on a plain container rather than a button.
+ */
+const ParentChapterRow = ({
+  chapter,
+  gist,
+  depth,
+  readStatus,
+  onOpen,
+  expanded,
+  onToggle,
+  childrenId,
+}: ParentChapterRowProps) => (
+  <Box sx={[rowSx(depth), { cursor: 'pointer' }]} onClick={onToggle}>
+    <Box sx={rowBodySx}>
+      <ButtonBase
+        onClick={(event) => {
+          event.stopPropagation();
+          onOpen();
+        }}
+        sx={[{ borderRadius: 1, mx: -0.5, px: 0.5, minWidth: 0 }, hoverSx]}
+      >
+        <ChapterLabel chapter={chapter} gist={gist} readStatus={readStatus} />
+      </ButtonBase>
+      <ChapterCounts chapter={chapter} />
+    </Box>
+    <IconButton
+      onClick={(event) => {
+        event.stopPropagation();
+        onToggle();
+      }}
+      aria-label={`${expanded ? 'Collapse' : 'Expand'} ${chapter.name}`}
+      aria-expanded={expanded}
+      aria-controls={childrenId}
+      sx={{
+        mr: 1,
+        transition: 'transform 0.2s ease',
+        transform: expanded ? 'rotate(180deg)' : 'none',
+      }}
+    >
+      <ExpandMoreIcon />
+    </IconButton>
+  </Box>
+);
 
 export const ChapterAccordion = ({
   chapter,
@@ -193,23 +207,37 @@ export const ChapterAccordion = ({
   const readStatus: ReadStatus | undefined =
     readingPosition == null ? undefined : isCurrent ? 'current' : isRead ? 'read' : 'unread';
   const [expanded, setExpanded] = useState(isCurrent || readingPosition == null || preExpanded);
+  const childrenId = useId();
 
   const childChapters = childrenByParentId.get(chapter.id) ?? [];
   const isLeaf = childChapters.length === 0;
   const gist = gistByChapterId.get(chapter.id);
 
-  let content: ReactNode;
-  if (!isLeaf) {
-    content = (
-      <ExpandableChapter
-        name={chapter.name}
-        gist={gist}
-        depth={depth}
-        expanded={expanded}
-        onToggle={() => setExpanded(!expanded)}
-        readStatus={readStatus}
-      >
-        <Box>
+  return (
+    <Box data-chapter-read={isRead ? 'true' : 'false'}>
+      {isLeaf ? (
+        <LeafChapterRow
+          chapter={chapter}
+          gist={gist}
+          depth={depth}
+          readStatus={readStatus}
+          onOpen={() => onChapterClick?.(chapter.id)}
+        />
+      ) : (
+        <ParentChapterRow
+          chapter={chapter}
+          gist={gist}
+          depth={depth}
+          readStatus={readStatus}
+          onOpen={() => onChapterClick?.(chapter.id)}
+          expanded={expanded}
+          onToggle={() => setExpanded(!expanded)}
+          childrenId={childrenId}
+        />
+      )}
+
+      {!isLeaf && (
+        <Collapse in={expanded} id={childrenId} unmountOnExit>
           {childChapters.map((child) => (
             <ChapterAccordion
               key={child.id}
@@ -224,20 +252,8 @@ export const ChapterAccordion = ({
               onChapterClick={onChapterClick}
             />
           ))}
-        </Box>
-      </ExpandableChapter>
-    );
-  } else {
-    content = (
-      <LeafChapterRow
-        chapter={chapter}
-        gist={gist}
-        depth={depth}
-        readStatus={readStatus}
-        onClick={() => onChapterClick?.(chapter.id)}
-      />
-    );
-  }
-
-  return <Box data-chapter-read={isRead ? 'true' : 'false'}>{content}</Box>;
+        </Collapse>
+      )}
+    </Box>
+  );
 };

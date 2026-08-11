@@ -2,16 +2,11 @@ import { BookCover } from '@/components/BookCover.tsx';
 import {
   globalSearchRowDomId,
   rowLinkProps,
+  SEARCH_ROW_TYPE_LABELS,
   type GlobalSearchRow,
 } from '@/components/search/globalSearchRows.ts';
 import { Box, Chip, ListItemButton, Stack, Typography } from '@mui/material';
 import { createLink } from '@tanstack/react-router';
-
-const CHIP_LABELS: Record<GlobalSearchRow['type'], string> = {
-  highlight: 'Highlight',
-  note: 'Note',
-  chapter: 'Chapter',
-};
 
 /**
  * MUI's `ListItemButton` injects an `href` prop when given `component={Link}`
@@ -64,7 +59,7 @@ export const GlobalSearchResultRow = ({ row, isActive, onSelect }: GlobalSearchR
         </Typography>
       )}
       <Box sx={{ gap: 1, display: 'flex', alignItems: 'center' }}>
-        <Chip label={CHIP_LABELS[row.type]} size="small" variant="outlined" />
+        <Chip label={SEARCH_ROW_TYPE_LABELS[row.type]} size="small" variant="outlined" />
         <Typography variant="caption" color="text.secondary" noWrap>
           {row.chapterLabel ? `${row.bookTitle} · ${row.chapterLabel}` : row.bookTitle}
         </Typography>

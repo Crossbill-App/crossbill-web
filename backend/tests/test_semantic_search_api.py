@@ -23,6 +23,8 @@ from tests.semantic_helpers import (
     plant_indexed_digest,
     plant_indexed_highlight,
     plant_indexed_note,
+    plant_one_of_each_type,
+    related_groups,
     search_groups,
     search_highlight_ids,
 )
@@ -103,15 +105,7 @@ class TestGrouping:
         test_book: Book,
     ) -> None:
         """A single ranked list let one type crowd out the others; three scans cannot."""
-        highlight = await plant_indexed_highlight(
-            db_session, test_book, "a highlight", vector=[1.0, 0.0]
-        )
-        note = await plant_indexed_note(
-            db_session, test_book.user_id, "A Note", books=(test_book,), vector=[0.9, 0.1]
-        )
-        _, digest = await plant_indexed_digest(
-            db_session, test_book, "Chapter One", chapter_number=1, vector=[0.8, 0.2]
-        )
+        highlight, note, digest = await plant_one_of_each_type(db_session, test_book)
 
         groups = await search_groups(client)
 
@@ -474,20 +468,50 @@ class TestRelatedEndpoint:
             db_session, test_book, "neighbour", vector=[0.9, 0.1]
         )
 
-        response = await get_related(client, content_type="highlight", content_id=anchor.id)
+        groups = await related_groups(client, content_type="highlight", content_id=anchor.id)
 
-        assert response.status_code == status.HTTP_200_OK
-        ids = [row["content_id"] for row in response.json()]
+        ids = [item["id"] for item in groups["highlights"]]
         assert neighbour.id in ids
         assert anchor.id not in ids
 
-    async def test_returns_empty_when_unit_not_indexed(
+    async def test_ranks_every_type_against_the_anchor(
+        self,
+        client: AsyncClient,
+        db_session: AsyncSession,
+        test_book: Book,
+    ) -> None:
+        """The anchor is one type; its neighbours are all of them."""
+        anchor, note, digest = await plant_one_of_each_type(db_session, test_book)
+        # Each table numbers from 1, so the note shares the anchor's id here. That
+        # is the case worth having: self-exclusion is by (type, id) pair, and
+        # excluding by id alone would silently drop this note.
+        assert note.id == anchor.id, "expected the id sequences to collide"
+
+        groups = await related_groups(client, content_type="highlight", content_id=anchor.id)
+
+        assert [item["id"] for item in groups["notes"]] == [note.id]
+        assert [item["id"] for item in groups["digests"]] == [digest.id]
+
+    async def test_returns_empty_groups_when_unit_not_indexed(
         self, client: AsyncClient, test_highlight: Highlight
     ) -> None:
-        response = await get_related(client, content_type="highlight", content_id=test_highlight.id)
+        groups = await related_groups(
+            client, content_type="highlight", content_id=test_highlight.id
+        )
 
-        assert response.status_code == status.HTTP_200_OK
-        assert response.json() == []
+        assert groups == {"highlights": [], "notes": [], "digests": []}
+
+    async def test_rejects_a_limit_above_the_maximum(
+        self, client: AsyncClient, test_highlight: Highlight
+    ) -> None:
+        response = await get_related(
+            client,
+            content_type="highlight",
+            content_id=test_highlight.id,
+            limit=MAX_SEARCH_ITEMS_PER_TYPE + 1,
+        )
+
+        assert response.status_code == status.HTTP_422_UNPROCESSABLE_CONTENT
 
 
 class TestResultPaging:

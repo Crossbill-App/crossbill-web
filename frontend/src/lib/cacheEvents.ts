@@ -7,7 +7,10 @@ import { getGetBookDigestQueryKey } from '@/api/generated/digest/digest.ts';
 import { getGetBookHighlightLabelsQueryKey } from '@/api/generated/highlight-labels/highlight-labels.ts';
 import { getGetActiveBookDigestBatchQueryKey } from '@/api/generated/jobs/jobs.ts';
 import { getGetNoteQueryKey, getGetNotesForBookQueryKey } from '@/api/generated/notes/notes.ts';
-import { getGetActiveBackfillQueryKey } from '@/api/generated/semantic/semantic.ts';
+import {
+  getGetActiveBackfillQueryKey,
+  getRelatedContentQueryKey,
+} from '@/api/generated/semantic/semantic.ts';
 import { getGetTagsQueryKey } from '@/api/generated/tags/tags.ts';
 import { useQueryClient, type QueryKey } from '@tanstack/react-query';
 import { useMemo } from 'react';
@@ -85,7 +88,8 @@ export const useCacheEvents = () => {
         ),
 
       /** Digest content was generated or answered for a chapter. */
-      digestChanged: (bookId: number) => invalidate(getGetBookDigestQueryKey(bookId)),
+      digestChanged: (bookId: number) =>
+        invalidate(getGetBookDigestQueryKey(bookId), getRelatedContentQueryKey()),
 
       /** A batch digest job reached a terminal state, so its output is ready. */
       digestBatchFinished: (bookId: number) =>

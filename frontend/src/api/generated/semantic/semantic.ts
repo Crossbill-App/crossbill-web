@@ -27,7 +27,6 @@ import type {
   JobBatchResponse,
   RelatedContentParams,
   SearchContentParams,
-  SemanticSearchResult,
   SemanticSearchResults,
 } from '../model';
 
@@ -355,10 +354,14 @@ export function useSearchContent<
 
 /**
  * Rank the user's embedded content by similarity to one already-indexed unit.
+ *
+ * Same body as ``/search``, grouped by content type with ``limit`` applied per
+ * group, so one view can render either. The anchor is never among its own
+ * results, and every group is empty when the anchor is not indexed.
  * @summary Related Content
  */
 export const relatedContent = (params: RelatedContentParams, signal?: AbortSignal) => {
-  return axiosInstance<SemanticSearchResult[]>({
+  return axiosInstance<SemanticSearchResults>({
     url: `/api/v1/semantic/related`,
     method: 'GET',
     params,

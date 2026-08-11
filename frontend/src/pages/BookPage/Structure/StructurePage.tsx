@@ -94,27 +94,29 @@ export const StructurePage = () => {
     return map;
   }, [book.chapters]);
 
-  // Compute leaf chapters in document order (depth-first)
-  const leafChapters = useMemo(() => {
+  /**
+   * Every chapter in document order, parents included.
+   *
+   * Parents are digestible on the backend — `EnqueueBookDigestsUseCase` takes
+   * any chapter with a start position — so they own digests, embeddings and
+   * highlights of their own, and semantic results link straight to them. A
+   * leaves-only list left those links resolving to nothing at all.
+   */
+  const chaptersInDocumentOrder = useMemo(() => {
     const result: ChapterWithHighlights[] = [];
-    const collectLeaves = (parentId: number | null) => {
-      const children = childrenByParentId.get(parentId) ?? [];
-      for (const ch of children) {
-        const hasChildren = (childrenByParentId.get(ch.id) ?? []).length > 0;
-        if (hasChildren) {
-          collectLeaves(ch.id);
-        } else {
-          result.push(ch);
-        }
+    const collect = (parentId: number | null) => {
+      for (const ch of childrenByParentId.get(parentId) ?? []) {
+        result.push(ch);
+        collect(ch.id);
       }
     };
-    collectLeaves(null);
+    collect(null);
     return result;
   }, [childrenByParentId]);
 
   const chapterDialog = useUrlEntityDialog<ChapterWithHighlights>({
     param: 'chapterId',
-    items: leafChapters,
+    items: chaptersInDocumentOrder,
   });
 
   // Compute bookmarks map

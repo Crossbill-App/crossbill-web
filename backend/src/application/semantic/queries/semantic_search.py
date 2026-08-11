@@ -24,17 +24,6 @@ class SemanticSearchHit:
     score: float
 
 
-@dataclass(frozen=True)
-class SemanticSearchView:
-    """A hit with its source text resolved, ready to render."""
-
-    content_type: ContentType
-    content_id: int
-    book_id: int | None
-    score: float
-    text: str
-
-
 class SemanticSearchQueryProtocol(Protocol):
     """Port for the nearest-neighbour scan over the embeddings index."""
 

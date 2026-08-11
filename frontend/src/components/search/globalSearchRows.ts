@@ -1,4 +1,9 @@
-import type { SemanticSearchResults } from '@/api/generated/model';
+import type {
+  DigestSearchItem,
+  HighlightSearchItem,
+  NoteSearchItem,
+  SemanticSearchResults,
+} from '@/api/generated/model';
 import { linkOptions } from '@tanstack/react-router';
 
 type GlobalSearchRowType = 'highlight' | 'note' | 'chapter';
@@ -19,22 +24,15 @@ export interface GlobalSearchRow {
 
 export const MAX_GLOBAL_SEARCH_ROWS = 10;
 
-/**
- * Flattens the endpoint's three groups into one list ranked by score.
- *
- * Scores are cosine similarity on one scale for all three types, which is what
- * makes a merged ranking meaningful rather than a presentation trick.
- *
- * Notes with no linked book are dropped: their row would have no cover and no
- * page to open, since a note view only exists inside a book. They stay
- * invisible until a global note view exists.
- */
-export const toGlobalSearchRows = (
-  results: SemanticSearchResults | undefined
-): GlobalSearchRow[] => {
-  if (!results) return [];
+/** What a row's type is called wherever one is labelled to the reader. */
+export const SEARCH_ROW_TYPE_LABELS: Record<GlobalSearchRowType, string> = {
+  highlight: 'Highlight',
+  note: 'Note',
+  chapter: 'Chapter',
+};
 
-  const highlights: GlobalSearchRow[] = results.highlights.map((hit) => ({
+export const highlightRows = (hits: HighlightSearchItem[]): GlobalSearchRow[] =>
+  hits.map((hit) => ({
     key: `highlight-${hit.id}`,
     type: 'highlight',
     score: hit.score,
@@ -48,7 +46,13 @@ export const toGlobalSearchRows = (
     coverBlurhash: hit.cover_blurhash,
   }));
 
-  const notes: GlobalSearchRow[] = results.notes.flatMap((hit) => {
+/**
+ * Notes with no linked book are dropped: their row would have no cover and no
+ * page to open, since a note view only exists inside a book. They stay
+ * invisible until a global note view exists.
+ */
+export const noteRows = (hits: NoteSearchItem[]): GlobalSearchRow[] =>
+  hits.flatMap((hit) => {
     // `books[0]` is untyped as optional (noUncheckedIndexedAccess is off), so
     // the emptiness check is on `.length`, not on `book` itself.
     if (hit.books.length === 0) return [];
@@ -56,7 +60,7 @@ export const toGlobalSearchRows = (
     return [
       {
         key: `note-${hit.id}`,
-        type: 'note',
+        type: 'note' as const,
         score: hit.score,
         id: hit.id,
         bookId: book.id,
@@ -70,7 +74,9 @@ export const toGlobalSearchRows = (
     ];
   });
 
-  const chapters: GlobalSearchRow[] = results.digests.map((hit) => ({
+/** A digest's row opens the chapter it summarises, not the digest itself. */
+export const digestRows = (hits: DigestSearchItem[]): GlobalSearchRow[] =>
+  hits.map((hit) => ({
     key: `digest-${hit.id}`,
     type: 'chapter',
     score: hit.score,
@@ -84,7 +90,22 @@ export const toGlobalSearchRows = (
     coverBlurhash: hit.cover_blurhash,
   }));
 
-  return [...highlights, ...notes, ...chapters]
+/**
+ * Flattens the endpoint's three groups into one list ranked by score.
+ *
+ * Scores are cosine similarity on one scale for all three types, which is what
+ * makes a merged ranking meaningful rather than a presentation trick.
+ */
+export const toGlobalSearchRows = (
+  results: SemanticSearchResults | undefined
+): GlobalSearchRow[] => {
+  if (!results) return [];
+
+  return [
+    ...highlightRows(results.highlights),
+    ...noteRows(results.notes),
+    ...digestRows(results.digests),
+  ]
     .sort((a, b) => b.score - a.score)
     .slice(0, MAX_GLOBAL_SEARCH_ROWS);
 };

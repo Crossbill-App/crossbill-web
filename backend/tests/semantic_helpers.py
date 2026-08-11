@@ -235,6 +235,23 @@ async def plant_indexed_digest(
     return chapter, digest
 
 
+async def plant_one_of_each_type(
+    db: AsyncSession, book: Book
+) -> tuple[Highlight, Note, ChapterDigest]:
+    """Index one unit of every content type, fanned out along one arc of vectors.
+
+    Ranking is driven by the vectors alone, so the texts are arbitrary; what
+    matters is that the three sort in the returned order against ``[1.0, 0.0]``
+    and land in three different groups.
+    """
+    highlight = await plant_indexed_highlight(db, book, "a highlight", vector=[1.0, 0.0])
+    note = await plant_indexed_note(db, book.user_id, "A Note", books=(book,), vector=[0.9, 0.1])
+    _, digest = await plant_indexed_digest(
+        db, book, "Chapter One", chapter_number=1, vector=[0.8, 0.2]
+    )
+    return highlight, note, digest
+
+
 async def upload_highlights(
     client: AsyncClient, client_book_id: str, *texts: str
 ) -> dict[str, PrimitiveData]:
@@ -275,6 +292,13 @@ async def get_related(client: AsyncClient, **params: PrimitiveData) -> Response:
     """GET /semantic/related with the feature flag forced on."""
     with embeddings_enabled():
         return await client.get("/api/v1/semantic/related", params=params)
+
+
+async def related_groups(client: AsyncClient, **params: PrimitiveData) -> dict[str, Any]:
+    """Fetch related content and return the grouped body, asserting the request succeeded."""
+    response = await get_related(client, **params)
+    assert response.status_code == status.HTTP_200_OK, response.text
+    return response.json()
 
 
 async def backfill_enqueued_ids(client: AsyncClient, queue: AsyncMock) -> set[int]:
