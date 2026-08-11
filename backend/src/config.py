@@ -1,6 +1,7 @@
 """Application configuration."""
 
 import logging
+import os
 import sys
 from collections.abc import Callable
 from functools import lru_cache
@@ -8,9 +9,13 @@ from ipaddress import IPv4Network, IPv6Network
 from pathlib import Path
 from typing import Any, Literal
 
+import sentry_sdk
 import structlog
 from pydantic import AliasChoices, Field, computed_field, field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
+from sentry_sdk.integrations.fastapi import FastApiIntegration
+from sentry_sdk.integrations.logging import LoggingIntegration
+from structlog_sentry import SentryProcessor
 
 # Path constants - calculated once at module load
 BACKEND_ROOT = Path(__file__).parent.parent.resolve()
@@ -49,6 +54,9 @@ class Settings(BaseSettings):
 
     # Environment
     ENVIRONMENT: Literal["development", "production", "test"] = "development"
+
+    # Sentry error tracking; disabled when the DSN is empty
+    SENTRY_DSN: str = ""
 
     # CORS
     CORS_ORIGINS: list[str] = [
@@ -321,6 +329,10 @@ def configure_logging(environment: str = "development") -> None:
         structlog.stdlib.add_log_level,
         structlog.processors.TimeStamper(fmt="iso"),
         structlog.processors.StackInfoRenderer(),
+        # Before format_exc_info, which pops exc_info from the event dict --
+        # after it, Sentry events would carry the formatted string instead of
+        # a real traceback. A no-op until configure_sentry() has run.
+        SentryProcessor(event_level=logging.ERROR),
         structlog.processors.format_exc_info,
     ]
 
@@ -338,6 +350,43 @@ def configure_logging(environment: str = "development") -> None:
         logger_factory=structlog.stdlib.LoggerFactory(),
         cache_logger_on_first_use=True,
     )
+
+
+_sentry_initialized = False
+
+
+def configure_sentry(settings: Settings) -> None:
+    """Initialize Sentry when a DSN is configured; otherwise a no-op.
+
+    Skipped under TESTING because the dev ``../.env`` leaks into pytest runs --
+    without the guard, every deliberately-failing test case would file an issue.
+
+    Error events reach Sentry through the ``SentryProcessor`` in the structlog
+    chain, which groups by event name (``embedding_task_failed``). The stdlib
+    integration is told ``event_level=None`` so it does not file a second,
+    per-rendered-line issue for the same record; it still forwards breadcrumbs
+    and, via ``enable_logs``, the log stream itself.
+
+    Idempotent: the embedded worker's startup hook runs in the API process,
+    where main.py has already initialized the SDK.
+    """
+    global _sentry_initialized  # noqa: PLW0603
+    if _sentry_initialized or not settings.SENTRY_DSN or os.getenv("TESTING"):
+        return
+
+    sentry_sdk.init(
+        dsn=settings.SENTRY_DSN,
+        environment=settings.ENVIRONMENT,
+        release=settings.VERSION,
+        send_default_pii=True,
+        enable_logs=True,
+        traces_sample_rate=1.0,  # or lower in production
+        integrations=[
+            FastApiIntegration(),
+            LoggingIntegration(level=logging.INFO, event_level=None),
+        ],
+    )
+    _sentry_initialized = True
 
 
 @lru_cache

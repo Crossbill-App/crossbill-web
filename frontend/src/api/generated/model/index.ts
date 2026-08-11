@@ -54,7 +54,6 @@ export * from './getBooksParams.ts';
 export * from './getNotesForBookKind.ts';
 export * from './getNotesForBookParams.ts';
 export * from './getRecentlyViewedBooksParams.ts';
-export * from './health200.ts';
 export * from './highlight.ts';
 export * from './highlightCreate.ts';
 export * from './highlightDeleteRequest.ts';

@@ -19,7 +19,7 @@ from slowapi.errors import RateLimitExceeded
 from starlette.datastructures import MutableHeaders
 from starlette.types import ASGIApp, Message, Receive, Scope, Send
 
-from src.config import configure_logging, get_settings
+from src.config import configure_logging, configure_sentry, get_settings
 from src.database import dispose_engine, get_session_factory, initialize_database
 from src.domain.common.exceptions import (
     AuthenticationError,
@@ -69,8 +69,9 @@ from src.infrastructure.tagging.routers import tags as tagging_tags
 
 settings = get_settings()
 
-# Configure structured logging
+# Configure structured logging and Sentry before the app is created
 configure_logging(settings.ENVIRONMENT)
+configure_sentry(settings)
 
 logger = structlog.get_logger(__name__)
 
@@ -115,6 +116,21 @@ async def _initialize_admin_password() -> None:
         )
 
 
+def _log_embedded_worker_exit(task: asyncio.Task[None]) -> None:
+    """Surface an embedded worker that died outside a graceful shutdown.
+
+    Without this, a crash in the worker's run loop stays unobserved until
+    interpreter exit while the API keeps serving without background jobs.
+    """
+    if task.cancelled():
+        return
+    exc = task.exception()
+    if exc is not None:
+        logger.error("embedded_worker_crashed", exc_info=exc)
+    else:
+        logger.error("embedded_worker_exited_unexpectedly")
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     """Application lifespan context manager."""
@@ -141,6 +157,8 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
 
         embedded_worker = create_embedded_worker(saq_queue, concurrency=settings.WORKER_CONCURRENCY)
         worker_task = asyncio.create_task(embedded_worker.start())
+        worker_task.add_done_callback(_log_embedded_worker_exit)
+        app.state.embedded_worker_task = worker_task
         logger.info("embedded_worker_started", concurrency=settings.WORKER_CONCURRENCY)
 
     yield
@@ -150,6 +168,7 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     # worker_task naturally.  The cancel() is a defensive fallback in case
     # start() does not exit cleanly (e.g. stuck awaiting a job).
     if embedded_worker is not None and worker_task is not None:
+        worker_task.remove_done_callback(_log_embedded_worker_exit)
         await embedded_worker.stop()
         worker_task.cancel()
         with contextlib.suppress(asyncio.CancelledError):
@@ -440,9 +459,19 @@ app.include_router(settings_router.router, prefix=settings.API_V1_PREFIX)
 
 @app.get("/health")
 @limiter.exempt  # type: ignore[misc]
-async def health() -> dict[str, str]:
-    """Health check endpoint. Exempt from rate limit so probes never trip it."""
-    return {"status": "healthy"}
+async def health() -> JSONResponse:
+    """Health check endpoint. Exempt from rate limit so probes never trip it.
+
+    Reports 503 when the embedded worker task has exited: the API would
+    otherwise keep answering "healthy" while background jobs pile up unprocessed.
+    """
+    worker_task: asyncio.Task[None] | None = getattr(app.state, "embedded_worker_task", None)
+    if worker_task is not None and worker_task.done():
+        return JSONResponse(
+            status_code=503,
+            content={"status": "unhealthy", "reason": "embedded worker not running"},
+        )
+    return JSONResponse(content={"status": "healthy"})
 
 
 @app.get(f"{settings.API_V1_PREFIX}/")

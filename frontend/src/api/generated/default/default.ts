@@ -17,7 +17,7 @@ import type {
 } from '@tanstack/react-query';
 import { useQuery } from '@tanstack/react-query';
 
-import type { ApiRoot200, Health200 } from '../model';
+import type { ApiRoot200 } from '../model';
 
 import { axiosInstance } from '../../axios-instance.ts';
 
@@ -38,10 +38,13 @@ const withQueryKey = <T extends object, K>(query: T, queryKey: K): T & { queryKe
 
 /**
  * Health check endpoint. Exempt from rate limit so probes never trip it.
+ *
+ * Reports 503 when the embedded worker task has exited: the API would
+ * otherwise keep answering "healthy" while background jobs pile up unprocessed.
  * @summary Health
  */
 export const health = (signal?: AbortSignal) => {
-  return axiosInstance<Health200>({ url: `/health`, method: 'GET', signal });
+  return axiosInstance<unknown>({ url: `/health`, method: 'GET', signal });
 };
 
 export const getHealthQueryKey = () => {

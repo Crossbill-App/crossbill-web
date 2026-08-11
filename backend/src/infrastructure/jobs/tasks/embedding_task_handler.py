@@ -7,6 +7,7 @@ from src.application.semantic.commands.generate_content_embeddings_use_case impo
     GenerateContentEmbeddingsUseCase,
 )
 from src.application.semantic.content_type import ContentType
+from src.infrastructure.jobs.tasks.job_context import saq_job_context
 
 logger = structlog.get_logger(__name__)
 
@@ -20,7 +21,7 @@ class EmbeddingTaskHandler:
 
     async def generate(
         self,
-        _ctx: Context,
+        ctx: Context,
         *,
         content_type: ContentType,
         content_ids: list[int],
@@ -31,6 +32,7 @@ class EmbeddingTaskHandler:
             content_type=content_type.value,
             content_ids=content_ids,
             slice_size=len(content_ids),
+            **saq_job_context(ctx),
         )
         log.info("embedding_task_started")
         try:

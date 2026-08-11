@@ -3743,20 +3743,14 @@
     "/health": {
       "get": {
         "summary": "Health",
-        "description": "Health check endpoint. Exempt from rate limit so probes never trip it.",
+        "description": "Health check endpoint. Exempt from rate limit so probes never trip it.\n\nReports 503 when the embedded worker task has exited: the API would\notherwise keep answering \"healthy\" while background jobs pile up unprocessed.",
         "operationId": "health",
         "responses": {
           "200": {
             "description": "Successful Response",
             "content": {
               "application/json": {
-                "schema": {
-                  "additionalProperties": {
-                    "type": "string"
-                  },
-                  "type": "object",
-                  "title": "Response Health"
-                }
+                "schema": {}
               }
             }
           }

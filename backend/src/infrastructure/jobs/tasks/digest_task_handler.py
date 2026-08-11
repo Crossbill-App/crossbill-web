@@ -7,6 +7,7 @@ from src.application.reading.commands.chapter_digest.generate_chapter_digest_use
     GenerateChapterDigestUseCase,
 )
 from src.domain.common.value_objects.ids import ChapterId, UserId
+from src.infrastructure.jobs.tasks.job_context import saq_job_context
 
 logger = structlog.get_logger(__name__)
 
@@ -20,25 +21,29 @@ class DigestTaskHandler:
 
     async def generate(
         self,
-        _ctx: Context,
+        ctx: Context,
         *,
         batch_id: int,
         book_id: int,
         chapter_id: int,
         user_id: int,
     ) -> None:
-        logger.info(
-            "digest_task_started",
+        log = logger.bind(
             batch_id=batch_id,
             book_id=book_id,
             chapter_id=chapter_id,
+            **saq_job_context(ctx),
         )
-        await self._generate_use_case.generate_digest(
-            chapter_id=ChapterId(chapter_id),
-            user_id=UserId(user_id),
-        )
-        logger.info(
-            "digest_task_completed",
-            batch_id=batch_id,
-            chapter_id=chapter_id,
-        )
+        log.info("digest_task_started")
+        try:
+            await self._generate_use_case.generate_digest(
+                chapter_id=ChapterId(chapter_id),
+                user_id=UserId(user_id),
+            )
+        except Exception:
+            # Logged here so the failure carries the chapter/book context and
+            # traceback as one JSON event; re-raised so SAQ still retries and
+            # the batch still counts the failure.
+            log.exception("digest_task_failed")
+            raise
+        log.info("digest_task_completed")
