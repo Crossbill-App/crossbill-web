@@ -173,7 +173,7 @@ makes `alembic revision --autogenerate` report a diff forever and gives
 | `application/semantic/idempotency.py` | The staleness rule, defined once |
 | `application/semantic/protocols/` | Ports: embedding client, embedding repository, content source |
 | `application/semantic/commands/` | `GenerateContentEmbeddingUseCase` (task core), `EnqueueContentEmbeddingsUseCase` (backfill) |
-| `application/semantic/queries/` | `SemanticSearchView` + query port; `SearchContentUseCase`, `RelatedContentUseCase` |
+| `application/semantic/queries/` | `SemanticSearchHit` + query port, grouped result views + hydration port; `SearchContentUseCase`, `RelatedContentUseCase` |
 | `infrastructure/semantic/orm/` | `embeddings` table ORM |
 | `infrastructure/semantic/repositories/` | Embedding repository (upsert / get_state / delete_for) |
 | `infrastructure/semantic/clients/` | OpenAI-compatible embedding client (Ollama / OpenRouter by base-URL) |
@@ -399,7 +399,7 @@ aligning the AI endpoints is a small follow-up, not a reason to propagate it.
 ### Contracts
 
 - `domain-module-independence`: **unchanged** — there is no `domain/semantic/`.
-- `queries-are-dead-ends`: `SemanticSearchView` is a read DTO; the
+- `queries-are-dead-ends`: the search result views are read DTOs; the
   wildcard-covered contract already forbids `domain` and `*.commands` from
   importing `*.queries`, so `semantic` is covered without edits.
 - `orm-boundary`: unchanged — `infrastructure.semantic.content` is not among the

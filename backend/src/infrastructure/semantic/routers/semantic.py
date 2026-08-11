@@ -14,7 +14,6 @@ from src.application.semantic.commands.enqueue_content_embeddings_use_case impor
 from src.application.semantic.content_type import ContentType
 from src.application.semantic.queries.related_content_use_case import RelatedContentUseCase
 from src.application.semantic.queries.search_content_use_case import SearchContentUseCase
-from src.application.semantic.queries.semantic_search import SemanticSearchView
 from src.core import container
 from src.domain.common.value_objects.ids import BookId, UserId
 from src.domain.identity import User
@@ -29,33 +28,21 @@ from src.infrastructure.jobs.schemas.job_batch_schemas import (
 )
 from src.infrastructure.semantic.schemas.semantic_schemas import (
     BackfillResponse,
-    SemanticSearchResult,
     SemanticSearchResults,
 )
 
 router = APIRouter(prefix="/semantic", tags=["semantic"])
 
-MAX_SEARCH_LIMIT = 50
-#: Per-content-type cap for the grouped search.
+#: Per-content-type cap, shared by /search and /related.
 #:
-#: Higher than MAX_SEARCH_LIMIT because it bounds one group rather than a whole
-#: page, and a caller assembling its own mixed ranking wants room to work with.
-#: /related keeps MAX_SEARCH_LIMIT: it ranks every type into one list.
+#: It bounds one group rather than a whole page, so it can afford to be generous:
+#: a caller assembling its own mixed ranking out of the groups wants room to work
+#: with.
 MAX_SEARCH_ITEMS_PER_TYPE = 100
 # Bounded because every query costs a model call: an empty string would buy a
 # vector for nothing, and an unbounded one is billed by the token and would
 # eventually exceed bge-m3's 8K context.
 MAX_QUERY_LENGTH = 1000
-
-
-def _result(view: SemanticSearchView) -> SemanticSearchResult:
-    return SemanticSearchResult(
-        content_type=view.content_type,
-        content_id=view.content_id,
-        book_id=view.book_id,
-        score=view.score,
-        text=view.text,
-    )
 
 
 @router.post(
@@ -150,22 +137,27 @@ async def search_content(
     return SemanticSearchResults.model_validate(results)
 
 
-@router.get("/related", response_model=list[SemanticSearchResult])
+@router.get("/related", response_model=SemanticSearchResults)
 @require_embeddings_enabled
 async def related_content(
     current_user: Annotated[User, Depends(get_current_user)],
     content_type: ContentType,
     content_id: int,
-    limit: Annotated[int, Query(ge=1, le=MAX_SEARCH_LIMIT)] = 10,
+    limit: Annotated[int, Query(ge=1, le=MAX_SEARCH_ITEMS_PER_TYPE)] = 10,
     use_case: RelatedContentUseCase = Depends(
         inject_use_case(container.semantic.related_content_use_case)
     ),
-) -> list[SemanticSearchResult]:
-    """Rank the user's embedded content by similarity to one already-indexed unit."""
-    views = await use_case.execute(
+) -> SemanticSearchResults:
+    """Rank the user's embedded content by similarity to one already-indexed unit.
+
+    Same body as ``/search``, grouped by content type with ``limit`` applied per
+    group, so one view can render either. The anchor is never among its own
+    results, and every group is empty when the anchor is not indexed.
+    """
+    results = await use_case.execute(
         content_type=content_type,
         content_id=content_id,
         user_id=current_user.id.value,
         limit=limit,
     )
-    return [_result(view) for view in views]
+    return SemanticSearchResults.model_validate(results)

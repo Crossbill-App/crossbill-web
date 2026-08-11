@@ -11,7 +11,7 @@ export type RelatedContentParams = {
   content_id: number;
   /**
    * @minimum 1
-   * @maximum 50
+   * @maximum 100
    */
   limit?: number;
 };

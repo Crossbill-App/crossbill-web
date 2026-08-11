@@ -3652,7 +3652,7 @@
           "semantic"
         ],
         "summary": "Related Content",
-        "description": "Rank the user's embedded content by similarity to one already-indexed unit.",
+        "description": "Rank the user's embedded content by similarity to one already-indexed unit.\n\nSame body as ``/search``, grouped by content type with ``limit`` applied per\ngroup, so one view can render either. The anchor is never among its own\nresults, and every group is empty when the anchor is not indexed.",
         "operationId": "related_content",
         "security": [
           {
@@ -3683,7 +3683,7 @@
             "required": false,
             "schema": {
               "type": "integer",
-              "maximum": 50,
+              "maximum": 100,
               "minimum": 1,
               "default": 10,
               "title": "Limit"
@@ -3696,11 +3696,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "array",
-                  "items": {
-                    "$ref": "#/components/schemas/SemanticSearchResult"
-                  },
-                  "title": "Response Related Content"
+                  "$ref": "#/components/schemas/SemanticSearchResults"
                 }
               }
             }
@@ -7298,45 +7294,6 @@
         ],
         "title": "SearchBookRef",
         "description": "A book a search result belongs to."
-      },
-      "SemanticSearchResult": {
-        "properties": {
-          "content_type": {
-            "$ref": "#/components/schemas/ContentType"
-          },
-          "content_id": {
-            "type": "integer",
-            "title": "Content Id"
-          },
-          "book_id": {
-            "anyOf": [
-              {
-                "type": "integer"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Book Id"
-          },
-          "score": {
-            "type": "number",
-            "title": "Score"
-          },
-          "text": {
-            "type": "string",
-            "title": "Text"
-          }
-        },
-        "type": "object",
-        "required": [
-          "content_type",
-          "content_id",
-          "book_id",
-          "score",
-          "text"
-        ],
-        "title": "SemanticSearchResult"
       },
       "SemanticSearchResults": {
         "properties": {

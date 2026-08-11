@@ -38,5 +38,5 @@ class SemanticContainer(containers.DeclarativeContainer):
     related_content_use_case = providers.Factory(
         RelatedContentUseCase,
         query=semantic_search_query,
-        content_source=content_source,
+        hydration=search_hydration_query,
     )

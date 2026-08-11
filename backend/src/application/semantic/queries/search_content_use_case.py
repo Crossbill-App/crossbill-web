@@ -5,6 +5,7 @@ from src.application.semantic.protocols.embedding_client import EmbeddingClientP
 from src.application.semantic.queries.content_search import (
     SearchHydrationQueryProtocol,
     SemanticSearchResultsView,
+    group_by_content_type,
 )
 from src.application.semantic.queries.semantic_search import (
     SemanticSearchHit,
@@ -30,14 +31,12 @@ class SearchContentUseCase:
     ) -> SemanticSearchResultsView:
         """Return the most similar units of each type, most similar first within each group.
 
-        ``limit`` applies per content type. One scan per type rather than one
-        combined scan: a book with thousands of highlights would otherwise fill
-        a single ranked page and the digests would never appear.
+        ``limit`` applies per content type.
         """
         vectors = await self.client.embed([query_text])
         embedding = vectors[0]
 
-        async def hits(content_type: ContentType) -> list[SemanticSearchHit]:
+        async def scan(content_type: ContentType) -> list[SemanticSearchHit]:
             return await self.query.nearest(
                 embedding=embedding,
                 user_id=user_id,
@@ -46,8 +45,4 @@ class SearchContentUseCase:
                 content_type=content_type,
             )
 
-        return SemanticSearchResultsView(
-            highlights=await self.hydration.highlights(await hits(ContentType.HIGHLIGHT), user_id),
-            notes=await self.hydration.notes(await hits(ContentType.NOTE), user_id),
-            digests=await self.hydration.digests(await hits(ContentType.DIGEST), user_id),
-        )
+        return await group_by_content_type(scan, self.hydration, user_id)

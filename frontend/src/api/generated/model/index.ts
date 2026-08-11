@@ -95,7 +95,6 @@ export * from './relatedContentParams.ts';
 export * from './searchBookHighlightsParams.ts';
 export * from './searchBookRef.ts';
 export * from './searchContentParams.ts';
-export * from './semanticSearchResult.ts';
 export * from './semanticSearchResults.ts';
 export * from './sendChatMessageRequest.ts';
 export * from './sendChatMessageResponse.ts';

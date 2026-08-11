@@ -2,7 +2,6 @@
 
 from pydantic import BaseModel, ConfigDict
 
-from src.application.semantic.content_type import ContentType
 from src.infrastructure.jobs.schemas.job_batch_schemas import JobBatchResponse
 
 
@@ -16,14 +15,6 @@ class BackfillResponse(BaseModel):
 
     total_jobs: int
     batch: JobBatchResponse | None
-
-
-class SemanticSearchResult(BaseModel):
-    content_type: ContentType
-    content_id: int
-    book_id: int | None
-    score: float
-    text: str
 
 
 #: The grouped-search schemas are validated straight off the read model's view
