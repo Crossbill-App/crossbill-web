@@ -89,10 +89,7 @@ export const useCacheEvents = () => {
 
       /** Digest content was generated or answered for a chapter. */
       digestChanged: (bookId: number) =>
-        invalidate(
-          getGetBookDigestQueryKey(bookId),
-          getRelatedContentQueryKey()
-        ),
+        invalidate(getGetBookDigestQueryKey(bookId), getRelatedContentQueryKey()),
 
       /** A batch digest job reached a terminal state, so its output is ready. */
       digestBatchFinished: (bookId: number) =>
