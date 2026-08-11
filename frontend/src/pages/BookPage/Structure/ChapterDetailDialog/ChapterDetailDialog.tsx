@@ -17,6 +17,7 @@ import {
   useDialogSwipeNavigation,
 } from '@/components/dialogs/useDialogHorizontalNavigation.ts';
 import type { UrlEntityDialogController } from '@/components/dialogs/useUrlEntityDialog.ts';
+import { useRelatedItems } from '@/components/search/useRelatedItems.ts';
 import { LinkedNotesSection } from '@/pages/BookPage/Notes/components/LinkedNotesSection.tsx';
 import { NoteEditorDialog } from '@/pages/BookPage/Notes/NoteEditorDialog';
 import { Box, Button } from '@mui/material';
@@ -34,7 +35,7 @@ import { HighlightsSection } from './HighlightsSection.tsx';
 interface ChapterDetailDialogProps {
   controller: UrlEntityDialogController<ChapterWithHighlights>;
   bookId: number;
-  digestByChapterId: Record<number, ChapterDigestResponse>;
+  digestByChapterId: Record<number, ChapterDigestResponse | undefined>;
   bookmarksByHighlightId: Record<number, Bookmark>;
   availableTags: TagInBook[];
   bookFlashcards?: Flashcard[];
@@ -84,6 +85,12 @@ export const ChapterDetailDialog = ({
   const { data: notesData, isLoading: notesLoading } = useGetNotesForBook(bookId, {
     chapter_id: chapter.id,
   });
+
+  const relatedContent = useRelatedItems({
+    contentId: digestSummary?.id,
+    contentType: 'digest',
+  });
+
   // NOTE: the orval axios mutator unwraps the response (`.then(({ data }) => data)`),
   // so the generated GET hook's `data` is the payload itself, not an AxiosResponse.
   const notes = notesData?.items ?? [];
@@ -106,6 +113,7 @@ export const ChapterDetailDialog = ({
           chapterId={chapter.id}
           bookId={bookId}
           digestSummary={digestSummary}
+          relatedContent={relatedContent.related?.digests ?? []}
           onStartQuiz={() => setQuizOpen(true)}
           onStartChat={() => setChatOpen(true)}
         />
@@ -119,6 +127,7 @@ export const ChapterDetailDialog = ({
         <LinkedNotesSection
           bookId={bookId}
           target={{ kind: 'chapter', id: chapter.id }}
+          relatedContent={relatedContent.related?.notes ?? []}
           notes={notes}
           isLoading={notesLoading}
         />
@@ -132,6 +141,7 @@ export const ChapterDetailDialog = ({
         <HighlightsSection
           chapter={chapter}
           bookId={bookId}
+          relatedContent={relatedContent.related?.highlights ?? []}
           bookmarksByHighlightId={bookmarksByHighlightId}
           availableTags={availableTags}
         />

@@ -8,5 +8,5 @@
  */
 const MIN_SCORE = 0.35;
 
-export const strongEnough = <T extends { score: number }>(items: T[]) =>
-  items.filter((item) => item.score >= MIN_SCORE);
+export const strongEnough = <T extends { score: number }>(items: T[], minScore = MIN_SCORE) =>
+  items.filter((item) => item.score >= minScore);

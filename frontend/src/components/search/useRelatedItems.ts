@@ -1,4 +1,4 @@
-import { ContentType, SemanticSearchResults } from '@/api/generated/model';
+import type { ContentType, SemanticSearchResults } from '@/api/generated/model';
 import { useRelatedContent } from '@/api/generated/semantic/semantic.ts';
 import { strongEnough } from '@/components/search/semanticScore.ts';
 import { useSettings } from '@/context/SettingsContext.tsx';
@@ -17,14 +17,19 @@ interface RelatedItemsState {
   isEnabled: boolean;
 }
 
-const DEFAULT_LIMIT = 25;
+/** Per content type, which is also as many as a related strip renders. */
+const DEFAULT_LIMIT = 10;
+const MIN_SCORE = 0.6;
+
 export const useRelatedItems = ({
   contentType,
   contentId,
   limit = DEFAULT_LIMIT,
 }: UseRelatedItemsOptions): RelatedItemsState => {
   const { featureFlags } = useSettings();
-  const embeddingsEnabled = !!featureFlags?.embeddings;
+  // An absent anchor is as disabling as the flag: there is nothing to be
+  // related to, and `content_id` is required, so the request cannot be honest.
+  const isEnabled = featureFlags?.embeddings === true && contentId !== undefined;
 
   const { data, isFetching, isError } = useRelatedContent(
     {
@@ -33,17 +38,18 @@ export const useRelatedItems = ({
       limit,
     },
     {
-      query: { enabled: embeddingsEnabled },
+      query: { enabled: isEnabled },
     }
   );
 
   const results = useMemo(() => {
-    if (!embeddingsEnabled || !data) return undefined;
+    if (!isEnabled || !data) return undefined;
     return {
-      highlights: strongEnough(data.highlights),
-      notes: strongEnough(data.notes),
-      digests: strongEnough(data.digests),
+      highlights: strongEnough(data.highlights, MIN_SCORE),
+      notes: strongEnough(data.notes, MIN_SCORE),
+      digests: strongEnough(data.digests, MIN_SCORE),
     };
-  }, [data, embeddingsEnabled]);
-  return { related: results, isFetching, isError, isEnabled: embeddingsEnabled };
+  }, [data, isEnabled]);
+
+  return { related: results, isFetching, isError, isEnabled };
 };
