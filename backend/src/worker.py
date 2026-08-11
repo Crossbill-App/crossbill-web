@@ -16,7 +16,7 @@ from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from src.application.semantic.content_type import ContentType
 from src.application.semantic.protocols.embedding_enqueuer import EmbeddingEnqueuerProtocol
-from src.config import get_settings
+from src.config import configure_logging, configure_sentry, get_settings
 from src.database import get_session_factory, initialize_database
 from src.infrastructure.ai.ai_service import AIService
 from src.infrastructure.ai.repositories.ai_usage_repository import AIUsageRepository
@@ -142,9 +142,17 @@ def _build_embedding_handler(db: AsyncSession) -> EmbeddingTaskHandler:
 
 
 async def startup(ctx: Context) -> None:
-    """Initialize worker resources."""
-    logger.info("worker_starting")
+    """Initialize worker resources.
+
+    Configures logging and Sentry for the standalone entrypoint (``saq
+    src.worker.worker_settings``), which never imports main.py -- without this
+    a separate worker service would log unstructured text and report nothing.
+    Both calls are no-ops in embedded mode, where main.py configured them.
+    """
     settings = _get_app_settings()
+    configure_logging(settings.ENVIRONMENT)
+    configure_sentry(settings)
+    logger.info("worker_starting")
     initialize_database(settings)
 
     global _session_factory  # noqa: PLW0603
