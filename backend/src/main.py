@@ -19,7 +19,7 @@ from slowapi.errors import RateLimitExceeded
 from starlette.datastructures import MutableHeaders
 from starlette.types import ASGIApp, Message, Receive, Scope, Send
 
-from src.config import configure_logging, get_settings
+from src.config import configure_logging, configure_sentry, get_settings
 from src.database import dispose_engine, get_session_factory, initialize_database
 from src.domain.common.exceptions import (
     AuthenticationError,
@@ -69,8 +69,9 @@ from src.infrastructure.tagging.routers import tags as tagging_tags
 
 settings = get_settings()
 
-# Configure structured logging
+# Configure structured logging and Sentry before the app is created
 configure_logging(settings.ENVIRONMENT)
+configure_sentry(settings)
 
 logger = structlog.get_logger(__name__)
 
