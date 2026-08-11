@@ -90,14 +90,13 @@ export const NoteViewDialog = ({
     setDeleteConfirmOpen(false);
   }
 
-  const { navigation } =
-    useDialogHorizontalNavigation({
-      open: true,
-      currentIndex: currentIndex ?? 0,
-      totalCount: totalCount ?? 1,
-      // Suspend navigation while editing so arrows/swipes can't discard edits.
-      onNavigate: isEditing ? undefined : onNavigate,
-    });
+  const { navigation } = useDialogHorizontalNavigation({
+    open: true,
+    currentIndex: currentIndex ?? 0,
+    totalCount: totalCount ?? 1,
+    // Suspend navigation while editing so arrows/swipes can't discard edits.
+    onNavigate: isEditing ? undefined : onNavigate,
+  });
 
   const { data: activeNote, isLoading, isError } = useGetNote(noteId);
 

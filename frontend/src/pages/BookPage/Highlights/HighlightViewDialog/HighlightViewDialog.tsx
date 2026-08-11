@@ -49,13 +49,12 @@ export const HighlightViewDialog = ({
     initialTags: highlight.tags,
   });
 
-  const { hasNavigation, navigation } =
-    useDialogHorizontalNavigation({
-      open,
-      currentIndex: controller.activeIndex,
-      totalCount: controller.totalCount,
-      onNavigate: controller.navigateToIndex,
-    });
+  const { hasNavigation, navigation } = useDialogHorizontalNavigation({
+    open,
+    currentIndex: controller.activeIndex,
+    totalCount: controller.totalCount,
+    onNavigate: controller.navigateToIndex,
+  });
 
   const deleteHighlightMutation = useDeleteHighlights({
     mutation: {

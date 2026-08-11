@@ -30,8 +30,11 @@ const aNavigation = (overrides = {}) => ({
   ...overrides,
 });
 
-test('a phone pages between entities from arrows in the footer', async () => {
-  await page.viewport(PHONE.width, PHONE.height);
+test.for([
+  ['a phone', PHONE],
+  ['a wide screen', DESKTOP],
+] as const)('%s pages between entities from arrows in the footer', async ([, viewport]) => {
+  await page.viewport(viewport.width, viewport.height);
   const navigation = aNavigation();
   const screen = await renderDialog({ navigation });
 
@@ -51,22 +54,28 @@ test('an end of the list retires its arrow rather than hiding it', async () => {
 });
 
 /**
- * A wide screen navigates from the controls beside the content instead, so a
- * footer holding nothing but hidden arrows would be an empty bar under the
- * dialog — the reason the footer is conditional on having something to show.
+ * The footer is the one place paging is always available, so it carries the
+ * arrows even for a dialog that has no actions of its own to put beside them.
  */
-test('a wide screen renders no footer for navigation alone', async () => {
+test('navigation alone is enough to render the footer', async () => {
   const screen = await renderDialog({ navigation: aNavigation() });
+
+  await expect.element(screen.getByRole('button', { name: 'Next' })).toBeVisible();
+});
+
+test('a dialog with neither actions nor navigation renders no footer at all', async () => {
+  const screen = await renderDialog();
 
   expect(screen.getByRole('button', { name: 'Next' }).elements()).toHaveLength(0);
   expect(screen.getByRole('button', { name: 'Previous' }).elements()).toHaveLength(0);
 });
 
-test('footer actions still render on a wide screen', async () => {
+test('footer actions sit alongside the arrows', async () => {
   const screen = await renderDialog({
     navigation: aNavigation(),
     footerActions: <button type="button">Save</button>,
   });
 
   await expect.element(screen.getByRole('button', { name: 'Save' })).toBeVisible();
+  await expect.element(screen.getByRole('button', { name: 'Next' })).toBeVisible();
 });

@@ -12,10 +12,10 @@ interface CommonDialogHorizontalNavigationProps {
 /**
  * Previous/next controls flanking a modal's content.
  *
- * Only from `sm` up, where there is room beside the content for them. Narrower
- * than that the same navigation lives in the dialog footer, which `CommonDialog`
- * renders — a phone has no spare horizontal room, and the footer is within
- * thumb reach in a way the content's edges are not.
+ * Only from `sm` up, where there is room beside the content for them; a phone
+ * has none to spare. They duplicate the footer's arrows, which `CommonDialog`
+ * renders at every width — the same action within reach of where the eye
+ * already is, rather than only at the bottom of the dialog.
  *
  * An arrow at the end of the list stays in place and turns invisible rather
  * than unmounting, so the content column does not shift sideways as the reader

@@ -25,9 +25,10 @@ interface CommonDialogProps {
   children: ReactNode;
   footerActions?: ReactNode;
   /**
-   * Paging to the previous/next entity, rendered centred in the footer on
-   * phones only — wider screens have room for the controls beside the content
-   * (`CommonDialogHorizontalNavigation`).
+   * Paging to the previous/next entity, rendered centred in the footer at
+   * every width. Wider screens additionally get the controls beside the
+   * content (`CommonDialogHorizontalNavigation`); the footer is the pair that
+   * is always in the same place, whatever the dialog is showing.
    */
   navigation?: DialogNavigation;
   maxWidth?: 'xs' | 'sm' | 'md' | 'lg' | 'xl';
@@ -57,25 +58,24 @@ export const CommonDialog = ({
   const theme = useTheme();
   const fullScreen = useMediaQuery(theme.breakpoints.down('sm'));
 
-  const footerNavigation =
-    navigation && fullScreen ? (
-      <Box sx={{ display: 'flex', gap: 1 }}>
-        <IconButton
-          onClick={navigation.onPrevious}
-          disabled={!navigation.hasPrevious || isLoading}
-          aria-label="Previous"
-        >
-          <ArrowBackIcon />
-        </IconButton>
-        <IconButton
-          onClick={navigation.onNext}
-          disabled={!navigation.hasNext || isLoading}
-          aria-label="Next"
-        >
-          <ArrowForwardIcon />
-        </IconButton>
-      </Box>
-    ) : null;
+  const footerNavigation = navigation ? (
+    <Box sx={{ display: 'flex', gap: 1 }}>
+      <IconButton
+        onClick={navigation.onPrevious}
+        disabled={!navigation.hasPrevious || isLoading}
+        aria-label="Previous"
+      >
+        <ArrowBackIcon />
+      </IconButton>
+      <IconButton
+        onClick={navigation.onNext}
+        disabled={!navigation.hasNext || isLoading}
+        aria-label="Next"
+      >
+        <ArrowForwardIcon />
+      </IconButton>
+    </Box>
+  ) : null;
 
   // Lock body scroll when dialog is open
   useEffect(() => {

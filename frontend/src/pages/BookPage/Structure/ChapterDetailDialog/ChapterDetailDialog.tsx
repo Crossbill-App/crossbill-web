@@ -57,13 +57,12 @@ export const ChapterDetailDialog = ({
   const chapter = controller.activeItem!;
   const { activeIndex, totalCount, navigateToIndex } = controller;
 
-  const { hasNavigation, navigation } =
-    useDialogHorizontalNavigation({
-      open: controller.activeId !== null,
-      currentIndex: activeIndex,
-      totalCount,
-      onNavigate: navigateToIndex,
-    });
+  const { hasNavigation, navigation } = useDialogHorizontalNavigation({
+    open: controller.activeId !== null,
+    currentIndex: activeIndex,
+    totalCount,
+    onNavigate: navigateToIndex,
+  });
 
   const digestSummary = digestByChapterId[chapter.id];
 
