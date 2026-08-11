@@ -13,6 +13,7 @@ import sentry_sdk
 import structlog
 from pydantic import AliasChoices, Field, computed_field, field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
+from sentry_sdk.integrations.fastapi import FastApiIntegration
 from sentry_sdk.integrations.logging import LoggingIntegration
 from structlog_sentry import SentryProcessor
 
@@ -379,7 +380,11 @@ def configure_sentry(settings: Settings) -> None:
         release=settings.VERSION,
         send_default_pii=True,
         enable_logs=True,
-        integrations=[LoggingIntegration(level=logging.INFO, event_level=None)],
+        traces_sample_rate=1.0,  # or lower in production
+        integrations=[
+            FastApiIntegration(),
+            LoggingIntegration(level=logging.INFO, event_level=None),
+        ],
     )
     _sentry_initialized = True
 
