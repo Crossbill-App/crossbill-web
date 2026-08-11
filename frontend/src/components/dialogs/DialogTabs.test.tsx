@@ -9,7 +9,7 @@ import { userEvent } from 'vitest/browser';
  * arrow keys page to the previous/next entity.
  */
 const NavigableDialog = ({ onNavigate }: { onNavigate: (newIndex: number) => void }) => {
-  const { swipeHandlers } = useDialogHorizontalNavigation({
+  useDialogHorizontalNavigation({
     open: true,
     currentIndex: 1,
     totalCount: 3,
@@ -20,7 +20,6 @@ const NavigableDialog = ({ onNavigate }: { onNavigate: (newIndex: number) => voi
     <div>
       <button type="button">Body control</button>
       <DialogTabs
-        panelSwipeHandlers={swipeHandlers}
         tabs={[
           { key: 'notes', label: 'Notes', count: 1, content: <div>Linked notes</div> },
           { key: 'flashcards', label: 'Flashcards', count: 2, content: <div>Flashcard list</div> },

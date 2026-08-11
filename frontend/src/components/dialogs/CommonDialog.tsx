@@ -1,4 +1,4 @@
-import { CloseIcon } from '@/theme/Icons.tsx';
+import { ArrowBackIcon, ArrowForwardIcon, CloseIcon } from '@/theme/Icons.tsx';
 import {
   Box,
   Dialog,
@@ -11,12 +11,25 @@ import {
 } from '@mui/material';
 import { useEffect, type ReactNode } from 'react';
 
+interface DialogNavigation {
+  hasPrevious: boolean;
+  hasNext: boolean;
+  onPrevious: () => void;
+  onNext: () => void;
+}
+
 interface CommonDialogProps {
   open: boolean;
   onClose: () => void;
   title: ReactNode;
   children: ReactNode;
   footerActions?: ReactNode;
+  /**
+   * Paging to the previous/next entity, rendered centred in the footer on
+   * phones only — wider screens have room for the controls beside the content
+   * (`CommonDialogHorizontalNavigation`).
+   */
+  navigation?: DialogNavigation;
   maxWidth?: 'xs' | 'sm' | 'md' | 'lg' | 'xl';
   isLoading?: boolean;
   headerElement?: ReactNode;
@@ -26,7 +39,7 @@ interface CommonDialogProps {
  * Common dialog component with standard structure:
  * - Header with title and close button
  * - Scrollable content area
- * - Optional footer with action buttons
+ * - Optional footer with action buttons and, on phones, entity paging
  * - Mobile-friendly with fullscreen mode on small screens
  * - Safe-area padding for devices with rounded corners (iPhone)
  */
@@ -36,12 +49,33 @@ export const CommonDialog = ({
   title,
   children,
   footerActions,
+  navigation,
   maxWidth = 'sm',
   isLoading = false,
   headerElement,
 }: CommonDialogProps) => {
   const theme = useTheme();
   const fullScreen = useMediaQuery(theme.breakpoints.down('sm'));
+
+  const footerNavigation =
+    navigation && fullScreen ? (
+      <Box sx={{ display: 'flex', gap: 1 }}>
+        <IconButton
+          onClick={navigation.onPrevious}
+          disabled={!navigation.hasPrevious || isLoading}
+          aria-label="Previous"
+        >
+          <ArrowBackIcon />
+        </IconButton>
+        <IconButton
+          onClick={navigation.onNext}
+          disabled={!navigation.hasNext || isLoading}
+          aria-label="Next"
+        >
+          <ArrowForwardIcon />
+        </IconButton>
+      </Box>
+    ) : null;
 
   // Lock body scroll when dialog is open
   useEffect(() => {
@@ -169,7 +203,7 @@ export const CommonDialog = ({
         <Box sx={{ px: 3 }}>{children}</Box>
       </DialogContent>
 
-      {footerActions && (
+      {(footerActions || footerNavigation) && (
         <DialogActions
           sx={{
             justifyContent: 'space-between',
@@ -180,7 +214,19 @@ export const CommonDialog = ({
             pl: 2,
           }}
         >
-          {footerActions}
+          {footerNavigation ? (
+            <>
+              {/* Spacer opposite the actions, so the arrows sit on the bar's
+                  centre rather than the centre of whatever is left over. */}
+              <Box sx={{ flex: 1 }} />
+              {footerNavigation}
+              <Box sx={{ flex: 1, display: 'flex', justifyContent: 'flex-end' }}>
+                {footerActions}
+              </Box>
+            </>
+          ) : (
+            footerActions
+          )}
         </DialogActions>
       )}
     </Dialog>
