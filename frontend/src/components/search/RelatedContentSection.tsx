@@ -22,12 +22,7 @@ export const RelatedContentSection = ({ title, rows }: RelatedContentSectionProp
   if (rows.length === 0) return null;
 
   return (
-    <Box
-      sx={{ mt: 4, gap: 2, display: 'flex', flexDirection: 'column' }}
-      onTouchStart={(e) => e.stopPropagation()}
-      onTouchMove={(e) => e.stopPropagation()}
-      onTouchEnd={(e) => e.stopPropagation()}
-    >
+    <Box sx={{ mt: 4, gap: 2, display: 'flex', flexDirection: 'column' }}>
       <SectionTitle component="h3">{title}</SectionTitle>
       <Carousel aria-label={title}>
         {rows.map((row) => (

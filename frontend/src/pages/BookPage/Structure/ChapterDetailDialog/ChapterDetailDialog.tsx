@@ -12,15 +12,12 @@ import { CommonDialogHorizontalNavigation } from '@/components/dialogs/CommonDia
 import { CommonDialogTitle } from '@/components/dialogs/CommonDialogTitle.tsx';
 import { DialogTabs, type DialogTabItem } from '@/components/dialogs/DialogTabs.tsx';
 import { ProgressBar } from '@/components/dialogs/ProgressBar.tsx';
-import {
-  useDialogHorizontalNavigation,
-  useDialogSwipeNavigation,
-} from '@/components/dialogs/useDialogHorizontalNavigation.ts';
+import { useDialogHorizontalNavigation } from '@/components/dialogs/useDialogHorizontalNavigation.ts';
 import type { UrlEntityDialogController } from '@/components/dialogs/useUrlEntityDialog.ts';
 import { useRelatedItems } from '@/components/search/useRelatedItems.ts';
 import { LinkedNotesSection } from '@/pages/BookPage/Notes/components/LinkedNotesSection.tsx';
 import { NoteEditorDialog } from '@/pages/BookPage/Notes/NoteEditorDialog';
-import { Box, Button } from '@mui/material';
+import { Box } from '@mui/material';
 import { sumBy } from 'lodash';
 import { useMemo, useState } from 'react';
 import { ChapterGistSection } from './ChapterGistSection.tsx';
@@ -60,21 +57,8 @@ export const ChapterDetailDialog = ({
   const chapter = controller.activeItem!;
   const { activeIndex, totalCount, navigateToIndex } = controller;
 
-  const { hasNavigation, hasPrevious, hasNext, handlePrevious, handleNext } =
-    useDialogHorizontalNavigation({
-      open: controller.activeId !== null,
-      currentIndex: activeIndex,
-      totalCount,
-      onNavigate: navigateToIndex,
-    });
-
-  const { swipeHandlers: summarySwipeHandlers } = useDialogSwipeNavigation({
-    currentIndex: activeIndex,
-    totalCount,
-    onNavigate: navigateToIndex,
-  });
-
-  const { swipeHandlers: tabSwipeHandlers } = useDialogSwipeNavigation({
+  const { hasNavigation, navigation } = useDialogHorizontalNavigation({
+    open: controller.activeId !== null,
     currentIndex: activeIndex,
     totalCount,
     onNavigate: navigateToIndex,
@@ -166,18 +150,11 @@ export const ChapterDetailDialog = ({
     <Box>
       <ChapterGistSection chapterId={chapter.id} chapterName={chapter.name} notes={notes} />
 
-      <Box {...summarySwipeHandlers}>
-        <DigestSummarySection digestSummary={digestSummary} defaultExpanded={true} />
-      </Box>
+      <DigestSummarySection digestSummary={digestSummary} defaultExpanded={true} />
 
       <ChapterToolbar chapterId={chapter.id} bookId={bookId} hasSummary={!!digestSummary} />
 
-      <DialogTabs
-        tabs={tabs}
-        activeTab={activeTab}
-        onTabChange={setActiveTab}
-        panelSwipeHandlers={tabSwipeHandlers}
-      />
+      <DialogTabs tabs={tabs} activeTab={activeTab} onTabChange={setActiveTab} />
     </Box>
   );
 
@@ -193,19 +170,9 @@ export const ChapterDetailDialog = ({
             <ProgressBar currentIndex={activeIndex} totalCount={totalCount} />
           ) : undefined
         }
-        footerActions={
-          <Box sx={{ display: 'flex', justifyContent: 'flex-end', width: '100%' }}>
-            <Button onClick={controller.close}>Close</Button>
-          </Box>
-        }
+        navigation={navigation}
       >
-        <CommonDialogHorizontalNavigation
-          hasNavigation={hasNavigation}
-          hasPrevious={hasPrevious}
-          hasNext={hasNext}
-          onPrevious={handlePrevious}
-          onNext={handleNext}
-        >
+        <CommonDialogHorizontalNavigation navigation={navigation}>
           <FadeInOut ekey={chapter.id}>{renderContent()}</FadeInOut>
         </CommonDialogHorizontalNavigation>
       </CommonDialog>

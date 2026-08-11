@@ -12,7 +12,7 @@ import { useMutationErrorHandler } from '@/hooks/useMutationErrorHandler.ts';
 import { useCacheEvents } from '@/lib/cacheEvents.ts';
 import { useImmediateTagMutation } from '@/pages/BookPage/Highlights/HighlightViewDialog/hooks/useImmediateTagMutation.ts';
 import type { HighlightDialogController } from '@/pages/BookPage/Highlights/hooks/useHighlightDialog.ts';
-import { Box, Button, Stack } from '@mui/material';
+import { Box, Stack } from '@mui/material';
 import { useState } from 'react';
 import { HighlightContent } from '../../common/HighlightContent.tsx';
 import { HighlightTabs } from './components/HighlightTabs.tsx';
@@ -49,13 +49,12 @@ export const HighlightViewDialog = ({
     initialTags: highlight.tags,
   });
 
-  const { hasNavigation, hasPrevious, hasNext, handlePrevious, handleNext, swipeHandlers } =
-    useDialogHorizontalNavigation({
-      open,
-      currentIndex: controller.activeIndex,
-      totalCount: controller.totalCount,
-      onNavigate: controller.navigateToIndex,
-    });
+  const { hasNavigation, navigation } = useDialogHorizontalNavigation({
+    open,
+    currentIndex: controller.activeIndex,
+    totalCount: controller.totalCount,
+    onNavigate: controller.navigateToIndex,
+  });
 
   const deleteHighlightMutation = useDeleteHighlights({
     mutation: {
@@ -135,23 +134,9 @@ export const HighlightViewDialog = ({
           <ProgressBar currentIndex={controller.activeIndex} totalCount={controller.totalCount} />
         ) : undefined
       }
-      footerActions={
-        <Box sx={{ display: 'flex', justifyContent: 'flex-end', width: '100%' }}>
-          <Button onClick={handleClose} disabled={isLoading}>
-            Close
-          </Button>
-        </Box>
-      }
+      navigation={navigation}
     >
-      <CommonDialogHorizontalNavigation
-        hasNavigation={hasNavigation}
-        hasPrevious={hasPrevious}
-        hasNext={hasNext}
-        onPrevious={handlePrevious}
-        onNext={handleNext}
-        swipeHandlers={swipeHandlers}
-        disabled={isLoading}
-      >
+      <CommonDialogHorizontalNavigation navigation={navigation} disabled={isLoading}>
         <FadeInOut ekey={highlight.id}>
           <HighlightContent highlight={highlight} onLabelClick={handleLabelClick} />
         </FadeInOut>

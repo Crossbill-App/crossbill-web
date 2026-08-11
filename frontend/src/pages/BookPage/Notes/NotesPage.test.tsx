@@ -48,7 +48,7 @@ test('renaming a note updates the notes list', async () => {
   const dialog = screen.getByRole('dialog');
   await userEvent.fill(dialog.getByRole('textbox', { name: 'Title' }), 'Difference Engine');
   await userEvent.click(dialog.getByRole('button', { name: 'Save' }));
-  await userEvent.click(dialog.getByRole('button', { name: 'Close', exact: true }));
+  await userEvent.click(dialog.getByRole('button', { name: 'Close dialog' }));
 
   await expect.element(screen.getByRole('heading', { name: 'Difference Engine' })).toBeVisible();
   expect(screen.getByRole('heading', { name: 'Analytical Engine' }).elements()).toHaveLength(0);
@@ -76,7 +76,7 @@ test('a failed save reports the error and leaves the note unchanged', async () =
     .toBeVisible();
 
   await userEvent.click(dialog.getByRole('button', { name: 'Cancel' }));
-  await userEvent.click(dialog.getByRole('button', { name: 'Close', exact: true }));
+  await userEvent.click(dialog.getByRole('button', { name: 'Close dialog' }));
 
   await expect.element(screen.getByRole('heading', { name: 'Analytical Engine' })).toBeVisible();
   expect(screen.getByRole('heading', { name: 'Difference Engine' }).elements()).toHaveLength(0);

@@ -90,14 +90,13 @@ export const NoteViewDialog = ({
     setDeleteConfirmOpen(false);
   }
 
-  const { hasNavigation, hasPrevious, hasNext, handlePrevious, handleNext, swipeHandlers } =
-    useDialogHorizontalNavigation({
-      open: true,
-      currentIndex: currentIndex ?? 0,
-      totalCount: totalCount ?? 1,
-      // Suspend navigation while editing so arrows/swipes can't discard edits.
-      onNavigate: isEditing ? undefined : onNavigate,
-    });
+  const { navigation } = useDialogHorizontalNavigation({
+    open: true,
+    currentIndex: currentIndex ?? 0,
+    totalCount: totalCount ?? 1,
+    // Suspend navigation while editing so arrows/swipes can't discard edits.
+    onNavigate: isEditing ? undefined : onNavigate,
+  });
 
   const { data: activeNote, isLoading, isError } = useGetNote(noteId);
 
@@ -154,8 +153,10 @@ export const NoteViewDialog = ({
       .filter((highlight): highlight is Highlight => highlight !== undefined);
   }, [book.chapters, activeNote]);
 
+  // Only while editing: viewing has nothing to confirm, and the header's close
+  // button is the way out.
   const footerActions = isEditing ? (
-    <Box sx={{ display: 'flex', gap: 1, width: '100%', justifyContent: 'flex-end' }}>
+    <Box sx={{ display: 'flex', gap: 1, justifyContent: 'flex-end' }}>
       <Button onClick={() => setIsEditing(false)} disabled={formStatus.isSaving}>
         Cancel
       </Button>
@@ -167,13 +168,7 @@ export const NoteViewDialog = ({
         {formStatus.isSaving ? 'Saving...' : 'Save'}
       </Button>
     </Box>
-  ) : (
-    <Box sx={{ display: 'flex', justifyContent: 'flex-end', width: '100%' }}>
-      <Button onClick={onClose} disabled={isDeleting}>
-        Close
-      </Button>
-    </Box>
-  );
+  ) : undefined;
 
   return (
     <CommonDialog
@@ -199,16 +194,9 @@ export const NoteViewDialog = ({
         </CommonDialogTitle>
       }
       footerActions={footerActions}
+      navigation={navigation}
     >
-      <CommonDialogHorizontalNavigation
-        hasNavigation={hasNavigation}
-        hasPrevious={hasPrevious}
-        hasNext={hasNext}
-        onPrevious={handlePrevious}
-        onNext={handleNext}
-        swipeHandlers={swipeHandlers}
-        disabled={isDeleting}
-      >
+      <CommonDialogHorizontalNavigation navigation={navigation} disabled={isDeleting}>
         <Box
           sx={{
             mt: 2,
