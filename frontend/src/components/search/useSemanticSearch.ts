@@ -1,18 +1,9 @@
 import type { SemanticSearchResults } from '@/api/generated/model';
 import { useSearchContent } from '@/api/generated/semantic/semantic.ts';
+import { strongEnough } from '@/components/search/semanticScore.ts';
 import { useSettings } from '@/context/SettingsContext.tsx';
 import { keepPreviousData } from '@tanstack/react-query';
 import { useMemo } from 'react';
-
-/**
- * Cosine-similarity floor for a result worth showing.
- *
- * Nearest-neighbour search always returns its top N, so a query with no real
- * match still comes back with the least-bad items. Without a floor, "quantum"
- * against a philosophy book produces a confident-looking list of noise. 0.35 is
- * a starting value for this embedding model, not a measured one.
- */
-const MIN_SCORE = 0.35;
 
 /** Default results per content type. The endpoint's maximum is 100. */
 const DEFAULT_LIMIT = 25;
@@ -37,9 +28,6 @@ interface SemanticSearchState {
    */
   hasQuery: boolean;
 }
-
-const strongEnough = <T extends { score: number }>(items: T[]) =>
-  items.filter((item) => item.score >= MIN_SCORE);
 
 /**
  * Semantic search over the user's embedded content.
