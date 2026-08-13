@@ -1,7 +1,7 @@
 import { RouterProvider, createRouter } from '@tanstack/react-router';
-import { routeTree } from './routeTree.gen';
+import { routerOptions } from './router';
 
-const router = createRouter({ routeTree });
+const router = createRouter(routerOptions);
 
 declare module '@tanstack/react-router' {
   interface Register {

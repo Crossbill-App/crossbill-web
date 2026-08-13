@@ -1,5 +1,5 @@
 import { SnackbarProvider } from '@/context/SnackbarContext';
-import { routeTree } from '@/routeTree.gen';
+import { routerOptions } from '@/router';
 import { theme } from '@/theme/theme';
 import CssBaseline from '@mui/material/CssBaseline';
 import { ThemeProvider } from '@mui/material/styles';
@@ -52,7 +52,7 @@ export async function renderApp({ path }: RenderAppOptions) {
   const queryClient = createTestQueryClient();
   pendingQueryClients.push(queryClient);
   const router = createRouter({
-    routeTree,
+    ...routerOptions,
     history: createBrowserHistory(),
   });
 

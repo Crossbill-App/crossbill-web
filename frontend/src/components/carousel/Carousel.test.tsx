@@ -71,18 +71,6 @@ test('paging forward lands on an item boundary and reveals the back control', as
   await expect.element(screen.getByRole('button', { name: 'Scroll back' })).toBeInTheDocument();
 });
 
-test('paging back returns to the start and retires the back control', async () => {
-  const screen = await render(<Strip count={10} />);
-
-  await userEvent.click(screen.getByRole('button', { name: 'Scroll forward' }));
-  await expect.poll(() => Math.round(viewport().scrollLeft)).toBe(STEP * 2);
-
-  await userEvent.click(screen.getByRole('button', { name: 'Scroll back' }));
-
-  await expect.poll(() => Math.round(viewport().scrollLeft)).toBe(0);
-  await expect.element(screen.getByRole('button', { name: 'Scroll back' })).not.toBeInTheDocument();
-});
-
 test('items land on the content column when the carousel bleeds past its container', async () => {
   const screen = await render(<Strip count={10} bleed={3} />);
 

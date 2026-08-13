@@ -228,3 +228,47 @@ test('a match below the score cutoff counts as no match', async () => {
   await expect.element(screen.getByText(/No chapters match/)).toBeVisible();
   expect(screen.getByText('Attention and memory').elements()).toHaveLength(0);
 });
+
+/**
+ * A chapter dialog lives in a search param, and closes itself with
+ * `history.back()`. The router renders that popstate like any other
+ * navigation, which means scrolling to the top of the page unless it is
+ * restoring the position the entry was left at (`scrollRestoration`) — so the
+ * page under a dismissed dialog used to jump back to the first chapter.
+ */
+test('closing a chapter dialog leaves the page where it was scrolled to', async () => {
+  worker.use(
+    ...bookApi({
+      book: aBookDetails({
+        chapters: Array.from({ length: 40 }, (_, index) =>
+          aChapter({ id: 100 + index, name: `Chapter ${index + 1}`, chapter_number: index + 1 })
+        ),
+      }),
+    }).handlers
+  );
+
+  const screen = await renderApp({ path: '/book/1/structure' });
+  await expect.element(screen.getByText('Chapter 40')).toBeVisible();
+
+  window.scrollTo(0, 600);
+  expect(window.scrollY).toBe(600);
+
+  await userEvent.click(screen.getByText('Chapter 10'));
+  await expect
+    .element(screen.getByRole('dialog').getByRole('tab', { name: 'Chapter review' }))
+    .toBeVisible();
+
+  // Where the dialog's body-scroll lock parked the page, read rather than
+  // assumed to be 600: driving a real click scrolls its target into view
+  // first, which can move the page a little.
+  const parked = -Number.parseFloat(document.body.style.top);
+  expect(parked).toBeGreaterThan(0);
+
+  await userEvent.click(screen.getByRole('button', { name: 'Close dialog' }));
+  await expect.element(screen.getByRole('dialog')).not.toBeInTheDocument();
+
+  // Settled rather than polled: the regression restored the position and then
+  // scrolled away from it a frame later, which a poll would call a pass.
+  await new Promise((resolve) => setTimeout(resolve, 400));
+  expect(window.scrollY).toBe(parked);
+});
