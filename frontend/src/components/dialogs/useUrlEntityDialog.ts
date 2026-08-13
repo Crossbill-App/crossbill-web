@@ -32,6 +32,7 @@ export const useUrlEntityDialog = <T extends { id: number }>({
   const navigate = useNavigate() as (opts: {
     search: (prev: Record<string, unknown>) => Record<string, unknown>;
     replace?: boolean;
+    resetScroll?: boolean;
   }) => Promise<void>;
 
   // Tracks whether the dialog was opened via user click (push) vs direct URL
@@ -49,6 +50,9 @@ export const useUrlEntityDialog = <T extends { id: number }>({
         void navigate({
           search: (prev) => ({ ...prev, [param]: newId }),
           replace,
+          // The page underneath does not change, so neither should its scroll
+          // position — the router resets it to the top by default.
+          resetScroll: false,
         });
       } else {
         setLocalId(newId ?? null);
