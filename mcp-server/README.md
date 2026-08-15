@@ -12,6 +12,7 @@ Model Context Protocol (MCP) server that exposes the Crossbill reading companion
 - Manage bookmarks
 - View reading sessions
 - Semantic search over highlights, notes, and chapter digests
+- Create, read, update, and delete markdown notes
 
 ## Installation
 
@@ -130,3 +131,13 @@ Requires an embedding provider configured on the Crossbill server; without one, 
 
 - **semantic_search** - Rank highlights, notes, and chapter digests by semantic similarity to a natural-language query, optionally scoped to one book. Results are grouped by content type, with `limit` applied per group.
 - **find_related** - Find content similar to an existing item, named by `content_type` (`note`, `highlight`, or `digest`) and `content_id`. Same grouped response shape as `semantic_search`.
+
+### Notes
+
+Notes are markdown documents that belong to a book and can be linked to that book's chapters and highlights, and to tags. A note may carry an optional `kind`: `character`, `term`, `concept`, `gist`, `reflection`, or `other`.
+
+- **create_note** - Create a note in a book from a title and markdown body, optionally with a kind and links to chapters, highlights, and tags
+- **get_note** - Get one note with its linked chapters, highlights, tags, and flashcards
+- **get_book_notes** - List a book's notes, optionally filtered by `kind`, `chapter_id`, `highlight_id`, or `tag_id` (filters combine)
+- **update_note** - Replace a note's fields and links in full. Anything omitted is cleared, so fetch the note with `get_note` first and resend everything you want to keep
+- **delete_note** - Delete a note and its links

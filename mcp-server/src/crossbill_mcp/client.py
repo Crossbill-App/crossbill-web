@@ -325,3 +325,85 @@ class CrossbillClient:
             },
         )
         return response.json()
+
+    # --- Note endpoints ---
+
+    async def create_note(
+        self,
+        book_id: int,
+        title: str,
+        body: str = "",
+        kind: str | None = None,
+        chapter_ids: list[int] | None = None,
+        highlight_ids: list[int] | None = None,
+        tag_ids: list[int] | None = None,
+    ) -> dict:
+        """Create a note in a book, optionally linked to chapters/highlights/tags."""
+        json_body: dict[str, Any] = {
+            "title": title,
+            "body": body,
+            "kind": kind,
+            "book_id": book_id,
+            "chapter_ids": chapter_ids or [],
+            "highlight_ids": highlight_ids or [],
+            "tag_ids": tag_ids or [],
+        }
+        response = await self._request("POST", "/api/v1/notes", json=json_body)
+        return response.json()
+
+    async def get_note(self, note_id: int) -> dict:
+        """Get a note with its linked chapters, highlights, tags and flashcards."""
+        response = await self._request("GET", f"/api/v1/notes/{note_id}")
+        return response.json()
+
+    async def get_book_notes(
+        self,
+        book_id: int,
+        kind: str | None = None,
+        chapter_id: int | None = None,
+        highlight_id: int | None = None,
+        tag_id: int | None = None,
+    ) -> dict:
+        """List a book's notes, optionally filtered by kind or linked entity."""
+        params: dict[str, str | int] = {}
+        if kind is not None:
+            params["kind"] = kind
+        if chapter_id is not None:
+            params["chapter_id"] = chapter_id
+        if highlight_id is not None:
+            params["highlight_id"] = highlight_id
+        if tag_id is not None:
+            params["tag_id"] = tag_id
+        response = await self._request(
+            "GET", f"/api/v1/books/{book_id}/notes", params=params
+        )
+        return response.json()
+
+    async def update_note(
+        self,
+        note_id: int,
+        title: str,
+        body: str = "",
+        kind: str | None = None,
+        chapter_ids: list[int] | None = None,
+        highlight_ids: list[int] | None = None,
+        tag_ids: list[int] | None = None,
+    ) -> dict:
+        """Replace a note's fields and links in full."""
+        json_body: dict[str, Any] = {
+            "title": title,
+            "body": body,
+            "kind": kind,
+            "chapter_ids": chapter_ids or [],
+            "highlight_ids": highlight_ids or [],
+            "tag_ids": tag_ids or [],
+        }
+        response = await self._request(
+            "PUT", f"/api/v1/notes/{note_id}", json=json_body
+        )
+        return response.json()
+
+    async def delete_note(self, note_id: int) -> dict:
+        """Delete a note."""
+        response = await self._request("DELETE", f"/api/v1/notes/{note_id}")
+        return response.json()
