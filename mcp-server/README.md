@@ -11,6 +11,7 @@ Model Context Protocol (MCP) server that exposes the Crossbill reading companion
 - Create, update, and delete flashcards
 - Manage bookmarks
 - View reading sessions
+- Semantic search over highlights, notes, and chapter digests
 
 ## Installation
 
@@ -122,3 +123,10 @@ crossbill-mcp
 
 - **create_bookmark** - Bookmark a highlight
 - **delete_bookmark** - Delete a bookmark
+
+### Semantic Search
+
+Requires an embedding provider configured on the Crossbill server; without one, both tools report that semantic search is not enabled.
+
+- **semantic_search** - Rank highlights, notes, and chapter digests by semantic similarity to a natural-language query, optionally scoped to one book. Results are grouped by content type, with `limit` applied per group.
+- **find_related** - Find content similar to an existing item, named by `content_type` (`note`, `highlight`, or `digest`) and `content_id`. Same grouped response shape as `semantic_search`.

@@ -298,3 +298,30 @@ class CrossbillClient:
         """Get the full text content of a chapter."""
         response = await self._request("GET", f"/api/v1/chapters/{chapter_id}/content")
         return response.json()
+
+    # --- Semantic search endpoints ---
+
+    async def semantic_search(
+        self, query: str, book_id: int | None = None, limit: int = 10
+    ) -> dict:
+        """Search embedded content by semantic similarity, grouped by content type."""
+        params: dict[str, str | int] = {"q": query, "limit": limit}
+        if book_id is not None:
+            params["book_id"] = book_id
+        response = await self._request("GET", "/api/v1/semantic/search", params=params)
+        return response.json()
+
+    async def related_content(
+        self, content_type: str, content_id: int, limit: int = 10
+    ) -> dict:
+        """Find content semantically similar to one already-indexed item."""
+        response = await self._request(
+            "GET",
+            "/api/v1/semantic/related",
+            params={
+                "content_type": content_type,
+                "content_id": content_id,
+                "limit": limit,
+            },
+        )
+        return response.json()
