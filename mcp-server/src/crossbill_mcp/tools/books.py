@@ -2,10 +2,15 @@
 
 import json
 
-from mcp.server.fastmcp import FastMCP
+from mcp.server.fastmcp import Context, FastMCP
+from mcp.server.session import ServerSession
 from mcp.types import ToolAnnotations
 
 from crossbill_mcp.client import CrossbillClient
+from crossbill_mcp.confirm import (
+    REQUIRES_USER_INTERACTION,
+    block_unconfirmed_deletion,
+)
 
 
 def register_book_tools(server: FastMCP, client: CrossbillClient) -> None:
@@ -64,3 +69,37 @@ def register_book_tools(server: FastMCP, client: CrossbillClient) -> None:
         if reading_stage is None:
             return f"Cleared the manual reading stage of book {book_id}."
         return f"Set the reading stage of book {book_id} to {reading_stage}."
+
+    @server.tool(
+        annotations=ToolAnnotations(destructiveHint=True, readOnlyHint=False),
+        meta=REQUIRES_USER_INTERACTION,
+    )
+    async def delete_book(book_id: int, ctx: Context[ServerSession, None]) -> str:
+        """Delete a book with all of its chapters and highlights.
+
+        The user is asked to confirm before anything is deleted, and nothing is
+        deleted if they decline. Clients that cannot show a confirmation prompt
+        are refused outright.
+
+        This is a hard delete and cannot be undone. Syncing the book from
+        KOReader again recreates it, but everything Crossbill added on top -
+        notes, flashcards, tags, digests - is gone for good.
+
+        Args:
+            book_id: The ID of the book to delete
+        """
+        book = await client.get_book(book_id)
+        title = book.get("title") or f"book {book_id}"
+        chapters = book.get("chapters") or []
+        highlights = sum(len(chapter.get("highlights") or []) for chapter in chapters)
+        refusal = await block_unconfirmed_deletion(
+            ctx,
+            f'Delete the book "{title}", with its {len(chapters)} chapters and '
+            f"{highlights} highlights? This permanently deletes the book, its "
+            f"chapters and highlights, and cannot be undone.",
+        )
+        if refusal is not None:
+            return refusal
+
+        await client.delete_book(book_id)
+        return f'Deleted the book "{title}" with its chapters and highlights.'

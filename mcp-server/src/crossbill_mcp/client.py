@@ -120,6 +120,10 @@ class CrossbillClient:
             json={"reading_stage": reading_stage},
         )
 
+    async def delete_book(self, book_id: int) -> None:
+        """Hard-delete a book with all of its chapters and highlights."""
+        await self._request("DELETE", f"/api/v1/books/{book_id}")
+
     # --- Highlight endpoints ---
 
     async def search_highlights(self, book_id: int, search_text: str) -> dict:
@@ -128,6 +132,15 @@ class CrossbillClient:
             "GET",
             f"/api/v1/books/{book_id}/highlights",
             params={"searchText": search_text},
+        )
+        return response.json()
+
+    async def delete_highlights(self, book_id: int, highlight_ids: list[int]) -> dict:
+        """Soft-delete highlights so later syncs do not bring them back."""
+        response = await self._request(
+            "DELETE",
+            f"/api/v1/books/{book_id}/highlight",
+            json={"highlight_ids": highlight_ids},
         )
         return response.json()
 

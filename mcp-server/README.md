@@ -15,6 +15,7 @@ Model Context Protocol (MCP) server that exposes the Crossbill reading companion
 - Semantic search over highlights, notes, and chapter digests
 - Create, read, update, and delete markdown notes
 - Generate chapter digests and AI flashcard suggestions
+- Delete books and highlights, behind a confirmation prompt the server enforces
 
 ## Installation
 
@@ -88,6 +89,27 @@ export CROSSBILL_PASSWORD=your-password
 crossbill-mcp
 ```
 
+## Deleting data
+
+Two tools throw content away rather than change it:
+
+- **delete_book** - Delete a book with all its chapters and highlights. A hard delete: syncing the book from KOReader again recreates it, but the notes, flashcards, tags and digests Crossbill kept alongside it are gone
+- **delete_highlights** - Delete highlights from a book. The deletion sticks, so later syncs of that book will not bring them back
+
+Neither one deletes anything on the assistant's say-so. Before touching the API, the server asks you to confirm through MCP elicitation, spelling out what is about to go: the book's title and how many chapters and highlights it holds, or how many highlights and from which book. Only an explicit yes goes through; declining or dismissing the prompt leaves everything in place.
+
+The prompt comes from the server, not from the assistant, so it cannot be talked around. If your MCP client does not support elicitation, the deletion is refused outright and you are pointed at the Crossbill web UI instead — a client that cannot ask you is a client that cannot delete.
+
+Every deletion tool in the server (these two plus `delete_note`, `delete_flashcard`, `delete_tag`, `delete_tag_group` and `delete_bookmark`) is annotated `destructiveHint: true`, which clients can use to treat them differently from the rest. If you allowlist the whole Crossbill server in Claude Code, keep the delete tools behind a prompt:
+
+```json
+{
+  "permissions": {
+    "ask": ["mcp__crossbill__delete_*"]
+  }
+}
+```
+
 ## Available Tools
 
 ### Books
@@ -96,6 +118,7 @@ crossbill-mcp
 - **get_book** - Get detailed book info with chapters and highlights
 - **get_recently_viewed_books** - Get recently viewed books
 - **set_reading_stage** - Set a book's manual reading stage (`to_read`, `skimming`, `reading`, `finished`, `reflected`), or clear it back to the stage Crossbill infers from reading activity
+- **delete_book** - Delete a book with all its chapters and highlights, after asking you to confirm (see [Deleting data](#deleting-data))
 
 ### Highlights
 
@@ -103,6 +126,7 @@ crossbill-mcp
 - **update_highlight_note** - Add or update a note on a highlight, or clear it by omitting the note
 - **tag_highlight** - Add a tag to a highlight
 - **untag_highlight** - Remove a tag from a highlight
+- **delete_highlights** - Delete one or more highlights from a book, after asking you to confirm (see [Deleting data](#deleting-data))
 
 ### Highlight Labels
 
