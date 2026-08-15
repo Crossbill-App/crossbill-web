@@ -11,7 +11,7 @@ root="${CLAUDE_PROJECT_DIR:-$(git -C "$(dirname "$file_path")" rev-parse --show-
 [[ -z "$root" ]] && exit 0
 
 # Backend Python files
-if [[ "$file_path" == *.py ]]; then
+if [[ "$file_path" == "$root/backend/"*.py ]]; then
   (cd "$root/backend" && uv run ruff format "$file_path" && uv run ruff check --fix "$file_path" && uv run pyright "$file_path")
 fi
 

@@ -110,6 +110,20 @@ class CrossbillClient:
         )
         return response.json()
 
+    async def set_reading_stage(
+        self, book_id: int, reading_stage: str | None = None
+    ) -> None:
+        """Set a book's manual reading stage, or clear it when given None."""
+        await self._request(
+            "PUT",
+            f"/api/v1/books/{book_id}/reading-stage",
+            json={"reading_stage": reading_stage},
+        )
+
+    async def delete_book(self, book_id: int) -> None:
+        """Hard-delete a book with all of its chapters and highlights."""
+        await self._request("DELETE", f"/api/v1/books/{book_id}")
+
     # --- Highlight endpoints ---
 
     async def search_highlights(self, book_id: int, search_text: str) -> dict:
@@ -118,6 +132,15 @@ class CrossbillClient:
             "GET",
             f"/api/v1/books/{book_id}/highlights",
             params={"searchText": search_text},
+        )
+        return response.json()
+
+    async def delete_highlights(self, book_id: int, highlight_ids: list[int]) -> dict:
+        """Soft-delete highlights so later syncs do not bring them back."""
+        response = await self._request(
+            "DELETE",
+            f"/api/v1/books/{book_id}/highlight",
+            json={"highlight_ids": highlight_ids},
         )
         return response.json()
 
@@ -184,6 +207,21 @@ class CrossbillClient:
             )
         return response.json()
 
+    async def create_note_flashcard(
+        self,
+        note_id: int,
+        question: str,
+        answer: str,
+        book_id: int | None = None,
+    ) -> dict:
+        """Create a flashcard linked to a note."""
+        response = await self._request(
+            "POST",
+            f"/api/v1/notes/{note_id}/flashcards",
+            json={"question": question, "answer": answer, "book_id": book_id},
+        )
+        return response.json()
+
     async def update_flashcard(
         self,
         flashcard_id: int,
@@ -204,6 +242,27 @@ class CrossbillClient:
     async def delete_flashcard(self, flashcard_id: int) -> dict:
         """Delete a flashcard."""
         response = await self._request("DELETE", f"/api/v1/flashcards/{flashcard_id}")
+        return response.json()
+
+    async def get_chapter_flashcard_suggestions(self, chapter_id: int) -> dict:
+        """Get AI flashcard suggestions from a chapter's digest."""
+        response = await self._request(
+            "GET", f"/api/v1/chapters/{chapter_id}/flashcard_suggestions"
+        )
+        return response.json()
+
+    async def get_highlight_flashcard_suggestions(self, highlight_id: int) -> dict:
+        """Get AI flashcard suggestions for a highlight."""
+        response = await self._request(
+            "GET", f"/api/v1/highlights/{highlight_id}/flashcard_suggestions"
+        )
+        return response.json()
+
+    async def get_note_flashcard_suggestions(self, note_id: int) -> dict:
+        """Get AI flashcard suggestions for a note."""
+        response = await self._request(
+            "GET", f"/api/v1/notes/{note_id}/flashcard_suggestions"
+        )
         return response.json()
 
     # --- Bookmark endpoints ---
@@ -292,9 +351,259 @@ class CrossbillClient:
         )
         return response.json()
 
+    async def get_reading_session_summary(self, reading_session_id: int) -> dict:
+        """Get a reading session's AI summary, generating it when not cached."""
+        response = await self._request(
+            "GET",
+            f"/api/v1/{reading_session_id}/ai_summary",
+            timeout=300.0,
+        )
+        return response.json()
+
     # --- Chapter content endpoint ---
 
     async def get_chapter_content(self, chapter_id: int) -> dict:
         """Get the full text content of a chapter."""
         response = await self._request("GET", f"/api/v1/chapters/{chapter_id}/content")
+        return response.json()
+
+    # --- Digest endpoints ---
+
+    async def get_chapter_digest(self, chapter_id: int) -> dict | None:
+        """Get a chapter's existing digest, or None when it has none."""
+        response = await self._request("GET", f"/api/v1/chapters/{chapter_id}/digest")
+        return response.json()
+
+    async def generate_chapter_digest(self, chapter_id: int) -> dict:
+        """Generate a chapter's digest synchronously with one AI call."""
+        response = await self._request(
+            "POST",
+            f"/api/v1/chapters/{chapter_id}/digest/generate",
+            timeout=300.0,
+        )
+        return response.json()
+
+    async def update_digest_answers(
+        self, chapter_id: int, answers: list[dict[str, Any]]
+    ) -> dict:
+        """Record user answers to a digest's comprehension questions."""
+        response = await self._request(
+            "PUT",
+            f"/api/v1/chapters/{chapter_id}/digest/answers",
+            json={"answers": answers},
+        )
+        return response.json()
+
+    async def get_book_digests(self, book_id: int) -> dict:
+        """Get the digest of every chapter in a book that has one."""
+        response = await self._request("GET", f"/api/v1/books/{book_id}/digest")
+        return response.json()
+
+    # --- Job batch endpoints ---
+
+    async def enqueue_book_digests(self, book_id: int) -> dict:
+        """Enqueue digest generation for all chapters of a book."""
+        response = await self._request("POST", f"/api/v1/jobs/books/{book_id}/digest")
+        return response.json()
+
+    async def get_active_book_digest_batch(self, book_id: int) -> dict | None:
+        """Get the active digest batch for a book, or None when there is none."""
+        response = await self._request("GET", f"/api/v1/jobs/books/{book_id}/digest")
+        return response.json()
+
+    async def get_job_batch(self, batch_id: int) -> dict:
+        """Get a job batch's status and progress counts."""
+        response = await self._request("GET", f"/api/v1/jobs/batches/{batch_id}")
+        return response.json()
+
+    async def cancel_job_batch(self, batch_id: int) -> dict:
+        """Cancel a job batch and abort its pending jobs."""
+        response = await self._request("DELETE", f"/api/v1/jobs/batches/{batch_id}")
+        return response.json()
+
+    # --- Semantic search endpoints ---
+
+    async def semantic_search(
+        self, query: str, book_id: int | None = None, limit: int = 10
+    ) -> dict:
+        """Search embedded content by semantic similarity, grouped by content type."""
+        params: dict[str, str | int] = {"q": query, "limit": limit}
+        if book_id is not None:
+            params["book_id"] = book_id
+        response = await self._request("GET", "/api/v1/semantic/search", params=params)
+        return response.json()
+
+    async def related_content(
+        self, content_type: str, content_id: int, limit: int = 10
+    ) -> dict:
+        """Find content semantically similar to one already-indexed item."""
+        response = await self._request(
+            "GET",
+            "/api/v1/semantic/related",
+            params={
+                "content_type": content_type,
+                "content_id": content_id,
+                "limit": limit,
+            },
+        )
+        return response.json()
+
+    # --- Note endpoints ---
+
+    async def create_note(
+        self,
+        book_id: int,
+        title: str,
+        body: str = "",
+        kind: str | None = None,
+        chapter_ids: list[int] | None = None,
+        highlight_ids: list[int] | None = None,
+        tag_ids: list[int] | None = None,
+    ) -> dict:
+        """Create a note in a book, optionally linked to chapters/highlights/tags."""
+        json_body: dict[str, Any] = {
+            "title": title,
+            "body": body,
+            "kind": kind,
+            "book_id": book_id,
+            "chapter_ids": chapter_ids or [],
+            "highlight_ids": highlight_ids or [],
+            "tag_ids": tag_ids or [],
+        }
+        response = await self._request("POST", "/api/v1/notes", json=json_body)
+        return response.json()
+
+    async def get_note(self, note_id: int) -> dict:
+        """Get a note with its linked chapters, highlights, tags and flashcards."""
+        response = await self._request("GET", f"/api/v1/notes/{note_id}")
+        return response.json()
+
+    async def get_book_notes(
+        self,
+        book_id: int,
+        kind: str | None = None,
+        chapter_id: int | None = None,
+        highlight_id: int | None = None,
+        tag_id: int | None = None,
+    ) -> dict:
+        """List a book's notes, optionally filtered by kind or linked entity."""
+        params: dict[str, str | int] = {}
+        if kind is not None:
+            params["kind"] = kind
+        if chapter_id is not None:
+            params["chapter_id"] = chapter_id
+        if highlight_id is not None:
+            params["highlight_id"] = highlight_id
+        if tag_id is not None:
+            params["tag_id"] = tag_id
+        response = await self._request(
+            "GET", f"/api/v1/books/{book_id}/notes", params=params
+        )
+        return response.json()
+
+    async def update_note(
+        self,
+        note_id: int,
+        title: str,
+        body: str = "",
+        kind: str | None = None,
+        chapter_ids: list[int] | None = None,
+        highlight_ids: list[int] | None = None,
+        tag_ids: list[int] | None = None,
+    ) -> dict:
+        """Replace a note's fields and links in full."""
+        json_body: dict[str, Any] = {
+            "title": title,
+            "body": body,
+            "kind": kind,
+            "chapter_ids": chapter_ids or [],
+            "highlight_ids": highlight_ids or [],
+            "tag_ids": tag_ids or [],
+        }
+        response = await self._request(
+            "PUT", f"/api/v1/notes/{note_id}", json=json_body
+        )
+        return response.json()
+
+    async def delete_note(self, note_id: int) -> dict:
+        """Delete a note."""
+        response = await self._request("DELETE", f"/api/v1/notes/{note_id}")
+        return response.json()
+
+    # --- Tag endpoints ---
+
+    async def get_book_tags(self, book_id: int) -> dict:
+        """Get all tags of a book."""
+        response = await self._request("GET", f"/api/v1/books/{book_id}/tags")
+        return response.json()
+
+    async def create_tag(self, book_id: int, name: str) -> dict:
+        """Create a tag in a book."""
+        response = await self._request(
+            "POST", f"/api/v1/books/{book_id}/tag", json={"name": name}
+        )
+        return response.json()
+
+    async def update_tag(
+        self,
+        book_id: int,
+        tag_id: int,
+        name: str | None = None,
+        tag_group_id: int | None = None,
+    ) -> dict:
+        """Update a tag's name and/or the tag group it belongs to."""
+        response = await self._request(
+            "POST",
+            f"/api/v1/books/{book_id}/tag/{tag_id}",
+            json={"name": name, "tag_group_id": tag_group_id},
+        )
+        return response.json()
+
+    async def delete_tag(self, book_id: int, tag_id: int) -> None:
+        """Delete a tag from a book and from every highlight carrying it."""
+        await self._request("DELETE", f"/api/v1/books/{book_id}/tag/{tag_id}")
+
+    async def create_or_rename_tag_group(
+        self, book_id: int, name: str, tag_group_id: int | None = None
+    ) -> dict:
+        """Create a tag group, or rename an existing one when its ID is given."""
+        response = await self._request(
+            "POST",
+            "/api/v1/tag-groups",
+            json={"id": tag_group_id, "book_id": book_id, "name": name},
+        )
+        return response.json()
+
+    async def delete_tag_group(self, tag_group_id: int) -> None:
+        """Delete a tag group."""
+        await self._request("DELETE", f"/api/v1/tag-groups/{tag_group_id}")
+
+    # --- Book reflection endpoints ---
+
+    async def get_book_reflection(self, book_id: int) -> dict:
+        """Get a book's reflection: the note IDs answering its four questions."""
+        response = await self._request("GET", f"/api/v1/books/{book_id}/reflection")
+        return response.json()
+
+    async def update_book_reflection(
+        self,
+        book_id: int,
+        what_is_it_about_note_id: int | None = None,
+        what_does_it_say_note_id: int | None = None,
+        do_i_agree_note_id: int | None = None,
+        so_what_note_id: int | None = None,
+        note_ids: list[int] | None = None,
+    ) -> dict:
+        """Replace a book's reflection in full."""
+        response = await self._request(
+            "PUT",
+            f"/api/v1/books/{book_id}/reflection",
+            json={
+                "what_is_it_about_note_id": what_is_it_about_note_id,
+                "what_does_it_say_note_id": what_does_it_say_note_id,
+                "do_i_agree_note_id": do_i_agree_note_id,
+                "so_what_note_id": so_what_note_id,
+                "note_ids": note_ids or [],
+            },
+        )
         return response.json()
