@@ -174,13 +174,31 @@ class ChapterRepository:
             return chapter
         return None
 
+    @staticmethod
+    def _resolve_parent_id(
+        ch: TocChapter,
+        resolved: dict[int, ChapterORM],
+        tracker: _ChapterTracker,
+    ) -> int | None:
+        """Resolve the DB id of a TOC entry's parent.
+
+        `parent_index` points at a position in the TOC list being synced, and every
+        processed entry records the row it resolved to, so the parent is exact even
+        when several chapters share a name. Only callers that build TocChapter
+        without indexes fall back to the ambiguous by-name lookup.
+        """
+        if ch.parent_index is None:
+            return tracker.resolve_parent_id(ch.parent_name)
+        parent = resolved.get(ch.parent_index)
+        return parent.id if parent is not None else None
+
     async def _create_chapter_orm(
         self,
         book_id: BookId,
         ch: TocChapter,
         parent_id: int | None,
         tracker: _ChapterTracker,
-    ) -> None:
+    ) -> ChapterORM:
         """Create a new chapter ORM, persist it, and register in tracker."""
         chapter = ChapterORM(
             book_id=book_id.value,
@@ -196,6 +214,7 @@ class ChapterRepository:
         await self.db.commit()
         await self.db.refresh(chapter)
         tracker.register_new(chapter)
+        return chapter
 
     async def sync_chapters_from_toc(
         self,
@@ -236,14 +255,19 @@ class ChapterRepository:
         updated: list[ChapterORM] = []
         created_count = 0
 
-        # Stage 2: Process each TOC entry (sequential -- parents before children)
-        for ch in chapters:
-            parent_id = tracker.resolve_parent_id(ch.parent_name)
+        # Stage 2: Process each TOC entry (sequential -- parents before children).
+        # `resolved` maps a TOC entry's position to the row it resolved to, which is
+        # what a child's parent_index refers to.
+        resolved: dict[int, ChapterORM] = {}
+
+        for index, ch in enumerate(chapters):
+            parent_id = self._resolve_parent_id(ch, resolved, tracker)
             key = (ch.name, parent_id)
             existing_chapter = tracker.find_by_key(key)
 
             # Case 1: Exact match by (name, parent_id)
             if existing_chapter is not None:
+                resolved[index] = existing_chapter
                 if not tracker.is_from_db(key):
                     logger.warning(
                         f"Duplicate chapter '{ch.name}' in ToC with same parent "
@@ -262,10 +286,11 @@ class ChapterRepository:
                 self._apply_field_updates(legacy, ch, parent_id)
                 updated.append(legacy)
                 tracker.rekey_legacy(legacy, old_key=(ch.name, None), new_key=key)
+                resolved[index] = legacy
                 continue
 
             # Case 3: Truly new chapter
-            await self._create_chapter_orm(book_id, ch, parent_id, tracker)
+            resolved[index] = await self._create_chapter_orm(book_id, ch, parent_id, tracker)
             created_count += 1
 
         # Stage 3: Commit updates

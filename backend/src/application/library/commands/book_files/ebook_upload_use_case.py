@@ -145,6 +145,7 @@ class EbookUploadUseCase:
                         name=tc.name,
                         chapter_number=tc.chapter_number,
                         parent_name=tc.parent_name,
+                        parent_index=tc.parent_index,
                         start_xpoint=tc.start_xpoint,
                         end_xpoint=tc.end_xpoint,
                         start_position=start_pos,
