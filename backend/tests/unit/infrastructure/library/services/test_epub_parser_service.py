@@ -1,4 +1,4 @@
-"""Tests for EpubParserService.extract_cover."""
+"""Tests for EpubParserService cover extraction and TOC parsing."""
 
 from pathlib import Path
 
@@ -61,9 +61,103 @@ def _create_epub_without_cover(path: Path) -> Path:
     return _write_epub(book, path, "no_cover.epub")
 
 
+def _create_epub_with_repeated_toc_titles(path: Path) -> Path:
+    """Create an EPUB whose nested TOC repeats titles at two levels.
+
+    Shape (mirrors a real book that produced duplicate chapter rows)::
+
+        Osa I
+          Luku
+            Yhteenveto
+            Itsetuntemus
+        Osa II
+          Luku
+            Yhteenveto
+    """
+    book = epub.EpubBook()
+    book.set_identifier("test-repeated-toc")
+    book.set_title("Repeated TOC")
+    book.set_language("fi")
+
+    files = ["osa1", "luku1", "yhteenveto1", "itsetuntemus", "osa2", "luku2", "yhteenveto2"]
+    documents = []
+    for name in files:
+        document = epub.EpubHtml(title=name, file_name=f"{name}.xhtml", lang="fi")
+        document.content = f"<html><body><p>{name}</p></body></html>".encode()
+        book.add_item(document)
+        documents.append(document)
+
+    book.spine = documents
+    book.add_item(epub.EpubNcx())
+    book.add_item(epub.EpubNav())
+    book.toc = [
+        (
+            epub.Section("Osa I", href="osa1.xhtml"),
+            (
+                (
+                    epub.Section("Luku", href="luku1.xhtml"),
+                    (
+                        epub.Link("yhteenveto1.xhtml", "Yhteenveto", "y1"),
+                        epub.Link("itsetuntemus.xhtml", "Itsetuntemus", "i1"),
+                    ),
+                ),
+            ),
+        ),
+        (
+            epub.Section("Osa II", href="osa2.xhtml"),
+            (
+                (
+                    epub.Section("Luku", href="luku2.xhtml"),
+                    (epub.Link("yhteenveto2.xhtml", "Yhteenveto", "y2"),),
+                ),
+            ),
+        ),
+    ]
+
+    epub_path = path / "repeated_toc.epub"
+    epub.write_epub(str(epub_path), book)
+    return epub_path
+
+
 @pytest.fixture
 def service() -> EpubParserService:
     return EpubParserService()
+
+
+class TestParseTocHierarchy:
+    """Test that parse_toc flattens a nested TOC with unambiguous parent links."""
+
+    def test_repeated_titles_get_distinct_parent_indexes(
+        self, service: EpubParserService, tmp_path: Path
+    ) -> None:
+        epub_path = _create_epub_with_repeated_toc_titles(tmp_path)
+
+        chapters = service.parse_toc(epub_path.read_bytes())
+
+        assert [ch.name for ch in chapters] == [
+            "Osa I",
+            "Luku",
+            "Yhteenveto",
+            "Itsetuntemus",
+            "Osa II",
+            "Luku",
+            "Yhteenveto",
+        ]
+        # Chapter numbers are sequential and unique across the whole TOC
+        assert [ch.chapter_number for ch in chapters] == [1, 2, 3, 4, 5, 6, 7]
+        # Each entry points at its parent's position, so the two "Luku" sections
+        # and the two "Yhteenveto" leaves stay distinguishable despite the names
+        assert [ch.parent_index for ch in chapters] == [None, 0, 1, 1, None, 4, 5]
+        # parent_name is kept for callers without indexes
+        assert [ch.parent_name for ch in chapters] == [
+            None,
+            "Osa I",
+            "Luku",
+            "Luku",
+            None,
+            "Osa II",
+            "Luku",
+        ]
 
 
 class TestExtractCoverFromOPFMeta:
