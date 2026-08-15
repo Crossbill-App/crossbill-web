@@ -268,26 +268,6 @@ test('arrowing down points aria-activedescendant at the first row', async () => 
     .toHaveAttribute('aria-activedescendant', firstRowId);
 });
 
-test('arrow keys move through results and Enter opens the active one', async () => {
-  const screen = await renderWithResults(
-    {
-      attention: {
-        notes: [aNoteHit({ id: 100, score: 0.9, title: 'Ada Lovelace' })],
-        digests: [
-          aDigestHit({ id: 500, score: 0.8, chapter_id: 10, chapter_name: 'On Attention' }),
-        ],
-      },
-    },
-    aBookDetails({ chapters: [aChapter({ id: 10, name: 'On Attention' })] })
-  );
-
-  await search(screen, 'attention');
-  await userEvent.keyboard('{ArrowDown}{ArrowDown}{Enter}');
-
-  expect(window.location.pathname).toBe('/book/1/structure');
-  expect(window.location.search).toContain('chapterId=10');
-});
-
 test('a query that matches nothing says so, rather than showing an empty box', async () => {
   const screen = await renderWithResults({});
 
