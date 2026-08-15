@@ -7,10 +7,11 @@ Model Context Protocol (MCP) server that exposes the Crossbill reading companion
 - Browse and search your book library
 - Read chapter content from EPUB files
 - Search and annotate highlights
-- Tag highlights
+- Tag highlights, and manage a book's tags and tag groups
 - Create, update, and delete flashcards
 - Manage bookmarks
-- View reading sessions
+- View reading sessions and their AI summaries
+- Track a book's reading stage and its four-question reflection
 - Semantic search over highlights, notes, and chapter digests
 - Create, read, update, and delete markdown notes
 - Generate chapter digests and AI flashcard suggestions
@@ -94,6 +95,7 @@ crossbill-mcp
 - **list_books** - List books with optional search and pagination
 - **get_book** - Get detailed book info with chapters and highlights
 - **get_recently_viewed_books** - Get recently viewed books
+- **set_reading_stage** - Set a book's manual reading stage (`to_read`, `skimming`, `reading`, `finished`, `reflected`), or clear it back to the stage Crossbill infers from reading activity
 
 ### Highlights
 
@@ -126,6 +128,7 @@ The three suggestion tools below require an AI provider configured on the Crossb
 
 - **get_reading_sessions** - Get reading sessions for a book
 - **get_chapter_content** - Get full text content of a chapter from the EPUB
+- **get_reading_session_summary** - Get an AI summary of what was read in one session, cached after the first call. Requires an AI provider configured on the Crossbill server
 
 ### Chapter Digests
 
@@ -161,3 +164,21 @@ Notes are markdown documents that belong to a book and can be linked to that boo
 - **get_book_notes** - List a book's notes, optionally filtered by `kind`, `chapter_id`, `highlight_id`, or `tag_id` (filters combine)
 - **update_note** - Replace a note's fields and links in full. Anything omitted is cleared, so fetch the note with `get_note` first and resend everything you want to keep
 - **delete_note** - Delete a note and its links
+
+### Tags
+
+Tags belong to one book and can be attached to that book's highlights and notes. A tag group is an optional folder gathering related tags; a tag outside every group has a null `tag_group_id`.
+
+- **get_book_tags** - Get every tag of a book, with the group each one belongs to
+- **create_tag** - Create a tag in a book (to tag a highlight, use `tag_highlight`, which creates the tag by name when needed)
+- **update_tag** - Rename a tag and/or move it into a tag group
+- **delete_tag** - Delete a tag, which also removes it from every highlight carrying it
+- **create_or_rename_tag_group** - Create a tag group, or rename an existing one by passing its `tag_group_id`
+- **delete_tag_group** - Delete a tag group, leaving the tags in it ungrouped
+
+### Reflection
+
+A book's reflection is its answers to four fixed questions: what is it about, what does it say, do I agree, so what. An answer is not text but a reference to the note holding that answer's markdown, so answering means writing a note first and passing its ID. The reflection also links the book's term and concept notes.
+
+- **get_book_reflection** - Get a book's reflection; every book has one, unanswered questions are null
+- **update_book_reflection** - Replace a reflection in full. Anything omitted is cleared, so fetch it with `get_book_reflection` first and resend everything you want to keep

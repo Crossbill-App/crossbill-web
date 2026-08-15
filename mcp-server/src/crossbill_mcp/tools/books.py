@@ -45,3 +45,21 @@ def register_book_tools(server: FastMCP, client: CrossbillClient) -> None:
         """
         result = await client.get_recently_viewed_books(limit=limit)
         return json.dumps(result, indent=2, default=str)
+
+    @server.tool()
+    async def set_reading_stage(book_id: int, reading_stage: str | None = None) -> str:
+        """Set how far along the user is with a book, as a manual stage.
+
+        The stage is one of "to_read", "skimming", "reading", "finished" or
+        "reflected". Omitting the stage clears the manual setting, so the book
+        goes back to the stage Crossbill infers from reading activity.
+
+        Args:
+            book_id: The ID of the book
+            reading_stage: "to_read", "skimming", "reading", "finished" or
+                "reflected"; omit to clear the stage back to automatic
+        """
+        await client.set_reading_stage(book_id, reading_stage=reading_stage)
+        if reading_stage is None:
+            return f"Cleared the manual reading stage of book {book_id}."
+        return f"Set the reading stage of book {book_id} to {reading_stage}."

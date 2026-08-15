@@ -110,6 +110,16 @@ class CrossbillClient:
         )
         return response.json()
 
+    async def set_reading_stage(
+        self, book_id: int, reading_stage: str | None = None
+    ) -> None:
+        """Set a book's manual reading stage, or clear it when given None."""
+        await self._request(
+            "PUT",
+            f"/api/v1/books/{book_id}/reading-stage",
+            json={"reading_stage": reading_stage},
+        )
+
     # --- Highlight endpoints ---
 
     async def search_highlights(self, book_id: int, search_text: str) -> dict:
@@ -328,6 +338,15 @@ class CrossbillClient:
         )
         return response.json()
 
+    async def get_reading_session_summary(self, reading_session_id: int) -> dict:
+        """Get a reading session's AI summary, generating it when not cached."""
+        response = await self._request(
+            "GET",
+            f"/api/v1/{reading_session_id}/ai_summary",
+            timeout=300.0,
+        )
+        return response.json()
+
     # --- Chapter content endpoint ---
 
     async def get_chapter_content(self, chapter_id: int) -> dict:
@@ -496,4 +515,82 @@ class CrossbillClient:
     async def delete_note(self, note_id: int) -> dict:
         """Delete a note."""
         response = await self._request("DELETE", f"/api/v1/notes/{note_id}")
+        return response.json()
+
+    # --- Tag endpoints ---
+
+    async def get_book_tags(self, book_id: int) -> dict:
+        """Get all tags of a book."""
+        response = await self._request("GET", f"/api/v1/books/{book_id}/tags")
+        return response.json()
+
+    async def create_tag(self, book_id: int, name: str) -> dict:
+        """Create a tag in a book."""
+        response = await self._request(
+            "POST", f"/api/v1/books/{book_id}/tag", json={"name": name}
+        )
+        return response.json()
+
+    async def update_tag(
+        self,
+        book_id: int,
+        tag_id: int,
+        name: str | None = None,
+        tag_group_id: int | None = None,
+    ) -> dict:
+        """Update a tag's name and/or the tag group it belongs to."""
+        response = await self._request(
+            "POST",
+            f"/api/v1/books/{book_id}/tag/{tag_id}",
+            json={"name": name, "tag_group_id": tag_group_id},
+        )
+        return response.json()
+
+    async def delete_tag(self, book_id: int, tag_id: int) -> None:
+        """Delete a tag from a book and from every highlight carrying it."""
+        await self._request("DELETE", f"/api/v1/books/{book_id}/tag/{tag_id}")
+
+    async def create_or_rename_tag_group(
+        self, book_id: int, name: str, tag_group_id: int | None = None
+    ) -> dict:
+        """Create a tag group, or rename an existing one when its ID is given."""
+        response = await self._request(
+            "POST",
+            "/api/v1/tag-groups",
+            json={"id": tag_group_id, "book_id": book_id, "name": name},
+        )
+        return response.json()
+
+    async def delete_tag_group(self, tag_group_id: int) -> None:
+        """Delete a tag group."""
+        await self._request("DELETE", f"/api/v1/tag-groups/{tag_group_id}")
+
+    # --- Book reflection endpoints ---
+
+    async def get_book_reflection(self, book_id: int) -> dict:
+        """Get a book's reflection: the note IDs answering its four questions."""
+        response = await self._request("GET", f"/api/v1/books/{book_id}/reflection")
+        return response.json()
+
+    async def update_book_reflection(
+        self,
+        book_id: int,
+        what_is_it_about_note_id: int | None = None,
+        what_does_it_say_note_id: int | None = None,
+        do_i_agree_note_id: int | None = None,
+        so_what_note_id: int | None = None,
+        note_ids: list[int] | None = None,
+    ) -> dict:
+        """Replace a book's reflection in full."""
+        response = await self._request(
+            "PUT",
+            f"/api/v1/books/{book_id}/reflection",
+            json={
+                "what_is_it_about_note_id": what_is_it_about_note_id,
+                "what_does_it_say_note_id": what_does_it_say_note_id,
+                "do_i_agree_note_id": do_i_agree_note_id,
+                "so_what_note_id": so_what_note_id,
+                "note_ids": note_ids or [],
+            },
+        )
         return response.json()
