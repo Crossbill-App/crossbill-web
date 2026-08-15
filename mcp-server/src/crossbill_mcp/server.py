@@ -9,6 +9,7 @@ from mcp.server.fastmcp import FastMCP
 from crossbill_mcp.client import CrossbillClient
 from crossbill_mcp.tools.bookmarks import register_bookmark_tools
 from crossbill_mcp.tools.books import register_book_tools
+from crossbill_mcp.tools.digests import register_digest_tools
 from crossbill_mcp.tools.flashcards import register_flashcard_tools
 from crossbill_mcp.tools.highlight_labels import register_highlight_label_tools
 from crossbill_mcp.tools.highlights import register_highlight_tools
@@ -45,6 +46,7 @@ def create_server() -> tuple[FastMCP, CrossbillClient]:
     register_bookmark_tools(server, client)
     register_semantic_tools(server, client)
     register_notes_tools(server, client)
+    register_digest_tools(server, client)
 
     return server, client
 

@@ -184,6 +184,21 @@ class CrossbillClient:
             )
         return response.json()
 
+    async def create_note_flashcard(
+        self,
+        note_id: int,
+        question: str,
+        answer: str,
+        book_id: int | None = None,
+    ) -> dict:
+        """Create a flashcard linked to a note."""
+        response = await self._request(
+            "POST",
+            f"/api/v1/notes/{note_id}/flashcards",
+            json={"question": question, "answer": answer, "book_id": book_id},
+        )
+        return response.json()
+
     async def update_flashcard(
         self,
         flashcard_id: int,
@@ -204,6 +219,27 @@ class CrossbillClient:
     async def delete_flashcard(self, flashcard_id: int) -> dict:
         """Delete a flashcard."""
         response = await self._request("DELETE", f"/api/v1/flashcards/{flashcard_id}")
+        return response.json()
+
+    async def get_chapter_flashcard_suggestions(self, chapter_id: int) -> dict:
+        """Get AI flashcard suggestions from a chapter's digest."""
+        response = await self._request(
+            "GET", f"/api/v1/chapters/{chapter_id}/flashcard_suggestions"
+        )
+        return response.json()
+
+    async def get_highlight_flashcard_suggestions(self, highlight_id: int) -> dict:
+        """Get AI flashcard suggestions for a highlight."""
+        response = await self._request(
+            "GET", f"/api/v1/highlights/{highlight_id}/flashcard_suggestions"
+        )
+        return response.json()
+
+    async def get_note_flashcard_suggestions(self, note_id: int) -> dict:
+        """Get AI flashcard suggestions for a note."""
+        response = await self._request(
+            "GET", f"/api/v1/notes/{note_id}/flashcard_suggestions"
+        )
         return response.json()
 
     # --- Bookmark endpoints ---
@@ -297,6 +333,60 @@ class CrossbillClient:
     async def get_chapter_content(self, chapter_id: int) -> dict:
         """Get the full text content of a chapter."""
         response = await self._request("GET", f"/api/v1/chapters/{chapter_id}/content")
+        return response.json()
+
+    # --- Digest endpoints ---
+
+    async def get_chapter_digest(self, chapter_id: int) -> dict | None:
+        """Get a chapter's existing digest, or None when it has none."""
+        response = await self._request("GET", f"/api/v1/chapters/{chapter_id}/digest")
+        return response.json()
+
+    async def generate_chapter_digest(self, chapter_id: int) -> dict:
+        """Generate a chapter's digest synchronously with one AI call."""
+        response = await self._request(
+            "POST",
+            f"/api/v1/chapters/{chapter_id}/digest/generate",
+            timeout=300.0,
+        )
+        return response.json()
+
+    async def update_digest_answers(
+        self, chapter_id: int, answers: list[dict[str, Any]]
+    ) -> dict:
+        """Record user answers to a digest's comprehension questions."""
+        response = await self._request(
+            "PUT",
+            f"/api/v1/chapters/{chapter_id}/digest/answers",
+            json={"answers": answers},
+        )
+        return response.json()
+
+    async def get_book_digests(self, book_id: int) -> dict:
+        """Get the digest of every chapter in a book that has one."""
+        response = await self._request("GET", f"/api/v1/books/{book_id}/digest")
+        return response.json()
+
+    # --- Job batch endpoints ---
+
+    async def enqueue_book_digests(self, book_id: int) -> dict:
+        """Enqueue digest generation for all chapters of a book."""
+        response = await self._request("POST", f"/api/v1/jobs/books/{book_id}/digest")
+        return response.json()
+
+    async def get_active_book_digest_batch(self, book_id: int) -> dict | None:
+        """Get the active digest batch for a book, or None when there is none."""
+        response = await self._request("GET", f"/api/v1/jobs/books/{book_id}/digest")
+        return response.json()
+
+    async def get_job_batch(self, batch_id: int) -> dict:
+        """Get a job batch's status and progress counts."""
+        response = await self._request("GET", f"/api/v1/jobs/batches/{batch_id}")
+        return response.json()
+
+    async def cancel_job_batch(self, batch_id: int) -> dict:
+        """Cancel a job batch and abort its pending jobs."""
+        response = await self._request("DELETE", f"/api/v1/jobs/batches/{batch_id}")
         return response.json()
 
     # --- Semantic search endpoints ---

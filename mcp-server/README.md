@@ -13,6 +13,7 @@ Model Context Protocol (MCP) server that exposes the Crossbill reading companion
 - View reading sessions
 - Semantic search over highlights, notes, and chapter digests
 - Create, read, update, and delete markdown notes
+- Generate chapter digests and AI flashcard suggestions
 
 ## Installation
 
@@ -111,14 +112,33 @@ crossbill-mcp
 ### Flashcards
 
 - **get_flashcards** - Get all flashcards for a book
-- **create_flashcard** - Create a flashcard, optionally linked to a highlight
+- **create_flashcard** - Create a flashcard, optionally anchored to a `highlight_id`, `note_id`, or `chapter_id` (give at most one)
 - **update_flashcard** - Update a flashcard's question and/or answer
 - **delete_flashcard** - Delete a flashcard
+
+The three suggestion tools below require an AI provider configured on the Crossbill server; without one they report that AI features are not enabled. They only suggest question/answer pairs — nothing is saved until you pass one to `create_flashcard`.
+
+- **suggest_flashcards_for_chapter** - Suggest flashcards from a chapter's digest (the chapter must already have one)
+- **suggest_flashcards_for_highlight** - Suggest flashcards from a highlight's text
+- **suggest_flashcards_for_note** - Suggest flashcards from a note and its linked highlights
 
 ### Reading
 
 - **get_reading_sessions** - Get reading sessions for a book
 - **get_chapter_content** - Get full text content of a chapter from the EPUB
+
+### Chapter Digests
+
+A digest is an AI-written study aid for one chapter: a summary, a list of keypoints, and comprehension questions with answers. Generating one requires an AI provider configured on the Crossbill server; without one, `generate_chapter_digest` and `generate_book_digests` report that AI features are not enabled.
+
+- **get_chapter_digest** - Get a chapter's existing digest, or a note that it has none yet
+- **generate_chapter_digest** - Generate one chapter's digest synchronously; this makes an AI call and can take tens of seconds
+- **answer_digest_question** - Record the user's answer to one question, by its zero-based index into the digest's questions
+- **get_book_digests** - Get every chapter digest a book has
+- **generate_book_digests** - Enqueue digest generation for all of a book's chapters as a background job batch
+- **get_digest_generation_status** - Get the active digest batch for a book, for polling progress
+- **get_job_batch** - Get any job batch by ID, with its status and progress counts
+- **cancel_job_batch** - Cancel a job batch and abort the jobs in it that have not run yet
 
 ### Bookmarks
 
