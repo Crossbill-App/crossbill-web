@@ -12,14 +12,17 @@ def register_reading_tools(server: FastMCP, client: CrossbillClient) -> None:
     """Register reading session and chapter content tools."""
 
     @server.tool()
-    async def get_reading_sessions(book_id: int, limit: int = 30) -> str:
+    async def get_reading_sessions(
+        book_id: int, limit: int = 30, offset: int = 0
+    ) -> str:
         """Get reading sessions for a book.
 
         Args:
             book_id: The ID of the book
             limit: Maximum number of sessions to return (default 30)
+            offset: Pagination offset (default 0)
         """
-        result = await client.get_reading_sessions(book_id, limit=limit)
+        result = await client.get_reading_sessions(book_id, limit=limit, offset=offset)
         return json.dumps(result, indent=2, default=str)
 
     @server.tool()

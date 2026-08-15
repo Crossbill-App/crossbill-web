@@ -28,12 +28,13 @@ def register_highlight_tools(server: FastMCP, client: CrossbillClient) -> None:
         return json.dumps(result, indent=2, default=str)
 
     @server.tool()
-    async def update_highlight_note(highlight_id: int, note: str) -> str:
+    async def update_highlight_note(highlight_id: int, note: str | None = None) -> str:
         """Add or update a note/annotation on a highlight.
 
         Args:
             highlight_id: The ID of the highlight
-            note: The note text (pass empty string to clear)
+            note: The note text; omit it, or pass an empty string, to clear the
+                highlight's note
         """
         result = await client.update_highlight_note(
             highlight_id, note if note else None

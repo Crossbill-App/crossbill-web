@@ -11,6 +11,16 @@ def register_bookmark_tools(server: FastMCP, client: CrossbillClient) -> None:
     """Register bookmark-related tools with the MCP server."""
 
     @server.tool()
+    async def list_bookmarks(book_id: int) -> str:
+        """Get every bookmark in a book, with the highlight each one marks.
+
+        Args:
+            book_id: The ID of the book
+        """
+        result = await client.get_bookmarks(book_id)
+        return json.dumps(result, indent=2, default=str)
+
+    @server.tool()
     async def create_bookmark(book_id: int, highlight_id: int) -> str:
         """Create a bookmark for a highlight.
 

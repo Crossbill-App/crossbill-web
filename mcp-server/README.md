@@ -100,7 +100,7 @@ crossbill-mcp
 ### Highlights
 
 - **get_highlights** - Get highlights from a book, optionally filtered by search
-- **update_highlight_note** - Add or update a note on a highlight
+- **update_highlight_note** - Add or update a note on a highlight, or clear it by omitting the note
 - **tag_highlight** - Add a tag to a highlight
 - **untag_highlight** - Remove a tag from a highlight
 
@@ -126,7 +126,7 @@ The three suggestion tools below require an AI provider configured on the Crossb
 
 ### Reading
 
-- **get_reading_sessions** - Get reading sessions for a book
+- **get_reading_sessions** - Get reading sessions for a book, with `limit` and `offset` for paging
 - **get_chapter_content** - Get full text content of a chapter from the EPUB
 - **get_reading_session_summary** - Get an AI summary of what was read in one session, cached after the first call. Requires an AI provider configured on the Crossbill server
 
@@ -145,6 +145,7 @@ A digest is an AI-written study aid for one chapter: a summary, a list of keypoi
 
 ### Bookmarks
 
+- **list_bookmarks** - Get every bookmark in a book
 - **create_bookmark** - Bookmark a highlight
 - **delete_bookmark** - Delete a bookmark
 
