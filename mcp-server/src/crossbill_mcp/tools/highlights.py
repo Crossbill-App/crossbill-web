@@ -3,6 +3,7 @@
 import json
 
 from mcp.server.fastmcp import FastMCP
+from mcp.types import ToolAnnotations
 
 from crossbill_mcp.client import CrossbillClient
 
@@ -10,7 +11,7 @@ from crossbill_mcp.client import CrossbillClient
 def register_highlight_tools(server: FastMCP, client: CrossbillClient) -> None:
     """Register highlight-related tools with the MCP server."""
 
-    @server.tool()
+    @server.tool(annotations=ToolAnnotations(readOnlyHint=True))
     async def get_highlights(book_id: int, search: str | None = None) -> str:
         """Get highlights from a book, optionally filtered by search text.
 

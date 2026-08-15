@@ -3,6 +3,7 @@
 import json
 
 from mcp.server.fastmcp import FastMCP
+from mcp.types import ToolAnnotations
 
 from crossbill_mcp.ai_gate import ai_gated_json
 from crossbill_mcp.client import CrossbillClient
@@ -11,7 +12,7 @@ from crossbill_mcp.client import CrossbillClient
 def register_flashcard_tools(server: FastMCP, client: CrossbillClient) -> None:
     """Register flashcard-related tools with the MCP server."""
 
-    @server.tool()
+    @server.tool(annotations=ToolAnnotations(readOnlyHint=True))
     async def get_flashcards(book_id: int) -> str:
         """Get all flashcards for a book with their associated highlights.
 
@@ -72,7 +73,7 @@ def register_flashcard_tools(server: FastMCP, client: CrossbillClient) -> None:
         result = await client.update_flashcard(flashcard_id, question, answer)
         return json.dumps(result, indent=2, default=str)
 
-    @server.tool()
+    @server.tool(annotations=ToolAnnotations(destructiveHint=True, readOnlyHint=False))
     async def delete_flashcard(flashcard_id: int) -> str:
         """Delete a flashcard.
 
@@ -82,7 +83,7 @@ def register_flashcard_tools(server: FastMCP, client: CrossbillClient) -> None:
         result = await client.delete_flashcard(flashcard_id)
         return json.dumps(result, indent=2, default=str)
 
-    @server.tool()
+    @server.tool(annotations=ToolAnnotations(readOnlyHint=True))
     async def suggest_flashcards_for_chapter(chapter_id: int) -> str:
         """Suggest flashcards drawn from a chapter's digest.
 
@@ -98,7 +99,7 @@ def register_flashcard_tools(server: FastMCP, client: CrossbillClient) -> None:
             client.get_chapter_flashcard_suggestions(chapter_id)
         )
 
-    @server.tool()
+    @server.tool(annotations=ToolAnnotations(readOnlyHint=True))
     async def suggest_flashcards_for_highlight(highlight_id: int) -> str:
         """Suggest flashcards drawn from a highlight's text.
 
@@ -112,7 +113,7 @@ def register_flashcard_tools(server: FastMCP, client: CrossbillClient) -> None:
             client.get_highlight_flashcard_suggestions(highlight_id)
         )
 
-    @server.tool()
+    @server.tool(annotations=ToolAnnotations(readOnlyHint=True))
     async def suggest_flashcards_for_note(note_id: int) -> str:
         """Suggest flashcards drawn from a note and its linked highlights.
 

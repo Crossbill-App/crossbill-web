@@ -4,6 +4,7 @@ import json
 
 import httpx
 from mcp.server.fastmcp import FastMCP
+from mcp.types import ToolAnnotations
 
 from crossbill_mcp.client import CrossbillClient
 
@@ -16,7 +17,7 @@ SEMANTIC_DISABLED_MESSAGE = (
 def register_semantic_tools(server: FastMCP, client: CrossbillClient) -> None:
     """Register semantic search tools with the MCP server."""
 
-    @server.tool()
+    @server.tool(annotations=ToolAnnotations(readOnlyHint=True))
     async def semantic_search(
         query: str, book_id: int | None = None, limit: int = 10
     ) -> str:
@@ -42,7 +43,7 @@ def register_semantic_tools(server: FastMCP, client: CrossbillClient) -> None:
             raise
         return json.dumps(result, indent=2, default=str)
 
-    @server.tool()
+    @server.tool(annotations=ToolAnnotations(readOnlyHint=True))
     async def find_related(content_type: str, content_id: int, limit: int = 10) -> str:
         """Find content semantically similar to an existing note, highlight or digest.
 

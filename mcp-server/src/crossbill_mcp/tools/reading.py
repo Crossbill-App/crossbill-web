@@ -3,6 +3,7 @@
 import json
 
 from mcp.server.fastmcp import FastMCP
+from mcp.types import ToolAnnotations
 
 from crossbill_mcp.ai_gate import ai_gated_json
 from crossbill_mcp.client import CrossbillClient
@@ -11,7 +12,7 @@ from crossbill_mcp.client import CrossbillClient
 def register_reading_tools(server: FastMCP, client: CrossbillClient) -> None:
     """Register reading session and chapter content tools."""
 
-    @server.tool()
+    @server.tool(annotations=ToolAnnotations(readOnlyHint=True))
     async def get_reading_sessions(
         book_id: int, limit: int = 30, offset: int = 0
     ) -> str:
@@ -25,7 +26,7 @@ def register_reading_tools(server: FastMCP, client: CrossbillClient) -> None:
         result = await client.get_reading_sessions(book_id, limit=limit, offset=offset)
         return json.dumps(result, indent=2, default=str)
 
-    @server.tool()
+    @server.tool(annotations=ToolAnnotations(readOnlyHint=True))
     async def get_chapter_content(chapter_id: int) -> str:
         """Get the full text content of a chapter from the EPUB file.
 
@@ -37,7 +38,7 @@ def register_reading_tools(server: FastMCP, client: CrossbillClient) -> None:
         result = await client.get_chapter_content(chapter_id)
         return json.dumps(result, indent=2, default=str)
 
-    @server.tool()
+    @server.tool(annotations=ToolAnnotations(readOnlyHint=True))
     async def get_reading_session_summary(reading_session_id: int) -> str:
         """Get an AI summary of what the user read in one reading session.
 

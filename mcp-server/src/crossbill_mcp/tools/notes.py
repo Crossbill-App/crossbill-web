@@ -3,6 +3,7 @@
 import json
 
 from mcp.server.fastmcp import FastMCP
+from mcp.types import ToolAnnotations
 
 from crossbill_mcp.client import CrossbillClient
 
@@ -47,7 +48,7 @@ def register_notes_tools(server: FastMCP, client: CrossbillClient) -> None:
         )
         return json.dumps(result, indent=2, default=str)
 
-    @server.tool()
+    @server.tool(annotations=ToolAnnotations(readOnlyHint=True))
     async def get_note(note_id: int) -> str:
         """Get a single note with its linked chapters, highlights and tags.
 
@@ -60,7 +61,7 @@ def register_notes_tools(server: FastMCP, client: CrossbillClient) -> None:
         result = await client.get_note(note_id)
         return json.dumps(result, indent=2, default=str)
 
-    @server.tool()
+    @server.tool(annotations=ToolAnnotations(readOnlyHint=True))
     async def get_book_notes(
         book_id: int,
         kind: str | None = None,
@@ -128,7 +129,7 @@ def register_notes_tools(server: FastMCP, client: CrossbillClient) -> None:
         )
         return json.dumps(result, indent=2, default=str)
 
-    @server.tool()
+    @server.tool(annotations=ToolAnnotations(destructiveHint=True, readOnlyHint=False))
     async def delete_note(note_id: int) -> str:
         """Delete a note and its links to chapters, highlights and tags.
 

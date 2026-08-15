@@ -3,6 +3,7 @@
 import json
 
 from mcp.server.fastmcp import FastMCP
+from mcp.types import ToolAnnotations
 
 from crossbill_mcp.client import CrossbillClient
 
@@ -10,7 +11,7 @@ from crossbill_mcp.client import CrossbillClient
 def register_reflection_tools(server: FastMCP, client: CrossbillClient) -> None:
     """Register book reflection tools with the MCP server."""
 
-    @server.tool()
+    @server.tool(annotations=ToolAnnotations(readOnlyHint=True))
     async def get_book_reflection(book_id: int) -> str:
         """Get a book's reflection: its answers to the four reading questions.
 

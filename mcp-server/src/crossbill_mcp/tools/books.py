@@ -3,6 +3,7 @@
 import json
 
 from mcp.server.fastmcp import FastMCP
+from mcp.types import ToolAnnotations
 
 from crossbill_mcp.client import CrossbillClient
 
@@ -10,7 +11,7 @@ from crossbill_mcp.client import CrossbillClient
 def register_book_tools(server: FastMCP, client: CrossbillClient) -> None:
     """Register book-related tools with the MCP server."""
 
-    @server.tool()
+    @server.tool(annotations=ToolAnnotations(readOnlyHint=True))
     async def list_books(
         search: str | None = None,
         limit: int = 100,
@@ -26,7 +27,7 @@ def register_book_tools(server: FastMCP, client: CrossbillClient) -> None:
         result = await client.list_books(search=search, limit=limit, offset=offset)
         return json.dumps(result, indent=2, default=str)
 
-    @server.tool()
+    @server.tool(annotations=ToolAnnotations(readOnlyHint=True))
     async def get_book(book_id: int) -> str:
         """Get detailed information about a book including chapters and highlights.
 
@@ -36,7 +37,7 @@ def register_book_tools(server: FastMCP, client: CrossbillClient) -> None:
         result = await client.get_book(book_id)
         return json.dumps(result, indent=2, default=str)
 
-    @server.tool()
+    @server.tool(annotations=ToolAnnotations(readOnlyHint=True))
     async def get_recently_viewed_books(limit: int = 10) -> str:
         """Get recently viewed books.
 

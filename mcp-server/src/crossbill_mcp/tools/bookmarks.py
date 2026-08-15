@@ -3,6 +3,7 @@
 import json
 
 from mcp.server.fastmcp import FastMCP
+from mcp.types import ToolAnnotations
 
 from crossbill_mcp.client import CrossbillClient
 
@@ -10,7 +11,7 @@ from crossbill_mcp.client import CrossbillClient
 def register_bookmark_tools(server: FastMCP, client: CrossbillClient) -> None:
     """Register bookmark-related tools with the MCP server."""
 
-    @server.tool()
+    @server.tool(annotations=ToolAnnotations(readOnlyHint=True))
     async def list_bookmarks(book_id: int) -> str:
         """Get every bookmark in a book, with the highlight each one marks.
 
@@ -31,7 +32,7 @@ def register_bookmark_tools(server: FastMCP, client: CrossbillClient) -> None:
         result = await client.create_bookmark(book_id, highlight_id)
         return json.dumps(result, indent=2, default=str)
 
-    @server.tool()
+    @server.tool(annotations=ToolAnnotations(destructiveHint=True, readOnlyHint=False))
     async def delete_bookmark(book_id: int, bookmark_id: int) -> str:
         """Delete a bookmark.
 

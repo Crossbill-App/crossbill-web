@@ -3,6 +3,7 @@
 import json
 
 from mcp.server.fastmcp import FastMCP
+from mcp.types import ToolAnnotations
 
 from crossbill_mcp.client import CrossbillClient
 
@@ -10,7 +11,7 @@ from crossbill_mcp.client import CrossbillClient
 def register_tag_tools(server: FastMCP, client: CrossbillClient) -> None:
     """Register tag and tag group tools with the MCP server."""
 
-    @server.tool()
+    @server.tool(annotations=ToolAnnotations(readOnlyHint=True))
     async def get_book_tags(book_id: int) -> str:
         """Get every tag of a book, with the tag group each one belongs to.
 
@@ -60,7 +61,7 @@ def register_tag_tools(server: FastMCP, client: CrossbillClient) -> None:
         )
         return json.dumps(result, indent=2, default=str)
 
-    @server.tool()
+    @server.tool(annotations=ToolAnnotations(destructiveHint=True, readOnlyHint=False))
     async def delete_tag(book_id: int, tag_id: int) -> str:
         """Delete a tag from a book.
 
@@ -95,7 +96,7 @@ def register_tag_tools(server: FastMCP, client: CrossbillClient) -> None:
         )
         return json.dumps(result, indent=2, default=str)
 
-    @server.tool()
+    @server.tool(annotations=ToolAnnotations(destructiveHint=True, readOnlyHint=False))
     async def delete_tag_group(tag_group_id: int) -> str:
         """Delete a tag group, leaving the tags in it ungrouped.
 

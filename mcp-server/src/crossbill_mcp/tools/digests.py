@@ -3,6 +3,7 @@
 import json
 
 from mcp.server.fastmcp import FastMCP
+from mcp.types import ToolAnnotations
 
 from crossbill_mcp.ai_gate import ai_gated_json
 from crossbill_mcp.client import CrossbillClient
@@ -21,7 +22,7 @@ NO_ACTIVE_BATCH_MESSAGE = (
 def register_digest_tools(server: FastMCP, client: CrossbillClient) -> None:
     """Register chapter digest tools with the MCP server."""
 
-    @server.tool()
+    @server.tool(annotations=ToolAnnotations(readOnlyHint=True))
     async def get_chapter_digest(chapter_id: int) -> str:
         """Get a chapter's digest: an AI-written study aid for that chapter.
 
@@ -69,7 +70,7 @@ def register_digest_tools(server: FastMCP, client: CrossbillClient) -> None:
         result = await client.update_digest_answers(chapter_id, answers)
         return json.dumps(result, indent=2, default=str)
 
-    @server.tool()
+    @server.tool(annotations=ToolAnnotations(readOnlyHint=True))
     async def get_book_digests(book_id: int) -> str:
         """Get every chapter digest a book has.
 
@@ -94,7 +95,7 @@ def register_digest_tools(server: FastMCP, client: CrossbillClient) -> None:
         """
         return await ai_gated_json(client.enqueue_book_digests(book_id))
 
-    @server.tool()
+    @server.tool(annotations=ToolAnnotations(readOnlyHint=True))
     async def get_digest_generation_status(book_id: int) -> str:
         """Get the active digest generation batch for a book, if any.
 
@@ -110,7 +111,7 @@ def register_digest_tools(server: FastMCP, client: CrossbillClient) -> None:
             return NO_ACTIVE_BATCH_MESSAGE
         return json.dumps(result, indent=2, default=str)
 
-    @server.tool()
+    @server.tool(annotations=ToolAnnotations(readOnlyHint=True))
     async def get_job_batch(batch_id: int) -> str:
         """Get any job batch by ID, with its status and progress counts.
 
@@ -120,7 +121,7 @@ def register_digest_tools(server: FastMCP, client: CrossbillClient) -> None:
         result = await client.get_job_batch(batch_id)
         return json.dumps(result, indent=2, default=str)
 
-    @server.tool()
+    @server.tool(annotations=ToolAnnotations(destructiveHint=True, readOnlyHint=False))
     async def cancel_job_batch(batch_id: int) -> str:
         """Cancel a job batch, aborting the jobs in it that have not run yet.
 
