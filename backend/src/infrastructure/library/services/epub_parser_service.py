@@ -4,7 +4,7 @@
 
 import logging
 from io import BytesIO
-from typing import Any, cast
+from typing import Any, NamedTuple, cast
 from urllib.parse import unquote
 
 import ebooklib
@@ -17,44 +17,76 @@ from src.infrastructure.common.memory import trims_memory
 logger = logging.getLogger(__name__)
 
 
+class _TocEntry(NamedTuple):
+    """A flattened TOC entry; `parent_index` points into the same flattened list."""
+
+    title: str
+    chapter_number: int
+    parent_name: str | None
+    parent_index: int | None
+    href: str | None
+
+
 def _extract_toc_hierarchy(
-    toc_items: list[Any], current_number: int = 1, parent_name: str | None = None
-) -> list[tuple[str, int, str | None, str | None]]:
+    toc_items: list[Any],
+    entries: list[_TocEntry] | None = None,
+    parent_name: str | None = None,
+    parent_index: int | None = None,
+) -> list[_TocEntry]:
     """
-    Extract hierarchical TOC structure into a list preserving parent relationships.
+    Flatten the TOC tree into reading order, preserving parent relationships.
+
+    Entries are appended to one shared list, so an entry's position in that list
+    is its identity: children record the list index of their parent, which stays
+    unambiguous when several chapters share a title.
 
     Args:
         toc_items: List of TOC items from ebooklib (can be Link objects or tuples)
-        current_number: Starting chapter number (used for recursion)
+        entries: Accumulator shared across recursion levels (None starts a new list)
         parent_name: Name of the parent chapter (None for root-level chapters)
+        parent_index: Index of the parent entry in `entries` (None for root-level)
 
     Returns:
-        List of (chapter_title, chapter_number, parent_name, href) tuples in reading order.
+        The flattened list of TOC entries in reading order.
     """
-    chapters: list[tuple[str, int, str | None, str | None]] = []
+    if entries is None:
+        entries = []
 
     for item in toc_items:
         if isinstance(item, tuple):
             section, children = item[0], item[1] if len(item) > 1 else []
 
             if hasattr(section, "title"):
-                href = getattr(section, "href", None)
-                chapters.append((section.title, current_number, parent_name, href))
+                section_index = len(entries)
+                entries.append(
+                    _TocEntry(
+                        title=section.title,
+                        chapter_number=section_index + 1,
+                        parent_name=parent_name,
+                        parent_index=parent_index,
+                        href=getattr(section, "href", None),
+                    )
+                )
                 section_name = section.title
-                current_number += 1
             else:
+                # Untitled section: its children hang off the enclosing parent.
                 section_name = parent_name
+                section_index = parent_index
 
-            child_chapters = _extract_toc_hierarchy(children, current_number, section_name)
-            chapters.extend(child_chapters)
-            current_number += len(child_chapters)
+            _extract_toc_hierarchy(children, entries, section_name, section_index)
 
         elif hasattr(item, "title"):
-            href = getattr(item, "href", None)
-            chapters.append((item.title, current_number, parent_name, href))
-            current_number += 1
+            entries.append(
+                _TocEntry(
+                    title=item.title,
+                    chapter_number=len(entries) + 1,
+                    parent_name=parent_name,
+                    parent_index=parent_index,
+                    href=getattr(item, "href", None),
+                )
+            )
 
-    return chapters
+    return entries
 
 
 class EpubParserService:
@@ -105,7 +137,7 @@ class EpubParserService:
                 logger.info("EPUB has no table of contents")
                 return []
 
-            chapters_with_hrefs = _extract_toc_hierarchy(toc)
+            toc_entries = _extract_toc_hierarchy(toc)
 
             spine_mapping = self._build_href_to_spine_index(book)
             result: list[TocChapter] = []
@@ -113,15 +145,17 @@ class EpubParserService:
 
             # First pass: compute start_xpoints (with precise fragment resolution)
             start_xpoints: list[str | None] = []
-            for _title, _number, _parent, href in chapters_with_hrefs:
-                if href:
-                    xpoint = self._resolve_href_to_xpoint(book, href, spine_mapping, html_cache)
+            for entry in toc_entries:
+                if entry.href:
+                    xpoint = self._resolve_href_to_xpoint(
+                        book, entry.href, spine_mapping, html_cache
+                    )
                     start_xpoints.append(xpoint)
                 else:
                     start_xpoints.append(None)
 
             # Second pass: compute end_xpoints (next chapter's start_xpoint)
-            for i, (title, number, parent, _href) in enumerate(chapters_with_hrefs):
+            for i, entry in enumerate(toc_entries):
                 start_xpoint = start_xpoints[i]
                 end_xpoint = None
                 for j in range(i + 1, len(start_xpoints)):
@@ -130,9 +164,10 @@ class EpubParserService:
                         break
                 result.append(
                     TocChapter(
-                        name=title,
-                        chapter_number=number,
-                        parent_name=parent,
+                        name=entry.title,
+                        chapter_number=entry.chapter_number,
+                        parent_name=entry.parent_name,
+                        parent_index=entry.parent_index,
                         start_xpoint=start_xpoint,
                         end_xpoint=end_xpoint,
                     )

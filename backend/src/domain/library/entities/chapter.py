@@ -11,8 +11,10 @@ from src.domain.common.value_objects.position import Position
 class TocChapter:
     """A chapter entry parsed from an EPUB Table of Contents.
 
-    Parent relationships are expressed by name since DB IDs
-    aren't assigned yet during parsing.
+    Parent relationships are expressed by name since DB IDs aren't assigned yet
+    during parsing. Names repeat within a TOC, so `parent_index` -- the position
+    of the parent entry in the same flattened TOC list, None for roots -- is the
+    unambiguous link; `parent_name` remains for callers that have no index.
     """
 
     name: str
@@ -22,6 +24,7 @@ class TocChapter:
     end_xpoint: str | None
     start_position: Position | None = None
     end_position: Position | None = None
+    parent_index: int | None = None
 
 
 @dataclass

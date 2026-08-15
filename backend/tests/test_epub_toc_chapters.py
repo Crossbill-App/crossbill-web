@@ -30,6 +30,7 @@ def toc_ch(
     parent: str | None = None,
     start: str | None = None,
     end: str | None = None,
+    parent_index: int | None = None,
 ) -> TocChapter:
     """Shorthand for constructing TocChapter in tests."""
     return TocChapter(
@@ -38,6 +39,7 @@ def toc_ch(
         parent_name=parent,
         start_xpoint=start,
         end_xpoint=end,
+        parent_index=parent_index,
     )
 
 
@@ -513,6 +515,115 @@ class TestUpdatingExistingChapters:
 
         # Verify they are distinct chapters
         assert harjoitukset1.id != harjoitukset2.id
+
+
+class TestRepeatedSyncWithRepeatedNames:
+    """Test that re-syncing a TOC whose names repeat across levels is idempotent.
+
+    The KOReader plugin re-uploads the EPUB on every sync, so sync_chapters_from_toc
+    runs repeatedly over the same TOC. Resolving parents by bare name made run 2 pick a
+    different parent row than run 1 (last-write-wins over a repeated name), so the
+    (name, parent_id) keys missed and a whole subtree was created a second time. Every
+    duplicate chapter_number then breaks the plugin's digest cache and misroutes
+    highlights, which key chapters by number.
+    """
+
+    @staticmethod
+    def _repeated_name_toc() -> list[TocChapter]:
+        """A TOC repeating a parent name ("Luku") and a child name ("Yhteenveto").
+
+        Osa I / Luku / {Yhteenveto, Itsetuntemus}, Osa II / Luku / Yhteenveto.
+        """
+        return [
+            toc_ch("Osa I", 1, start="/body/DocFragment[1]/body"),
+            toc_ch("Luku", 2, "Osa I", "/body/DocFragment[2]/body", parent_index=0),
+            toc_ch("Yhteenveto", 3, "Luku", "/body/DocFragment[3]/body", parent_index=1),
+            toc_ch("Itsetuntemus", 4, "Luku", "/body/DocFragment[4]/body", parent_index=1),
+            toc_ch("Osa II", 5, start="/body/DocFragment[5]/body"),
+            toc_ch("Luku", 6, "Osa II", "/body/DocFragment[6]/body", parent_index=4),
+            toc_ch("Yhteenveto", 7, "Luku", "/body/DocFragment[7]/body", parent_index=5),
+        ]
+
+    async def test_second_sync_creates_no_duplicates(
+        self,
+        chapter_repo: ChapterRepository,
+        test_book_for_toc: models.Book,
+        db_session: AsyncSession,
+    ) -> None:
+        toc = self._repeated_name_toc()
+
+        first_count = await chapter_repo.sync_chapters_from_toc(
+            book_id=BookId(test_book_for_toc.id), user_id=UserId(1), chapters=toc
+        )
+        assert first_count == 7
+
+        result = await db_session.execute(
+            select(models.Chapter)
+            .filter_by(book_id=test_book_for_toc.id)
+            .order_by(models.Chapter.chapter_number)
+        )
+        ids_after_first = [ch.id for ch in result.scalars().all()]
+
+        second_count = await chapter_repo.sync_chapters_from_toc(
+            book_id=BookId(test_book_for_toc.id), user_id=UserId(1), chapters=toc
+        )
+
+        assert second_count == 0
+
+        result = await db_session.execute(
+            select(models.Chapter)
+            .filter_by(book_id=test_book_for_toc.id)
+            .order_by(models.Chapter.chapter_number)
+        )
+        db_chapters = result.scalars().all()
+
+        # Same rows as after the first sync -- nothing created, nothing orphaned
+        assert [ch.id for ch in db_chapters] == ids_after_first
+
+        # chapter_number is an identity for the ereader plugin: it must stay unique
+        numbers = [ch.chapter_number for ch in db_chapters]
+        assert numbers == [1, 2, 3, 4, 5, 6, 7]
+        pairs = [(ch.name, ch.chapter_number) for ch in db_chapters]
+        assert len(set(pairs)) == len(pairs)
+
+        osa1, luku1, yhteenveto1, itsetuntemus, osa2, luku2, yhteenveto2 = db_chapters
+        assert luku1.parent_id == osa1.id
+        assert luku2.parent_id == osa2.id
+        assert yhteenveto1.parent_id == luku1.id
+        assert itsetuntemus.parent_id == luku1.id
+        assert yhteenveto2.parent_id == luku2.id
+
+    async def test_repeated_names_are_placed_under_the_indexed_parent(
+        self,
+        chapter_repo: ChapterRepository,
+        test_book_for_toc: models.Book,
+        db_session: AsyncSession,
+    ) -> None:
+        """parent_index wins over parent_name when the name is ambiguous.
+
+        Both "Luku" sections carry parent_name "Osa I", but the indexes say otherwise;
+        the rows must follow the indexes.
+        """
+        toc = [
+            toc_ch("Osa I", 1),
+            toc_ch("Osa II", 2),
+            toc_ch("Luku", 3, "Osa I", parent_index=0),
+            toc_ch("Luku", 4, "Osa I", parent_index=1),
+        ]
+
+        created = await chapter_repo.sync_chapters_from_toc(
+            book_id=BookId(test_book_for_toc.id), user_id=UserId(1), chapters=toc
+        )
+
+        assert created == 4
+        result = await db_session.execute(
+            select(models.Chapter)
+            .filter_by(book_id=test_book_for_toc.id)
+            .order_by(models.Chapter.chapter_number)
+        )
+        osa1, osa2, luku_a, luku_b = result.scalars().all()
+        assert luku_a.parent_id == osa1.id
+        assert luku_b.parent_id == osa2.id
 
 
 class TestLegacyFlatChapterMigration:
