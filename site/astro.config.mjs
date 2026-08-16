@@ -59,6 +59,7 @@ export default defineConfig({
 						{ label: 'KOReader', slug: 'integrations/koreader' },
 						{ label: 'Obsidian', slug: 'integrations/obsidian' },
 						{ label: 'Anki', slug: 'integrations/anki' },
+						{ label: 'MCP server', slug: 'integrations/mcp-server' },
 					],
 				},
 			],
