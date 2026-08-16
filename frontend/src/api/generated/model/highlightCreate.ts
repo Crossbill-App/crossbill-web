@@ -34,4 +34,6 @@ export interface HighlightCreate {
   color?: string | null;
   /** Highlight drawer/style from KOReader (e.g. 'lighten', 'strikethrough') */
   drawer?: string | null;
+  /** Note attached to the highlight in KOReader */
+  note?: string | null;
 }
