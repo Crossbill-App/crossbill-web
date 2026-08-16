@@ -12,7 +12,8 @@ inside KOReader on the device and talks to your Crossbill server.
 Upwards, from the e-reader to Crossbill:
 
 - **Highlights** — the passages you marked while reading, with where they sit in
-  the book. Re-syncing a book you have synced before does not create duplicates.
+  the book, any note you typed about one on the device, and which device it came
+  from. Re-syncing a book you have synced before does not create duplicates.
 - **Highlight styles** — the highlighter appearance you used: a colour, a
   drawing style, or both. Crossbill keeps them so you can give each one a
   [label](../../features/tags-and-organization/) later.
@@ -23,6 +24,13 @@ Downwards, from Crossbill to the e-reader:
 
 - **Chapter digests** — the plugin can pull generated digests back down so you
   can read a chapter's summary and key points on the device itself.
+- **Highlights** — from the plugin menu you can pull the highlights of the book
+  you have open. Crossbill holds the master copy, so its set replaces the one on
+  the device: highlights you deleted in Crossbill disappear from the device and
+  do not come back the next time you sync upwards. Page bookmarks are left as
+  they are, and the plugin backs up the book's sidecar file before it writes. A
+  highlight with no recorded position — a few very old ones — cannot be placed
+  in the text, so it is skipped and reported.
 
 ## Installing it
 

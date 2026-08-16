@@ -28,8 +28,9 @@ _Avoid_: status, state, progress
 
 **Highlight**:
 A passage of text the user marked on their e-reader, imported into Crossbill. A
-highlight carries the passage and where it sits in the book — nothing the user
-wrote. Their own words about it live in a Note.
+highlight carries the passage and where it sits in the book, plus any note the
+user typed on the e-reader and the device it came from. The words they write
+about it in Crossbill live in a Note.
 _Avoid_: annotation, clipping, excerpt, quote, passage
 
 **Highlight Style**:
@@ -120,6 +121,7 @@ _Avoid_: account, owner, member
 **E-reader**:
 The user's reading device, running the KOReader plugin. It is the origin of
 highlights, highlight styles and reading sessions, and it can pull chapter
-digests back down for reading on the device.
+digests back down for reading on the device, as well as the server's copy of a
+book's highlights.
 _Avoid_: client, device, KOReader (when speaking of the role rather than the
 software)

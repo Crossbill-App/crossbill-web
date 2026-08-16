@@ -9,13 +9,17 @@ with. The Crossbill plugin runs inside it, on the device.
 ## What it does
 
 - Uploads your **highlights** to Crossbill, with the position of each passage in
-  the book. Re-syncing a book does not duplicate what is already there.
+  the book and any note you typed about it on the device. Re-syncing a book does
+  not duplicate what is already there.
 - Uploads the **highlight styles** you used, so you can name and recolour them
   as [labels](../../features/tags-and-organization/) in Crossbill.
 - Uploads your **reading sessions** — when each stretch of reading started and
   ended, and how far through the book it ran.
 - Pulls **chapter digests** back down to the device, so a chapter's summary and
   key points are available while you read.
+- Pulls **highlights** back down for the book you have open, replacing the
+  device's set with Crossbill's, so what you deleted in Crossbill leaves the
+  device too.
 
 This is the integration Crossbill depends on: it is where your content comes
 from.
