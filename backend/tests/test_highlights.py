@@ -142,6 +142,81 @@ class TestHighlightsUpload:
         assert highlights[1].start_xpoint is None
         assert highlights[1].end_xpoint is None
 
+    async def test_upload_keeps_device_datetime_and_note(
+        self, client: AsyncClient, db_session: AsyncSession, create_book_via_api: CreateBookFunc
+    ) -> None:
+        """The e-reader's own datetime and note are stored, not replaced by server values."""
+        await create_book_via_api(
+            {
+                "client_book_id": "test-client-book-device-fields",
+                "title": "Device Fields Book",
+                "author": "Test Author",
+            }
+        )
+
+        payload = {
+            "client_book_id": "test-client-book-device-fields",
+            "highlights": [
+                {
+                    "text": "Annotated on the device",
+                    "datetime": "2019-06-01 08:15:30",
+                    "note": "Read this again before chapter 3",
+                },
+                {
+                    "text": "No note here",
+                    "datetime": "2019-06-01 08:16:00",
+                },
+            ],
+        }
+
+        response = await client.post("/api/v1/highlights/upload", json=payload)
+        assert response.status_code == status.HTTP_200_OK
+        assert response.json()["highlights_created"] == 2
+
+        result = await db_session.execute(
+            select(models.Highlight).order_by(models.Highlight.datetime)
+        )
+        highlights = result.scalars().all()
+        assert [h.datetime for h in highlights] == ["2019-06-01 08:15:30", "2019-06-01 08:16:00"]
+        assert highlights[0].koreader_note == "Read this again before chapter 3"
+        assert highlights[1].koreader_note is None
+
+    async def test_reupload_does_not_overwrite_stored_note(
+        self, client: AsyncClient, db_session: AsyncSession, create_book_via_api: CreateBookFunc
+    ) -> None:
+        """A duplicate (same text) is skipped as a whole: the first note wins."""
+        await create_book_via_api(
+            {
+                "client_book_id": "test-client-book-note-rewrite",
+                "title": "Note Rewrite Book",
+                "author": "Test Author",
+            }
+        )
+        highlight = {"text": "Same passage", "datetime": "2019-06-01 08:15:30"}
+
+        first = await client.post(
+            "/api/v1/highlights/upload",
+            json={
+                "client_book_id": "test-client-book-note-rewrite",
+                "highlights": [{**highlight, "note": "first note"}],
+            },
+        )
+        assert first.json()["highlights_created"] == 1
+
+        second = await client.post(
+            "/api/v1/highlights/upload",
+            json={
+                "client_book_id": "test-client-book-note-rewrite",
+                "highlights": [{**highlight, "note": "edited note"}],
+            },
+        )
+        assert second.json()["highlights_created"] == 0
+        assert second.json()["highlights_skipped"] == 1
+
+        result = await db_session.execute(select(models.Highlight).filter_by(text="Same passage"))
+        stored = result.scalar_one()
+        assert stored.koreader_note == "first note"
+
     async def test_upload_duplicate_highlights(
         self, client: AsyncClient, db_session: AsyncSession, create_book_via_api: CreateBookFunc
     ) -> None:

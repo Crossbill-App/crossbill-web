@@ -59,6 +59,7 @@ class Highlight(AggregateRoot[HighlightId]):
 
     # Metadata
     datetime: str = ""  # KOReader datetime string
+    koreader_note: str | None = None  # Note written on the e-reader; not the Notes module
     created_at: dt_module.datetime = field(default_factory=lambda: dt_module.datetime.now(UTC))
     updated_at: dt_module.datetime = field(default_factory=lambda: dt_module.datetime.now(UTC))
     deleted_at: dt_module.datetime | None = None
@@ -146,6 +147,8 @@ class Highlight(AggregateRoot[HighlightId]):
         page: int | None = None,
         position: Position | None = None,
         highlight_style_id: HighlightStyleId | None = None,
+        datetime_str: str | None = None,
+        koreader_note: str | None = None,
     ) -> Highlight:
         """
         Factory method for creating a new highlight.
@@ -158,6 +161,8 @@ class Highlight(AggregateRoot[HighlightId]):
             xpoints: Optional XPoint range for precise position
             page: Optional page number
             position: Optional Position for document-order location
+            datetime_str: Device-side creation time (KOReader format); server time when absent
+            koreader_note: Note attached to the highlight on the e-reader
 
         Returns:
             New Highlight instance
@@ -167,7 +172,8 @@ class Highlight(AggregateRoot[HighlightId]):
         """
         highlight_text = text
         now = dt_module.datetime.now(UTC)
-        datetime_str = now.strftime("%Y-%m-%d %H:%M:%S")
+        if not datetime_str:
+            datetime_str = now.strftime("%Y-%m-%d %H:%M:%S")
 
         return cls(
             id=HighlightId.generate(),  # Generate new ID
@@ -180,6 +186,7 @@ class Highlight(AggregateRoot[HighlightId]):
             position=position,
             highlight_style_id=highlight_style_id,
             datetime=datetime_str,
+            koreader_note=koreader_note,
             created_at=now,
             updated_at=now,
             deleted_at=None,
@@ -202,6 +209,7 @@ class Highlight(AggregateRoot[HighlightId]):
         position: Position | None = None,
         highlight_style_id: HighlightStyleId | None = None,
         deleted_at: dt_module.datetime | None = None,
+        koreader_note: str | None = None,
     ) -> Highlight:
         """
         Factory method for reconstituting highlight from persistence.
@@ -219,6 +227,7 @@ class Highlight(AggregateRoot[HighlightId]):
             position=position,
             highlight_style_id=highlight_style_id,
             datetime=datetime_str,
+            koreader_note=koreader_note,
             created_at=created_at,
             updated_at=updated_at,
             deleted_at=deleted_at,

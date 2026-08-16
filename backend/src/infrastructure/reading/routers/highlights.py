@@ -88,6 +88,8 @@ async def upload_highlights(
             page=h.page,
             color=h.color,
             drawer=h.drawer,
+            datetime=h.datetime,
+            koreader_note=h.note,
         )
         for h in request.highlights
     ]

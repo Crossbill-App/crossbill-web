@@ -44,6 +44,8 @@ class HighlightUploadData:
     page: int | None = None
     color: str | None = None
     drawer: str | None = None
+    datetime: str | None = None
+    koreader_note: str | None = None
 
 
 class HighlightUploadUseCase:
@@ -192,6 +194,8 @@ class HighlightUploadUseCase:
                 page=data.page,
                 position=position,
                 highlight_style_id=highlight_style.id,
+                datetime_str=data.datetime,
+                koreader_note=data.koreader_note,
             )
             new_highlights.append(highlight)
 

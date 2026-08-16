@@ -41,6 +41,7 @@ class HighlightCreate(HighlightBase):
     drawer: str | None = Field(
         None, description="Highlight drawer/style from KOReader (e.g. 'lighten', 'strikethrough')"
     )
+    note: str | None = Field(None, description="Note attached to the highlight in KOReader")
 
 
 class HighlightLabel(BaseModel):
