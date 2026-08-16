@@ -89,6 +89,7 @@ class HighlightUploadUseCase:
         client_book_id: str,
         highlight_data_list: list[HighlightUploadData],
         user_id: int,
+        device_id: str | None = None,
     ) -> tuple[int, int]:
         """
         Process highlight upload from KOReader.
@@ -104,6 +105,7 @@ class HighlightUploadUseCase:
             client_book_id: Book identifier from client
             highlight_data_list: List of highlight data to upload
             user_id: User ID (primitive int, converted to value object)
+            device_id: Device the whole batch comes from, stamped on every highlight created
 
         Returns:
             Tuple of (created_count, skipped_count)
@@ -196,6 +198,7 @@ class HighlightUploadUseCase:
                 highlight_style_id=highlight_style.id,
                 datetime_str=data.datetime,
                 koreader_note=data.koreader_note,
+                origin_device_id=device_id,
             )
             new_highlights.append(highlight)
 

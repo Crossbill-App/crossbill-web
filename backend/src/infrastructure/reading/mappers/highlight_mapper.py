@@ -60,6 +60,7 @@ class HighlightMapper:
             else None,
             deleted_at=orm_model.deleted_at,
             koreader_note=orm_model.koreader_note,
+            origin_device_id=orm_model.origin_device_id,
         )
 
     def to_orm(
@@ -108,4 +109,5 @@ class HighlightMapper:
         )
         orm_model.deleted_at = domain_entity.deleted_at
         orm_model.koreader_note = domain_entity.koreader_note
+        orm_model.origin_device_id = domain_entity.origin_device_id
         return orm_model

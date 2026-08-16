@@ -50,6 +50,7 @@ class Highlight(Base):
     )
     datetime: Mapped[str] = mapped_column(String(50), nullable=False)  # KOReader datetime string
     koreader_note: Mapped[str | None] = mapped_column(Text, nullable=True)
+    origin_device_id: Mapped[str | None] = mapped_column(String(100), nullable=True)
     content_hash: Mapped[str] = mapped_column(
         String(64), nullable=False, index=True
     )  # SHA-256 hash for deduplication

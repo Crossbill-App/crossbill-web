@@ -156,6 +156,7 @@ class TestHighlightsUpload:
 
         payload = {
             "client_book_id": "test-client-book-device-fields",
+            "device_id": "Kobo Clara",
             "highlights": [
                 {
                     "text": "Annotated on the device",
@@ -180,6 +181,37 @@ class TestHighlightsUpload:
         assert [h.datetime for h in highlights] == ["2019-06-01 08:15:30", "2019-06-01 08:16:00"]
         assert highlights[0].koreader_note == "Read this again before chapter 3"
         assert highlights[1].koreader_note is None
+        # The device id is per batch, so every highlight in it carries the same one.
+        assert [h.origin_device_id for h in highlights] == ["Kobo Clara", "Kobo Clara"]
+
+    async def test_upload_without_device_id_stores_none(
+        self, client: AsyncClient, db_session: AsyncSession, create_book_via_api: CreateBookFunc
+    ) -> None:
+        """Older plugins send no device_id; the highlight simply has no origin."""
+        await create_book_via_api(
+            {
+                "client_book_id": "test-client-book-no-device",
+                "title": "No Device Book",
+                "author": "Test Author",
+            }
+        )
+
+        response = await client.post(
+            "/api/v1/highlights/upload",
+            json={
+                "client_book_id": "test-client-book-no-device",
+                "highlights": [
+                    {"text": "From an unnamed device", "datetime": "2019-06-01 08:15:30"}
+                ],
+            },
+        )
+        assert response.status_code == status.HTTP_200_OK
+        assert response.json()["highlights_created"] == 1
+
+        result = await db_session.execute(
+            select(models.Highlight).filter_by(text="From an unnamed device")
+        )
+        assert result.scalar_one().origin_device_id is None
 
     async def test_reupload_does_not_overwrite_stored_note(
         self, client: AsyncClient, db_session: AsyncSession, create_book_via_api: CreateBookFunc

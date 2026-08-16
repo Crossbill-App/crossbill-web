@@ -134,6 +134,9 @@ class HighlightUploadRequest(BaseModel):
         max_length=255,
         description="Client-provided stable book identifier for deduplication",
     )
+    device_id: str | None = Field(
+        None, max_length=100, description="Identifier of the device the highlights come from"
+    )
     highlights: list[HighlightCreate] = Field(..., description="List of highlights to upload")
 
 
