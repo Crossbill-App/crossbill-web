@@ -38,6 +38,7 @@ from src.infrastructure.notes.queries.note_query import NoteQuery
 from src.infrastructure.notes.repositories.note_repository import NoteRepository
 from src.infrastructure.reading.queries.bookmark_query import BookmarkQuery
 from src.infrastructure.reading.queries.ereader_digest_query import EreaderDigestQuery
+from src.infrastructure.reading.queries.ereader_highlights_query import EreaderHighlightsQuery
 from src.infrastructure.reading.queries.highlight_label_query import HighlightLabelQuery
 from src.infrastructure.reading.queries.highlight_search_query import HighlightSearchQuery
 from src.infrastructure.reading.queries.reading_session_query import ReadingSessionQuery
@@ -146,6 +147,7 @@ class SharedContainer(containers.DeclarativeContainer):
     )
     bookmark_query = providers.Factory(BookmarkQuery, db=db)
     ereader_digest_query = providers.Factory(EreaderDigestQuery, db=db)
+    ereader_highlights_query = providers.Factory(EreaderHighlightsQuery, db=db)
     highlight_label_query = providers.Factory(
         HighlightLabelQuery,
         db=db,
