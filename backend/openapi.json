@@ -493,6 +493,54 @@
         }
       }
     },
+    "/api/v1/ereader/books/{client_book_id}/highlights": {
+      "get": {
+        "tags": [
+          "ereader"
+        ],
+        "summary": "Get Ereader Book Highlights",
+        "description": "Get every highlight of a book by client_book_id.\n\nThe server is the master copy: this returns all live highlights of the book,\nincluding ones made on other devices and ones the device has already seen.\nDeleted highlights are omitted, so a device that removes what it cannot find\nhere converges on the server's set. Highlights without both xpoints cannot be\nplaced in the book and say so via `placeable`.\n\nArgs:\n    client_book_id: The client-provided stable book identifier\n    current_user: Authenticated user\n\nReturns:\n    CollectionResponse with one item per live highlight\n\nRaises:\n    HTTPException: 404 if the book is not found for the given client_book_id",
+        "operationId": "get_ereader_book_highlights",
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "client_book_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Client Book Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CollectionResponse_EreaderHighlightItem_"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/covers/{filename}": {
       "get": {
         "tags": [
@@ -4801,6 +4849,22 @@
         ],
         "title": "CollectionResponse[EreaderChapterDigestItem]"
       },
+      "CollectionResponse_EreaderHighlightItem_": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/EreaderHighlightItem"
+            },
+            "type": "array",
+            "title": "Items"
+          }
+        },
+        "type": "object",
+        "required": [
+          "items"
+        ],
+        "title": "CollectionResponse[EreaderHighlightItem]"
+      },
       "CollectionResponse_FlashcardSuggestionItem_": {
         "properties": {
           "items": {
@@ -5172,6 +5236,143 @@
         ],
         "title": "EreaderChapterDigestItem",
         "description": "Ereader-friendly digest for a single chapter.\n\nQuestions are exposed as plain strings only (no AI or user answers) to keep\nthe device payload small and preserve active-recall value."
+      },
+      "EreaderHighlightItem": {
+        "properties": {
+          "id": {
+            "type": "integer",
+            "title": "Id"
+          },
+          "text": {
+            "type": "string",
+            "title": "Text"
+          },
+          "start_xpoint": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Start Xpoint"
+          },
+          "end_xpoint": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "End Xpoint"
+          },
+          "datetime": {
+            "type": "string",
+            "title": "Datetime"
+          },
+          "page": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Page"
+          },
+          "chapter_number": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Chapter Number"
+          },
+          "chapter_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Chapter Name"
+          },
+          "device_color": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Device Color"
+          },
+          "device_style": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Device Style"
+          },
+          "note": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Note"
+          },
+          "origin_device_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Origin Device Id"
+          },
+          "placeable": {
+            "type": "boolean",
+            "title": "Placeable"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "text",
+          "start_xpoint",
+          "end_xpoint",
+          "datetime",
+          "page",
+          "chapter_number",
+          "chapter_name",
+          "device_color",
+          "device_style",
+          "note",
+          "origin_device_id",
+          "placeable"
+        ],
+        "title": "EreaderHighlightItem",
+        "description": "A single highlight as the device receives it back.\n\n``note`` is the note written on the e-reader, not a Crossbill note.\n``placeable`` tells the device whether the highlight can be positioned in\nthe book, which needs both xpoints."
       },
       "FeatureFlags": {
         "properties": {
@@ -5736,6 +5937,18 @@
             ],
             "title": "Drawer",
             "description": "Highlight drawer/style from KOReader (e.g. 'lighten', 'strikethrough')"
+          },
+          "note": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Note",
+            "description": "Note attached to the highlight in KOReader"
           }
         },
         "type": "object",
@@ -6232,6 +6445,19 @@
             "minLength": 1,
             "title": "Client Book Id",
             "description": "Client-provided stable book identifier for deduplication"
+          },
+          "device_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 100
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Device Id",
+            "description": "Identifier of the device the highlights come from"
           },
           "highlights": {
             "items": {
