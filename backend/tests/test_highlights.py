@@ -12,6 +12,37 @@ from src import models
 from tests.conftest import CreateBookFunc
 
 
+async def resync_edited_highlight(
+    client: AsyncClient,
+    db_session: AsyncSession,
+    create_book_via_api: CreateBookFunc,
+    client_book_id: str,
+    first: dict[str, Any],
+    edited: dict[str, Any],
+) -> models.Highlight:
+    """Upload a highlight, then re-upload the copy a device has since edited.
+
+    Returns the stored row, which the second upload skipped as a duplicate.
+    """
+    await create_book_via_api({"client_book_id": client_book_id, "title": client_book_id})
+
+    created = await client.post(
+        "/api/v1/highlights/upload",
+        json={"client_book_id": client_book_id, "highlights": [first]},
+    )
+    assert created.json()["highlights_created"] == 1
+
+    resynced = await client.post(
+        "/api/v1/highlights/upload",
+        json={"client_book_id": client_book_id, "highlights": [edited]},
+    )
+    assert resynced.json()["highlights_created"] == 0
+    assert resynced.json()["highlights_skipped"] == 1
+
+    result = await db_session.execute(select(models.Highlight).filter_by(text=first["text"]))
+    return result.scalar_one()
+
+
 async def upload_then_delete_highlight(
     client: AsyncClient,
     db_session: AsyncSession,
@@ -239,78 +270,155 @@ class TestHighlightsUpload:
         )
         assert result.scalar_one().origin_device_id is None
 
-    async def test_reupload_updates_stored_note(
+    async def test_reupload_applies_a_newer_note_edit(
         self, client: AsyncClient, db_session: AsyncSession, create_book_via_api: CreateBookFunc
     ) -> None:
-        """The highlight itself is still skipped, but its note follows the device."""
-        await create_book_via_api(
-            {
-                "client_book_id": "test-client-book-note-rewrite",
-                "title": "Note Rewrite Book",
-                "author": "Test Author",
-            }
-        )
+        """The highlight itself is still skipped, but a later device edit lands."""
         highlight = {"text": "Same passage", "datetime": "2019-06-01 08:15:30"}
 
-        first = await client.post(
-            "/api/v1/highlights/upload",
-            json={
-                "client_book_id": "test-client-book-note-rewrite",
-                "highlights": [{**highlight, "note": "first note"}],
-            },
+        stored = await resync_edited_highlight(
+            client,
+            db_session,
+            create_book_via_api,
+            "test-client-book-note-rewrite",
+            {**highlight, "note": "first note"},
+            {**highlight, "note": "edited note", "datetime_updated": "2019-06-02 09:00:00"},
         )
-        assert first.json()["highlights_created"] == 1
 
-        second = await client.post(
-            "/api/v1/highlights/upload",
-            json={
-                "client_book_id": "test-client-book-note-rewrite",
-                "highlights": [{**highlight, "note": "edited note"}],
-            },
-        )
-        assert second.json()["highlights_created"] == 0
-        assert second.json()["highlights_skipped"] == 1
-
-        result = await db_session.execute(select(models.Highlight).filter_by(text="Same passage"))
-        stored = result.scalar_one()
         assert stored.koreader_note == "edited note"
+        assert stored.koreader_updated_at == "2019-06-02 09:00:00"
+
+    async def test_reupload_ignores_an_older_note_edit(
+        self, client: AsyncClient, db_session: AsyncSession, create_book_via_api: CreateBookFunc
+    ) -> None:
+        """A device syncing its stale copy must not undo a newer edit from elsewhere."""
+        highlight = {"text": "Passage edited elsewhere", "datetime": "2019-06-01 08:15:30"}
+
+        stored = await resync_edited_highlight(
+            client,
+            db_session,
+            create_book_via_api,
+            "test-client-book-note-stale",
+            {**highlight, "note": "newer note", "datetime_updated": "2019-06-05 10:00:00"},
+            {**highlight, "note": "stale note", "datetime_updated": "2019-06-02 09:00:00"},
+        )
+
+        assert stored.koreader_note == "newer note"
+        assert stored.koreader_updated_at == "2019-06-05 10:00:00"
+
+    async def test_first_edit_is_accepted_even_when_older_than_the_stored_datetime(
+        self, client: AsyncClient, db_session: AsyncSession, create_book_via_api: CreateBookFunc
+    ) -> None:
+        """A row that never received a device edit has nothing to protect.
+
+        Rows uploaded before notes were kept carry a server-side datetime that
+        a note written on the device before that upload would never beat.
+        """
+        stored = await resync_edited_highlight(
+            client,
+            db_session,
+            create_book_via_api,
+            "test-client-book-first-edit",
+            {"text": "Noted before first upload", "datetime": "2025-11-17 20:21:54"},
+            {
+                "text": "Noted before first upload",
+                "datetime": "2025-11-17 20:21:54",
+                "note": "written in June",
+                "datetime_updated": "2025-06-01 09:00:00",
+            },
+        )
+
+        assert stored.koreader_note == "written in June"
+        assert stored.koreader_updated_at == "2025-06-01 09:00:00"
+
+    async def test_reupload_with_the_same_edit_time_keeps_the_stored_note(
+        self, client: AsyncClient, db_session: AsyncSession, create_book_via_api: CreateBookFunc
+    ) -> None:
+        """Equal timestamps are not newer, so the server's copy stands."""
+        highlight = {
+            "text": "Passage edited at the same second",
+            "datetime": "2019-06-01 08:15:30",
+            "datetime_updated": "2019-06-05 10:00:00",
+        }
+
+        stored = await resync_edited_highlight(
+            client,
+            db_session,
+            create_book_via_api,
+            "test-client-book-note-tie",
+            {**highlight, "note": "note on the server"},
+            {**highlight, "note": "note from the device"},
+        )
+
+        assert stored.koreader_note == "note on the server"
+
+    async def test_reupload_without_an_edit_time_compares_creation_datetimes(
+        self, client: AsyncClient, db_session: AsyncSession, create_book_via_api: CreateBookFunc
+    ) -> None:
+        """A highlight never edited on the device carries only its creation time."""
+        stored = await resync_edited_highlight(
+            client,
+            db_session,
+            create_book_via_api,
+            "test-client-book-note-no-edit-time",
+            {
+                "text": "Passage from an older sidecar",
+                "datetime": "2019-06-01 08:15:30",
+                "note": "first note",
+            },
+            {
+                "text": "Passage from an older sidecar",
+                "datetime": "2019-06-02 08:15:30",
+                "note": "note from the newer copy",
+            },
+        )
+
+        assert stored.koreader_note == "note from the newer copy"
+        assert stored.koreader_updated_at == "2019-06-02 08:15:30"
+
+    async def test_reupload_applies_a_newer_style_change(
+        self, client: AsyncClient, db_session: AsyncSession, create_book_via_api: CreateBookFunc
+    ) -> None:
+        """Recolouring a highlight on the device moves it to the new style."""
+        highlight = {"text": "Passage recoloured", "datetime": "2019-06-01 08:15:30"}
+
+        stored = await resync_edited_highlight(
+            client,
+            db_session,
+            create_book_via_api,
+            "test-client-book-style-change",
+            {**highlight, "color": "yellow", "drawer": "lighten"},
+            {
+                **highlight,
+                "color": "red",
+                "drawer": "underscore",
+                "datetime_updated": "2019-06-02 09:00:00",
+            },
+        )
+
+        result = await db_session.execute(
+            select(models.HighlightStyle).filter_by(id=stored.highlight_style_id)
+        )
+        style = result.scalar_one()
+        assert style.device_color == "red"
+        assert style.device_style == "underscore"
 
     async def test_reupload_without_note_clears_stored_note(
         self, client: AsyncClient, db_session: AsyncSession, create_book_via_api: CreateBookFunc
     ) -> None:
         """Deleting the note on the device clears it on the server too."""
-        await create_book_via_api(
-            {
-                "client_book_id": "test-client-book-note-clearing",
-                "title": "Note Clearing Book",
-                "author": "Test Author",
-            }
-        )
         highlight = {"text": "Passage once annotated", "datetime": "2019-06-01 08:15:30"}
 
-        first = await client.post(
-            "/api/v1/highlights/upload",
-            json={
-                "client_book_id": "test-client-book-note-clearing",
-                "highlights": [{**highlight, "note": "note to be removed"}],
-            },
+        stored = await resync_edited_highlight(
+            client,
+            db_session,
+            create_book_via_api,
+            "test-client-book-note-clearing",
+            {**highlight, "note": "note to be removed"},
+            {**highlight, "datetime_updated": "2019-06-02 09:00:00"},
         )
-        assert first.json()["highlights_created"] == 1
 
-        second = await client.post(
-            "/api/v1/highlights/upload",
-            json={
-                "client_book_id": "test-client-book-note-clearing",
-                "highlights": [highlight],
-            },
-        )
-        assert second.json()["highlights_created"] == 0
-        assert second.json()["highlights_skipped"] == 1
-
-        result = await db_session.execute(
-            select(models.Highlight).filter_by(text="Passage once annotated")
-        )
-        assert result.scalar_one().koreader_note is None
+        assert stored.koreader_note is None
 
     async def test_reupload_leaves_soft_deleted_duplicate_alone(
         self, client: AsyncClient, db_session: AsyncSession, create_book_via_api: CreateBookFunc
@@ -337,7 +445,13 @@ class TestHighlightsUpload:
             "/api/v1/highlights/upload",
             json={
                 "client_book_id": "test-client-book-note-deleted",
-                "highlights": [{**highlight, "note": "edited on the device"}],
+                "highlights": [
+                    {
+                        **highlight,
+                        "note": "edited on the device",
+                        "datetime_updated": "2019-06-02 09:00:00",
+                    }
+                ],
             },
         )
         assert second.json()["highlights_created"] == 0

@@ -5273,6 +5273,17 @@
             "type": "string",
             "title": "Datetime"
           },
+          "datetime_updated": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Datetime Updated"
+          },
           "page": {
             "anyOf": [
               {
@@ -5362,6 +5373,7 @@
           "start_xpoint",
           "end_xpoint",
           "datetime",
+          "datetime_updated",
           "page",
           "chapter_number",
           "chapter_name",
@@ -5372,7 +5384,7 @@
           "placeable"
         ],
         "title": "EreaderHighlightItem",
-        "description": "A single highlight as the device receives it back.\n\n``note`` is the note written on the e-reader, not a Crossbill note.\n``placeable`` tells the device whether the highlight can be positioned in\nthe book, which needs both xpoints."
+        "description": "A single highlight as the device receives it back.\n\n``note`` is the note written on the e-reader, not a Crossbill note.\n``datetime_updated`` is when it was last edited on a device, null until it\nhas been. ``placeable`` tells the device whether the highlight can be\npositioned in the book, which needs both xpoints."
       },
       "FeatureFlags": {
         "properties": {
@@ -5949,6 +5961,19 @@
             ],
             "title": "Note",
             "description": "Note attached to the highlight in KOReader"
+          },
+          "datetime_updated": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 50
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Datetime Updated",
+            "description": "KOReader datetime of the last edit on the device; absent until the highlight is first edited. The newest edit wins when devices disagree."
           }
         },
         "type": "object",

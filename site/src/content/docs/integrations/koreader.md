@@ -21,6 +21,11 @@ with. The Crossbill plugin runs inside it, on the device.
   device's set with Crossbill's, so what you deleted in Crossbill leaves the
   device too.
 
+Across two e-readers, edits to a highlight's note or colour are merged by
+newest edit: the most recent change wins, whichever device made it. Deleting a
+highlight on the e-reader does not delete it in Crossbill — the next pull
+brings it back. Delete it in Crossbill instead, and it goes from every device.
+
 This is the integration Crossbill depends on: it is where your content comes
 from.
 

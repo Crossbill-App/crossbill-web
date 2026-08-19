@@ -122,6 +122,7 @@ _Avoid_: account, owner, member
 The user's reading device, running the KOReader plugin. It is the origin of
 highlights, highlight styles and reading sessions, and it can pull chapter
 digests back down for reading on the device, as well as the server's copy of a
-book's highlights.
+book's highlights. When two e-readers edit the same highlight, the newer edit
+wins.
 _Avoid_: client, device, KOReader (when speaking of the role rather than the
 software)

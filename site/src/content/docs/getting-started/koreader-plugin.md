@@ -32,6 +32,14 @@ Downwards, from Crossbill to the e-reader:
   highlight with no recorded position — a few very old ones — cannot be placed
   in the text, so it is skipped and reported.
 
+If you read the same book on more than one e-reader, edits to a highlight's
+note or its colour are merged by when they were made: the most recent change
+wins, whichever device made it.
+
+Deleting a highlight on the e-reader does not delete it in Crossbill, and the
+next pull brings it back. Delete it in Crossbill instead — that deletion
+reaches every device.
+
 ## Installing it
 
 The plugin has its own installation instructions, kept with the plugin so they

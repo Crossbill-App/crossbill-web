@@ -89,6 +89,7 @@ async def upload_highlights(
             color=h.color,
             drawer=h.drawer,
             datetime=h.datetime,
+            datetime_updated=h.datetime_updated,
             koreader_note=h.note,
         )
         for h in request.highlights

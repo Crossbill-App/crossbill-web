@@ -276,6 +276,7 @@ async def get_ereader_book_highlights(
                 start_xpoint=item.start_xpoint,
                 end_xpoint=item.end_xpoint,
                 datetime=item.datetime,
+                datetime_updated=item.datetime_updated,
                 page=item.page,
                 chapter_number=item.chapter_number,
                 chapter_name=item.chapter_name,

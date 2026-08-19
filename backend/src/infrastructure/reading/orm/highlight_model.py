@@ -49,6 +49,9 @@ class Highlight(Base):
         ForeignKey("highlight_styles.id", ondelete="SET NULL"), index=True, nullable=True
     )
     datetime: Mapped[str] = mapped_column(String(50), nullable=False)  # KOReader datetime string
+    koreader_updated_at: Mapped[str | None] = mapped_column(
+        String(50), nullable=True
+    )  # KOReader datetime string of the last edit on the device
     koreader_note: Mapped[str | None] = mapped_column(Text, nullable=True)
     origin_device_id: Mapped[str | None] = mapped_column(String(100), nullable=True)
     content_hash: Mapped[str] = mapped_column(

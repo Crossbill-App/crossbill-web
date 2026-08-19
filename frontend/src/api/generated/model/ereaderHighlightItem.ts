@@ -9,8 +9,9 @@
  * A single highlight as the device receives it back.
  *
  * ``note`` is the note written on the e-reader, not a Crossbill note.
- * ``placeable`` tells the device whether the highlight can be positioned in
- * the book, which needs both xpoints.
+ * ``datetime_updated`` is when it was last edited on a device, null until it
+ * has been. ``placeable`` tells the device whether the highlight can be
+ * positioned in the book, which needs both xpoints.
  */
 export interface EreaderHighlightItem {
   id: number;
@@ -18,6 +19,7 @@ export interface EreaderHighlightItem {
   start_xpoint: string | null;
   end_xpoint: string | null;
   datetime: string;
+  datetime_updated: string | null;
   page: number | null;
   chapter_number: number | null;
   chapter_name: string | null;

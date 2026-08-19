@@ -42,6 +42,14 @@ class HighlightCreate(HighlightBase):
         None, description="Highlight drawer/style from KOReader (e.g. 'lighten', 'strikethrough')"
     )
     note: str | None = Field(None, description="Note attached to the highlight in KOReader")
+    datetime_updated: str | None = Field(
+        None,
+        max_length=50,
+        description=(
+            "KOReader datetime of the last edit on the device; absent until the "
+            "highlight is first edited. The newest edit wins when devices disagree."
+        ),
+    )
 
 
 class HighlightLabel(BaseModel):

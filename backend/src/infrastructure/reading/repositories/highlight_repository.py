@@ -12,6 +12,7 @@ from sqlalchemy import delete, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import joinedload, selectinload
 
+from src.application.reading.protocols.highlight_repository import DeviceEdit
 from src.domain.common.value_objects import (
     BookId,
     ContentHash,
@@ -270,23 +271,34 @@ class HighlightRepository:
         await self.db.commit()
         return len(position_updates)
 
-    async def bulk_update_koreader_notes(
-        self,
-        note_updates: list[tuple[HighlightId, str | None]],
-    ) -> int:
-        """Bulk update the e-reader note stored on highlights."""
-        if not note_updates:
+    async def bulk_apply_device_edits(self, edits: list[DeviceEdit]) -> int:
+        """Write the e-reader's note, style and edit time onto stored highlights.
+
+        Args:
+            edits: The edits to apply, each naming the highlight it belongs to
+
+        Returns:
+            Number of highlights written
+        """
+        if not edits:
             return 0
 
         await self.db.execute(
             update(HighlightORM),
             [
-                {"id": highlight_id.value, "koreader_note": note}
-                for highlight_id, note in note_updates
+                {
+                    "id": edit.highlight_id.value,
+                    "koreader_note": edit.koreader_note,
+                    "highlight_style_id": edit.highlight_style_id.value
+                    if edit.highlight_style_id
+                    else None,
+                    "koreader_updated_at": edit.koreader_updated_at,
+                }
+                for edit in edits
             ],
         )
         await self.db.commit()
-        return len(note_updates)
+        return len(edits)
 
     async def bulk_fill_xpoints_and_positions(
         self,

@@ -59,6 +59,7 @@ class Highlight(AggregateRoot[HighlightId]):
 
     # Metadata
     datetime: str = ""  # KOReader datetime string
+    koreader_updated_at: str | None = None  # KOReader datetime of the last edit on the device
     koreader_note: str | None = None  # Note written on the e-reader; not the Notes module
     origin_device_id: str | None = None  # Device the highlight was uploaded from
     created_at: dt_module.datetime = field(default_factory=lambda: dt_module.datetime.now(UTC))
@@ -149,6 +150,7 @@ class Highlight(AggregateRoot[HighlightId]):
         position: Position | None = None,
         highlight_style_id: HighlightStyleId | None = None,
         datetime_str: str | None = None,
+        koreader_updated_at: str | None = None,
         koreader_note: str | None = None,
         origin_device_id: str | None = None,
     ) -> Highlight:
@@ -164,6 +166,7 @@ class Highlight(AggregateRoot[HighlightId]):
             page: Optional page number
             position: Optional Position for document-order location
             datetime_str: Device-side creation time (KOReader format); server time when absent
+            koreader_updated_at: Device-side time of the last edit; None until first edited
             koreader_note: Note attached to the highlight on the e-reader
             origin_device_id: Device the upload batch came from
 
@@ -189,6 +192,7 @@ class Highlight(AggregateRoot[HighlightId]):
             position=position,
             highlight_style_id=highlight_style_id,
             datetime=datetime_str,
+            koreader_updated_at=koreader_updated_at,
             koreader_note=koreader_note,
             origin_device_id=origin_device_id,
             created_at=now,
@@ -213,6 +217,7 @@ class Highlight(AggregateRoot[HighlightId]):
         position: Position | None = None,
         highlight_style_id: HighlightStyleId | None = None,
         deleted_at: dt_module.datetime | None = None,
+        koreader_updated_at: str | None = None,
         koreader_note: str | None = None,
         origin_device_id: str | None = None,
     ) -> Highlight:
@@ -232,6 +237,7 @@ class Highlight(AggregateRoot[HighlightId]):
             position=position,
             highlight_style_id=highlight_style_id,
             datetime=datetime_str,
+            koreader_updated_at=koreader_updated_at,
             koreader_note=koreader_note,
             origin_device_id=origin_device_id,
             created_at=created_at,

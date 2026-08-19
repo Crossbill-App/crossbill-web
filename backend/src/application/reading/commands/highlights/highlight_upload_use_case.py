@@ -14,6 +14,7 @@ from src.application.library.protocols.file_repository import FileRepositoryProt
 from src.application.library.protocols.position_index_service import PositionIndexServiceProtocol
 from src.application.reading.protocols.chapter_repository import ChapterRepositoryProtocol
 from src.application.reading.protocols.highlight_repository import (
+    DeviceEdit,
     HighlightRepositoryProtocol,
 )
 from src.application.reading.protocols.highlight_style_repository import (
@@ -52,6 +53,7 @@ class HighlightUploadData:
     color: str | None = None
     drawer: str | None = None
     datetime: str | None = None
+    datetime_updated: str | None = None
     koreader_note: str | None = None
 
 
@@ -106,7 +108,7 @@ class HighlightUploadUseCase:
         2. Batch fetches chapters by chapter_number
         3. Creates domain entities using factory methods
         4. Deduplicates using domain service
-        5. Syncs e-reader notes onto the highlights skipped as duplicates
+        5. Applies the e-reader's newer note and style edits to skipped duplicates
         6. Fills in the xpoints and position of duplicates stored without them
         7. Bulk saves unique highlights
 
@@ -206,6 +208,7 @@ class HighlightUploadUseCase:
                 position=position,
                 highlight_style_id=highlight_style.id,
                 datetime_str=data.datetime,
+                koreader_updated_at=data.datetime_updated,
                 koreader_note=data.koreader_note,
                 origin_device_id=device_id,
             )
@@ -224,7 +227,7 @@ class HighlightUploadUseCase:
         stored_duplicates = await self.highlight_repository.find_live_by_content_hashes(
             user_id_vo, book_id, [duplicate.content_hash for duplicate in duplicates]
         )
-        await self._sync_notes_of_duplicates(duplicates, stored_duplicates, book_id)
+        await self._sync_device_edits_of_duplicates(duplicates, stored_duplicates, book_id)
         await self._fill_missing_positions_of_duplicates(duplicates, stored_duplicates, book_id)
 
         # Step 7: Bulk save unique highlights
@@ -247,21 +250,34 @@ class HighlightUploadUseCase:
 
         return len(unique), len(duplicates)
 
-    async def _sync_notes_of_duplicates(
+    async def _sync_device_edits_of_duplicates(
         self,
         duplicates: list[Highlight],
         stored: list[Highlight],
         book_id: BookId,
     ) -> int:
         """
-        Bring the stored e-reader notes of skipped duplicates up to date.
+        Carry the e-reader's note and style edits onto skipped duplicates.
 
-        A note edited on the device after its highlight was first uploaded
-        arrives inside a duplicate, which deduplication otherwise drops whole.
-        The e-reader is the only writer of this field, so the incoming note
-        wins, an empty one clearing the stored note. Soft-deleted highlights
-        are left untouched: they are absent from the stored rows, so matching
-        one must neither revive nor edit it.
+        A note or highlighter changed on the device after its highlight was
+        first uploaded arrives inside a duplicate, which deduplication
+        otherwise drops whole. Two devices can edit the same highlight, so the
+        newest edit wins, as it does in KOReader itself: the device's
+        ``datetime_updated`` (its creation ``datetime`` until it is first
+        edited) is compared against the one stored, and the incoming edit is
+        applied only if it is strictly newer. Equal timestamps keep the
+        server's copy. The strings are KOReader's "%Y-%m-%d %H:%M:%S", which
+        orders correctly as text, so no parsing is needed. A stored highlight
+        that has never received a device edit accepts the first one whatever
+        its time: there is nothing to protect, and rows uploaded before notes
+        were kept carry a server-side ``datetime`` that a device edit made
+        before that upload would never beat.
+
+        An applied edit takes the incoming note, an empty one clearing the
+        stored note, and the incoming style — but only when the incoming
+        highlight resolved to one at all; without a colour or drawer to
+        resolve, the stored style stays. Soft-deleted highlights are absent
+        from the stored rows, so matching one must neither revive nor edit it.
 
         Args:
             duplicates: Highlights skipped by deduplication
@@ -269,23 +285,43 @@ class HighlightUploadUseCase:
             book_id: Book the upload belongs to
 
         Returns:
-            Number of stored notes actually changed
+            Number of stored highlights the device's edits were applied to
         """
-        incoming_notes = {
-            duplicate.content_hash: duplicate.koreader_note or None for duplicate in duplicates
-        }
+        incoming_by_hash = {duplicate.content_hash: duplicate for duplicate in duplicates}
 
-        note_updates = [
-            (highlight.id, incoming_notes[highlight.content_hash])
-            for highlight in stored
-            if (highlight.koreader_note or None) != incoming_notes[highlight.content_hash]
-        ]
-        updated = await self.highlight_repository.bulk_update_koreader_notes(note_updates)
+        edits: list[DeviceEdit] = []
+        for highlight in stored:
+            incoming = incoming_by_hash.get(highlight.content_hash)
+            if incoming is None:
+                continue
 
-        if updated:
-            logger.info("highlight_notes_updated", book_id=book_id.value, count=updated)
+            incoming_edited_at = incoming.koreader_updated_at or incoming.datetime
+            if self._has_recorded_device_edit(highlight):
+                stored_edited_at = highlight.koreader_updated_at or highlight.datetime
+                if incoming_edited_at <= stored_edited_at:
+                    continue
 
-        return updated
+            edits.append(
+                DeviceEdit(
+                    highlight_id=highlight.id,
+                    koreader_note=incoming.koreader_note or None,
+                    highlight_style_id=incoming.highlight_style_id
+                    if incoming.highlight_style_id is not None
+                    else highlight.highlight_style_id,
+                    koreader_updated_at=incoming_edited_at,
+                )
+            )
+
+        applied = await self.highlight_repository.bulk_apply_device_edits(edits)
+
+        if applied:
+            logger.info("highlight_device_edits_applied", book_id=book_id.value, count=applied)
+
+        return applied
+
+    @staticmethod
+    def _has_recorded_device_edit(highlight: Highlight) -> bool:
+        return highlight.koreader_updated_at is not None or highlight.koreader_note is not None
 
     async def _fill_missing_positions_of_duplicates(
         self,

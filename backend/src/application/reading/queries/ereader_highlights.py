@@ -15,9 +15,11 @@ class EreaderHighlightView:
     """A single highlight, as the device receives it back.
 
     ``note`` is the note written on the e-reader (the highlight's
-    ``koreader_note``), not a Crossbill note. ``placeable`` says whether the
-    device can position the highlight in the book: that needs both xpoints, and
-    highlights uploaded from a device without them never gain them server-side.
+    ``koreader_note``), not a Crossbill note. ``datetime_updated`` is when the
+    highlight was last edited on a device, which the device compares against
+    its own copy. ``placeable`` says whether the device can position the
+    highlight in the book: that needs both xpoints, and highlights uploaded
+    from a device without them never gain them server-side.
     """
 
     id: int
@@ -25,6 +27,7 @@ class EreaderHighlightView:
     start_xpoint: str | None
     end_xpoint: str | None
     datetime: str
+    datetime_updated: str | None
     page: int | None
     chapter_number: int | None
     chapter_name: str | None

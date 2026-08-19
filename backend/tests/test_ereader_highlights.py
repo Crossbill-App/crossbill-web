@@ -46,6 +46,7 @@ async def test_returns_uploaded_highlights_with_device_fields(
                 "text": "Placeable one",
                 "page": 10,
                 "datetime": "2024-01-15 14:30:22",
+                "datetime_updated": "2024-01-16 09:05:00",
                 "start_xpoint": "/body/div[1]/p[5]/text()[1].0",
                 "end_xpoint": "/body/div[1]/p[5]/text()[1].42",
                 "color": "yellow",
@@ -72,6 +73,7 @@ async def test_returns_uploaded_highlights_with_device_fields(
     assert placeable["start_xpoint"] == "/body/DocFragment[1]/body/div[1]/p[5]"
     assert placeable["end_xpoint"] == "/body/DocFragment[1]/body/div[1]/p[5]/text().42"
     assert placeable["datetime"] == "2024-01-15 14:30:22"
+    assert placeable["datetime_updated"] == "2024-01-16 09:05:00"
     assert placeable["page"] == 10
     assert placeable["note"] == "Come back to this"
     assert placeable["device_color"] == "yellow"
@@ -82,6 +84,8 @@ async def test_returns_uploaded_highlights_with_device_fields(
     assert unplaceable["start_xpoint"] is None
     assert unplaceable["end_xpoint"] is None
     assert unplaceable["note"] is None
+    # Never edited on the device, so it has no edit time of its own.
+    assert unplaceable["datetime_updated"] is None
     assert unplaceable["placeable"] is False
 
 

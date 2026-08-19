@@ -36,4 +36,6 @@ export interface HighlightCreate {
   drawer?: string | null;
   /** Note attached to the highlight in KOReader */
   note?: string | null;
+  /** KOReader datetime of the last edit on the device; absent until the highlight is first edited. The newest edit wins when devices disagree. */
+  datetime_updated?: string | null;
 }
