@@ -18,6 +18,7 @@ from src.domain.common.value_objects import (
     HighlightId,
     TagId,
     UserId,
+    XPointRange,
 )
 from src.domain.common.value_objects.position import Position
 from src.domain.learning.entities.flashcard import Flashcard
@@ -286,6 +287,36 @@ class HighlightRepository:
         )
         await self.db.commit()
         return len(note_updates)
+
+    async def bulk_fill_xpoints_and_positions(
+        self,
+        placements: list[tuple[HighlightId, XPointRange, Position | None]],
+    ) -> int:
+        """Write xpoints and position onto highlights stored without them.
+
+        Args:
+            placements: (highlight id, xpoints to store, position or None)
+
+        Returns:
+            Number of highlights written
+        """
+        if not placements:
+            return 0
+
+        await self.db.execute(
+            update(HighlightORM),
+            [
+                {
+                    "id": highlight_id.value,
+                    "start_xpoint": xpoints.start.to_string(),
+                    "end_xpoint": xpoints.end.to_string(),
+                    "position": position.to_json() if position else None,
+                }
+                for highlight_id, xpoints, position in placements
+            ],
+        )
+        await self.db.commit()
+        return len(placements)
 
     async def soft_delete_by_ids(
         self,

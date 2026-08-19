@@ -1,6 +1,6 @@
 from typing import Protocol
 
-from src.domain.common.value_objects import ContentHash
+from src.domain.common.value_objects import ContentHash, XPointRange
 from src.domain.common.value_objects.ids import (
     BookId,
     HighlightId,
@@ -47,6 +47,13 @@ class HighlightRepositoryProtocol(Protocol):
         self,
         note_updates: list[tuple[HighlightId, str | None]],
     ) -> int: ...
+
+    async def bulk_fill_xpoints_and_positions(
+        self,
+        placements: list[tuple[HighlightId, XPointRange, Position | None]],
+    ) -> int:
+        """Write xpoints and position onto highlights stored without them."""
+        ...
 
     async def soft_delete_by_ids(
         self,

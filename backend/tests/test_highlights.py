@@ -1,5 +1,8 @@
 """Tests for highlights API endpoints."""
 
+from pathlib import Path
+from typing import Any
+
 from fastapi import status
 from httpx import AsyncClient
 from sqlalchemy import select
@@ -7,6 +10,29 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from src import models
 from tests.conftest import CreateBookFunc
+
+
+async def upload_then_delete_highlight(
+    client: AsyncClient,
+    db_session: AsyncSession,
+    client_book_id: str,
+    book_id: int,
+    highlight: dict[str, Any],
+) -> None:
+    """Upload one highlight and soft-delete it again, as a reader would."""
+    upload = await client.post(
+        "/api/v1/highlights/upload",
+        json={"client_book_id": client_book_id, "highlights": [highlight]},
+    )
+    assert upload.json()["highlights_created"] == 1
+
+    result = await db_session.execute(select(models.Highlight).filter_by(text=highlight["text"]))
+    deletion = await client.request(
+        "DELETE",
+        f"/api/v1/books/{book_id}/highlight",
+        json={"highlight_ids": [result.scalar_one().id]},
+    )
+    assert deletion.json()["deleted_count"] == 1
 
 
 class TestHighlightsUpload:
@@ -299,24 +325,13 @@ class TestHighlightsUpload:
         )
         highlight = {"text": "Deleted passage", "datetime": "2019-06-01 08:15:30"}
 
-        first = await client.post(
-            "/api/v1/highlights/upload",
-            json={
-                "client_book_id": "test-client-book-note-deleted",
-                "highlights": [{**highlight, "note": "note on a deleted highlight"}],
-            },
+        await upload_then_delete_highlight(
+            client,
+            db_session,
+            "test-client-book-note-deleted",
+            book.book_id,
+            {**highlight, "note": "note on a deleted highlight"},
         )
-        assert first.json()["highlights_created"] == 1
-
-        result = await db_session.execute(
-            select(models.Highlight).filter_by(text="Deleted passage")
-        )
-        deletion = await client.request(
-            "DELETE",
-            f"/api/v1/books/{book.book_id}/highlight",
-            json={"highlight_ids": [result.scalar_one().id]},
-        )
-        assert deletion.json()["deleted_count"] == 1
 
         second = await client.post(
             "/api/v1/highlights/upload",
@@ -334,6 +349,195 @@ class TestHighlightsUpload:
         stored = result.scalar_one()
         assert stored.deleted_at is not None
         assert stored.koreader_note == "note on a deleted highlight"
+
+    async def test_reupload_fills_missing_xpoints(
+        self, client: AsyncClient, db_session: AsyncSession, create_book_via_api: CreateBookFunc
+    ) -> None:
+        """A highlight stored before the device sent xpoints gets them from a re-upload."""
+        await create_book_via_api(
+            {
+                "client_book_id": "test-client-book-xpoint-backfill",
+                "title": "Xpoint Backfill Book",
+                "author": "Test Author",
+            }
+        )
+        highlight = {"text": "Passage without xpoints", "datetime": "2019-06-01 08:15:30"}
+
+        first = await client.post(
+            "/api/v1/highlights/upload",
+            json={
+                "client_book_id": "test-client-book-xpoint-backfill",
+                "highlights": [highlight],
+            },
+        )
+        assert first.json()["highlights_created"] == 1
+
+        second = await client.post(
+            "/api/v1/highlights/upload",
+            json={
+                "client_book_id": "test-client-book-xpoint-backfill",
+                "highlights": [
+                    {
+                        **highlight,
+                        "start_xpoint": "/body/DocFragment[2]/body/p[1]/text().0",
+                        "end_xpoint": "/body/DocFragment[2]/body/p[1]/text().13",
+                    }
+                ],
+            },
+        )
+        assert second.json()["highlights_created"] == 0
+        assert second.json()["highlights_skipped"] == 1
+
+        result = await db_session.execute(
+            select(models.Highlight).filter_by(text="Passage without xpoints")
+        )
+        stored = result.scalar_one()
+        assert stored.start_xpoint == "/body/DocFragment[2]/body/p[1]"
+        assert stored.end_xpoint == "/body/DocFragment[2]/body/p[1]/text().13"
+
+    async def test_reupload_does_not_overwrite_existing_xpoints(
+        self, client: AsyncClient, db_session: AsyncSession, create_book_via_api: CreateBookFunc
+    ) -> None:
+        """Xpoints already stored stay put; only a missing pair is filled in."""
+        await create_book_via_api(
+            {
+                "client_book_id": "test-client-book-xpoint-keeping",
+                "title": "Xpoint Keeping Book",
+                "author": "Test Author",
+            }
+        )
+        highlight = {"text": "Passage anchored once", "datetime": "2019-06-01 08:15:30"}
+
+        first = await client.post(
+            "/api/v1/highlights/upload",
+            json={
+                "client_book_id": "test-client-book-xpoint-keeping",
+                "highlights": [
+                    {
+                        **highlight,
+                        "start_xpoint": "/body/DocFragment[2]/body/p[1]/text().0",
+                        "end_xpoint": "/body/DocFragment[2]/body/p[1]/text().13",
+                    }
+                ],
+            },
+        )
+        assert first.json()["highlights_created"] == 1
+
+        second = await client.post(
+            "/api/v1/highlights/upload",
+            json={
+                "client_book_id": "test-client-book-xpoint-keeping",
+                "highlights": [
+                    {
+                        **highlight,
+                        "start_xpoint": "/body/DocFragment[7]/body/p[9]/text().4",
+                        "end_xpoint": "/body/DocFragment[7]/body/p[9]/text().20",
+                    }
+                ],
+            },
+        )
+        assert second.json()["highlights_skipped"] == 1
+
+        result = await db_session.execute(
+            select(models.Highlight).filter_by(text="Passage anchored once")
+        )
+        stored = result.scalar_one()
+        assert stored.start_xpoint == "/body/DocFragment[2]/body/p[1]"
+        assert stored.end_xpoint == "/body/DocFragment[2]/body/p[1]/text().13"
+
+    async def test_reupload_with_xpoints_resolves_position_when_epub_present(
+        self,
+        client: AsyncClient,
+        db_session: AsyncSession,
+        create_book_via_api: CreateBookFunc,
+        epub_bytes: bytes,
+        storage_dir: Path,
+    ) -> None:
+        """The backfilled xpoints are resolved against the book's EPUB into a position."""
+        await create_book_via_api(
+            {
+                "client_book_id": "test-client-book-position-backfill",
+                "title": "Position Backfill Book",
+                "author": "Test Author",
+            }
+        )
+        epub_upload = await client.post(
+            "/api/v1/ereader/books/test-client-book-position-backfill/epub",
+            files={"epub": ("book.epub", epub_bytes, "application/epub+zip")},
+        )
+        assert epub_upload.status_code == status.HTTP_200_OK
+
+        highlight = {"text": "Some content.", "datetime": "2019-06-01 08:15:30"}
+        first = await client.post(
+            "/api/v1/highlights/upload",
+            json={
+                "client_book_id": "test-client-book-position-backfill",
+                "highlights": [highlight],
+            },
+        )
+        assert first.json()["highlights_created"] == 1
+
+        result = await db_session.execute(select(models.Highlight).filter_by(text="Some content."))
+        assert result.scalar_one().position is None
+
+        second = await client.post(
+            "/api/v1/highlights/upload",
+            json={
+                "client_book_id": "test-client-book-position-backfill",
+                "highlights": [
+                    {
+                        **highlight,
+                        "start_xpoint": "/body/DocFragment[2]/body/p[1]/text().0",
+                        "end_xpoint": "/body/DocFragment[2]/body/p[1]/text().13",
+                    }
+                ],
+            },
+        )
+        assert second.json()["highlights_skipped"] == 1
+
+        db_session.expire_all()
+        result = await db_session.execute(select(models.Highlight).filter_by(text="Some content."))
+        assert result.scalar_one().position is not None
+
+    async def test_reupload_leaves_soft_deleted_duplicate_unplaced(
+        self, client: AsyncClient, db_session: AsyncSession, create_book_via_api: CreateBookFunc
+    ) -> None:
+        """A deleted highlight is not given xpoints: it must stay out of the book."""
+        book = await create_book_via_api(
+            {
+                "client_book_id": "test-client-book-xpoint-deleted",
+                "title": "Deleted Xpoint Book",
+                "author": "Test Author",
+            }
+        )
+        highlight = {"text": "Deleted unplaced passage", "datetime": "2019-06-01 08:15:30"}
+
+        await upload_then_delete_highlight(
+            client, db_session, "test-client-book-xpoint-deleted", book.book_id, highlight
+        )
+
+        second = await client.post(
+            "/api/v1/highlights/upload",
+            json={
+                "client_book_id": "test-client-book-xpoint-deleted",
+                "highlights": [
+                    {
+                        **highlight,
+                        "start_xpoint": "/body/DocFragment[2]/body/p[1]/text().0",
+                        "end_xpoint": "/body/DocFragment[2]/body/p[1]/text().13",
+                    }
+                ],
+            },
+        )
+        assert second.json()["highlights_skipped"] == 1
+
+        result = await db_session.execute(
+            select(models.Highlight).filter_by(text="Deleted unplaced passage")
+        )
+        stored = result.scalar_one()
+        assert stored.deleted_at is not None
+        assert stored.start_xpoint is None
+        assert stored.end_xpoint is None
 
     async def test_upload_duplicate_highlights(
         self, client: AsyncClient, db_session: AsyncSession, create_book_via_api: CreateBookFunc

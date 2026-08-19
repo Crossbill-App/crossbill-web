@@ -18,11 +18,13 @@ import inspect
 import itertools
 from collections.abc import AsyncGenerator, Awaitable, Callable
 from datetime import datetime as dt
+from pathlib import Path
 from types import SimpleNamespace
 from typing import Any
 from unittest.mock import AsyncMock
 
 import pytest
+from ebooklib import epub
 from httpx import ASGITransport, AsyncClient
 from sqlalchemy import event, select
 from sqlalchemy.ext.asyncio import (
@@ -37,6 +39,7 @@ from src.domain.common.value_objects import ContentHash
 from src.domain.common.value_objects.ids import UserId
 from src.domain.identity.entities.user import User as DomainUser
 from src.infrastructure.identity.dependencies import get_current_user
+from src.infrastructure.library.repositories import file_repository
 from src.infrastructure.library.schemas import EreaderBookMetadata
 from src.main import app
 from src.models import (
@@ -53,6 +56,43 @@ from src.models import (
 )
 
 logging.getLogger("aiosqlite").setLevel(logging.WARNING)
+
+
+def build_test_epub(path: Path) -> bytes:
+    """Write a one-chapter EPUB to path and return its bytes.
+
+    The single paragraph is "Some content.", reachable at the xpoint
+    "/body/DocFragment[2]/body/p[1]/text().0".
+    """
+    book = epub.EpubBook()
+    book.set_identifier("upload-test-epub")
+    book.set_title("Uploaded Book")
+    book.set_language("en")
+
+    chapter = epub.EpubHtml(title="Chapter 1", file_name="chap01.xhtml", lang="en")
+    chapter.content = "<h1>Chapter 1</h1><p>Some content.</p>"
+    book.add_item(chapter)
+    book.toc = [epub.Link("chap01.xhtml", "Chapter 1", "chap01")]
+    book.add_item(epub.EpubNcx())
+    book.add_item(epub.EpubNav())
+    book.spine = ["nav", chapter]
+
+    epub.write_epub(str(path), book)
+    return path.read_bytes()
+
+
+@pytest.fixture
+def epub_bytes(tmp_path: Path) -> bytes:
+    return build_test_epub(tmp_path / "upload.epub")
+
+
+@pytest.fixture
+def storage_dir(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
+    """Point EPUB and cover storage at a temp directory, returning the EPUB one."""
+    epubs_dir = tmp_path / "epubs"
+    monkeypatch.setattr(file_repository, "EPUBS_DIR", epubs_dir)
+    monkeypatch.setattr(file_repository, "BOOK_COVERS_DIR", tmp_path / "covers")
+    return epubs_dir
 
 
 async def create_test_book(

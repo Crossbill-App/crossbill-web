@@ -3,48 +3,15 @@
 from pathlib import Path
 
 import pytest
-from ebooklib import epub
 from fastapi import status
 from httpx import AsyncClient
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src import models
-from src.infrastructure.library.repositories import file_repository
 from tests.conftest import create_test_book
 
 CLIENT_BOOK_ID = "test-client-book-1"
-
-
-def _build_epub(path: Path) -> bytes:
-    book = epub.EpubBook()
-    book.set_identifier("upload-test-epub")
-    book.set_title("Uploaded Book")
-    book.set_language("en")
-
-    chapter = epub.EpubHtml(title="Chapter 1", file_name="chap01.xhtml", lang="en")
-    chapter.content = "<h1>Chapter 1</h1><p>Some content.</p>"
-    book.add_item(chapter)
-    book.toc = [epub.Link("chap01.xhtml", "Chapter 1", "chap01")]
-    book.add_item(epub.EpubNcx())
-    book.add_item(epub.EpubNav())
-    book.spine = ["nav", chapter]
-
-    epub.write_epub(str(path), book)
-    return path.read_bytes()
-
-
-@pytest.fixture
-def epub_bytes(tmp_path: Path) -> bytes:
-    return _build_epub(tmp_path / "upload.epub")
-
-
-@pytest.fixture
-def storage_dir(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
-    epubs_dir = tmp_path / "epubs"
-    monkeypatch.setattr(file_repository, "EPUBS_DIR", epubs_dir)
-    monkeypatch.setattr(file_repository, "BOOK_COVERS_DIR", tmp_path / "covers")
-    return epubs_dir
 
 
 @pytest.fixture

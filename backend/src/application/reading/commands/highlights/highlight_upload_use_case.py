@@ -21,7 +21,14 @@ from src.application.reading.protocols.highlight_style_repository import (
 )
 from src.application.semantic.content_type import ContentType
 from src.application.semantic.protocols.embedding_enqueuer import EmbeddingEnqueuerProtocol
-from src.domain.common.value_objects import BookId, ChapterId, UserId, XPointRange
+from src.domain.common.value_objects import (
+    BookId,
+    ChapterId,
+    ContentHash,
+    HighlightId,
+    UserId,
+    XPointRange,
+)
 from src.domain.common.value_objects.position import Position
 from src.domain.reading.entities.highlight import Highlight
 from src.domain.reading.exceptions import BookNotFoundError
@@ -100,7 +107,8 @@ class HighlightUploadUseCase:
         3. Creates domain entities using factory methods
         4. Deduplicates using domain service
         5. Syncs e-reader notes onto the highlights skipped as duplicates
-        6. Bulk saves unique highlights
+        6. Fills in the xpoints and position of duplicates stored without them
+        7. Bulk saves unique highlights
 
         Args:
             client_book_id: Book identifier from client
@@ -212,9 +220,14 @@ class HighlightUploadUseCase:
             new_highlights, existing_hashes
         )
 
-        await self._sync_notes_of_duplicates(duplicates, book_id, user_id_vo)
+        # Steps 5-6: reconcile the live rows the duplicates matched, loaded once
+        stored_duplicates = await self.highlight_repository.find_live_by_content_hashes(
+            user_id_vo, book_id, [duplicate.content_hash for duplicate in duplicates]
+        )
+        await self._sync_notes_of_duplicates(duplicates, stored_duplicates, book_id)
+        await self._fill_missing_positions_of_duplicates(duplicates, stored_duplicates, book_id)
 
-        # Step 5: Bulk save unique highlights
+        # Step 7: Bulk save unique highlights
         if unique:
             saved = await self.highlight_repository.bulk_save(unique)
             await self._embedding_enqueuer.enqueue_many(
@@ -237,8 +250,8 @@ class HighlightUploadUseCase:
     async def _sync_notes_of_duplicates(
         self,
         duplicates: list[Highlight],
+        stored: list[Highlight],
         book_id: BookId,
-        user_id: UserId,
     ) -> int:
         """
         Bring the stored e-reader notes of skipped duplicates up to date.
@@ -247,25 +260,20 @@ class HighlightUploadUseCase:
         arrives inside a duplicate, which deduplication otherwise drops whole.
         The e-reader is the only writer of this field, so the incoming note
         wins, an empty one clearing the stored note. Soft-deleted highlights
-        are left untouched: matching one must neither revive nor edit it.
+        are left untouched: they are absent from the stored rows, so matching
+        one must neither revive nor edit it.
 
         Args:
             duplicates: Highlights skipped by deduplication
+            stored: The live highlights those duplicates matched
             book_id: Book the upload belongs to
-            user_id: Owner of the highlights
 
         Returns:
             Number of stored notes actually changed
         """
-        if not duplicates:
-            return 0
-
         incoming_notes = {
             duplicate.content_hash: duplicate.koreader_note or None for duplicate in duplicates
         }
-        stored = await self.highlight_repository.find_live_by_content_hashes(
-            user_id, book_id, list(incoming_notes)
-        )
 
         note_updates = [
             (highlight.id, incoming_notes[highlight.content_hash])
@@ -278,3 +286,50 @@ class HighlightUploadUseCase:
             logger.info("highlight_notes_updated", book_id=book_id.value, count=updated)
 
         return updated
+
+    async def _fill_missing_positions_of_duplicates(
+        self,
+        duplicates: list[Highlight],
+        stored: list[Highlight],
+        book_id: BookId,
+    ) -> int:
+        """
+        Give skipped duplicates the xpoints and position their stored row lacks.
+
+        Highlights uploaded before the e-reader sent xpoints are stored without
+        them, and so cannot be placed in the book. A later upload carries the
+        xpoints, but deduplication drops it whole, leaving the stored row
+        unplaceable forever. Only the gap is filled: xpoints already stored
+        stay, because the e-reader may re-anchor a highlight the reader never
+        moved. The position comes with the incoming xpoints, already resolved
+        against this book's EPUB, and stays NULL when there is no EPUB to
+        resolve against. Soft-deleted highlights are absent from the stored
+        rows and thus left untouched.
+
+        Args:
+            duplicates: Highlights skipped by deduplication
+            stored: The live highlights those duplicates matched
+            book_id: Book the upload belongs to
+
+        Returns:
+            Number of stored highlights given xpoints
+        """
+        incoming: dict[ContentHash, tuple[XPointRange, Position | None]] = {}
+        for duplicate in duplicates:
+            if duplicate.xpoints is not None:
+                incoming[duplicate.content_hash] = (duplicate.xpoints, duplicate.position)
+
+        placements: list[tuple[HighlightId, XPointRange, Position | None]] = []
+        for highlight in stored:
+            placement = incoming.get(highlight.content_hash)
+            if placement is None or highlight.xpoints is not None:
+                continue
+            xpoints, position = placement
+            placements.append((highlight.id, xpoints, highlight.position or position))
+
+        filled = await self.highlight_repository.bulk_fill_xpoints_and_positions(placements)
+
+        if filled:
+            logger.info("highlight_positions_backfilled", book_id=book_id.value, count=filled)
+
+        return filled
