@@ -192,6 +192,35 @@ class HighlightRepository:
         # Convert back to value objects
         return {ContentHash(hash_str) for hash_str in existing}
 
+    async def find_live_by_content_hashes(
+        self, user_id: UserId, book_id: BookId, hashes: list[ContentHash]
+    ) -> list[Highlight]:
+        """
+        Load the highlights of a book matching any of the given content hashes.
+
+        Unlike get_existing_hashes, soft-deleted highlights are excluded: callers
+        act on the highlights they get back, and a deleted one must stay deleted.
+
+        Args:
+            user_id: User to load for
+            book_id: Book containing the highlights
+            hashes: Content hashes to match
+
+        Returns:
+            List of live Highlight domain entities
+        """
+        if not hashes:
+            return []
+
+        stmt = select(HighlightORM).where(
+            HighlightORM.user_id == user_id.value,
+            HighlightORM.book_id == book_id.value,
+            HighlightORM.content_hash.in_([h.value for h in hashes]),
+            HighlightORM.deleted_at.is_(None),
+        )
+        result = await self.db.execute(stmt)
+        return [self.mapper.to_domain(orm) for orm in result.scalars().all()]
+
     async def bulk_save(self, highlights: list[Highlight]) -> list[Highlight]:
         """
         Bulk save highlights efficiently.
@@ -239,6 +268,24 @@ class HighlightRepository:
 
         await self.db.commit()
         return len(position_updates)
+
+    async def bulk_update_koreader_notes(
+        self,
+        note_updates: list[tuple[HighlightId, str | None]],
+    ) -> int:
+        """Bulk update the e-reader note stored on highlights."""
+        if not note_updates:
+            return 0
+
+        await self.db.execute(
+            update(HighlightORM),
+            [
+                {"id": highlight_id.value, "koreader_note": note}
+                for highlight_id, note in note_updates
+            ],
+        )
+        await self.db.commit()
+        return len(note_updates)
 
     async def soft_delete_by_ids(
         self,

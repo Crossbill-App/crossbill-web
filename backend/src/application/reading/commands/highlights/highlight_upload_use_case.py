@@ -21,7 +21,7 @@ from src.application.reading.protocols.highlight_style_repository import (
 )
 from src.application.semantic.content_type import ContentType
 from src.application.semantic.protocols.embedding_enqueuer import EmbeddingEnqueuerProtocol
-from src.domain.common.value_objects import ChapterId, UserId, XPointRange
+from src.domain.common.value_objects import BookId, ChapterId, UserId, XPointRange
 from src.domain.common.value_objects.position import Position
 from src.domain.reading.entities.highlight import Highlight
 from src.domain.reading.exceptions import BookNotFoundError
@@ -99,7 +99,8 @@ class HighlightUploadUseCase:
         2. Batch fetches chapters by chapter_number
         3. Creates domain entities using factory methods
         4. Deduplicates using domain service
-        5. Bulk saves unique highlights
+        5. Syncs e-reader notes onto the highlights skipped as duplicates
+        6. Bulk saves unique highlights
 
         Args:
             client_book_id: Book identifier from client
@@ -211,6 +212,8 @@ class HighlightUploadUseCase:
             new_highlights, existing_hashes
         )
 
+        await self._sync_notes_of_duplicates(duplicates, book_id, user_id_vo)
+
         # Step 5: Bulk save unique highlights
         if unique:
             saved = await self.highlight_repository.bulk_save(unique)
@@ -230,3 +233,48 @@ class HighlightUploadUseCase:
         )
 
         return len(unique), len(duplicates)
+
+    async def _sync_notes_of_duplicates(
+        self,
+        duplicates: list[Highlight],
+        book_id: BookId,
+        user_id: UserId,
+    ) -> int:
+        """
+        Bring the stored e-reader notes of skipped duplicates up to date.
+
+        A note edited on the device after its highlight was first uploaded
+        arrives inside a duplicate, which deduplication otherwise drops whole.
+        The e-reader is the only writer of this field, so the incoming note
+        wins, an empty one clearing the stored note. Soft-deleted highlights
+        are left untouched: matching one must neither revive nor edit it.
+
+        Args:
+            duplicates: Highlights skipped by deduplication
+            book_id: Book the upload belongs to
+            user_id: Owner of the highlights
+
+        Returns:
+            Number of stored notes actually changed
+        """
+        if not duplicates:
+            return 0
+
+        incoming_notes = {
+            duplicate.content_hash: duplicate.koreader_note or None for duplicate in duplicates
+        }
+        stored = await self.highlight_repository.find_live_by_content_hashes(
+            user_id, book_id, list(incoming_notes)
+        )
+
+        note_updates = [
+            (highlight.id, incoming_notes[highlight.content_hash])
+            for highlight in stored
+            if (highlight.koreader_note or None) != incoming_notes[highlight.content_hash]
+        ]
+        updated = await self.highlight_repository.bulk_update_koreader_notes(note_updates)
+
+        if updated:
+            logger.info("highlight_notes_updated", book_id=book_id.value, count=updated)
+
+        return updated

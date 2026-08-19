@@ -28,6 +28,12 @@ class HighlightRepositoryProtocol(Protocol):
         self, user_id: UserId, book_id: BookId, hashes: list[ContentHash]
     ) -> set[ContentHash]: ...
 
+    async def find_live_by_content_hashes(
+        self, user_id: UserId, book_id: BookId, hashes: list[ContentHash]
+    ) -> list[Highlight]:
+        """Load the highlights matching these hashes, soft-deleted ones excluded."""
+        ...
+
     async def save(self, highlight: Highlight) -> Highlight: ...
 
     async def bulk_save(self, highlights: list[Highlight]) -> list[Highlight]: ...
@@ -35,6 +41,11 @@ class HighlightRepositoryProtocol(Protocol):
     async def bulk_update_positions(
         self,
         position_updates: list[tuple[HighlightId, Position]],
+    ) -> int: ...
+
+    async def bulk_update_koreader_notes(
+        self,
+        note_updates: list[tuple[HighlightId, str | None]],
     ) -> int: ...
 
     async def soft_delete_by_ids(

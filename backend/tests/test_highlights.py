@@ -213,10 +213,10 @@ class TestHighlightsUpload:
         )
         assert result.scalar_one().origin_device_id is None
 
-    async def test_reupload_does_not_overwrite_stored_note(
+    async def test_reupload_updates_stored_note(
         self, client: AsyncClient, db_session: AsyncSession, create_book_via_api: CreateBookFunc
     ) -> None:
-        """A duplicate (same text) is skipped as a whole: the first note wins."""
+        """The highlight itself is still skipped, but its note follows the device."""
         await create_book_via_api(
             {
                 "client_book_id": "test-client-book-note-rewrite",
@@ -247,7 +247,93 @@ class TestHighlightsUpload:
 
         result = await db_session.execute(select(models.Highlight).filter_by(text="Same passage"))
         stored = result.scalar_one()
-        assert stored.koreader_note == "first note"
+        assert stored.koreader_note == "edited note"
+
+    async def test_reupload_without_note_clears_stored_note(
+        self, client: AsyncClient, db_session: AsyncSession, create_book_via_api: CreateBookFunc
+    ) -> None:
+        """Deleting the note on the device clears it on the server too."""
+        await create_book_via_api(
+            {
+                "client_book_id": "test-client-book-note-clearing",
+                "title": "Note Clearing Book",
+                "author": "Test Author",
+            }
+        )
+        highlight = {"text": "Passage once annotated", "datetime": "2019-06-01 08:15:30"}
+
+        first = await client.post(
+            "/api/v1/highlights/upload",
+            json={
+                "client_book_id": "test-client-book-note-clearing",
+                "highlights": [{**highlight, "note": "note to be removed"}],
+            },
+        )
+        assert first.json()["highlights_created"] == 1
+
+        second = await client.post(
+            "/api/v1/highlights/upload",
+            json={
+                "client_book_id": "test-client-book-note-clearing",
+                "highlights": [highlight],
+            },
+        )
+        assert second.json()["highlights_created"] == 0
+        assert second.json()["highlights_skipped"] == 1
+
+        result = await db_session.execute(
+            select(models.Highlight).filter_by(text="Passage once annotated")
+        )
+        assert result.scalar_one().koreader_note is None
+
+    async def test_reupload_leaves_soft_deleted_duplicate_alone(
+        self, client: AsyncClient, db_session: AsyncSession, create_book_via_api: CreateBookFunc
+    ) -> None:
+        """A deleted highlight stays deleted and keeps its note; it is not revived."""
+        book = await create_book_via_api(
+            {
+                "client_book_id": "test-client-book-note-deleted",
+                "title": "Deleted Note Book",
+                "author": "Test Author",
+            }
+        )
+        highlight = {"text": "Deleted passage", "datetime": "2019-06-01 08:15:30"}
+
+        first = await client.post(
+            "/api/v1/highlights/upload",
+            json={
+                "client_book_id": "test-client-book-note-deleted",
+                "highlights": [{**highlight, "note": "note on a deleted highlight"}],
+            },
+        )
+        assert first.json()["highlights_created"] == 1
+
+        result = await db_session.execute(
+            select(models.Highlight).filter_by(text="Deleted passage")
+        )
+        deletion = await client.request(
+            "DELETE",
+            f"/api/v1/books/{book.book_id}/highlight",
+            json={"highlight_ids": [result.scalar_one().id]},
+        )
+        assert deletion.json()["deleted_count"] == 1
+
+        second = await client.post(
+            "/api/v1/highlights/upload",
+            json={
+                "client_book_id": "test-client-book-note-deleted",
+                "highlights": [{**highlight, "note": "edited on the device"}],
+            },
+        )
+        assert second.json()["highlights_created"] == 0
+        assert second.json()["highlights_skipped"] == 1
+
+        result = await db_session.execute(
+            select(models.Highlight).filter_by(text="Deleted passage")
+        )
+        stored = result.scalar_one()
+        assert stored.deleted_at is not None
+        assert stored.koreader_note == "note on a deleted highlight"
 
     async def test_upload_duplicate_highlights(
         self, client: AsyncClient, db_session: AsyncSession, create_book_via_api: CreateBookFunc
