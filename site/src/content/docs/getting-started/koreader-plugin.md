@@ -24,20 +24,21 @@ Downwards, from Crossbill to the e-reader:
 
 - **Chapter digests** — the plugin can pull generated digests back down so you
   can read a chapter's summary and key points on the device itself.
-- **Highlights** — from the plugin menu you can pull the highlights of the book
-  you have open. Crossbill holds the master copy, so its set replaces the one on
-  the device: highlights you deleted in Crossbill disappear from the device and
-  do not come back the next time you sync upwards. Page bookmarks are left as
-  they are, and the plugin backs up the book's sidecar file before it writes. A
-  highlight with no recorded position — a few very old ones — cannot be placed
-  in the text, so it is skipped and reported.
+- **Highlights** — every sync first pushes your highlights up, then pulls
+  Crossbill's copy of the open book back down. Crossbill holds the master copy,
+  so its set replaces the one on the device: highlights you deleted in
+  Crossbill disappear from the device and do not come back the next time you
+  sync. Page bookmarks are left as they are, and the plugin backs up the book's
+  sidecar file before it changes anything (and changes nothing when the two
+  sides already match). A highlight with no recorded position — a few very old
+  ones — cannot be placed in the text, so it is skipped and reported.
 
 If you read the same book on more than one e-reader, edits to a highlight's
 note or its colour are merged by when they were made: the most recent change
 wins, whichever device made it.
 
 Deleting a highlight on the e-reader does not delete it in Crossbill, and the
-next pull brings it back. Delete it in Crossbill instead — that deletion
+next sync brings it back. Delete it in Crossbill instead — that deletion
 reaches every device.
 
 ## Installing it

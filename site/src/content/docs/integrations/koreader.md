@@ -17,13 +17,13 @@ with. The Crossbill plugin runs inside it, on the device.
   ended, and how far through the book it ran.
 - Pulls **chapter digests** back down to the device, so a chapter's summary and
   key points are available while you read.
-- Pulls **highlights** back down for the book you have open, replacing the
-  device's set with Crossbill's, so what you deleted in Crossbill leaves the
-  device too.
+- Pulls **highlights** back down on every sync, after the push: the open
+  book's set on the device is replaced with Crossbill's, so what you deleted in
+  Crossbill leaves the device too.
 
 Across two e-readers, edits to a highlight's note or colour are merged by
 newest edit: the most recent change wins, whichever device made it. Deleting a
-highlight on the e-reader does not delete it in Crossbill — the next pull
+highlight on the e-reader does not delete it in Crossbill — the next sync
 brings it back. Delete it in Crossbill instead, and it goes from every device.
 
 This is the integration Crossbill depends on: it is where your content comes
