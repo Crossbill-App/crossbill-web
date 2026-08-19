@@ -133,3 +133,39 @@ class TestEpubUpload:
         )
 
         assert response.status_code == status.HTTP_404_NOT_FOUND
+
+    async def test_upload_backfills_positions_of_existing_highlights(
+        self,
+        client: AsyncClient,
+        db_session: AsyncSession,
+        ereader_book: models.Book,
+        epub_bytes: bytes,
+        storage_dir: Path,
+    ) -> None:
+        upload = await client.post(
+            "/api/v1/highlights/upload",
+            json={
+                "client_book_id": CLIENT_BOOK_ID,
+                "highlights": [
+                    {
+                        "text": "Some content.",
+                        "datetime": "2024-01-15 14:30:22",
+                        "start_xpoint": "/body/DocFragment[2]/body/p[1]/text().0",
+                        "end_xpoint": "/body/DocFragment[2]/body/p[1]/text().13",
+                    }
+                ],
+            },
+        )
+        assert upload.json()["highlights_created"] == 1
+
+        response = await client.post(
+            f"/api/v1/ereader/books/{CLIENT_BOOK_ID}/epub",
+            files={"epub": ("book.epub", epub_bytes, "application/epub+zip")},
+        )
+        assert response.status_code == status.HTTP_200_OK
+
+        result = await db_session.execute(
+            select(models.Highlight).filter_by(book_id=ereader_book.id)
+        )
+        highlight = result.scalar_one()
+        assert highlight.position is not None

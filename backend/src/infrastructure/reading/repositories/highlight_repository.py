@@ -259,13 +259,13 @@ class HighlightRepository:
         if not position_updates:
             return 0
 
-        for highlight_id, position in position_updates:
-            await self.db.execute(
-                update(HighlightORM)
-                .where(HighlightORM.id == highlight_id.value)
-                .values(position=position.to_json())
-            )
-
+        await self.db.execute(
+            update(HighlightORM),
+            [
+                {"id": highlight_id.value, "position": position.to_json()}
+                for highlight_id, position in position_updates
+            ],
+        )
         await self.db.commit()
         return len(position_updates)
 
