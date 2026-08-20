@@ -9,32 +9,20 @@ inside KOReader on the device and talks to your Crossbill server.
 
 ## What it syncs
 
-Upwards, from the e-reader to Crossbill:
 
 - **Highlights** — the passages you marked while reading, with where they sit in
   the book, any note you typed about one on the device, and which device it came
-  from. Re-syncing a book you have synced before does not create duplicates.
+  from. 
 - **Highlight styles** — the highlighter appearance you used: a colour, a
   drawing style, or both. Crossbill keeps them so you can give each one a
   [label](../../features/tags-and-organization/) later.
 - **Reading sessions** — the stretches of reading KOReader recorded: when each
   one started and ended, and how far through the book it ran.
-
-Downwards, from Crossbill to the e-reader:
-
 - **Chapter digests** — the plugin can pull generated digests back down so you
   can read a chapter's summary and key points on the device itself.
-- **Highlights** — every sync first pushes your highlights up, then pulls
-  Crossbill's copy of the open book back down. Crossbill holds the master copy,
-  so its set replaces the one on the device: highlights you deleted in
-  Crossbill disappear from the device and do not come back the next time you
-  sync. Page bookmarks are left as they are, and the plugin backs up the book's
-  sidecar file before it changes anything (and changes nothing when the two
-  sides already match). A highlight with no recorded position — a few very old
-  ones — cannot be placed in the text, so it is skipped and reported.
 
 If you read the same book on more than one e-reader, edits to a highlight's
-note or its colour are merged by when they were made: the most recent change
+note or its colour are merged by when they were made. The most recent change
 wins, whichever device made it.
 
 Deleting a highlight on the e-reader does not delete it in Crossbill, and the
