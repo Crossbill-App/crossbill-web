@@ -1,9 +1,11 @@
+from dataclasses import dataclass
 from typing import Protocol
 
-from src.domain.common.value_objects import ContentHash
+from src.domain.common.value_objects import ContentHash, XPointRange
 from src.domain.common.value_objects.ids import (
     BookId,
     HighlightId,
+    HighlightStyleId,
     TagId,
     UserId,
 )
@@ -11,6 +13,21 @@ from src.domain.common.value_objects.position import Position
 from src.domain.learning.entities import Flashcard
 from src.domain.reading import Highlight
 from src.domain.tagging import Tag
+
+
+@dataclass(frozen=True)
+class DeviceEdit:
+    """An edit made to a highlight on the e-reader, ready to be written.
+
+    ``koreader_updated_at`` is the device's own timestamp for the edit; it is
+    stored so that a later upload from another device can be compared against
+    it and the newer edit kept.
+    """
+
+    highlight_id: HighlightId
+    koreader_note: str | None
+    highlight_style_id: HighlightStyleId | None
+    koreader_updated_at: str
 
 
 class HighlightRepositoryProtocol(Protocol):
@@ -28,6 +45,12 @@ class HighlightRepositoryProtocol(Protocol):
         self, user_id: UserId, book_id: BookId, hashes: list[ContentHash]
     ) -> set[ContentHash]: ...
 
+    async def find_live_by_content_hashes(
+        self, user_id: UserId, book_id: BookId, hashes: list[ContentHash]
+    ) -> list[Highlight]:
+        """Load the highlights matching these hashes, soft-deleted ones excluded."""
+        ...
+
     async def save(self, highlight: Highlight) -> Highlight: ...
 
     async def bulk_save(self, highlights: list[Highlight]) -> list[Highlight]: ...
@@ -36,6 +59,17 @@ class HighlightRepositoryProtocol(Protocol):
         self,
         position_updates: list[tuple[HighlightId, Position]],
     ) -> int: ...
+
+    async def bulk_apply_device_edits(self, edits: list[DeviceEdit]) -> int:
+        """Write the e-reader's note, style and edit time onto stored highlights."""
+        ...
+
+    async def bulk_fill_xpoints_and_positions(
+        self,
+        placements: list[tuple[HighlightId, XPointRange, Position | None]],
+    ) -> int:
+        """Write xpoints and position onto highlights stored without them."""
+        ...
 
     async def soft_delete_by_ids(
         self,

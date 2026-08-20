@@ -12,12 +12,14 @@ from sqlalchemy import delete, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import joinedload, selectinload
 
+from src.application.reading.protocols.highlight_repository import DeviceEdit
 from src.domain.common.value_objects import (
     BookId,
     ContentHash,
     HighlightId,
     TagId,
     UserId,
+    XPointRange,
 )
 from src.domain.common.value_objects.position import Position
 from src.domain.learning.entities.flashcard import Flashcard
@@ -192,6 +194,35 @@ class HighlightRepository:
         # Convert back to value objects
         return {ContentHash(hash_str) for hash_str in existing}
 
+    async def find_live_by_content_hashes(
+        self, user_id: UserId, book_id: BookId, hashes: list[ContentHash]
+    ) -> list[Highlight]:
+        """
+        Load the highlights of a book matching any of the given content hashes.
+
+        Unlike get_existing_hashes, soft-deleted highlights are excluded: callers
+        act on the highlights they get back, and a deleted one must stay deleted.
+
+        Args:
+            user_id: User to load for
+            book_id: Book containing the highlights
+            hashes: Content hashes to match
+
+        Returns:
+            List of live Highlight domain entities
+        """
+        if not hashes:
+            return []
+
+        stmt = select(HighlightORM).where(
+            HighlightORM.user_id == user_id.value,
+            HighlightORM.book_id == book_id.value,
+            HighlightORM.content_hash.in_([h.value for h in hashes]),
+            HighlightORM.deleted_at.is_(None),
+        )
+        result = await self.db.execute(stmt)
+        return [self.mapper.to_domain(orm) for orm in result.scalars().all()]
+
     async def bulk_save(self, highlights: list[Highlight]) -> list[Highlight]:
         """
         Bulk save highlights efficiently.
@@ -230,15 +261,74 @@ class HighlightRepository:
         if not position_updates:
             return 0
 
-        for highlight_id, position in position_updates:
-            await self.db.execute(
-                update(HighlightORM)
-                .where(HighlightORM.id == highlight_id.value)
-                .values(position=position.to_json())
-            )
-
+        await self.db.execute(
+            update(HighlightORM),
+            [
+                {"id": highlight_id.value, "position": position.to_json()}
+                for highlight_id, position in position_updates
+            ],
+        )
         await self.db.commit()
         return len(position_updates)
+
+    async def bulk_apply_device_edits(self, edits: list[DeviceEdit]) -> int:
+        """Write the e-reader's note, style and edit time onto stored highlights.
+
+        Args:
+            edits: The edits to apply, each naming the highlight it belongs to
+
+        Returns:
+            Number of highlights written
+        """
+        if not edits:
+            return 0
+
+        await self.db.execute(
+            update(HighlightORM),
+            [
+                {
+                    "id": edit.highlight_id.value,
+                    "koreader_note": edit.koreader_note,
+                    "highlight_style_id": edit.highlight_style_id.value
+                    if edit.highlight_style_id
+                    else None,
+                    "koreader_updated_at": edit.koreader_updated_at,
+                }
+                for edit in edits
+            ],
+        )
+        await self.db.commit()
+        return len(edits)
+
+    async def bulk_fill_xpoints_and_positions(
+        self,
+        placements: list[tuple[HighlightId, XPointRange, Position | None]],
+    ) -> int:
+        """Write xpoints and position onto highlights stored without them.
+
+        Args:
+            placements: (highlight id, xpoints to store, position or None)
+
+        Returns:
+            Number of highlights written
+        """
+        if not placements:
+            return 0
+
+        await self.db.execute(
+            update(HighlightORM),
+            [
+                {
+                    "id": highlight_id.value,
+                    "start_xpoint": xpoints.start.to_string(),
+                    "end_xpoint": xpoints.end.to_string(),
+                    "position": position.to_json() if position else None,
+                }
+                for highlight_id, xpoints, position in placements
+            ],
+        )
+        await self.db.commit()
+        return len(placements)
 
     async def soft_delete_by_ids(
         self,

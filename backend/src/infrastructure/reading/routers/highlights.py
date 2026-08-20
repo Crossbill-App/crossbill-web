@@ -88,6 +88,9 @@ async def upload_highlights(
             page=h.page,
             color=h.color,
             drawer=h.drawer,
+            datetime=h.datetime,
+            datetime_updated=h.datetime_updated,
+            koreader_note=h.note,
         )
         for h in request.highlights
     ]
@@ -96,6 +99,7 @@ async def upload_highlights(
         client_book_id=request.client_book_id,
         highlight_data_list=highlight_data_list,
         user_id=current_user.id.value,
+        device_id=request.device_id,
     )
 
     return HighlightUploadResponse(

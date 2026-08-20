@@ -41,6 +41,15 @@ class HighlightCreate(HighlightBase):
     drawer: str | None = Field(
         None, description="Highlight drawer/style from KOReader (e.g. 'lighten', 'strikethrough')"
     )
+    note: str | None = Field(None, description="Note attached to the highlight in KOReader")
+    datetime_updated: str | None = Field(
+        None,
+        max_length=50,
+        description=(
+            "KOReader datetime of the last edit on the device; absent until the "
+            "highlight is first edited. The newest edit wins when devices disagree."
+        ),
+    )
 
 
 class HighlightLabel(BaseModel):
@@ -132,6 +141,9 @@ class HighlightUploadRequest(BaseModel):
         min_length=1,
         max_length=255,
         description="Client-provided stable book identifier for deduplication",
+    )
+    device_id: str | None = Field(
+        None, max_length=100, description="Identifier of the device the highlights come from"
     )
     highlights: list[HighlightCreate] = Field(..., description="List of highlights to upload")
 

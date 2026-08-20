@@ -16,6 +16,8 @@ export interface HighlightUploadRequest {
    * @maxLength 255
    */
   client_book_id: string;
+  /** Identifier of the device the highlights come from */
+  device_id?: string | null;
   /** List of highlights to upload */
   highlights: HighlightCreate[];
 }

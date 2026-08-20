@@ -60,6 +60,9 @@ from src.application.reading.queries.get_chapter_digest_use_case import (
 from src.application.reading.queries.get_ereader_book_digests_use_case import (
     GetEreaderBookDigestsUseCase,
 )
+from src.application.reading.queries.get_ereader_book_highlights_use_case import (
+    GetEreaderBookHighlightsUseCase,
+)
 from src.application.reading.queries.get_global_highlight_labels_use_case import (
     GetGlobalHighlightLabelsUseCase,
 )
@@ -95,6 +98,7 @@ class ReadingContainer(containers.DeclarativeContainer):
     highlight_search_query = providers.Dependency()
     reading_session_query = providers.Dependency()
     ereader_digest_query = providers.Dependency()
+    ereader_highlights_query = providers.Dependency()
 
     # Bookmarks
     create_bookmark_use_case = providers.Factory(
@@ -209,6 +213,11 @@ class ReadingContainer(containers.DeclarativeContainer):
     get_ereader_book_digests_use_case = providers.Factory(
         GetEreaderBookDigestsUseCase,
         ereader_digest_query=ereader_digest_query,
+    )
+    get_ereader_book_highlights_use_case = providers.Factory(
+        GetEreaderBookHighlightsUseCase,
+        book_repository=book_repository,
+        ereader_highlights_query=ereader_highlights_query,
     )
     generate_chapter_digest_use_case = providers.Factory(
         GenerateChapterDigestUseCase,

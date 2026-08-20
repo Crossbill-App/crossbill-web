@@ -34,4 +34,8 @@ export interface HighlightCreate {
   color?: string | null;
   /** Highlight drawer/style from KOReader (e.g. 'lighten', 'strikethrough') */
   drawer?: string | null;
+  /** Note attached to the highlight in KOReader */
+  note?: string | null;
+  /** KOReader datetime of the last edit on the device; absent until the highlight is first edited. The newest edit wins when devices disagree. */
+  datetime_updated?: string | null;
 }

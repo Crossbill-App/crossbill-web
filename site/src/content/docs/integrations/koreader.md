@@ -8,14 +8,18 @@ with. The Crossbill plugin runs inside it, on the device.
 
 ## What it does
 
-- Uploads your **highlights** to Crossbill, with the position of each passage in
-  the book. Re-syncing a book does not duplicate what is already there.
+- Sync your **highlights** with Crossbill and between multiple devices
 - Uploads the **highlight styles** you used, so you can name and recolour them
   as [labels](../../features/tags-and-organization/) in Crossbill.
 - Uploads your **reading sessions** — when each stretch of reading started and
   ended, and how far through the book it ran.
 - Pulls **chapter digests** back down to the device, so a chapter's summary and
   key points are available while you read.
+
+Across two e-readers, edits to a highlight's note or colour are merged by
+newest edit: the most recent change wins, whichever device made it. Deleting a
+highlight on the e-reader does not delete it in Crossbill — the next sync
+brings it back. Delete it in Crossbill instead, and it goes from every device.
 
 This is the integration Crossbill depends on: it is where your content comes
 from.

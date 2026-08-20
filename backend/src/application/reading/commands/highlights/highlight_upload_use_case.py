@@ -14,6 +14,7 @@ from src.application.library.protocols.file_repository import FileRepositoryProt
 from src.application.library.protocols.position_index_service import PositionIndexServiceProtocol
 from src.application.reading.protocols.chapter_repository import ChapterRepositoryProtocol
 from src.application.reading.protocols.highlight_repository import (
+    DeviceEdit,
     HighlightRepositoryProtocol,
 )
 from src.application.reading.protocols.highlight_style_repository import (
@@ -21,7 +22,14 @@ from src.application.reading.protocols.highlight_style_repository import (
 )
 from src.application.semantic.content_type import ContentType
 from src.application.semantic.protocols.embedding_enqueuer import EmbeddingEnqueuerProtocol
-from src.domain.common.value_objects import ChapterId, UserId, XPointRange
+from src.domain.common.value_objects import (
+    BookId,
+    ChapterId,
+    ContentHash,
+    HighlightId,
+    UserId,
+    XPointRange,
+)
 from src.domain.common.value_objects.position import Position
 from src.domain.reading.entities.highlight import Highlight
 from src.domain.reading.exceptions import BookNotFoundError
@@ -44,6 +52,9 @@ class HighlightUploadData:
     page: int | None = None
     color: str | None = None
     drawer: str | None = None
+    datetime: str | None = None
+    datetime_updated: str | None = None
+    koreader_note: str | None = None
 
 
 class HighlightUploadUseCase:
@@ -87,6 +98,7 @@ class HighlightUploadUseCase:
         client_book_id: str,
         highlight_data_list: list[HighlightUploadData],
         user_id: int,
+        device_id: str | None = None,
     ) -> tuple[int, int]:
         """
         Process highlight upload from KOReader.
@@ -96,12 +108,15 @@ class HighlightUploadUseCase:
         2. Batch fetches chapters by chapter_number
         3. Creates domain entities using factory methods
         4. Deduplicates using domain service
-        5. Bulk saves unique highlights
+        5. Applies the e-reader's newer note and style edits to skipped duplicates
+        6. Fills in the xpoints and position of duplicates stored without them
+        7. Bulk saves unique highlights
 
         Args:
             client_book_id: Book identifier from client
             highlight_data_list: List of highlight data to upload
             user_id: User ID (primitive int, converted to value object)
+            device_id: Device the whole batch comes from, stamped on every highlight created
 
         Returns:
             Tuple of (created_count, skipped_count)
@@ -192,6 +207,10 @@ class HighlightUploadUseCase:
                 page=data.page,
                 position=position,
                 highlight_style_id=highlight_style.id,
+                datetime_str=data.datetime,
+                koreader_updated_at=data.datetime_updated,
+                koreader_note=data.koreader_note,
+                origin_device_id=device_id,
             )
             new_highlights.append(highlight)
 
@@ -204,7 +223,14 @@ class HighlightUploadUseCase:
             new_highlights, existing_hashes
         )
 
-        # Step 5: Bulk save unique highlights
+        # Steps 5-6: reconcile the live rows the duplicates matched, loaded once
+        stored_duplicates = await self.highlight_repository.find_live_by_content_hashes(
+            user_id_vo, book_id, [duplicate.content_hash for duplicate in duplicates]
+        )
+        await self._sync_device_edits_of_duplicates(duplicates, stored_duplicates, book_id)
+        await self._fill_missing_positions_of_duplicates(duplicates, stored_duplicates, book_id)
+
+        # Step 7: Bulk save unique highlights
         if unique:
             saved = await self.highlight_repository.bulk_save(unique)
             await self._embedding_enqueuer.enqueue_many(
@@ -223,3 +249,123 @@ class HighlightUploadUseCase:
         )
 
         return len(unique), len(duplicates)
+
+    async def _sync_device_edits_of_duplicates(
+        self,
+        duplicates: list[Highlight],
+        stored: list[Highlight],
+        book_id: BookId,
+    ) -> int:
+        """
+        Carry the e-reader's note and style edits onto skipped duplicates.
+
+        A note or highlighter changed on the device after its highlight was
+        first uploaded arrives inside a duplicate, which deduplication
+        otherwise drops whole. Two devices can edit the same highlight, so the
+        newest edit wins, as it does in KOReader itself: the device's
+        ``datetime_updated`` (its creation ``datetime`` until it is first
+        edited) is compared against the one stored, and the incoming edit is
+        applied only if it is strictly newer. Equal timestamps keep the
+        server's copy. The strings are KOReader's "%Y-%m-%d %H:%M:%S", which
+        orders correctly as text, so no parsing is needed. A stored highlight
+        that has never received a device edit accepts the first one whatever
+        its time: there is nothing to protect, and rows uploaded before notes
+        were kept carry a server-side ``datetime`` that a device edit made
+        before that upload would never beat.
+
+        An applied edit takes the incoming note, an empty one clearing the
+        stored note, and the incoming style — but only when the incoming
+        highlight resolved to one at all; without a colour or drawer to
+        resolve, the stored style stays. Soft-deleted highlights are absent
+        from the stored rows, so matching one must neither revive nor edit it.
+
+        Args:
+            duplicates: Highlights skipped by deduplication
+            stored: The live highlights those duplicates matched
+            book_id: Book the upload belongs to
+
+        Returns:
+            Number of stored highlights the device's edits were applied to
+        """
+        incoming_by_hash = {duplicate.content_hash: duplicate for duplicate in duplicates}
+
+        edits: list[DeviceEdit] = []
+        for highlight in stored:
+            incoming = incoming_by_hash.get(highlight.content_hash)
+            if incoming is None:
+                continue
+
+            incoming_edited_at = incoming.koreader_updated_at or incoming.datetime
+            if self._has_recorded_device_edit(highlight):
+                stored_edited_at = highlight.koreader_updated_at or highlight.datetime
+                if incoming_edited_at <= stored_edited_at:
+                    continue
+
+            edits.append(
+                DeviceEdit(
+                    highlight_id=highlight.id,
+                    koreader_note=incoming.koreader_note or None,
+                    highlight_style_id=incoming.highlight_style_id
+                    if incoming.highlight_style_id is not None
+                    else highlight.highlight_style_id,
+                    koreader_updated_at=incoming_edited_at,
+                )
+            )
+
+        applied = await self.highlight_repository.bulk_apply_device_edits(edits)
+
+        if applied:
+            logger.info("highlight_device_edits_applied", book_id=book_id.value, count=applied)
+
+        return applied
+
+    @staticmethod
+    def _has_recorded_device_edit(highlight: Highlight) -> bool:
+        return highlight.koreader_updated_at is not None or highlight.koreader_note is not None
+
+    async def _fill_missing_positions_of_duplicates(
+        self,
+        duplicates: list[Highlight],
+        stored: list[Highlight],
+        book_id: BookId,
+    ) -> int:
+        """
+        Give skipped duplicates the xpoints and position their stored row lacks.
+
+        Highlights uploaded before the e-reader sent xpoints are stored without
+        them, and so cannot be placed in the book. A later upload carries the
+        xpoints, but deduplication drops it whole, leaving the stored row
+        unplaceable forever. Only the gap is filled: xpoints already stored
+        stay, because the e-reader may re-anchor a highlight the reader never
+        moved. The position comes with the incoming xpoints, already resolved
+        against this book's EPUB, and stays NULL when there is no EPUB to
+        resolve against. Soft-deleted highlights are absent from the stored
+        rows and thus left untouched.
+
+        Args:
+            duplicates: Highlights skipped by deduplication
+            stored: The live highlights those duplicates matched
+            book_id: Book the upload belongs to
+
+        Returns:
+            Number of stored highlights given xpoints
+        """
+        incoming: dict[ContentHash, tuple[XPointRange, Position | None]] = {}
+        for duplicate in duplicates:
+            if duplicate.xpoints is not None:
+                incoming[duplicate.content_hash] = (duplicate.xpoints, duplicate.position)
+
+        placements: list[tuple[HighlightId, XPointRange, Position | None]] = []
+        for highlight in stored:
+            placement = incoming.get(highlight.content_hash)
+            if placement is None or highlight.xpoints is not None:
+                continue
+            xpoints, position = placement
+            placements.append((highlight.id, xpoints, highlight.position or position))
+
+        filled = await self.highlight_repository.bulk_fill_xpoints_and_positions(placements)
+
+        if filled:
+            logger.info("highlight_positions_backfilled", book_id=book_id.value, count=filled)
+
+        return filled

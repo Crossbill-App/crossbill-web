@@ -24,6 +24,7 @@ import type {
   BodyUploadBookEpub,
   BookCreate,
   CollectionResponseEreaderChapterDigestItem,
+  CollectionResponseEreaderHighlightItem,
   EreaderBookMetadata,
   HTTPValidationError,
   SuccessResponse,
@@ -485,6 +486,149 @@ export function useGetEreaderBookDigest<
   queryClient?: QueryClient
 ): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
   const queryOptions = getGetEreaderBookDigestQueryOptions(clientBookId, options);
+
+  const query = useQuery(queryOptions, queryClient) as UseQueryResult<TData, TError> & {
+    queryKey: DataTag<QueryKey, TData, TError>;
+  };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+/**
+ * Get every highlight of a book by client_book_id.
+ *
+ * The server is the master copy: this returns all live highlights of the book,
+ * including ones made on other devices and ones the device has already seen.
+ * Deleted highlights are omitted, so a device that removes what it cannot find
+ * here converges on the server's set. Highlights without both xpoints cannot be
+ * placed in the book and say so via `placeable`.
+ *
+ * Args:
+ *     client_book_id: The client-provided stable book identifier
+ *     current_user: Authenticated user
+ *
+ * Returns:
+ *     CollectionResponse with one item per live highlight
+ *
+ * Raises:
+ *     HTTPException: 404 if the book is not found for the given client_book_id
+ * @summary Get Ereader Book Highlights
+ */
+export const getEreaderBookHighlights = (clientBookId: string, signal?: AbortSignal) => {
+  return axiosInstance<CollectionResponseEreaderHighlightItem>({
+    url: `/api/v1/ereader/books/${clientBookId}/highlights`,
+    method: 'GET',
+    signal,
+  });
+};
+
+export const getGetEreaderBookHighlightsQueryKey = (clientBookId: string) => {
+  return [`/api/v1/ereader/books/${clientBookId}/highlights`] as const;
+};
+
+export const getGetEreaderBookHighlightsQueryOptions = <
+  TData = Awaited<ReturnType<typeof getEreaderBookHighlights>>,
+  TError = HTTPValidationError,
+>(
+  clientBookId: string,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<Awaited<ReturnType<typeof getEreaderBookHighlights>>, TError, TData>
+    >;
+  }
+) => {
+  const { query: queryOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getGetEreaderBookHighlightsQueryKey(clientBookId);
+
+  const queryFn: QueryFunction<Awaited<ReturnType<typeof getEreaderBookHighlights>>> = ({
+    signal,
+  }) => getEreaderBookHighlights(clientBookId, signal);
+
+  return {
+    queryKey,
+    queryFn,
+    enabled: clientBookId !== null && clientBookId !== undefined,
+    ...queryOptions,
+  } as UseQueryOptions<Awaited<ReturnType<typeof getEreaderBookHighlights>>, TError, TData> & {
+    queryKey: DataTag<QueryKey, TData, TError>;
+  };
+};
+
+export type GetEreaderBookHighlightsQueryResult = NonNullable<
+  Awaited<ReturnType<typeof getEreaderBookHighlights>>
+>;
+export type GetEreaderBookHighlightsQueryError = HTTPValidationError;
+
+export function useGetEreaderBookHighlights<
+  TData = Awaited<ReturnType<typeof getEreaderBookHighlights>>,
+  TError = HTTPValidationError,
+>(
+  clientBookId: string,
+  options: {
+    query: Partial<
+      UseQueryOptions<Awaited<ReturnType<typeof getEreaderBookHighlights>>, TError, TData>
+    > &
+      Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getEreaderBookHighlights>>,
+          TError,
+          Awaited<ReturnType<typeof getEreaderBookHighlights>>
+        >,
+        'initialData'
+      >;
+  },
+  queryClient?: QueryClient
+): DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+export function useGetEreaderBookHighlights<
+  TData = Awaited<ReturnType<typeof getEreaderBookHighlights>>,
+  TError = HTTPValidationError,
+>(
+  clientBookId: string,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<Awaited<ReturnType<typeof getEreaderBookHighlights>>, TError, TData>
+    > &
+      Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getEreaderBookHighlights>>,
+          TError,
+          Awaited<ReturnType<typeof getEreaderBookHighlights>>
+        >,
+        'initialData'
+      >;
+  },
+  queryClient?: QueryClient
+): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+export function useGetEreaderBookHighlights<
+  TData = Awaited<ReturnType<typeof getEreaderBookHighlights>>,
+  TError = HTTPValidationError,
+>(
+  clientBookId: string,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<Awaited<ReturnType<typeof getEreaderBookHighlights>>, TError, TData>
+    >;
+  },
+  queryClient?: QueryClient
+): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+/**
+ * @summary Get Ereader Book Highlights
+ */
+
+export function useGetEreaderBookHighlights<
+  TData = Awaited<ReturnType<typeof getEreaderBookHighlights>>,
+  TError = HTTPValidationError,
+>(
+  clientBookId: string,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<Awaited<ReturnType<typeof getEreaderBookHighlights>>, TError, TData>
+    >;
+  },
+  queryClient?: QueryClient
+): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+  const queryOptions = getGetEreaderBookHighlightsQueryOptions(clientBookId, options);
 
   const query = useQuery(queryOptions, queryClient) as UseQueryResult<TData, TError> & {
     queryKey: DataTag<QueryKey, TData, TError>;

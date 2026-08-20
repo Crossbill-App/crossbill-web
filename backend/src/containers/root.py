@@ -69,6 +69,7 @@ class RootContainer(containers.DeclarativeContainer):
         highlight_search_query=shared.highlight_search_query,
         reading_session_query=shared.reading_session_query,
         ereader_digest_query=shared.ereader_digest_query,
+        ereader_highlights_query=shared.ereader_highlights_query,
         embedding_enqueuer=embedding_enqueuer,
         embedding_repository=shared.embedding_repository,
     )
