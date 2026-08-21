@@ -27,7 +27,11 @@ class EreaderHighlightsQuery:
     async def list_for_book(
         self, book_id: BookId, user_id: UserId
     ) -> tuple[EreaderHighlightView, ...]:
-        """Return the book's live highlights, oldest position first.
+        """Return the book's device-visible highlights, oldest position first.
+
+        Two states withhold a highlight here. Soft deletion takes it off the web
+        as well; removal from devices keeps it on the web, with its flashcards
+        and bookmarks, and only stops it reaching e-readers.
 
         The statement is built here rather than at module scope: adapters are
         imported early enough that resolving relationships at import time would
@@ -60,6 +64,7 @@ class EreaderHighlightsQuery:
                 HighlightORM.book_id == book_id.value,
                 HighlightORM.user_id == user_id.value,
                 HighlightORM.deleted_at.is_(None),
+                HighlightORM.removed_from_devices_at.is_(None),
             )
             .order_by(nulls_last(HighlightORM.page), HighlightORM.datetime, HighlightORM.id)
         )

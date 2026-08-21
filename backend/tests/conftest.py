@@ -152,6 +152,7 @@ async def create_test_highlight(
     page: int | None = None,
     chapter_id: int | None = None,
     deleted_at: dt | None = None,
+    removed_from_devices_at: dt | None = None,
     start_xpoint: str | None = None,
     end_xpoint: str | None = None,
     highlight_style_id: int | None = None,
@@ -175,6 +176,7 @@ async def create_test_highlight(
         datetime=datetime_str,
         content_hash=content_hash,
         deleted_at=deleted_at,
+        removed_from_devices_at=removed_from_devices_at,
         highlight_style_id=highlight_style_id,
     )
     db_session.add(highlight)

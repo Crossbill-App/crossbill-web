@@ -1,5 +1,6 @@
 """Tests for highlights API endpoints."""
 
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
@@ -9,7 +10,12 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src import models
-from tests.conftest import CreateBookFunc
+from tests.conftest import (
+    CreateBookFunc,
+    create_test_book,
+    create_test_chapter,
+    create_test_highlight,
+)
 
 
 async def resync_edited_highlight(
@@ -911,3 +917,74 @@ class TestHighlightsUpload:
         response = await client.post("/api/v1/highlights/upload", json=payload)
 
         assert response.status_code == status.HTTP_422_UNPROCESSABLE_CONTENT
+
+
+class TestHighlightRemovedFromDevices:
+    """A highlight withheld from e-readers is untouched everywhere else."""
+
+    async def _removed_highlight(
+        self, db_session: AsyncSession, test_user: models.User
+    ) -> tuple[models.Book, models.Highlight]:
+        book = await create_test_book(
+            db_session=db_session, user_id=test_user.id, title="Web Book"
+        )
+        chapter = await create_test_chapter(
+            db_session=db_session, book=book, name="Chapter One", chapter_number=1
+        )
+        highlight = await create_test_highlight(
+            db_session=db_session,
+            book=book,
+            user_id=test_user.id,
+            text="Deleted on the e-reader, kept here",
+            datetime_str="2024-01-15 14:00:00",
+            chapter_id=chapter.id,
+            removed_from_devices_at=datetime(2024, 3, 1, tzinfo=UTC),
+        )
+        return book, highlight
+
+    async def test_removed_highlight_still_appears_in_the_web_reads(
+        self, client: AsyncClient, db_session: AsyncSession, test_user: models.User
+    ) -> None:
+        book, highlight = await self._removed_highlight(db_session, test_user)
+
+        search = await client.get(
+            f"/api/v1/books/{book.id}/highlights", params={"searchText": "e-reader"}
+        )
+        assert search.status_code == status.HTTP_200_OK
+        found = [h for c in search.json()["chapters"] for h in c["highlights"]]
+        assert [h["id"] for h in found] == [highlight.id]
+        assert found[0]["text"] == "Deleted on the e-reader, kept here"
+
+        details = await client.get(f"/api/v1/books/{book.id}")
+        assert details.status_code == status.HTTP_200_OK
+        listed = [h["id"] for c in details.json()["chapters"] for h in c["highlights"]]
+        assert listed == [highlight.id]
+
+    async def test_deleting_a_removed_highlight_still_soft_deletes_it(
+        self, client: AsyncClient, db_session: AsyncSession, test_user: models.User
+    ) -> None:
+        book, highlight = await self._removed_highlight(db_session, test_user)
+        before = await client.get(
+            f"/api/v1/books/{book.id}/highlights", params={"searchText": "e-reader"}
+        )
+        assert [h["id"] for c in before.json()["chapters"] for h in c["highlights"]] == [
+            highlight.id
+        ]
+
+        deletion = await client.request(
+            "DELETE",
+            f"/api/v1/books/{book.id}/highlight",
+            json={"highlight_ids": [highlight.id]},
+        )
+
+        assert deletion.status_code == status.HTTP_200_OK
+        assert deletion.json()["deleted_count"] == 1
+
+        after = await client.get(
+            f"/api/v1/books/{book.id}/highlights", params={"searchText": "e-reader"}
+        )
+        assert [h for c in after.json()["chapters"] for h in c["highlights"]] == []
+
+        await db_session.refresh(highlight)
+        assert highlight.deleted_at is not None
+        assert highlight.removed_from_devices_at is not None
