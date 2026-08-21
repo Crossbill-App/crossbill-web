@@ -220,3 +220,6 @@ worktrees/
 
 # Superpowers specs and plans: local working notes, not part of the repo's docs
 /docs/superpowers/
+
+# Local production backups (`make backup-production`)
+/backups/

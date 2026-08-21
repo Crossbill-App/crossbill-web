@@ -1,4 +1,4 @@
-.PHONY: help test mutation-test duplication-check dev-app dev-worker migrate migrate-new lint format api-client release-nightly deploy empty-s3-bucket reset-db clone-production-db
+.PHONY: help test mutation-test duplication-check dev-app dev-worker migrate migrate-new lint format api-client release-nightly deploy empty-s3-bucket reset-db clone-production-db backup-production
 
 help: ## Show this help
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*?## "}; {printf "  \033[36m%-18s\033[0m %s\n", $$1, $$2}'
@@ -76,6 +76,14 @@ empty-s3-bucket: ## Remove all objects from the local S3 bucket
 # `make clone-production-db ARGS="--yes --no-files"` (see --help).
 clone-production-db: ## Replace the local dev database and book files with a clone of production (destructive)
 	set -a; [ -f .env.deploy ] && . ./.env.deploy; set +a; ./scripts/clone-production-db.sh $(ARGS)
+
+# Read-only: dumps the production database and downloads the book files into one
+# zip under backups/. Uses the same .env.deploy and the same Railway discovery as
+# `clone-production-db`. EPUBs are excluded by default because they dominate the
+# size and can be re-uploaded; pass flags with ARGS, e.g.
+# `make backup-production ARGS="--with-epubs -o /mnt/backups"` (see --help).
+backup-production: ## Back up the production database and book files into a local zip archive
+	set -a; [ -f .env.deploy ] && . ./.env.deploy; set +a; ./scripts/backup-production.sh $(ARGS)
 
 reset-db: ## Reset the database (removes volume and re-runs migrations)
 	docker compose -f docker-compose.dev.yml down -v postgres
