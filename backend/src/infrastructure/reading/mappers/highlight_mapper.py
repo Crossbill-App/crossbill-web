@@ -59,6 +59,7 @@ class HighlightMapper:
             if orm_model.highlight_style_id
             else None,
             deleted_at=orm_model.deleted_at,
+            removed_from_devices_at=orm_model.removed_from_devices_at,
             koreader_updated_at=orm_model.koreader_updated_at,
             koreader_note=orm_model.koreader_note,
             origin_device_id=orm_model.origin_device_id,
@@ -109,6 +110,7 @@ class HighlightMapper:
             domain_entity.highlight_style_id.value if domain_entity.highlight_style_id else None
         )
         orm_model.deleted_at = domain_entity.deleted_at
+        orm_model.removed_from_devices_at = domain_entity.removed_from_devices_at
         orm_model.koreader_updated_at = domain_entity.koreader_updated_at
         orm_model.koreader_note = domain_entity.koreader_note
         orm_model.origin_device_id = domain_entity.origin_device_id

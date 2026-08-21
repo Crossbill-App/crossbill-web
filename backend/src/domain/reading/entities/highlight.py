@@ -36,6 +36,7 @@ class Highlight(AggregateRoot[HighlightId]):
     - Cannot have empty text
     - Content hash is computed from text (for deduplication)
     - Soft deletion is supported (deleted_at timestamp)
+    - Removal from devices is separate: the highlight stays on the web
     - Tags can be added/removed
     """
 
@@ -65,6 +66,9 @@ class Highlight(AggregateRoot[HighlightId]):
     created_at: dt_module.datetime = field(default_factory=lambda: dt_module.datetime.now(UTC))
     updated_at: dt_module.datetime = field(default_factory=lambda: dt_module.datetime.now(UTC))
     deleted_at: dt_module.datetime | None = None
+    # Set when the user deleted the highlight on an e-reader: it stays on the web,
+    # with its flashcards and bookmarks, but is withheld from every device's pull.
+    removed_from_devices_at: dt_module.datetime | None = None
 
     # Relationships
     _tag_ids: list[int] = field(default_factory=list, repr=False)
@@ -81,6 +85,10 @@ class Highlight(AggregateRoot[HighlightId]):
     def is_deleted(self) -> bool:
         """Check if this highlight has been soft-deleted."""
         return self.deleted_at is not None
+
+    def is_removed_from_devices(self) -> bool:
+        """Check if this highlight has been withheld from the e-reader pull."""
+        return self.removed_from_devices_at is not None
 
     def has_position_info(self) -> bool:
         """Check if this highlight has position information (xpoints or page)."""
@@ -111,6 +119,30 @@ class Highlight(AggregateRoot[HighlightId]):
             raise DomainError(f"Highlight {self.id} is not deleted")
 
         self.deleted_at = None
+
+    def remove_from_devices(self) -> None:
+        """
+        Withhold this highlight from every e-reader, keeping it on the web.
+
+        Raises:
+            DomainError: If highlight is already removed from devices
+        """
+        if self.is_removed_from_devices():
+            raise DomainError(f"Highlight {self.id} is already removed from devices")
+
+        self.removed_from_devices_at = dt_module.datetime.now(UTC)
+
+    def restore_to_devices(self) -> None:
+        """
+        Let this highlight reach e-readers again.
+
+        Raises:
+            DomainError: If highlight is not removed from devices
+        """
+        if not self.is_removed_from_devices():
+            raise DomainError(f"Highlight {self.id} is not removed from devices")
+
+        self.removed_from_devices_at = None
 
     def associate_with_chapter(self, chapter_id: ChapterId) -> None:
         """Associate this highlight with a chapter."""
@@ -217,6 +249,7 @@ class Highlight(AggregateRoot[HighlightId]):
         position: Position | None = None,
         highlight_style_id: HighlightStyleId | None = None,
         deleted_at: dt_module.datetime | None = None,
+        removed_from_devices_at: dt_module.datetime | None = None,
         koreader_updated_at: str | None = None,
         koreader_note: str | None = None,
         origin_device_id: str | None = None,
@@ -243,5 +276,6 @@ class Highlight(AggregateRoot[HighlightId]):
             created_at=created_at,
             updated_at=updated_at,
             deleted_at=deleted_at,
+            removed_from_devices_at=removed_from_devices_at,
             _tag_ids=[],
         )

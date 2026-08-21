@@ -69,6 +69,9 @@ class Highlight(Base):
     deleted_at: Mapped[dt | None] = mapped_column(
         DateTime(timezone=True), nullable=True, index=True
     )
+    removed_from_devices_at: Mapped[dt | None] = mapped_column(
+        DateTime(timezone=True), nullable=True, index=True
+    )
     text_search_vector: Mapped[str | None] = mapped_column(
         Text().with_variant(TSVECTOR, "postgresql"), nullable=True, index=True
     )
