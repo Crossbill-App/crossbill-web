@@ -53,6 +53,9 @@ const withQueryKey = <T extends object, K>(query: T, queryKey: K): T & { queryKe
  * Creates or updates book record and adds highlights with automatic deduplication.
  * Duplicates are identified by the combination of book, text, and datetime.
  *
+ * ``removed_ids`` carries the highlights the reader deleted on the device:
+ * they are withheld from every device's pull and stay whole on the web.
+ *
  * Args:
  *     request: Highlight upload request containing book metadata and highlights
  *

@@ -1,7 +1,7 @@
 """Pydantic schemas for Highlight API request/response validation."""
 
 from datetime import datetime as dt
-from typing import TYPE_CHECKING, Any, Literal
+from typing import TYPE_CHECKING, Annotated, Any, Literal
 
 from pydantic import BaseModel, Field, model_validator
 
@@ -146,6 +146,14 @@ class HighlightUploadRequest(BaseModel):
         None, max_length=100, description="Identifier of the device the highlights come from"
     )
     highlights: list[HighlightCreate] = Field(..., description="List of highlights to upload")
+    removed_ids: list[Annotated[int, Field(ge=0)]] = Field(
+        default_factory=list,
+        description=(
+            "IDs of highlights the reader deleted on the device. They are withheld "
+            "from every device's pull and kept whole on the web. Unknown, foreign "
+            "and already removed IDs are ignored, so a re-sent sync is harmless."
+        ),
+    )
 
 
 class HighlightUploadResponse(BaseModel):
@@ -157,6 +165,9 @@ class HighlightUploadResponse(BaseModel):
     highlights_created: int = Field(..., ge=0, description="Number of highlights created")
     highlights_skipped: int = Field(
         ..., ge=0, description="Number of highlights skipped (duplicates)"
+    )
+    highlights_removed: int = Field(
+        ..., ge=0, description="Number of highlights withheld from devices by this request"
     )
 
 

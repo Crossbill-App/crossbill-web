@@ -69,6 +69,9 @@ async def upload_highlights(
     Creates or updates book record and adds highlights with automatic deduplication.
     Duplicates are identified by the combination of book, text, and datetime.
 
+    ``removed_ids`` carries the highlights the reader deleted on the device:
+    they are withheld from every device's pull and stay whole on the web.
+
     Args:
         request: Highlight upload request containing book metadata and highlights
 
@@ -95,19 +98,21 @@ async def upload_highlights(
         for h in request.highlights
     ]
 
-    created, skipped = await use_case.upload_highlights(
+    result = await use_case.upload_highlights(
         client_book_id=request.client_book_id,
         highlight_data_list=highlight_data_list,
         user_id=current_user.id.value,
         device_id=request.device_id,
+        removed_ids=request.removed_ids,
     )
 
     return HighlightUploadResponse(
         success=True,
         message="Successfully synced highlights",
         book_id=0,  # TODO: Return actual book_id from service if needed
-        highlights_created=created,
-        highlights_skipped=skipped,
+        highlights_created=result.created,
+        highlights_skipped=result.skipped,
+        highlights_removed=result.removed_from_devices,
     )
 
 

@@ -194,14 +194,18 @@ class HighlightRepository:
         # Convert back to value objects
         return {ContentHash(hash_str) for hash_str in existing}
 
-    async def find_live_by_content_hashes(
+    async def find_reconcilable_by_content_hashes(
         self, user_id: UserId, book_id: BookId, hashes: list[ContentHash]
     ) -> list[Highlight]:
         """
-        Load the highlights of a book matching any of the given content hashes.
+        Load the highlights of a book that a device push may write to.
 
         Unlike get_existing_hashes, soft-deleted highlights are excluded: callers
         act on the highlights they get back, and a deleted one must stay deleted.
+        Highlights withheld from devices are excluded for the same reason -- the
+        reader deleted them there, so the device's later edits must not land on
+        them. Both predicates run in SQL, where a row withheld moments earlier in
+        this same request cannot be missed through a stale identity map.
 
         Args:
             user_id: User to load for
@@ -209,7 +213,7 @@ class HighlightRepository:
             hashes: Content hashes to match
 
         Returns:
-            List of live Highlight domain entities
+            List of Highlight domain entities open to a device's edits
         """
         if not hashes:
             return []
@@ -219,6 +223,7 @@ class HighlightRepository:
             HighlightORM.book_id == book_id.value,
             HighlightORM.content_hash.in_([h.value for h in hashes]),
             HighlightORM.deleted_at.is_(None),
+            HighlightORM.removed_from_devices_at.is_(None),
         )
         result = await self.db.execute(stmt)
         return [self.mapper.to_domain(orm) for orm in result.scalars().all()]
@@ -329,6 +334,61 @@ class HighlightRepository:
         )
         await self.db.commit()
         return len(placements)
+
+    async def mark_removed_from_devices(
+        self,
+        highlight_ids: list[HighlightId],
+        user_id: UserId,
+        book_id: BookId,
+    ) -> list[HighlightId]:
+        """
+        Withhold highlights from every e-reader, keeping them whole on the web.
+
+        Unlike soft_delete_by_ids this cascades to nothing: the flashcards,
+        bookmarks and embeddings hanging off the highlight are exactly why the
+        row cannot simply be deleted when a device drops it.
+
+        Args:
+            highlight_ids: List of highlight IDs to withhold
+            user_id: User ID for authorization check
+            book_id: Book ID for validation
+
+        Returns:
+            The IDs actually marked -- those of the requested IDs that belong to
+            this user's book, were still live and were not already withheld.
+            Everything else is silently skipped: a device re-sending a removal
+            after an interrupted sync must not fail.
+
+            A single UPDATE ... RETURNING carries the eligibility check, so two
+            devices removing the same highlight at once cannot both report it:
+            Postgres re-checks the predicate after waiting for the first writer,
+            and the loser matches nothing.
+        """
+        if not highlight_ids:
+            return []
+
+        stmt_mark = (
+            update(HighlightORM)
+            .where(
+                HighlightORM.id.in_([hid.value for hid in highlight_ids]),
+                HighlightORM.book_id == book_id.value,
+                HighlightORM.user_id == user_id.value,
+                HighlightORM.deleted_at.is_(None),
+                HighlightORM.removed_from_devices_at.is_(None),
+            )
+            .values(removed_from_devices_at=datetime.now(UTC))
+            .returning(HighlightORM.id)
+            .execution_options(synchronize_session=False)
+        )
+        marked_ids = list((await self.db.execute(stmt_mark)).scalars().all())
+        await self.db.commit()
+
+        if marked_ids:
+            logger.info(
+                f"Removed {len(marked_ids)} highlights from devices for "
+                f"book_id={book_id.value}, user_id={user_id.value}"
+            )
+        return [HighlightId(hid) for hid in marked_ids]
 
     async def soft_delete_by_ids(
         self,

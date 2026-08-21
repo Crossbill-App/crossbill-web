@@ -45,10 +45,15 @@ class HighlightRepositoryProtocol(Protocol):
         self, user_id: UserId, book_id: BookId, hashes: list[ContentHash]
     ) -> set[ContentHash]: ...
 
-    async def find_live_by_content_hashes(
+    async def find_reconcilable_by_content_hashes(
         self, user_id: UserId, book_id: BookId, hashes: list[ContentHash]
     ) -> list[Highlight]:
-        """Load the highlights matching these hashes, soft-deleted ones excluded."""
+        """Load the highlights matching these hashes that a device push may write to.
+
+        Soft-deleted highlights are excluded, and so are those withheld from
+        devices: what the reader deleted on a device stops taking that device's
+        edits.
+        """
         ...
 
     async def save(self, highlight: Highlight) -> Highlight: ...
@@ -69,6 +74,21 @@ class HighlightRepositoryProtocol(Protocol):
         placements: list[tuple[HighlightId, XPointRange, Position | None]],
     ) -> int:
         """Write xpoints and position onto highlights stored without them."""
+        ...
+
+    async def mark_removed_from_devices(
+        self,
+        highlight_ids: list[HighlightId],
+        user_id: UserId,
+        book_id: BookId,
+    ) -> list[HighlightId]:
+        """Withhold the given highlights from every e-reader, keeping them on the web.
+
+        The requested IDs are unverified caller input; only the returned ones
+        belonged to this user's book, were still live and were not already
+        withheld. Nothing derived from a highlight -- flashcards, bookmarks,
+        embeddings -- is touched.
+        """
         ...
 
     async def soft_delete_by_ids(
