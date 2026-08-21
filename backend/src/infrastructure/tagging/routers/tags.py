@@ -377,6 +377,7 @@ async def add_tag_to_highlight(
         )
         if highlight.highlight_style_id
         else None,
+        removed_from_devices=highlight.is_removed_from_devices(),
         tags=[
             TagInBook(
                 id=tag.id.value,
@@ -456,6 +457,7 @@ async def remove_tag_from_highlight(
         )
         if highlight.highlight_style_id
         else None,
+        removed_from_devices=highlight.is_removed_from_devices(),
         tags=[
             TagInBook(
                 id=tag.id.value,

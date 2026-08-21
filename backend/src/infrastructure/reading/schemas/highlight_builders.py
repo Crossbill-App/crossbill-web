@@ -28,6 +28,7 @@ def build_highlight_schema(highlight: HighlightRow) -> Highlight:
         )
         if highlight.label
         else None,
+        removed_from_devices=highlight.removed_from_devices,
         flashcards=[
             Flashcard(
                 id=card.id,

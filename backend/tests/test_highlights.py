@@ -959,6 +959,39 @@ class TestHighlightRemovedFromDevices:
         listed = [h["id"] for c in details.json()["chapters"] for h in c["highlights"]]
         assert listed == [highlight.id]
 
+    async def test_web_reads_flag_only_the_removed_highlight(
+        self, client: AsyncClient, db_session: AsyncSession, test_user: models.User
+    ) -> None:
+        book, removed = await self._removed_highlight(db_session, test_user)
+        kept = await create_test_highlight(
+            db_session=db_session,
+            book=book,
+            user_id=test_user.id,
+            text="Still on the e-reader",
+            datetime_str="2024-01-16 14:00:00",
+            chapter_id=removed.chapter_id,
+        )
+
+        details = await client.get(f"/api/v1/books/{book.id}")
+        assert details.status_code == status.HTTP_200_OK
+        by_id = {
+            h["id"]: h["removed_from_devices"]
+            for c in details.json()["chapters"]
+            for h in c["highlights"]
+        }
+        assert by_id == {removed.id: True, kept.id: False}
+
+        search = await client.get(
+            f"/api/v1/books/{book.id}/highlights", params={"searchText": "e-reader"}
+        )
+        assert search.status_code == status.HTTP_200_OK
+        searched = {
+            h["id"]: h["removed_from_devices"]
+            for c in search.json()["chapters"]
+            for h in c["highlights"]
+        }
+        assert searched == {removed.id: True, kept.id: False}
+
     async def test_deleting_a_removed_highlight_still_soft_deletes_it(
         self, client: AsyncClient, db_session: AsyncSession, test_user: models.User
     ) -> None:

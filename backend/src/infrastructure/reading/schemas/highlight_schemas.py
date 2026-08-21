@@ -70,6 +70,13 @@ class HighlightResponseBase(HighlightBase):
     book_id: int
     chapter_id: int | None
     label: HighlightLabel | None = Field(None, description="Resolved label for this highlight")
+    removed_from_devices: bool = Field(
+        default=False,
+        description=(
+            "True when the reader deleted this highlight on a device. It is kept "
+            "whole on the web but withheld from every device's pull."
+        ),
+    )
     tags: list[TagInBook] = Field(..., description="List of tags for this highlight")
     created_at: dt
     updated_at: dt

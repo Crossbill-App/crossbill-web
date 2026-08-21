@@ -219,6 +219,7 @@ def _highlight_view(row: HighlightORM, labels: dict[int, ResolvedLabel]) -> Sess
         )
         if style_id is not None
         else None,
+        removed_from_devices=row.removed_from_devices_at is not None,
         created_at=row.created_at,
         updated_at=row.updated_at,
     )
