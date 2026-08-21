@@ -583,7 +583,7 @@
           "highlights"
         ],
         "summary": "Upload Highlights",
-        "description": "Upload highlights from KOReader.\n\nCreates or updates book record and adds highlights with automatic deduplication.\nDuplicates are identified by the combination of book, text, and datetime.\n\n``removed_ids`` carries the highlights the reader deleted on the device:\nthey are withheld from every device's pull and stay whole on the web.\n\nArgs:\n    request: Highlight upload request containing book metadata and highlights\n\nReturns:\n    HighlightUploadResponse with upload statistics\n\nRaises:\n    HTTPException: If upload fails due to server error",
+        "description": "Upload highlights from KOReader.\n\nCreates or updates book record and adds highlights with automatic deduplication.\nDuplicates are identified by the combination of book, text, and datetime.\n\n``removed_ids`` carries the highlights the reader deleted on the device:\nthey are withheld from every device's pull and stay whole on the web.\n\nA highlight flagged ``is_new`` was created on the device after its last\npull, so a duplicate of a removed or deleted highlight is a deliberate\nre-highlight and brings that highlight back.\n\nArgs:\n    request: Highlight upload request containing book metadata and highlights\n\nReturns:\n    HighlightUploadResponse with upload statistics\n\nRaises:\n    HTTPException: If upload fails due to server error",
         "operationId": "upload_highlights",
         "requestBody": {
           "content": {
@@ -5980,6 +5980,12 @@
             ],
             "title": "Datetime Updated",
             "description": "KOReader datetime of the last edit on the device; absent until the highlight is first edited. The newest edit wins when devices disagree."
+          },
+          "is_new": {
+            "type": "boolean",
+            "title": "Is New",
+            "description": "True when the device created this highlight after its last pull, so the server can tell a deliberate re-highlight from a stale echo. A flagged push of a text removed from devices or deleted on the web brings that highlight back; an unflagged one is skipped, as it always was.",
+            "default": false
           }
         },
         "type": "object",

@@ -11,6 +11,7 @@ from datetime import UTC, datetime
 from sqlalchemy import delete, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import joinedload, selectinload
+from sqlalchemy.orm.attributes import InstrumentedAttribute
 
 from src.application.reading.protocols.highlight_repository import DeviceEdit
 from src.domain.common.value_objects import (
@@ -389,6 +390,89 @@ class HighlightRepository:
                 f"book_id={book_id.value}, user_id={user_id.value}"
             )
         return [HighlightId(hid) for hid in marked_ids]
+
+    async def restore_to_devices_by_content_hashes(
+        self, hashes: list[ContentHash], user_id: UserId, book_id: BookId
+    ) -> list[HighlightId]:
+        """
+        Let the highlights matching these hashes reach e-readers again.
+
+        Args:
+            hashes: Content hashes of the highlights to let through
+            user_id: User ID for authorization check
+            book_id: Book ID for validation
+
+        Returns:
+            The IDs of the highlights this call let through -- those that were
+            actually withheld. A hash matching a live highlight, another user's
+            or none at all changes nothing.
+        """
+        return await self._clear_flag_by_content_hashes(
+            HighlightORM.removed_from_devices_at, hashes, user_id, book_id
+        )
+
+    async def restore_deleted_by_content_hashes(
+        self, hashes: list[ContentHash], user_id: UserId, book_id: BookId
+    ) -> list[HighlightId]:
+        """
+        Undo the soft delete of the highlights matching these hashes.
+
+        What the web delete cascaded away -- flashcards, bookmarks, embeddings
+        -- was really deleted then and stays gone; this brings back the
+        highlight row alone.
+
+        Args:
+            hashes: Content hashes of the highlights to undelete
+            user_id: User ID for authorization check
+            book_id: Book ID for validation
+
+        Returns:
+            The IDs of the highlights this call undeleted -- those that were
+            actually soft-deleted.
+        """
+        return await self._clear_flag_by_content_hashes(
+            HighlightORM.deleted_at, hashes, user_id, book_id
+        )
+
+    async def _clear_flag_by_content_hashes(
+        self,
+        flag: InstrumentedAttribute[datetime | None],
+        hashes: list[ContentHash],
+        user_id: UserId,
+        book_id: BookId,
+    ) -> list[HighlightId]:
+        """
+        Clear one withholding timestamp on the rows that still carry it.
+
+        A single UPDATE ... RETURNING carries the eligibility check, mirroring
+        mark_removed_from_devices: two devices reviving the same highlight at
+        once cannot both report it, and a row revived moments earlier in this
+        same request cannot be missed through a stale identity map.
+        """
+        if not hashes:
+            return []
+
+        stmt = (
+            update(HighlightORM)
+            .where(
+                HighlightORM.user_id == user_id.value,
+                HighlightORM.book_id == book_id.value,
+                HighlightORM.content_hash.in_([h.value for h in hashes]),
+                flag.is_not(None),
+            )
+            .values({flag: None})
+            .returning(HighlightORM.id)
+            .execution_options(synchronize_session=False)
+        )
+        cleared_ids = list((await self.db.execute(stmt)).scalars().all())
+        await self.db.commit()
+
+        if cleared_ids:
+            logger.info(
+                f"Cleared {flag.key} on {len(cleared_ids)} highlights for "
+                f"book_id={book_id.value}, user_id={user_id.value}"
+            )
+        return [HighlightId(hid) for hid in cleared_ids]
 
     async def soft_delete_by_ids(
         self,

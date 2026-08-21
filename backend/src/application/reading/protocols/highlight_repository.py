@@ -91,6 +91,27 @@ class HighlightRepositoryProtocol(Protocol):
         """
         ...
 
+    async def restore_to_devices_by_content_hashes(
+        self, hashes: list[ContentHash], user_id: UserId, book_id: BookId
+    ) -> list[HighlightId]:
+        """Let the highlights matching these hashes reach e-readers again.
+
+        Only rows actually withheld are touched, and only those IDs come back;
+        a hash matching a live or absent highlight changes nothing.
+        """
+        ...
+
+    async def restore_deleted_by_content_hashes(
+        self, hashes: list[ContentHash], user_id: UserId, book_id: BookId
+    ) -> list[HighlightId]:
+        """Undo the soft delete of the highlights matching these hashes.
+
+        Only rows actually soft-deleted are touched, and only those IDs come
+        back. What the delete cascaded away -- flashcards, bookmarks,
+        embeddings -- is gone for good; this brings back the highlight alone.
+        """
+        ...
+
     async def soft_delete_by_ids(
         self,
         highlight_ids: list[HighlightId],
