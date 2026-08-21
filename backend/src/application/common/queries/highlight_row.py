@@ -36,6 +36,7 @@ class HighlightRow:
     page: int | None
     datetime: str
     label: HighlightLabelView | None
+    removed_from_devices: bool
     tags: tuple[TagRef, ...]
     flashcards: tuple[FlashcardRef, ...]
     created_at: dt

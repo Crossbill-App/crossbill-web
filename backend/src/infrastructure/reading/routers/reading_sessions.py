@@ -68,6 +68,7 @@ def _build_session_schema(view: ReadingSessionView) -> ReadingSession:
                 )
                 if highlight.label
                 else None,
+                removed_from_devices=highlight.removed_from_devices,
                 chapter=None,
                 chapter_number=None,
                 tags=[],

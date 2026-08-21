@@ -52,6 +52,7 @@ def highlight_row(row: HighlightORM, labels: dict[int, ResolvedLabel]) -> Highli
         )
         if style_id is not None
         else None,
+        removed_from_devices=row.removed_from_devices_at is not None,
         tags=tuple(tag_ref(tag) for tag in row.tags),
         flashcards=tuple(flashcard_ref(card) for card in row.flashcards),
         created_at=row.created_at,

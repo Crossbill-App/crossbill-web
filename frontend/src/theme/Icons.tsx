@@ -51,5 +51,8 @@ export {
 // User/System icons
 export { Logout as LogoutIcon, Settings as SettingsIcon } from '@mui/icons-material';
 
+// Device sync icons
+export { PhonelinkOff as NotOnDeviceIcon } from '@mui/icons-material';
+
 // Date/Time icons
 export { CalendarMonth as DateIcon } from '@mui/icons-material';

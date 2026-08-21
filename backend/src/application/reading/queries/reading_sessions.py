@@ -27,6 +27,7 @@ class SessionHighlightView:
     page: int | None
     datetime: str
     label: HighlightLabelView | None
+    removed_from_devices: bool
     created_at: dt
     updated_at: dt
 

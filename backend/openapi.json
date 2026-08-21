@@ -5806,6 +5806,12 @@
             ],
             "description": "Resolved label for this highlight"
           },
+          "removed_from_devices": {
+            "type": "boolean",
+            "title": "Removed From Devices",
+            "description": "True when the reader deleted this highlight on a device. It is kept whole on the web but withheld from every device's pull.",
+            "default": false
+          },
           "tags": {
             "items": {
               "$ref": "#/components/schemas/TagInBook"
@@ -6317,6 +6323,12 @@
               }
             ],
             "description": "Resolved label for this highlight"
+          },
+          "removed_from_devices": {
+            "type": "boolean",
+            "title": "Removed From Devices",
+            "description": "True when the reader deleted this highlight on a device. It is kept whole on the web but withheld from every device's pull.",
+            "default": false
           },
           "tags": {
             "items": {

@@ -3,6 +3,7 @@ import { HoverableCardActionArea } from '@/components/cards/HoverableCardActionA
 import { MetadataRow } from '@/components/cards/MetadataRow.tsx';
 import { TagChipList } from '@/components/TagChipList.tsx';
 import { LabelIndicator } from '@/pages/BookPage/common/LabelIndicator.tsx';
+import { NotOnDeviceChip } from '@/pages/BookPage/common/NotOnDeviceChip.tsx';
 import { BookmarkFilledIcon, DateIcon, FlashcardsIcon, QuoteIcon } from '@/theme/Icons.tsx';
 import { Box, Typography } from '@mui/material';
 
@@ -38,6 +39,7 @@ const Footer = ({ highlight, bookmark }: FooterProps) => {
         }}
       >
         <LabelIndicator label={highlight.label} size="small" />
+        <NotOnDeviceChip removed={highlight.removed_from_devices} />
         <DateIcon
           sx={(theme) => ({
             fontSize: 14,
