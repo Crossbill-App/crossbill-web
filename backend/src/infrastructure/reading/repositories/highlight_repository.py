@@ -330,6 +330,61 @@ class HighlightRepository:
         await self.db.commit()
         return len(placements)
 
+    async def mark_removed_from_devices(
+        self,
+        highlight_ids: list[HighlightId],
+        user_id: UserId,
+        book_id: BookId,
+    ) -> list[HighlightId]:
+        """
+        Withhold highlights from every e-reader, keeping them whole on the web.
+
+        Unlike soft_delete_by_ids this cascades to nothing: the flashcards,
+        bookmarks and embeddings hanging off the highlight are exactly why the
+        row cannot simply be deleted when a device drops it.
+
+        Args:
+            highlight_ids: List of highlight IDs to withhold
+            user_id: User ID for authorization check
+            book_id: Book ID for validation
+
+        Returns:
+            The IDs actually marked -- those of the requested IDs that belong to
+            this user's book, were still live and were not already withheld.
+            Everything else is silently skipped: a device re-sending a removal
+            after an interrupted sync must not fail.
+        """
+        if not highlight_ids:
+            return []
+
+        # Resolve the markable IDs up front rather than as a subquery: the
+        # caller needs them back, and once the UPDATE lands the predicate that
+        # selects them no longer matches.
+        stmt_markable_ids = select(HighlightORM.id).where(
+            HighlightORM.id.in_([hid.value for hid in highlight_ids]),
+            HighlightORM.book_id == book_id.value,
+            HighlightORM.user_id == user_id.value,
+            HighlightORM.deleted_at.is_(None),
+            HighlightORM.removed_from_devices_at.is_(None),
+        )
+        markable_ids = list((await self.db.execute(stmt_markable_ids)).scalars().all())
+        if not markable_ids:
+            return []
+
+        stmt_mark = (
+            update(HighlightORM)
+            .where(HighlightORM.id.in_(markable_ids))
+            .values(removed_from_devices_at=datetime.now(UTC))
+        )
+        await self.db.execute(stmt_mark)
+        await self.db.commit()
+
+        logger.info(
+            f"Removed {len(markable_ids)} highlights from devices for "
+            f"book_id={book_id.value}, user_id={user_id.value}"
+        )
+        return [HighlightId(hid) for hid in markable_ids]
+
     async def soft_delete_by_ids(
         self,
         highlight_ids: list[HighlightId],

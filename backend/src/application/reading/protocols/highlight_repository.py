@@ -71,6 +71,21 @@ class HighlightRepositoryProtocol(Protocol):
         """Write xpoints and position onto highlights stored without them."""
         ...
 
+    async def mark_removed_from_devices(
+        self,
+        highlight_ids: list[HighlightId],
+        user_id: UserId,
+        book_id: BookId,
+    ) -> list[HighlightId]:
+        """Withhold the given highlights from every e-reader, keeping them on the web.
+
+        The requested IDs are unverified caller input; only the returned ones
+        belonged to this user's book, were still live and were not already
+        withheld. Nothing derived from a highlight -- flashcards, bookmarks,
+        embeddings -- is touched.
+        """
+        ...
+
     async def soft_delete_by_ids(
         self,
         highlight_ids: list[HighlightId],
