@@ -50,6 +50,15 @@ class HighlightCreate(HighlightBase):
             "highlight is first edited. The newest edit wins when devices disagree."
         ),
     )
+    is_new: bool = Field(
+        False,
+        description=(
+            "True when the device created this highlight after its last pull, so the "
+            "server can tell a deliberate re-highlight from a stale echo. A flagged "
+            "push of a text removed from devices or deleted on the web brings that "
+            "highlight back; an unflagged one is skipped, as it always was."
+        ),
+    )
 
 
 class HighlightLabel(BaseModel):

@@ -1025,11 +1025,56 @@ async def sync(
     return response.json()
 
 
+async def pulled_ids(client: AsyncClient) -> dict[str, int]:
+    """What the e-reader gets back on its next pull, each text mapped to its ID."""
+    response = await client.get(f"/api/v1/ereader/books/{CLIENT_BOOK_ID}/highlights")
+    assert response.status_code == status.HTTP_200_OK
+    return {item["text"]: item["id"] for item in response.json()["items"]}
+
+
 async def pulled_texts(client: AsyncClient) -> list[str]:
     """The texts the e-reader gets back on its next pull."""
     response = await client.get(f"/api/v1/ereader/books/{CLIENT_BOOK_ID}/highlights")
     assert response.status_code == status.HTTP_200_OK
     return [item["text"] for item in response.json()["items"]]
+
+
+def pushed_as_new(text: str, **overrides: str) -> dict[str, Any]:
+    """The device's push of a highlight it created after its last pull."""
+    original = next(h for h in PUSHED_HIGHLIGHTS if h["text"] == text)
+    return {**original, "is_new": True, **overrides}
+
+
+async def another_readers_copy(
+    db_session: AsyncSession,
+    email: str,
+    text: str,
+    datetime_str: str,
+    removed_from_devices_at: datetime | None = None,
+) -> models.Highlight:
+    """The same passage in another reader's copy of the same client_book_id.
+
+    Two readers syncing the same book share its client_book_id, so every write
+    the upload does has to be scoped by user as well as by book.
+    """
+    other_user = models.User(email=email)
+    db_session.add(other_user)
+    await db_session.commit()
+    await db_session.refresh(other_user)
+    other_book = await create_test_book(
+        db_session=db_session,
+        user_id=other_user.id,
+        title="Their Copy",
+        client_book_id=CLIENT_BOOK_ID,
+    )
+    return await create_test_highlight(
+        db_session=db_session,
+        book=other_book,
+        user_id=other_user.id,
+        text=text,
+        datetime_str=datetime_str,
+        removed_from_devices_at=removed_from_devices_at,
+    )
 
 
 @pytest.fixture
@@ -1047,8 +1092,7 @@ async def synced_book(
 
     assert (await sync(client))["highlights_created"] == 2
 
-    response = await client.get(f"/api/v1/ereader/books/{CLIENT_BOOK_ID}/highlights")
-    return book, {item["text"]: item["id"] for item in response.json()["items"]}
+    return book, await pulled_ids(client)
 
 
 class TestHighlightUploadRemovals:
@@ -1137,23 +1181,9 @@ class TestHighlightUploadRemovals:
         db_session: AsyncSession,
         synced_book: tuple[models.Book, dict[str, int]],
     ) -> None:
-        """Two readers can share a client_book_id; a removal must not cross users."""
-        other_user = models.User(email="other-removals@test.com")
-        db_session.add(other_user)
-        await db_session.commit()
-        await db_session.refresh(other_user)
-        other_book = await create_test_book(
-            db_session=db_session,
-            user_id=other_user.id,
-            title="Their Copy",
-            client_book_id=CLIENT_BOOK_ID,
-        )
-        theirs = await create_test_highlight(
-            db_session=db_session,
-            book=other_book,
-            user_id=other_user.id,
-            text="Theirs",
-            datetime_str="2024-01-15 14:00:00",
+        """A removal must not cross users."""
+        theirs = await another_readers_copy(
+            db_session, "other-removals@test.com", "Theirs", "2024-01-15 14:00:00"
         )
 
         result = await sync(client, removed_ids=[theirs.id])
@@ -1227,3 +1257,179 @@ class TestHighlightUploadRemovals:
 
         assert response.status_code == status.HTTP_422_UNPROCESSABLE_CONTENT
         assert await pulled_texts(client) == ["Kept on the device", "Deleted on the device"]
+
+
+class TestHighlightUploadRehighlights:
+    """A passage marked again on the device brings its highlight back."""
+
+    async def _remove_from_devices(self, client: AsyncClient, highlight_id: int) -> None:
+        assert (await sync(client, removed_ids=[highlight_id]))["highlights_removed"] == 1
+        assert await pulled_texts(client) == ["Kept on the device"]
+
+    async def _delete_on_the_web(self, client: AsyncClient, book_id: int, ids: list[int]) -> None:
+        deletion = await client.request(
+            "DELETE", f"/api/v1/books/{book_id}/highlight", json={"highlight_ids": ids}
+        )
+        assert deletion.status_code == status.HTTP_200_OK
+        assert deletion.json()["deleted_count"] == len(ids)
+
+    async def test_a_flagged_rehighlight_returns_a_removed_highlight_to_devices(
+        self, client: AsyncClient, synced_book: tuple[models.Book, dict[str, int]]
+    ) -> None:
+        _, ids = synced_book
+        await self._remove_from_devices(client, ids["Deleted on the device"])
+
+        result = await sync(
+            client,
+            highlights=[PUSHED_HIGHLIGHTS[0], pushed_as_new("Deleted on the device")],
+        )
+
+        assert result["highlights_created"] == 0
+        assert result["highlights_skipped"] == 2
+        # The same row is back, not a second one beside it.
+        assert await pulled_ids(client) == ids
+
+    async def test_a_flagged_rehighlight_restores_a_web_deleted_highlight(
+        self, client: AsyncClient, synced_book: tuple[models.Book, dict[str, int]]
+    ) -> None:
+        """What the web delete cascaded away stays gone; the highlight itself returns."""
+        book, ids = synced_book
+        deleted_id = ids["Deleted on the device"]
+        flashcard = await client.post(
+            f"/api/v1/highlights/{deleted_id}/flashcards",
+            json={"question": "Does it come back?", "answer": "The highlight does"},
+        )
+        assert flashcard.status_code == status.HTTP_201_CREATED
+        await self._delete_on_the_web(client, book.id, [deleted_id])
+
+        result = await sync(client, highlights=[pushed_as_new("Deleted on the device")])
+
+        assert result["highlights_created"] == 0
+        assert await pulled_ids(client) == ids
+
+        details = await client.get(f"/api/v1/books/{book.id}")
+        on_the_web = {h["id"]: h for c in details.json()["chapters"] for h in c["highlights"]}
+        assert deleted_id in on_the_web
+        assert on_the_web[deleted_id]["flashcards"] == []
+
+    async def test_a_flagged_rehighlight_takes_the_note_written_with_it(
+        self,
+        client: AsyncClient,
+        db_session: AsyncSession,
+        synced_book: tuple[models.Book, dict[str, int]],
+    ) -> None:
+        """Reviving happens before reconciliation, so the push's edits land on the row."""
+        _, ids = synced_book
+        await self._remove_from_devices(client, ids["Deleted on the device"])
+
+        await sync(
+            client,
+            highlights=[
+                pushed_as_new(
+                    "Deleted on the device",
+                    note="Marked it again",
+                    datetime_updated="2026-01-01 00:00:00",
+                )
+            ],
+        )
+
+        stored = (
+            await db_session.execute(
+                select(models.Highlight).filter_by(id=ids["Deleted on the device"])
+            )
+        ).scalar_one()
+        await db_session.refresh(stored)
+        assert stored.koreader_note == "Marked it again"
+        assert stored.removed_from_devices_at is None
+
+    async def test_an_unflagged_push_leaves_a_removed_highlight_removed(
+        self, client: AsyncClient, synced_book: tuple[models.Book, dict[str, int]]
+    ) -> None:
+        """A device that never learned the flag keeps today's behaviour."""
+        _, ids = synced_book
+        await self._remove_from_devices(client, ids["Deleted on the device"])
+
+        result = await sync(client)
+
+        assert result["highlights_created"] == 0
+        assert await pulled_texts(client) == ["Kept on the device"]
+
+    async def test_an_unflagged_push_leaves_a_web_deleted_highlight_deleted(
+        self, client: AsyncClient, synced_book: tuple[models.Book, dict[str, int]]
+    ) -> None:
+        book, ids = synced_book
+        await self._delete_on_the_web(client, book.id, [ids["Deleted on the device"]])
+
+        result = await sync(client)
+
+        assert result["highlights_created"] == 0
+        assert await pulled_texts(client) == ["Kept on the device"]
+        details = await client.get(f"/api/v1/books/{book.id}")
+        on_the_web = [h["text"] for c in details.json()["chapters"] for h in c["highlights"]]
+        assert on_the_web == ["Kept on the device"]
+
+    async def test_a_flagged_push_of_a_live_highlight_only_merges_its_edits(
+        self,
+        client: AsyncClient,
+        db_session: AsyncSession,
+        synced_book: tuple[models.Book, dict[str, int]],
+    ) -> None:
+        """A device that lost its snapshot flags everything; nothing may double up."""
+        _, ids = synced_book
+
+        result = await sync(
+            client,
+            highlights=[
+                pushed_as_new(
+                    "Kept on the device", note="Still here", datetime_updated="2026-01-01 00:00:00"
+                ),
+                pushed_as_new("Deleted on the device"),
+            ],
+        )
+
+        assert result["highlights_created"] == 0
+        assert result["highlights_skipped"] == 2
+        assert await pulled_ids(client) == ids
+
+        stored = (
+            await db_session.execute(
+                select(models.Highlight).filter_by(id=ids["Kept on the device"])
+            )
+        ).scalar_one()
+        await db_session.refresh(stored)
+        assert stored.koreader_note == "Still here"
+
+    async def test_a_flagged_rehighlight_outlives_a_removal_in_the_same_request(
+        self, client: AsyncClient, synced_book: tuple[models.Book, dict[str, int]]
+    ) -> None:
+        """Removals run first, so re-marking the passage wins -- deterministically."""
+        _, ids = synced_book
+
+        result = await sync(
+            client,
+            removed_ids=[ids["Deleted on the device"]],
+            highlights=[PUSHED_HIGHLIGHTS[0], pushed_as_new("Deleted on the device")],
+        )
+
+        assert result["highlights_removed"] == 1
+        assert await pulled_ids(client) == ids
+
+    async def test_another_users_removed_highlight_is_not_revived(
+        self,
+        client: AsyncClient,
+        db_session: AsyncSession,
+        synced_book: tuple[models.Book, dict[str, int]],
+    ) -> None:
+        """Two readers can remove the same passage; a revival must not cross users."""
+        theirs = await another_readers_copy(
+            db_session,
+            "other-rehighlights@test.com",
+            "Deleted on the device",
+            "2024-01-15 14:01:00",
+            removed_from_devices_at=datetime(2024, 3, 1, tzinfo=UTC),
+        )
+
+        await sync(client, highlights=[pushed_as_new("Deleted on the device")])
+
+        await db_session.refresh(theirs)
+        assert theirs.removed_from_devices_at is not None

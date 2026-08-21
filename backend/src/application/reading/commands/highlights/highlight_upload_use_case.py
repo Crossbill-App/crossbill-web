@@ -55,6 +55,9 @@ class HighlightUploadData:
     datetime: str | None = None
     datetime_updated: str | None = None
     koreader_note: str | None = None
+    # Set by the device for a highlight it created after its last pull; tells a
+    # deliberate re-highlight from a stale echo of one already removed or deleted.
+    is_new: bool = False
 
 
 @dataclass(frozen=True)
@@ -119,9 +122,10 @@ class HighlightUploadUseCase:
         3. Batch fetches chapters by chapter_number
         4. Creates domain entities using factory methods
         5. Deduplicates using domain service
-        6. Applies the e-reader's newer note and style edits to skipped duplicates
-        7. Fills in the xpoints and position of duplicates stored without them
-        8. Bulk saves unique highlights
+        6. Revives the highlights a duplicate flagged is_new re-creates
+        7. Applies the e-reader's newer note and style edits to skipped duplicates
+        8. Fills in the xpoints and position of duplicates stored without them
+        9. Bulk saves unique highlights
 
         Args:
             client_book_id: Book identifier from client
@@ -176,6 +180,7 @@ class HighlightUploadUseCase:
 
         # Step 4: Create domain entities using factory methods
         new_highlights: list[Highlight] = []
+        pushed_as_new: set[ContentHash] = set()
 
         for data in highlight_data_list:
             # Resolve chapter ID
@@ -230,6 +235,8 @@ class HighlightUploadUseCase:
                 origin_device_id=device_id,
             )
             new_highlights.append(highlight)
+            if data.is_new:
+                pushed_as_new.add(highlight.content_hash)
 
         # Step 5: Deduplication using domain service
         existing_hashes = await self.highlight_repository.get_existing_hashes(
@@ -240,14 +247,20 @@ class HighlightUploadUseCase:
             new_highlights, existing_hashes
         )
 
-        # Steps 6-7: reconcile the live rows the duplicates matched, loaded once
+        # Step 6: bring back what a deliberate re-highlight re-creates, before the
+        # reconciliation below loads the rows -- a revived row is open to edits again
+        revived_count = await self._revive_rehighlighted(
+            duplicates, pushed_as_new, user_id_vo, book_id
+        )
+
+        # Steps 7-8: reconcile the live rows the duplicates matched, loaded once
         stored_duplicates = await self.highlight_repository.find_reconcilable_by_content_hashes(
             user_id_vo, book_id, [duplicate.content_hash for duplicate in duplicates]
         )
         await self._sync_device_edits_of_duplicates(duplicates, stored_duplicates, book_id)
         await self._fill_missing_positions_of_duplicates(duplicates, stored_duplicates, book_id)
 
-        # Step 8: Bulk save unique highlights
+        # Step 9: Bulk save unique highlights
         if unique:
             saved = await self.highlight_repository.bulk_save(unique)
             await self._embedding_enqueuer.enqueue_many(
@@ -264,6 +277,7 @@ class HighlightUploadUseCase:
             highlights_created=len(unique),
             highlights_skipped=len(duplicates),
             highlights_removed=removed_count,
+            highlights_revived=revived_count,
         )
 
         return HighlightUploadResult(
@@ -313,6 +327,78 @@ class HighlightUploadUseCase:
         )
 
         return len(removed)
+
+    async def _revive_rehighlighted(
+        self,
+        duplicates: list[Highlight],
+        pushed_as_new: set[ContentHash],
+        user_id: UserId,
+        book_id: BookId,
+    ) -> int:
+        """
+        Bring back the highlights a deliberate re-highlight re-creates.
+
+        A push that duplicates a highlight removed from devices or deleted on
+        the web is normally dropped, which is what stops a push-only device
+        from resurrecting the reader's deletions. The device tells the two
+        apart itself: a highlight absent from its last-pulled snapshot is new
+        on this device, and the reader marked the passage again on purpose, so
+        the stored highlight -- with its flashcards, bookmarks and tags --
+        comes back rather than a second row appearing beside it. An unflagged
+        duplicate is still dropped, so a stale device and a plugin too old to
+        send the flag behave exactly as before.
+
+        The revived row is live again before the reconciliation that follows,
+        so the push's note and style edits land on it through the ordinary
+        path. A row the web delete cascaded is only partly recoverable: its
+        flashcards and bookmarks were really deleted then and stay gone, and
+        its embedding, deleted with them, is enqueued again here.
+
+        Args:
+            duplicates: Highlights skipped by deduplication
+            pushed_as_new: Content hashes the device flagged as new on it
+            user_id: User the upload belongs to
+            book_id: Book the upload belongs to
+
+        Returns:
+            Number of stored highlights this call brought back
+        """
+        hashes = list(
+            dict.fromkeys(
+                duplicate.content_hash
+                for duplicate in duplicates
+                if duplicate.content_hash in pushed_as_new
+            )
+        )
+        if not hashes:
+            return 0
+
+        returned = await self.highlight_repository.restore_to_devices_by_content_hashes(
+            hashes, user_id, book_id
+        )
+        undeleted = await self.highlight_repository.restore_deleted_by_content_hashes(
+            hashes, user_id, book_id
+        )
+
+        if undeleted:
+            await self._embedding_enqueuer.enqueue_many(
+                ContentType.HIGHLIGHT,
+                [highlight_id.value for highlight_id in undeleted],
+                user_id.value,
+                reference_id=str(book_id.value),
+            )
+
+        revived = {highlight_id.value for highlight_id in returned + undeleted}
+
+        if revived:
+            logger.info(
+                "highlights_revived_by_rehighlight",
+                book_id=book_id.value,
+                returned_to_devices=len(returned),
+                undeleted=len(undeleted),
+            )
+
+        return len(revived)
 
     async def _sync_device_edits_of_duplicates(
         self,

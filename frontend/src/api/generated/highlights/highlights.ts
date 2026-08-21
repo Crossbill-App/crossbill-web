@@ -56,6 +56,10 @@ const withQueryKey = <T extends object, K>(query: T, queryKey: K): T & { queryKe
  * ``removed_ids`` carries the highlights the reader deleted on the device:
  * they are withheld from every device's pull and stay whole on the web.
  *
+ * A highlight flagged ``is_new`` was created on the device after its last
+ * pull, so a duplicate of a removed or deleted highlight is a deliberate
+ * re-highlight and brings that highlight back.
+ *
  * Args:
  *     request: Highlight upload request containing book metadata and highlights
  *

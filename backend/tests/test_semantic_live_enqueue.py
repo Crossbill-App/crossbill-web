@@ -33,6 +33,9 @@ from tests.semantic_helpers import (
 #: without posting 33 highlights.
 SLICE_SIZE = "src.application.semantic.batching.EMBEDDING_SLICE_SIZE"
 
+#: The passage the revival tests delete or withhold and then mark again.
+REHIGHLIGHTED_TEXT = "first idea"
+
 
 def embedding_calls(job_queue: AsyncMock) -> list[dict[str, Any]]:
     """The kwargs of every embedding enqueue, ignoring any other task."""
@@ -50,6 +53,36 @@ async def create_note(client: AsyncClient, book: Book) -> dict[str, Any]:
     )
     assert response.status_code == status.HTTP_201_CREATED, response.text
     return response.json()["note"]
+
+
+async def upload_one_highlight(
+    client: AsyncClient, db_session: AsyncSession, job_queue: AsyncMock
+) -> models.Highlight:
+    """Upload REHIGHLIGHTED_TEXT and hand back its row, with the queue reset after."""
+    await upload_highlights(client, "book-1", REHIGHLIGHTED_TEXT)
+    stored = (await db_session.execute(select(models.Highlight))).scalars().one()
+    job_queue.enqueue.reset_mock()
+    return stored
+
+
+async def rehighlight(client: AsyncClient, removed_ids: list[int] | None = None) -> dict[str, Any]:
+    """Push REHIGHLIGHTED_TEXT as a highlight the device made after its last pull."""
+    response = await client.post(
+        "/api/v1/highlights/upload",
+        json={
+            "client_book_id": "book-1",
+            "removed_ids": removed_ids or [],
+            "highlights": [
+                {
+                    "text": REHIGHLIGHTED_TEXT,
+                    "datetime": "2024-01-15 14:30:00",
+                    "is_new": True,
+                }
+            ],
+        },
+    )
+    assert response.status_code == status.HTTP_200_OK, response.text
+    return response.json()
 
 
 class TestNoteWrites:
@@ -205,6 +238,50 @@ class TestHighlightUpload:
         assert result["highlights_created"] == 2
         texts = (await db_session.execute(select(models.Highlight.text))).scalars().all()
         assert sorted(texts) == ["first idea", "second idea"]
+
+    async def test_a_restored_highlight_is_enqueued_again(
+        self,
+        client: AsyncClient,
+        job_queue: AsyncMock,
+        db_session: AsyncSession,
+        create_book_via_api: CreateBookFunc,
+    ) -> None:
+        """The web delete took the embedding with it, so reviving the row must bring it back."""
+        book = await create_book_via_api(
+            {"client_book_id": "book-1", "title": "Crime and Punishment"}
+        )
+
+        with embeddings_enabled():
+            stored = await upload_one_highlight(client, db_session, job_queue)
+            deletion = await client.request(
+                "DELETE",
+                f"/api/v1/books/{book.book_id}/highlight",
+                json={"highlight_ids": [stored.id]},
+            )
+            assert deletion.json()["deleted_count"] == 1
+            job_queue.enqueue.reset_mock()
+
+            revived = await rehighlight(client)
+
+        assert revived["highlights_created"] == 0
+        assert [call["content_ids"] for call in embedding_calls(job_queue)] == [[stored.id]]
+
+    async def test_a_highlight_only_returned_to_devices_is_not_enqueued_again(
+        self,
+        client: AsyncClient,
+        job_queue: AsyncMock,
+        db_session: AsyncSession,
+        create_book_via_api: CreateBookFunc,
+    ) -> None:
+        """Removing a highlight from devices never touched its embedding."""
+        await create_book_via_api({"client_book_id": "book-1", "title": "Crime and Punishment"})
+
+        with embeddings_enabled():
+            stored = await upload_one_highlight(client, db_session, job_queue)
+            returned = await rehighlight(client, removed_ids=[stored.id])
+
+        assert returned["highlights_removed"] == 1
+        assert embedding_calls(job_queue) == []
 
     async def test_an_upload_that_creates_nothing_enqueues_nothing(
         self, client: AsyncClient, job_queue: AsyncMock, create_book_via_api: CreateBookFunc
