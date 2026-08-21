@@ -45,10 +45,15 @@ class HighlightRepositoryProtocol(Protocol):
         self, user_id: UserId, book_id: BookId, hashes: list[ContentHash]
     ) -> set[ContentHash]: ...
 
-    async def find_live_by_content_hashes(
+    async def find_reconcilable_by_content_hashes(
         self, user_id: UserId, book_id: BookId, hashes: list[ContentHash]
     ) -> list[Highlight]:
-        """Load the highlights matching these hashes, soft-deleted ones excluded."""
+        """Load the highlights matching these hashes that a device push may write to.
+
+        Soft-deleted highlights are excluded, and so are those withheld from
+        devices: what the reader deleted on a device stops taking that device's
+        edits.
+        """
         ...
 
     async def save(self, highlight: Highlight) -> Highlight: ...

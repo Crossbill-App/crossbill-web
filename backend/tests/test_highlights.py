@@ -1170,3 +1170,60 @@ class TestHighlightUploadRemovals:
 
         assert result["highlights_removed"] == 0
         assert await pulled_texts(client) == ["Kept on the device", "Deleted on the device"]
+
+    async def test_a_withheld_highlight_ignores_later_device_edits(
+        self, client: AsyncClient, db_session: AsyncSession, test_user: models.User
+    ) -> None:
+        """A device that still holds the highlight cannot rewrite the web copy."""
+        await create_test_book(
+            db_session=db_session,
+            user_id=test_user.id,
+            title="Edited After Removal",
+            client_book_id="client-edited",
+        )
+        noted = [
+            {
+                "text": "Noted then deleted",
+                "page": 1,
+                "datetime": "2025-01-01 00:00:00",
+                "datetime_updated": "2025-01-01 00:00:00",
+                "note": "keep this",
+            }
+        ]
+        first = await client.post(
+            "/api/v1/highlights/upload",
+            json={"client_book_id": "client-edited", "highlights": noted},
+        )
+        assert first.json()["highlights_created"] == 1
+        stored = (
+            await db_session.execute(select(models.Highlight).filter_by(text="Noted then deleted"))
+        ).scalar_one()
+
+        # The same batch removes the highlight and pushes a newer, note-less edit
+        # of it. Without the removal the edit would win and clear the note.
+        edited = [{**noted[0], "datetime_updated": "2026-01-01 00:00:00", "note": ""}]
+        second = await client.post(
+            "/api/v1/highlights/upload",
+            json={
+                "client_book_id": "client-edited",
+                "removed_ids": [stored.id],
+                "highlights": edited,
+            },
+        )
+        assert second.json()["highlights_removed"] == 1
+
+        await db_session.refresh(stored)
+        assert stored.koreader_note == "keep this"
+        assert stored.koreader_updated_at == "2025-01-01 00:00:00"
+
+    async def test_a_negative_removed_id_is_rejected(
+        self, client: AsyncClient, synced_book: tuple[models.Book, dict[str, int]]
+    ) -> None:
+        """A malformed ID is a client error, not an unhandled domain exception."""
+        response = await client.post(
+            "/api/v1/highlights/upload",
+            json={"client_book_id": CLIENT_BOOK_ID, "highlights": [], "removed_ids": [-1]},
+        )
+
+        assert response.status_code == status.HTTP_422_UNPROCESSABLE_CONTENT
+        assert await pulled_texts(client) == ["Kept on the device", "Deleted on the device"]

@@ -69,9 +69,8 @@ async def upload_highlights(
     Creates or updates book record and adds highlights with automatic deduplication.
     Duplicates are identified by the combination of book, text, and datetime.
 
-    The same request carries the highlights the reader deleted on the device, in
-    ``removed_ids``: they are withheld from every device's pull before the
-    pushed highlights are deduplicated, and stay whole on the web.
+    ``removed_ids`` carries the highlights the reader deleted on the device:
+    they are withheld from every device's pull and stay whole on the web.
 
     Args:
         request: Highlight upload request containing book metadata and highlights

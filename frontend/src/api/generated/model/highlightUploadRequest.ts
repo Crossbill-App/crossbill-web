@@ -20,6 +20,9 @@ export interface HighlightUploadRequest {
   device_id?: string | null;
   /** List of highlights to upload */
   highlights: HighlightCreate[];
-  /** IDs of highlights the reader deleted on the device. They are withheld from every device's pull and kept whole on the web. Unknown, foreign and already removed IDs are ignored, so a re-sent sync is harmless. */
+  /**
+   * IDs of highlights the reader deleted on the device. They are withheld from every device's pull and kept whole on the web. Unknown, foreign and already removed IDs are ignored, so a re-sent sync is harmless.
+   * @items.minimum 0
+   */
   removed_ids?: number[];
 }

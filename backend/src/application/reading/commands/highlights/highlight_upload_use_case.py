@@ -123,12 +123,6 @@ class HighlightUploadUseCase:
         7. Fills in the xpoints and position of duplicates stored without them
         8. Bulk saves unique highlights
 
-        The deletions ride inside the upload rather than in a call of their own,
-        so a sync is one round trip on flaky e-reader WiFi. They are applied
-        before deduplication runs: should a removed highlight's text also arrive
-        in the pushed set, the removal is already in place and deduplication
-        skips the push as the duplicate it is, leaving the highlight withheld.
-
         Args:
             client_book_id: Book identifier from client
             highlight_data_list: List of highlight data to upload
@@ -247,7 +241,7 @@ class HighlightUploadUseCase:
         )
 
         # Steps 6-7: reconcile the live rows the duplicates matched, loaded once
-        stored_duplicates = await self.highlight_repository.find_live_by_content_hashes(
+        stored_duplicates = await self.highlight_repository.find_reconcilable_by_content_hashes(
             user_id_vo, book_id, [duplicate.content_hash for duplicate in duplicates]
         )
         await self._sync_device_edits_of_duplicates(duplicates, stored_duplicates, book_id)
@@ -292,11 +286,6 @@ class HighlightUploadUseCase:
         only marks the highlight withheld and leaves the web copy whole. This is
         deliberately not the web's delete cascade.
 
-        Ids that are unknown, another user's, from another book, already
-        soft-deleted or already withheld are skipped rather than rejected: the
-        plugin re-sends its removals after an interrupted sync, and the second
-        attempt must succeed as quietly as the first.
-
         Args:
             removed_ids: Highlight IDs the device reports as deleted, unverified
             user_id: User the upload belongs to
@@ -308,8 +297,12 @@ class HighlightUploadUseCase:
         if not removed_ids:
             return 0
 
+        # Repeats cost a bind parameter each and mark nothing extra; the list is
+        # unbounded caller input, so collapse them before it reaches the query.
+        unique_ids = list(dict.fromkeys(removed_ids))
+
         removed = await self.highlight_repository.mark_removed_from_devices(
-            [HighlightId(highlight_id) for highlight_id in removed_ids], user_id, book_id
+            [HighlightId(highlight_id) for highlight_id in unique_ids], user_id, book_id
         )
 
         logger.info(
