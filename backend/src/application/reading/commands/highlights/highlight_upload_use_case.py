@@ -57,6 +57,15 @@ class HighlightUploadData:
     koreader_note: str | None = None
 
 
+@dataclass(frozen=True)
+class HighlightUploadResult:
+    """What one sync did: the highlights it stored, skipped and withheld."""
+
+    created: int
+    skipped: int
+    removed_from_devices: int
+
+
 class HighlightUploadUseCase:
     """Use case for highlight upload operations."""
 
@@ -99,27 +108,36 @@ class HighlightUploadUseCase:
         highlight_data_list: list[HighlightUploadData],
         user_id: int,
         device_id: str | None = None,
-    ) -> tuple[int, int]:
+        removed_ids: list[int] | None = None,
+    ) -> HighlightUploadResult:
         """
         Process highlight upload from KOReader.
 
         This method:
         1. Looks up the existing book by client_book_id
-        2. Batch fetches chapters by chapter_number
-        3. Creates domain entities using factory methods
-        4. Deduplicates using domain service
-        5. Applies the e-reader's newer note and style edits to skipped duplicates
-        6. Fills in the xpoints and position of duplicates stored without them
-        7. Bulk saves unique highlights
+        2. Withholds the highlights the reader deleted on a device
+        3. Batch fetches chapters by chapter_number
+        4. Creates domain entities using factory methods
+        5. Deduplicates using domain service
+        6. Applies the e-reader's newer note and style edits to skipped duplicates
+        7. Fills in the xpoints and position of duplicates stored without them
+        8. Bulk saves unique highlights
+
+        The deletions ride inside the upload rather than in a call of their own,
+        so a sync is one round trip on flaky e-reader WiFi. They are applied
+        before deduplication runs: should a removed highlight's text also arrive
+        in the pushed set, the removal is already in place and deduplication
+        skips the push as the duplicate it is, leaving the highlight withheld.
 
         Args:
             client_book_id: Book identifier from client
             highlight_data_list: List of highlight data to upload
             user_id: User ID (primitive int, converted to value object)
             device_id: Device the whole batch comes from, stamped on every highlight created
+            removed_ids: Highlights the reader deleted on a device, to withhold from every device
 
         Returns:
-            Tuple of (created_count, skipped_count)
+            HighlightUploadResult with the created, skipped and withheld counts
 
         Raises:
             BookNotFoundError: If book doesn't exist
@@ -142,6 +160,11 @@ class HighlightUploadUseCase:
 
         book_id = book.id
 
+        # Step 2: Withhold what the reader deleted on a device, before dedup sees it
+        removed_count = await self._remove_deleted_from_devices(
+            removed_ids or [], user_id_vo, book_id
+        )
+
         # Build position index if EPUB
         position_index = None
         if book.file_type == "epub" and book.ebook_file:
@@ -149,7 +172,7 @@ class HighlightUploadUseCase:
             if epub_content:
                 position_index = self.position_index_service.build_position_index(epub_content)
 
-        # Step 2: Batch fetch chapters by chapter_number
+        # Step 3: Batch fetch chapters by chapter_number
         chapter_numbers: set[int] = {
             data.chapter_number for data in highlight_data_list if data.chapter_number is not None
         }
@@ -157,7 +180,7 @@ class HighlightUploadUseCase:
             book.id, chapter_numbers, user_id_vo
         )
 
-        # Step 3: Create domain entities using factory methods
+        # Step 4: Create domain entities using factory methods
         new_highlights: list[Highlight] = []
 
         for data in highlight_data_list:
@@ -214,7 +237,7 @@ class HighlightUploadUseCase:
             )
             new_highlights.append(highlight)
 
-        # Step 4: Deduplication using domain service
+        # Step 5: Deduplication using domain service
         existing_hashes = await self.highlight_repository.get_existing_hashes(
             user_id_vo, book_id, [h.content_hash for h in new_highlights]
         )
@@ -223,14 +246,14 @@ class HighlightUploadUseCase:
             new_highlights, existing_hashes
         )
 
-        # Steps 5-6: reconcile the live rows the duplicates matched, loaded once
+        # Steps 6-7: reconcile the live rows the duplicates matched, loaded once
         stored_duplicates = await self.highlight_repository.find_live_by_content_hashes(
             user_id_vo, book_id, [duplicate.content_hash for duplicate in duplicates]
         )
         await self._sync_device_edits_of_duplicates(duplicates, stored_duplicates, book_id)
         await self._fill_missing_positions_of_duplicates(duplicates, stored_duplicates, book_id)
 
-        # Step 7: Bulk save unique highlights
+        # Step 8: Bulk save unique highlights
         if unique:
             saved = await self.highlight_repository.bulk_save(unique)
             await self._embedding_enqueuer.enqueue_many(
@@ -246,9 +269,57 @@ class HighlightUploadUseCase:
             book_title=book.title,
             highlights_created=len(unique),
             highlights_skipped=len(duplicates),
+            highlights_removed=removed_count,
         )
 
-        return len(unique), len(duplicates)
+        return HighlightUploadResult(
+            created=len(unique),
+            skipped=len(duplicates),
+            removed_from_devices=removed_count,
+        )
+
+    async def _remove_deleted_from_devices(
+        self,
+        removed_ids: list[int],
+        user_id: UserId,
+        book_id: BookId,
+    ) -> int:
+        """
+        Withhold from every e-reader the highlights deleted on one of them.
+
+        The e-reader cannot delete a highlight outright: the reader's
+        flashcards, bookmarks and notes hang off it, so a device-side deletion
+        only marks the highlight withheld and leaves the web copy whole. This is
+        deliberately not the web's delete cascade.
+
+        Ids that are unknown, another user's, from another book, already
+        soft-deleted or already withheld are skipped rather than rejected: the
+        plugin re-sends its removals after an interrupted sync, and the second
+        attempt must succeed as quietly as the first.
+
+        Args:
+            removed_ids: Highlight IDs the device reports as deleted, unverified
+            user_id: User the upload belongs to
+            book_id: Book the upload belongs to
+
+        Returns:
+            Number of highlights this call withheld
+        """
+        if not removed_ids:
+            return 0
+
+        removed = await self.highlight_repository.mark_removed_from_devices(
+            [HighlightId(highlight_id) for highlight_id in removed_ids], user_id, book_id
+        )
+
+        logger.info(
+            "highlights_removed_from_devices",
+            book_id=book_id.value,
+            requested=len(removed_ids),
+            removed=len(removed),
+        )
+
+        return len(removed)
 
     async def _sync_device_edits_of_duplicates(
         self,

@@ -25,4 +25,9 @@ export interface HighlightUploadResponse {
    * @minimum 0
    */
   highlights_skipped: number;
+  /**
+   * Number of highlights withheld from devices by this request
+   * @minimum 0
+   */
+  highlights_removed: number;
 }
