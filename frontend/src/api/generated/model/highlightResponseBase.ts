@@ -35,6 +35,8 @@ export interface HighlightResponseBase {
   chapter_id: number | null;
   /** Resolved label for this highlight */
   label?: HighlightLabel | null;
+  /** True when the reader deleted this highlight on a device. It is kept whole on the web but withheld from every device's pull. */
+  removed_from_devices?: boolean;
   /** List of tags for this highlight */
   tags: TagInBook[];
   created_at: string;

@@ -1,5 +1,6 @@
 import type { Highlight } from '@/api/generated/model';
 import { LabelIndicator } from '@/pages/BookPage/common/LabelIndicator.tsx';
+import { NotOnDeviceChip } from '@/pages/BookPage/common/NotOnDeviceChip.tsx';
 import { DateIcon, QuoteIcon } from '@/theme/Icons.tsx';
 import { Box, Typography } from '@mui/material';
 
@@ -86,6 +87,7 @@ export const HighlightContent = ({ highlight, onLabelClick }: HighlightContentPr
           {highlight.page && ` • Page ${highlight.page}`}
         </Typography>
         <LabelIndicator label={highlight.label} onClick={onLabelClick} size="medium" />
+        <NotOnDeviceChip removed={highlight.removed_from_devices} size="medium" />
       </Box>
     </Box>
   );
