@@ -925,9 +925,7 @@ class TestHighlightRemovedFromDevices:
     async def _removed_highlight(
         self, db_session: AsyncSession, test_user: models.User
     ) -> tuple[models.Book, models.Highlight]:
-        book = await create_test_book(
-            db_session=db_session, user_id=test_user.id, title="Web Book"
-        )
+        book = await create_test_book(db_session=db_session, user_id=test_user.id, title="Web Book")
         chapter = await create_test_chapter(
             db_session=db_session, book=book, name="Chapter One", chapter_number=1
         )
