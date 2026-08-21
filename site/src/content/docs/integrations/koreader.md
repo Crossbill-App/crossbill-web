@@ -18,8 +18,11 @@ with. The Crossbill plugin runs inside it, on the device.
 
 Across two e-readers, edits to a highlight's note or colour are merged by
 newest edit: the most recent change wins, whichever device made it. Deleting a
-highlight on the e-reader does not delete it in Crossbill — the next sync
-brings it back. Delete it in Crossbill instead, and it goes from every device.
+highlight on the e-reader withdraws it from every device but leaves the web copy
+whole, marked **Deleted on the e-reader**; delete it in Crossbill instead and it
+goes everywhere. See [KOReader
+plugin](../../getting-started/koreader-plugin/#deleting-a-highlight) for what
+the plugin asks before withdrawing a whole book's worth.
 
 This is the integration Crossbill depends on: it is where your content comes
 from.
