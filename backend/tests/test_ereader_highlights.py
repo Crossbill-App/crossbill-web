@@ -1,5 +1,6 @@
 """Tests for the ereader highlight pull endpoint."""
 
+from datetime import UTC, datetime
 from typing import Any
 
 import pytest
@@ -231,3 +232,31 @@ async def test_book_without_highlights_returns_empty_list(
 
     assert response.status_code == 200
     assert response.json()["items"] == []
+
+
+async def test_highlight_removed_from_devices_is_excluded(
+    db_session: AsyncSession, client: AsyncClient, ereader_book: Book, test_user: User
+) -> None:
+    """A highlight the user deleted on a device stays away from every device."""
+    await create_test_highlight(
+        db_session=db_session,
+        book=ereader_book,
+        user_id=test_user.id,
+        text="Kept",
+        datetime_str="2024-01-15 14:00:00",
+        page=1,
+    )
+    await create_test_highlight(
+        db_session=db_session,
+        book=ereader_book,
+        user_id=test_user.id,
+        text="Deleted on the e-reader",
+        datetime_str="2024-01-15 14:01:00",
+        page=2,
+        removed_from_devices_at=datetime(2024, 3, 1, tzinfo=UTC),
+    )
+
+    response = await client.get("/api/v1/ereader/books/client-pull/highlights")
+
+    assert response.status_code == 200
+    assert [i["text"] for i in response.json()["items"]] == ["Kept"]
