@@ -154,11 +154,27 @@ jobs:
           echo "New version: $NEW_VERSION"
           echo "version=$NEW_VERSION" >> $GITHUB_OUTPUT
 
-          # Update package.json
+          # Update the root package.json and lockfile
           npm version $NEW_VERSION --no-git-tag-version
 
+          # Update the frontend workspace and its entry in the root lockfile
+          npm pkg set version=$NEW_VERSION --workspace frontend
+          node -e '
+            const fs = require("fs");
+            const lock = JSON.parse(fs.readFileSync("package-lock.json", "utf8"));
+            lock.packages["frontend"].version = process.argv[1];
+            fs.writeFileSync("package-lock.json", JSON.stringify(lock, null, 2) + "\n");
+          ' "$NEW_VERSION"
+
+          # Update the docs site, which has its own lockfile
+          cd site && npm version $NEW_VERSION --no-git-tag-version && cd ..
+
+          # Update the backend package version (only the [project] version line)
+          sed -i -E "s|^version = \".*\"|version = \"$NEW_VERSION\"|" backend/pyproject.toml
+
           # Commit version bump
-          git add package.json
+          git add package.json package-lock.json frontend/package.json \
+            site/package.json site/package-lock.json backend/pyproject.toml
           git commit -m "chore: bump version to $NEW_VERSION"
           git push origin main
 
