@@ -14,12 +14,14 @@ from collections.abc import AsyncGenerator
 from typing import Any
 
 import pytest
+from fastapi.routing import iter_route_contexts
 from httpx import ASGITransport, AsyncClient
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from starlette import status
 
 from src import models
+from src.infrastructure.common.client_version import require_koreader_plugin
 from src.infrastructure.identity.dependencies import get_current_user
 from src.infrastructure.identity.services.password_service import hash_password
 from src.main import app
@@ -35,9 +37,9 @@ UPDATE_URL = "https://github.com/Crossbill-App/koreader-plugin"
 CLIENT_BOOK_ID = "gated-book"
 
 # The whole plugin-only surface: the five ereader routes plus the two uploads
-# that live on otherwise ungated routers. ``test_route_tree`` holds this list to
-# the app's own routing table, so a new gated route that is missing here fails
-# there rather than going untested.
+# that live on otherwise ungated routers. The two structural tests at the bottom
+# hold this list against the app's own routing table and its OpenAPI schema, so a
+# gate added or lost anywhere fails here rather than going untested.
 GATED_ROUTES: list[tuple[str, str]] = [
     ("POST", "/api/v1/ereader/books"),
     ("GET", f"/api/v1/ereader/books/{CLIENT_BOOK_ID}"),
@@ -47,6 +49,13 @@ GATED_ROUTES: list[tuple[str, str]] = [
     ("POST", "/api/v1/highlights/upload"),
     ("POST", "/api/v1/reading_sessions/upload"),
 ]
+
+# The same surface as route templates, which is how the app describes itself.
+EXPECTED_GATED_OPERATIONS = {
+    (method, path.replace(CLIENT_BOOK_ID, "{client_book_id}")) for method, path in GATED_ROUTES
+}
+
+HTTP_METHODS = {"GET", "PUT", "POST", "DELETE", "OPTIONS", "HEAD", "PATCH", "TRACE"}
 
 HIGHLIGHT_UPLOAD = {
     "client_book_id": CLIENT_BOOK_ID,
@@ -295,3 +304,41 @@ async def test_login_serves_a_client_that_names_none(
 
     assert response.status_code == status.HTTP_200_OK, response.text
     assert response.json()["access_token"]
+
+
+def test_exactly_the_named_operations_carry_the_gate() -> None:
+    """Read the app's routing table rather than trusting where the code looks gated.
+
+    Two mistakes hide from every request-level test: a gate silently lost from a
+    router someone reorganised, and a gate spreading onto a route the web app
+    needs. Routers are included lazily, so the dependency lists live behind
+    ``iter_route_contexts`` rather than on ``app.routes``.
+    """
+    gated = {
+        (method, context.path)
+        for context in iter_route_contexts(app.routes)
+        if any(
+            depends.dependency is require_koreader_plugin
+            for depends in getattr(context, "dependencies", None) or ()
+        )
+        for method in context.methods or ()
+    }
+
+    assert gated == EXPECTED_GATED_OPERATIONS
+
+
+def test_426_is_documented_on_exactly_the_gated_operations() -> None:
+    """426 identifies this gate across the whole API, which only holds if it is unique.
+
+    The plugin is told to read the status code alone, so a second endpoint
+    answering 426 for an unrelated reason would make that instruction wrong.
+    """
+    documented = {
+        (method.upper(), path)
+        for path, operations in app.openapi()["paths"].items()
+        for method, operation in operations.items()
+        if method.upper() in HTTP_METHODS
+        if str(status.HTTP_426_UPGRADE_REQUIRED) in operation.get("responses", {})
+    }
+
+    assert documented == EXPECTED_GATED_OPERATIONS
