@@ -26,7 +26,7 @@ from tests.conftest import create_test_book
 
 CLIENT_HEADER = "X-Crossbill-Client"
 PLUGIN = "koreader-plugin"
-MIN_VERSION = "0.13.0"
+MIN_VERSION = "0.12.0"
 UPGRADE_REQUIRED_CODE = "client_upgrade_required"
 UPDATE_URL = "https://github.com/Crossbill-App/koreader-plugin"
 
@@ -174,7 +174,7 @@ async def test_an_outdated_plugin_is_turned_away_before_it_authenticates(
 @pytest.mark.parametrize(
     "version",
     [
-        "0.12.0",
+        "0.11.0",
         # Below the minimum numerically, above it lexicographically.
         "0.9.0",
     ],
@@ -195,10 +195,10 @@ async def test_version_below_the_minimum_is_rejected(
     "version",
     [
         "banana",
-        "v0.13.0",
+        "v0.12.0",
         # A lenient parse would read two parts as newer than the minimum.
         "1.2",
-        "0.13.0-beta.1",
+        "0.12.0-beta.1",
         "",
     ],
 )
