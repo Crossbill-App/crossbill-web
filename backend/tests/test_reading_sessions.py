@@ -118,10 +118,10 @@ class TestUploadReadingSessions:
     """Test suite for POST /reading_sessions/upload endpoint."""
 
     async def test_upload_single_session_success(
-        self, client: AsyncClient, db_session: AsyncSession, test_book: models.Book
+        self, plugin_client: AsyncClient, db_session: AsyncSession, test_book: models.Book
     ) -> None:
         """Test successful upload of a single reading session."""
-        response = await client.post(
+        response = await plugin_client.post(
             "/api/v1/reading_sessions/upload",
             json={
                 "client_book_id": "test-client-book-id",
@@ -156,10 +156,10 @@ class TestUploadReadingSessions:
         assert session.end_xpoint == "/body/DocFragment[1]/body/div[1]/p[50]"
 
     async def test_upload_bulk_sessions_success(
-        self, client: AsyncClient, db_session: AsyncSession, test_book: models.Book
+        self, plugin_client: AsyncClient, db_session: AsyncSession, test_book: models.Book
     ) -> None:
         """Test successful bulk upload of multiple sessions for a single book."""
-        response = await client.post(
+        response = await plugin_client.post(
             "/api/v1/reading_sessions/upload",
             json={
                 "client_book_id": "test-client-book-id",
@@ -207,7 +207,7 @@ class TestUploadReadingSessions:
         assert sessions[2].end_page == 25
 
     async def test_upload_duplicate_sessions_skipped(
-        self, client: AsyncClient, db_session: AsyncSession, test_book: models.Book
+        self, plugin_client: AsyncClient, db_session: AsyncSession, test_book: models.Book
     ) -> None:
         """Test that duplicate sessions are skipped and reported in count."""
         session_data = {
@@ -224,14 +224,14 @@ class TestUploadReadingSessions:
         }
 
         # First upload
-        response1 = await client.post("/api/v1/reading_sessions/upload", json=session_data)
+        response1 = await plugin_client.post("/api/v1/reading_sessions/upload", json=session_data)
         assert response1.status_code == status.HTTP_200_OK
         data1 = response1.json()
         assert data1["created_count"] == 1
         assert data1["skipped_duplicate_count"] == 0
 
         # Second upload (duplicate)
-        response2 = await client.post("/api/v1/reading_sessions/upload", json=session_data)
+        response2 = await plugin_client.post("/api/v1/reading_sessions/upload", json=session_data)
         assert response2.status_code == status.HTTP_200_OK
         data2 = response2.json()
         assert data2["created_count"] == 0
@@ -243,10 +243,10 @@ class TestUploadReadingSessions:
         assert len(sessions) == 1
 
     async def test_upload_same_time_different_device_allowed(
-        self, client: AsyncClient, db_session: AsyncSession, test_book: models.Book
+        self, plugin_client: AsyncClient, db_session: AsyncSession, test_book: models.Book
     ) -> None:
         """Test that same start time from different devices is allowed."""
-        response = await client.post(
+        response = await plugin_client.post(
             "/api/v1/reading_sessions/upload",
             json={
                 "client_book_id": "test-client-book-id",
@@ -279,10 +279,10 @@ class TestUploadReadingSessions:
         assert device_ids == {"device-1", "device-2"}
 
     async def test_upload_session_with_page_positions(
-        self, client: AsyncClient, db_session: AsyncSession, test_book: models.Book
+        self, plugin_client: AsyncClient, db_session: AsyncSession, test_book: models.Book
     ) -> None:
         """Test uploading a session with page positions."""
-        response = await client.post(
+        response = await plugin_client.post(
             "/api/v1/reading_sessions/upload",
             json={
                 "client_book_id": "test-client-book-id",
@@ -310,9 +310,9 @@ class TestUploadReadingSessions:
         assert session.end_xpoint is None
 
     async def test_filter_sessions_with_same_pages_for_start_and_end(
-        self, client: AsyncClient, db_session: AsyncSession, test_book: models.Book
+        self, plugin_client: AsyncClient, db_session: AsyncSession, test_book: models.Book
     ) -> None:
-        response = await client.post(
+        response = await plugin_client.post(
             "/api/v1/reading_sessions/upload",
             json={
                 "client_book_id": "test-client-book-id",
@@ -335,9 +335,9 @@ class TestUploadReadingSessions:
         assert session is None
 
     async def test_filter_sessions_with_same_xpoints_for_start_and_end(
-        self, client: AsyncClient, db_session: AsyncSession, test_book: models.Book
+        self, plugin_client: AsyncClient, db_session: AsyncSession, test_book: models.Book
     ) -> None:
-        response = await client.post(
+        response = await plugin_client.post(
             "/api/v1/reading_sessions/upload",
             json={
                 "client_book_id": "test-client-book-id",
@@ -360,9 +360,9 @@ class TestUploadReadingSessions:
         assert session is None
 
     async def test_not_filter_sessions_with_same_pages_for_start_and_end_but_different_points(
-        self, client: AsyncClient, db_session: AsyncSession, test_book: models.Book
+        self, plugin_client: AsyncClient, db_session: AsyncSession, test_book: models.Book
     ) -> None:
-        response = await client.post(
+        response = await plugin_client.post(
             "/api/v1/reading_sessions/upload",
             json={
                 "client_book_id": "test-client-book-id",
@@ -422,13 +422,13 @@ class TestUploadReadingSessions:
     )
     async def test_upload_invalid_sessions_returns_422(
         self,
-        client: AsyncClient,
+        plugin_client: AsyncClient,
         db_session: AsyncSession,
         test_book: models.Book,
         sessions: list[dict[str, object]],
     ) -> None:
         """Test that invalid session payloads return 422 and nothing is saved."""
-        response = await client.post(
+        response = await plugin_client.post(
             "/api/v1/reading_sessions/upload",
             json={"client_book_id": "test-client-book-id", "sessions": sessions},
         )

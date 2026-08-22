@@ -19,6 +19,10 @@ from src.application.reading.queries.highlight_search_use_case import (
 )
 from src.core import container
 from src.domain.identity.entities.user import User
+from src.infrastructure.common.client_version import (
+    UPGRADE_REQUIRED_RESPONSES,
+    require_koreader_plugin,
+)
 from src.infrastructure.common.di import inject_use_case
 from src.infrastructure.identity.dependencies import get_current_user
 from src.infrastructure.reading.schemas import (
@@ -51,10 +55,13 @@ def _build_chapter_schema(chapter: SearchChapterView) -> ChapterWithHighlights:
     )
 
 
+# Gated per route: only the KOReader plugin uploads, the rest serves the web app.
 @router.post(
     "/highlights/upload",
     response_model=HighlightUploadResponse,
     status_code=status.HTTP_200_OK,
+    dependencies=[Depends(require_koreader_plugin)],
+    responses=UPGRADE_REQUIRED_RESPONSES,
 )
 async def upload_highlights(
     request: HighlightUploadRequest,

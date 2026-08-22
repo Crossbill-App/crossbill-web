@@ -38,6 +38,12 @@ from src.database import Base, get_db
 from src.domain.common.value_objects import ContentHash
 from src.domain.common.value_objects.ids import UserId
 from src.domain.identity.entities.user import User as DomainUser
+from src.infrastructure.common.client_version import (
+    CLIENT_VERSION_HEADER,
+    CLIENT_VERSION_REQUIREMENTS,
+    KOREADER_PLUGIN,
+    format_version,
+)
 from src.infrastructure.identity.dependencies import get_current_user
 from src.infrastructure.library.repositories import file_repository
 from src.infrastructure.library.schemas import EreaderBookMetadata
@@ -209,6 +215,13 @@ async def create_test_highlight_style(
     return style
 
 
+# Sent only by ``plugin_client``: the shared ``client`` announces nothing, like
+# the web app, so a gate misplaced over a web endpoint fails a test.
+SUPPORTED_CLIENT_HEADER_VALUE = (
+    f"{KOREADER_PLUGIN}/{format_version(CLIENT_VERSION_REQUIREMENTS[KOREADER_PLUGIN].min_version)}"
+)
+
+
 # Test database URL (in-memory SQLite with aiosqlite)
 TEST_DATABASE_URL = "sqlite+aiosqlite:///:memory:"
 
@@ -347,6 +360,18 @@ async def client(db_session: AsyncSession, test_user: User) -> AsyncGenerator[As
 
 
 @pytest.fixture
+async def plugin_client(client: AsyncClient) -> AsyncGenerator[AsyncClient, None]:
+    """A client announcing a KOReader plugin new enough to pass the version gate."""
+    transport = ASGITransport(app=app)
+    async with AsyncClient(
+        transport=transport,
+        base_url="http://test",
+        headers={CLIENT_VERSION_HEADER: SUPPORTED_CLIENT_HEADER_VALUE},
+    ) as announced_client:
+        yield announced_client
+
+
+@pytest.fixture
 def job_queue(client: AsyncClient) -> AsyncMock:
     """The contract-checked queue fake the ``client`` fixture put on the container.
 
@@ -443,11 +468,11 @@ CreateBookFunc = Callable[[dict[str, Any]], Awaitable[EreaderBookMetadata]]
 
 
 @pytest.fixture
-async def create_book_via_api(client: AsyncClient) -> CreateBookFunc:
-    """Fixture factory for creating books via the API endpoint."""
+async def create_book_via_api(plugin_client: AsyncClient) -> CreateBookFunc:
+    """Fixture factory for creating books via the plugin-only ``/ereader/books``."""
 
     async def _create_book(book_data: dict[str, Any]) -> EreaderBookMetadata:
-        response = await client.post("/api/v1/ereader/books", json=book_data)
+        response = await plugin_client.post("/api/v1/ereader/books", json=book_data)
         assert response.status_code == 200
         return EreaderBookMetadata(**response.json())
 

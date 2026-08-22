@@ -22,6 +22,10 @@ from src.core import container
 from src.domain.common.exceptions import ValidationError
 from src.domain.common.value_objects.ids import UserId
 from src.domain.identity.entities.user import User
+from src.infrastructure.common.client_version import (
+    UPGRADE_REQUIRED_RESPONSES,
+    require_koreader_plugin,
+)
 from src.infrastructure.common.di import inject_use_case
 from src.infrastructure.common.schemas import CollectionResponse, SuccessResponse
 from src.infrastructure.identity.dependencies import get_current_user
@@ -36,7 +40,13 @@ from src.infrastructure.reading.schemas.ereader_highlight_schemas import (
     EreaderHighlightItem,
 )
 
-router = APIRouter(prefix="/ereader", tags=["ereader"])
+# Every route here is called by the KOReader plugin alone, hence a router-wide gate.
+router = APIRouter(
+    prefix="/ereader",
+    tags=["ereader"],
+    dependencies=[Depends(require_koreader_plugin)],
+    responses=UPGRADE_REQUIRED_RESPONSES,
+)
 
 
 @router.post(

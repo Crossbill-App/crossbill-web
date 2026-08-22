@@ -17,6 +17,10 @@ from src.application.reading.queries.get_book_reading_sessions_use_case import (
 from src.application.reading.queries.reading_sessions import ReadingSessionView
 from src.core import container
 from src.domain.identity.entities.user import User
+from src.infrastructure.common.client_version import (
+    UPGRADE_REQUIRED_RESPONSES,
+    require_koreader_plugin,
+)
 from src.infrastructure.common.dependencies import require_ai_enabled
 from src.infrastructure.common.di import inject_use_case
 from src.infrastructure.common.schemas import PaginatedResponse
@@ -79,10 +83,13 @@ def _build_session_schema(view: ReadingSessionView) -> ReadingSession:
     )
 
 
+# Gated per route: only the KOReader plugin uploads, the rest serves the web app.
 @router.post(
     "/reading_sessions/upload",
     response_model=ReadingSessionUploadResponse,
     status_code=status.HTTP_200_OK,
+    dependencies=[Depends(require_koreader_plugin)],
+    responses=UPGRADE_REQUIRED_RESPONSES,
 )
 async def upload_reading_sessions(
     request: ReadingSessionUploadRequest,

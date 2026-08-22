@@ -21,7 +21,10 @@ class TestHighlightUploadCreatesStyles:
     """Test that uploading highlights creates highlight_style rows."""
 
     async def test_upload_with_color_and_drawer_creates_style(
-        self, client: AsyncClient, db_session: AsyncSession, create_book_via_api: CreateBookFunc
+        self,
+        plugin_client: AsyncClient,
+        db_session: AsyncSession,
+        create_book_via_api: CreateBookFunc,
     ) -> None:
         """Test that uploading highlights with color and drawer creates highlight style rows."""
         await create_book_via_api(
@@ -52,7 +55,7 @@ class TestHighlightUploadCreatesStyles:
             ],
         }
 
-        response = await client.post("/api/v1/highlights/upload", json=payload)
+        response = await plugin_client.post("/api/v1/highlights/upload", json=payload)
         assert response.status_code == status.HTTP_200_OK
         data = response.json()
         assert data["highlights_created"] == 2
@@ -71,7 +74,10 @@ class TestHighlightUploadCreatesStyles:
         assert ("green", "lighten") in style_combos
 
     async def test_upload_duplicate_color_drawer_reuses_style(
-        self, client: AsyncClient, db_session: AsyncSession, create_book_via_api: CreateBookFunc
+        self,
+        plugin_client: AsyncClient,
+        db_session: AsyncSession,
+        create_book_via_api: CreateBookFunc,
     ) -> None:
         """Test that uploading highlights with same color+drawer reuses the same style."""
         await create_book_via_api(
@@ -102,7 +108,7 @@ class TestHighlightUploadCreatesStyles:
             ],
         }
 
-        response = await client.post("/api/v1/highlights/upload", json=payload)
+        response = await plugin_client.post("/api/v1/highlights/upload", json=payload)
         assert response.status_code == status.HTTP_200_OK
         assert response.json()["highlights_created"] == 2
 
@@ -125,7 +131,11 @@ class TestHighlightUploadCreatesStyles:
         assert highlights[1].highlight_style_id == styles[0].id
 
     async def test_highlight_response_includes_highlight_style_id(
-        self, client: AsyncClient, db_session: AsyncSession, create_book_via_api: CreateBookFunc
+        self,
+        client: AsyncClient,
+        plugin_client: AsyncClient,
+        db_session: AsyncSession,
+        create_book_via_api: CreateBookFunc,
     ) -> None:
         """Test that highlight responses include highlight_style_id field."""
         await create_book_via_api(
@@ -149,7 +159,7 @@ class TestHighlightUploadCreatesStyles:
                 },
             ],
         }
-        response = await client.post("/api/v1/highlights/upload", json=payload)
+        response = await plugin_client.post("/api/v1/highlights/upload", json=payload)
         assert response.status_code == status.HTTP_200_OK
 
         # Get book details and check highlight_style_id is in the response
@@ -436,7 +446,11 @@ class TestHighlightUploadWithLabels:
     """Test highlight upload integration with highlight labels."""
 
     async def test_upload_creates_styles_and_labels_endpoint_works(
-        self, client: AsyncClient, db_session: AsyncSession, create_book_via_api: CreateBookFunc
+        self,
+        client: AsyncClient,
+        plugin_client: AsyncClient,
+        db_session: AsyncSession,
+        create_book_via_api: CreateBookFunc,
     ) -> None:
         """End-to-end test: upload highlights, then query labels."""
         await create_book_via_api(
@@ -474,7 +488,7 @@ class TestHighlightUploadWithLabels:
                 },
             ],
         }
-        response = await client.post("/api/v1/highlights/upload", json=payload)
+        response = await plugin_client.post("/api/v1/highlights/upload", json=payload)
         assert response.status_code == status.HTTP_200_OK
         assert response.json()["highlights_created"] == 3
 
@@ -501,7 +515,10 @@ class TestHighlightUploadWithLabels:
         assert green_labels[0]["highlight_count"] == 1
 
     async def test_upload_without_color_drawer_still_creates_style(
-        self, client: AsyncClient, db_session: AsyncSession, create_book_via_api: CreateBookFunc
+        self,
+        plugin_client: AsyncClient,
+        db_session: AsyncSession,
+        create_book_via_api: CreateBookFunc,
     ) -> None:
         """Test that highlights without color/drawer still get a style (with None values)."""
         await create_book_via_api(
@@ -522,7 +539,7 @@ class TestHighlightUploadWithLabels:
                 },
             ],
         }
-        response = await client.post("/api/v1/highlights/upload", json=payload)
+        response = await plugin_client.post("/api/v1/highlights/upload", json=payload)
         assert response.status_code == status.HTTP_200_OK
 
         result = await db_session.execute(select(models.Book).filter_by(title="No Color Book"))

@@ -45,7 +45,7 @@ async def digest_book(db_session: AsyncSession, test_user: Book) -> Book:
 
 
 async def test_returns_items_ordered_by_chapter_number(
-    client: AsyncClient, db_session: AsyncSession, digest_book: Book
+    plugin_client: AsyncClient, db_session: AsyncSession, digest_book: Book
 ) -> None:
     parent = await create_test_chapter(db_session, digest_book, "Topic 1", chapter_number=1)
     ch_a = await create_test_chapter(
@@ -57,7 +57,7 @@ async def test_returns_items_ordered_by_chapter_number(
     await _add_digest(db_session, ch_a, summary="Exercises summary")
     await _add_digest(db_session, ch_b, summary="Intro summary")
 
-    response = await client.get("/api/v1/ereader/books/client-abc/digest")
+    response = await plugin_client.get("/api/v1/ereader/books/client-abc/digest")
 
     assert response.status_code == 200
     items = response.json()["items"]
@@ -70,18 +70,20 @@ async def test_returns_items_ordered_by_chapter_number(
 
 
 async def test_old_prereading_path_is_gone(
-    client: AsyncClient, db_session: AsyncSession, digest_book: Book
+    plugin_client: AsyncClient, db_session: AsyncSession, digest_book: Book
 ) -> None:
     """The rename is a clean break: plugins older than 0.11 stop fetching digests."""
     chapter = await create_test_chapter(db_session, digest_book, "Intro", chapter_number=1)
     await _add_digest(db_session, chapter, summary="Intro summary")
 
-    assert (await client.get("/api/v1/ereader/books/client-abc/digest")).status_code == 200
-    assert (await client.get("/api/v1/ereader/books/client-abc/prereading")).status_code == 404
+    assert (await plugin_client.get("/api/v1/ereader/books/client-abc/digest")).status_code == 200
+    assert (
+        await plugin_client.get("/api/v1/ereader/books/client-abc/prereading")
+    ).status_code == 404
 
 
 async def test_duplicate_chapter_names_disambiguated_by_parent(
-    client: AsyncClient, db_session: AsyncSession, digest_book: Book
+    plugin_client: AsyncClient, db_session: AsyncSession, digest_book: Book
 ) -> None:
     topic1 = await create_test_chapter(db_session, digest_book, "Topic 1", chapter_number=1)
     topic2 = await create_test_chapter(db_session, digest_book, "Topic 2", chapter_number=2)
@@ -94,7 +96,7 @@ async def test_duplicate_chapter_names_disambiguated_by_parent(
     await _add_digest(db_session, ex1)
     await _add_digest(db_session, ex2)
 
-    response = await client.get("/api/v1/ereader/books/client-abc/digest")
+    response = await plugin_client.get("/api/v1/ereader/books/client-abc/digest")
 
     assert response.status_code == 200
     items = response.json()["items"]
@@ -105,12 +107,12 @@ async def test_duplicate_chapter_names_disambiguated_by_parent(
 
 
 async def test_root_chapter_has_null_parent_name(
-    client: AsyncClient, db_session: AsyncSession, digest_book: Book
+    plugin_client: AsyncClient, db_session: AsyncSession, digest_book: Book
 ) -> None:
     root = await create_test_chapter(db_session, digest_book, "Root Chapter", chapter_number=1)
     await _add_digest(db_session, root)
 
-    response = await client.get("/api/v1/ereader/books/client-abc/digest")
+    response = await plugin_client.get("/api/v1/ereader/books/client-abc/digest")
 
     assert response.status_code == 200
     items = response.json()["items"]
@@ -119,13 +121,13 @@ async def test_root_chapter_has_null_parent_name(
 
 
 async def test_chapters_without_digest_are_omitted(
-    client: AsyncClient, db_session: AsyncSession, digest_book: Book
+    plugin_client: AsyncClient, db_session: AsyncSession, digest_book: Book
 ) -> None:
     ch_with = await create_test_chapter(db_session, digest_book, "Has digest", chapter_number=1)
     await create_test_chapter(db_session, digest_book, "No digest", chapter_number=2)
     await _add_digest(db_session, ch_with)
 
-    response = await client.get("/api/v1/ereader/books/client-abc/digest")
+    response = await plugin_client.get("/api/v1/ereader/books/client-abc/digest")
 
     assert response.status_code == 200
     items = response.json()["items"]
@@ -134,24 +136,24 @@ async def test_chapters_without_digest_are_omitted(
 
 
 async def test_book_with_zero_digest_returns_empty_list(
-    client: AsyncClient, db_session: AsyncSession, digest_book: Book
+    plugin_client: AsyncClient, db_session: AsyncSession, digest_book: Book
 ) -> None:
     await create_test_chapter(db_session, digest_book, "Lonely chapter", chapter_number=1)
 
-    response = await client.get("/api/v1/ereader/books/client-abc/digest")
+    response = await plugin_client.get("/api/v1/ereader/books/client-abc/digest")
 
     assert response.status_code == 200
     assert response.json()["items"] == []
 
 
-async def test_unknown_client_book_id_returns_404(client: AsyncClient) -> None:
-    response = await client.get("/api/v1/ereader/books/does-not-exist/digest")
+async def test_unknown_client_book_id_returns_404(plugin_client: AsyncClient) -> None:
+    response = await plugin_client.get("/api/v1/ereader/books/does-not-exist/digest")
 
     assert response.status_code == 404
 
 
 async def test_questions_contain_only_question_strings(
-    client: AsyncClient, db_session: AsyncSession, digest_book: Book
+    plugin_client: AsyncClient, db_session: AsyncSession, digest_book: Book
 ) -> None:
     chapter = await create_test_chapter(db_session, digest_book, "Chapter", chapter_number=1)
     await _add_digest(
@@ -166,7 +168,7 @@ async def test_questions_contain_only_question_strings(
         ],
     )
 
-    response = await client.get("/api/v1/ereader/books/client-abc/digest")
+    response = await plugin_client.get("/api/v1/ereader/books/client-abc/digest")
 
     assert response.status_code == 200
     questions = response.json()["items"][0]["questions"]

@@ -253,10 +253,10 @@ async def plant_one_of_each_type(
 
 
 async def upload_highlights(
-    client: AsyncClient, client_book_id: str, *texts: str
+    plugin_client: AsyncClient, client_book_id: str, *texts: str
 ) -> dict[str, PrimitiveData]:
     """Upload highlights through the API -- the one write path that opens a batch."""
-    response = await client.post(
+    response = await plugin_client.post(
         "/api/v1/highlights/upload",
         json={
             "client_book_id": client_book_id,

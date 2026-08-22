@@ -12,7 +12,7 @@ from tests.conftest import create_test_book, create_test_chapter, create_test_hi
 
 
 async def _upload(
-    client: AsyncClient,
+    plugin_client: AsyncClient,
     client_book_id: str,
     highlights: list[dict[str, Any]],
     device_id: str | None = None,
@@ -20,7 +20,7 @@ async def _upload(
     payload: dict[str, Any] = {"client_book_id": client_book_id, "highlights": highlights}
     if device_id is not None:
         payload["device_id"] = device_id
-    response = await client.post("/api/v1/highlights/upload", json=payload)
+    response = await plugin_client.post("/api/v1/highlights/upload", json=payload)
     assert response.status_code == 200, response.text
     assert response.json()["highlights_created"] == len(highlights)
 
@@ -37,10 +37,10 @@ async def ereader_book(db_session: AsyncSession, test_user: User) -> Book:
 
 
 async def test_returns_uploaded_highlights_with_device_fields(
-    client: AsyncClient, ereader_book: Book
+    plugin_client: AsyncClient, ereader_book: Book
 ) -> None:
     await _upload(
-        client,
+        plugin_client,
         "client-pull",
         [
             {
@@ -63,7 +63,7 @@ async def test_returns_uploaded_highlights_with_device_fields(
         device_id="Kobo Clara",
     )
 
-    response = await client.get("/api/v1/ereader/books/client-pull/highlights")
+    response = await plugin_client.get("/api/v1/ereader/books/client-pull/highlights")
 
     assert response.status_code == 200
     items = response.json()["items"]
@@ -90,10 +90,12 @@ async def test_returns_uploaded_highlights_with_device_fields(
     assert unplaceable["placeable"] is False
 
 
-async def test_highlights_without_a_page_sort_last(client: AsyncClient, ereader_book: Book) -> None:
+async def test_highlights_without_a_page_sort_last(
+    plugin_client: AsyncClient, ereader_book: Book
+) -> None:
     """Page orders the list; a device that sends none puts the highlight at the end."""
     await _upload(
-        client,
+        plugin_client,
         "client-pull",
         [
             {"text": "Pageless", "datetime": "2024-01-15 13:00:00"},
@@ -102,25 +104,29 @@ async def test_highlights_without_a_page_sort_last(client: AsyncClient, ereader_
         ],
     )
 
-    response = await client.get("/api/v1/ereader/books/client-pull/highlights")
+    response = await plugin_client.get("/api/v1/ereader/books/client-pull/highlights")
 
     assert response.status_code == 200
     assert [i["text"] for i in response.json()["items"]] == ["Page one", "Page two", "Pageless"]
 
 
-async def test_soft_deleted_highlight_is_excluded(client: AsyncClient, ereader_book: Book) -> None:
+async def test_soft_deleted_highlight_is_excluded(
+    plugin_client: AsyncClient, ereader_book: Book
+) -> None:
     await _upload(
-        client,
+        plugin_client,
         "client-pull",
         [
             {"text": "Kept", "page": 1, "datetime": "2024-01-15 14:00:00"},
             {"text": "Removed", "page": 2, "datetime": "2024-01-15 14:01:00"},
         ],
     )
-    items = (await client.get("/api/v1/ereader/books/client-pull/highlights")).json()["items"]
+    items = (await plugin_client.get("/api/v1/ereader/books/client-pull/highlights")).json()[
+        "items"
+    ]
     doomed = next(i for i in items if i["text"] == "Removed")
 
-    deletion = await client.request(
+    deletion = await plugin_client.request(
         "DELETE",
         f"/api/v1/books/{ereader_book.id}/highlight",
         json={"highlight_ids": [doomed["id"]]},
@@ -128,20 +134,20 @@ async def test_soft_deleted_highlight_is_excluded(client: AsyncClient, ereader_b
     assert deletion.status_code == 200
     assert deletion.json()["deleted_count"] == 1
 
-    response = await client.get("/api/v1/ereader/books/client-pull/highlights")
+    response = await plugin_client.get("/api/v1/ereader/books/client-pull/highlights")
 
     assert response.status_code == 200
     assert [i["text"] for i in response.json()["items"]] == ["Kept"]
 
 
-async def test_unknown_client_book_id_returns_404(client: AsyncClient) -> None:
-    response = await client.get("/api/v1/ereader/books/does-not-exist/highlights")
+async def test_unknown_client_book_id_returns_404(plugin_client: AsyncClient) -> None:
+    response = await plugin_client.get("/api/v1/ereader/books/does-not-exist/highlights")
 
     assert response.status_code == 404
 
 
 async def test_another_users_book_with_the_same_client_id_is_invisible(
-    client: AsyncClient, db_session: AsyncSession, ereader_book: Book
+    plugin_client: AsyncClient, db_session: AsyncSession, ereader_book: Book
 ) -> None:
     """Two devices can share a client_book_id; the highlights must not cross users."""
     other_user = User(email="other-pull@test.com")
@@ -154,7 +160,9 @@ async def test_another_users_book_with_the_same_client_id_is_invisible(
         title="Their Copy",
         client_book_id="client-pull",
     )
-    await _upload(client, "client-pull", [{"text": "Mine", "datetime": "2024-01-15 14:00:00"}])
+    await _upload(
+        plugin_client, "client-pull", [{"text": "Mine", "datetime": "2024-01-15 14:00:00"}]
+    )
 
     await create_test_highlight(
         db_session=db_session,
@@ -164,14 +172,14 @@ async def test_another_users_book_with_the_same_client_id_is_invisible(
         datetime_str="2024-01-15 14:00:00",
     )
 
-    response = await client.get("/api/v1/ereader/books/client-pull/highlights")
+    response = await plugin_client.get("/api/v1/ereader/books/client-pull/highlights")
 
     assert response.status_code == 200
     assert [i["text"] for i in response.json()["items"]] == ["Mine"]
 
 
 async def test_a_client_book_id_only_another_user_owns_is_a_404(
-    client: AsyncClient, db_session: AsyncSession
+    plugin_client: AsyncClient, db_session: AsyncSession
 ) -> None:
     other_user = User(email="stranger-pull@test.com")
     db_session.add(other_user)
@@ -191,17 +199,17 @@ async def test_a_client_book_id_only_another_user_owns_is_a_404(
         datetime_str="2024-01-15 14:00:00",
     )
 
-    response = await client.get("/api/v1/ereader/books/client-theirs/highlights")
+    response = await plugin_client.get("/api/v1/ereader/books/client-theirs/highlights")
 
     assert response.status_code == 404
 
 
 async def test_chapter_fields_come_from_the_books_chapters(
-    client: AsyncClient, db_session: AsyncSession, ereader_book: Book
+    plugin_client: AsyncClient, db_session: AsyncSession, ereader_book: Book
 ) -> None:
     await create_test_chapter(db_session, ereader_book, "The Opening", chapter_number=1)
     await _upload(
-        client,
+        plugin_client,
         "client-pull",
         [
             {
@@ -215,7 +223,7 @@ async def test_chapter_fields_come_from_the_books_chapters(
         ],
     )
 
-    response = await client.get("/api/v1/ereader/books/client-pull/highlights")
+    response = await plugin_client.get("/api/v1/ereader/books/client-pull/highlights")
 
     assert response.status_code == 200
     in_chapter, chapterless = response.json()["items"]
@@ -226,16 +234,16 @@ async def test_chapter_fields_come_from_the_books_chapters(
 
 
 async def test_book_without_highlights_returns_empty_list(
-    client: AsyncClient, ereader_book: Book
+    plugin_client: AsyncClient, ereader_book: Book
 ) -> None:
-    response = await client.get("/api/v1/ereader/books/client-pull/highlights")
+    response = await plugin_client.get("/api/v1/ereader/books/client-pull/highlights")
 
     assert response.status_code == 200
     assert response.json()["items"] == []
 
 
 async def test_highlight_removed_from_devices_is_excluded(
-    db_session: AsyncSession, client: AsyncClient, ereader_book: Book, test_user: User
+    db_session: AsyncSession, plugin_client: AsyncClient, ereader_book: Book, test_user: User
 ) -> None:
     """A highlight the user deleted on a device stays away from every device."""
     await create_test_highlight(
@@ -256,7 +264,7 @@ async def test_highlight_removed_from_devices_is_excluded(
         removed_from_devices_at=datetime(2024, 3, 1, tzinfo=UTC),
     )
 
-    response = await client.get("/api/v1/ereader/books/client-pull/highlights")
+    response = await plugin_client.get("/api/v1/ereader/books/client-pull/highlights")
 
     assert response.status_code == 200
     assert [i["text"] for i in response.json()["items"]] == ["Kept"]
