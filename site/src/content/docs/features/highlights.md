@@ -13,6 +13,12 @@ The [KOReader plugin](../../getting-started/koreader-plugin/) uploads highlights
 from your device. Syncing the same book again is safe: Crossbill deduplicates,
 so a highlight you already have is not added twice.
 
+A highlight you deleted on the e-reader stays here, marked **Deleted on the
+e-reader**, and stops syncing to your devices. Deleting it here removes it from
+Crossbill and from every device. Either way, marking the passage again on the
+e-reader brings the highlight back — with its tags, and with its flashcards and
+bookmarks unless you deleted it here, which takes those with it.
+
 ## Browsing a book
 
 Open a book and go to its **Highlights** tab. Highlights are grouped by chapter,

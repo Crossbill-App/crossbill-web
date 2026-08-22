@@ -115,8 +115,10 @@ you can write again. Two of them throw away more:
 - **`delete_book`** removes a book with all its chapters and highlights. Syncing
   the book from KOReader again recreates it, but the notes, flashcards, tags and
   digests Crossbill kept alongside it are gone.
-- **`delete_highlights`** removes highlights from a book, and the deletion
-  sticks: later syncs of that book do not bring them back.
+- **`delete_highlights`** removes highlights from a book along with their
+  flashcards and bookmarks. Syncing the book again does not bring them back;
+  marking one of the passages again on the e-reader restores the highlight
+  itself, but the flashcards and bookmarks stay gone.
 
 Neither of those two runs on the assistant's say-so. Before calling the API, the
 server asks *you* to confirm through MCP elicitation, spelling out what is about
