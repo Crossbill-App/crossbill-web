@@ -352,7 +352,7 @@
                   "detail": {
                     "code": "client_upgrade_required",
                     "client": "koreader-plugin",
-                    "min_supported_version": "0.13.0",
+                    "min_supported_version": "0.12.0",
                     "received_version": "0.12.0",
                     "update_url": "https://github.com/Crossbill-App/koreader-plugin"
                   }
@@ -432,7 +432,7 @@
                   "detail": {
                     "code": "client_upgrade_required",
                     "client": "koreader-plugin",
-                    "min_supported_version": "0.13.0",
+                    "min_supported_version": "0.12.0",
                     "received_version": "0.12.0",
                     "update_url": "https://github.com/Crossbill-App/koreader-plugin"
                   }
@@ -522,7 +522,7 @@
                   "detail": {
                     "code": "client_upgrade_required",
                     "client": "koreader-plugin",
-                    "min_supported_version": "0.13.0",
+                    "min_supported_version": "0.12.0",
                     "received_version": "0.12.0",
                     "update_url": "https://github.com/Crossbill-App/koreader-plugin"
                   }
@@ -602,7 +602,7 @@
                   "detail": {
                     "code": "client_upgrade_required",
                     "client": "koreader-plugin",
-                    "min_supported_version": "0.13.0",
+                    "min_supported_version": "0.12.0",
                     "received_version": "0.12.0",
                     "update_url": "https://github.com/Crossbill-App/koreader-plugin"
                   }
@@ -682,7 +682,7 @@
                   "detail": {
                     "code": "client_upgrade_required",
                     "client": "koreader-plugin",
-                    "min_supported_version": "0.13.0",
+                    "min_supported_version": "0.12.0",
                     "received_version": "0.12.0",
                     "update_url": "https://github.com/Crossbill-App/koreader-plugin"
                   }
@@ -799,7 +799,7 @@
                   "detail": {
                     "code": "client_upgrade_required",
                     "client": "koreader-plugin",
-                    "min_supported_version": "0.13.0",
+                    "min_supported_version": "0.12.0",
                     "received_version": "0.12.0",
                     "update_url": "https://github.com/Crossbill-App/koreader-plugin"
                   }
@@ -1440,7 +1440,7 @@
                   "detail": {
                     "code": "client_upgrade_required",
                     "client": "koreader-plugin",
-                    "min_supported_version": "0.13.0",
+                    "min_supported_version": "0.12.0",
                     "received_version": "0.12.0",
                     "update_url": "https://github.com/Crossbill-App/koreader-plugin"
                   }
