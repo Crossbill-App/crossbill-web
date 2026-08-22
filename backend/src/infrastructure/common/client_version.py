@@ -1,16 +1,10 @@
 """Client-version gate for the endpoints only our own clients call.
 
-The KOReader plugin identifies itself with ``X-Crossbill-Client:
-koreader-plugin/<x.y.z>`` on every request. The endpoints that exist solely for
-that plugin refuse anything older than the deployed server needs, answering 426
-Upgrade Required, so a stale plugin fails at the door with an actionable body
-instead of half-working further in.
-
-A missing header is treated as too old on purpose: every plugin released before
-this gate sends nothing at all, so absence *is* the signal that the caller
-predates the version we require. Callers naming a client we know nothing about
-pass through -- this gate polices the versions of our own clients, not who may
-call the API; authentication does that.
+Clients identify themselves with ``X-Crossbill-Client: <name>/<x.y.z>``, and a
+client older than the deployed server needs gets 426 Upgrade Required with a
+body naming the minimum. A missing header counts as too old, because plugins
+predating the gate send none. A client we have no requirement for passes
+through: this gates our own clients' versions, not who may call the API.
 """
 
 import re
@@ -35,12 +29,9 @@ class ClientVersionRequirement:
     update_url: str
 
 
-# The minimum is a property of the deployed code, not a policy dial: it says
-# what *this* server needs a client to be able to do. Bump it in the same PR as
-# any change that breaks the request or response contract of the gated surface
-# for older clients, never out of band -- a bump on its own locks out clients
-# the running code could still serve, and a breaking change without one leaves
-# clients that the new code cannot serve to fail somewhere deeper and vaguer.
+# The minimum says what *this* server needs a client to be able to do, so bump
+# it in the same PR as any change that breaks the gated contract for older
+# clients -- never on its own, and never without one.
 CLIENT_VERSION_REQUIREMENTS: Final[Mapping[str, ClientVersionRequirement]] = {
     KOREADER_PLUGIN: ClientVersionRequirement(
         min_version=(0, 13, 0),
@@ -48,15 +39,9 @@ CLIENT_VERSION_REQUIREMENTS: Final[Mapping[str, ClientVersionRequirement]] = {
     ),
 }
 
-# Strict ``name/major.minor.patch``. No pre-release or build suffixes: our
-# clients ship plain three-part versions, and anything else is a client we
-# cannot reason about rather than one to guess at.
-#
-# Each segment is bounded because ``int()`` refuses to parse a string of more
-# than 4300 digits: an unbounded pattern would hand such a segment to ``int``
-# and turn a hostile header into a 500 on a pre-auth code path. Nine digits is
-# far past any version we will ship, so the bound only ever rejects nonsense --
-# which the gate already treats as unreadable, hence 426.
+# Strictly three plain numeric parts, no pre-release or build suffixes. Segment
+# length is bounded so ``int()`` can never raise on regex-validated input --
+# this runs before authentication.
 _VERSION_PATTERN: Final = re.compile(r"[0-9]{1,9}\.[0-9]{1,9}\.[0-9]{1,9}")
 
 
@@ -93,18 +78,15 @@ def _upgrade_required(
 def require_client_version(expected_client: str) -> Callable[[str | None], Awaitable[None]]:
     """Build the dependency guarding a surface that only ``expected_client`` calls.
 
-    The expected client is named per surface because a request without the
-    header names no client at all, and the 426 body still has to say which
-    client to upgrade and where to get it.
+    The expected client is named per surface so the 426 body can say which
+    client to upgrade even when the request names none.
     """
     expected_requirement = CLIENT_VERSION_REQUIREMENTS[expected_client]
 
     async def dependency(
         client_header: Annotated[str | None, Header(alias=CLIENT_VERSION_HEADER)] = None,
     ) -> None:
-        # A header that is present but says nothing names no client either, so
-        # it takes the same branch as no header at all -- otherwise an empty
-        # value would read as an unknown client and sail straight through.
+        # An empty value names no client, so it must not pass as an unknown one.
         announced = "" if client_header is None else client_header.strip()
         if not announced:
             _upgrade_required(expected_client, expected_requirement, received_version=None)
@@ -116,8 +98,7 @@ def require_client_version(expected_client: str) -> Callable[[str | None], Await
 
         version = _parse_version(raw_version)
         if version is None:
-            # Fail closed: a client of ours whose version we cannot read is not
-            # a client we can claim meets the minimum.
+            # Fail closed: an unreadable version is no evidence of a new enough client.
             _upgrade_required(name, requirement, received_version=None)
 
         if version < requirement.min_version:
@@ -128,8 +109,8 @@ def require_client_version(expected_client: str) -> Callable[[str | None], Await
 
 require_koreader_plugin: Final = require_client_version(KOREADER_PLUGIN)
 
-# Shared OpenAPI metadata for the gated endpoints. 426 is unique to this gate
-# across the API, so the status code alone identifies the failure.
+# Shared OpenAPI metadata: 426 is unique to this gate across the API, so the
+# status code alone identifies the failure.
 UPGRADE_REQUIRED_RESPONSES: Final[dict[int | str, dict[str, Any]]] = {
     status.HTTP_426_UPGRADE_REQUIRED: {
         "description": (

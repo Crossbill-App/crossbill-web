@@ -1,13 +1,9 @@
 """The client-version gate over the endpoints only the KOReader plugin calls.
 
-Driven through the endpoints because the gate is a property of the surface, not
-of a function: which routes carry it is half of what can go wrong.
-
-Every value of the contract -- the header name, the minimum version, the code
-and the update URL -- is written out as a literal here rather than read from
-``client_version``. Deriving them from the module under test would mean a wrong
-minimum still matched itself and the whole file stayed green; a plugin in the
-wild reads these strings, so a test has to say them out loud.
+Driven through the endpoints because which routes carry the gate is half of
+what can go wrong. The contract values are literals rather than imports from
+``client_version``: a plugin in the wild reads these strings, and a value
+derived from the module under test would always match itself.
 """
 
 from collections.abc import AsyncGenerator
@@ -36,10 +32,9 @@ UPDATE_URL = "https://github.com/Crossbill-App/koreader-plugin"
 
 CLIENT_BOOK_ID = "gated-book"
 
-# The whole plugin-only surface: the five ereader routes plus the two uploads
-# that live on otherwise ungated routers. The two structural tests at the bottom
-# hold this list against the app's own routing table and its OpenAPI schema, so a
-# gate added or lost anywhere fails here rather than going untested.
+# The whole plugin-only surface. The structural tests at the bottom hold this
+# list against the app's routing table and its OpenAPI schema, so a gate added
+# or lost anywhere fails here.
 GATED_ROUTES: list[tuple[str, str]] = [
     ("POST", "/api/v1/ereader/books"),
     ("GET", f"/api/v1/ereader/books/{CLIENT_BOOK_ID}"),
@@ -82,8 +77,8 @@ SESSION_UPLOAD = {
 def expected_body(received_version: str | None) -> dict[str, Any]:
     """The entire 426 response body, not only its ``detail``.
 
-    A plugin parses this whole document, so an extra top-level key -- or the
-    detail arriving as a bare string -- is a contract change either way.
+    A plugin parses the whole document, so an extra top-level key or a bare
+    string ``detail`` is a contract change too.
     """
     return {
         "detail": {
@@ -111,8 +106,8 @@ async def gated_book(db_session: AsyncSession) -> models.Book:
 async def unauthenticated_client(client: AsyncClient) -> AsyncGenerator[AsyncClient, None]:
     """A client with no current-user override, so authentication really runs.
 
-    Built on ``client`` for the database and container overrides, then drops the
-    one override that would hide the order the gate and the login check run in.
+    Built on ``client`` for the database and container overrides, minus the
+    override that would hide the order of the gate and the login check.
     """
     app.dependency_overrides.pop(get_current_user, None)
     transport = ASGITransport(app=app)
@@ -160,8 +155,8 @@ async def test_an_outdated_plugin_is_turned_away_before_it_authenticates(
 ) -> None:
     """A plugin too old to be served learns that, not that its token is missing.
 
-    The 401 half is the control: without it this passes on a route that answers
-    426 to everyone, authenticated or not.
+    The 401 half is the control: without it this would pass on a route that
+    answers 426 to everyone.
     """
     outdated = await unauthenticated_client.get(f"/api/v1/ereader/books/{CLIENT_BOOK_ID}")
 
@@ -180,8 +175,7 @@ async def test_an_outdated_plugin_is_turned_away_before_it_authenticates(
     "version",
     [
         "0.12.0",
-        # Below the minimum on the numbers and above it as a string: the one
-        # case that tells a version comparison from a lexicographic one.
+        # Below the minimum numerically, above it lexicographically.
         "0.9.0",
     ],
 )
@@ -202,8 +196,7 @@ async def test_version_below_the_minimum_is_rejected(
     [
         "banana",
         "v0.13.0",
-        # Two parts only. A lenient parse would read this as newer than the
-        # minimum and let it through.
+        # A lenient parse would read two parts as newer than the minimum.
         "1.2",
         "0.13.0-beta.1",
         "",
@@ -225,11 +218,7 @@ async def test_version_we_cannot_read_is_rejected(
 async def test_an_oversized_version_number_is_rejected_not_crashed(
     client: AsyncClient, gated_book: models.Book
 ) -> None:
-    """``int()`` refuses more than 4300 digits, and this route runs before auth.
-
-    An unbounded pattern would hand the segment to ``int``, which raises, and
-    any stranger could turn a header into a 500 without logging in.
-    """
+    """A version too long for ``int()`` is unreadable, not a 500 before auth."""
     response = await client.get(
         f"/api/v1/ereader/books/{CLIENT_BOOK_ID}",
         headers={CLIENT_HEADER: f"{PLUGIN}/1.1.{'9' * 5000}"},
@@ -307,11 +296,9 @@ async def test_login_serves_a_client_that_names_none(
 
 
 def test_exactly_the_named_operations_carry_the_gate() -> None:
-    """Read the app's routing table rather than trusting where the code looks gated.
+    """Exactly these operations carry the gate -- none lost, none spread further.
 
-    Two mistakes hide from every request-level test: a gate silently lost from a
-    router someone reorganised, and a gate spreading onto a route the web app
-    needs. Routers are included lazily, so the dependency lists live behind
+    Routers are included lazily, so the dependency lists live behind
     ``iter_route_contexts`` rather than on ``app.routes``.
     """
     gated = {
@@ -328,11 +315,7 @@ def test_exactly_the_named_operations_carry_the_gate() -> None:
 
 
 def test_426_is_documented_on_exactly_the_gated_operations() -> None:
-    """426 identifies this gate across the whole API, which only holds if it is unique.
-
-    The plugin is told to read the status code alone, so a second endpoint
-    answering 426 for an unrelated reason would make that instruction wrong.
-    """
+    """The plugin identifies the gate by status code alone, so 426 must be unique."""
     documented = {
         (method.upper(), path)
         for path, operations in app.openapi()["paths"].items()

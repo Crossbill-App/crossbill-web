@@ -215,10 +215,8 @@ async def create_test_highlight_style(
     return style
 
 
-# What a plugin new enough for this server calls itself. Sent only by
-# ``plugin_client``: the shared ``client`` announces nothing, like the web app,
-# so a gate accidentally placed over a web endpoint fails a test instead of
-# passing unnoticed behind a suite-wide header.
+# Sent only by ``plugin_client``: the shared ``client`` announces nothing, like
+# the web app, so a gate misplaced over a web endpoint fails a test.
 SUPPORTED_CLIENT_HEADER_VALUE = (
     f"{KOREADER_PLUGIN}/{format_version(CLIENT_VERSION_REQUIREMENTS[KOREADER_PLUGIN].min_version)}"
 )
@@ -363,11 +361,7 @@ async def client(db_session: AsyncSession, test_user: User) -> AsyncGenerator[As
 
 @pytest.fixture
 async def plugin_client(client: AsyncClient) -> AsyncGenerator[AsyncClient, None]:
-    """The shared client speaking for a KOReader plugin new enough to be served.
-
-    Tests of the plugin-only endpoints need this: those routes sit behind the
-    client-version gate and answer 426 to a caller that announces nothing.
-    """
+    """A client announcing a KOReader plugin new enough to pass the version gate."""
     transport = ASGITransport(app=app)
     async with AsyncClient(
         transport=transport,
@@ -475,11 +469,7 @@ CreateBookFunc = Callable[[dict[str, Any]], Awaitable[EreaderBookMetadata]]
 
 @pytest.fixture
 async def create_book_via_api(plugin_client: AsyncClient) -> CreateBookFunc:
-    """Fixture factory for creating books via the API endpoint.
-
-    Books are created through the plugin-only ``/ereader/books`` route, so this
-    speaks for a supported plugin rather than for the web app.
-    """
+    """Fixture factory for creating books via the plugin-only ``/ereader/books``."""
 
     async def _create_book(book_data: dict[str, Any]) -> EreaderBookMetadata:
         response = await plugin_client.post("/api/v1/ereader/books", json=book_data)

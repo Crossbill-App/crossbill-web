@@ -55,8 +55,7 @@ def _build_chapter_schema(chapter: SearchChapterView) -> ChapterWithHighlights:
     )
 
 
-# Gated where the router is not: the rest of this router serves the web app,
-# but only the KOReader plugin uploads highlights.
+# Gated per route: only the KOReader plugin uploads, the rest serves the web app.
 @router.post(
     "/highlights/upload",
     response_model=HighlightUploadResponse,

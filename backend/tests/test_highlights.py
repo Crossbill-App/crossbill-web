@@ -1330,7 +1330,7 @@ class TestHighlightUploadRemovals:
     async def test_a_negative_removed_id_is_rejected(
         self, plugin_client: AsyncClient, synced_book: tuple[models.Book, dict[str, int]]
     ) -> None:
-        """A malformed ID is a plugin_client error, not an unhandled domain exception."""
+        """A malformed ID is a client error, not an unhandled domain exception."""
         response = await plugin_client.post(
             "/api/v1/highlights/upload",
             json={"client_book_id": CLIENT_BOOK_ID, "highlights": [], "removed_ids": [-1]},

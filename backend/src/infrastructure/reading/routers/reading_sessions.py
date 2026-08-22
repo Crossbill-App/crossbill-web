@@ -83,8 +83,7 @@ def _build_session_schema(view: ReadingSessionView) -> ReadingSession:
     )
 
 
-# Gated where the router is not: the rest of this router serves the web app,
-# but only the KOReader plugin uploads reading sessions.
+# Gated per route: only the KOReader plugin uploads, the rest serves the web app.
 @router.post(
     "/reading_sessions/upload",
     response_model=ReadingSessionUploadResponse,

@@ -40,8 +40,7 @@ from src.infrastructure.reading.schemas.ereader_highlight_schemas import (
     EreaderHighlightItem,
 )
 
-# Every route here exists for the KOReader plugin alone, so the whole router
-# is gated on the plugin being new enough for the contract this code speaks.
+# Every route here is called by the KOReader plugin alone, hence a router-wide gate.
 router = APIRouter(
     prefix="/ereader",
     tags=["ereader"],

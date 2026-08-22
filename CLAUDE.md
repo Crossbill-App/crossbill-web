@@ -53,9 +53,9 @@ option").
 
 `/ereader/*`, `/highlights/upload` and `/reading_sessions/upload` are called by
 the KOReader plugin alone, and reject clients older than the minimum in
-`backend/src/infrastructure/common/client_version.py` with HTTP 426. If you
-break the request or response contract of any of them for old plugins, bump the
-`koreader-plugin` minimum in that map **in the same PR** — never out of band.
+`backend/src/infrastructure/common/client_version.py` with HTTP 426. Breaking
+the request or response contract of any of them for old plugins means bumping
+the `koreader-plugin` minimum **in the same PR** — never out of band.
 
 ## Testing
 
