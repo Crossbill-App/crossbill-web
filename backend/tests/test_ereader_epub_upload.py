@@ -27,13 +27,13 @@ async def ereader_book(db_session: AsyncSession, test_user: models.User) -> mode
 class TestEpubUpload:
     async def test_upload_success_stores_file(
         self,
-        client: AsyncClient,
+        plugin_client: AsyncClient,
         db_session: AsyncSession,
         ereader_book: models.Book,
         epub_bytes: bytes,
         storage_dir: Path,
     ) -> None:
-        response = await client.post(
+        response = await plugin_client.post(
             f"/api/v1/ereader/books/{CLIENT_BOOK_ID}/epub",
             files={"epub": ("book.epub", epub_bytes, "application/epub+zip")},
         )
@@ -47,13 +47,13 @@ class TestEpubUpload:
 
     async def test_upload_creates_chapters_from_toc(
         self,
-        client: AsyncClient,
+        plugin_client: AsyncClient,
         db_session: AsyncSession,
         ereader_book: models.Book,
         epub_bytes: bytes,
         storage_dir: Path,
     ) -> None:
-        response = await client.post(
+        response = await plugin_client.post(
             f"/api/v1/ereader/books/{CLIENT_BOOK_ID}/epub",
             files={"epub": ("book.epub", epub_bytes, "application/epub+zip")},
         )
@@ -65,10 +65,10 @@ class TestEpubUpload:
 
     async def test_upload_rejects_wrong_content_type(
         self,
-        client: AsyncClient,
+        plugin_client: AsyncClient,
         ereader_book: models.Book,
     ) -> None:
-        response = await client.post(
+        response = await plugin_client.post(
             f"/api/v1/ereader/books/{CLIENT_BOOK_ID}/epub",
             files={"epub": ("book.txt", b"not an epub", "text/plain")},
         )
@@ -77,11 +77,11 @@ class TestEpubUpload:
 
     async def test_upload_rejects_invalid_epub_content(
         self,
-        client: AsyncClient,
+        plugin_client: AsyncClient,
         ereader_book: models.Book,
         storage_dir: Path,
     ) -> None:
-        response = await client.post(
+        response = await plugin_client.post(
             f"/api/v1/ereader/books/{CLIENT_BOOK_ID}/epub",
             files={"epub": ("book.epub", b"garbage bytes", "application/epub+zip")},
         )
@@ -90,11 +90,11 @@ class TestEpubUpload:
 
     async def test_upload_unknown_client_book_id_returns_404(
         self,
-        client: AsyncClient,
+        plugin_client: AsyncClient,
         epub_bytes: bytes,
         storage_dir: Path,
     ) -> None:
-        response = await client.post(
+        response = await plugin_client.post(
             "/api/v1/ereader/books/no-such-book/epub",
             files={"epub": ("book.epub", epub_bytes, "application/epub+zip")},
         )
@@ -103,13 +103,13 @@ class TestEpubUpload:
 
     async def test_upload_backfills_positions_of_existing_highlights(
         self,
-        client: AsyncClient,
+        plugin_client: AsyncClient,
         db_session: AsyncSession,
         ereader_book: models.Book,
         epub_bytes: bytes,
         storage_dir: Path,
     ) -> None:
-        upload = await client.post(
+        upload = await plugin_client.post(
             "/api/v1/highlights/upload",
             json={
                 "client_book_id": CLIENT_BOOK_ID,
@@ -125,7 +125,7 @@ class TestEpubUpload:
         )
         assert upload.json()["highlights_created"] == 1
 
-        response = await client.post(
+        response = await plugin_client.post(
             f"/api/v1/ereader/books/{CLIENT_BOOK_ID}/epub",
             files={"epub": ("book.epub", epub_bytes, "application/epub+zip")},
         )

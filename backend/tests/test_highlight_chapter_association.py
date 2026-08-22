@@ -13,7 +13,7 @@ class TestHighlightChapterAssociation:
     """Test suite for highlight-chapter association using chapter_number."""
 
     async def test_highlight_association_with_duplicate_names_using_chapter_number(
-        self, client: AsyncClient, db_session: AsyncSession, test_user: models.User
+        self, plugin_client: AsyncClient, db_session: AsyncSession, test_user: models.User
     ) -> None:
         """Test that highlights are correctly associated when duplicate chapter names exist.
 
@@ -78,7 +78,7 @@ class TestHighlightChapterAssociation:
             ],
         }
 
-        response = await client.post("/api/v1/highlights/upload", json=payload)
+        response = await plugin_client.post("/api/v1/highlights/upload", json=payload)
 
         assert response.status_code == 200
         data = response.json()
@@ -113,7 +113,7 @@ class TestHighlightChapterAssociation:
 
     async def test_highlight_without_chapter_number_logs_warning(
         self,
-        client: AsyncClient,
+        plugin_client: AsyncClient,
         db_session: AsyncSession,
         test_user: models.User,
         caplog: LogCaptureFixture,
@@ -155,7 +155,7 @@ class TestHighlightChapterAssociation:
             ],
         }
 
-        response = await client.post("/api/v1/highlights/upload", json=payload)
+        response = await plugin_client.post("/api/v1/highlights/upload", json=payload)
 
         assert response.status_code == 200
         data = response.json()
@@ -175,7 +175,7 @@ class TestHighlightChapterAssociation:
         )
 
     async def test_mixed_highlights_with_and_without_chapter_numbers(
-        self, client: AsyncClient, db_session: AsyncSession, test_user: models.User
+        self, plugin_client: AsyncClient, db_session: AsyncSession, test_user: models.User
     ) -> None:
         """Test uploading a mix of highlights with and without chapter_numbers.
 
@@ -224,7 +224,7 @@ class TestHighlightChapterAssociation:
             ],
         }
 
-        response = await client.post("/api/v1/highlights/upload", json=payload)
+        response = await plugin_client.post("/api/v1/highlights/upload", json=payload)
 
         assert response.status_code == 200
         data = response.json()

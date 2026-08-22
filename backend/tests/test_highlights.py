@@ -20,7 +20,7 @@ from tests.conftest import (
 
 
 async def resync_edited_highlight(
-    client: AsyncClient,
+    plugin_client: AsyncClient,
     db_session: AsyncSession,
     create_book_via_api: CreateBookFunc,
     client_book_id: str,
@@ -33,13 +33,13 @@ async def resync_edited_highlight(
     """
     await create_book_via_api({"client_book_id": client_book_id, "title": client_book_id})
 
-    created = await client.post(
+    created = await plugin_client.post(
         "/api/v1/highlights/upload",
         json={"client_book_id": client_book_id, "highlights": [first]},
     )
     assert created.json()["highlights_created"] == 1
 
-    resynced = await client.post(
+    resynced = await plugin_client.post(
         "/api/v1/highlights/upload",
         json={"client_book_id": client_book_id, "highlights": [edited]},
     )
@@ -51,21 +51,21 @@ async def resync_edited_highlight(
 
 
 async def upload_then_delete_highlight(
-    client: AsyncClient,
+    plugin_client: AsyncClient,
     db_session: AsyncSession,
     client_book_id: str,
     book_id: int,
     highlight: dict[str, Any],
 ) -> None:
     """Upload one highlight and soft-delete it again, as a reader would."""
-    upload = await client.post(
+    upload = await plugin_client.post(
         "/api/v1/highlights/upload",
         json={"client_book_id": client_book_id, "highlights": [highlight]},
     )
     assert upload.json()["highlights_created"] == 1
 
     result = await db_session.execute(select(models.Highlight).filter_by(text=highlight["text"]))
-    deletion = await client.request(
+    deletion = await plugin_client.request(
         "DELETE",
         f"/api/v1/books/{book_id}/highlight",
         json={"highlight_ids": [result.scalar_one().id]},
@@ -77,7 +77,10 @@ class TestHighlightsUpload:
     """Test suite for highlights upload endpoint."""
 
     async def test_upload_highlights_success(
-        self, client: AsyncClient, db_session: AsyncSession, create_book_via_api: CreateBookFunc
+        self,
+        plugin_client: AsyncClient,
+        db_session: AsyncSession,
+        create_book_via_api: CreateBookFunc,
     ) -> None:
         """Test successful upload of highlights."""
         # Create the book via the fixture
@@ -109,7 +112,7 @@ class TestHighlightsUpload:
             ],
         }
 
-        response = await client.post("/api/v1/highlights/upload", json=payload)
+        response = await plugin_client.post("/api/v1/highlights/upload", json=payload)
 
         assert response.status_code == status.HTTP_200_OK
         data = response.json()
@@ -144,7 +147,10 @@ class TestHighlightsUpload:
             assert highlight.chapter_id is None
 
     async def test_upload_highlights_with_xpoints(
-        self, client: AsyncClient, db_session: AsyncSession, create_book_via_api: CreateBookFunc
+        self,
+        plugin_client: AsyncClient,
+        db_session: AsyncSession,
+        create_book_via_api: CreateBookFunc,
     ) -> None:
         """Test uploading highlights with start_xpoint and end_xpoint fields."""
         # Create the book
@@ -177,7 +183,7 @@ class TestHighlightsUpload:
             ],
         }
 
-        response = await client.post("/api/v1/highlights/upload", json=payload)
+        response = await plugin_client.post("/api/v1/highlights/upload", json=payload)
 
         assert response.status_code == status.HTTP_200_OK
         data = response.json()
@@ -207,7 +213,10 @@ class TestHighlightsUpload:
         assert highlights[1].end_xpoint is None
 
     async def test_upload_keeps_device_datetime_and_note(
-        self, client: AsyncClient, db_session: AsyncSession, create_book_via_api: CreateBookFunc
+        self,
+        plugin_client: AsyncClient,
+        db_session: AsyncSession,
+        create_book_via_api: CreateBookFunc,
     ) -> None:
         """The e-reader's own datetime and note are stored, not replaced by server values."""
         await create_book_via_api(
@@ -234,7 +243,7 @@ class TestHighlightsUpload:
             ],
         }
 
-        response = await client.post("/api/v1/highlights/upload", json=payload)
+        response = await plugin_client.post("/api/v1/highlights/upload", json=payload)
         assert response.status_code == status.HTTP_200_OK
         assert response.json()["highlights_created"] == 2
 
@@ -249,7 +258,10 @@ class TestHighlightsUpload:
         assert [h.origin_device_id for h in highlights] == ["Kobo Clara", "Kobo Clara"]
 
     async def test_upload_without_device_id_stores_none(
-        self, client: AsyncClient, db_session: AsyncSession, create_book_via_api: CreateBookFunc
+        self,
+        plugin_client: AsyncClient,
+        db_session: AsyncSession,
+        create_book_via_api: CreateBookFunc,
     ) -> None:
         """Older plugins send no device_id; the highlight simply has no origin."""
         await create_book_via_api(
@@ -260,7 +272,7 @@ class TestHighlightsUpload:
             }
         )
 
-        response = await client.post(
+        response = await plugin_client.post(
             "/api/v1/highlights/upload",
             json={
                 "client_book_id": "test-client-book-no-device",
@@ -278,13 +290,16 @@ class TestHighlightsUpload:
         assert result.scalar_one().origin_device_id is None
 
     async def test_reupload_applies_a_newer_note_edit(
-        self, client: AsyncClient, db_session: AsyncSession, create_book_via_api: CreateBookFunc
+        self,
+        plugin_client: AsyncClient,
+        db_session: AsyncSession,
+        create_book_via_api: CreateBookFunc,
     ) -> None:
         """The highlight itself is still skipped, but a later device edit lands."""
         highlight = {"text": "Same passage", "datetime": "2019-06-01 08:15:30"}
 
         stored = await resync_edited_highlight(
-            client,
+            plugin_client,
             db_session,
             create_book_via_api,
             "test-client-book-note-rewrite",
@@ -296,13 +311,16 @@ class TestHighlightsUpload:
         assert stored.koreader_updated_at == "2019-06-02 09:00:00"
 
     async def test_reupload_ignores_an_older_note_edit(
-        self, client: AsyncClient, db_session: AsyncSession, create_book_via_api: CreateBookFunc
+        self,
+        plugin_client: AsyncClient,
+        db_session: AsyncSession,
+        create_book_via_api: CreateBookFunc,
     ) -> None:
         """A device syncing its stale copy must not undo a newer edit from elsewhere."""
         highlight = {"text": "Passage edited elsewhere", "datetime": "2019-06-01 08:15:30"}
 
         stored = await resync_edited_highlight(
-            client,
+            plugin_client,
             db_session,
             create_book_via_api,
             "test-client-book-note-stale",
@@ -314,7 +332,10 @@ class TestHighlightsUpload:
         assert stored.koreader_updated_at == "2019-06-05 10:00:00"
 
     async def test_first_edit_is_accepted_even_when_older_than_the_stored_datetime(
-        self, client: AsyncClient, db_session: AsyncSession, create_book_via_api: CreateBookFunc
+        self,
+        plugin_client: AsyncClient,
+        db_session: AsyncSession,
+        create_book_via_api: CreateBookFunc,
     ) -> None:
         """A row that never received a device edit has nothing to protect.
 
@@ -322,7 +343,7 @@ class TestHighlightsUpload:
         a note written on the device before that upload would never beat.
         """
         stored = await resync_edited_highlight(
-            client,
+            plugin_client,
             db_session,
             create_book_via_api,
             "test-client-book-first-edit",
@@ -339,7 +360,10 @@ class TestHighlightsUpload:
         assert stored.koreader_updated_at == "2025-06-01 09:00:00"
 
     async def test_reupload_with_the_same_edit_time_keeps_the_stored_note(
-        self, client: AsyncClient, db_session: AsyncSession, create_book_via_api: CreateBookFunc
+        self,
+        plugin_client: AsyncClient,
+        db_session: AsyncSession,
+        create_book_via_api: CreateBookFunc,
     ) -> None:
         """Equal timestamps are not newer, so the server's copy stands."""
         highlight = {
@@ -349,7 +373,7 @@ class TestHighlightsUpload:
         }
 
         stored = await resync_edited_highlight(
-            client,
+            plugin_client,
             db_session,
             create_book_via_api,
             "test-client-book-note-tie",
@@ -360,11 +384,14 @@ class TestHighlightsUpload:
         assert stored.koreader_note == "note on the server"
 
     async def test_reupload_without_an_edit_time_compares_creation_datetimes(
-        self, client: AsyncClient, db_session: AsyncSession, create_book_via_api: CreateBookFunc
+        self,
+        plugin_client: AsyncClient,
+        db_session: AsyncSession,
+        create_book_via_api: CreateBookFunc,
     ) -> None:
         """A highlight never edited on the device carries only its creation time."""
         stored = await resync_edited_highlight(
-            client,
+            plugin_client,
             db_session,
             create_book_via_api,
             "test-client-book-note-no-edit-time",
@@ -384,13 +411,16 @@ class TestHighlightsUpload:
         assert stored.koreader_updated_at == "2019-06-02 08:15:30"
 
     async def test_reupload_applies_a_newer_style_change(
-        self, client: AsyncClient, db_session: AsyncSession, create_book_via_api: CreateBookFunc
+        self,
+        plugin_client: AsyncClient,
+        db_session: AsyncSession,
+        create_book_via_api: CreateBookFunc,
     ) -> None:
         """Recolouring a highlight on the device moves it to the new style."""
         highlight = {"text": "Passage recoloured", "datetime": "2019-06-01 08:15:30"}
 
         stored = await resync_edited_highlight(
-            client,
+            plugin_client,
             db_session,
             create_book_via_api,
             "test-client-book-style-change",
@@ -411,13 +441,16 @@ class TestHighlightsUpload:
         assert style.device_style == "underscore"
 
     async def test_reupload_without_note_clears_stored_note(
-        self, client: AsyncClient, db_session: AsyncSession, create_book_via_api: CreateBookFunc
+        self,
+        plugin_client: AsyncClient,
+        db_session: AsyncSession,
+        create_book_via_api: CreateBookFunc,
     ) -> None:
         """Deleting the note on the device clears it on the server too."""
         highlight = {"text": "Passage once annotated", "datetime": "2019-06-01 08:15:30"}
 
         stored = await resync_edited_highlight(
-            client,
+            plugin_client,
             db_session,
             create_book_via_api,
             "test-client-book-note-clearing",
@@ -428,7 +461,10 @@ class TestHighlightsUpload:
         assert stored.koreader_note is None
 
     async def test_reupload_leaves_soft_deleted_duplicate_alone(
-        self, client: AsyncClient, db_session: AsyncSession, create_book_via_api: CreateBookFunc
+        self,
+        plugin_client: AsyncClient,
+        db_session: AsyncSession,
+        create_book_via_api: CreateBookFunc,
     ) -> None:
         """A deleted highlight stays deleted and keeps its note; it is not revived."""
         book = await create_book_via_api(
@@ -441,14 +477,14 @@ class TestHighlightsUpload:
         highlight = {"text": "Deleted passage", "datetime": "2019-06-01 08:15:30"}
 
         await upload_then_delete_highlight(
-            client,
+            plugin_client,
             db_session,
             "test-client-book-note-deleted",
             book.book_id,
             {**highlight, "note": "note on a deleted highlight"},
         )
 
-        second = await client.post(
+        second = await plugin_client.post(
             "/api/v1/highlights/upload",
             json={
                 "client_book_id": "test-client-book-note-deleted",
@@ -472,7 +508,10 @@ class TestHighlightsUpload:
         assert stored.koreader_note == "note on a deleted highlight"
 
     async def test_reupload_fills_missing_xpoints(
-        self, client: AsyncClient, db_session: AsyncSession, create_book_via_api: CreateBookFunc
+        self,
+        plugin_client: AsyncClient,
+        db_session: AsyncSession,
+        create_book_via_api: CreateBookFunc,
     ) -> None:
         """A highlight stored before the device sent xpoints gets them from a re-upload."""
         await create_book_via_api(
@@ -484,7 +523,7 @@ class TestHighlightsUpload:
         )
         highlight = {"text": "Passage without xpoints", "datetime": "2019-06-01 08:15:30"}
 
-        first = await client.post(
+        first = await plugin_client.post(
             "/api/v1/highlights/upload",
             json={
                 "client_book_id": "test-client-book-xpoint-backfill",
@@ -493,7 +532,7 @@ class TestHighlightsUpload:
         )
         assert first.json()["highlights_created"] == 1
 
-        second = await client.post(
+        second = await plugin_client.post(
             "/api/v1/highlights/upload",
             json={
                 "client_book_id": "test-client-book-xpoint-backfill",
@@ -517,7 +556,10 @@ class TestHighlightsUpload:
         assert stored.end_xpoint == "/body/DocFragment[2]/body/p[1]/text().13"
 
     async def test_reupload_does_not_overwrite_existing_xpoints(
-        self, client: AsyncClient, db_session: AsyncSession, create_book_via_api: CreateBookFunc
+        self,
+        plugin_client: AsyncClient,
+        db_session: AsyncSession,
+        create_book_via_api: CreateBookFunc,
     ) -> None:
         """Xpoints already stored stay put; only a missing pair is filled in."""
         await create_book_via_api(
@@ -529,7 +571,7 @@ class TestHighlightsUpload:
         )
         highlight = {"text": "Passage anchored once", "datetime": "2019-06-01 08:15:30"}
 
-        first = await client.post(
+        first = await plugin_client.post(
             "/api/v1/highlights/upload",
             json={
                 "client_book_id": "test-client-book-xpoint-keeping",
@@ -544,7 +586,7 @@ class TestHighlightsUpload:
         )
         assert first.json()["highlights_created"] == 1
 
-        second = await client.post(
+        second = await plugin_client.post(
             "/api/v1/highlights/upload",
             json={
                 "client_book_id": "test-client-book-xpoint-keeping",
@@ -568,7 +610,7 @@ class TestHighlightsUpload:
 
     async def test_reupload_with_xpoints_resolves_position_when_epub_present(
         self,
-        client: AsyncClient,
+        plugin_client: AsyncClient,
         db_session: AsyncSession,
         create_book_via_api: CreateBookFunc,
         epub_bytes: bytes,
@@ -582,14 +624,14 @@ class TestHighlightsUpload:
                 "author": "Test Author",
             }
         )
-        epub_upload = await client.post(
+        epub_upload = await plugin_client.post(
             "/api/v1/ereader/books/test-client-book-position-backfill/epub",
             files={"epub": ("book.epub", epub_bytes, "application/epub+zip")},
         )
         assert epub_upload.status_code == status.HTTP_200_OK
 
         highlight = {"text": "Some content.", "datetime": "2019-06-01 08:15:30"}
-        first = await client.post(
+        first = await plugin_client.post(
             "/api/v1/highlights/upload",
             json={
                 "client_book_id": "test-client-book-position-backfill",
@@ -601,7 +643,7 @@ class TestHighlightsUpload:
         result = await db_session.execute(select(models.Highlight).filter_by(text="Some content."))
         assert result.scalar_one().position is None
 
-        second = await client.post(
+        second = await plugin_client.post(
             "/api/v1/highlights/upload",
             json={
                 "client_book_id": "test-client-book-position-backfill",
@@ -621,7 +663,10 @@ class TestHighlightsUpload:
         assert result.scalar_one().position is not None
 
     async def test_reupload_leaves_soft_deleted_duplicate_unplaced(
-        self, client: AsyncClient, db_session: AsyncSession, create_book_via_api: CreateBookFunc
+        self,
+        plugin_client: AsyncClient,
+        db_session: AsyncSession,
+        create_book_via_api: CreateBookFunc,
     ) -> None:
         """A deleted highlight is not given xpoints: it must stay out of the book."""
         book = await create_book_via_api(
@@ -634,10 +679,10 @@ class TestHighlightsUpload:
         highlight = {"text": "Deleted unplaced passage", "datetime": "2019-06-01 08:15:30"}
 
         await upload_then_delete_highlight(
-            client, db_session, "test-client-book-xpoint-deleted", book.book_id, highlight
+            plugin_client, db_session, "test-client-book-xpoint-deleted", book.book_id, highlight
         )
 
-        second = await client.post(
+        second = await plugin_client.post(
             "/api/v1/highlights/upload",
             json={
                 "client_book_id": "test-client-book-xpoint-deleted",
@@ -661,7 +706,10 @@ class TestHighlightsUpload:
         assert stored.end_xpoint is None
 
     async def test_upload_duplicate_highlights(
-        self, client: AsyncClient, db_session: AsyncSession, create_book_via_api: CreateBookFunc
+        self,
+        plugin_client: AsyncClient,
+        db_session: AsyncSession,
+        create_book_via_api: CreateBookFunc,
     ) -> None:
         """Test that duplicate highlights are properly skipped."""
         # Create the book
@@ -685,14 +733,14 @@ class TestHighlightsUpload:
         }
 
         # First upload
-        response1 = await client.post("/api/v1/highlights/upload", json=payload)
+        response1 = await plugin_client.post("/api/v1/highlights/upload", json=payload)
         assert response1.status_code == status.HTTP_200_OK
         data1 = response1.json()
         assert data1["highlights_created"] == 1
         assert data1["highlights_skipped"] == 0
 
         # Second upload (should skip duplicate)
-        response2 = await client.post("/api/v1/highlights/upload", json=payload)
+        response2 = await plugin_client.post("/api/v1/highlights/upload", json=payload)
         assert response2.status_code == status.HTTP_200_OK
         data2 = response2.json()
         assert data2["highlights_created"] == 0
@@ -709,7 +757,7 @@ class TestHighlightsUpload:
         assert len(highlights) == 1
 
     async def test_upload_partial_duplicates(
-        self, client: AsyncClient, create_book_via_api: CreateBookFunc
+        self, plugin_client: AsyncClient, create_book_via_api: CreateBookFunc
     ) -> None:
         """Test uploading mix of new and duplicate highlights."""
         # Create the book
@@ -736,7 +784,7 @@ class TestHighlightsUpload:
             ],
         }
 
-        response1 = await client.post("/api/v1/highlights/upload", json=payload1)
+        response1 = await plugin_client.post("/api/v1/highlights/upload", json=payload1)
         assert response1.status_code == status.HTTP_200_OK
         assert response1.json()["highlights_created"] == 2
 
@@ -755,14 +803,14 @@ class TestHighlightsUpload:
             ],
         }
 
-        response2 = await client.post("/api/v1/highlights/upload", json=payload2)
+        response2 = await plugin_client.post("/api/v1/highlights/upload", json=payload2)
         assert response2.status_code == status.HTTP_200_OK
         data2 = response2.json()
         assert data2["highlights_created"] == 1
         assert data2["highlights_skipped"] == 1
 
     async def test_upload_empty_highlights_list(
-        self, client: AsyncClient, create_book_via_api: CreateBookFunc
+        self, plugin_client: AsyncClient, create_book_via_api: CreateBookFunc
     ) -> None:
         """Test uploading with empty highlights list."""
         # Create the book
@@ -779,7 +827,7 @@ class TestHighlightsUpload:
             "highlights": [],
         }
 
-        response = await client.post("/api/v1/highlights/upload", json=payload)
+        response = await plugin_client.post("/api/v1/highlights/upload", json=payload)
 
         assert response.status_code == status.HTTP_200_OK
         data = response.json()
@@ -788,7 +836,7 @@ class TestHighlightsUpload:
         assert data["highlights_skipped"] == 0
 
     async def test_upload_same_text_different_datetime_is_duplicate(
-        self, client: AsyncClient, create_book_via_api: CreateBookFunc
+        self, plugin_client: AsyncClient, create_book_via_api: CreateBookFunc
     ) -> None:
         """Test that same text at different times is considered duplicate (hash-based dedup).
 
@@ -818,7 +866,7 @@ class TestHighlightsUpload:
             ],
         }
 
-        response = await client.post("/api/v1/highlights/upload", json=payload)
+        response = await plugin_client.post("/api/v1/highlights/upload", json=payload)
 
         assert response.status_code == status.HTTP_200_OK
         data = response.json()
@@ -827,7 +875,7 @@ class TestHighlightsUpload:
         assert data["highlights_skipped"] == 1
 
     async def test_upload_same_text_different_book_not_duplicate(
-        self, client: AsyncClient, create_book_via_api: CreateBookFunc
+        self, plugin_client: AsyncClient, create_book_via_api: CreateBookFunc
     ) -> None:
         """Test that same text in different books is treated as duplicate.
 
@@ -855,7 +903,7 @@ class TestHighlightsUpload:
             ],
         }
 
-        response1 = await client.post("/api/v1/highlights/upload", json=payload1)
+        response1 = await plugin_client.post("/api/v1/highlights/upload", json=payload1)
         assert response1.status_code == status.HTTP_200_OK
         assert response1.json()["highlights_created"] == 1
 
@@ -879,14 +927,14 @@ class TestHighlightsUpload:
             ],
         }
 
-        response2 = await client.post("/api/v1/highlights/upload", json=payload2)
+        response2 = await plugin_client.post("/api/v1/highlights/upload", json=payload2)
         assert response2.status_code == status.HTTP_200_OK
         # Same text in different book = NOT a duplicate (scoped by book)
         # Allows highlighting the same passage in multiple books
         assert response2.json()["highlights_created"] == 1
         assert response2.json()["highlights_skipped"] == 0
 
-    async def test_upload_invalid_payload_missing_book(self, client: AsyncClient) -> None:
+    async def test_upload_invalid_payload_missing_book(self, plugin_client: AsyncClient) -> None:
         """Test upload with missing book data."""
         payload = {
             "highlights": [
@@ -897,12 +945,12 @@ class TestHighlightsUpload:
             ],
         }
 
-        response = await client.post("/api/v1/highlights/upload", json=payload)
+        response = await plugin_client.post("/api/v1/highlights/upload", json=payload)
 
         assert response.status_code == status.HTTP_422_UNPROCESSABLE_CONTENT
 
     async def test_upload_invalid_payload_missing_required_fields(
-        self, client: AsyncClient
+        self, plugin_client: AsyncClient
     ) -> None:
         """Test upload with missing required fields."""
         payload = {
@@ -915,7 +963,7 @@ class TestHighlightsUpload:
             ],
         }
 
-        response = await client.post("/api/v1/highlights/upload", json=payload)
+        response = await plugin_client.post("/api/v1/highlights/upload", json=payload)
 
         assert response.status_code == status.HTTP_422_UNPROCESSABLE_CONTENT
 
@@ -1041,7 +1089,7 @@ PUSHED_HIGHLIGHTS: list[dict[str, Any]] = [
 
 
 async def sync(
-    client: AsyncClient,
+    plugin_client: AsyncClient,
     removed_ids: list[int] | None = None,
     highlights: list[dict[str, Any]] | None = None,
 ) -> dict[str, Any]:
@@ -1053,21 +1101,21 @@ async def sync(
     if removed_ids is not None:
         payload["removed_ids"] = removed_ids
 
-    response = await client.post("/api/v1/highlights/upload", json=payload)
+    response = await plugin_client.post("/api/v1/highlights/upload", json=payload)
     assert response.status_code == status.HTTP_200_OK, response.text
     return response.json()
 
 
-async def pulled_ids(client: AsyncClient) -> dict[str, int]:
+async def pulled_ids(plugin_client: AsyncClient) -> dict[str, int]:
     """What the e-reader gets back on its next pull, each text mapped to its ID."""
-    response = await client.get(f"/api/v1/ereader/books/{CLIENT_BOOK_ID}/highlights")
+    response = await plugin_client.get(f"/api/v1/ereader/books/{CLIENT_BOOK_ID}/highlights")
     assert response.status_code == status.HTTP_200_OK
     return {item["text"]: item["id"] for item in response.json()["items"]}
 
 
-async def pulled_texts(client: AsyncClient) -> list[str]:
+async def pulled_texts(plugin_client: AsyncClient) -> list[str]:
     """The texts the e-reader gets back on its next pull."""
-    response = await client.get(f"/api/v1/ereader/books/{CLIENT_BOOK_ID}/highlights")
+    response = await plugin_client.get(f"/api/v1/ereader/books/{CLIENT_BOOK_ID}/highlights")
     assert response.status_code == status.HTTP_200_OK
     return [item["text"] for item in response.json()["items"]]
 
@@ -1112,7 +1160,7 @@ async def another_readers_copy(
 
 @pytest.fixture
 async def synced_book(
-    client: AsyncClient, db_session: AsyncSession, test_user: models.User
+    plugin_client: AsyncClient, db_session: AsyncSession, test_user: models.User
 ) -> tuple[models.Book, dict[str, int]]:
     """A book whose two highlights have been uploaded; maps each text to its ID."""
     book = await create_test_book(
@@ -1123,94 +1171,94 @@ async def synced_book(
     )
     await create_test_chapter(db_session, book, "Chapter One", chapter_number=1)
 
-    assert (await sync(client))["highlights_created"] == 2
+    assert (await sync(plugin_client))["highlights_created"] == 2
 
-    return book, await pulled_ids(client)
+    return book, await pulled_ids(plugin_client)
 
 
 class TestHighlightUploadRemovals:
     """A highlight deleted on an e-reader rides out in the next upload request."""
 
     async def test_removed_highlight_leaves_the_pull_but_stays_on_the_web(
-        self, client: AsyncClient, synced_book: tuple[models.Book, dict[str, int]]
+        self, plugin_client: AsyncClient, synced_book: tuple[models.Book, dict[str, int]]
     ) -> None:
         book, ids = synced_book
 
         # The device pushes its whole set again, so the removed highlight's own
         # text arrives alongside the removal. Removals run first, so the push is
         # skipped as the duplicate it is instead of resurrecting the highlight.
-        result = await sync(client, removed_ids=[ids["Deleted on the device"]])
+        result = await sync(plugin_client, removed_ids=[ids["Deleted on the device"]])
 
         assert result["highlights_removed"] == 1
         assert result["highlights_created"] == 0
         assert result["highlights_skipped"] == 2
-        assert await pulled_texts(client) == ["Kept on the device"]
+        assert await pulled_texts(plugin_client) == ["Kept on the device"]
 
-        details = await client.get(f"/api/v1/books/{book.id}")
+        details = await plugin_client.get(f"/api/v1/books/{book.id}")
         assert details.status_code == status.HTTP_200_OK
         on_the_web = [h["text"] for c in details.json()["chapters"] for h in c["highlights"]]
         assert sorted(on_the_web) == ["Deleted on the device", "Kept on the device"]
 
     async def test_flashcards_and_bookmarks_of_a_removed_highlight_survive(
-        self, client: AsyncClient, synced_book: tuple[models.Book, dict[str, int]]
+        self, plugin_client: AsyncClient, synced_book: tuple[models.Book, dict[str, int]]
     ) -> None:
         """The reason a device deletion cannot become a real delete."""
         book, ids = synced_book
         removed_id = ids["Deleted on the device"]
 
-        flashcard = await client.post(
+        flashcard = await plugin_client.post(
             f"/api/v1/highlights/{removed_id}/flashcards",
             json={"question": "Why keep it?", "answer": "The flashcard hangs off it"},
         )
         assert flashcard.status_code == status.HTTP_201_CREATED
-        bookmark = await client.post(
+        bookmark = await plugin_client.post(
             f"/api/v1/books/{book.id}/bookmarks", json={"highlight_id": removed_id}
         )
         assert bookmark.status_code == status.HTTP_201_CREATED
 
-        assert (await sync(client, removed_ids=[removed_id]))["highlights_removed"] == 1
+        assert (await sync(plugin_client, removed_ids=[removed_id]))["highlights_removed"] == 1
 
-        details = await client.get(f"/api/v1/books/{book.id}")
+        details = await plugin_client.get(f"/api/v1/books/{book.id}")
         highlights = {h["id"]: h for c in details.json()["chapters"] for h in c["highlights"]}
         assert [f["question"] for f in highlights[removed_id]["flashcards"]] == ["Why keep it?"]
 
-        bookmarks = await client.get(f"/api/v1/books/{book.id}/bookmarks")
+        bookmarks = await plugin_client.get(f"/api/v1/books/{book.id}/bookmarks")
         assert [b["highlight_id"] for b in bookmarks.json()["items"]] == [removed_id]
 
     async def test_resending_the_same_removal_changes_nothing(
-        self, client: AsyncClient, synced_book: tuple[models.Book, dict[str, int]]
+        self, plugin_client: AsyncClient, synced_book: tuple[models.Book, dict[str, int]]
     ) -> None:
         """A sync interrupted after the removal is retried whole by the plugin."""
         _, ids = synced_book
         removed_ids = [ids["Deleted on the device"]]
-        assert (await sync(client, removed_ids=removed_ids))["highlights_removed"] == 1
+        assert (await sync(plugin_client, removed_ids=removed_ids))["highlights_removed"] == 1
 
-        repeat = await sync(client, removed_ids=removed_ids)
+        repeat = await sync(plugin_client, removed_ids=removed_ids)
 
         assert repeat["highlights_removed"] == 0
         assert repeat["highlights_created"] == 0
-        assert await pulled_texts(client) == ["Kept on the device"]
+        assert await pulled_texts(plugin_client) == ["Kept on the device"]
 
     async def test_unknown_and_soft_deleted_ids_are_ignored(
-        self, client: AsyncClient, synced_book: tuple[models.Book, dict[str, int]]
+        self, plugin_client: AsyncClient, synced_book: tuple[models.Book, dict[str, int]]
     ) -> None:
         book, ids = synced_book
         deleted_id = ids["Deleted on the device"]
-        deletion = await client.request(
+        deletion = await plugin_client.request(
             "DELETE",
             f"/api/v1/books/{book.id}/highlight",
             json={"highlight_ids": [deleted_id]},
         )
         assert deletion.json()["deleted_count"] == 1
 
-        result = await sync(client, removed_ids=[deleted_id, 999999])
+        result = await sync(plugin_client, removed_ids=[deleted_id, 999999])
 
         assert result["highlights_removed"] == 0
-        assert await pulled_texts(client) == ["Kept on the device"]
+        assert await pulled_texts(plugin_client) == ["Kept on the device"]
 
     async def test_another_users_highlight_is_left_alone(
         self,
-        client: AsyncClient,
+        plugin_client: AsyncClient,
         db_session: AsyncSession,
         synced_book: tuple[models.Book, dict[str, int]],
     ) -> None:
@@ -1219,23 +1267,23 @@ class TestHighlightUploadRemovals:
             db_session, "other-removals@test.com", "Theirs", "2024-01-15 14:00:00"
         )
 
-        result = await sync(client, removed_ids=[theirs.id])
+        result = await sync(plugin_client, removed_ids=[theirs.id])
 
         assert result["highlights_removed"] == 0
         await db_session.refresh(theirs)
         assert theirs.removed_from_devices_at is None
 
     async def test_upload_without_removed_ids_removes_nothing(
-        self, client: AsyncClient, synced_book: tuple[models.Book, dict[str, int]]
+        self, plugin_client: AsyncClient, synced_book: tuple[models.Book, dict[str, int]]
     ) -> None:
         """A legacy plugin omits the field and gets today's behaviour."""
-        result = await sync(client)
+        result = await sync(plugin_client)
 
         assert result["highlights_removed"] == 0
-        assert await pulled_texts(client) == ["Kept on the device", "Deleted on the device"]
+        assert await pulled_texts(plugin_client) == ["Kept on the device", "Deleted on the device"]
 
     async def test_a_withheld_highlight_ignores_later_device_edits(
-        self, client: AsyncClient, db_session: AsyncSession, test_user: models.User
+        self, plugin_client: AsyncClient, db_session: AsyncSession, test_user: models.User
     ) -> None:
         """A device that still holds the highlight cannot rewrite the web copy."""
         await create_test_book(
@@ -1253,7 +1301,7 @@ class TestHighlightUploadRemovals:
                 "note": "keep this",
             }
         ]
-        first = await client.post(
+        first = await plugin_client.post(
             "/api/v1/highlights/upload",
             json={"client_book_id": "client-edited", "highlights": noted},
         )
@@ -1265,7 +1313,7 @@ class TestHighlightUploadRemovals:
         # The same batch removes the highlight and pushes a newer, note-less edit
         # of it. Without the removal the edit would win and clear the note.
         edited = [{**noted[0], "datetime_updated": "2026-01-01 00:00:00", "note": ""}]
-        second = await client.post(
+        second = await plugin_client.post(
             "/api/v1/highlights/upload",
             json={
                 "client_book_id": "client-edited",
@@ -1280,83 +1328,85 @@ class TestHighlightUploadRemovals:
         assert stored.koreader_updated_at == "2025-01-01 00:00:00"
 
     async def test_a_negative_removed_id_is_rejected(
-        self, client: AsyncClient, synced_book: tuple[models.Book, dict[str, int]]
+        self, plugin_client: AsyncClient, synced_book: tuple[models.Book, dict[str, int]]
     ) -> None:
-        """A malformed ID is a client error, not an unhandled domain exception."""
-        response = await client.post(
+        """A malformed ID is a plugin_client error, not an unhandled domain exception."""
+        response = await plugin_client.post(
             "/api/v1/highlights/upload",
             json={"client_book_id": CLIENT_BOOK_ID, "highlights": [], "removed_ids": [-1]},
         )
 
         assert response.status_code == status.HTTP_422_UNPROCESSABLE_CONTENT
-        assert await pulled_texts(client) == ["Kept on the device", "Deleted on the device"]
+        assert await pulled_texts(plugin_client) == ["Kept on the device", "Deleted on the device"]
 
 
 class TestHighlightUploadRehighlights:
     """A passage marked again on the device brings its highlight back."""
 
-    async def _remove_from_devices(self, client: AsyncClient, highlight_id: int) -> None:
-        assert (await sync(client, removed_ids=[highlight_id]))["highlights_removed"] == 1
-        assert await pulled_texts(client) == ["Kept on the device"]
+    async def _remove_from_devices(self, plugin_client: AsyncClient, highlight_id: int) -> None:
+        assert (await sync(plugin_client, removed_ids=[highlight_id]))["highlights_removed"] == 1
+        assert await pulled_texts(plugin_client) == ["Kept on the device"]
 
-    async def _delete_on_the_web(self, client: AsyncClient, book_id: int, ids: list[int]) -> None:
-        deletion = await client.request(
+    async def _delete_on_the_web(
+        self, plugin_client: AsyncClient, book_id: int, ids: list[int]
+    ) -> None:
+        deletion = await plugin_client.request(
             "DELETE", f"/api/v1/books/{book_id}/highlight", json={"highlight_ids": ids}
         )
         assert deletion.status_code == status.HTTP_200_OK
         assert deletion.json()["deleted_count"] == len(ids)
 
     async def test_a_flagged_rehighlight_returns_a_removed_highlight_to_devices(
-        self, client: AsyncClient, synced_book: tuple[models.Book, dict[str, int]]
+        self, plugin_client: AsyncClient, synced_book: tuple[models.Book, dict[str, int]]
     ) -> None:
         _, ids = synced_book
-        await self._remove_from_devices(client, ids["Deleted on the device"])
+        await self._remove_from_devices(plugin_client, ids["Deleted on the device"])
 
         result = await sync(
-            client,
+            plugin_client,
             highlights=[PUSHED_HIGHLIGHTS[0], pushed_as_new("Deleted on the device")],
         )
 
         assert result["highlights_created"] == 0
         assert result["highlights_skipped"] == 2
         # The same row is back, not a second one beside it.
-        assert await pulled_ids(client) == ids
+        assert await pulled_ids(plugin_client) == ids
 
     async def test_a_flagged_rehighlight_restores_a_web_deleted_highlight(
-        self, client: AsyncClient, synced_book: tuple[models.Book, dict[str, int]]
+        self, plugin_client: AsyncClient, synced_book: tuple[models.Book, dict[str, int]]
     ) -> None:
         """What the web delete cascaded away stays gone; the highlight itself returns."""
         book, ids = synced_book
         deleted_id = ids["Deleted on the device"]
-        flashcard = await client.post(
+        flashcard = await plugin_client.post(
             f"/api/v1/highlights/{deleted_id}/flashcards",
             json={"question": "Does it come back?", "answer": "The highlight does"},
         )
         assert flashcard.status_code == status.HTTP_201_CREATED
-        await self._delete_on_the_web(client, book.id, [deleted_id])
+        await self._delete_on_the_web(plugin_client, book.id, [deleted_id])
 
-        result = await sync(client, highlights=[pushed_as_new("Deleted on the device")])
+        result = await sync(plugin_client, highlights=[pushed_as_new("Deleted on the device")])
 
         assert result["highlights_created"] == 0
-        assert await pulled_ids(client) == ids
+        assert await pulled_ids(plugin_client) == ids
 
-        details = await client.get(f"/api/v1/books/{book.id}")
+        details = await plugin_client.get(f"/api/v1/books/{book.id}")
         on_the_web = {h["id"]: h for c in details.json()["chapters"] for h in c["highlights"]}
         assert deleted_id in on_the_web
         assert on_the_web[deleted_id]["flashcards"] == []
 
     async def test_a_flagged_rehighlight_takes_the_note_written_with_it(
         self,
-        client: AsyncClient,
+        plugin_client: AsyncClient,
         db_session: AsyncSession,
         synced_book: tuple[models.Book, dict[str, int]],
     ) -> None:
         """Reviving happens before reconciliation, so the push's edits land on the row."""
         _, ids = synced_book
-        await self._remove_from_devices(client, ids["Deleted on the device"])
+        await self._remove_from_devices(plugin_client, ids["Deleted on the device"])
 
         await sync(
-            client,
+            plugin_client,
             highlights=[
                 pushed_as_new(
                     "Deleted on the device",
@@ -1376,34 +1426,34 @@ class TestHighlightUploadRehighlights:
         assert stored.removed_from_devices_at is None
 
     async def test_an_unflagged_push_leaves_a_removed_highlight_removed(
-        self, client: AsyncClient, synced_book: tuple[models.Book, dict[str, int]]
+        self, plugin_client: AsyncClient, synced_book: tuple[models.Book, dict[str, int]]
     ) -> None:
         """A device that never learned the flag keeps today's behaviour."""
         _, ids = synced_book
-        await self._remove_from_devices(client, ids["Deleted on the device"])
+        await self._remove_from_devices(plugin_client, ids["Deleted on the device"])
 
-        result = await sync(client)
+        result = await sync(plugin_client)
 
         assert result["highlights_created"] == 0
-        assert await pulled_texts(client) == ["Kept on the device"]
+        assert await pulled_texts(plugin_client) == ["Kept on the device"]
 
     async def test_an_unflagged_push_leaves_a_web_deleted_highlight_deleted(
-        self, client: AsyncClient, synced_book: tuple[models.Book, dict[str, int]]
+        self, plugin_client: AsyncClient, synced_book: tuple[models.Book, dict[str, int]]
     ) -> None:
         book, ids = synced_book
-        await self._delete_on_the_web(client, book.id, [ids["Deleted on the device"]])
+        await self._delete_on_the_web(plugin_client, book.id, [ids["Deleted on the device"]])
 
-        result = await sync(client)
+        result = await sync(plugin_client)
 
         assert result["highlights_created"] == 0
-        assert await pulled_texts(client) == ["Kept on the device"]
-        details = await client.get(f"/api/v1/books/{book.id}")
+        assert await pulled_texts(plugin_client) == ["Kept on the device"]
+        details = await plugin_client.get(f"/api/v1/books/{book.id}")
         on_the_web = [h["text"] for c in details.json()["chapters"] for h in c["highlights"]]
         assert on_the_web == ["Kept on the device"]
 
     async def test_a_flagged_push_of_a_live_highlight_only_merges_its_edits(
         self,
-        client: AsyncClient,
+        plugin_client: AsyncClient,
         db_session: AsyncSession,
         synced_book: tuple[models.Book, dict[str, int]],
     ) -> None:
@@ -1411,7 +1461,7 @@ class TestHighlightUploadRehighlights:
         _, ids = synced_book
 
         result = await sync(
-            client,
+            plugin_client,
             highlights=[
                 pushed_as_new(
                     "Kept on the device", note="Still here", datetime_updated="2026-01-01 00:00:00"
@@ -1422,7 +1472,7 @@ class TestHighlightUploadRehighlights:
 
         assert result["highlights_created"] == 0
         assert result["highlights_skipped"] == 2
-        assert await pulled_ids(client) == ids
+        assert await pulled_ids(plugin_client) == ids
 
         stored = (
             await db_session.execute(
@@ -1433,23 +1483,23 @@ class TestHighlightUploadRehighlights:
         assert stored.koreader_note == "Still here"
 
     async def test_a_flagged_rehighlight_outlives_a_removal_in_the_same_request(
-        self, client: AsyncClient, synced_book: tuple[models.Book, dict[str, int]]
+        self, plugin_client: AsyncClient, synced_book: tuple[models.Book, dict[str, int]]
     ) -> None:
         """Removals run first, so re-marking the passage wins -- deterministically."""
         _, ids = synced_book
 
         result = await sync(
-            client,
+            plugin_client,
             removed_ids=[ids["Deleted on the device"]],
             highlights=[PUSHED_HIGHLIGHTS[0], pushed_as_new("Deleted on the device")],
         )
 
         assert result["highlights_removed"] == 1
-        assert await pulled_ids(client) == ids
+        assert await pulled_ids(plugin_client) == ids
 
     async def test_another_users_removed_highlight_is_not_revived(
         self,
-        client: AsyncClient,
+        plugin_client: AsyncClient,
         db_session: AsyncSession,
         synced_book: tuple[models.Book, dict[str, int]],
     ) -> None:
@@ -1462,7 +1512,7 @@ class TestHighlightUploadRehighlights:
             removed_from_devices_at=datetime(2024, 3, 1, tzinfo=UTC),
         )
 
-        await sync(client, highlights=[pushed_as_new("Deleted on the device")])
+        await sync(plugin_client, highlights=[pushed_as_new("Deleted on the device")])
 
         await db_session.refresh(theirs)
         assert theirs.removed_from_devices_at is not None

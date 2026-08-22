@@ -459,7 +459,7 @@ class TestHighlightSyncWithSoftDelete:
 
     async def test_sync_skips_soft_deleted_highlights(
         self,
-        client: AsyncClient,
+        plugin_client: AsyncClient,
         db_session: AsyncSession,
     ) -> None:
         """Test that sync does not recreate soft-deleted highlights."""
@@ -494,7 +494,7 @@ class TestHighlightSyncWithSoftDelete:
             ],
         }
 
-        response = await client.post("/api/v1/highlights/upload", json=payload)
+        response = await plugin_client.post("/api/v1/highlights/upload", json=payload)
 
         assert response.status_code == status.HTTP_200_OK
         data = response.json()
@@ -508,7 +508,7 @@ class TestHighlightSyncWithSoftDelete:
         assert highlights[0].deleted_at is not None
 
     async def test_sync_creates_new_highlights_skips_deleted(
-        self, client: AsyncClient, db_session: AsyncSession
+        self, plugin_client: AsyncClient, db_session: AsyncSession
     ) -> None:
         """Test that sync creates new highlights but skips deleted ones."""
         # This test needs specific book without ISBN to test author-based matching
@@ -547,7 +547,7 @@ class TestHighlightSyncWithSoftDelete:
             ],
         }
 
-        response = await client.post("/api/v1/highlights/upload", json=payload)
+        response = await plugin_client.post("/api/v1/highlights/upload", json=payload)
 
         assert response.status_code == status.HTTP_200_OK
         data = response.json()

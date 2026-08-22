@@ -197,6 +197,7 @@ class TestOneBackfillAtATime:
     async def test_an_upload_still_enqueues_while_a_backfill_is_running(
         self,
         client: AsyncClient,
+        plugin_client: AsyncClient,
         job_queue: AsyncMock,
         db_session: AsyncSession,
         test_book: Book,
@@ -213,7 +214,7 @@ class TestOneBackfillAtATime:
 
         with embeddings_enabled():
             backfill = await client.post("/api/v1/semantic/backfill")
-            await upload_highlights(client, "book-1", "fresh one", "fresh two")
+            await upload_highlights(plugin_client, "book-1", "fresh one", "fresh two")
 
         assert backfill.status_code == status.HTTP_202_ACCEPTED
         uploaded = {
@@ -264,13 +265,14 @@ class TestActiveBackfillEndpoint:
     async def test_ignores_a_batch_an_upload_opened(
         self,
         client: AsyncClient,
+        plugin_client: AsyncClient,
         job_queue: AsyncMock,
         create_book_via_api: CreateBookFunc,
     ) -> None:
         await create_book_via_api({"client_book_id": "book-1", "title": "Crime and Punishment"})
 
         with embeddings_enabled():
-            await upload_highlights(client, "book-1", "just uploaded")
+            await upload_highlights(plugin_client, "book-1", "just uploaded")
             response = await client.get("/api/v1/semantic/backfill/active")
 
         assert response.json() is None

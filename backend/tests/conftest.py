@@ -215,9 +215,10 @@ async def create_test_highlight_style(
     return style
 
 
-# What a plugin new enough for this server calls itself. Sent by default from
-# the shared client so every test speaks for a current plugin; the gate's own
-# tests build clients that say something else, or nothing at all.
+# What a plugin new enough for this server calls itself. Sent only by
+# ``plugin_client``: the shared ``client`` announces nothing, like the web app,
+# so a gate accidentally placed over a web endpoint fails a test instead of
+# passing unnoticed behind a suite-wide header.
 SUPPORTED_CLIENT_HEADER_VALUE = (
     f"{KOREADER_PLUGIN}/{format_version(CLIENT_VERSION_REQUIREMENTS[KOREADER_PLUGIN].min_version)}"
 )
@@ -352,16 +353,28 @@ async def client(db_session: AsyncSession, test_user: User) -> AsyncGenerator[As
     container.job_queue_service.override(contract_checked_queue())
 
     transport = ASGITransport(app=app)
-    async with AsyncClient(
-        transport=transport,
-        base_url="http://test",
-        headers={CLIENT_VERSION_HEADER: SUPPORTED_CLIENT_HEADER_VALUE},
-    ) as test_client:
+    async with AsyncClient(transport=transport, base_url="http://test") as test_client:
         yield test_client
 
     container.job_queue_service.reset_override()
     container.shared.file_repository.reset_override()
     app.dependency_overrides.clear()
+
+
+@pytest.fixture
+async def plugin_client(client: AsyncClient) -> AsyncGenerator[AsyncClient, None]:
+    """The shared client speaking for a KOReader plugin new enough to be served.
+
+    Tests of the plugin-only endpoints need this: those routes sit behind the
+    client-version gate and answer 426 to a caller that announces nothing.
+    """
+    transport = ASGITransport(app=app)
+    async with AsyncClient(
+        transport=transport,
+        base_url="http://test",
+        headers={CLIENT_VERSION_HEADER: SUPPORTED_CLIENT_HEADER_VALUE},
+    ) as announced_client:
+        yield announced_client
 
 
 @pytest.fixture
@@ -461,11 +474,15 @@ CreateBookFunc = Callable[[dict[str, Any]], Awaitable[EreaderBookMetadata]]
 
 
 @pytest.fixture
-async def create_book_via_api(client: AsyncClient) -> CreateBookFunc:
-    """Fixture factory for creating books via the API endpoint."""
+async def create_book_via_api(plugin_client: AsyncClient) -> CreateBookFunc:
+    """Fixture factory for creating books via the API endpoint.
+
+    Books are created through the plugin-only ``/ereader/books`` route, so this
+    speaks for a supported plugin rather than for the web app.
+    """
 
     async def _create_book(book_data: dict[str, Any]) -> EreaderBookMetadata:
-        response = await client.post("/api/v1/ereader/books", json=book_data)
+        response = await plugin_client.post("/api/v1/ereader/books", json=book_data)
         assert response.status_code == 200
         return EreaderBookMetadata(**response.json())
 
