@@ -38,6 +38,12 @@ from src.database import Base, get_db
 from src.domain.common.value_objects import ContentHash
 from src.domain.common.value_objects.ids import UserId
 from src.domain.identity.entities.user import User as DomainUser
+from src.infrastructure.common.client_version import (
+    CLIENT_VERSION_HEADER,
+    CLIENT_VERSION_REQUIREMENTS,
+    KOREADER_PLUGIN,
+    format_version,
+)
 from src.infrastructure.identity.dependencies import get_current_user
 from src.infrastructure.library.repositories import file_repository
 from src.infrastructure.library.schemas import EreaderBookMetadata
@@ -209,6 +215,14 @@ async def create_test_highlight_style(
     return style
 
 
+# What a plugin new enough for this server calls itself. Sent by default from
+# the shared client so every test speaks for a current plugin; the gate's own
+# tests build clients that say something else, or nothing at all.
+SUPPORTED_CLIENT_HEADER_VALUE = (
+    f"{KOREADER_PLUGIN}/{format_version(CLIENT_VERSION_REQUIREMENTS[KOREADER_PLUGIN].min_version)}"
+)
+
+
 # Test database URL (in-memory SQLite with aiosqlite)
 TEST_DATABASE_URL = "sqlite+aiosqlite:///:memory:"
 
@@ -338,7 +352,11 @@ async def client(db_session: AsyncSession, test_user: User) -> AsyncGenerator[As
     container.job_queue_service.override(contract_checked_queue())
 
     transport = ASGITransport(app=app)
-    async with AsyncClient(transport=transport, base_url="http://test") as test_client:
+    async with AsyncClient(
+        transport=transport,
+        base_url="http://test",
+        headers={CLIENT_VERSION_HEADER: SUPPORTED_CLIENT_HEADER_VALUE},
+    ) as test_client:
         yield test_client
 
     container.job_queue_service.reset_override()

@@ -300,15 +300,38 @@
         "summary": "Create Book",
         "description": "Create or get a book by client_book_id.\n\nThis endpoint creates a new book if it doesn't exist, or returns the existing\nbook's metadata if it does. Used by KOReader to ensure a book exists before\nuploading highlights, covers, or EPUB files.\n\nArgs:\n    book_data: Book creation data (same format as highlight upload)\n    current_user: Authenticated user\n\nReturns:\n    EreaderBookMetadata with book_id, bookname, author, cover_file, has_epub",
         "operationId": "create_book",
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "X-Crossbill-Client",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Crossbill-Client"
+            }
+          }
+        ],
         "requestBody": {
+          "required": true,
           "content": {
             "application/json": {
               "schema": {
                 "$ref": "#/components/schemas/BookCreate"
               }
             }
-          },
-          "required": true
+          }
         },
         "responses": {
           "200": {
@@ -317,6 +340,22 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/EreaderBookMetadata"
+                }
+              }
+            }
+          },
+          "426": {
+            "description": "The caller is an outdated Crossbill client, or sent no X-Crossbill-Client header at all. The body names the minimum supported version and where to get it.",
+            "content": {
+              "application/json": {
+                "example": {
+                  "detail": {
+                    "code": "client_upgrade_required",
+                    "client": "koreader-plugin",
+                    "min_supported_version": "0.13.0",
+                    "received_version": "0.12.0",
+                    "update_url": "https://github.com/Crossbill-App/koreader-plugin"
+                  }
                 }
               }
             }
@@ -331,12 +370,7 @@
               }
             }
           }
-        },
-        "security": [
-          {
-            "OAuth2PasswordBearer": []
-          }
-        ]
+        }
       }
     },
     "/api/v1/ereader/books/{client_book_id}": {
@@ -361,6 +395,22 @@
               "type": "string",
               "title": "Client Book Id"
             }
+          },
+          {
+            "name": "X-Crossbill-Client",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Crossbill-Client"
+            }
           }
         ],
         "responses": {
@@ -370,6 +420,22 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/EreaderBookMetadata"
+                }
+              }
+            }
+          },
+          "426": {
+            "description": "The caller is an outdated Crossbill client, or sent no X-Crossbill-Client header at all. The body names the minimum supported version and where to get it.",
+            "content": {
+              "application/json": {
+                "example": {
+                  "detail": {
+                    "code": "client_upgrade_required",
+                    "client": "koreader-plugin",
+                    "min_supported_version": "0.13.0",
+                    "received_version": "0.12.0",
+                    "update_url": "https://github.com/Crossbill-App/koreader-plugin"
+                  }
                 }
               }
             }
@@ -409,6 +475,22 @@
               "type": "string",
               "title": "Client Book Id"
             }
+          },
+          {
+            "name": "X-Crossbill-Client",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Crossbill-Client"
+            }
           }
         ],
         "requestBody": {
@@ -428,6 +510,22 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/SuccessResponse"
+                }
+              }
+            }
+          },
+          "426": {
+            "description": "The caller is an outdated Crossbill client, or sent no X-Crossbill-Client header at all. The body names the minimum supported version and where to get it.",
+            "content": {
+              "application/json": {
+                "example": {
+                  "detail": {
+                    "code": "client_upgrade_required",
+                    "client": "koreader-plugin",
+                    "min_supported_version": "0.13.0",
+                    "received_version": "0.12.0",
+                    "update_url": "https://github.com/Crossbill-App/koreader-plugin"
+                  }
                 }
               }
             }
@@ -467,6 +565,22 @@
               "type": "string",
               "title": "Client Book Id"
             }
+          },
+          {
+            "name": "X-Crossbill-Client",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Crossbill-Client"
+            }
           }
         ],
         "responses": {
@@ -476,6 +590,22 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/CollectionResponse_EreaderChapterDigestItem_"
+                }
+              }
+            }
+          },
+          "426": {
+            "description": "The caller is an outdated Crossbill client, or sent no X-Crossbill-Client header at all. The body names the minimum supported version and where to get it.",
+            "content": {
+              "application/json": {
+                "example": {
+                  "detail": {
+                    "code": "client_upgrade_required",
+                    "client": "koreader-plugin",
+                    "min_supported_version": "0.13.0",
+                    "received_version": "0.12.0",
+                    "update_url": "https://github.com/Crossbill-App/koreader-plugin"
+                  }
                 }
               }
             }
@@ -515,6 +645,22 @@
               "type": "string",
               "title": "Client Book Id"
             }
+          },
+          {
+            "name": "X-Crossbill-Client",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Crossbill-Client"
+            }
           }
         ],
         "responses": {
@@ -524,6 +670,22 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/CollectionResponse_EreaderHighlightItem_"
+                }
+              }
+            }
+          },
+          "426": {
+            "description": "The caller is an outdated Crossbill client, or sent no X-Crossbill-Client header at all. The body names the minimum supported version and where to get it.",
+            "content": {
+              "application/json": {
+                "example": {
+                  "detail": {
+                    "code": "client_upgrade_required",
+                    "client": "koreader-plugin",
+                    "min_supported_version": "0.13.0",
+                    "received_version": "0.12.0",
+                    "update_url": "https://github.com/Crossbill-App/koreader-plugin"
+                  }
                 }
               }
             }
@@ -585,15 +747,38 @@
         "summary": "Upload Highlights",
         "description": "Upload highlights from KOReader.\n\nCreates or updates book record and adds highlights with automatic deduplication.\nDuplicates are identified by the combination of book, text, and datetime.\n\n``removed_ids`` carries the highlights the reader deleted on the device:\nthey are withheld from every device's pull and stay whole on the web.\n\nA highlight flagged ``is_new`` was created on the device after its last\npull, so a duplicate of a removed or deleted highlight is a deliberate\nre-highlight and brings that highlight back.\n\nArgs:\n    request: Highlight upload request containing book metadata and highlights\n\nReturns:\n    HighlightUploadResponse with upload statistics\n\nRaises:\n    HTTPException: If upload fails due to server error",
         "operationId": "upload_highlights",
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "X-Crossbill-Client",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Crossbill-Client"
+            }
+          }
+        ],
         "requestBody": {
+          "required": true,
           "content": {
             "application/json": {
               "schema": {
                 "$ref": "#/components/schemas/HighlightUploadRequest"
               }
             }
-          },
-          "required": true
+          }
         },
         "responses": {
           "200": {
@@ -602,6 +787,22 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/HighlightUploadResponse"
+                }
+              }
+            }
+          },
+          "426": {
+            "description": "The caller is an outdated Crossbill client, or sent no X-Crossbill-Client header at all. The body names the minimum supported version and where to get it.",
+            "content": {
+              "application/json": {
+                "example": {
+                  "detail": {
+                    "code": "client_upgrade_required",
+                    "client": "koreader-plugin",
+                    "min_supported_version": "0.13.0",
+                    "received_version": "0.12.0",
+                    "update_url": "https://github.com/Crossbill-App/koreader-plugin"
+                  }
                 }
               }
             }
@@ -616,12 +817,7 @@
               }
             }
           }
-        },
-        "security": [
-          {
-            "OAuth2PasswordBearer": []
-          }
-        ]
+        }
       }
     },
     "/api/v1/books/{book_id}/highlights": {
@@ -1192,15 +1388,38 @@
         "summary": "Upload Reading Sessions",
         "description": "Upload reading sessions from KOReader for a single book.\n\nAll sessions in a request must be for the same book.\n\nArgs:\n    request: Upload request containing book metadata and reading sessions\n\nReturns:\n    ReadingSessionUploadResponse with upload statistics",
         "operationId": "upload_reading_sessions",
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "X-Crossbill-Client",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Crossbill-Client"
+            }
+          }
+        ],
         "requestBody": {
+          "required": true,
           "content": {
             "application/json": {
               "schema": {
                 "$ref": "#/components/schemas/ReadingSessionUploadRequest"
               }
             }
-          },
-          "required": true
+          }
         },
         "responses": {
           "200": {
@@ -1209,6 +1428,22 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/ReadingSessionUploadResponse"
+                }
+              }
+            }
+          },
+          "426": {
+            "description": "The caller is an outdated Crossbill client, or sent no X-Crossbill-Client header at all. The body names the minimum supported version and where to get it.",
+            "content": {
+              "application/json": {
+                "example": {
+                  "detail": {
+                    "code": "client_upgrade_required",
+                    "client": "koreader-plugin",
+                    "min_supported_version": "0.13.0",
+                    "received_version": "0.12.0",
+                    "update_url": "https://github.com/Crossbill-App/koreader-plugin"
+                  }
                 }
               }
             }
@@ -1223,12 +1458,7 @@
               }
             }
           }
-        },
-        "security": [
-          {
-            "OAuth2PasswordBearer": []
-          }
-        ]
+        }
       }
     },
     "/api/v1/books/{book_id}/reading_sessions": {
