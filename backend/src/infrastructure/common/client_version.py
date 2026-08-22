@@ -34,7 +34,7 @@ class ClientVersionRequirement:
 # clients -- never on its own, and never without one.
 CLIENT_VERSION_REQUIREMENTS: Final[Mapping[str, ClientVersionRequirement]] = {
     KOREADER_PLUGIN: ClientVersionRequirement(
-        min_version=(0, 13, 0),
+        min_version=(0, 12, 0),
         update_url="https://github.com/Crossbill-App/koreader-plugin",
     ),
 }
