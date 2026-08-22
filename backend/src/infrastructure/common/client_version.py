@@ -51,7 +51,13 @@ CLIENT_VERSION_REQUIREMENTS: Final[Mapping[str, ClientVersionRequirement]] = {
 # Strict ``name/major.minor.patch``. No pre-release or build suffixes: our
 # clients ship plain three-part versions, and anything else is a client we
 # cannot reason about rather than one to guess at.
-_VERSION_PATTERN: Final = re.compile(r"[0-9]+\.[0-9]+\.[0-9]+")
+#
+# Each segment is bounded because ``int()`` refuses to parse a string of more
+# than 4300 digits: an unbounded pattern would hand such a segment to ``int``
+# and turn a hostile header into a 500 on a pre-auth code path. Nine digits is
+# far past any version we will ship, so the bound only ever rejects nonsense --
+# which the gate already treats as unreadable, hence 426.
+_VERSION_PATTERN: Final = re.compile(r"[0-9]{1,9}\.[0-9]{1,9}\.[0-9]{1,9}")
 
 
 def format_version(version: tuple[int, int, int]) -> str:
@@ -96,10 +102,14 @@ def require_client_version(expected_client: str) -> Callable[[str | None], Await
     async def dependency(
         client_header: Annotated[str | None, Header(alias=CLIENT_VERSION_HEADER)] = None,
     ) -> None:
-        if client_header is None:
+        # A header that is present but says nothing names no client either, so
+        # it takes the same branch as no header at all -- otherwise an empty
+        # value would read as an unknown client and sail straight through.
+        announced = "" if client_header is None else client_header.strip()
+        if not announced:
             _upgrade_required(expected_client, expected_requirement, received_version=None)
 
-        name, _, raw_version = client_header.strip().partition("/")
+        name, _, raw_version = announced.partition("/")
         requirement = CLIENT_VERSION_REQUIREMENTS.get(name)
         if requirement is None:
             return

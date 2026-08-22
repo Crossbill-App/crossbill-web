@@ -166,6 +166,37 @@ async def test_version_we_cannot_read_is_rejected(
     assert response.json()["detail"] == expected_detail(received_version=None)
 
 
+async def test_an_oversized_version_number_is_rejected_not_crashed(
+    headerless_client: AsyncClient, gated_book: models.Book
+) -> None:
+    """``int()`` refuses more than 4300 digits, and this route runs before auth.
+
+    An unbounded pattern would hand the segment to ``int``, which raises, and
+    any stranger could turn a header into a 500 without logging in.
+    """
+    response = await headerless_client.get(
+        f"/api/v1/ereader/books/{CLIENT_BOOK_ID}",
+        headers={CLIENT_VERSION_HEADER: f"{KOREADER_PLUGIN}/1.1.{'9' * 5000}"},
+    )
+
+    assert response.status_code == status.HTTP_426_UPGRADE_REQUIRED, response.text
+    assert response.json()["detail"] == expected_detail(received_version=None)
+
+
+@pytest.mark.parametrize("header_value", ["", "   "])
+async def test_a_header_that_names_no_client_is_rejected(
+    headerless_client: AsyncClient, gated_book: models.Book, header_value: str
+) -> None:
+    """An empty value names no client, so it cannot pass as an unknown one."""
+    response = await headerless_client.get(
+        f"/api/v1/ereader/books/{CLIENT_BOOK_ID}",
+        headers={CLIENT_VERSION_HEADER: header_value},
+    )
+
+    assert response.status_code == status.HTTP_426_UPGRADE_REQUIRED, response.text
+    assert response.json()["detail"] == expected_detail(received_version=None)
+
+
 @pytest.mark.parametrize(
     "version",
     [
