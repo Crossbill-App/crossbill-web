@@ -9,6 +9,7 @@ export {
   ArrowForward as ArrowForwardIcon,
   Close as CloseIcon,
   ExpandMore as ExpandMoreIcon,
+  OpenInNew as ExternalLinkIcon,
   FilterList as FilterListIcon,
   Menu as MenuIcon,
   MoreHoriz as MoreIcon,
