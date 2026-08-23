@@ -157,7 +157,7 @@ jobs:
           # Update the root package.json and lockfile
           npm version $NEW_VERSION --no-git-tag-version
 
-          # Update the frontend workspace and its entry in the root lockfile
+          # Update the frontend workspace; npm pkg set leaves its lockfile entry stale
           npm pkg set version=$NEW_VERSION --workspace frontend
           node -e '
             const fs = require("fs");
@@ -169,7 +169,7 @@ jobs:
           # Update the docs site, which has its own lockfile
           cd site && npm version $NEW_VERSION --no-git-tag-version && cd ..
 
-          # Update the backend package version (only the [project] version line)
+          # Update the backend version; anchored so dependency pins stay untouched
           sed -i -E "s|^version = \".*\"|version = \"$NEW_VERSION\"|" backend/pyproject.toml
 
           # Commit version bump
