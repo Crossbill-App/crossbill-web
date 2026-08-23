@@ -2,7 +2,7 @@
   "openapi": "3.1.0",
   "info": {
     "title": "crossbill API",
-    "version": "0.1.0"
+    "version": "0.0.0"
   },
   "paths": {
     "/api/v1/books/": {
@@ -4060,11 +4060,17 @@
           "feature_flags": {
             "$ref": "#/components/schemas/FeatureFlags",
             "description": "All feature flags"
+          },
+          "version": {
+            "type": "string",
+            "title": "Version",
+            "description": "Running server release, or \"unknown\""
           }
         },
         "type": "object",
         "required": [
-          "feature_flags"
+          "feature_flags",
+          "version"
         ],
         "title": "AppSettingsResponse",
         "description": "Schema for returning public application settings."

@@ -29,6 +29,7 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
             embeddings: false,
             user_registrations: false,
           },
+          version: 'unknown',
         });
       } finally {
         setIsLoading(false);
