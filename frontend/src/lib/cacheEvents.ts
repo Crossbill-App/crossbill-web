@@ -41,6 +41,12 @@ export const useCacheEvents = () => {
       }
     };
 
+    const drop = (...keys: QueryKey[]) => {
+      for (const queryKey of keys) {
+        queryClient.removeQueries({ queryKey });
+      }
+    };
+
     return {
       /** A book's own record changed — title, reading stage, cover, highlights. */
       bookChanged: (bookId: number) => invalidate(getGetBookDetailsQueryKey(bookId)),
@@ -61,13 +67,23 @@ export const useCacheEvents = () => {
        *
        * Pass `noteId` when the note already exists, so the open detail view
        * refreshes too. Omit it after creating a note, whose detail is not cached
-       * yet, and after deleting one, whose detail would refetch into a 404.
+       * yet.
        */
       noteChanged: (bookId: number, noteId?: number) =>
         invalidate(
           getGetNotesForBookQueryKey(bookId),
           ...(noteId === undefined ? [] : [getGetNoteQueryKey(noteId)])
         ),
+
+      /**
+       * A note was hard-deleted. Its detail is dropped, not invalidated: on a
+       * failed refetch React Query keeps the last data, so any other view
+       * holding it would keep rendering the deleted note.
+       */
+      noteDeleted: (bookId: number, noteId: number) => {
+        drop(getGetNoteQueryKey(noteId));
+        invalidate(getGetNotesForBookQueryKey(bookId));
+      },
 
       /**
        * A flashcard was created, edited or deleted.

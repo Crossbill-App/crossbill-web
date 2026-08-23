@@ -103,8 +103,7 @@ export const NoteViewDialog = ({
   const deleteMutation = useDeleteNote({
     mutation: {
       onSuccess: () => {
-        // No note id: the note is gone, so refetching its detail would 404.
-        cache.noteChanged(book.id);
+        cache.noteDeleted(book.id, noteId);
         setDeleteConfirmOpen(false);
         onClose();
       },
