@@ -12,10 +12,22 @@ import pytest
 import structlog
 from structlog.typing import EventDict
 
+from src.application.ai.ai_usage_context import AIUsageContext
+from src.domain.common.value_objects.ids import UserId
 from src.infrastructure.ai.ai_service import (
     MAX_CHAPTER_CONTEXT_CHARS,
+    chapter_id_of,
     truncate_chapter_content,
 )
+
+
+def usage_context(entity_type: str, entity_id: int) -> AIUsageContext:
+    return AIUsageContext(
+        user_id=UserId(1),
+        task_type="digest",
+        entity_type=entity_type,
+        entity_id=entity_id,
+    )
 
 
 @pytest.fixture
@@ -62,3 +74,12 @@ class TestTruncateChapterContent:
         assert event["event"] == "chapter_content_truncated"
         assert event["chapter_id"] == 42
         assert event["dropped_chars"] == 250
+
+
+class TestChapterIdOf:
+    def test_reads_the_entity_id_of_a_chapter_context(self) -> None:
+        assert chapter_id_of(usage_context("chapter", 42)) == 42
+
+    def test_refuses_a_context_naming_something_else(self) -> None:
+        with pytest.raises(ValueError, match="chapter usage context"):
+            chapter_id_of(usage_context("highlight", 42))

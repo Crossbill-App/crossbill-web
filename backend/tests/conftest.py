@@ -16,12 +16,12 @@ os.environ.setdefault("RATE_LIMIT_ENABLED", "false")
 
 import inspect
 import itertools
-from collections.abc import AsyncGenerator, Awaitable, Callable
+from collections.abc import AsyncGenerator, Awaitable, Callable, Iterator
 from datetime import datetime as dt
 from pathlib import Path
 from types import SimpleNamespace
 from typing import Any
-from unittest.mock import AsyncMock
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 from ebooklib import epub
@@ -60,6 +60,7 @@ from src.models import (
 from src.models import (
     HighlightStyle as HighlightStyleModel,
 )
+from tests.ai_helpers import FakeAgent, digest_output
 
 logging.getLogger("aiosqlite").setLevel(logging.WARNING)
 
@@ -477,3 +478,63 @@ async def create_book_via_api(plugin_client: AsyncClient) -> CreateBookFunc:
         return EreaderBookMetadata(**response.json())
 
     return _create_book
+
+
+# --- AI endpoints -----------------------------------------------------------
+
+
+@pytest.fixture
+def ai_enabled() -> Iterator[None]:
+    """Let the AI endpoints past ``require_ai_enabled``."""
+    with patch("src.infrastructure.common.dependencies.is_ai_enabled", return_value=True):
+        yield
+
+
+@pytest.fixture
+async def epub_chapter(db_session: AsyncSession, test_book: Book) -> Chapter:
+    """A chapter of an EPUB book, carrying the xpoints extraction needs."""
+    test_book.ebook_file = "/path/to/test.epub"
+    test_book.file_type = "epub"
+    chapter = Chapter(
+        book_id=test_book.id,
+        name="Test Chapter",
+        start_xpoint="/body/text/chapter[1]",
+        end_xpoint="/body/text/chapter[2]",
+    )
+    db_session.add(chapter)
+    await db_session.commit()
+    await db_session.refresh(chapter)
+    return chapter
+
+
+@pytest.fixture
+def chapter_text(client: AsyncClient) -> Iterator[MagicMock]:
+    """The extracted text of the chapter under test: set ``.return_value``."""
+    from src.core import container  # noqa: PLC0415
+
+    file_repo = AsyncMock()
+    file_repo.get_epub.return_value = b"PK\x03\x04 not really an EPUB"
+    extraction = MagicMock()
+    extraction.extract_chapter_text.return_value = "The chapter is about testing."
+
+    container.shared.file_repository.override(file_repo)
+    container.shared.ebook_text_extraction_service.override(extraction)
+    yield extraction.extract_chapter_text
+    container.shared.ebook_text_extraction_service.reset_last_overriding()
+    container.shared.file_repository.reset_last_overriding()
+
+
+@pytest.fixture
+def digest_agent() -> Iterator[FakeAgent]:
+    """The agent ``generate_digest`` runs, recording the prompt it received."""
+    agent = FakeAgent(digest_output())
+    with patch("src.infrastructure.ai.ai_service.get_digest_agent", return_value=agent):
+        yield agent
+
+
+@pytest.fixture
+def quiz_agent() -> Iterator[FakeAgent]:
+    """The agent ``start_quiz`` and ``continue_quiz`` run."""
+    agent = FakeAgent("**Question 1/5:** What is the main topic?")
+    with patch("src.infrastructure.ai.ai_service.get_quiz_agent", return_value=agent):
+        yield agent

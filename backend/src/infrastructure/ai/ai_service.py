@@ -25,15 +25,19 @@ from src.infrastructure.ai.ai_agents import (
 
 logger = structlog.get_logger(__name__)
 
-#: Longest chapter text sent to the model as context, in characters.
-#:
-#: Digest already capped at this figure; quiz and chat did not, so a chapter
-#: with no real chapter boundaries (the whole book parsed as one chapter, as
-#: happens when an EPUB's nav data is missing) sent the entire book as
-#: context on every turn. Applying the same cap everywhere keeps behavior
-#: consistent and bounds request size. Like the embedding truncation in
-#: ADR-0002, the tail of an over-long chapter is simply not sent.
 MAX_CHAPTER_CONTEXT_CHARS = 10000
+
+#: The one ``AIUsageContext.entity_type`` whose ``entity_id`` names a chapter.
+CHAPTER_ENTITY_TYPE = "chapter"
+
+
+def chapter_id_of(usage_context: AIUsageContext) -> int:
+    if usage_context.entity_type != CHAPTER_ENTITY_TYPE:
+        raise ValueError(
+            f"chapter content truncation needs a {CHAPTER_ENTITY_TYPE} usage context, "
+            f"got {usage_context.entity_type!r}"
+        )
+    return usage_context.entity_id
 
 
 def truncate_chapter_content(content: str, *, chapter_id: int) -> str:
@@ -91,7 +95,7 @@ class AIService:
 
     async def generate_digest(self, content: str, usage_context: AIUsageContext) -> DigestResult:
         agent = get_digest_agent()
-        content = truncate_chapter_content(content, chapter_id=usage_context.entity_id)
+        content = truncate_chapter_content(content, chapter_id=chapter_id_of(usage_context))
         result = await agent.run(content)
         usage = result.usage()
         await self._save_usage(
@@ -136,7 +140,7 @@ class AIService:
     ) -> tuple[str, SerializedMessageHistory]:
         agent = get_quiz_agent()
         chapter_content = truncate_chapter_content(
-            chapter_content, chapter_id=usage_context.entity_id
+            chapter_content, chapter_id=chapter_id_of(usage_context)
         )
         prompt = f"The reader wants to be quizzed on this chapter. Ask {question_count} questions total.\n\n--- CHAPTER CONTENT ---\n{chapter_content}"
         return await self._respond(agent, usage_context, prompt=prompt)
