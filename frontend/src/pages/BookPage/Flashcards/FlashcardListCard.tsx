@@ -31,9 +31,6 @@ export const FlashcardListCard = ({
   const [isDeleting, setIsDeleting] = useState(false);
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
   const [isViewingNote, setIsViewingNote] = useState(false);
-  // Hide the affordance when the card is already shown inside its own note's
-  // dialog (e.g. a note's embedded Flashcards tab) -- opening it there would
-  // just stack a second copy of the same note on top of itself.
   const linkedNoteId =
     flashcard.note_id != null && flashcard.note_id !== noteId ? flashcard.note_id : null;
   const cache = useCacheEvents();
