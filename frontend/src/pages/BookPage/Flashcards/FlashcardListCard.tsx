@@ -5,7 +5,8 @@ import { FlashcardWithContext } from '@/components/features/flashcards/Flashcard
 import { useMutationErrorHandler } from '@/hooks/useMutationErrorHandler.ts';
 import { useCacheEvents } from '@/lib/cacheEvents.ts';
 import { FlashcardCard } from '@/pages/BookPage/Flashcards/FlashcardCard.tsx';
-import { DeleteIcon, EditIcon } from '@/theme/Icons.tsx';
+import { NoteViewDialog } from '@/pages/BookPage/Notes/NoteViewDialog.tsx';
+import { DeleteIcon, EditIcon, NotesIcon } from '@/theme/Icons.tsx';
 import { useState } from 'react';
 
 export interface FlashcardListCardProps {
@@ -29,6 +30,9 @@ export const FlashcardListCard = ({
 }: FlashcardListCardProps) => {
   const [isDeleting, setIsDeleting] = useState(false);
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
+  const [isViewingNote, setIsViewingNote] = useState(false);
+  const linkedNoteId =
+    flashcard.note_id != null && flashcard.note_id !== noteId ? flashcard.note_id : null;
   const cache = useCacheEvents();
   const mutationErrorHandler = useMutationErrorHandler();
 
@@ -44,6 +48,11 @@ export const FlashcardListCard = ({
   const handleDeleteClick = (e: React.MouseEvent) => {
     e.stopPropagation();
     setDeleteConfirmOpen(true);
+  };
+
+  const handleViewNoteClick = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    setIsViewingNote(true);
   };
 
   const handleConfirmDelete = async () => {
@@ -65,6 +74,15 @@ export const FlashcardListCard = ({
         sourceHighlightText={flashcard.highlight?.text}
         renderActions={() => (
           <>
+            {linkedNoteId != null && (
+              <IconButtonWithTooltip
+                title="View note"
+                ariaLabel="View linked note"
+                onClick={handleViewNoteClick}
+                disabled={isDeleting}
+                icon={<NotesIcon fontSize="small" />}
+              />
+            )}
             <IconButtonWithTooltip
               title="Edit"
               ariaLabel="Edit flashcard"
@@ -93,6 +111,10 @@ export const FlashcardListCard = ({
         confirmColor="error"
         isLoading={isDeleting}
       />
+
+      {isViewingNote && linkedNoteId != null && (
+        <NoteViewDialog noteId={linkedNoteId} onClose={() => setIsViewingNote(false)} />
+      )}
     </>
   );
 };

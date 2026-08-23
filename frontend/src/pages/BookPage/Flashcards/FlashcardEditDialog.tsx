@@ -5,10 +5,13 @@ import { RHFTextField } from '@/components/inputs/RHFTextField.tsx';
 import { useMutationErrorHandler } from '@/hooks/useMutationErrorHandler.ts';
 import { HighlightContent } from '@/pages/BookPage/common/HighlightContent.tsx';
 import { Box, Button, Typography } from '@mui/material';
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useForm } from 'react-hook-form';
 
+import { useGetNote } from '@/api/generated/notes/notes.ts';
 import { useCacheEvents } from '@/lib/cacheEvents.ts';
+import { NoteCard } from '@/pages/BookPage/Notes/NoteCard.tsx';
+import { NoteViewDialog } from '@/pages/BookPage/Notes/NoteViewDialog.tsx';
 import type { FlashcardFormValues } from './CreateFlashcardForm.tsx';
 
 interface FlashcardEditDialogProps {
@@ -26,6 +29,7 @@ export const FlashcardEditDialog = ({
 }: FlashcardEditDialogProps) => {
   const mutationErrorHandler = useMutationErrorHandler();
   const cache = useCacheEvents();
+  const [isViewingNote, setIsViewingNote] = useState(false);
 
   const {
     control,
@@ -49,6 +53,12 @@ export const FlashcardEditDialog = ({
         onClose();
       },
       onError: mutationErrorHandler('update flashcard'),
+    },
+  });
+
+  const { data: noteData } = useGetNote(flashcard.note_id ?? 0, {
+    query: {
+      enabled: !!flashcard.note_id,
     },
   });
 
@@ -88,6 +98,14 @@ export const FlashcardEditDialog = ({
     >
       <Box sx={{ pt: 3, display: 'flex', flexDirection: 'column', gap: 3 }}>
         {flashcard.highlight && <HighlightContent highlight={flashcard.highlight} />}
+        {noteData && (
+          <NoteCard
+            note={noteData}
+            onClick={() => {
+              setIsViewingNote(true);
+            }}
+          />
+        )}
 
         <Box>
           <Typography
@@ -143,6 +161,10 @@ export const FlashcardEditDialog = ({
           />
         </Box>
       </Box>
+
+      {isViewingNote && noteData != null && (
+        <NoteViewDialog noteId={noteData.id} onClose={() => setIsViewingNote(false)} />
+      )}
     </CommonDialog>
   );
 };
