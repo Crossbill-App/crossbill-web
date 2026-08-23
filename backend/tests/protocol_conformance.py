@@ -9,6 +9,7 @@ prefix). When adding a repository or query adapter, add its pair here.
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from src.application.ai.protocols.ai_usage_repository import AIUsageRepositoryProtocol
 from src.application.identity.protocols.refresh_token_repository import (
     RefreshTokenRepositoryProtocol,
 )
@@ -16,9 +17,12 @@ from src.application.identity.protocols.token_service import TokenServiceProtoco
 from src.application.identity.protocols.user_repository import UserRepositoryProtocol
 from src.application.jobs.protocols.job_batch_repository import JobBatchRepositoryProtocol
 from src.application.jobs.queries.job_batch import JobBatchQueryProtocol
+from src.application.learning.protocols.ai_chat_service import AIChatServiceProtocol
 from src.application.learning.protocols.ai_chat_session_repository import (
     AIChatSessionRepositoryProtocol,
 )
+from src.application.learning.protocols.ai_flashcard_service import AIFlashcardServiceProtocol
+from src.application.learning.protocols.ai_quiz_service import AIQuizServiceProtocol
 from src.application.learning.protocols.flashcard_repository import FlashcardRepositoryProtocol
 from src.application.learning.queries.book_flashcards import BookFlashcardQueryProtocol
 from src.application.library.protocols.book_repository import (
@@ -30,6 +34,10 @@ from src.application.library.queries.book_details import BookDetailsQueryProtoco
 from src.application.library.queries.book_list import BookListQueryProtocol
 from src.application.notes.protocols.note_repository import NoteRepositoryProtocol
 from src.application.notes.queries.note_with_links import NoteQueryProtocol
+from src.application.reading.protocols.ai_digest_service import AIDigestServiceProtocol
+from src.application.reading.protocols.ai_text_summary_service import (
+    AITextSummaryServiceProtocol,
+)
 from src.application.reading.protocols.book_repository import (
     BookRepositoryProtocol as ReadingBookRepositoryProtocol,
 )
@@ -57,6 +65,8 @@ from src.application.reflection.protocols.book_reflection_repository import (
     BookReflectionRepositoryProtocol,
 )
 from src.application.tagging.protocols.tag_repository import TagRepositoryProtocol
+from src.infrastructure.ai.ai_service import AIService
+from src.infrastructure.ai.repositories.ai_usage_repository import AIUsageRepository
 from src.infrastructure.identity.repositories.refresh_token_repository import (
     RefreshTokenRepository,
 )
@@ -138,3 +148,14 @@ def repositories_satisfy_their_protocols(
     _reading_sessions_view: ReadingSessionQueryProtocol = ReadingSessionQuery(
         db, label_resolution_service, file_repository, text_extraction_service
     )
+
+
+def ai_service_satisfies_its_protocols(db: AsyncSession) -> None:
+    """``AIService`` implements five protocols and is wired through none of them."""
+    _usage: AIUsageRepositoryProtocol = AIUsageRepository(db=db)
+    service = AIService(usage_repository=AIUsageRepository(db=db))
+    _digest: AIDigestServiceProtocol = service
+    _quiz: AIQuizServiceProtocol = service
+    _chat: AIChatServiceProtocol = service
+    _flashcards: AIFlashcardServiceProtocol = service
+    _summary: AITextSummaryServiceProtocol = service

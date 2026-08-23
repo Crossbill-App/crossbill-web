@@ -83,7 +83,9 @@ class StartChatSessionUseCase:
 
         # 4. Seed the message history with the chapter content (no AI round-trip);
         #    the model reads it when the reader sends their first message.
-        session.message_history = self.ai_chat_service.seed_chat_context(content, CHAT_OPENER)
+        session.message_history = self.ai_chat_service.seed_chat_context(
+            content, CHAT_OPENER, chapter_id=chapter_id
+        )
         saved_session = await self.ai_chat_session_repo.create(session)
 
         logger.info(

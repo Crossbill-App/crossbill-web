@@ -25,6 +25,32 @@ from src.infrastructure.ai.ai_agents import (
 
 logger = structlog.get_logger(__name__)
 
+MAX_CHAPTER_CONTEXT_CHARS = 10000
+
+#: The one ``AIUsageContext.entity_type`` whose ``entity_id`` names a chapter.
+CHAPTER_ENTITY_TYPE = "chapter"
+
+
+def chapter_id_of(usage_context: AIUsageContext) -> int:
+    if usage_context.entity_type != CHAPTER_ENTITY_TYPE:
+        raise ValueError(
+            f"chapter content truncation needs a {CHAPTER_ENTITY_TYPE} usage context, "
+            f"got {usage_context.entity_type!r}"
+        )
+    return usage_context.entity_id
+
+
+def truncate_chapter_content(content: str, *, chapter_id: int) -> str:
+    if len(content) <= MAX_CHAPTER_CONTEXT_CHARS:
+        return content
+    dropped_chars = len(content) - MAX_CHAPTER_CONTEXT_CHARS
+    logger.info(
+        "chapter_content_truncated",
+        chapter_id=chapter_id,
+        dropped_chars=dropped_chars,
+    )
+    return content[:MAX_CHAPTER_CONTEXT_CHARS]
+
 
 class AIService:
     def __init__(self, usage_repository: AIUsageRepositoryProtocol) -> None:
@@ -69,7 +95,8 @@ class AIService:
 
     async def generate_digest(self, content: str, usage_context: AIUsageContext) -> DigestResult:
         agent = get_digest_agent()
-        result = await agent.run(content[:10000])
+        content = truncate_chapter_content(content, chapter_id=chapter_id_of(usage_context))
+        result = await agent.run(content)
         usage = result.usage()
         await self._save_usage(
             usage_context, result.response.model_name, usage.input_tokens, usage.output_tokens
@@ -112,6 +139,9 @@ class AIService:
         self, chapter_content: str, question_count: int, usage_context: AIUsageContext
     ) -> tuple[str, SerializedMessageHistory]:
         agent = get_quiz_agent()
+        chapter_content = truncate_chapter_content(
+            chapter_content, chapter_id=chapter_id_of(usage_context)
+        )
         prompt = f"The reader wants to be quizzed on this chapter. Ask {question_count} questions total.\n\n--- CHAPTER CONTENT ---\n{chapter_content}"
         return await self._respond(agent, usage_context, prompt=prompt)
 
@@ -128,12 +158,13 @@ class AIService:
         )
 
     def seed_chat_context(
-        self, chapter_content: str, assistant_opener: str
+        self, chapter_content: str, assistant_opener: str, *, chapter_id: int
     ) -> SerializedMessageHistory:
         """Build an initial chat history seeded with the chapter content, without
         calling the model. The content is stored as the opening user turn (paired
         with the fixed opener as the assistant turn) so that later continue_chat
         calls have the chapter in context."""
+        chapter_content = truncate_chapter_content(chapter_content, chapter_id=chapter_id)
         prompt = f"The reader wants to chat about the contents of this chapter.\n\n--- CHAPTER CONTENT ---\n{chapter_content}"
         messages: list[ModelMessage] = [
             ModelRequest(parts=[UserPromptPart(content=prompt)]),
