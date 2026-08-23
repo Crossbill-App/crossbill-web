@@ -6,6 +6,7 @@ from httpx import AsyncClient
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from src.infrastructure.ai.ai_service import MAX_CHAPTER_CONTEXT_CHARS
 from src.models import AIChatSession as AIChatSessionModel
 from src.models import Book, Chapter
 
@@ -75,6 +76,48 @@ class TestCreateChatSession:
             )
         ).scalar_one()
         assert "The chapter is about testing." in str(session.message_history)
+
+    @patch("src.infrastructure.common.dependencies.is_ai_enabled", return_value=True)
+    @patch("src.infrastructure.ai.ai_service.AIService._respond", new_callable=AsyncMock)
+    @patch(
+        "src.infrastructure.library.services.epub_text_extraction_service"
+        ".EpubTextExtractionService.extract_chapter_text"
+    )
+    @patch(
+        "src.infrastructure.library.repositories.file_repository.FileRepository.get_epub",
+        new_callable=AsyncMock,
+    )
+    async def test_create_chat_session_caps_over_long_chapter_content(
+        self,
+        mock_get_epub: AsyncMock,
+        mock_extract: MagicMock,
+        mock_respond: AsyncMock,
+        mock_ai_enabled: MagicMock,
+        client: AsyncClient,
+        db_session: AsyncSession,
+        test_book: Book,
+    ) -> None:
+        test_book.ebook_file = "/path/to/test.epub"
+        test_book.file_type = "epub"
+        await db_session.commit()
+
+        chapter = await create_chat_chapter(db_session, test_book)
+
+        mock_get_epub.return_value = b"fake epub content"
+        mock_extract.return_value = "x" * (MAX_CHAPTER_CONTEXT_CHARS * 2)
+
+        response = await client.post(f"/api/v1/chapters/{chapter.id}/chat-sessions")
+        assert response.status_code == 201
+        data = response.json()
+
+        session = (
+            await db_session.execute(
+                select(AIChatSessionModel).where(AIChatSessionModel.id == data["session_id"])
+            )
+        ).scalar_one()
+        seeded_content = str(session.message_history)
+        assert "x" * (MAX_CHAPTER_CONTEXT_CHARS + 1) not in seeded_content
+        assert "x" * MAX_CHAPTER_CONTEXT_CHARS in seeded_content
 
     @patch("src.infrastructure.common.dependencies.is_ai_enabled", return_value=True)
     async def test_create_chat_session_chapter_not_found(

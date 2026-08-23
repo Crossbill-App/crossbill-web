@@ -5,6 +5,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 from httpx import AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from src.infrastructure.ai.ai_service import MAX_CHAPTER_CONTEXT_CHARS
 from src.models import AIChatSession as AIChatSessionModel
 from src.models import Book, Chapter
 
@@ -64,6 +65,46 @@ class TestCreateQuizSession:
         assert "session_id" in data
         assert "message" in data
         assert "Question 1/5" in data["message"]
+
+    @patch("src.infrastructure.common.dependencies.is_ai_enabled", return_value=True)
+    @patch("src.infrastructure.ai.ai_service.get_quiz_agent")
+    @patch("src.infrastructure.ai.ai_service.AIService._respond", new_callable=AsyncMock)
+    @patch(
+        "src.infrastructure.library.services.epub_text_extraction_service"
+        ".EpubTextExtractionService.extract_chapter_text"
+    )
+    @patch(
+        "src.infrastructure.library.repositories.file_repository.FileRepository.get_epub",
+        new_callable=AsyncMock,
+    )
+    async def test_create_quiz_session_caps_over_long_chapter_content(
+        self,
+        mock_get_epub: AsyncMock,
+        mock_extract: MagicMock,
+        mock_respond: AsyncMock,
+        mock_get_agent: MagicMock,
+        mock_ai_enabled: MagicMock,
+        client: AsyncClient,
+        db_session: AsyncSession,
+        test_book: Book,
+    ) -> None:
+        test_book.ebook_file = "/path/to/test.epub"
+        test_book.file_type = "epub"
+        await db_session.commit()
+
+        chapter = await create_quiz_chapter(db_session, test_book)
+
+        mock_get_epub.return_value = b"fake epub content"
+        mock_extract.return_value = "x" * (MAX_CHAPTER_CONTEXT_CHARS * 2)
+        mock_respond.return_value = ("**Question 1/5:** ?", [{"some": "history"}])
+
+        response = await client.post(f"/api/v1/chapters/{chapter.id}/quiz-sessions")
+        assert response.status_code == 201
+
+        prompt = mock_respond.call_args.kwargs["prompt"]
+        # The cap applies to the chapter content itself, not the whole prompt
+        # (which also carries the fixed instruction text around it).
+        assert len(prompt) < MAX_CHAPTER_CONTEXT_CHARS + 250
 
     @patch("src.infrastructure.common.dependencies.is_ai_enabled", return_value=True)
     async def test_create_quiz_session_chapter_not_found(

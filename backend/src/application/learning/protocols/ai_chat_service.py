@@ -6,7 +6,7 @@ from src.domain.common.types import SerializedMessageHistory
 
 class AIChatServiceProtocol(Protocol):
     def seed_chat_context(
-        self, chapter_content: str, assistant_opener: str
+        self, chapter_content: str, assistant_opener: str, *, chapter_id: int
     ) -> SerializedMessageHistory: ...
 
     async def continue_chat(
