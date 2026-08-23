@@ -3,6 +3,7 @@
 import logging
 import os
 import sys
+import tomllib
 from collections.abc import Callable
 from functools import lru_cache
 from ipaddress import IPv4Network, IPv6Network
@@ -22,6 +23,25 @@ BACKEND_ROOT = Path(__file__).parent.parent.resolve()
 BOOK_FILES_DIR = BACKEND_ROOT / "book-files"
 BOOK_COVERS_DIR = BOOK_FILES_DIR / "book-covers"
 EPUBS_DIR = BOOK_FILES_DIR / "epubs"
+
+
+def _read_project_version() -> str:
+    """Read the release version from the packaged `pyproject.toml`.
+
+    The Docker image installs dependencies without the project itself, so
+    `importlib.metadata` has nothing to read there; the manifest is copied
+    alongside `src/` and is the one version source both environments share.
+    """
+    manifest = BACKEND_ROOT / "pyproject.toml"
+    try:
+        with manifest.open("rb") as handle:
+            return str(tomllib.load(handle)["project"]["version"])
+    except (OSError, KeyError, tomllib.TOMLDecodeError):
+        logging.getLogger(__name__).warning("Could not read version from %s", manifest)
+        return "unknown"
+
+
+PROJECT_VERSION = _read_project_version()
 
 
 def normalize_database_url(url: str) -> str:
@@ -50,7 +70,7 @@ class Settings(BaseSettings):
     # API (constants, not from env)
     API_V1_PREFIX: str = "/api/v1"
     PROJECT_NAME: str = "crossbill API"
-    VERSION: str = "0.1.0"
+    VERSION: str = PROJECT_VERSION
 
     # Environment
     ENVIRONMENT: Literal["development", "production", "test"] = "development"

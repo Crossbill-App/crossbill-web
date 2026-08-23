@@ -25,5 +25,6 @@ export const appSettings = (overrides: Partial<AppSettingsResponse> = {}): AppSe
     embeddings: false,
     user_registrations: false,
   },
+  version: '1.2.3',
   ...overrides,
 });

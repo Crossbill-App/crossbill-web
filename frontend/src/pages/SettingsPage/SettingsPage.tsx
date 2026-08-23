@@ -6,6 +6,7 @@ import { useAuth } from '@/context/AuthContext';
 import { Alert, Box, Button, Divider, Typography } from '@mui/material';
 import { useState } from 'react';
 import { useForm } from 'react-hook-form';
+import { AboutSection } from './AboutSection.tsx';
 import { EmbeddingBackfillSection } from './EmbeddingBackfillSection.tsx';
 
 interface EmailFormValues {
@@ -224,6 +225,8 @@ export const SettingsPage = () => {
       <EmbeddingFeature>
         <EmbeddingBackfillSection />
       </EmbeddingFeature>
+
+      <AboutSection />
     </PageContainer>
   );
 };

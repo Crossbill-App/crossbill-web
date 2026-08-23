@@ -30,10 +30,16 @@ from src.main import app
 
 DEFAULT_TARGET = Path(__file__).resolve().parent.parent / "openapi.json"
 
+# The app reports its real release version, which would rewrite the committed
+# contract on every version bump and fail CI's diff check on the next PR.
+CONTRACT_VERSION = "0.0.0"
+
 
 def main() -> None:
     target = Path(sys.argv[1]) if len(sys.argv) > 1 else DEFAULT_TARGET
-    target.write_text(json.dumps(app.openapi(), indent=2) + "\n", encoding="utf-8")
+    schema = app.openapi()
+    schema["info"]["version"] = CONTRACT_VERSION
+    target.write_text(json.dumps(schema, indent=2) + "\n", encoding="utf-8")
     sys.stdout.write(f"Wrote OpenAPI schema to {target}\n")
 
 
