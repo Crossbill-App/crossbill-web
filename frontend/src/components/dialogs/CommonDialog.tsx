@@ -37,6 +37,41 @@ interface CommonDialogProps {
 }
 
 /**
+ * Reference-counted body scroll lock, shared across every mounted
+ * `CommonDialog`. Nested dialogs (a note opened on top of a highlight, say)
+ * each mount/unmount their own lock effect; without a shared counter the
+ * inner dialog's mount reads `window.scrollY` as 0 (the outer lock already
+ * made the body `position: fixed`) and its unmount then clears the body
+ * styles the still-open outer dialog needs. Only the first locker records
+ * the scroll position and applies the styles; only the last unlocker
+ * restores them.
+ */
+let lockCount = 0;
+let lockedScrollY = 0;
+
+const lockBodyScroll = () => {
+  if (lockCount === 0) {
+    lockedScrollY = window.scrollY;
+    document.body.style.overflow = 'hidden';
+    document.body.style.position = 'fixed';
+    document.body.style.top = `-${lockedScrollY}px`;
+    document.body.style.width = '100%';
+  }
+  lockCount += 1;
+};
+
+const unlockBodyScroll = () => {
+  lockCount -= 1;
+  if (lockCount === 0) {
+    document.body.style.overflow = '';
+    document.body.style.position = '';
+    document.body.style.top = '';
+    document.body.style.width = '';
+    window.scrollTo(0, lockedScrollY);
+  }
+};
+
+/**
  * Common dialog component with standard structure:
  * - Header with title and close button
  * - Scrollable content area
@@ -81,24 +116,8 @@ export const CommonDialog = ({
   useEffect(() => {
     if (!open) return;
 
-    const scrollY = window.scrollY;
-
-    // Lock scroll by fixing body position
-    document.body.style.overflow = 'hidden';
-    document.body.style.position = 'fixed';
-    document.body.style.top = `-${scrollY}px`;
-    document.body.style.width = '100%';
-
-    return () => {
-      // Restore body styles
-      document.body.style.overflow = '';
-      document.body.style.position = '';
-      document.body.style.top = '';
-      document.body.style.width = '';
-
-      // Restore scroll position
-      window.scrollTo(0, scrollY);
-    };
+    lockBodyScroll();
+    return unlockBodyScroll;
   }, [open]);
 
   return (

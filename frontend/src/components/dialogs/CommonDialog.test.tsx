@@ -79,3 +79,27 @@ test('footer actions sit alongside the arrows', async () => {
   await expect.element(screen.getByRole('button', { name: 'Save' })).toBeVisible();
   await expect.element(screen.getByRole('button', { name: 'Next' })).toBeVisible();
 });
+
+/**
+ * Regression for #621: a nested dialog's own lock/unlock must not clobber
+ * the outer dialog's scroll lock while the outer dialog is still open.
+ */
+test('closing a nested dialog leaves the outer dialog body scroll lock intact', async () => {
+  await renderDialog();
+  const lockedTop = document.body.style.top;
+  expect(document.body.style.position).toBe('fixed');
+
+  const nested = await render(
+    <ThemeProvider theme={theme}>
+      <CommonDialog open onClose={vi.fn()} title="Nested">
+        <p>Nested body</p>
+      </CommonDialog>
+    </ThemeProvider>
+  );
+  await expect.element(nested.getByText('Nested body')).toBeVisible();
+
+  await nested.unmount();
+
+  expect(document.body.style.position).toBe('fixed');
+  expect(document.body.style.top).toBe(lockedTop);
+});
