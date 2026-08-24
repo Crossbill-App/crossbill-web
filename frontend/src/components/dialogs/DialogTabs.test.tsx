@@ -1,5 +1,8 @@
+import { CommonDialog } from '@/components/dialogs/CommonDialog';
 import { DialogTabs } from '@/components/dialogs/DialogTabs';
 import { useDialogHorizontalNavigation } from '@/components/dialogs/useDialogHorizontalNavigation';
+import { theme } from '@/theme/theme';
+import { ThemeProvider } from '@mui/material/styles';
 import { expect, test, vi } from 'vitest';
 import { render } from 'vitest-browser-react';
 import { userEvent } from 'vitest/browser';
@@ -9,23 +12,29 @@ import { userEvent } from 'vitest/browser';
  * arrow keys page to the previous/next entity.
  */
 const NavigableDialog = ({ onNavigate }: { onNavigate: (newIndex: number) => void }) => {
-  useDialogHorizontalNavigation({
-    open: true,
+  const { navigation } = useDialogHorizontalNavigation({
     currentIndex: 1,
     totalCount: 3,
     onNavigate,
   });
 
   return (
-    <div>
-      <button type="button">Body control</button>
-      <DialogTabs
-        tabs={[
-          { key: 'notes', label: 'Notes', count: 1, content: <div>Linked notes</div> },
-          { key: 'flashcards', label: 'Flashcards', count: 2, content: <div>Flashcard list</div> },
-        ]}
-      />
-    </div>
+    <ThemeProvider theme={theme}>
+      <CommonDialog open onClose={vi.fn()} title="Chapter three" navigation={navigation}>
+        <button type="button">Body control</button>
+        <DialogTabs
+          tabs={[
+            { key: 'notes', label: 'Notes', count: 1, content: <div>Linked notes</div> },
+            {
+              key: 'flashcards',
+              label: 'Flashcards',
+              count: 2,
+              content: <div>Flashcard list</div>,
+            },
+          ]}
+        />
+      </CommonDialog>
+    </ThemeProvider>
   );
 };
 

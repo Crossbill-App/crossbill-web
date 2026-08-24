@@ -58,7 +58,6 @@ export const ChapterDetailDialog = ({
   const { activeIndex, totalCount, navigateToIndex } = controller;
 
   const { hasNavigation, navigation } = useDialogHorizontalNavigation({
-    open: controller.activeId !== null,
     currentIndex: activeIndex,
     totalCount,
     onNavigate: navigateToIndex,

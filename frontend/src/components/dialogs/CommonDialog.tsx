@@ -1,3 +1,5 @@
+import { useDialogStackEntry } from '@/components/dialogs/dialogStack.ts';
+import type { DialogNavigation } from '@/components/dialogs/useDialogHorizontalNavigation.ts';
 import { ArrowBackIcon, ArrowForwardIcon, CloseIcon } from '@/theme/Icons.tsx';
 import {
   Box,
@@ -11,13 +13,6 @@ import {
 } from '@mui/material';
 import { useEffect, type ReactNode } from 'react';
 
-interface DialogNavigation {
-  hasPrevious: boolean;
-  hasNext: boolean;
-  onPrevious: () => void;
-  onNext: () => void;
-}
-
 interface CommonDialogProps {
   open: boolean;
   onClose: () => void;
@@ -26,9 +21,10 @@ interface CommonDialogProps {
   footerActions?: ReactNode;
   /**
    * Paging to the previous/next entity, rendered centred in the footer at
-   * every width. Wider screens additionally get the controls beside the
-   * content (`CommonDialogHorizontalNavigation`); the footer is the pair that
-   * is always in the same place, whatever the dialog is showing.
+   * every width, and bound to the left/right arrow keys. Wider screens
+   * additionally get the controls beside the content
+   * (`CommonDialogHorizontalNavigation`); the footer is the pair that is
+   * always in the same place, whatever the dialog is showing.
    */
   navigation?: DialogNavigation;
   maxWidth?: 'xs' | 'sm' | 'md' | 'lg' | 'xl';
@@ -92,6 +88,7 @@ export const CommonDialog = ({
 }: CommonDialogProps) => {
   const theme = useTheme();
   const fullScreen = useMediaQuery(theme.breakpoints.down('sm'));
+  const isTopmostDialog = useDialogStackEntry(open);
 
   const footerNavigation = navigation ? (
     <Box sx={{ display: 'flex', gap: 1 }}>
@@ -119,6 +116,39 @@ export const CommonDialog = ({
     lockBodyScroll();
     return unlockBodyScroll;
   }, [open]);
+
+  useEffect(() => {
+    if (!open || !navigation) return;
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // A dialog opened on top of this one shadows it, whether or not it pages
+      // between entities of its own.
+      if (!isTopmostDialog()) return;
+
+      const target = e.target as HTMLElement;
+
+      // Don't navigate when user is typing in an input field
+      const isEditableElement =
+        target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable;
+
+      // Don't navigate when user is interacting with element inside area which is marked as to prevent
+      // navigation by the special attribute
+      const isInPreventNavigationArea = target.closest('[data-prevent-navigation="true"]');
+
+      if (isEditableElement || isInPreventNavigationArea) return;
+
+      if (e.key === 'ArrowLeft' && navigation.hasPrevious) {
+        e.preventDefault();
+        navigation.onPrevious();
+      } else if (e.key === 'ArrowRight' && navigation.hasNext) {
+        e.preventDefault();
+        navigation.onNext();
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [open, navigation, isTopmostDialog]);
 
   return (
     <Dialog

@@ -103,3 +103,42 @@ test('closing a nested dialog leaves the outer dialog body scroll lock intact', 
   expect(document.body.style.position).toBe('fixed');
   expect(document.body.style.top).toBe(lockedTop);
 });
+
+/**
+ * Regression for #620: registration on the dialog stack lives in the shell,
+ * so a nested dialog shadows the one beneath it without its own author having
+ * to opt in.
+ */
+test('a nested dialog with no navigation of its own blocks arrow keys from the dialog beneath it', async () => {
+  const navigation = aNavigation();
+  await renderDialog({ navigation });
+
+  const nested = await renderDialog({ title: 'Nested' });
+  await expect.element(nested.getByText('Nested')).toBeVisible();
+
+  await userEvent.keyboard('{ArrowRight}');
+
+  expect(navigation.onNext).not.toHaveBeenCalled();
+});
+
+test('closing the nested dialog restores arrow-key paging on the dialog beneath it', async () => {
+  const navigation = aNavigation();
+  await renderDialog({ navigation });
+  const nested = await renderDialog({ title: 'Nested' });
+
+  await nested.unmount();
+  await userEvent.keyboard('{ArrowRight}');
+
+  expect(navigation.onNext).toHaveBeenCalled();
+});
+
+test('arrow keys page the dialog and stop at the ends of the list', async () => {
+  const navigation = aNavigation({ hasNext: false });
+  await renderDialog({ navigation });
+
+  await userEvent.keyboard('{ArrowRight}');
+  expect(navigation.onNext).not.toHaveBeenCalled();
+
+  await userEvent.keyboard('{ArrowLeft}');
+  expect(navigation.onPrevious).toHaveBeenCalled();
+});
