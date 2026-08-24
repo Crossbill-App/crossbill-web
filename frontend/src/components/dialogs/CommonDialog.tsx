@@ -1,3 +1,5 @@
+import { useDialogStackEntry } from '@/components/dialogs/dialogStack.ts';
+import type { DialogNavigation } from '@/components/dialogs/useDialogHorizontalNavigation.ts';
 import { ArrowBackIcon, ArrowForwardIcon, CloseIcon } from '@/theme/Icons.tsx';
 import {
   Box,
@@ -11,13 +13,6 @@ import {
 } from '@mui/material';
 import { useEffect, type ReactNode } from 'react';
 
-interface DialogNavigation {
-  hasPrevious: boolean;
-  hasNext: boolean;
-  onPrevious: () => void;
-  onNext: () => void;
-}
-
 interface CommonDialogProps {
   open: boolean;
   onClose: () => void;
@@ -26,15 +21,51 @@ interface CommonDialogProps {
   footerActions?: ReactNode;
   /**
    * Paging to the previous/next entity, rendered centred in the footer at
-   * every width. Wider screens additionally get the controls beside the
-   * content (`CommonDialogHorizontalNavigation`); the footer is the pair that
-   * is always in the same place, whatever the dialog is showing.
+   * every width, and bound to the left/right arrow keys. Wider screens
+   * additionally get the controls beside the content
+   * (`CommonDialogHorizontalNavigation`); the footer is the pair that is
+   * always in the same place, whatever the dialog is showing.
    */
   navigation?: DialogNavigation;
   maxWidth?: 'xs' | 'sm' | 'md' | 'lg' | 'xl';
   isLoading?: boolean;
   headerElement?: ReactNode;
 }
+
+/**
+ * Reference-counted body scroll lock, shared across every mounted
+ * `CommonDialog`. Nested dialogs (a note opened on top of a highlight, say)
+ * each mount/unmount their own lock effect; without a shared counter the
+ * inner dialog's mount reads `window.scrollY` as 0 (the outer lock already
+ * made the body `position: fixed`) and its unmount then clears the body
+ * styles the still-open outer dialog needs. Only the first locker records
+ * the scroll position and applies the styles; only the last unlocker
+ * restores them.
+ */
+let lockCount = 0;
+let lockedScrollY = 0;
+
+const lockBodyScroll = () => {
+  if (lockCount === 0) {
+    lockedScrollY = window.scrollY;
+    document.body.style.overflow = 'hidden';
+    document.body.style.position = 'fixed';
+    document.body.style.top = `-${lockedScrollY}px`;
+    document.body.style.width = '100%';
+  }
+  lockCount += 1;
+};
+
+const unlockBodyScroll = () => {
+  lockCount -= 1;
+  if (lockCount === 0) {
+    document.body.style.overflow = '';
+    document.body.style.position = '';
+    document.body.style.top = '';
+    document.body.style.width = '';
+    window.scrollTo(0, lockedScrollY);
+  }
+};
 
 /**
  * Common dialog component with standard structure:
@@ -57,6 +88,7 @@ export const CommonDialog = ({
 }: CommonDialogProps) => {
   const theme = useTheme();
   const fullScreen = useMediaQuery(theme.breakpoints.down('sm'));
+  const isTopmostDialog = useDialogStackEntry(open);
 
   const footerNavigation = navigation ? (
     <Box sx={{ display: 'flex', gap: 1 }}>
@@ -81,25 +113,42 @@ export const CommonDialog = ({
   useEffect(() => {
     if (!open) return;
 
-    const scrollY = window.scrollY;
-
-    // Lock scroll by fixing body position
-    document.body.style.overflow = 'hidden';
-    document.body.style.position = 'fixed';
-    document.body.style.top = `-${scrollY}px`;
-    document.body.style.width = '100%';
-
-    return () => {
-      // Restore body styles
-      document.body.style.overflow = '';
-      document.body.style.position = '';
-      document.body.style.top = '';
-      document.body.style.width = '';
-
-      // Restore scroll position
-      window.scrollTo(0, scrollY);
-    };
+    lockBodyScroll();
+    return unlockBodyScroll;
   }, [open]);
+
+  useEffect(() => {
+    if (!open || !navigation) return;
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // A dialog opened on top of this one shadows it, whether or not it pages
+      // between entities of its own.
+      if (!isTopmostDialog()) return;
+
+      const target = e.target as HTMLElement;
+
+      // Don't navigate when user is typing in an input field
+      const isEditableElement =
+        target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable;
+
+      // Don't navigate when user is interacting with element inside area which is marked as to prevent
+      // navigation by the special attribute
+      const isInPreventNavigationArea = target.closest('[data-prevent-navigation="true"]');
+
+      if (isEditableElement || isInPreventNavigationArea) return;
+
+      if (e.key === 'ArrowLeft' && navigation.hasPrevious) {
+        e.preventDefault();
+        navigation.onPrevious();
+      } else if (e.key === 'ArrowRight' && navigation.hasNext) {
+        e.preventDefault();
+        navigation.onNext();
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [open, navigation, isTopmostDialog]);
 
   return (
     <Dialog

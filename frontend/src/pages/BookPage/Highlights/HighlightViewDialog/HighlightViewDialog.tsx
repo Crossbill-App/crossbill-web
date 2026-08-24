@@ -50,7 +50,6 @@ export const HighlightViewDialog = ({
   });
 
   const { hasNavigation, navigation } = useDialogHorizontalNavigation({
-    open,
     currentIndex: controller.activeIndex,
     totalCount: controller.totalCount,
     onNavigate: controller.navigateToIndex,
