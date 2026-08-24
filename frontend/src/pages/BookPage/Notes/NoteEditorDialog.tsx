@@ -1,5 +1,6 @@
 import type { Note, NoteWithLinks } from '@/api/generated/model';
 import { CommonDialog } from '@/components/dialogs/CommonDialog.tsx';
+import { useDialogHorizontalNavigation } from '@/components/dialogs/useDialogHorizontalNavigation.ts';
 import { Box, Button } from '@mui/material';
 import { useRef, useState } from 'react';
 
@@ -36,6 +37,10 @@ export const NoteEditorDialog = ({
 }: NoteEditorDialogProps) => {
   const formRef = useRef<NoteEditorFormHandle>(null);
   const [status, setStatus] = useState({ isSaving: false, canSave: false });
+
+  // No paging of its own, but registering keeps arrow keys from leaking
+  // through to a dialog this one is nested on top of (#620).
+  useDialogHorizontalNavigation({ open, currentIndex: 0, totalCount: 1 });
 
   return (
     <CommonDialog

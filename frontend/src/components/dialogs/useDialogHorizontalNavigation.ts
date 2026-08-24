@@ -59,23 +59,28 @@ export const useDialogHorizontalNavigation = ({
     }
   }, [currentIndex, hasNext, onNavigate]);
 
-  // Register/unregister this dialog on the navigation stack
+  // Register/unregister this dialog on the navigation stack. Every open dialog
+  // registers, whether or not it has navigation of its own: a modal with no
+  // navigation content (e.g. a note viewed on its own, not from a paged list)
+  // must still shadow the dialogs beneath it, or their arrow-key listener
+  // stays "topmost" and pages a dialog the user can't even see.
   useEffect(() => {
-    if (!open || !hasNavigation) return;
+    if (!open) return;
 
     const id = idRef.current;
     activeNavigationStack.push(id);
     return () => {
       activeNavigationStack = activeNavigationStack.filter((s) => s !== id);
     };
-  }, [open, hasNavigation]);
+  }, [open]);
 
   // Keyboard navigation
   useEffect(() => {
     if (!open || !hasNavigation) return;
 
     const handleKeyDown = (e: KeyboardEvent) => {
-      // Only respond to keyboard events if this is the topmost navigation dialog
+      // Only respond to keyboard events if this is the topmost dialog on the
+      // stack, navigation-capable or not.
       if (activeNavigationStack[activeNavigationStack.length - 1] !== idRef.current) return;
 
       const target = e.target as HTMLElement;

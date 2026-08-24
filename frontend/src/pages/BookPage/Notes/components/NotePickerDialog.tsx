@@ -2,6 +2,7 @@ import type { NoteWithLinks } from '@/api/generated/model';
 import { useGetNotesForBook } from '@/api/generated/notes/notes.ts';
 import { Spinner } from '@/components/animations/Spinner.tsx';
 import { CommonDialog } from '@/components/dialogs/CommonDialog.tsx';
+import { useDialogHorizontalNavigation } from '@/components/dialogs/useDialogHorizontalNavigation.ts';
 import { List, ListItemButton, ListItemText, Typography } from '@mui/material';
 
 interface NotePickerDialogProps {
@@ -26,6 +27,10 @@ export const NotePickerDialog = ({
   // NOTE: the orval axios mutator unwraps the response (`.then(({ data }) => data)`),
   // so the generated GET hook's `data` is the payload itself, not an AxiosResponse.
   const notes = data?.items ?? [];
+
+  // No paging of its own, but registering keeps arrow keys from leaking
+  // through to a dialog this one is nested on top of (#620).
+  useDialogHorizontalNavigation({ open, currentIndex: 0, totalCount: 1 });
 
   return (
     <CommonDialog open={open} onClose={onClose} title={title} maxWidth="sm">
