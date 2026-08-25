@@ -25,8 +25,8 @@ import type {
   HTTPValidationError,
   PaginatedResponseReadingSession,
   ReadingSessionAISummaryResponse,
-  ReadingSessionUploadRequest,
-  ReadingSessionUploadResponse,
+  ReadingSessionSyncRequest,
+  ReadingSessionSyncResponse,
 } from '../model';
 
 import { axiosInstance } from '../../axios-instance.ts';
@@ -47,26 +47,27 @@ const withQueryKey = <T extends object, K>(query: T, queryKey: K): T & { queryKe
 };
 
 /**
- * Upload reading sessions from KOReader for a single book.
+ * Sync reading sessions from KOReader for a single book.
  *
  * All sessions in a request must be for the same book.
  *
  * Args:
- *     request: Upload request containing book metadata and reading sessions
+ *     request: Sync request containing book metadata and reading sessions
  *
  * Returns:
- *     ReadingSessionUploadResponse with upload statistics
- * @summary Upload Reading Sessions
+ *     ReadingSessionSyncResponse with sync statistics
+ * @deprecated
+ * @summary Sync Reading Sessions
  */
 export const uploadReadingSessions = (
-  readingSessionUploadRequest: ReadingSessionUploadRequest,
+  readingSessionSyncRequest: ReadingSessionSyncRequest,
   signal?: AbortSignal
 ) => {
-  return axiosInstance<ReadingSessionUploadResponse>({
+  return axiosInstance<ReadingSessionSyncResponse>({
     url: `/api/v1/reading_sessions/upload`,
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    data: readingSessionUploadRequest,
+    data: readingSessionSyncRequest,
     signal,
   });
 };
@@ -78,13 +79,13 @@ export const getUploadReadingSessionsMutationOptions = <
   mutation?: UseMutationOptions<
     Awaited<ReturnType<typeof uploadReadingSessions>>,
     TError,
-    { data: ReadingSessionUploadRequest },
+    { data: ReadingSessionSyncRequest },
     TContext
   >;
 }): UseMutationOptions<
   Awaited<ReturnType<typeof uploadReadingSessions>>,
   TError,
-  { data: ReadingSessionUploadRequest },
+  { data: ReadingSessionSyncRequest },
   TContext
 > => {
   const mutationKey = ['uploadReadingSessions'];
@@ -96,7 +97,7 @@ export const getUploadReadingSessionsMutationOptions = <
 
   const mutationFn: MutationFunction<
     Awaited<ReturnType<typeof uploadReadingSessions>>,
-    { data: ReadingSessionUploadRequest }
+    { data: ReadingSessionSyncRequest }
   > = (props) => {
     const { data } = props ?? {};
 
@@ -109,18 +110,19 @@ export const getUploadReadingSessionsMutationOptions = <
 export type UploadReadingSessionsMutationResult = NonNullable<
   Awaited<ReturnType<typeof uploadReadingSessions>>
 >;
-export type UploadReadingSessionsMutationBody = ReadingSessionUploadRequest;
+export type UploadReadingSessionsMutationBody = ReadingSessionSyncRequest;
 export type UploadReadingSessionsMutationError = HTTPValidationError;
 
 /**
- * @summary Upload Reading Sessions
+ * @deprecated
+ * @summary Sync Reading Sessions
  */
 export const useUploadReadingSessions = <TError = HTTPValidationError, TContext = unknown>(
   options?: {
     mutation?: UseMutationOptions<
       Awaited<ReturnType<typeof uploadReadingSessions>>,
       TError,
-      { data: ReadingSessionUploadRequest },
+      { data: ReadingSessionSyncRequest },
       TContext
     >;
   },
@@ -128,10 +130,97 @@ export const useUploadReadingSessions = <TError = HTTPValidationError, TContext 
 ): UseMutationResult<
   Awaited<ReturnType<typeof uploadReadingSessions>>,
   TError,
-  { data: ReadingSessionUploadRequest },
+  { data: ReadingSessionSyncRequest },
   TContext
 > => {
   return useMutation(getUploadReadingSessionsMutationOptions(options), queryClient);
+};
+/**
+ * Sync reading sessions from KOReader for a single book.
+ *
+ * All sessions in a request must be for the same book.
+ *
+ * Args:
+ *     request: Sync request containing book metadata and reading sessions
+ *
+ * Returns:
+ *     ReadingSessionSyncResponse with sync statistics
+ * @summary Sync Reading Sessions
+ */
+export const syncReadingSessions = (
+  readingSessionSyncRequest: ReadingSessionSyncRequest,
+  signal?: AbortSignal
+) => {
+  return axiosInstance<ReadingSessionSyncResponse>({
+    url: `/api/v1/reading_sessions/sync`,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    data: readingSessionSyncRequest,
+    signal,
+  });
+};
+
+export const getSyncReadingSessionsMutationOptions = <
+  TError = HTTPValidationError,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof syncReadingSessions>>,
+    TError,
+    { data: ReadingSessionSyncRequest },
+    TContext
+  >;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof syncReadingSessions>>,
+  TError,
+  { data: ReadingSessionSyncRequest },
+  TContext
+> => {
+  const mutationKey = ['syncReadingSessions'];
+  const { mutation: mutationOptions } = options
+    ? options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey } };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof syncReadingSessions>>,
+    { data: ReadingSessionSyncRequest }
+  > = (props) => {
+    const { data } = props ?? {};
+
+    return syncReadingSessions(data);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type SyncReadingSessionsMutationResult = NonNullable<
+  Awaited<ReturnType<typeof syncReadingSessions>>
+>;
+export type SyncReadingSessionsMutationBody = ReadingSessionSyncRequest;
+export type SyncReadingSessionsMutationError = HTTPValidationError;
+
+/**
+ * @summary Sync Reading Sessions
+ */
+export const useSyncReadingSessions = <TError = HTTPValidationError, TContext = unknown>(
+  options?: {
+    mutation?: UseMutationOptions<
+      Awaited<ReturnType<typeof syncReadingSessions>>,
+      TError,
+      { data: ReadingSessionSyncRequest },
+      TContext
+    >;
+  },
+  queryClient?: QueryClient
+): UseMutationResult<
+  Awaited<ReturnType<typeof syncReadingSessions>>,
+  TError,
+  { data: ReadingSessionSyncRequest },
+  TContext
+> => {
+  return useMutation(getSyncReadingSessionsMutationOptions(options), queryClient);
 };
 /**
  * Get reading sessions for a specific book.

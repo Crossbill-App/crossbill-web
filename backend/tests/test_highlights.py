@@ -34,13 +34,13 @@ async def resync_edited_highlight(
     await create_book_via_api({"client_book_id": client_book_id, "title": client_book_id})
 
     created = await plugin_client.post(
-        "/api/v1/highlights/upload",
+        "/api/v1/highlights/sync",
         json={"client_book_id": client_book_id, "highlights": [first]},
     )
     assert created.json()["highlights_created"] == 1
 
     resynced = await plugin_client.post(
-        "/api/v1/highlights/upload",
+        "/api/v1/highlights/sync",
         json={"client_book_id": client_book_id, "highlights": [edited]},
     )
     assert resynced.json()["highlights_created"] == 0
@@ -59,7 +59,7 @@ async def upload_then_delete_highlight(
 ) -> None:
     """Upload one highlight and soft-delete it again, as a reader would."""
     upload = await plugin_client.post(
-        "/api/v1/highlights/upload",
+        "/api/v1/highlights/sync",
         json={"client_book_id": client_book_id, "highlights": [highlight]},
     )
     assert upload.json()["highlights_created"] == 1
@@ -112,7 +112,7 @@ class TestHighlightsUpload:
             ],
         }
 
-        response = await plugin_client.post("/api/v1/highlights/upload", json=payload)
+        response = await plugin_client.post("/api/v1/highlights/sync", json=payload)
 
         assert response.status_code == status.HTTP_200_OK
         data = response.json()
@@ -183,7 +183,7 @@ class TestHighlightsUpload:
             ],
         }
 
-        response = await plugin_client.post("/api/v1/highlights/upload", json=payload)
+        response = await plugin_client.post("/api/v1/highlights/sync", json=payload)
 
         assert response.status_code == status.HTTP_200_OK
         data = response.json()
@@ -243,7 +243,7 @@ class TestHighlightsUpload:
             ],
         }
 
-        response = await plugin_client.post("/api/v1/highlights/upload", json=payload)
+        response = await plugin_client.post("/api/v1/highlights/sync", json=payload)
         assert response.status_code == status.HTTP_200_OK
         assert response.json()["highlights_created"] == 2
 
@@ -273,7 +273,7 @@ class TestHighlightsUpload:
         )
 
         response = await plugin_client.post(
-            "/api/v1/highlights/upload",
+            "/api/v1/highlights/sync",
             json={
                 "client_book_id": "test-client-book-no-device",
                 "highlights": [
@@ -485,7 +485,7 @@ class TestHighlightsUpload:
         )
 
         second = await plugin_client.post(
-            "/api/v1/highlights/upload",
+            "/api/v1/highlights/sync",
             json={
                 "client_book_id": "test-client-book-note-deleted",
                 "highlights": [
@@ -524,7 +524,7 @@ class TestHighlightsUpload:
         highlight = {"text": "Passage without xpoints", "datetime": "2019-06-01 08:15:30"}
 
         first = await plugin_client.post(
-            "/api/v1/highlights/upload",
+            "/api/v1/highlights/sync",
             json={
                 "client_book_id": "test-client-book-xpoint-backfill",
                 "highlights": [highlight],
@@ -533,7 +533,7 @@ class TestHighlightsUpload:
         assert first.json()["highlights_created"] == 1
 
         second = await plugin_client.post(
-            "/api/v1/highlights/upload",
+            "/api/v1/highlights/sync",
             json={
                 "client_book_id": "test-client-book-xpoint-backfill",
                 "highlights": [
@@ -572,7 +572,7 @@ class TestHighlightsUpload:
         highlight = {"text": "Passage anchored once", "datetime": "2019-06-01 08:15:30"}
 
         first = await plugin_client.post(
-            "/api/v1/highlights/upload",
+            "/api/v1/highlights/sync",
             json={
                 "client_book_id": "test-client-book-xpoint-keeping",
                 "highlights": [
@@ -587,7 +587,7 @@ class TestHighlightsUpload:
         assert first.json()["highlights_created"] == 1
 
         second = await plugin_client.post(
-            "/api/v1/highlights/upload",
+            "/api/v1/highlights/sync",
             json={
                 "client_book_id": "test-client-book-xpoint-keeping",
                 "highlights": [
@@ -632,7 +632,7 @@ class TestHighlightsUpload:
 
         highlight = {"text": "Some content.", "datetime": "2019-06-01 08:15:30"}
         first = await plugin_client.post(
-            "/api/v1/highlights/upload",
+            "/api/v1/highlights/sync",
             json={
                 "client_book_id": "test-client-book-position-backfill",
                 "highlights": [highlight],
@@ -644,7 +644,7 @@ class TestHighlightsUpload:
         assert result.scalar_one().position is None
 
         second = await plugin_client.post(
-            "/api/v1/highlights/upload",
+            "/api/v1/highlights/sync",
             json={
                 "client_book_id": "test-client-book-position-backfill",
                 "highlights": [
@@ -683,7 +683,7 @@ class TestHighlightsUpload:
         )
 
         second = await plugin_client.post(
-            "/api/v1/highlights/upload",
+            "/api/v1/highlights/sync",
             json={
                 "client_book_id": "test-client-book-xpoint-deleted",
                 "highlights": [
@@ -733,14 +733,14 @@ class TestHighlightsUpload:
         }
 
         # First upload
-        response1 = await plugin_client.post("/api/v1/highlights/upload", json=payload)
+        response1 = await plugin_client.post("/api/v1/highlights/sync", json=payload)
         assert response1.status_code == status.HTTP_200_OK
         data1 = response1.json()
         assert data1["highlights_created"] == 1
         assert data1["highlights_skipped"] == 0
 
         # Second upload (should skip duplicate)
-        response2 = await plugin_client.post("/api/v1/highlights/upload", json=payload)
+        response2 = await plugin_client.post("/api/v1/highlights/sync", json=payload)
         assert response2.status_code == status.HTTP_200_OK
         data2 = response2.json()
         assert data2["highlights_created"] == 0
@@ -784,7 +784,7 @@ class TestHighlightsUpload:
             ],
         }
 
-        response1 = await plugin_client.post("/api/v1/highlights/upload", json=payload1)
+        response1 = await plugin_client.post("/api/v1/highlights/sync", json=payload1)
         assert response1.status_code == status.HTTP_200_OK
         assert response1.json()["highlights_created"] == 2
 
@@ -803,7 +803,7 @@ class TestHighlightsUpload:
             ],
         }
 
-        response2 = await plugin_client.post("/api/v1/highlights/upload", json=payload2)
+        response2 = await plugin_client.post("/api/v1/highlights/sync", json=payload2)
         assert response2.status_code == status.HTTP_200_OK
         data2 = response2.json()
         assert data2["highlights_created"] == 1
@@ -827,7 +827,7 @@ class TestHighlightsUpload:
             "highlights": [],
         }
 
-        response = await plugin_client.post("/api/v1/highlights/upload", json=payload)
+        response = await plugin_client.post("/api/v1/highlights/sync", json=payload)
 
         assert response.status_code == status.HTTP_200_OK
         data = response.json()
@@ -866,7 +866,7 @@ class TestHighlightsUpload:
             ],
         }
 
-        response = await plugin_client.post("/api/v1/highlights/upload", json=payload)
+        response = await plugin_client.post("/api/v1/highlights/sync", json=payload)
 
         assert response.status_code == status.HTTP_200_OK
         data = response.json()
@@ -903,7 +903,7 @@ class TestHighlightsUpload:
             ],
         }
 
-        response1 = await plugin_client.post("/api/v1/highlights/upload", json=payload1)
+        response1 = await plugin_client.post("/api/v1/highlights/sync", json=payload1)
         assert response1.status_code == status.HTTP_200_OK
         assert response1.json()["highlights_created"] == 1
 
@@ -927,7 +927,7 @@ class TestHighlightsUpload:
             ],
         }
 
-        response2 = await plugin_client.post("/api/v1/highlights/upload", json=payload2)
+        response2 = await plugin_client.post("/api/v1/highlights/sync", json=payload2)
         assert response2.status_code == status.HTTP_200_OK
         # Same text in different book = NOT a duplicate (scoped by book)
         # Allows highlighting the same passage in multiple books
@@ -945,7 +945,7 @@ class TestHighlightsUpload:
             ],
         }
 
-        response = await plugin_client.post("/api/v1/highlights/upload", json=payload)
+        response = await plugin_client.post("/api/v1/highlights/sync", json=payload)
 
         assert response.status_code == status.HTTP_422_UNPROCESSABLE_CONTENT
 
@@ -963,7 +963,7 @@ class TestHighlightsUpload:
             ],
         }
 
-        response = await plugin_client.post("/api/v1/highlights/upload", json=payload)
+        response = await plugin_client.post("/api/v1/highlights/sync", json=payload)
 
         assert response.status_code == status.HTTP_422_UNPROCESSABLE_CONTENT
 
@@ -1101,7 +1101,7 @@ async def sync(
     if removed_ids is not None:
         payload["removed_ids"] = removed_ids
 
-    response = await plugin_client.post("/api/v1/highlights/upload", json=payload)
+    response = await plugin_client.post("/api/v1/highlights/sync", json=payload)
     assert response.status_code == status.HTTP_200_OK, response.text
     return response.json()
 
@@ -1302,7 +1302,7 @@ class TestHighlightUploadRemovals:
             }
         ]
         first = await plugin_client.post(
-            "/api/v1/highlights/upload",
+            "/api/v1/highlights/sync",
             json={"client_book_id": "client-edited", "highlights": noted},
         )
         assert first.json()["highlights_created"] == 1
@@ -1314,7 +1314,7 @@ class TestHighlightUploadRemovals:
         # of it. Without the removal the edit would win and clear the note.
         edited = [{**noted[0], "datetime_updated": "2026-01-01 00:00:00", "note": ""}]
         second = await plugin_client.post(
-            "/api/v1/highlights/upload",
+            "/api/v1/highlights/sync",
             json={
                 "client_book_id": "client-edited",
                 "removed_ids": [stored.id],
@@ -1332,7 +1332,7 @@ class TestHighlightUploadRemovals:
     ) -> None:
         """A malformed ID is a client error, not an unhandled domain exception."""
         response = await plugin_client.post(
-            "/api/v1/highlights/upload",
+            "/api/v1/highlights/sync",
             json={"client_book_id": CLIENT_BOOK_ID, "highlights": [], "removed_ids": [-1]},
         )
 

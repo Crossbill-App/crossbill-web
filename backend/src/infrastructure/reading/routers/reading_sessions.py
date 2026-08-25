@@ -30,8 +30,8 @@ from src.infrastructure.reading.schemas import (
     HighlightLabel,
     ReadingSession,
     ReadingSessionAISummaryResponse,
-    ReadingSessionUploadRequest,
-    ReadingSessionUploadResponse,
+    ReadingSessionSyncRequest,
+    ReadingSessionSyncResponse,
 )
 
 router = APIRouter(prefix="", tags=["reading_sessions"])
@@ -83,34 +83,44 @@ def _build_session_schema(view: ReadingSessionView) -> ReadingSession:
     )
 
 
-# Gated per route: only the KOReader plugin uploads, the rest serves the web app.
+# Gated per route: only the KOReader plugin syncs, the rest serves the web app.
 @router.post(
-    "/reading_sessions/upload",
-    response_model=ReadingSessionUploadResponse,
+    "/reading_sessions/sync",
+    response_model=ReadingSessionSyncResponse,
     status_code=status.HTTP_200_OK,
     dependencies=[Depends(require_koreader_plugin)],
     responses=UPGRADE_REQUIRED_RESPONSES,
 )
-async def upload_reading_sessions(
-    request: ReadingSessionUploadRequest,
+# The path this endpoint was born under, kept until plugins calling it are gone.
+@router.post(
+    "/reading_sessions/upload",
+    operation_id="upload_reading_sessions",
+    response_model=ReadingSessionSyncResponse,
+    status_code=status.HTTP_200_OK,
+    dependencies=[Depends(require_koreader_plugin)],
+    responses=UPGRADE_REQUIRED_RESPONSES,
+    deprecated=True,
+)
+async def sync_reading_sessions(
+    request: ReadingSessionSyncRequest,
     current_user: Annotated[User, Depends(get_current_user)],
     use_case: ReadingSessionUploadUseCase = Depends(
         inject_use_case(container.reading.reading_session_upload_use_case)
     ),
-) -> ReadingSessionUploadResponse:
+) -> ReadingSessionSyncResponse:
     """
-    Upload reading sessions from KOReader for a single book.
+    Sync reading sessions from KOReader for a single book.
 
     All sessions in a request must be for the same book.
 
     Args:
-        request: Upload request containing book metadata and reading sessions
+        request: Sync request containing book metadata and reading sessions
 
     Returns:
-        ReadingSessionUploadResponse with upload statistics
+        ReadingSessionSyncResponse with sync statistics
     """
     # Convert Pydantic schemas to DTOs
-    upload_data = [
+    session_data = [
         ReadingSessionUploadData(
             start_time=s.start_time,
             end_time=s.end_time,
@@ -126,7 +136,7 @@ async def upload_reading_sessions(
     # Call use case
     result = await use_case.upload_reading_sessions(
         client_book_id=request.client_book_id,
-        sessions=upload_data,
+        sessions=session_data,
         user_id=current_user.id.value,
     )
 
@@ -141,7 +151,7 @@ async def upload_reading_sessions(
 
     message = ". ".join(message_parts) + "." if message_parts else "No sessions to process"
 
-    return ReadingSessionUploadResponse(
+    return ReadingSessionSyncResponse(
         success=True,
         message=message,
         book_id=result.book_id.value,  # Extract .value from BookId

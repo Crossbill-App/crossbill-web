@@ -40,8 +40,8 @@ class ReadingSession(ReadingSessionBase):
     model_config = {"from_attributes": True}
 
 
-class ReadingSessionUploadSessionItem(BaseModel):
-    """Schema for a single reading session in the upload request."""
+class ReadingSessionSyncItem(BaseModel):
+    """Schema for a single reading session in the sync request."""
 
     start_time: dt = Field(..., description="Session start timestamp")
     end_time: dt = Field(..., description="Session end timestamp")
@@ -65,8 +65,8 @@ class ReadingSessionUploadSessionItem(BaseModel):
         return self
 
 
-class ReadingSessionUploadRequest(BaseModel):
-    """Schema for uploading reading sessions from KOReader."""
+class ReadingSessionSyncRequest(BaseModel):
+    """Schema for syncing reading sessions from KOReader."""
 
     client_book_id: str = Field(
         ...,
@@ -74,23 +74,23 @@ class ReadingSessionUploadRequest(BaseModel):
         max_length=255,
         description="Client-provided stable book identifier for deduplication",
     )
-    sessions: list[ReadingSessionUploadSessionItem] = Field(
+    sessions: list[ReadingSessionSyncItem] = Field(
         ..., min_length=1, description="List of reading sessions for this book"
     )
 
 
-class ReadingSessionUploadResponse(BaseModel):
-    """Schema for reading session upload response.
+class ReadingSessionSyncResponse(BaseModel):
+    """Schema for reading session sync response.
 
     Note: If any session is invalid,
     the entire request fails with 422 and this response is never returned.
     """
 
-    success: bool = Field(..., description="Whether the upload was successful (always True)")
+    success: bool = Field(..., description="Whether the sync was successful (always True)")
     message: str = Field(..., description="Response message")
     book_id: int = Field(..., description="ID of the book for these sessions")
     created_count: int = Field(0, description="Number of sessions created")
-    skipped_duplicate_count: int = Field(0, description="Sessions skipped because already uploaded")
+    skipped_duplicate_count: int = Field(0, description="Sessions skipped because already synced")
 
 
 class ReadingSessionAISummaryResponse(BaseModel):

@@ -55,7 +55,7 @@ class TestHighlightUploadCreatesStyles:
             ],
         }
 
-        response = await plugin_client.post("/api/v1/highlights/upload", json=payload)
+        response = await plugin_client.post("/api/v1/highlights/sync", json=payload)
         assert response.status_code == status.HTTP_200_OK
         data = response.json()
         assert data["highlights_created"] == 2
@@ -108,7 +108,7 @@ class TestHighlightUploadCreatesStyles:
             ],
         }
 
-        response = await plugin_client.post("/api/v1/highlights/upload", json=payload)
+        response = await plugin_client.post("/api/v1/highlights/sync", json=payload)
         assert response.status_code == status.HTTP_200_OK
         assert response.json()["highlights_created"] == 2
 
@@ -159,7 +159,7 @@ class TestHighlightUploadCreatesStyles:
                 },
             ],
         }
-        response = await plugin_client.post("/api/v1/highlights/upload", json=payload)
+        response = await plugin_client.post("/api/v1/highlights/sync", json=payload)
         assert response.status_code == status.HTTP_200_OK
 
         # Get book details and check highlight_style_id is in the response
@@ -488,7 +488,7 @@ class TestHighlightUploadWithLabels:
                 },
             ],
         }
-        response = await plugin_client.post("/api/v1/highlights/upload", json=payload)
+        response = await plugin_client.post("/api/v1/highlights/sync", json=payload)
         assert response.status_code == status.HTTP_200_OK
         assert response.json()["highlights_created"] == 3
 
@@ -539,7 +539,7 @@ class TestHighlightUploadWithLabels:
                 },
             ],
         }
-        response = await plugin_client.post("/api/v1/highlights/upload", json=payload)
+        response = await plugin_client.post("/api/v1/highlights/sync", json=payload)
         assert response.status_code == status.HTTP_200_OK
 
         result = await db_session.execute(select(models.Book).filter_by(title="No Color Book"))

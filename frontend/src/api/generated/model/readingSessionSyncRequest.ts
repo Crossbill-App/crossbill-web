@@ -4,12 +4,12 @@
  * crossbill API
  * OpenAPI spec version: 0.0.0
  */
-import type { ReadingSessionUploadSessionItem } from './readingSessionUploadSessionItem.ts';
+import type { ReadingSessionSyncItem } from './readingSessionSyncItem.ts';
 
 /**
- * Schema for uploading reading sessions from KOReader.
+ * Schema for syncing reading sessions from KOReader.
  */
-export interface ReadingSessionUploadRequest {
+export interface ReadingSessionSyncRequest {
   /**
    * Client-provided stable book identifier for deduplication
    * @minLength 1
@@ -20,5 +20,5 @@ export interface ReadingSessionUploadRequest {
    * List of reading sessions for this book
    * @minItems 1
    */
-  sessions: ReadingSessionUploadSessionItem[];
+  sessions: ReadingSessionSyncItem[];
 }

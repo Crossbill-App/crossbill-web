@@ -7,9 +7,9 @@
 import type { HighlightCreate } from './highlightCreate.ts';
 
 /**
- * Schema for uploading highlights from KOReader.
+ * Schema for syncing highlights from KOReader.
  */
-export interface HighlightUploadRequest {
+export interface HighlightSyncRequest {
   /**
    * Client-provided stable book identifier for deduplication
    * @minLength 1
@@ -18,7 +18,7 @@ export interface HighlightUploadRequest {
   client_book_id: string;
   /** Identifier of the device the highlights come from */
   device_id?: string | null;
-  /** List of highlights to upload */
+  /** List of highlights to sync */
   highlights: HighlightCreate[];
   /**
    * IDs of highlights the reader deleted on the device. They are withheld from every device's pull and kept whole on the web. Unknown, foreign and already removed IDs are ignored, so a re-sent sync is harmless.

@@ -20,15 +20,15 @@ from src.infrastructure.reading.schemas.highlight_schemas import (
     HighlightLabelInBook,
     HighlightLabelUpdate,
     HighlightResponseBase,
-    HighlightUploadRequest,
-    HighlightUploadResponse,
+    HighlightSyncRequest,
+    HighlightSyncResponse,
 )
 from src.infrastructure.reading.schemas.reading_session_schemas import (
     ReadingSession,
     ReadingSessionAISummaryResponse,
-    ReadingSessionUploadRequest,
-    ReadingSessionUploadResponse,
-    ReadingSessionUploadSessionItem,
+    ReadingSessionSyncItem,
+    ReadingSessionSyncRequest,
+    ReadingSessionSyncResponse,
 )
 
 __all__ = [
@@ -48,12 +48,12 @@ __all__ = [
     "HighlightLabelInBook",
     "HighlightLabelUpdate",
     "HighlightResponseBase",
-    "HighlightUploadRequest",
-    "HighlightUploadResponse",
+    "HighlightSyncRequest",
+    "HighlightSyncResponse",
     "PositionResponse",
     "ReadingSession",
     "ReadingSessionAISummaryResponse",
-    "ReadingSessionUploadRequest",
-    "ReadingSessionUploadResponse",
-    "ReadingSessionUploadSessionItem",
+    "ReadingSessionSyncItem",
+    "ReadingSessionSyncRequest",
+    "ReadingSessionSyncResponse",
 ]

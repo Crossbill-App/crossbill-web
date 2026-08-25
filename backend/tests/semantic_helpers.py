@@ -257,7 +257,7 @@ async def upload_highlights(
 ) -> dict[str, PrimitiveData]:
     """Upload highlights through the API -- the one write path that opens a batch."""
     response = await plugin_client.post(
-        "/api/v1/highlights/upload",
+        "/api/v1/highlights/sync",
         json={
             "client_book_id": client_book_id,
             "highlights": [

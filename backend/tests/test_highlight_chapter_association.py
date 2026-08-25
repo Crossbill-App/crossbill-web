@@ -78,7 +78,7 @@ class TestHighlightChapterAssociation:
             ],
         }
 
-        response = await plugin_client.post("/api/v1/highlights/upload", json=payload)
+        response = await plugin_client.post("/api/v1/highlights/sync", json=payload)
 
         assert response.status_code == 200
         data = response.json()
@@ -155,7 +155,7 @@ class TestHighlightChapterAssociation:
             ],
         }
 
-        response = await plugin_client.post("/api/v1/highlights/upload", json=payload)
+        response = await plugin_client.post("/api/v1/highlights/sync", json=payload)
 
         assert response.status_code == 200
         data = response.json()
@@ -224,7 +224,7 @@ class TestHighlightChapterAssociation:
             ],
         }
 
-        response = await plugin_client.post("/api/v1/highlights/upload", json=payload)
+        response = await plugin_client.post("/api/v1/highlights/sync", json=payload)
 
         assert response.status_code == 200
         data = response.json()

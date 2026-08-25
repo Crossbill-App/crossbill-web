@@ -30,8 +30,8 @@ from src.infrastructure.reading.schemas import (
     ChapterWithHighlights,
     HighlightDeleteRequest,
     HighlightDeleteResponse,
-    HighlightUploadRequest,
-    HighlightUploadResponse,
+    HighlightSyncRequest,
+    HighlightSyncResponse,
 )
 from src.infrastructure.reading.schemas.highlight_builders import build_highlight_schema
 
@@ -55,23 +55,33 @@ def _build_chapter_schema(chapter: SearchChapterView) -> ChapterWithHighlights:
     )
 
 
-# Gated per route: only the KOReader plugin uploads, the rest serves the web app.
+# Gated per route: only the KOReader plugin syncs, the rest serves the web app.
 @router.post(
-    "/highlights/upload",
-    response_model=HighlightUploadResponse,
+    "/highlights/sync",
+    response_model=HighlightSyncResponse,
     status_code=status.HTTP_200_OK,
     dependencies=[Depends(require_koreader_plugin)],
     responses=UPGRADE_REQUIRED_RESPONSES,
 )
-async def upload_highlights(
-    request: HighlightUploadRequest,
+# The path this endpoint was born under, kept until plugins calling it are gone.
+@router.post(
+    "/highlights/upload",
+    operation_id="upload_highlights",
+    response_model=HighlightSyncResponse,
+    status_code=status.HTTP_200_OK,
+    dependencies=[Depends(require_koreader_plugin)],
+    responses=UPGRADE_REQUIRED_RESPONSES,
+    deprecated=True,
+)
+async def sync_highlights(
+    request: HighlightSyncRequest,
     current_user: Annotated[User, Depends(get_current_user)],
     use_case: HighlightUploadUseCase = Depends(
         inject_use_case(container.reading.highlight_upload_use_case)
     ),
-) -> HighlightUploadResponse:
+) -> HighlightSyncResponse:
     """
-    Upload highlights from KOReader.
+    Sync highlights from KOReader.
 
     Creates or updates book record and adds highlights with automatic deduplication.
     Duplicates are identified by the combination of book, text, and datetime.
@@ -84,13 +94,13 @@ async def upload_highlights(
     re-highlight and brings that highlight back.
 
     Args:
-        request: Highlight upload request containing book metadata and highlights
+        request: Highlight sync request containing book metadata and highlights
 
     Returns:
-        HighlightUploadResponse with upload statistics
+        HighlightSyncResponse with sync statistics
 
     Raises:
-        HTTPException: If upload fails due to server error
+        HTTPException: If the sync fails due to server error
     """
     highlight_data_list = [
         HighlightUploadData(
@@ -118,7 +128,7 @@ async def upload_highlights(
         removed_ids=request.removed_ids,
     )
 
-    return HighlightUploadResponse(
+    return HighlightSyncResponse(
         success=True,
         message="Successfully synced highlights",
         book_id=0,  # TODO: Return actual book_id from service if needed
