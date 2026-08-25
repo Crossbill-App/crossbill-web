@@ -1,7 +1,7 @@
 {
   "name": "site",
   "type": "module",
-  "version": "0.26.0",
+  "version": "0.26.1",
   "scripts": {
     "dev": "astro dev",
     "start": "astro dev",
