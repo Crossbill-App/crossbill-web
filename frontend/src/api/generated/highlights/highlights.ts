@@ -25,8 +25,8 @@ import type {
   HTTPValidationError,
   HighlightDeleteRequest,
   HighlightDeleteResponse,
-  HighlightUploadRequest,
-  HighlightUploadResponse,
+  HighlightSyncRequest,
+  HighlightSyncResponse,
   SearchBookHighlightsParams,
 } from '../model';
 
@@ -48,7 +48,7 @@ const withQueryKey = <T extends object, K>(query: T, queryKey: K): T & { queryKe
 };
 
 /**
- * Upload highlights from KOReader.
+ * Sync highlights from KOReader.
  *
  * Creates or updates book record and adds highlights with automatic deduplication.
  * Duplicates are identified by the combination of book, text, and datetime.
@@ -61,24 +61,25 @@ const withQueryKey = <T extends object, K>(query: T, queryKey: K): T & { queryKe
  * re-highlight and brings that highlight back.
  *
  * Args:
- *     request: Highlight upload request containing book metadata and highlights
+ *     request: Highlight sync request containing book metadata and highlights
  *
  * Returns:
- *     HighlightUploadResponse with upload statistics
+ *     HighlightSyncResponse with sync statistics
  *
  * Raises:
- *     HTTPException: If upload fails due to server error
- * @summary Upload Highlights
+ *     HTTPException: If the sync fails due to server error
+ * @deprecated
+ * @summary Sync Highlights
  */
 export const uploadHighlights = (
-  highlightUploadRequest: HighlightUploadRequest,
+  highlightSyncRequest: HighlightSyncRequest,
   signal?: AbortSignal
 ) => {
-  return axiosInstance<HighlightUploadResponse>({
+  return axiosInstance<HighlightSyncResponse>({
     url: `/api/v1/highlights/upload`,
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    data: highlightUploadRequest,
+    data: highlightSyncRequest,
     signal,
   });
 };
@@ -90,13 +91,13 @@ export const getUploadHighlightsMutationOptions = <
   mutation?: UseMutationOptions<
     Awaited<ReturnType<typeof uploadHighlights>>,
     TError,
-    { data: HighlightUploadRequest },
+    { data: HighlightSyncRequest },
     TContext
   >;
 }): UseMutationOptions<
   Awaited<ReturnType<typeof uploadHighlights>>,
   TError,
-  { data: HighlightUploadRequest },
+  { data: HighlightSyncRequest },
   TContext
 > => {
   const mutationKey = ['uploadHighlights'];
@@ -108,7 +109,7 @@ export const getUploadHighlightsMutationOptions = <
 
   const mutationFn: MutationFunction<
     Awaited<ReturnType<typeof uploadHighlights>>,
-    { data: HighlightUploadRequest }
+    { data: HighlightSyncRequest }
   > = (props) => {
     const { data } = props ?? {};
 
@@ -121,18 +122,19 @@ export const getUploadHighlightsMutationOptions = <
 export type UploadHighlightsMutationResult = NonNullable<
   Awaited<ReturnType<typeof uploadHighlights>>
 >;
-export type UploadHighlightsMutationBody = HighlightUploadRequest;
+export type UploadHighlightsMutationBody = HighlightSyncRequest;
 export type UploadHighlightsMutationError = HTTPValidationError;
 
 /**
- * @summary Upload Highlights
+ * @deprecated
+ * @summary Sync Highlights
  */
 export const useUploadHighlights = <TError = HTTPValidationError, TContext = unknown>(
   options?: {
     mutation?: UseMutationOptions<
       Awaited<ReturnType<typeof uploadHighlights>>,
       TError,
-      { data: HighlightUploadRequest },
+      { data: HighlightSyncRequest },
       TContext
     >;
   },
@@ -140,10 +142,106 @@ export const useUploadHighlights = <TError = HTTPValidationError, TContext = unk
 ): UseMutationResult<
   Awaited<ReturnType<typeof uploadHighlights>>,
   TError,
-  { data: HighlightUploadRequest },
+  { data: HighlightSyncRequest },
   TContext
 > => {
   return useMutation(getUploadHighlightsMutationOptions(options), queryClient);
+};
+/**
+ * Sync highlights from KOReader.
+ *
+ * Creates or updates book record and adds highlights with automatic deduplication.
+ * Duplicates are identified by the combination of book, text, and datetime.
+ *
+ * ``removed_ids`` carries the highlights the reader deleted on the device:
+ * they are withheld from every device's pull and stay whole on the web.
+ *
+ * A highlight flagged ``is_new`` was created on the device after its last
+ * pull, so a duplicate of a removed or deleted highlight is a deliberate
+ * re-highlight and brings that highlight back.
+ *
+ * Args:
+ *     request: Highlight sync request containing book metadata and highlights
+ *
+ * Returns:
+ *     HighlightSyncResponse with sync statistics
+ *
+ * Raises:
+ *     HTTPException: If the sync fails due to server error
+ * @summary Sync Highlights
+ */
+export const syncHighlights = (
+  highlightSyncRequest: HighlightSyncRequest,
+  signal?: AbortSignal
+) => {
+  return axiosInstance<HighlightSyncResponse>({
+    url: `/api/v1/highlights/sync`,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    data: highlightSyncRequest,
+    signal,
+  });
+};
+
+export const getSyncHighlightsMutationOptions = <
+  TError = HTTPValidationError,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof syncHighlights>>,
+    TError,
+    { data: HighlightSyncRequest },
+    TContext
+  >;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof syncHighlights>>,
+  TError,
+  { data: HighlightSyncRequest },
+  TContext
+> => {
+  const mutationKey = ['syncHighlights'];
+  const { mutation: mutationOptions } = options
+    ? options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey } };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof syncHighlights>>,
+    { data: HighlightSyncRequest }
+  > = (props) => {
+    const { data } = props ?? {};
+
+    return syncHighlights(data);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type SyncHighlightsMutationResult = NonNullable<Awaited<ReturnType<typeof syncHighlights>>>;
+export type SyncHighlightsMutationBody = HighlightSyncRequest;
+export type SyncHighlightsMutationError = HTTPValidationError;
+
+/**
+ * @summary Sync Highlights
+ */
+export const useSyncHighlights = <TError = HTTPValidationError, TContext = unknown>(
+  options?: {
+    mutation?: UseMutationOptions<
+      Awaited<ReturnType<typeof syncHighlights>>,
+      TError,
+      { data: HighlightSyncRequest },
+      TContext
+    >;
+  },
+  queryClient?: QueryClient
+): UseMutationResult<
+  Awaited<ReturnType<typeof syncHighlights>>,
+  TError,
+  { data: HighlightSyncRequest },
+  TContext
+> => {
+  return useMutation(getSyncHighlightsMutationOptions(options), queryClient);
 };
 /**
  * Search for highlights in book using full-text search.

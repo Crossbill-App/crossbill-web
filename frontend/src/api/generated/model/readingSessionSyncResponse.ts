@@ -6,13 +6,13 @@
  */
 
 /**
- * Schema for reading session upload response.
+ * Schema for reading session sync response.
  *
  * Note: If any session is invalid,
  * the entire request fails with 422 and this response is never returned.
  */
-export interface ReadingSessionUploadResponse {
-  /** Whether the upload was successful (always True) */
+export interface ReadingSessionSyncResponse {
+  /** Whether the sync was successful (always True) */
   success: boolean;
   /** Response message */
   message: string;
@@ -20,6 +20,6 @@ export interface ReadingSessionUploadResponse {
   book_id: number;
   /** Number of sessions created */
   created_count?: number;
-  /** Sessions skipped because already uploaded */
+  /** Sessions skipped because already synced */
   skipped_duplicate_count?: number;
 }

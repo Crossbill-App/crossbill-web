@@ -149,8 +149,8 @@ class Highlight(HighlightResponseBase):
     flashcards: list[Flashcard] = Field(..., description="List of flashcards for this highlight")
 
 
-class HighlightUploadRequest(BaseModel):
-    """Schema for uploading highlights from KOReader."""
+class HighlightSyncRequest(BaseModel):
+    """Schema for syncing highlights from KOReader."""
 
     client_book_id: str = Field(
         ...,
@@ -161,7 +161,7 @@ class HighlightUploadRequest(BaseModel):
     device_id: str | None = Field(
         None, max_length=100, description="Identifier of the device the highlights come from"
     )
-    highlights: list[HighlightCreate] = Field(..., description="List of highlights to upload")
+    highlights: list[HighlightCreate] = Field(..., description="List of highlights to sync")
     removed_ids: list[Annotated[int, Field(ge=0)]] = Field(
         default_factory=list,
         description=(
@@ -172,10 +172,10 @@ class HighlightUploadRequest(BaseModel):
     )
 
 
-class HighlightUploadResponse(BaseModel):
-    """Schema for highlight upload response."""
+class HighlightSyncResponse(BaseModel):
+    """Schema for highlight sync response."""
 
-    success: bool = Field(..., description="Whether the upload was successful")
+    success: bool = Field(..., description="Whether the sync was successful")
     message: str = Field(..., description="Response message")
     book_id: int = Field(..., description="ID of the book")
     highlights_created: int = Field(..., ge=0, description="Number of highlights created")

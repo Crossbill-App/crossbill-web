@@ -494,7 +494,7 @@ class TestHighlightSyncWithSoftDelete:
             ],
         }
 
-        response = await plugin_client.post("/api/v1/highlights/upload", json=payload)
+        response = await plugin_client.post("/api/v1/highlights/sync", json=payload)
 
         assert response.status_code == status.HTTP_200_OK
         data = response.json()
@@ -547,7 +547,7 @@ class TestHighlightSyncWithSoftDelete:
             ],
         }
 
-        response = await plugin_client.post("/api/v1/highlights/upload", json=payload)
+        response = await plugin_client.post("/api/v1/highlights/sync", json=payload)
 
         assert response.status_code == status.HTTP_200_OK
         data = response.json()

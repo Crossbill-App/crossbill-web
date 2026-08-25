@@ -6,10 +6,10 @@
  */
 
 /**
- * Schema for highlight upload response.
+ * Schema for highlight sync response.
  */
-export interface HighlightUploadResponse {
-  /** Whether the upload was successful */
+export interface HighlightSyncResponse {
+  /** Whether the sync was successful */
   success: boolean;
   /** Response message */
   message: string;

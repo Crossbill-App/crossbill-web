@@ -6,9 +6,9 @@
  */
 
 /**
- * Schema for a single reading session in the upload request.
+ * Schema for a single reading session in the sync request.
  */
-export interface ReadingSessionUploadSessionItem {
+export interface ReadingSessionSyncItem {
   /** Session start timestamp */
   start_time: string;
   /** Session end timestamp */

@@ -41,6 +41,9 @@ GATED_ROUTES: list[tuple[str, str]] = [
     ("POST", f"/api/v1/ereader/books/{CLIENT_BOOK_ID}/epub"),
     ("GET", f"/api/v1/ereader/books/{CLIENT_BOOK_ID}/digest"),
     ("GET", f"/api/v1/ereader/books/{CLIENT_BOOK_ID}/highlights"),
+    ("POST", "/api/v1/highlights/sync"),
+    ("POST", "/api/v1/reading_sessions/sync"),
+    # The deprecated aliases of the two above, gated just as they are.
     ("POST", "/api/v1/highlights/upload"),
     ("POST", "/api/v1/reading_sessions/upload"),
 ]
@@ -52,7 +55,7 @@ EXPECTED_GATED_OPERATIONS = {
 
 HTTP_METHODS = {"GET", "PUT", "POST", "DELETE", "OPTIONS", "HEAD", "PATCH", "TRACE"}
 
-HIGHLIGHT_UPLOAD = {
+HIGHLIGHT_SYNC = {
     "client_book_id": CLIENT_BOOK_ID,
     "highlights": [
         {
@@ -62,7 +65,7 @@ HIGHLIGHT_UPLOAD = {
     ],
 }
 
-SESSION_UPLOAD = {
+SESSION_SYNC = {
     "client_book_id": CLIENT_BOOK_ID,
     "sessions": [
         {
@@ -130,20 +133,20 @@ async def test_every_gated_route_rejects_a_client_that_names_none(
     assert response.json() == expected_body(received_version=None)
 
 
-async def test_highlight_upload_writes_nothing_for_a_client_that_names_none(
+async def test_highlight_sync_writes_nothing_for_a_client_that_names_none(
     client: AsyncClient, db_session: AsyncSession, gated_book: models.Book
 ) -> None:
-    response = await client.post("/api/v1/highlights/upload", json=HIGHLIGHT_UPLOAD)
+    response = await client.post("/api/v1/highlights/sync", json=HIGHLIGHT_SYNC)
 
     assert response.status_code == status.HTTP_426_UPGRADE_REQUIRED, response.text
     stored = await db_session.execute(select(models.Highlight))
     assert stored.scalars().all() == []
 
 
-async def test_reading_session_upload_writes_nothing_for_a_client_that_names_none(
+async def test_reading_session_sync_writes_nothing_for_a_client_that_names_none(
     client: AsyncClient, db_session: AsyncSession, gated_book: models.Book
 ) -> None:
-    response = await client.post("/api/v1/reading_sessions/upload", json=SESSION_UPLOAD)
+    response = await client.post("/api/v1/reading_sessions/sync", json=SESSION_SYNC)
 
     assert response.status_code == status.HTTP_426_UPGRADE_REQUIRED, response.text
     stored = await db_session.execute(select(models.ReadingSession))

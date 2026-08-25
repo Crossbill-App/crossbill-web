@@ -70,7 +70,7 @@ async def rehighlight(
 ) -> dict[str, Any]:
     """Push REHIGHLIGHTED_TEXT as a highlight the device made after its last pull."""
     response = await plugin_client.post(
-        "/api/v1/highlights/upload",
+        "/api/v1/highlights/sync",
         json={
             "client_book_id": "book-1",
             "removed_ids": removed_ids or [],

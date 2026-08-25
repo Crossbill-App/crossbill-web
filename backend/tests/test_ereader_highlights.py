@@ -20,7 +20,7 @@ async def _upload(
     payload: dict[str, Any] = {"client_book_id": client_book_id, "highlights": highlights}
     if device_id is not None:
         payload["device_id"] = device_id
-    response = await plugin_client.post("/api/v1/highlights/upload", json=payload)
+    response = await plugin_client.post("/api/v1/highlights/sync", json=payload)
     assert response.status_code == 200, response.text
     assert response.json()["highlights_created"] == len(highlights)
 

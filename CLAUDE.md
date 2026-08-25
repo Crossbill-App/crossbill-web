@@ -51,8 +51,9 @@ option").
 
 ### The plugin-only surface is version-gated
 
-`/ereader/*`, `/highlights/upload` and `/reading_sessions/upload` are called by
-the KOReader plugin alone, and reject clients older than the minimum in
+`/ereader/*`, `/highlights/sync` and `/reading_sessions/sync` — the last two
+still reachable under their deprecated `/upload` aliases — are called by the
+KOReader plugin alone, and reject clients older than the minimum in
 `backend/src/infrastructure/common/client_version.py` with HTTP 426. Breaking
 the request or response contract of any of them for old plugins means bumping
 the `koreader-plugin` minimum **in the same PR** — never out of band.

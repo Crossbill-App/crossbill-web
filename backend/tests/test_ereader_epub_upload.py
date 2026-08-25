@@ -110,7 +110,7 @@ class TestEpubUpload:
         storage_dir: Path,
     ) -> None:
         upload = await plugin_client.post(
-            "/api/v1/highlights/upload",
+            "/api/v1/highlights/sync",
             json={
                 "client_book_id": CLIENT_BOOK_ID,
                 "highlights": [

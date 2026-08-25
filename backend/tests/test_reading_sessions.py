@@ -115,14 +115,14 @@ async def create_reading_session(
 
 
 class TestUploadReadingSessions:
-    """Test suite for POST /reading_sessions/upload endpoint."""
+    """Test suite for POST /reading_sessions/sync endpoint."""
 
     async def test_upload_single_session_success(
         self, plugin_client: AsyncClient, db_session: AsyncSession, test_book: models.Book
     ) -> None:
         """Test successful upload of a single reading session."""
         response = await plugin_client.post(
-            "/api/v1/reading_sessions/upload",
+            "/api/v1/reading_sessions/sync",
             json={
                 "client_book_id": "test-client-book-id",
                 "sessions": [
@@ -160,7 +160,7 @@ class TestUploadReadingSessions:
     ) -> None:
         """Test successful bulk upload of multiple sessions for a single book."""
         response = await plugin_client.post(
-            "/api/v1/reading_sessions/upload",
+            "/api/v1/reading_sessions/sync",
             json={
                 "client_book_id": "test-client-book-id",
                 "sessions": [
@@ -224,14 +224,14 @@ class TestUploadReadingSessions:
         }
 
         # First upload
-        response1 = await plugin_client.post("/api/v1/reading_sessions/upload", json=session_data)
+        response1 = await plugin_client.post("/api/v1/reading_sessions/sync", json=session_data)
         assert response1.status_code == status.HTTP_200_OK
         data1 = response1.json()
         assert data1["created_count"] == 1
         assert data1["skipped_duplicate_count"] == 0
 
         # Second upload (duplicate)
-        response2 = await plugin_client.post("/api/v1/reading_sessions/upload", json=session_data)
+        response2 = await plugin_client.post("/api/v1/reading_sessions/sync", json=session_data)
         assert response2.status_code == status.HTTP_200_OK
         data2 = response2.json()
         assert data2["created_count"] == 0
@@ -247,7 +247,7 @@ class TestUploadReadingSessions:
     ) -> None:
         """Test that same start time from different devices is allowed."""
         response = await plugin_client.post(
-            "/api/v1/reading_sessions/upload",
+            "/api/v1/reading_sessions/sync",
             json={
                 "client_book_id": "test-client-book-id",
                 "sessions": [
@@ -283,7 +283,7 @@ class TestUploadReadingSessions:
     ) -> None:
         """Test uploading a session with page positions."""
         response = await plugin_client.post(
-            "/api/v1/reading_sessions/upload",
+            "/api/v1/reading_sessions/sync",
             json={
                 "client_book_id": "test-client-book-id",
                 "sessions": [
@@ -313,7 +313,7 @@ class TestUploadReadingSessions:
         self, plugin_client: AsyncClient, db_session: AsyncSession, test_book: models.Book
     ) -> None:
         response = await plugin_client.post(
-            "/api/v1/reading_sessions/upload",
+            "/api/v1/reading_sessions/sync",
             json={
                 "client_book_id": "test-client-book-id",
                 "sessions": [
@@ -338,7 +338,7 @@ class TestUploadReadingSessions:
         self, plugin_client: AsyncClient, db_session: AsyncSession, test_book: models.Book
     ) -> None:
         response = await plugin_client.post(
-            "/api/v1/reading_sessions/upload",
+            "/api/v1/reading_sessions/sync",
             json={
                 "client_book_id": "test-client-book-id",
                 "sessions": [
@@ -363,7 +363,7 @@ class TestUploadReadingSessions:
         self, plugin_client: AsyncClient, db_session: AsyncSession, test_book: models.Book
     ) -> None:
         response = await plugin_client.post(
-            "/api/v1/reading_sessions/upload",
+            "/api/v1/reading_sessions/sync",
             json={
                 "client_book_id": "test-client-book-id",
                 "sessions": [
@@ -429,7 +429,7 @@ class TestUploadReadingSessions:
     ) -> None:
         """Test that invalid session payloads return 422 and nothing is saved."""
         response = await plugin_client.post(
-            "/api/v1/reading_sessions/upload",
+            "/api/v1/reading_sessions/sync",
             json={"client_book_id": "test-client-book-id", "sessions": sessions},
         )
         assert response.status_code == status.HTTP_422_UNPROCESSABLE_CONTENT
