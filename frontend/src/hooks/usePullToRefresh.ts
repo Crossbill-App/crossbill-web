@@ -7,6 +7,12 @@ const MAX_PULL_PX = 120;
 const RESISTANCE = 0.5;
 
 /**
+ * How far the finger travels before the gesture is read as vertical or
+ * horizontal. Below this, a touch has no direction yet and is left alone.
+ */
+const DIRECTION_LOCK_SLOP_PX = 10;
+
+/**
  * Pull-down-to-refresh gesture for the document scroller.
  *
  * iOS home-screen web apps have no browser chrome, so Safari's own
@@ -18,6 +24,8 @@ export const usePullToRefresh = (onRefresh: () => Promise<unknown>) => {
   const [isRefreshing, setIsRefreshing] = useState(false);
 
   const startYRef = useRef<number | null>(null);
+  const startXRef = useRef(0);
+  const isPullingRef = useRef(false);
   const pullRef = useRef(0);
   const refreshingRef = useRef(false);
   const onRefreshRef = useRef(onRefresh);
@@ -35,14 +43,31 @@ export const usePullToRefresh = (onRefresh: () => Promise<unknown>) => {
     const isAtTop = () => window.scrollY <= 0;
 
     const handleTouchStart = (event: TouchEvent) => {
-      startYRef.current = event.touches.length === 1 && isAtTop() ? event.touches[0].clientY : null;
+      const isCandidate = event.touches.length === 1 && isAtTop();
+      startYRef.current = isCandidate ? event.touches[0].clientY : null;
+      startXRef.current = isCandidate ? event.touches[0].clientX : 0;
+      isPullingRef.current = false;
     };
 
     const handleTouchMove = (event: TouchEvent) => {
       if (startYRef.current === null || refreshingRef.current || !isAtTop()) return;
 
-      const delta = event.touches[0].clientY - startYRef.current;
-      if (delta <= 0) {
+      const deltaY = event.touches[0].clientY - startYRef.current;
+
+      if (!isPullingRef.current) {
+        const deltaX = event.touches[0].clientX - startXRef.current;
+        // Until the gesture has a direction, leave it to the browser.
+        if (Math.max(Math.abs(deltaX), Math.abs(deltaY)) < DIRECTION_LOCK_SLOP_PX) return;
+        if (Math.abs(deltaX) >= deltaY) {
+          // Mostly sideways: release the touch for good, so a horizontal
+          // scroller such as a carousel keeps the whole gesture.
+          startYRef.current = null;
+          return;
+        }
+        isPullingRef.current = true;
+      }
+
+      if (deltaY <= 0) {
         // Pulled back up: release the gesture so the page scrolls normally.
         setPull(0);
         return;
@@ -51,12 +76,13 @@ export const usePullToRefresh = (onRefresh: () => Promise<unknown>) => {
       // Only a non-passive listener may call this, which is why the listeners
       // are registered by hand instead of through React's touch props.
       event.preventDefault();
-      setPull(Math.min(delta * RESISTANCE, MAX_PULL_PX));
+      setPull(Math.min(deltaY * RESISTANCE, MAX_PULL_PX));
     };
 
     const handleTouchEnd = () => {
       const shouldRefresh = pullRef.current >= PULL_THRESHOLD_PX;
       startYRef.current = null;
+      isPullingRef.current = false;
       setPull(0);
       if (!shouldRefresh) return;
 
@@ -70,6 +96,7 @@ export const usePullToRefresh = (onRefresh: () => Promise<unknown>) => {
 
     const handleTouchCancel = () => {
       startYRef.current = null;
+      isPullingRef.current = false;
       setPull(0);
     };
 

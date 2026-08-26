@@ -39,47 +39,95 @@ function booksApi(title: string) {
   return { handlers, state };
 }
 
-const touchAt = (clientY: number) =>
-  new Touch({ identifier: 1, target: document.body, clientX: 0, clientY });
+const touchAt = (clientX: number, clientY: number) =>
+  new Touch({ identifier: 1, target: document.body, clientX, clientY });
 
-/** One complete downward drag from the top of the page. */
-const dragDown = (distance: number) => {
-  const dispatch = (type: string, touches: Touch[]) =>
-    window.dispatchEvent(new TouchEvent(type, { touches, cancelable: true, bubbles: true }));
-
-  dispatch('touchstart', [touchAt(0)]);
-  dispatch('touchmove', [touchAt(distance)]);
-  dispatch('touchend', []);
+const dispatch = (type: string, touches: Touch[]) => {
+  const event = new TouchEvent(type, { touches, cancelable: true, bubbles: true });
+  window.dispatchEvent(event);
+  return event;
 };
 
-test('pulling the page down past the threshold refetches the data on screen', async () => {
-  const { handlers, state } = booksApi('The Pragmatic Reader');
+/**
+ * One complete drag from the top of the page, in steps small enough that the
+ * gesture passes through the direction lock the way a real finger does.
+ * Returns whether the page swallowed the movement.
+ */
+const drag = ({ x = 0, y = 0 }: { x?: number; y?: number }) => {
+  const STEPS = 10;
+  dispatch('touchstart', [touchAt(0, 0)]);
+
+  let prevented = false;
+  for (let step = 1; step <= STEPS; step += 1) {
+    const move = dispatch('touchmove', [touchAt((x * step) / STEPS, (y * step) / STEPS)]);
+    prevented ||= move.defaultPrevented;
+  }
+
+  dispatch('touchend', []);
+  return { prevented };
+};
+
+/** One complete downward drag from the top of the page. */
+const dragDown = (distance: number) => drag({ y: distance });
+
+const ORIGINAL_TITLE = 'The Pragmatic Reader';
+const REFRESHED_TITLE = 'The Refreshed Reader';
+
+/**
+ * The front page on screen showing the original title, with the API primed to
+ * answer the next request with the refreshed one — so a refetch shows up as a
+ * changed title rather than only as a request count.
+ */
+async function aFrontPageReadyToRefresh() {
+  const { handlers, state } = booksApi(ORIGINAL_TITLE);
   worker.use(...handlers);
 
   const screen = await renderApp({ path: '/' });
-  await expect.element(screen.getByText('The Pragmatic Reader')).toBeVisible();
+  await expect.element(screen.getByText(ORIGINAL_TITLE)).toBeVisible();
 
-  state.title = 'The Refreshed Reader';
-  dragDown(300);
+  state.title = REFRESHED_TITLE;
 
-  await expect.element(screen.getByText('The Refreshed Reader')).toBeVisible();
-});
+  return { screen, state };
+}
 
-test('a pull that stops short of the threshold refetches nothing', async () => {
-  const { handlers, state } = booksApi('The Pragmatic Reader');
-  worker.use(...handlers);
+type FrontPage = Awaited<ReturnType<typeof aFrontPageReadyToRefresh>>;
 
-  const screen = await renderApp({ path: '/' });
-  await expect.element(screen.getByText('The Pragmatic Reader')).toBeVisible();
-
-  state.title = 'The Refreshed Reader';
-  // 30px of pull once resistance is applied: under the 70px threshold.
-  dragDown(60);
-
-  // A refresh fires its request off the touchend handler, so whatever this
-  // drag was going to do has reached the handler well inside this window.
+/**
+ * Nothing refetched: still the one request, still the original title. A
+ * refresh fires its request off the touchend handler, so whatever the drag was
+ * going to do has reached the handler well inside this window.
+ */
+async function expectNoRefresh({ screen, state }: FrontPage) {
   await new Promise((resolve) => setTimeout(resolve, 300));
 
   expect(state.requests).toBe(1);
-  await expect.element(screen.getByText('The Pragmatic Reader')).toBeVisible();
+  await expect.element(screen.getByText(ORIGINAL_TITLE)).toBeVisible();
+}
+
+test('pulling the page down past the threshold refetches the data on screen', async () => {
+  const { screen } = await aFrontPageReadyToRefresh();
+
+  dragDown(300);
+
+  await expect.element(screen.getByText(REFRESHED_TITLE)).toBeVisible();
+});
+
+test('a pull that stops short of the threshold refetches nothing', async () => {
+  const page = await aFrontPageReadyToRefresh();
+
+  // 30px of pull once resistance is applied: under the 70px threshold.
+  dragDown(60);
+
+  await expectNoRefresh(page);
+});
+
+test('a sideways swipe is left to the horizontal scroller under it', async () => {
+  const page = await aFrontPageReadyToRefresh();
+
+  // A carousel drag: far enough sideways to be horizontal, with the vertical
+  // drift a finger leaves behind — and past the refresh threshold on its own.
+  const { prevented } = drag({ x: -240, y: 200 });
+
+  expect(prevented).toBe(false);
+  await expectNoRefresh(page);
 });
