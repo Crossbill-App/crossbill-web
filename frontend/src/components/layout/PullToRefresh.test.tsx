@@ -1,5 +1,7 @@
 import type { BookWithHighlightCount } from '@/api/generated/model';
+import { aBookDetails, aChapter, aHighlight } from '@tests/fixtures/book';
 import { renderApp } from '@tests/harness/renderApp';
+import { bookApi } from '@tests/msw/bookApi';
 import { worker } from '@tests/msw/worker';
 import { http, HttpResponse } from 'msw';
 import { expect, test } from 'vitest';
@@ -131,4 +133,22 @@ test('a sideways swipe is left to the horizontal scroller under it', async () =>
 
   expect(prevented).toBe(false);
   await expectNoRefresh(page);
+});
+
+/**
+ * An open dialog pins the body with `position: fixed`, which reads back as
+ * `window.scrollY === 0` — the very thing the gesture reads to tell it is at
+ * the top of the page. Unguarded, every downward swipe in a dialog was
+ * swallowed as a pull and the dialog's own content never scrolled.
+ */
+test('a downward swipe inside an open dialog is left to the dialog to scroll', async () => {
+  const book = aBookDetails({ chapters: [aChapter({ highlights: [aHighlight({ id: 301 })] })] });
+  worker.use(...bookApi({ book }).handlers);
+
+  const screen = await renderApp({ path: '/book/1/highlights?highlightId=301' });
+  await expect.element(screen.getByRole('dialog')).toBeVisible();
+
+  const { prevented } = dragDown(300);
+
+  expect(prevented).toBe(false);
 });
