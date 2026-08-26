@@ -18,6 +18,9 @@ from src.application.library.queries.get_book_details_use_case import GetBookDet
 from src.application.library.queries.get_books_with_counts_use_case import (
     GetBooksWithCountsUseCase,
 )
+from src.application.library.queries.get_recently_synced_books_use_case import (
+    GetRecentlySyncedBooksUseCase,
+)
 from src.application.library.queries.get_recently_viewed_books_use_case import (
     GetRecentlyViewedBooksUseCase,
 )
@@ -236,6 +239,39 @@ async def get_recently_viewed_books(
         HTTPException: If fetching books fails due to server error
     """
     books = await use_case.get_recently_viewed(current_user.id.value, limit)
+
+    return CollectionResponse[BookWithHighlightCount](
+        items=[_build_book_with_counts_schema(book) for book in books]
+    )
+
+
+# Declared before "/{book_id}" so the literal path wins the match.
+@router.get(
+    "/recently-synced",
+    response_model=CollectionResponse[BookWithHighlightCount],
+    status_code=status.HTTP_200_OK,
+)
+async def get_recently_synced_books(
+    current_user: Annotated[User, Depends(get_current_user)],
+    use_case: GetRecentlySyncedBooksUseCase = Depends(
+        inject_use_case(container.library.get_recently_synced_books_use_case)
+    ),
+    limit: int = Query(10, ge=1, le=50, description="Maximum number of books to return"),
+) -> CollectionResponse[BookWithHighlightCount]:
+    """
+    Get the books a device has most recently synced, with their counts.
+
+    Returns books an e-reader has successfully sent highlights or reading
+    sessions for, most recently synced first. A book nothing has ever synced is
+    left out.
+
+    Args:
+        limit: Maximum number of books to return (default: 10, max: 50)
+
+    Returns:
+        CollectionResponse with list of recently synced books
+    """
+    books = await use_case.get_recently_synced(current_user.id.value, limit)
 
     return CollectionResponse[BookWithHighlightCount](
         items=[_build_book_with_counts_schema(book) for book in books]

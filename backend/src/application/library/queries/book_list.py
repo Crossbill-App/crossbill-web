@@ -65,3 +65,9 @@ class BookListQueryProtocol(Protocol):
     ) -> tuple[BookWithCountsView, ...]:
         """Return the books the user has opened, most recently viewed first."""
         ...
+
+    async def list_recently_synced(
+        self, user_id: UserId, limit: int
+    ) -> tuple[BookWithCountsView, ...]:
+        """Return the books a device has sent data for, most recently synced first."""
+        ...
