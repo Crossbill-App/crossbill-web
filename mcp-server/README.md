@@ -117,7 +117,7 @@ Every deletion tool in the server (these two plus `delete_note`, `delete_flashca
 - **list_books** - List books with optional search and pagination
 - **get_book** - Get detailed book info with chapters and highlights
 - **get_recently_viewed_books** - Get recently viewed books
-- **set_reading_stage** - Set a book's manual reading stage (`to_read`, `skimming`, `reading`, `finished`, `reflected`), or clear it back to the stage Crossbill infers from reading activity
+- **set_reading_stage** - Set a book's manual reading stage (`to_read`, `skimming`, `reading`, `finished`, `reflected`, `did_not_finish`), or clear it so the book has no stage
 - **delete_book** - Delete a book with all its chapters and highlights, after asking you to confirm (see [Deleting data](#deleting-data))
 
 ### Highlights

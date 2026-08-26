@@ -17,6 +17,7 @@ class ReadingStage(StrEnum):
     READING = "reading"
     FINISHED = "finished"
     REFLECTED = "reflected"
+    DID_NOT_FINISH = "did_not_finish"
 
 
 @dataclass

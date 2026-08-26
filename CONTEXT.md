@@ -20,8 +20,8 @@ _Avoid_: section, TOC entry, heading
 
 **Reading Stage**:
 The engagement stage a user has set for a book by hand — _to read_, _skimming_,
-_reading_, _finished_, _reflected_. It is declared, never inferred from
-activity.
+_reading_, _finished_, _reflected_, plus _did not finish_ for a book put down
+rather than completed. It is declared, never inferred from activity.
 _Avoid_: status, state, progress
 
 ### Reading

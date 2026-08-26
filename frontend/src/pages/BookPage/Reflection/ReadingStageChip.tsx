@@ -1,9 +1,13 @@
 import { useUpdateReadingStage } from '@/api/generated/books/books.ts';
 import { useMutationErrorHandler } from '@/hooks/useMutationErrorHandler.ts';
 import { useCacheEvents } from '@/lib/cacheEvents.ts';
-import { Chip, Menu, MenuItem } from '@mui/material';
+import { Chip, Divider, Menu, MenuItem } from '@mui/material';
 import { useState } from 'react';
-import { READING_STAGE_LABELS, READING_STAGES, type ReadingStageValue } from './readingStages';
+import {
+  READING_STAGE_LABELS,
+  READING_STAGE_PROGRESSION,
+  type ReadingStageValue,
+} from './readingStages';
 
 interface ReadingStageChipProps {
   bookId: number;
@@ -28,19 +32,21 @@ export const ReadingStageChip = ({ bookId, readingStage }: ReadingStageChipProps
     updateStage({ bookId, data: { reading_stage: stage } });
   };
 
+  const abandoned = readingStage === 'did_not_finish';
+
   return (
     <>
       <Chip
         label={readingStage ? READING_STAGE_LABELS[readingStage] : 'Set stage'}
         size="small"
-        color={readingStage ? 'primary' : 'default'}
+        color={readingStage && !abandoned ? 'primary' : 'default'}
         variant={readingStage ? 'filled' : 'outlined'}
         onClick={(event) => setAnchorEl(event.currentTarget)}
         disabled={isPending}
         sx={{ mt: 1.5 }}
       />
       <Menu anchorEl={anchorEl} open={Boolean(anchorEl)} onClose={() => setAnchorEl(null)}>
-        {READING_STAGES.map((stage) => (
+        {READING_STAGE_PROGRESSION.map((stage) => (
           <MenuItem
             key={stage}
             selected={stage === readingStage}
@@ -49,7 +55,16 @@ export const ReadingStageChip = ({ bookId, readingStage }: ReadingStageChipProps
             {READING_STAGE_LABELS[stage]}
           </MenuItem>
         ))}
-        {readingStage && <MenuItem onClick={() => handleSelect(null)}>Clear stage</MenuItem>}
+        <Divider />
+        <MenuItem selected={abandoned} onClick={() => handleSelect('did_not_finish')}>
+          {READING_STAGE_LABELS.did_not_finish}
+        </MenuItem>
+        {readingStage && [
+          <Divider key="clear-divider" />,
+          <MenuItem key="clear" onClick={() => handleSelect(null)}>
+            Clear stage
+          </MenuItem>,
+        ]}
       </Menu>
     </>
   );
