@@ -6,9 +6,7 @@ export const READING_STAGE_PROGRESSION = [
   'reflected',
 ] as const;
 
-const READING_STAGES = [...READING_STAGE_PROGRESSION, 'did_not_finish'] as const;
-
-export type ReadingStageValue = (typeof READING_STAGES)[number];
+export type ReadingStageValue = (typeof READING_STAGE_PROGRESSION)[number] | 'did_not_finish';
 
 export const READING_STAGE_LABELS: Record<ReadingStageValue, string> = {
   to_read: 'To read',
