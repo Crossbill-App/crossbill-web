@@ -1,6 +1,7 @@
 import type { Highlight } from '@/api/generated/model';
 import { LabelIndicator } from '@/pages/BookPage/common/LabelIndicator.tsx';
 import { NotOnDeviceChip } from '@/pages/BookPage/common/NotOnDeviceChip.tsx';
+import { formatHighlightDate } from '@/pages/BookPage/common/highlightDates.ts';
 import { DateIcon, QuoteIcon } from '@/theme/Icons.tsx';
 import { Box, Typography } from '@mui/material';
 
@@ -79,11 +80,7 @@ export const HighlightContent = ({ highlight, onLabelClick }: HighlightContentPr
             color: 'text.secondary',
           }}
         >
-          {new Date(highlight.datetime).toLocaleDateString('en-US', {
-            year: 'numeric',
-            month: 'long',
-            day: 'numeric',
-          })}
+          {formatHighlightDate(highlight.datetime)}
           {highlight.page && ` • Page ${highlight.page}`}
         </Typography>
         <LabelIndicator label={highlight.label} onClick={onLabelClick} size="medium" />

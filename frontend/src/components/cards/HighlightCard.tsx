@@ -2,6 +2,7 @@ import type { Bookmark, Highlight } from '@/api/generated/model';
 import { HoverableCardActionArea } from '@/components/cards/HoverableCardActionArea';
 import { MetadataRow } from '@/components/cards/MetadataRow.tsx';
 import { TagChipList } from '@/components/TagChipList.tsx';
+import { formatHighlightDate } from '@/pages/BookPage/common/highlightDates.ts';
 import { LabelIndicator } from '@/pages/BookPage/common/LabelIndicator.tsx';
 import { NotOnDeviceChip } from '@/pages/BookPage/common/NotOnDeviceChip.tsx';
 import { BookmarkFilledIcon, DateIcon, FlashcardsIcon, QuoteIcon } from '@/theme/Icons.tsx';
@@ -54,11 +55,7 @@ const Footer = ({ highlight, bookmark }: FooterProps) => {
               theme.palette.mode === 'light' ? `theme.palette.secondary.main` : 'secondary.light',
           })}
           items={[
-            new Date(highlight.datetime).toLocaleDateString('en-US', {
-              year: 'numeric',
-              month: 'long',
-              day: 'numeric',
-            }),
+            formatHighlightDate(highlight.datetime),
             highlight.page && `Page ${highlight.page}`,
             hasBookmark && (
               <BookmarkFilledIcon sx={{ fontSize: 16, verticalAlign: 'middle', ml: 1, mt: -0.5 }} />

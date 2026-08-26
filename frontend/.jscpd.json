@@ -11,5 +11,5 @@
   "minLines": 5,
   "minTokens": 50,
   "reporters": ["ai", "threshold"],
-  "threshold": 1.7
+  "threshold": 1.4
 }
