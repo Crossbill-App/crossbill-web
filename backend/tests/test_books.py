@@ -12,7 +12,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from src import models
 from src.infrastructure.semantic.repositories.embedding_repository import EmbeddingRepository
-from tests.conftest import create_test_book, create_test_highlight
+from tests.conftest import CreateBookFunc, create_test_book, create_test_highlight
 from tests.semantic_helpers import index_highlight, plant_indexed_highlight
 
 # Default user ID used by services (matches conftest default user)
@@ -911,3 +911,212 @@ class TestReadingStage:
             json={"reading_stage": "reading"},
         )
         assert response.status_code == status.HTTP_404_NOT_FOUND
+
+
+def parse_stamp(value: object) -> datetime:
+    """Read a timestamp off a response, as UTC.
+
+    SQLite hands back what Postgres would mark as UTC without the offset, so the
+    naive case is the test backend rather than a real timezone-less value.
+    """
+    parsed = datetime.fromisoformat(str(value))
+    return parsed if parsed.tzinfo else parsed.replace(tzinfo=UTC)
+
+
+class TestBookLastSynced:
+    """A book's ``last_synced`` records that a device successfully sent its data."""
+
+    async def _list_row(self, client: AsyncClient, client_book_id: str) -> dict[str, object]:
+        """Read one book back off the library list, where the stamp is exposed."""
+        response = await client.get("/api/v1/books/")
+        assert response.status_code == status.HTTP_200_OK
+        rows = [row for row in response.json()["items"] if row["client_book_id"] == client_book_id]
+        assert len(rows) == 1
+        return rows[0]
+
+    async def test_created_book_has_never_synced(
+        self, client: AsyncClient, create_book_via_api: CreateBookFunc
+    ) -> None:
+        """Creating a book is not a sync: nothing has been sent for it yet."""
+        await create_book_via_api({"client_book_id": "never-synced", "title": "Never Synced"})
+
+        row = await self._list_row(client, "never-synced")
+
+        assert row["last_synced"] is None
+
+    async def test_highlight_sync_stamps_last_synced(
+        self,
+        client: AsyncClient,
+        plugin_client: AsyncClient,
+        create_book_via_api: CreateBookFunc,
+    ) -> None:
+        """A successful highlight push records when the device sent it."""
+        await create_book_via_api({"client_book_id": "synced-book", "title": "Synced Book"})
+
+        upload = await plugin_client.post(
+            "/api/v1/highlights/sync",
+            json={
+                "client_book_id": "synced-book",
+                "highlights": [
+                    {"text": "A passage worth keeping", "datetime": "2024-01-15 10:30:00"}
+                ],
+            },
+        )
+        assert upload.json()["highlights_created"] == 1
+
+        row = await self._list_row(client, "synced-book")
+
+        assert row["last_synced"] is not None
+        stamped = parse_stamp(row["last_synced"])
+        assert (datetime.now(UTC) - stamped).total_seconds() < 60
+
+    async def test_reading_session_sync_stamps_last_synced(
+        self,
+        client: AsyncClient,
+        plugin_client: AsyncClient,
+        create_book_via_api: CreateBookFunc,
+    ) -> None:
+        """A push carrying only reading sessions counts as a sync too."""
+        await create_book_via_api({"client_book_id": "session-book", "title": "Session Book"})
+
+        upload = await plugin_client.post(
+            "/api/v1/reading_sessions/sync",
+            json={
+                "client_book_id": "session-book",
+                "sessions": [
+                    {
+                        "start_time": "2024-01-15T10:00:00Z",
+                        "end_time": "2024-01-15T11:00:00Z",
+                        "start_page": 1,
+                        "end_page": 20,
+                    }
+                ],
+            },
+        )
+        assert upload.json()["created_count"] == 1
+
+        row = await self._list_row(client, "session-book")
+
+        assert row["last_synced"] is not None
+
+    async def test_stamp_is_server_time_not_device_time(
+        self,
+        client: AsyncClient,
+        plugin_client: AsyncClient,
+        create_book_via_api: CreateBookFunc,
+    ) -> None:
+        """A device with a wrong clock cannot dictate where the book sorts."""
+        await create_book_via_api({"client_book_id": "clock-skew", "title": "Clock Skew"})
+
+        upload = await plugin_client.post(
+            "/api/v1/reading_sessions/sync",
+            json={
+                "client_book_id": "clock-skew",
+                "sessions": [
+                    {
+                        "start_time": "2011-03-01T10:00:00Z",
+                        "end_time": "2011-03-01T11:00:00Z",
+                        "start_page": 1,
+                        "end_page": 20,
+                    }
+                ],
+            },
+        )
+        assert upload.json()["created_count"] == 1
+
+        row = await self._list_row(client, "clock-skew")
+
+        stamped = parse_stamp(row["last_synced"])
+        assert stamped.year == datetime.now(UTC).year
+
+
+class TestRecentlySyncedBooks:
+    """The GET /books/recently-synced list behind the landing page's carousel."""
+
+    async def _synced_book(
+        self, db_session: AsyncSession, title: str, user_id: int, synced: datetime | None
+    ) -> models.Book:
+        """Create a book whose last sync happened at a chosen moment."""
+        book = await create_test_book(db_session=db_session, user_id=user_id, title=title)
+        book.last_synced = synced
+        await db_session.commit()
+        return book
+
+    async def test_orders_by_most_recently_synced(
+        self, client: AsyncClient, db_session: AsyncSession
+    ) -> None:
+        """The book a device sent most recently leads the list."""
+        await self._synced_book(
+            db_session, "Older", DEFAULT_USER_ID, datetime(2026, 3, 1, tzinfo=UTC)
+        )
+        await self._synced_book(
+            db_session, "Newer", DEFAULT_USER_ID, datetime(2026, 8, 1, tzinfo=UTC)
+        )
+        await self._synced_book(
+            db_session, "Middle", DEFAULT_USER_ID, datetime(2026, 6, 1, tzinfo=UTC)
+        )
+
+        response = await client.get("/api/v1/books/recently-synced")
+
+        assert response.status_code == status.HTTP_200_OK
+        titles = [item["title"] for item in response.json()["items"]]
+        assert titles == ["Newer", "Middle", "Older"]
+
+    async def test_omits_books_that_never_synced(
+        self, client: AsyncClient, db_session: AsyncSession
+    ) -> None:
+        """A book no device has sent anything for has nothing to say here."""
+        await self._synced_book(
+            db_session, "Synced", DEFAULT_USER_ID, datetime(2026, 3, 1, tzinfo=UTC)
+        )
+        await self._synced_book(db_session, "Never Synced", DEFAULT_USER_ID, None)
+
+        response = await client.get("/api/v1/books/recently-synced")
+
+        titles = [item["title"] for item in response.json()["items"]]
+        assert titles == ["Synced"]
+
+    async def test_limit_caps_the_list(self, client: AsyncClient, db_session: AsyncSession) -> None:
+        """The carousel asks for a handful, not the whole library."""
+        for month in (1, 2, 3):
+            await self._synced_book(
+                db_session, f"Book {month}", DEFAULT_USER_ID, datetime(2026, month, 1, tzinfo=UTC)
+            )
+
+        response = await client.get("/api/v1/books/recently-synced?limit=2")
+
+        titles = [item["title"] for item in response.json()["items"]]
+        assert titles == ["Book 3", "Book 2"]
+
+    async def test_never_returns_another_users_books(
+        self, client: AsyncClient, db_session: AsyncSession
+    ) -> None:
+        """A stranger's e-reader activity must not surface on this user's page."""
+        stranger = models.User(email="stranger@test.com")
+        db_session.add(stranger)
+        await db_session.commit()
+        await db_session.refresh(stranger)
+        await self._synced_book(
+            db_session, "Theirs", stranger.id, datetime(2026, 8, 20, tzinfo=UTC)
+        )
+        await self._synced_book(
+            db_session, "Mine", DEFAULT_USER_ID, datetime(2026, 3, 1, tzinfo=UTC)
+        )
+
+        response = await client.get("/api/v1/books/recently-synced")
+
+        titles = [item["title"] for item in response.json()["items"]]
+        assert titles == ["Mine"]
+
+    async def test_includes_the_stamp_itself(
+        self, client: AsyncClient, db_session: AsyncSession
+    ) -> None:
+        """The row carries the timestamp it was ordered by."""
+        await self._synced_book(
+            db_session, "Stamped", DEFAULT_USER_ID, datetime(2026, 6, 1, 12, 0, tzinfo=UTC)
+        )
+
+        response = await client.get("/api/v1/books/recently-synced")
+
+        item = response.json()["items"][0]
+        assert parse_stamp(item["last_synced"]) == datetime(2026, 6, 1, 12, 0, tzinfo=UTC)

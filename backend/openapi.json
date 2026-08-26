@@ -154,6 +154,59 @@
         }
       }
     },
+    "/api/v1/books/recently-synced": {
+      "get": {
+        "tags": [
+          "books"
+        ],
+        "summary": "Get Recently Synced Books",
+        "description": "Get the books a device has most recently synced, with their counts.\n\nReturns books an e-reader has successfully sent highlights or reading\nsessions for, most recently synced first. A book nothing has ever synced is\nleft out.\n\nArgs:\n    limit: Maximum number of books to return (default: 10, max: 50)\n\nReturns:\n    CollectionResponse with list of recently synced books",
+        "operationId": "get_recently_synced_books",
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 50,
+              "minimum": 1,
+              "description": "Maximum number of books to return",
+              "default": 10,
+              "title": "Limit"
+            },
+            "description": "Maximum number of books to return"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CollectionResponse_BookWithHighlightCount_"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/books/{book_id}": {
       "get": {
         "tags": [
@@ -4972,6 +5025,19 @@
               }
             ],
             "title": "Last Viewed"
+          },
+          "last_synced": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Synced",
+            "description": "When a device last successfully sent data for this book"
           }
         },
         "type": "object",

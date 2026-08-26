@@ -270,6 +270,10 @@ class HighlightUploadUseCase:
                 reference_id=str(book_id.value),
             )
 
+        # Last, so the stamp says the push landed rather than that it was attempted
+        book.mark_as_synced()
+        await self.book_repository.save(book)
+
         logger.info(
             "upload_complete",
             book_id=book.id.value,

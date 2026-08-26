@@ -23,6 +23,9 @@ from src.application.library.queries.get_books_with_counts_use_case import (
 from src.application.library.queries.get_ereader_metadata_use_case import (
     GetEreaderMetadataUseCase,
 )
+from src.application.library.queries.get_recently_synced_books_use_case import (
+    GetRecentlySyncedBooksUseCase,
+)
 from src.application.library.queries.get_recently_viewed_books_use_case import (
     GetRecentlyViewedBooksUseCase,
 )
@@ -94,6 +97,10 @@ class LibraryContainer(containers.DeclarativeContainer):
     )
     get_recently_viewed_books_use_case = providers.Factory(
         GetRecentlyViewedBooksUseCase,
+        book_list_query=book_list_query,
+    )
+    get_recently_synced_books_use_case = providers.Factory(
+        GetRecentlySyncedBooksUseCase,
         book_list_query=book_list_query,
     )
     get_ereader_metadata_use_case = providers.Factory(

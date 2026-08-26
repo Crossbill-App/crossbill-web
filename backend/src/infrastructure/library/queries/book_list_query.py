@@ -90,6 +90,21 @@ class BookListQuery:
         )
         return await self._fetch(stmt)
 
+    async def list_recently_synced(
+        self, user_id: UserId, limit: int
+    ) -> tuple[BookWithCountsView, ...]:
+        """Return the books a device has sent data for, most recently synced first."""
+        stmt = (
+            _book_rows()
+            .where(
+                BookORM.user_id == user_id.value,
+                BookORM.last_synced.isnot(None),
+            )
+            .order_by(BookORM.last_synced.desc())
+            .limit(limit)
+        )
+        return await self._fetch(stmt)
+
     async def _fetch(
         self, stmt: Select[tuple[BookORM, int, int]]
     ) -> tuple[BookWithCountsView, ...]:
@@ -139,4 +154,5 @@ def _book_view(row: BookORM, highlight_count: int, flashcard_count: int) -> Book
         created_at=row.created_at,
         updated_at=row.updated_at,
         last_viewed=row.last_viewed,
+        last_synced=row.last_synced,
     )

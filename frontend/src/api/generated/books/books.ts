@@ -25,6 +25,7 @@ import type {
   BookReadingStageUpdateRequest,
   CollectionResponseBookWithHighlightCount,
   GetBooksParams,
+  GetRecentlySyncedBooksParams,
   GetRecentlyViewedBooksParams,
   HTTPValidationError,
   PaginatedResponseBookWithHighlightCount,
@@ -300,6 +301,143 @@ export function useGetRecentlyViewedBooks<
   queryClient?: QueryClient
 ): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
   const queryOptions = getGetRecentlyViewedBooksQueryOptions(params, options);
+
+  const query = useQuery(queryOptions, queryClient) as UseQueryResult<TData, TError> & {
+    queryKey: DataTag<QueryKey, TData, TError>;
+  };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+/**
+ * Get the books a device has most recently synced, with their counts.
+ *
+ * Returns books an e-reader has successfully sent highlights or reading
+ * sessions for, most recently synced first. A book nothing has ever synced is
+ * left out.
+ *
+ * Args:
+ *     limit: Maximum number of books to return (default: 10, max: 50)
+ *
+ * Returns:
+ *     CollectionResponse with list of recently synced books
+ * @summary Get Recently Synced Books
+ */
+export const getRecentlySyncedBooks = (
+  params?: GetRecentlySyncedBooksParams,
+  signal?: AbortSignal
+) => {
+  return axiosInstance<CollectionResponseBookWithHighlightCount>({
+    url: `/api/v1/books/recently-synced`,
+    method: 'GET',
+    params,
+    signal,
+  });
+};
+
+export const getGetRecentlySyncedBooksQueryKey = (params?: GetRecentlySyncedBooksParams) => {
+  return [`/api/v1/books/recently-synced`, ...(params ? [params] : [])] as const;
+};
+
+export const getGetRecentlySyncedBooksQueryOptions = <
+  TData = Awaited<ReturnType<typeof getRecentlySyncedBooks>>,
+  TError = HTTPValidationError,
+>(
+  params?: GetRecentlySyncedBooksParams,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<Awaited<ReturnType<typeof getRecentlySyncedBooks>>, TError, TData>
+    >;
+  }
+) => {
+  const { query: queryOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getGetRecentlySyncedBooksQueryKey(params);
+
+  const queryFn: QueryFunction<Awaited<ReturnType<typeof getRecentlySyncedBooks>>> = ({ signal }) =>
+    getRecentlySyncedBooks(params, signal);
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof getRecentlySyncedBooks>>,
+    TError,
+    TData
+  > & { queryKey: DataTag<QueryKey, TData, TError> };
+};
+
+export type GetRecentlySyncedBooksQueryResult = NonNullable<
+  Awaited<ReturnType<typeof getRecentlySyncedBooks>>
+>;
+export type GetRecentlySyncedBooksQueryError = HTTPValidationError;
+
+export function useGetRecentlySyncedBooks<
+  TData = Awaited<ReturnType<typeof getRecentlySyncedBooks>>,
+  TError = HTTPValidationError,
+>(
+  params: undefined | GetRecentlySyncedBooksParams,
+  options: {
+    query: Partial<
+      UseQueryOptions<Awaited<ReturnType<typeof getRecentlySyncedBooks>>, TError, TData>
+    > &
+      Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getRecentlySyncedBooks>>,
+          TError,
+          Awaited<ReturnType<typeof getRecentlySyncedBooks>>
+        >,
+        'initialData'
+      >;
+  },
+  queryClient?: QueryClient
+): DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+export function useGetRecentlySyncedBooks<
+  TData = Awaited<ReturnType<typeof getRecentlySyncedBooks>>,
+  TError = HTTPValidationError,
+>(
+  params?: GetRecentlySyncedBooksParams,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<Awaited<ReturnType<typeof getRecentlySyncedBooks>>, TError, TData>
+    > &
+      Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getRecentlySyncedBooks>>,
+          TError,
+          Awaited<ReturnType<typeof getRecentlySyncedBooks>>
+        >,
+        'initialData'
+      >;
+  },
+  queryClient?: QueryClient
+): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+export function useGetRecentlySyncedBooks<
+  TData = Awaited<ReturnType<typeof getRecentlySyncedBooks>>,
+  TError = HTTPValidationError,
+>(
+  params?: GetRecentlySyncedBooksParams,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<Awaited<ReturnType<typeof getRecentlySyncedBooks>>, TError, TData>
+    >;
+  },
+  queryClient?: QueryClient
+): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+/**
+ * @summary Get Recently Synced Books
+ */
+
+export function useGetRecentlySyncedBooks<
+  TData = Awaited<ReturnType<typeof getRecentlySyncedBooks>>,
+  TError = HTTPValidationError,
+>(
+  params?: GetRecentlySyncedBooksParams,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<Awaited<ReturnType<typeof getRecentlySyncedBooks>>, TError, TData>
+    >;
+  },
+  queryClient?: QueryClient
+): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+  const queryOptions = getGetRecentlySyncedBooksQueryOptions(params, options);
 
   const query = useQuery(queryOptions, queryClient) as UseQueryResult<TData, TError> & {
     queryKey: DataTag<QueryKey, TData, TError>;

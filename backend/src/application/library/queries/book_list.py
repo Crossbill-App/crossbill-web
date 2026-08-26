@@ -35,6 +35,7 @@ class BookWithCountsView:
     created_at: datetime
     updated_at: datetime
     last_viewed: datetime | None
+    last_synced: datetime | None
 
 
 @dataclass(frozen=True)
@@ -63,4 +64,10 @@ class BookListQueryProtocol(Protocol):
         self, user_id: UserId, limit: int
     ) -> tuple[BookWithCountsView, ...]:
         """Return the books the user has opened, most recently viewed first."""
+        ...
+
+    async def list_recently_synced(
+        self, user_id: UserId, limit: int
+    ) -> tuple[BookWithCountsView, ...]:
+        """Return the books a device has sent data for, most recently synced first."""
         ...

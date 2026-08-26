@@ -27,6 +27,7 @@ class BookMapper:
             cover_file=orm_model.cover_file,
             cover_blurhash=orm_model.cover_blurhash,
             last_viewed=orm_model.last_viewed,
+            last_synced=orm_model.last_synced,
             end_position=Position.from_json(orm_model.end_position)
             if orm_model.end_position
             else None,
@@ -55,6 +56,7 @@ class BookMapper:
         orm_model.cover_file = domain_entity.cover_file
         orm_model.cover_blurhash = domain_entity.cover_blurhash
         orm_model.last_viewed = domain_entity.last_viewed
+        orm_model.last_synced = domain_entity.last_synced
         orm_model.end_position = (
             domain_entity.end_position.to_json() if domain_entity.end_position else None
         )
