@@ -1,3 +1,4 @@
+import { isBodyScrollLocked } from '@/lib/bodyScrollLock.ts';
 import { useEffect, useRef, useState } from 'react';
 
 /** Pull distance, in pixels, that arms the refresh. */
@@ -40,7 +41,9 @@ export const usePullToRefresh = (onRefresh: () => Promise<unknown>) => {
       setPullDistance(value);
     };
 
-    const isAtTop = () => window.scrollY <= 0;
+    // A locked body is `position: fixed`, so scrollY reads 0 whatever the
+    // page behind the dialog was scrolled to: sit the lock out entirely.
+    const isAtTop = () => !isBodyScrollLocked() && window.scrollY <= 0;
 
     const handleTouchStart = (event: TouchEvent) => {
       const isCandidate = event.touches.length === 1 && isAtTop();
