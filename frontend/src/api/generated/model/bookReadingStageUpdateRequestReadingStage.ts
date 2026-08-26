@@ -18,4 +18,5 @@ export const BookReadingStageUpdateRequestReadingStage = {
   reading: 'reading',
   finished: 'finished',
   reflected: 'reflected',
+  did_not_finish: 'did_not_finish',
 } as const;

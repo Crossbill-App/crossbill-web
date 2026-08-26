@@ -4535,7 +4535,8 @@
                   "skimming",
                   "reading",
                   "finished",
-                  "reflected"
+                  "reflected",
+                  "did_not_finish"
                 ]
               },
               {
@@ -4682,7 +4683,8 @@
                   "skimming",
                   "reading",
                   "finished",
-                  "reflected"
+                  "reflected",
+                  "did_not_finish"
                 ]
               },
               {

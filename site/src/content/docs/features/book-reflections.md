@@ -45,6 +45,11 @@ the book's header; Crossbill never infers it from activity.
 - **Finished**
 - **Reflected**
 
+Putting a book down is a reading decision too, so there is a sixth stage
+outside that progression:
+
+- **Did not finish**
+
 The Reflection tab uses the stage to nudge you: after skimming it suggests
 stating what the book is about; once you have finished it points you at "Do I
 agree?"; once reflected it invites you to revisit your answers whenever the book

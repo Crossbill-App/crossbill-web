@@ -1,4 +1,9 @@
-import type { BookDetails, NoteUpdateRequest, NoteWithLinks } from '@/api/generated/model';
+import type {
+  BookDetails,
+  BookReadingStageUpdateRequest,
+  NoteUpdateRequest,
+  NoteWithLinks,
+} from '@/api/generated/model';
 import { http, HttpResponse } from 'msw';
 import { aBookDetails } from '../fixtures/book';
 
@@ -31,6 +36,12 @@ export function bookApi(initial: Partial<BookApiState> = {}) {
     http.get('/api/v1/jobs/books/:bookId/digest', () => HttpResponse.json(null)),
     http.get('/api/v1/books/:bookId/tags', () => HttpResponse.json({ items: [] })),
     http.get('/api/v1/books/:bookId/highlight-labels', () => HttpResponse.json({ items: [] })),
+
+    http.put('/api/v1/books/:bookId/reading-stage', async ({ request }) => {
+      const body = (await request.json()) as BookReadingStageUpdateRequest;
+      state.book = { ...state.book, reading_stage: body.reading_stage ?? null };
+      return new HttpResponse(null, { status: 204 });
+    }),
 
     http.get('/api/v1/notes/:noteId', ({ params }) => {
       const note = findNote(params.noteId);

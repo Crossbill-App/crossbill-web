@@ -202,7 +202,9 @@ class ChapterWithHighlights(BaseModel):
     model_config = {"from_attributes": True}
 
 
-ReadingStageLiteral = Literal["to_read", "skimming", "reading", "finished", "reflected"]
+ReadingStageLiteral = Literal[
+    "to_read", "skimming", "reading", "finished", "reflected", "did_not_finish"
+]
 
 
 class BookDetails(BaseModel):

@@ -866,15 +866,21 @@ class TestReadingStage:
         assert response.status_code == status.HTTP_200_OK
         assert response.json()["reading_stage"] is None
 
-    async def test_set_reading_stage(self, client: AsyncClient, test_book: models.Book) -> None:
+    @pytest.mark.parametrize(
+        "stage",
+        ["to_read", "skimming", "reading", "finished", "reflected", "did_not_finish"],
+    )
+    async def test_set_reading_stage(
+        self, client: AsyncClient, test_book: models.Book, stage: str
+    ) -> None:
         response = await client.put(
             f"/api/v1/books/{test_book.id}/reading-stage",
-            json={"reading_stage": "reading"},
+            json={"reading_stage": stage},
         )
         assert response.status_code == status.HTTP_204_NO_CONTENT
 
         details = await client.get(f"/api/v1/books/{test_book.id}")
-        assert details.json()["reading_stage"] == "reading"
+        assert details.json()["reading_stage"] == stage
 
     async def test_clear_reading_stage(self, client: AsyncClient, test_book: models.Book) -> None:
         await client.put(
