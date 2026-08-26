@@ -37,4 +37,6 @@ export interface BookWithHighlightCount {
   created_at: string;
   updated_at: string;
   last_viewed?: string | null;
+  /** When a device last successfully sent data for this book */
+  last_synced?: string | null;
 }

@@ -6,6 +6,7 @@ import { SectionTitle } from '@/components/typography/SectionTitle.tsx';
 import { Alert, Box, Pagination, Typography } from '@mui/material';
 import { useNavigate, useSearch } from '@tanstack/react-router';
 import { BookList } from './components/BookList';
+import { RecentlySyncedBooks } from './components/RecentlySyncedBooks';
 import { RecentlyViewedBooks } from './components/RecentlyViewedBooks';
 
 const BOOKS_PER_PAGE = 32;
@@ -66,8 +67,13 @@ export const LandingPage = () => {
         </Typography>
       </Box>
 
-      {/* Only show recently viewed when not searching */}
-      {!searchText && <RecentlyViewedBooks />}
+      {/* Only show the recent rows when not searching */}
+      {!searchText && (
+        <>
+          <RecentlySyncedBooks />
+          <RecentlyViewedBooks />
+        </>
+      )}
 
       <SectionTitle showDivider>All books</SectionTitle>
 

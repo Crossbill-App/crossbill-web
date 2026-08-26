@@ -55,6 +55,7 @@ export * from './getBookReadingSessionsParams.ts';
 export * from './getBooksParams.ts';
 export * from './getNotesForBookKind.ts';
 export * from './getNotesForBookParams.ts';
+export * from './getRecentlySyncedBooksParams.ts';
 export * from './getRecentlyViewedBooksParams.ts';
 export * from './highlight.ts';
 export * from './highlightCreate.ts';
