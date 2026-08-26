@@ -124,6 +124,15 @@ export const useCacheEvents = () => {
        */
       embeddingBackfillChanged: () => invalidate(getGetActiveBackfillQueryKey()),
 
+      /**
+       * The user asked for a full refresh, by pulling the page down.
+       *
+       * The one event that names no key at all: nothing specific changed, the
+       * whole cache is simply suspect. The promise settles once the active
+       * refetches do, so the caller can keep a spinner up until then.
+       */
+      refreshRequested: () => queryClient.invalidateQueries(),
+
       /** A highlight label was renamed or recoloured. Book details embeds labels. */
       highlightLabelsChanged: (bookId: number) =>
         invalidate(getGetBookDetailsQueryKey(bookId), getGetBookHighlightLabelsQueryKey(bookId)),

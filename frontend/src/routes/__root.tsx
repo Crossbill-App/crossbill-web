@@ -1,5 +1,6 @@
 /* eslint-disable react-refresh/only-export-components */
 import { AppBar } from '@/components/layout/AppBar';
+import { PullToRefresh } from '@/components/layout/PullToRefresh';
 import { Box, CircularProgress } from '@mui/material';
 import { Navigate, Outlet, createRootRoute, useLocation } from '@tanstack/react-router';
 import { AuthProvider, useAuth } from '../context/AuthContext';
@@ -39,10 +40,10 @@ function AuthenticatedRoutes() {
   }
 
   return (
-    <Box>
+    <PullToRefresh>
       {!isPublicPage && <AppBar />}
       <Outlet />
-    </Box>
+    </PullToRefresh>
   );
 }
 

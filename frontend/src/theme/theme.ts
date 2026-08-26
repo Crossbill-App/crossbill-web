@@ -223,6 +223,15 @@ export const theme = createTheme({
     '0 20px 25px -5px rgb(0 0 0 / 0.1), 0 8px 10px -6px rgb(0 0 0 / 0.1)',
   ],
   components: {
+    MuiCssBaseline: {
+      styleOverrides: {
+        // Kills the iOS rubber-band bounce, so a downward drag at the top of
+        // the page belongs to the pull-to-refresh gesture alone.
+        'html, body': {
+          overscrollBehaviorY: 'contain',
+        },
+      },
+    },
     MuiButton: {
       styleOverrides: {
         root: {
