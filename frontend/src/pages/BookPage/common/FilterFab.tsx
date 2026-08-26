@@ -14,7 +14,7 @@ export const FilterFab = ({
       <Fab
         size="small"
         color={filterEnabled ? 'primary' : 'default'}
-        aria-label="Open filters"
+        aria-label={filterEnabled ? 'Open filters (filters active)' : 'Open filters'}
         onClick={() => onClick()}
       >
         <FilterListIcon />

@@ -9,6 +9,7 @@ interface BookmarkListProps {
   allHighlights: Highlight[];
   onBookmarkClick: (highlightId: number) => void;
   hideTitle?: boolean;
+  filterActive?: boolean;
 }
 
 export const BookmarkList = ({
@@ -16,6 +17,7 @@ export const BookmarkList = ({
   allHighlights,
   onBookmarkClick,
   hideTitle,
+  filterActive = false,
 }: BookmarkListProps) => {
   const [isExpanded, setIsExpanded] = useState(true);
   const effectiveIsExpanded = hideTitle ? true : isExpanded;
@@ -185,7 +187,7 @@ export const BookmarkList = ({
               fontSize: '0.813rem',
             }}
           >
-            No bookmarks yet.
+            {filterActive ? 'No bookmarks match the active filters.' : 'No bookmarks yet.'}
           </Typography>
         )}
       </Collapsable>

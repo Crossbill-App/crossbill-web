@@ -12,13 +12,18 @@ import { ContentWithSidebar } from '@/components/layout/Layouts.tsx';
 import { PageTitle } from '@/components/typography/PageTitle.tsx';
 import { useResetOnChange } from '@/hooks/useResetOnChange.ts';
 import { useBookPage } from '@/pages/BookPage/BookPageContext';
+import {
+  filterChaptersByHighlightDate,
+  parseDateSearchParam,
+  type HighlightDateRange,
+} from '@/pages/BookPage/common/highlightDates.ts';
 import { ListSearchSortHeader } from '@/pages/BookPage/common/ListSearchSortHeader.tsx';
 import { useBookTabFilters } from '@/pages/BookPage/common/useBookTabFilters.ts';
 import { useHighlightDialog } from '@/pages/BookPage/Highlights/hooks/useHighlightDialog.ts';
 import { Box, Divider } from '@mui/material';
-import { useNavigate, useSearch } from '@tanstack/react-router';
+import { useLocation, useNavigate, useSearch } from '@tanstack/react-router';
 import { keyBy } from 'lodash';
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { FilterFab } from '../common/FilterFab.tsx';
 import { BookmarkList } from '../navigation/BookmarkList.tsx';
@@ -26,15 +31,20 @@ import { ChapterNav, type ChapterNavigationData } from '../navigation/ChapterNav
 import { FilterDrawer, type FilterTab } from '../navigation/FilterDrawer.tsx';
 import { HighlightLabelsList } from '../navigation/HighlightLabelsList.tsx';
 import { TagsList } from '../navigation/TagsList/TagsList.tsx';
+import { HighlightDateFilter } from './HighlightDateFilter.tsx';
 import { HighlightsList, type ChapterData } from './HighlightsList.tsx';
 import { HighlightViewDialog } from './HighlightViewDialog';
 
 export const HighlightsPage = () => {
   const { book, isDesktop, leftSidebarEl, fabContainerEl } = useBookPage();
 
-  const { search: urlSearch, labelId: urlLabelId } = useSearch({
-    from: '/book/$bookId/highlights',
-  });
+  const {
+    search: urlSearch,
+    labelId: urlLabelId,
+    from: dateFrom,
+    to: dateTo,
+  } = useSearch({ from: '/book/$bookId/highlights' });
+  const locationSearch = useLocation({ select: (location) => location.searchStr });
   const navigate = useNavigate({ from: '/book/$bookId/highlights' });
 
   const { searchText, selectedTagId, handleSearch, handleTagClick, handleChapterClick } =
@@ -43,9 +53,26 @@ export const HighlightsPage = () => {
   const [isReversed, setIsReversed] = useState(false);
   const [filterDrawerOpen, setFilterDrawerOpen] = useState(false);
 
-  const filterEnabled = !!selectedLabelId || !!selectedTagId;
+  const hasDateValues = !!dateFrom || !!dateTo;
+  const filterEnabled = !!selectedLabelId || !!selectedTagId || hasDateValues;
 
   useResetOnChange([urlLabelId], () => setSelectedLabelId(urlLabelId));
+
+  useEffect(() => {
+    const rawSearch = new URLSearchParams(locationSearch);
+    const invalidFrom = rawSearch.has('from') && !parseDateSearchParam(rawSearch.get('from'));
+    const invalidTo = rawSearch.has('to') && !parseDateSearchParam(rawSearch.get('to'));
+    if (!invalidFrom && !invalidTo) return;
+
+    navigate({
+      search: (prev) => ({
+        ...prev,
+        from: invalidFrom ? undefined : prev.from,
+        to: invalidTo ? undefined : prev.to,
+      }),
+      replace: true,
+    });
+  }, [locationSearch, navigate]);
 
   // Fetch available tags for the highlight dialog
   const { data: tagsResponse } = useGetTags(book.id);
@@ -55,6 +82,16 @@ export const HighlightsPage = () => {
       setSelectedLabelId(newLabelId || undefined);
       navigate({
         search: (prev) => ({ ...prev, labelId: newLabelId || undefined }),
+        replace: true,
+      });
+    },
+    [navigate]
+  );
+
+  const handleDateRangeChange = useCallback(
+    ({ from, to }: HighlightDateRange) => {
+      navigate({
+        search: (prev) => ({ ...prev, from, to }),
         replace: true,
       });
     },
@@ -86,9 +123,9 @@ export const HighlightsPage = () => {
       ? bookSearch.chapters
       : book.chapters.filter((chapter) => chapter.highlights.length > 0);
 
-    const result = filterChaptersByLabel(
-      selectedLabelId,
-      filterChaptersByTag(selectedTagId, toFilter)
+    const result = filterChaptersByHighlightDate(
+      filterChaptersByLabel(selectedLabelId, filterChaptersByTag(selectedTagId, toFilter)),
+      { from: dateFrom, to: dateTo }
     ).map((chapter) => ({
       id: chapter.id,
       name: chapter.name || 'Unknown Chapter',
@@ -111,6 +148,8 @@ export const HighlightsPage = () => {
     book.chapters,
     selectedTagId,
     selectedLabelId,
+    dateFrom,
+    dateTo,
   ]);
 
   const allHighlights = useMemo(() => {
@@ -123,21 +162,11 @@ export const HighlightsPage = () => {
 
   const navData = useHighlightsPageData(chapters);
 
-  const emptyMessage = useMemo(() => {
-    if (bookSearch.showSearchResults) {
-      if (selectedTagId && selectedLabelId)
-        return 'No highlights found matching your search with the selected tag and label.';
-      if (selectedTagId) return 'No highlights found matching your search with the selected tag.';
-      if (selectedLabelId)
-        return 'No highlights found matching your search with the selected label.';
-      return 'No highlights found matching your search.';
-    }
-    if (selectedTagId && selectedLabelId)
-      return 'No highlights found with the selected tag and label.';
-    if (selectedTagId) return 'No highlights found with the selected tag.';
-    if (selectedLabelId) return 'No highlights found with the selected label.';
-    return 'No chapters found for this book.';
-  }, [bookSearch.showSearchResults, selectedTagId, selectedLabelId]);
+  const listFilterActive =
+    bookSearch.showSearchResults || !!selectedTagId || !!selectedLabelId || hasDateValues;
+  const emptyMessage = listFilterActive
+    ? 'No highlights match the filters.'
+    : 'No chapters found for this book.';
 
   const filterTabs = useHighlightsFilterTabs({
     navChapters: navData.chapters,
@@ -148,6 +177,7 @@ export const HighlightsPage = () => {
     allHighlights,
     selectedTagId,
     selectedLabelId,
+    filterActive: listFilterActive,
     handleChapterClick,
     handleTagClick,
     handleLabelClick,
@@ -169,6 +199,9 @@ export const HighlightsPage = () => {
             onTagClick={handleTagClick}
             selectedLabelId={selectedLabelId}
             onLabelClick={handleLabelClick}
+            dateFrom={dateFrom}
+            dateTo={dateTo}
+            onDateRangeChange={handleDateRangeChange}
           />,
           leftSidebarEl
         )}
@@ -199,6 +232,7 @@ export const HighlightsPage = () => {
               bookmarks={book.bookmarks}
               allHighlights={allHighlights}
               onBookmarkClick={handleBookmarkClick}
+              filterActive={listFilterActive}
             />
             <Divider />
             <ChapterNav
@@ -237,6 +271,9 @@ export const HighlightsPage = () => {
             open={filterDrawerOpen}
             onClose={() => setFilterDrawerOpen(false)}
             tabs={filterTabs}
+            header={
+              <HighlightDateFilter from={dateFrom} to={dateTo} onChange={handleDateRangeChange} />
+            }
           />
         </>
       )}
@@ -264,6 +301,9 @@ interface HighlightsSidebarProps {
   onTagClick: (tagId: number | null) => void;
   selectedLabelId: number | undefined;
   onLabelClick: (labelId: number | null) => void;
+  dateFrom: string | undefined;
+  dateTo: string | undefined;
+  onDateRangeChange: (range: HighlightDateRange) => void;
 }
 
 const HighlightsSidebar = ({
@@ -274,10 +314,14 @@ const HighlightsSidebar = ({
   onTagClick,
   selectedLabelId,
   onLabelClick,
+  dateFrom,
+  dateTo,
+  onDateRangeChange,
 }: HighlightsSidebarProps) => (
   <>
     <Divider sx={{ mb: 4 }} />
     <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+      <HighlightDateFilter from={dateFrom} to={dateTo} onChange={onDateRangeChange} />
       <TagsList
         tags={tags}
         tagGroups={tagGroups}
@@ -303,6 +347,7 @@ interface UseHighlightsFilterTabsParams {
   allHighlights: Highlight[];
   selectedTagId: number | undefined;
   selectedLabelId: number | undefined;
+  filterActive: boolean;
   handleChapterClick: (chapterId: number) => void;
   handleTagClick: (tagId: number | null) => void;
   handleLabelClick: (labelId: number | null) => void;
@@ -319,6 +364,7 @@ const useHighlightsFilterTabs = ({
   allHighlights,
   selectedTagId,
   selectedLabelId,
+  filterActive,
   handleChapterClick,
   handleTagClick,
   handleLabelClick,
@@ -375,6 +421,7 @@ const useHighlightsFilterTabs = ({
           <BookmarkList
             bookmarks={bookmarks}
             allHighlights={allHighlights}
+            filterActive={filterActive}
             onBookmarkClick={(id) => {
               handleBookmarkClick(id);
               setFilterDrawerOpen(false);
@@ -394,6 +441,7 @@ const useHighlightsFilterTabs = ({
       selectedTagId,
       handleTagClick,
       selectedLabelId,
+      filterActive,
       handleLabelClick,
       allHighlights,
       handleBookmarkClick,

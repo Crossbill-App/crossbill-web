@@ -11,9 +11,10 @@ interface FilterDrawerProps {
   open: boolean;
   onClose: () => void;
   tabs: FilterTab[];
+  header?: ReactNode;
 }
 
-export const FilterDrawer = ({ open, onClose, tabs }: FilterDrawerProps) => {
+export const FilterDrawer = ({ open, onClose, tabs, header }: FilterDrawerProps) => {
   const [activeTab, setActiveTab] = useState(0);
 
   const handleClose = () => {
@@ -42,6 +43,8 @@ export const FilterDrawer = ({ open, onClose, tabs }: FilterDrawerProps) => {
             <CloseIcon />
           </IconButton>
         </Box>
+
+        {header && <Box sx={{ mb: 2 }}>{header}</Box>}
 
         {/* Tabs */}
         <Tabs
