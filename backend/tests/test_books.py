@@ -1076,9 +1076,7 @@ class TestRecentlySyncedBooks:
         titles = [item["title"] for item in response.json()["items"]]
         assert titles == ["Synced"]
 
-    async def test_limit_caps_the_list(
-        self, client: AsyncClient, db_session: AsyncSession
-    ) -> None:
+    async def test_limit_caps_the_list(self, client: AsyncClient, db_session: AsyncSession) -> None:
         """The carousel asks for a handful, not the whole library."""
         for month in (1, 2, 3):
             await self._synced_book(
