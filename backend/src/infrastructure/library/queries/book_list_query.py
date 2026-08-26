@@ -139,4 +139,5 @@ def _book_view(row: BookORM, highlight_count: int, flashcard_count: int) -> Book
         created_at=row.created_at,
         updated_at=row.updated_at,
         last_viewed=row.last_viewed,
+        last_synced=row.last_synced,
     )

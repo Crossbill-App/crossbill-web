@@ -12,7 +12,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from src import models
 from src.infrastructure.semantic.repositories.embedding_repository import EmbeddingRepository
-from tests.conftest import create_test_book, create_test_highlight
+from tests.conftest import CreateBookFunc, create_test_book, create_test_highlight
 from tests.semantic_helpers import index_highlight, plant_indexed_highlight
 
 # Default user ID used by services (matches conftest default user)
@@ -911,3 +911,120 @@ class TestReadingStage:
             json={"reading_stage": "reading"},
         )
         assert response.status_code == status.HTTP_404_NOT_FOUND
+
+
+def parse_stamp(value: object) -> datetime:
+    """Read a timestamp off a response, as UTC.
+
+    SQLite hands back what Postgres would mark as UTC without the offset, so the
+    naive case is the test backend rather than a real timezone-less value.
+    """
+    parsed = datetime.fromisoformat(str(value))
+    return parsed if parsed.tzinfo else parsed.replace(tzinfo=UTC)
+
+
+class TestBookLastSynced:
+    """A book's ``last_synced`` records that a device successfully sent its data."""
+
+    async def _list_row(self, client: AsyncClient, client_book_id: str) -> dict[str, object]:
+        """Read one book back off the library list, where the stamp is exposed."""
+        response = await client.get("/api/v1/books/")
+        assert response.status_code == status.HTTP_200_OK
+        rows = [row for row in response.json()["items"] if row["client_book_id"] == client_book_id]
+        assert len(rows) == 1
+        return rows[0]
+
+    async def test_created_book_has_never_synced(
+        self, client: AsyncClient, create_book_via_api: CreateBookFunc
+    ) -> None:
+        """Creating a book is not a sync: nothing has been sent for it yet."""
+        await create_book_via_api({"client_book_id": "never-synced", "title": "Never Synced"})
+
+        row = await self._list_row(client, "never-synced")
+
+        assert row["last_synced"] is None
+
+    async def test_highlight_sync_stamps_last_synced(
+        self,
+        client: AsyncClient,
+        plugin_client: AsyncClient,
+        create_book_via_api: CreateBookFunc,
+    ) -> None:
+        """A successful highlight push records when the device sent it."""
+        await create_book_via_api({"client_book_id": "synced-book", "title": "Synced Book"})
+
+        upload = await plugin_client.post(
+            "/api/v1/highlights/sync",
+            json={
+                "client_book_id": "synced-book",
+                "highlights": [
+                    {"text": "A passage worth keeping", "datetime": "2024-01-15 10:30:00"}
+                ],
+            },
+        )
+        assert upload.json()["highlights_created"] == 1
+
+        row = await self._list_row(client, "synced-book")
+
+        assert row["last_synced"] is not None
+        stamped = parse_stamp(row["last_synced"])
+        assert (datetime.now(UTC) - stamped).total_seconds() < 60
+
+    async def test_reading_session_sync_stamps_last_synced(
+        self,
+        client: AsyncClient,
+        plugin_client: AsyncClient,
+        create_book_via_api: CreateBookFunc,
+    ) -> None:
+        """A push carrying only reading sessions counts as a sync too."""
+        await create_book_via_api({"client_book_id": "session-book", "title": "Session Book"})
+
+        upload = await plugin_client.post(
+            "/api/v1/reading_sessions/sync",
+            json={
+                "client_book_id": "session-book",
+                "sessions": [
+                    {
+                        "start_time": "2024-01-15T10:00:00Z",
+                        "end_time": "2024-01-15T11:00:00Z",
+                        "start_page": 1,
+                        "end_page": 20,
+                    }
+                ],
+            },
+        )
+        assert upload.json()["created_count"] == 1
+
+        row = await self._list_row(client, "session-book")
+
+        assert row["last_synced"] is not None
+
+    async def test_stamp_is_server_time_not_device_time(
+        self,
+        client: AsyncClient,
+        plugin_client: AsyncClient,
+        create_book_via_api: CreateBookFunc,
+    ) -> None:
+        """A device with a wrong clock cannot dictate where the book sorts."""
+        await create_book_via_api({"client_book_id": "clock-skew", "title": "Clock Skew"})
+
+        upload = await plugin_client.post(
+            "/api/v1/reading_sessions/sync",
+            json={
+                "client_book_id": "clock-skew",
+                "sessions": [
+                    {
+                        "start_time": "2011-03-01T10:00:00Z",
+                        "end_time": "2011-03-01T11:00:00Z",
+                        "start_page": 1,
+                        "end_page": 20,
+                    }
+                ],
+            },
+        )
+        assert upload.json()["created_count"] == 1
+
+        row = await self._list_row(client, "clock-skew")
+
+        stamped = parse_stamp(row["last_synced"])
+        assert stamped.year == datetime.now(UTC).year

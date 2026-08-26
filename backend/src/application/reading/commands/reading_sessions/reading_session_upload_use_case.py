@@ -230,6 +230,10 @@ class ReadingSessionUploadUseCase:
                 session_count=len(result.created_sessions),
             )
 
+        # Last, so the stamp says the push landed rather than that it was attempted
+        book.mark_as_synced()
+        await self.book_repository.save(book)
+
         logger.info(
             "reading_session_upload_complete",
             created=created_count,

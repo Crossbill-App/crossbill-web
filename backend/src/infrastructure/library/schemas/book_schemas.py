@@ -73,6 +73,9 @@ class BookWithHighlightCount(BaseModel):
     created_at: datetime
     updated_at: datetime
     last_viewed: datetime | None = None
+    last_synced: datetime | None = Field(
+        None, description="When a device last successfully sent data for this book"
+    )
 
     model_config = {"from_attributes": True}
 

@@ -86,6 +86,7 @@ def _build_book_with_counts_schema(view: BookWithCountsView) -> BookWithHighligh
         created_at=view.created_at,
         updated_at=view.updated_at,
         last_viewed=view.last_viewed,
+        last_synced=view.last_synced,
     )
 
 

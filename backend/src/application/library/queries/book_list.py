@@ -35,6 +35,7 @@ class BookWithCountsView:
     created_at: datetime
     updated_at: datetime
     last_viewed: datetime | None
+    last_synced: datetime | None
 
 
 @dataclass(frozen=True)

@@ -51,6 +51,7 @@ class Book(Entity[BookId]):
     cover_file: str | None = None
     cover_blurhash: str | None = None
     last_viewed: datetime | None = None
+    last_synced: datetime | None = None
     end_position: Position | None = None
     reading_stage: ReadingStage | None = None
 
@@ -71,6 +72,15 @@ class Book(Entity[BookId]):
     def mark_as_viewed(self) -> None:
         """Update last viewed timestamp to now."""
         self.last_viewed = datetime.now(UTC)
+
+    def mark_as_synced(self) -> None:
+        """Record that a device has just sent this book's data.
+
+        Stamped by the server rather than the device: e-reader clocks drift,
+        and a wrong one would pin the book to an end of the recently-synced
+        list with no way to correct it.
+        """
+        self.last_synced = datetime.now(UTC)
 
     def update_end_position(self, position: Position) -> None:
         """Update the book's end position (total document length)."""
@@ -146,6 +156,7 @@ class Book(Entity[BookId]):
             created_at=now,
             updated_at=now,
             last_viewed=None,
+            last_synced=None,
             end_position=end_position,
             reading_stage=reading_stage,
         )
@@ -169,6 +180,7 @@ class Book(Entity[BookId]):
         cover_file: str | None = None,
         cover_blurhash: str | None = None,
         last_viewed: datetime | None = None,
+        last_synced: datetime | None = None,
         end_position: Position | None = None,
         reading_stage: ReadingStage | None = None,
     ) -> "Book":
@@ -190,6 +202,7 @@ class Book(Entity[BookId]):
             created_at=created_at,
             updated_at=updated_at,
             last_viewed=last_viewed,
+            last_synced=last_synced,
             end_position=end_position,
             reading_stage=reading_stage,
         )
