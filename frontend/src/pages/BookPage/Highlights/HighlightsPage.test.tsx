@@ -4,7 +4,7 @@ import { renderApp } from '@tests/harness/renderApp';
 import { bookApi } from '@tests/msw/bookApi';
 import { worker } from '@tests/msw/worker';
 import { http, HttpResponse } from 'msw';
-import { expect, test } from 'vitest';
+import { expect, test, vi } from 'vitest';
 import { page, userEvent } from 'vitest/browser';
 
 type Screen = Awaited<ReturnType<typeof renderApp>>;
@@ -196,5 +196,31 @@ test('places the preset above mobile tabs and exposes active date filters access
     expect(window.location.search).not.toContain('to=');
   } finally {
     await page.viewport(1440, 900);
+  }
+});
+
+test('uses the browser regional locale for date field order', async () => {
+  const originalResolvedOptions = Intl.DateTimeFormat.prototype.resolvedOptions;
+  const resolvedOptions = vi
+    .spyOn(Intl.DateTimeFormat.prototype, 'resolvedOptions')
+    .mockImplementation(function (this: Intl.DateTimeFormat) {
+      return { ...originalResolvedOptions.call(this), locale: 'fi-FI' };
+    });
+
+  try {
+    const { handlers } = bookApi({ book: aDateRangeBook() });
+    worker.use(...handlers);
+    const screen = await renderApp({ path: '/book/1/highlights?from=2026-07-05' });
+    const field = screen.getByRole('group', { name: 'From' });
+    await expect.element(field).toBeVisible();
+    await expect.element(field).toHaveTextContent('05.07.2026');
+
+    const sections = field
+      .getByRole('spinbutton')
+      .elements()
+      .map((element) => element.getAttribute('aria-label'));
+    expect(sections).toEqual(['Day', 'Month', 'Year']);
+  } finally {
+    resolvedOptions.mockRestore();
   }
 });

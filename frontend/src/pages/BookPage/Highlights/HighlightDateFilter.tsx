@@ -34,6 +34,7 @@ const validationMessage = (
 };
 
 export const HighlightDateFilter = ({ from, to, onChange }: HighlightDateFilterProps) => {
+  const dateLocale = Intl.DateTimeFormat().resolvedOptions().locale;
   const [fromError, setFromError] = useState<DateValidationError | null>(null);
   const [toError, setToError] = useState<DateValidationError | null>(null);
   const [fromValue, setFromValue] = useState<DateTime<boolean> | null>(() => asPickerValue(from));
@@ -72,7 +73,7 @@ export const HighlightDateFilter = ({ from, to, onChange }: HighlightDateFilterP
   };
 
   return (
-    <LocalizationProvider dateAdapter={AdapterLuxon}>
+    <LocalizationProvider dateAdapter={AdapterLuxon} adapterLocale={dateLocale}>
       <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.5 }}>
         <Typography variant="h6" sx={{ fontSize: '1rem', fontWeight: 600 }}>
           Date highlighted
