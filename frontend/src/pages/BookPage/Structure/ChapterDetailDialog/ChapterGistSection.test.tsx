@@ -7,7 +7,7 @@ import { http, HttpResponse } from 'msw';
 import { expect, test } from 'vitest';
 import { userEvent } from 'vitest/browser';
 
-const PLACEHOLDER = 'One sentence: what was this chapter about?';
+const PLACEHOLDER = 'What was this chapter about?';
 const CHAPTER = aChapter({ id: 10, name: 'Attention and memory' });
 
 const aGist = (body: string) =>

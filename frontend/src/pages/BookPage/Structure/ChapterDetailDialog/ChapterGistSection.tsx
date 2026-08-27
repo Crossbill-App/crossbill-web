@@ -10,7 +10,7 @@ import { Box, ButtonBase, TextField, Typography } from '@mui/material';
 import { find } from 'lodash';
 import { useRef, useState, type KeyboardEvent } from 'react';
 
-const PLACEHOLDER = 'One sentence: what was this chapter about?';
+const PLACEHOLDER = 'What was this chapter about?';
 
 interface ChapterGistSectionProps {
   chapterId: number;
