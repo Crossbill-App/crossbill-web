@@ -116,7 +116,7 @@ export function AppBar() {
               <ListItemIcon>
                 <SettingsIcon fontSize="small" />
               </ListItemIcon>
-              <ListItemText>Preferences</ListItemText>
+              <ListItemText>Settings</ListItemText>
             </MenuItem>
             <MenuItem onClick={handleLogout}>
               <ListItemIcon>
