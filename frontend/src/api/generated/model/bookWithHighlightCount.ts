@@ -4,6 +4,7 @@
  * crossbill API
  * OpenAPI spec version: 0.0.0
  */
+import type { BookWithHighlightCountReadingStage } from './bookWithHighlightCountReadingStage.ts';
 import type { PositionResponse } from './positionResponse.ts';
 
 /**
@@ -32,6 +33,8 @@ export interface BookWithHighlightCount {
    * @minimum 0
    */
   flashcard_count?: number;
+  /** Where the reader is with this book, or null if unset */
+  reading_stage?: BookWithHighlightCountReadingStage;
   /** End position of the book (total document length) */
   end_position?: PositionResponse | null;
   created_at: string;

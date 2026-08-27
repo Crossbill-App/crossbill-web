@@ -1,8 +1,7 @@
 import type { BookWithHighlightCount } from '@/api/generated/model';
 import { FadeInOut } from '@/components/animations/FadeInOut.tsx';
 import { BookCover } from '@/components/BookCover';
-import { BookmarkIcon } from '@/theme/Icons.tsx';
-import { theme } from '@/theme/theme.ts';
+import { ReadingStageIcon } from '@/components/readingStage/ReadingStageIcon.tsx';
 import { Box, Typography } from '@mui/material';
 import { Link } from '@tanstack/react-router';
 
@@ -41,7 +40,7 @@ export const BookCard = ({ book }: BookCardProps) => {
             },
           }}
         >
-          {/* Book cover with highlight count overlay */}
+          {/* Book cover with reading-stage and highlight-count overlays */}
           <Box sx={{ position: 'relative', width: 'fit-content' }}>
             <BookCover
               coverFile={book.cover_file ?? null}
@@ -57,32 +56,9 @@ export const BookCard = ({ book }: BookCardProps) => {
               }}
             />
 
-            {/* Highlight count chip */}
-            <Box
-              sx={{
-                position: 'absolute',
-                top: 8,
-                right: 8,
-                backgroundColor: theme.palette.primary.main,
-                display: 'flex',
-                alignItems: 'center',
-                gap: 0.5,
-                py: 0.75,
-                px: 1.25,
-                borderRadius: 1.5,
-                boxShadow: '0 2px 8px rgba(0, 0, 0, 0.15)',
-              }}
-            >
-              <BookmarkIcon sx={{ fontSize: 16, color: 'white' }} />
-              <Typography
-                variant="caption"
-                sx={{
-                  color: 'white',
-                  fontWeight: 500,
-                }}
-              >
-                {book.highlight_count}
-              </Typography>
+            {/* Reading stage marker */}
+            <Box sx={{ position: 'absolute', top: 8, right: 8 }}>
+              <ReadingStageIcon stage={book.reading_stage} />
             </Box>
           </Box>
 

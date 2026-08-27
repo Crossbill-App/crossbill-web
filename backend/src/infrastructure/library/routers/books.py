@@ -80,6 +80,7 @@ def _build_book_with_counts_schema(view: BookWithCountsView) -> BookWithHighligh
         page_count=view.page_count,
         highlight_count=view.highlight_count,
         flashcard_count=view.flashcard_count,
+        reading_stage=view.reading_stage.value if view.reading_stage else None,
         end_position=PositionResponse(
             index=view.end_position.index,
             char_index=view.end_position.char_index,

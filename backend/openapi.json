@@ -4993,6 +4993,26 @@
             "description": "Number of flashcards for this book",
             "default": 0
           },
+          "reading_stage": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "to_read",
+                  "skimming",
+                  "reading",
+                  "finished",
+                  "reflected",
+                  "did_not_finish"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reading Stage",
+            "description": "Where the reader is with this book, or null if unset"
+          },
           "end_position": {
             "anyOf": [
               {
