@@ -212,11 +212,8 @@ const PasswordForm = () => {
 export const SettingsPage = () => {
   return (
     <PageContainer maxWidth="sm">
-      <Typography variant="h1" sx={{ mb: 1, color: 'text.primary' }}>
+      <Typography variant="h1" sx={{ mb: 4, color: 'text.primary' }}>
         Settings
-      </Typography>
-      <Typography variant="body2" sx={{ mb: 4, color: 'text.secondary' }}>
-        Manage your account preferences
       </Typography>
 
       <EmailForm />
