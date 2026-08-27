@@ -254,6 +254,55 @@
           }
         }
       },
+      "patch": {
+        "tags": [
+          "books"
+        ],
+        "summary": "Update Book",
+        "description": "Apply the reader's edits to a book.\n\nPartial by contract: only fields present in the request body are applied,\nwhich is why this reads `model_fields_set` rather than the parsed values.",
+        "operationId": "update_book",
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "book_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Book Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/BookUpdateRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
       "delete": {
         "tags": [
           "books"
@@ -4879,6 +4928,26 @@
         "type": "object",
         "title": "BookReflectionUpdateRequest",
         "description": "Schema for upserting a book reflection (full replace)."
+      },
+      "BookUpdateRequest": {
+        "properties": {
+          "description": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 5000
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description",
+            "description": "Book blurb in Markdown, or null to clear it"
+          }
+        },
+        "type": "object",
+        "title": "BookUpdateRequest",
+        "description": "Partial update of a book's own fields.\n\nA field the client omits is left untouched; a field sent as null is\ncleared. The router relies on `model_fields_set` to tell the two apart,\nso never give a field a non-None default."
       },
       "BookWithHighlightCount": {
         "properties": {

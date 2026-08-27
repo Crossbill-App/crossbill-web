@@ -1,14 +1,16 @@
-import { useDeleteBook } from '@/api/generated/books/books.ts';
+import { useDeleteBook, useUpdateBook } from '@/api/generated/books/books.ts';
 import { BookDetails } from '@/api/generated/model';
 import { BookCover } from '@/components/BookCover.tsx';
 import { CommonDialog } from '@/components/dialogs/CommonDialog.tsx';
 import { ConfirmationDialog } from '@/components/dialogs/ConfirmationDialog.tsx';
+import { RHFTextField } from '@/components/inputs/RHFTextField.tsx';
 import { useMutationErrorHandler } from '@/hooks/useMutationErrorHandler.ts';
 import { useCacheEvents } from '@/lib/cacheEvents.ts';
 import { DeleteIcon } from '@/theme/Icons.tsx';
 import { Box, Button, Typography } from '@mui/material';
 import { useNavigate } from '@tanstack/react-router';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
+import { useForm } from 'react-hook-form';
 
 interface BookEditDialogProps {
   book: BookDetails;
@@ -44,12 +46,44 @@ export const BookEditDialog = ({ book, open, onClose }: BookEditDialogProps) => 
 
   const isDeleting = deleteBookMutation.isPending;
 
+  const {
+    control,
+    handleSubmit,
+    reset,
+    formState: { isDirty },
+  } = useForm<{ description: string }>({
+    defaultValues: { description: book.description ?? '' },
+  });
+
+  // Re-seed when a refetch brings a newer blurb than the one in the open form.
+  useEffect(() => {
+    reset({ description: book.description ?? '' });
+  }, [book.description, reset]);
+
+  const updateBookMutation = useUpdateBook({
+    mutation: {
+      onSuccess: () => {
+        cache.bookChanged(book.id);
+        onClose();
+      },
+      onError: mutationErrorHandler('save blurb'),
+    },
+  });
+
+  const onSubmit = ({ description }: { description: string }) =>
+    updateBookMutation.mutate({
+      bookId: book.id,
+      data: { description: description.trim() || null },
+    });
+
+  const isSaving = updateBookMutation.isPending;
+
   return (
     <CommonDialog
       open={open}
       onClose={onClose}
       maxWidth="sm"
-      isLoading={isDeleting}
+      isLoading={isDeleting || isSaving}
       title="Manage Book"
       footerActions={
         <>
@@ -60,6 +94,13 @@ export const BookEditDialog = ({ book, open, onClose }: BookEditDialogProps) => 
             disabled={isDeleting}
           >
             {isDeleting ? 'Deleting...' : 'Delete'}
+          </Button>
+          <Button
+            onClick={handleSubmit(onSubmit)}
+            variant="contained"
+            disabled={!isDirty || isSaving || isDeleting}
+          >
+            {isSaving ? 'Saving...' : 'Save'}
           </Button>
           <Button onClick={onClose} disabled={isDeleting}>
             Close
@@ -124,6 +165,18 @@ export const BookEditDialog = ({ book, open, onClose }: BookEditDialogProps) => 
             )}
           </Box>
         </Box>
+
+        <RHFTextField
+          name="description"
+          control={control}
+          label="Blurb"
+          multiline
+          minRows={4}
+          fullWidth
+          disabled={isSaving}
+          slotProps={{ htmlInput: { maxLength: 5000 } }}
+          helperText="Markdown is supported. Shown under the book's title."
+        />
       </Box>
 
       <ConfirmationDialog

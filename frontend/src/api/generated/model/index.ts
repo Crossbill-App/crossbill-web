@@ -21,6 +21,7 @@ export * from './bookReadingStageUpdateRequest.ts';
 export * from './bookReadingStageUpdateRequestReadingStage.ts';
 export * from './bookReflectionResponse.ts';
 export * from './bookReflectionUpdateRequest.ts';
+export * from './bookUpdateRequest.ts';
 export * from './bookWithHighlightCount.ts';
 export * from './bookWithHighlightCountReadingStage.ts';
 export * from './chapterContentResponse.ts';

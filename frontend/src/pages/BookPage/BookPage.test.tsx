@@ -123,3 +123,17 @@ test('a dangerous payload in a blurb is stripped by the sanitiser, not just hidd
   expect(screen.container.querySelector('script')).toBeNull();
   expect(screen.container.querySelector('img[onerror]')).toBeNull();
 });
+
+test('a blurb can be written in the manage dialog and appears in the header', async () => {
+  const { handlers, state } = bookApi({ book: aBookDetails({ description: null }) });
+  worker.use(...handlers);
+
+  const screen = await renderApp({ path: '/book/1' });
+
+  await screen.getByRole('button', { name: 'Edit' }).click();
+  await screen.getByRole('textbox', { name: 'Blurb' }).fill('A book about **attention**.');
+  await screen.getByRole('button', { name: 'Save' }).click();
+
+  await expect.element(screen.getByText('attention')).toBeVisible();
+  expect(state.book.description).toBe('A book about **attention**.');
+});
