@@ -1,6 +1,6 @@
 import { useDialogStackEntry } from '@/components/dialogs/dialogStack.ts';
 import type { DialogNavigation } from '@/components/dialogs/useDialogHorizontalNavigation.ts';
-import { lockBodyScroll, unlockBodyScroll } from '@/lib/bodyScrollLock.ts';
+import { useBodyScrollLock } from '@/hooks/useBodyScrollLock.ts';
 import { ArrowBackIcon, ArrowForwardIcon, CloseIcon } from '@/theme/Icons.tsx';
 import {
   Box,
@@ -75,13 +75,7 @@ export const CommonDialog = ({
     </Box>
   ) : null;
 
-  // Lock body scroll when dialog is open
-  useEffect(() => {
-    if (!open) return;
-
-    lockBodyScroll();
-    return unlockBodyScroll;
-  }, [open]);
+  useBodyScrollLock(open);
 
   useEffect(() => {
     if (!open || !navigation) return;
