@@ -27,9 +27,13 @@ export const FilterDrawer = ({ open, onClose, tabs, header }: FilterDrawerProps)
 
   return (
     <Drawer anchor="bottom" open={open} onClose={handleClose}>
-      {/* The drawer scrolls its own content; `contain` keeps a pull that runs
-          past either end from chaining out to the page behind it. */}
-      <Box sx={{ p: 2, pb: 6, maxHeight: '80vh', overflow: 'auto', overscrollBehavior: 'contain' }}>
+      {/* Capped against the *dynamic* viewport, so the drawer stays clear of
+          mobile browser chrome however much of it is showing. It scrolls its
+          own content; `contain` keeps a pull that runs past either end from
+          chaining out to the page behind it. */}
+      <Box
+        sx={{ p: 2, pb: 6, maxHeight: '80dvh', overflow: 'auto', overscrollBehavior: 'contain' }}
+      >
         {/* Drag handle */}
         <Box sx={{ display: 'flex', justifyContent: 'center', mb: 1 }}>
           <Box
