@@ -4,6 +4,7 @@ import { ReadingStageChip } from '@/pages/BookPage/Reflection/ReadingStageChip.t
 import { EditIcon } from '@/theme/Icons.tsx';
 import { Box, Button, LinearProgress, Tooltip, Typography } from '@mui/material';
 import { useState } from 'react';
+import { BookBlurb } from './BookBlurb.tsx';
 import { BookEditDialog } from './BookEditDialog.tsx';
 import { BookStatsStrip } from './BookStatsStrip.tsx';
 
@@ -127,6 +128,8 @@ export const BookTitle = ({ book }: BookTitleProps) => {
           </Box>
 
           <BookStatsStrip book={book} />
+
+          <BookBlurb description={book.description ?? null} />
         </Box>
       </Box>
 

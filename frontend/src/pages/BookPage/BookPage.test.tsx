@@ -68,3 +68,43 @@ test('the note count leaves out gists', async () => {
 
   await expect.element(screen.getByText('1 notes')).toBeVisible();
 });
+
+test('a blurb renders as markdown and starts collapsed', async () => {
+  const { handlers } = bookApi({
+    book: aBookDetails({
+      description: '**Winner** of nothing.\n\n' + 'A long sentence about attention. '.repeat(40),
+    }),
+  });
+  worker.use(...handlers);
+
+  const screen = await renderApp({ path: '/book/1' });
+
+  await expect.element(screen.getByText('Winner')).toBeVisible();
+  await expect.element(screen.getByRole('button', { name: 'Show more' })).toBeVisible();
+
+  await screen.getByRole('button', { name: 'Show more' }).click();
+
+  await expect.element(screen.getByRole('button', { name: 'Show less' })).toBeVisible();
+});
+
+test('a book with no blurb shows no blurb controls', async () => {
+  const { handlers } = bookApi({ book: aBookDetails({ description: null }) });
+  worker.use(...handlers);
+
+  const screen = await renderApp({ path: '/book/1' });
+
+  await expect.element(screen.getByRole('heading', { name: 'The Pragmatic Reader' })).toBeVisible();
+  await expect(screen.getByRole('button', { name: 'Show more' }).query()).toBeNull();
+});
+
+test('html in a publisher blurb renders as markup, not as visible tags', async () => {
+  const { handlers } = bookApi({
+    book: aBookDetails({ description: '<p>From the <em>publisher</em>.</p>' }),
+  });
+  worker.use(...handlers);
+
+  const screen = await renderApp({ path: '/book/1' });
+
+  await expect.element(screen.getByText('publisher')).toBeVisible();
+  await expect(screen.getByText('<p>', { exact: false }).query()).toBeNull();
+});
