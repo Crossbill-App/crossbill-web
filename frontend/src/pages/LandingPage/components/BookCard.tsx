@@ -2,8 +2,6 @@ import type { BookWithHighlightCount } from '@/api/generated/model';
 import { FadeInOut } from '@/components/animations/FadeInOut.tsx';
 import { BookCover } from '@/components/BookCover';
 import { ReadingStageIcon } from '@/components/readingStage/ReadingStageIcon.tsx';
-import { BookmarkIcon } from '@/theme/Icons.tsx';
-import { theme } from '@/theme/theme.ts';
 import { Box, Typography } from '@mui/material';
 import { Link } from '@tanstack/react-router';
 
@@ -61,34 +59,6 @@ export const BookCard = ({ book }: BookCardProps) => {
             {/* Reading stage marker */}
             <Box sx={{ position: 'absolute', top: 8, left: 8 }}>
               <ReadingStageIcon stage={book.reading_stage} />
-            </Box>
-
-            {/* Highlight count chip */}
-            <Box
-              sx={{
-                position: 'absolute',
-                top: 8,
-                right: 8,
-                backgroundColor: theme.palette.primary.main,
-                display: 'flex',
-                alignItems: 'center',
-                gap: 0.5,
-                py: 0.75,
-                px: 1.25,
-                borderRadius: 1.5,
-                boxShadow: `0 2px 8px ${theme.customColors.shadows.medium}`,
-              }}
-            >
-              <BookmarkIcon sx={{ fontSize: 16, color: 'white' }} />
-              <Typography
-                variant="caption"
-                sx={{
-                  color: 'white',
-                  fontWeight: 500,
-                }}
-              >
-                {book.highlight_count}
-              </Typography>
             </Box>
           </Box>
 
