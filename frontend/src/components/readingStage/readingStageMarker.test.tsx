@@ -13,13 +13,6 @@ describe('readingStageMarker', () => {
     expect(readingStageMarker('reflected')?.color).toBe('primary');
   });
 
-  it('gives did_not_finish its own marker, muted rather than amber', () => {
-    const abandoned = readingStageMarker('did_not_finish');
-    expect(abandoned?.color).toBe('secondary');
-    expect(abandoned?.Icon).not.toBe(readingStageMarker('reading')?.Icon);
-    expect(abandoned?.Icon).not.toBe(readingStageMarker('finished')?.Icon);
-  });
-
   it('renders no marker for to_read or an unset stage', () => {
     expect(readingStageMarker('to_read')).toBeNull();
     expect(readingStageMarker(null)).toBeNull();

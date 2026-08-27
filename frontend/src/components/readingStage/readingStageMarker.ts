@@ -1,5 +1,4 @@
 import {
-  ReadingAbandonedIcon,
   ReadingDoneIcon,
   ReadingInProgressIcon,
 } from '@/theme/Icons.tsx';
@@ -15,7 +14,6 @@ export interface ReadingStageMarker {
 
 const IN_PROGRESS = { Icon: ReadingInProgressIcon, color: 'primary' } as const;
 const DONE = { Icon: ReadingDoneIcon, color: 'primary' } as const;
-const ABANDONED = { Icon: ReadingAbandonedIcon, color: 'secondary' } as const;
 
 /** Six stages collapse into three markers, and `to_read` deliberately gets none:
  *  unread is the default state of a library, so marking it would mark everything. */
@@ -25,7 +23,7 @@ const STAGE_MARKERS: Record<ReadingStageValue, Omit<ReadingStageMarker, 'label'>
   reading: IN_PROGRESS,
   finished: DONE,
   reflected: DONE,
-  did_not_finish: ABANDONED,
+  did_not_finish: null,
 };
 
 /**

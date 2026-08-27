@@ -57,7 +57,6 @@ export { PhonelinkOff as NotOnDeviceIcon } from '@mui/icons-material';
 
 // Reading stage icons
 export {
-  Close as ReadingAbandonedIcon,
   Check as ReadingDoneIcon,
   Timelapse as ReadingInProgressIcon,
 } from '@mui/icons-material';
