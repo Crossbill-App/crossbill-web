@@ -13,6 +13,7 @@ from typing import Protocol
 
 from src.domain.common.value_objects.ids import UserId
 from src.domain.common.value_objects.position import Position
+from src.domain.library.entities.book import ReadingStage
 
 
 @dataclass(frozen=True)
@@ -31,6 +32,7 @@ class BookWithCountsView:
     page_count: int | None
     highlight_count: int
     flashcard_count: int
+    reading_stage: ReadingStage | None
     end_position: Position | None
     created_at: datetime
     updated_at: datetime

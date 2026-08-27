@@ -67,6 +67,9 @@ class BookWithHighlightCount(BaseModel):
     page_count: int | None = None
     highlight_count: int = Field(..., ge=0, description="Number of highlights for this book")
     flashcard_count: int = Field(0, ge=0, description="Number of flashcards for this book")
+    reading_stage: ReadingStageLiteral | None = Field(
+        None, description="Where the reader is with this book, or null if unset"
+    )
     end_position: PositionResponse | None = Field(
         None, description="End position of the book (total document length)"
     )

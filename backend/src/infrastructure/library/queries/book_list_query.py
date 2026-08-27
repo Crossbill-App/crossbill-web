@@ -14,6 +14,7 @@ from sqlalchemy.orm import noload
 from src.application.library.queries.book_list import BookListPageView, BookWithCountsView
 from src.domain.common.value_objects.ids import UserId
 from src.domain.common.value_objects.position import Position
+from src.domain.library.entities.book import ReadingStage
 from src.infrastructure.common.sql import LIKE_ESCAPE_CHAR, escape_like_pattern
 from src.infrastructure.learning.orm.flashcard_model import Flashcard as FlashcardORM
 from src.infrastructure.library.orm.book_model import Book as BookORM
@@ -150,6 +151,7 @@ def _book_view(row: BookORM, highlight_count: int, flashcard_count: int) -> Book
         page_count=row.page_count,
         highlight_count=highlight_count,
         flashcard_count=flashcard_count,
+        reading_stage=ReadingStage(row.reading_stage) if row.reading_stage else None,
         end_position=Position.from_json(row.end_position) if row.end_position else None,
         created_at=row.created_at,
         updated_at=row.updated_at,

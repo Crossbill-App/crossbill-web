@@ -22,6 +22,7 @@ export * from './bookReadingStageUpdateRequestReadingStage.ts';
 export * from './bookReflectionResponse.ts';
 export * from './bookReflectionUpdateRequest.ts';
 export * from './bookWithHighlightCount.ts';
+export * from './bookWithHighlightCountReadingStage.ts';
 export * from './chapterContentResponse.ts';
 export * from './chapterDigestResponse.ts';
 export * from './chapterWithHighlights.ts';
