@@ -108,3 +108,18 @@ test('html in a publisher blurb renders as markup, not as visible tags', async (
   await expect.element(screen.getByText('publisher')).toBeVisible();
   await expect(screen.getByText('<p>', { exact: false }).query()).toBeNull();
 });
+
+test('a dangerous payload in a blurb is stripped by the sanitiser, not just hidden by rehypeRaw', async () => {
+  const { handlers } = bookApi({
+    book: aBookDetails({
+      description: 'Safe blurb.\n\n<img src="x" onerror="alert(1)"><script>alert(1)</script>',
+    }),
+  });
+  worker.use(...handlers);
+
+  const screen = await renderApp({ path: '/book/1' });
+
+  await expect.element(screen.getByText('Safe blurb.')).toBeVisible();
+  expect(screen.container.querySelector('script')).toBeNull();
+  expect(screen.container.querySelector('img[onerror]')).toBeNull();
+});
