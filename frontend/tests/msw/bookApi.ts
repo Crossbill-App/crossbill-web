@@ -2,11 +2,13 @@ import type {
   BookDetails,
   BookReadingStageUpdateRequest,
   BookUpdateRequest,
+  NoteCreateRequest,
   NoteUpdateRequest,
   NoteWithLinks,
 } from '@/api/generated/model';
 import { http, HttpResponse } from 'msw';
 import { aBookDetails } from '../fixtures/book';
+import { aNote } from '../fixtures/notes';
 
 interface BookApiState {
   book: BookDetails;
@@ -54,6 +56,28 @@ export function bookApi(initial: Partial<BookApiState> = {}) {
         state.book = { ...state.book, description: next || null };
       }
       return new HttpResponse(null, { status: 204 });
+    }),
+
+    http.post('/api/v1/notes', async ({ request }) => {
+      const body = (await request.json()) as NoteCreateRequest;
+      const note = aNote({
+        id: Math.max(0, ...state.notes.map((candidate) => candidate.id)) + 1,
+        title: body.title,
+        body: body.body ?? '',
+        kind: body.kind ?? null,
+        book_ids: [body.book_id],
+        chapter_ids: body.chapter_ids ?? [],
+        highlight_ids: body.highlight_ids ?? [],
+        tag_ids: body.tag_ids ?? [],
+      });
+      state.notes = [...state.notes, note];
+
+      return HttpResponse.json({ success: true, message: 'Note created', note });
+    }),
+
+    http.delete('/api/v1/notes/:noteId', ({ params }) => {
+      state.notes = state.notes.filter((candidate) => candidate.id !== Number(params.noteId));
+      return HttpResponse.json({ success: true, message: 'Note deleted' });
     }),
 
     http.get('/api/v1/notes/:noteId', ({ params }) => {
