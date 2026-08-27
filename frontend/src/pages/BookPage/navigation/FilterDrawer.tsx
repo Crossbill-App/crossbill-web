@@ -1,3 +1,4 @@
+import { useBodyScrollLock } from '@/hooks/useBodyScrollLock.ts';
 import { CloseIcon } from '@/theme/Icons.tsx';
 import { Box, Drawer, IconButton, Tab, Tabs } from '@mui/material';
 import { type ReactNode, useState } from 'react';
@@ -17,6 +18,8 @@ interface FilterDrawerProps {
 export const FilterDrawer = ({ open, onClose, tabs, header }: FilterDrawerProps) => {
   const [activeTab, setActiveTab] = useState(0);
 
+  useBodyScrollLock(open);
+
   const handleClose = () => {
     onClose();
     setActiveTab(0);
@@ -24,7 +27,13 @@ export const FilterDrawer = ({ open, onClose, tabs, header }: FilterDrawerProps)
 
   return (
     <Drawer anchor="bottom" open={open} onClose={handleClose}>
-      <Box sx={{ p: 2, pb: 6, maxHeight: '80vh', overflow: 'auto' }}>
+      {/* Capped against the *dynamic* viewport, so the drawer stays clear of
+          mobile browser chrome however much of it is showing. It scrolls its
+          own content; `contain` keeps a pull that runs past either end from
+          chaining out to the page behind it. */}
+      <Box
+        sx={{ p: 2, pb: 6, maxHeight: '80dvh', overflow: 'auto', overscrollBehavior: 'contain' }}
+      >
         {/* Drag handle */}
         <Box sx={{ display: 'flex', justifyContent: 'center', mb: 1 }}>
           <Box
