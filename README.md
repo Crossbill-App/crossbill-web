@@ -56,7 +56,7 @@ cp .env.example .env
 docker compose up
 ```
 
-Then install the Koreader [plugin on your e-reader](clients/koreader-plugin/crossbill.koplugin/README.md).
+Then install the Koreader [plugin on your e-reader](https://github.com/Crossbill-App/koreader-plugin).
 
 ### Background Worker
 
