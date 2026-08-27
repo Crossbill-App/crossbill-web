@@ -6,6 +6,9 @@ from starlette import status
 from src.application.library.commands.book_management.delete_book_use_case import (
     DeleteBookUseCase,
 )
+from src.application.library.commands.book_management.update_book_use_case import (
+    UpdateBookUseCase,
+)
 from src.application.library.commands.book_management.update_reading_stage_use_case import (
     UpdateReadingStageUseCase,
 )
@@ -34,7 +37,10 @@ from src.infrastructure.learning.schemas import Flashcard
 from src.infrastructure.library.schemas import (
     BookWithHighlightCount,
 )
-from src.infrastructure.library.schemas.book_schemas import BookReadingStageUpdateRequest
+from src.infrastructure.library.schemas.book_schemas import (
+    BookReadingStageUpdateRequest,
+    BookUpdateRequest,
+)
 from src.infrastructure.reading.schemas import (
     BookDetails,
     Bookmark,
@@ -318,6 +324,26 @@ async def update_reading_stage(
         user_id=current_user.id.value,
         reading_stage=request.reading_stage,
     )
+
+
+@router.patch("/{book_id}", status_code=status.HTTP_204_NO_CONTENT)
+async def update_book(
+    book_id: int,
+    request: BookUpdateRequest,
+    current_user: Annotated[User, Depends(get_current_user)],
+    use_case: UpdateBookUseCase = Depends(inject_use_case(container.library.update_book_use_case)),
+) -> None:
+    """Apply the reader's edits to a book.
+
+    Partial by contract: only fields present in the request body are applied,
+    which is why this reads `model_fields_set` rather than the parsed values.
+    """
+    if "description" in request.model_fields_set:
+        await use_case.update_description(
+            book_id=book_id,
+            user_id=current_user.id.value,
+            description=request.description,
+        )
 
 
 @router.delete("/{book_id}", status_code=status.HTTP_204_NO_CONTENT)

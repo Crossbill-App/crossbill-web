@@ -118,6 +118,11 @@ class Book(Entity[BookId]):
         """Set the manual reading stage."""
         self.reading_stage = reading_stage
 
+    def set_description(self, description: str | None) -> None:
+        """Set the book's blurb, treating blank text as no blurb at all."""
+        stripped = description.strip() if description else ""
+        self.description = stripped or None
+
     # Factory methods
     @classmethod
     def create(

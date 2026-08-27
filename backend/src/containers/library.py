@@ -13,6 +13,9 @@ from src.application.library.commands.book_management.delete_book_use_case impor
 from src.application.library.commands.book_management.mark_book_viewed_use_case import (
     MarkBookViewedUseCase,
 )
+from src.application.library.commands.book_management.update_book_use_case import (
+    UpdateBookUseCase,
+)
 from src.application.library.commands.book_management.update_reading_stage_use_case import (
     UpdateReadingStageUseCase,
 )
@@ -82,6 +85,10 @@ class LibraryContainer(containers.DeclarativeContainer):
     )
     update_reading_stage_use_case = providers.Factory(
         UpdateReadingStageUseCase,
+        book_repository=book_repository,
+    )
+    update_book_use_case = providers.Factory(
+        UpdateBookUseCase,
         book_repository=book_repository,
     )
 

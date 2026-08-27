@@ -16,6 +16,21 @@ class BookReadingStageUpdateRequest(BaseModel):
     )
 
 
+class BookUpdateRequest(BaseModel):
+    """Partial update of a book's own fields.
+
+    A field the client omits is left untouched; a field sent as null is
+    cleared. The router relies on `model_fields_set` to tell the two apart,
+    so never give a field a non-None default.
+    """
+
+    description: str | None = Field(
+        None,
+        max_length=5000,
+        description="Book blurb in Markdown, or null to clear it",
+    )
+
+
 class BookBase(BaseModel):
     """Base schema for Book."""
 
