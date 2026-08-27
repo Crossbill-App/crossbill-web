@@ -2,7 +2,7 @@
 
 from datetime import datetime
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 
 from src.infrastructure.common.schemas.position_schemas import PositionResponse
 from src.infrastructure.reading.schemas.highlight_schemas import ReadingStageLiteral
@@ -23,6 +23,14 @@ class BookUpdateRequest(BaseModel):
     cleared. The router relies on `model_fields_set` to tell the two apart,
     so never give a field a non-None default.
     """
+
+    # This schema's semantics are defined entirely by which keys are present
+    # (see `model_fields_set` above), so an unrecognised key — e.g. a typo'd
+    # field name, or a field not yet supported by this endpoint — must fail
+    # loudly rather than parse to an empty `model_fields_set` and silently
+    # no-op with a 204. Local tightening: no other schema in
+    # `src/infrastructure` sets `extra="forbid"`.
+    model_config = ConfigDict(extra="forbid")
 
     description: str | None = Field(
         None,

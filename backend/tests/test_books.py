@@ -968,6 +968,20 @@ class TestUpdateBook:
         )
         assert response.status_code == status.HTTP_422_UNPROCESSABLE_CONTENT
 
+    async def test_unknown_key_rejected(self, client: AsyncClient, test_book: models.Book) -> None:
+        """An unrecognised key must 422, not silently no-op with a 204.
+
+        This endpoint's contract is defined by which keys are present in the
+        body (`model_fields_set`); a field it doesn't know about — like
+        `title`, not yet supported here — would otherwise parse to an empty
+        `model_fields_set` and the client would get a false-positive 204.
+        """
+        response = await client.patch(
+            f"/api/v1/books/{test_book.id}",
+            json={"title": "New title"},
+        )
+        assert response.status_code == status.HTTP_422_UNPROCESSABLE_CONTENT
+
     async def test_update_book_not_found(self, client: AsyncClient) -> None:
         response = await client.patch("/api/v1/books/99999", json={"description": "Nope"})
         assert response.status_code == status.HTTP_404_NOT_FOUND

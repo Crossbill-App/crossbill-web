@@ -43,7 +43,13 @@ export const BookBlurb = ({ description }: BookBlurbProps) => {
       >
         <ReactMarkdown rehypePlugins={[rehypeRaw, rehypeSanitize]}>{description}</ReactMarkdown>
       </Box>
-      <Button variant="text" size="small" sx={{ px: 0 }} onClick={() => setExpanded(!expanded)}>
+      <Button
+        variant="text"
+        size="small"
+        sx={{ px: 0 }}
+        onClick={() => setExpanded(!expanded)}
+        aria-expanded={expanded}
+      >
         {expanded ? 'Show less' : 'Show more'}
       </Button>
     </Box>

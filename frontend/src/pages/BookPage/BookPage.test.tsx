@@ -173,4 +173,29 @@ test('a failed blurb save reports the error and keeps the typed edit and the ori
   // ...and closing without retrying leaves the original blurb on screen.
   await dialog.getByRole('button', { name: 'Close', exact: true }).click();
   await expect.element(screen.getByText('The original blurb.')).toBeVisible();
+
+  // Reopening must not resurrect the abandoned draft: the field should show
+  // the real blurb, not the text left over from the failed save.
+  await screen.getByRole('button', { name: 'Edit' }).click();
+  await expect
+    .element(screen.getByRole('textbox', { name: 'Blurb' }))
+    .toHaveValue('The original blurb.');
+});
+
+test('clearing the blurb removes it from the header', async () => {
+  const { handlers, state } = bookApi({
+    book: aBookDetails({ description: 'A blurb worth deleting.' }),
+  });
+  worker.use(...handlers);
+
+  const screen = await renderApp({ path: '/book/1' });
+  await expect.element(screen.getByText('A blurb worth deleting.')).toBeVisible();
+
+  await screen.getByRole('button', { name: 'Edit' }).click();
+  await screen.getByRole('textbox', { name: 'Blurb' }).fill('');
+  await screen.getByRole('button', { name: 'Save' }).click();
+
+  await expect.element(screen.getByRole('dialog')).not.toBeInTheDocument();
+  await expect.element(screen.getByText('A blurb worth deleting.')).not.toBeInTheDocument();
+  expect(state.book.description).toBeNull();
 });

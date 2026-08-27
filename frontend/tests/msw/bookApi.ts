@@ -49,7 +49,9 @@ export function bookApi(initial: Partial<BookApiState> = {}) {
     http.patch('/api/v1/books/:bookId', async ({ request }) => {
       const body = (await request.json()) as BookUpdateRequest;
       if ('description' in body) {
-        state.book = { ...state.book, description: body.description ?? null };
+        // Mirrors the server, which normalises blank/whitespace-only text to null.
+        const next = body.description?.trim();
+        state.book = { ...state.book, description: next || null };
       }
       return new HttpResponse(null, { status: 204 });
     }),

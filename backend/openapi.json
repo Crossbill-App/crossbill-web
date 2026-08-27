@@ -4945,6 +4945,7 @@
             "description": "Book blurb in Markdown, or null to clear it"
           }
         },
+        "additionalProperties": false,
         "type": "object",
         "title": "BookUpdateRequest",
         "description": "Partial update of a book's own fields.\n\nA field the client omits is left untouched; a field sent as null is\ncleared. The router relies on `model_fields_set` to tell the two apart,\nso never give a field a non-None default."
