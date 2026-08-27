@@ -56,10 +56,7 @@ export { Logout as LogoutIcon, Settings as SettingsIcon } from '@mui/icons-mater
 export { PhonelinkOff as NotOnDeviceIcon } from '@mui/icons-material';
 
 // Reading stage icons
-export {
-  Check as ReadingDoneIcon,
-  Timelapse as ReadingInProgressIcon,
-} from '@mui/icons-material';
+export { Check as ReadingDoneIcon, Timelapse as ReadingInProgressIcon } from '@mui/icons-material';
 
 // Date/Time icons
 export { CalendarMonth as DateIcon } from '@mui/icons-material';

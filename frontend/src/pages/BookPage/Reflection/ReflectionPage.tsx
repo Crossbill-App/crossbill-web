@@ -13,6 +13,10 @@ import {
 import { Spinner } from '@/components/animations/Spinner.tsx';
 import { IconButtonWithTooltip } from '@/components/buttons/IconButtonWithTooltip.tsx';
 import { MiddleContentColumn } from '@/components/layout/Layouts.tsx';
+import {
+  READING_STAGE_HINTS,
+  type ReadingStageValue,
+} from '@/components/readingStage/readingStages.ts';
 import { PageTitle } from '@/components/typography/PageTitle.tsx';
 import { SectionTitle } from '@/components/typography/SectionTitle.tsx';
 import { useMutationErrorHandler } from '@/hooks/useMutationErrorHandler.ts';
@@ -24,7 +28,6 @@ import { Box, Button, Stack, Typography, useTheme } from '@mui/material';
 import { useQueryClient } from '@tanstack/react-query';
 import { useState } from 'react';
 import ReactMarkdown from 'react-markdown';
-import { READING_STAGE_HINTS, type ReadingStageValue } from '@/components/readingStage/readingStages.ts';
 import { ReflectionNotesSection } from './ReflectionNotesSection.tsx';
 import {
   REFLECTION_QUESTIONS,

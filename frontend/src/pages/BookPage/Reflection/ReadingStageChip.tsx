@@ -1,13 +1,13 @@
 import { useUpdateReadingStage } from '@/api/generated/books/books.ts';
-import { useMutationErrorHandler } from '@/hooks/useMutationErrorHandler.ts';
-import { useCacheEvents } from '@/lib/cacheEvents.ts';
-import { Chip, Divider, Menu, MenuItem } from '@mui/material';
-import { useState } from 'react';
 import {
   READING_STAGE_LABELS,
   READING_STAGE_PROGRESSION,
   type ReadingStageValue,
 } from '@/components/readingStage/readingStages.ts';
+import { useMutationErrorHandler } from '@/hooks/useMutationErrorHandler.ts';
+import { useCacheEvents } from '@/lib/cacheEvents.ts';
+import { Chip, Divider, Menu, MenuItem } from '@mui/material';
+import { useState } from 'react';
 
 interface ReadingStageChipProps {
   bookId: number;

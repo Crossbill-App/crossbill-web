@@ -1,7 +1,4 @@
-import {
-  ReadingDoneIcon,
-  ReadingInProgressIcon,
-} from '@/theme/Icons.tsx';
+import { ReadingDoneIcon, ReadingInProgressIcon } from '@/theme/Icons.tsx';
 import type { SvgIconComponent } from '@mui/icons-material';
 import { READING_STAGE_LABELS, type ReadingStageValue } from './readingStages.ts';
 
@@ -33,9 +30,7 @@ const STAGE_MARKERS: Record<ReadingStageValue, Omit<ReadingStageMarker, 'label'>
  * cast, and returns null for anything it does not recognise — a stage added on
  * the backend first renders no marker rather than an undefined label.
  */
-export const readingStageMarker = (
-  stage: string | null | undefined
-): ReadingStageMarker | null => {
+export const readingStageMarker = (stage: string | null | undefined): ReadingStageMarker | null => {
   if (!stage || !(stage in STAGE_MARKERS)) return null;
   const marker = STAGE_MARKERS[stage as ReadingStageValue];
   if (!marker) return null;
