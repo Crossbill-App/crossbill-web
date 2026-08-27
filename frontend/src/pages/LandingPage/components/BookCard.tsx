@@ -57,7 +57,7 @@ export const BookCard = ({ book }: BookCardProps) => {
             />
 
             {/* Reading stage marker */}
-            <Box sx={{ position: 'absolute', top: 8, left: 8 }}>
+            <Box sx={{ position: 'absolute', top: 8, right: 8 }}>
               <ReadingStageIcon stage={book.reading_stage} />
             </Box>
           </Box>
