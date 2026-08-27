@@ -9,6 +9,7 @@ import { Autocomplete, Box, MenuItem, TextField, Typography } from '@mui/materia
 import { forwardRef, useEffect, useImperativeHandle, type ReactNode } from 'react';
 import { Controller, useForm } from 'react-hook-form';
 
+import { GistHelperText } from './GistHelperText';
 import { useNoteTagField } from './hooks/useNoteTagField';
 import { NOTE_KIND_LABELS, NOTE_KINDS, type NoteKindValue } from './noteKinds';
 
@@ -55,8 +56,6 @@ interface NoteFormValues {
 }
 
 const EMPTY_FORM: NoteFormValues = { title: '', body: '', kind: '', chapters: [], tags: [] };
-
-const GIST_LENGTH_GUIDE = 200;
 
 /**
  * The note create/edit form fields plus mutations, without a dialog shell.
@@ -150,15 +149,10 @@ export const NoteEditorForm = forwardRef<NoteEditorFormHandle, NoteEditorFormPro
     const isGist = watch('kind') === 'gist';
     const bodyLength = watch('body').length;
     const gistHelperText: ReactNode = isGist ? (
-      <Box component="span" sx={{ display: 'flex', justifyContent: 'space-between', gap: 1 }}>
-        <span>1–2 sentences: what was this chapter about, in your words?</span>
-        <Box
-          component="span"
-          sx={{ flexShrink: 0, color: bodyLength > GIST_LENGTH_GUIDE ? 'warning.main' : 'inherit' }}
-        >
-          {bodyLength}/{GIST_LENGTH_GUIDE}
-        </Box>
-      </Box>
+      <GistHelperText
+        length={bodyLength}
+        message="1–2 sentences: what was this chapter about, in your words?"
+      />
     ) : undefined;
 
     useEffect(() => {
