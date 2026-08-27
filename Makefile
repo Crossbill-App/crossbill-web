@@ -61,7 +61,9 @@ release-nightly: ## Build and push nightly Docker image to Docker Hub
 # (plain `railway redeploy` reuses the cached digest, so it won't pull a new build).
 # Requires RAILWAY_API_TOKEN (railway.com -> Account -> Tokens; NOT RAILWAY_TOKEN).
 # No `railway login` needed — the script talks to the API directly.
-deploy: ## Build+push nightly image and deploy it to Railway
+# Deploys whatever branch is checked out, tagging the image after it; the moving
+# :nightly tag is only refreshed on main.
+deploy: ## Build+push an image of the current branch and deploy it to Railway
 	set -a; [ -f .env.deploy ] && . ./.env.deploy; set +a; ./scripts/railway-deploy.sh
 
 empty-s3-bucket: ## Remove all objects from the local S3 bucket
