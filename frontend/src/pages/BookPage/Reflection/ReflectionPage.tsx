@@ -24,7 +24,7 @@ import { Box, Button, Stack, Typography, useTheme } from '@mui/material';
 import { useQueryClient } from '@tanstack/react-query';
 import { useState } from 'react';
 import ReactMarkdown from 'react-markdown';
-import { READING_STAGE_HINTS, type ReadingStageValue } from './readingStages.ts';
+import { READING_STAGE_HINTS, type ReadingStageValue } from '@/components/readingStage/readingStages.ts';
 import { ReflectionNotesSection } from './ReflectionNotesSection.tsx';
 import {
   REFLECTION_QUESTIONS,

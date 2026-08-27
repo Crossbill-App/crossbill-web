@@ -7,7 +7,7 @@ import {
   READING_STAGE_LABELS,
   READING_STAGE_PROGRESSION,
   type ReadingStageValue,
-} from './readingStages';
+} from '@/components/readingStage/readingStages.ts';
 
 interface ReadingStageChipProps {
   bookId: number;

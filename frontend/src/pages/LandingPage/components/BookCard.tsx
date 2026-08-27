@@ -1,6 +1,7 @@
 import type { BookWithHighlightCount } from '@/api/generated/model';
 import { FadeInOut } from '@/components/animations/FadeInOut.tsx';
 import { BookCover } from '@/components/BookCover';
+import { ReadingStageIcon } from '@/components/readingStage/ReadingStageIcon.tsx';
 import { BookmarkIcon } from '@/theme/Icons.tsx';
 import { theme } from '@/theme/theme.ts';
 import { Box, Typography } from '@mui/material';
@@ -41,7 +42,7 @@ export const BookCard = ({ book }: BookCardProps) => {
             },
           }}
         >
-          {/* Book cover with highlight count overlay */}
+          {/* Book cover with reading-stage and highlight-count overlays */}
           <Box sx={{ position: 'relative', width: 'fit-content' }}>
             <BookCover
               coverFile={book.cover_file ?? null}
@@ -57,6 +58,11 @@ export const BookCard = ({ book }: BookCardProps) => {
               }}
             />
 
+            {/* Reading stage marker */}
+            <Box sx={{ position: 'absolute', top: 8, left: 8 }}>
+              <ReadingStageIcon stage={book.reading_stage} />
+            </Box>
+
             {/* Highlight count chip */}
             <Box
               sx={{
@@ -70,7 +76,7 @@ export const BookCard = ({ book }: BookCardProps) => {
                 py: 0.75,
                 px: 1.25,
                 borderRadius: 1.5,
-                boxShadow: '0 2px 8px rgba(0, 0, 0, 0.15)',
+                boxShadow: `0 2px 8px ${theme.customColors.shadows.medium}`,
               }}
             >
               <BookmarkIcon sx={{ fontSize: 16, color: 'white' }} />
