@@ -16,6 +16,15 @@
 #                         Resource IDs (not kept in-repo). Find them once with
 #                         `railway status --json` and export alongside the token.
 #   - docker buildx, jq, curl
+#
+# Optional:
+#   - DEPLOY_REF            Ref being deployed; defaults to the checked-out
+#                           branch. Set it when HEAD is detached (CI), since it
+#                           names the image tag and decides whether the moving
+#                           :nightly tag moves.
+#   - RAILWAY_DEPLOY_DEBUG  Dump raw API responses on error. Off by default: the
+#                           responses carry project and service names, and this
+#                           also runs in CI logs.
 set -euo pipefail
 
 : "${RAILWAY_API_TOKEN:?Set RAILWAY_API_TOKEN (railway.com -> Account -> Tokens; NOT RAILWAY_TOKEN)}"
@@ -25,11 +34,25 @@ ENVIRONMENT_ID="${RAILWAY_ENVIRONMENT_ID:?Set RAILWAY_ENVIRONMENT_ID (find it wi
 API="https://backboard.railway.com/graphql/v2"
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 
-TAG="nightly-$(date +%Y%m%d%H%M%S)"
+# Any ref can be deployed, so the tag records which one: a bare timestamp cannot
+# tell a main deploy from a branch one, and the tag is what Railway shows as live.
+REF_NAME="${DEPLOY_REF:-$(git rev-parse --abbrev-ref HEAD)}"
+SHORT_SHA="$(git rev-parse --short HEAD)"
+# Docker tags allow [A-Za-z0-9_.-] only and must not start with . or -, so refs
+# like `feat/thing` need slugging.
+REF_SLUG="$(printf '%s' "$REF_NAME" | tr '[:upper:]' '[:lower:]' |
+  sed -e 's#[^a-z0-9._-]#-#g' -e 's#^[^a-z0-9_]*##' | cut -c1-40)"
+[ -n "$REF_SLUG" ] || REF_SLUG="ref"
+# The timestamp stays: redeploying the same commit must still produce an image
+# reference Railway has not seen, or it serves the cached digest.
+TAG="${REF_SLUG}-${SHORT_SHA}-$(date +%Y%m%d%H%M%S)"
 IMAGE="tumetsu/crossbill:${TAG}"
 
-# 1. Build & push the pinned tag (also refreshes the moving :nightly tag).
-"${SCRIPT_DIR}/build-for-docker-hub.sh" "$TAG"
+echo "Deploying ${REF_NAME} (${SHORT_SHA}) as ${IMAGE}"
+
+# 1. Build & push the pinned tag (:nightly moves only for main; see the build script).
+MOVE_NIGHTLY="$([ "$REF_NAME" = "main" ] && echo 1 || echo 0)" \
+  "${SCRIPT_DIR}/build-for-docker-hub.sh" "$TAG"
 
 gql() {
   # $1 = full JSON request body; echoes the response, fails on a GraphQL error.
@@ -39,7 +62,10 @@ gql() {
     -H "Content-Type: application/json" \
     --data "$1")"
   if echo "$resp" | jq -e '.errors' >/dev/null 2>&1; then
-    echo "Railway API error: $resp" >&2
+    # Only the GraphQL messages: the full body can name the project, service and
+    # domain, and this runs somewhere the log outlives the deploy.
+    echo "Railway API error: $(echo "$resp" | jq -c '[.errors[].message]' 2>/dev/null || echo '[unparseable response]')" >&2
+    if [ -n "${RAILWAY_DEPLOY_DEBUG:-}" ]; then echo "$resp" >&2; fi
     exit 1
   fi
   printf '%s' "$resp"
