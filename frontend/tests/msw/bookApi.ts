@@ -10,6 +10,7 @@ import { aBookDetails } from '../fixtures/book';
 interface BookApiState {
   book: BookDetails;
   notes: NoteWithLinks[];
+  sessionTotal: number;
 }
 
 /**
@@ -21,6 +22,7 @@ export function bookApi(initial: Partial<BookApiState> = {}) {
   const state: BookApiState = {
     book: initial.book ?? aBookDetails(),
     notes: initial.notes ?? [],
+    sessionTotal: initial.sessionTotal ?? 0,
   };
 
   const findNote = (noteId: string | readonly string[] | undefined) =>
@@ -31,7 +33,7 @@ export function bookApi(initial: Partial<BookApiState> = {}) {
     http.get('/api/v1/books/:bookId/notes', () => HttpResponse.json({ items: state.notes })),
     http.get('/api/v1/books/:bookId/digest', () => HttpResponse.json({ items: [] })),
     http.get('/api/v1/books/:bookId/reading_sessions', () =>
-      HttpResponse.json({ items: [], total: 0, offset: 0, limit: 1 })
+      HttpResponse.json({ items: [], total: state.sessionTotal, offset: 0, limit: 1 })
     ),
     http.get('/api/v1/jobs/books/:bookId/digest', () => HttpResponse.json(null)),
     http.get('/api/v1/books/:bookId/tags', () => HttpResponse.json({ items: [] })),

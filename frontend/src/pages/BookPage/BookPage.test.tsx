@@ -1,4 +1,5 @@
-import { aBookDetails, aChapter } from '@tests/fixtures/book';
+import { aBookDetails, aChapter, aHighlight } from '@tests/fixtures/book';
+import { aNote } from '@tests/fixtures/notes';
 import { renderApp } from '@tests/harness/renderApp';
 import { bookApi } from '@tests/msw/bookApi';
 import { worker } from '@tests/msw/worker';
@@ -34,4 +35,36 @@ test('a book can be marked as not finished, and the chip keeps saying so', async
 
   await expect.element(screen.getByRole('button', { name: 'Did not finish' })).toBeVisible();
   expect(state.book.reading_stage).toBe('did_not_finish');
+});
+
+test('the stats strip counts highlights, notes, flashcards and reading sessions', async () => {
+  const { handlers } = bookApi({
+    book: aBookDetails({
+      chapters: [aChapter({ highlights: [aHighlight({ id: 300 }), aHighlight({ id: 301 })] })],
+    }),
+    notes: [aNote({ id: 1 }), aNote({ id: 2, kind: null })],
+    sessionTotal: 8,
+  });
+  worker.use(...handlers);
+
+  const screen = await renderApp({ path: '/book/1' });
+
+  await expect.element(screen.getByText('2 highlights')).toBeVisible();
+  await expect.element(screen.getByText('2 notes')).toBeVisible();
+  await expect.element(screen.getByText('0 flashcards')).toBeVisible();
+  await expect.element(screen.getByText('8 sessions')).toBeVisible();
+});
+
+// Gists are auto-generated per chapter and the Notes tab hides them by
+// default, so counting them here would show a total the tab never matches.
+test('the note count leaves out gists', async () => {
+  const { handlers } = bookApi({
+    book: aBookDetails(),
+    notes: [aNote({ id: 1 }), aNote({ id: 2, kind: 'gist' }), aNote({ id: 3, kind: 'gist' })],
+  });
+  worker.use(...handlers);
+
+  const screen = await renderApp({ path: '/book/1' });
+
+  await expect.element(screen.getByText('1 notes')).toBeVisible();
 });
