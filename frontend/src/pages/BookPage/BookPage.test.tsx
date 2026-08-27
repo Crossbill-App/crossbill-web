@@ -3,6 +3,7 @@ import { aNote } from '@tests/fixtures/notes';
 import { renderApp } from '@tests/harness/renderApp';
 import { bookApi } from '@tests/msw/bookApi';
 import { worker } from '@tests/msw/worker';
+import { http, HttpResponse } from 'msw';
 import { expect, test } from 'vitest';
 
 test('renders the book and its chapters', async () => {
@@ -134,6 +135,42 @@ test('a blurb can be written in the manage dialog and appears in the header', as
   await screen.getByRole('textbox', { name: 'Blurb' }).fill('A book about **attention**.');
   await screen.getByRole('button', { name: 'Save' }).click();
 
+  // The dialog's own textarea contains the raw typed text while the save is
+  // in flight, so 'attention' can substring-match it even before the header
+  // re-renders. Wait for the dialog to close first, so the assertion below
+  // is only provable once the header itself carries the saved blurb.
+  await expect.element(screen.getByRole('dialog')).not.toBeInTheDocument();
   await expect.element(screen.getByText('attention')).toBeVisible();
   expect(state.book.description).toBe('A book about **attention**.');
+});
+
+test('a failed blurb save reports the error and keeps the typed edit and the original blurb', async () => {
+  const { handlers } = bookApi({
+    book: aBookDetails({ description: 'The original blurb.' }),
+  });
+  worker.use(...handlers);
+  // Registered last, so it takes precedence over the happy-path PATCH above.
+  worker.use(http.patch('/api/v1/books/:bookId', () => new HttpResponse(null, { status: 500 })));
+
+  const screen = await renderApp({ path: '/book/1' });
+  await expect.element(screen.getByText('The original blurb.')).toBeVisible();
+
+  await screen.getByRole('button', { name: 'Edit' }).click();
+  await screen.getByRole('textbox', { name: 'Blurb' }).fill('A doomed edit about attention.');
+  await screen.getByRole('button', { name: 'Save' }).click();
+
+  await expect
+    .element(screen.getByRole('alert').filter({ hasText: 'Failed to save blurb' }))
+    .toBeVisible();
+
+  // The dialog stayed open with the reader's typed text still in the field...
+  const dialog = screen.getByRole('dialog');
+  await expect.element(dialog).toBeInTheDocument();
+  await expect
+    .element(dialog.getByRole('textbox', { name: 'Blurb' }))
+    .toHaveValue('A doomed edit about attention.');
+
+  // ...and closing without retrying leaves the original blurb on screen.
+  await dialog.getByRole('button', { name: 'Close', exact: true }).click();
+  await expect.element(screen.getByText('The original blurb.')).toBeVisible();
 });
