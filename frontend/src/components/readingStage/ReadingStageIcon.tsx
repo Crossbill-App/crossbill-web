@@ -17,8 +17,8 @@ export const ReadingStageIcon = ({ stage }: ReadingStageIconProps) => {
         role="img"
         aria-label={label}
         sx={{
-          width: 24,
-          height: 24,
+          width: 28,
+          height: 28,
           borderRadius: '50%',
           backgroundColor: `${color}.main`,
           display: 'flex',
