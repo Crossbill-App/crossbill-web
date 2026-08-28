@@ -13,6 +13,7 @@ export {
   FilterList as FilterListIcon,
   Menu as MenuIcon,
   MoreHoriz as MoreIcon,
+  MoreVert as ManageIcon,
   KeyboardArrowUp as ScrollToTopIcon,
   Search as SearchIcon,
 } from '@mui/icons-material';

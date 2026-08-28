@@ -131,7 +131,7 @@ test('a blurb can be written in the manage dialog and appears in the header', as
 
   const screen = await renderApp({ path: '/book/1' });
 
-  await screen.getByRole('button', { name: 'Edit' }).click();
+  await screen.getByRole('button', { name: 'Manage book' }).click();
   await screen.getByRole('textbox', { name: 'Blurb' }).fill('A book about **attention**.');
   await screen.getByRole('button', { name: 'Save' }).click();
 
@@ -155,7 +155,7 @@ test('a failed blurb save reports the error and keeps the typed edit and the ori
   const screen = await renderApp({ path: '/book/1' });
   await expect.element(screen.getByText('The original blurb.')).toBeVisible();
 
-  await screen.getByRole('button', { name: 'Edit' }).click();
+  await screen.getByRole('button', { name: 'Manage book' }).click();
   await screen.getByRole('textbox', { name: 'Blurb' }).fill('A doomed edit about attention.');
   await screen.getByRole('button', { name: 'Save' }).click();
 
@@ -176,7 +176,7 @@ test('a failed blurb save reports the error and keeps the typed edit and the ori
 
   // Reopening must not resurrect the abandoned draft: the field should show
   // the real blurb, not the text left over from the failed save.
-  await screen.getByRole('button', { name: 'Edit' }).click();
+  await screen.getByRole('button', { name: 'Manage book' }).click();
   await expect
     .element(screen.getByRole('textbox', { name: 'Blurb' }))
     .toHaveValue('The original blurb.');
@@ -191,7 +191,7 @@ test('clearing the blurb removes it from the header', async () => {
   const screen = await renderApp({ path: '/book/1' });
   await expect.element(screen.getByText('A blurb worth deleting.')).toBeVisible();
 
-  await screen.getByRole('button', { name: 'Edit' }).click();
+  await screen.getByRole('button', { name: 'Manage book' }).click();
   await screen.getByRole('textbox', { name: 'Blurb' }).fill('');
   await screen.getByRole('button', { name: 'Save' }).click();
 
