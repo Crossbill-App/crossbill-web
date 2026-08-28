@@ -10,7 +10,7 @@ export const RecentlyViewedBooks = () => {
 
   return (
     <BookCarouselSection
-      title="Recently Viewed"
+      title="Recently viewed"
       ariaLabel="Recently viewed books"
       books={data?.items}
       isLoading={isLoading}

@@ -10,12 +10,12 @@ export const RecentlySyncedBooks = () => {
 
   return (
     <BookCarouselSection
-      title="Recently read"
-      ariaLabel="Recently read books"
+      title="Recently synced"
+      ariaLabel="Recently synced books"
       books={data?.items}
       isLoading={isLoading}
       isError={isError}
-      errorText="Failed to load recently read books."
+      errorText="Failed to load recently synced books."
     />
   );
 };
