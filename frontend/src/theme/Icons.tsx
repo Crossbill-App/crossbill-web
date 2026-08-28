@@ -12,7 +12,6 @@ export {
   OpenInNew as ExternalLinkIcon,
   FilterList as FilterListIcon,
   MoreVert as ManageIcon,
-  Menu as MenuIcon,
   MoreHoriz as MoreIcon,
   KeyboardArrowUp as ScrollToTopIcon,
   Search as SearchIcon,
@@ -51,7 +50,11 @@ export {
 } from '@mui/icons-material';
 
 // User/System icons
-export { Logout as LogoutIcon, Settings as SettingsIcon } from '@mui/icons-material';
+export {
+  AccountCircle as AccountIcon,
+  Logout as LogoutIcon,
+  Settings as SettingsIcon,
+} from '@mui/icons-material';
 
 // Device sync icons
 export { PhonelinkOff as NotOnDeviceIcon } from '@mui/icons-material';
