@@ -1,11 +1,12 @@
 import type { JobBatchResponse } from '@/api/generated/model';
 import { useBackfillEmbeddings, useGetActiveBackfill } from '@/api/generated/semantic/semantic';
+import { AIActionButton } from '@/components/buttons/AIActionButton';
 import { IconButtonWithTooltip } from '@/components/buttons/IconButtonWithTooltip';
 import { useSnackbar } from '@/context/SnackbarContext';
 import { useJobBatchProgress } from '@/hooks/useJobBatchProgress';
 import { useCacheEvents } from '@/lib/cacheEvents.ts';
 import { CloseIcon } from '@/theme/Icons';
-import { Box, Button, CircularProgress, Divider, Typography } from '@mui/material';
+import { Box, CircularProgress, Divider, Typography } from '@mui/material';
 import type { AxiosError } from 'axios';
 
 type ShowSnackbar = ReturnType<typeof useSnackbar>['showSnackbar'];
@@ -85,16 +86,14 @@ export const EmbeddingBackfillSection = () => {
       <Divider sx={{ mb: 3 }} />
 
       <Box sx={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: 2 }}>
-        <Button
-          variant="contained"
+        <AIActionButton
+          text="Run text embedding for the library"
           disabled={isBusy}
           onClick={() => {
             // No `book_id`: the whole library.
             startBackfill({});
           }}
-        >
-          Run text embedding for the library
-        </Button>
+        />
 
         {isBusy && (
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>

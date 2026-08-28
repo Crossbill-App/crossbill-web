@@ -1,11 +1,12 @@
 import { useEnqueueBookDigest, useGetActiveBookDigestBatch } from '@/api/generated/jobs/jobs';
 import type { JobBatchResponse } from '@/api/generated/model';
+import { AIActionButton } from '@/components/buttons/AIActionButton';
 import { IconButtonWithTooltip } from '@/components/buttons/IconButtonWithTooltip';
 import { AIFeature } from '@/components/features/AIFeature';
 import { useSnackbar } from '@/context/SnackbarContext';
 import { useJobBatchProgress } from '@/hooks/useJobBatchProgress';
 import { useCacheEvents } from '@/lib/cacheEvents.ts';
-import { AIIcon, CloseIcon } from '@/theme/Icons';
+import { CloseIcon } from '@/theme/Icons';
 import { Box, CircularProgress, Typography } from '@mui/material';
 import { useCallback } from 'react';
 
@@ -92,12 +93,7 @@ export const BatchDigestToolbar = ({ bookId }: BatchDigestToolbarProps) => {
 
   return (
     <AIFeature>
-      <IconButtonWithTooltip
-        title="Generate summaries for all chapters"
-        onClick={handleEnqueue}
-        ariaLabel="Generate summaries for all chapters"
-        icon={<AIIcon />}
-      />
+      <AIActionButton text="Generate summaries for all chapters" onClick={handleEnqueue} iconOnly />
     </AIFeature>
   );
 };

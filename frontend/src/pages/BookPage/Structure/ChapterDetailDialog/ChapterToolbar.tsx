@@ -1,5 +1,5 @@
 import { useGenerateChapterDigest } from '@/api/generated/digest/digest';
-import { IconButtonWithTooltip } from '@/components/buttons/IconButtonWithTooltip.tsx';
+import { AIActionButton } from '@/components/buttons/AIActionButton.tsx';
 import { DialogToolbar } from '@/components/dialogs/DialogToolbar.tsx';
 import { AIFeature } from '@/components/features/AIFeature.tsx';
 import { useCacheEvents } from '@/lib/cacheEvents.ts';
@@ -36,12 +36,7 @@ export const ChapterToolbar = ({ chapterId, bookId, hasSummary }: ChapterToolbar
         {isPending ? (
           <CircularProgress size={24} sx={{ m: '4px' }} />
         ) : (
-          <IconButtonWithTooltip
-            title={title}
-            onClick={handleGenerate}
-            ariaLabel={title}
-            icon={icon}
-          />
+          <AIActionButton text={title} onClick={handleGenerate} iconOnly icon={icon} />
         )}
       </DialogToolbar>
     </AIFeature>
