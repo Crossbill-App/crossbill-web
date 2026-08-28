@@ -1,6 +1,6 @@
 import { Box, List, ListItemButton, ListItemIcon, ListItemText } from '@mui/material';
 import { Link, useMatchRoute } from '@tanstack/react-router';
-import { BOOK_PAGE_ROUTES } from './bookPageRoutes.ts';
+import { BOOK_PAGE_LABELS, BOOK_PAGE_ROUTES } from './bookPageRoutes.ts';
 
 interface DesktopNavLinksProps {
   bookId: string;
@@ -43,7 +43,7 @@ export const DesktopNavLinks = ({ bookId }: DesktopNavLinksProps) => {
                   <Icon />
                 </ListItemIcon>
                 <ListItemText
-                  primary={item.label}
+                  primary={BOOK_PAGE_LABELS[item.segment]}
                   slotProps={{
                     primary: {
                       variant: 'body2',

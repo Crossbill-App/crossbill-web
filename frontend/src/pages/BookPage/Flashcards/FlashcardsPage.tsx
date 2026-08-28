@@ -15,6 +15,7 @@ import { PageTitle } from '@/components/typography/PageTitle.tsx';
 import { useBookPage } from '@/pages/BookPage/BookPageContext';
 import { ListSearchSortHeader } from '@/pages/BookPage/common/ListSearchSortHeader.tsx';
 import { useBookTabFilters } from '@/pages/BookPage/common/useBookTabFilters.ts';
+import { BOOK_PAGE_LABELS } from '@/pages/BookPage/navigation/bookPageRoutes.ts';
 import { ChapterNav, type ChapterNavigationData } from '@/pages/BookPage/navigation/ChapterNav.tsx';
 import { Box, Divider } from '@mui/material';
 import { flatMap } from 'lodash';
@@ -185,7 +186,7 @@ export const FlashcardsPage = () => {
       {isDesktop ? (
         <ContentWithSidebar>
           <Box>
-            <PageTitle text="Flashcards" />
+            <PageTitle text={BOOK_PAGE_LABELS.flashcards} />
             <ListSearchSortHeader
               onSearch={handleSearch}
               searchPlaceholder="Search flashcards..."
@@ -209,7 +210,7 @@ export const FlashcardsPage = () => {
         </ContentWithSidebar>
       ) : (
         <>
-          <PageTitle text="Flashcards" />
+          <PageTitle text={BOOK_PAGE_LABELS.flashcards} />
           <ListSearchSortHeader
             onSearch={handleSearch}
             searchPlaceholder="Search flashcards..."

@@ -20,6 +20,7 @@ import {
 import { ListSearchSortHeader } from '@/pages/BookPage/common/ListSearchSortHeader.tsx';
 import { useBookTabFilters } from '@/pages/BookPage/common/useBookTabFilters.ts';
 import { useHighlightDialog } from '@/pages/BookPage/Highlights/hooks/useHighlightDialog.ts';
+import { BOOK_PAGE_LABELS } from '@/pages/BookPage/navigation/bookPageRoutes.ts';
 import { Box, Divider } from '@mui/material';
 import { useLocation, useNavigate, useSearch } from '@tanstack/react-router';
 import { keyBy } from 'lodash';
@@ -213,7 +214,7 @@ export const HighlightsPage = () => {
       {isDesktop ? (
         <ContentWithSidebar>
           <Box>
-            <PageTitle text="Highlights" />
+            <PageTitle text={BOOK_PAGE_LABELS.highlights} />
             <ListSearchSortHeader
               onSearch={handleSearch}
               searchPlaceholder="Search highlights..."
@@ -247,7 +248,7 @@ export const HighlightsPage = () => {
         </ContentWithSidebar>
       ) : (
         <>
-          <PageTitle text="Highlights" />
+          <PageTitle text={BOOK_PAGE_LABELS.highlights} />
           <ListSearchSortHeader
             onSearch={handleSearch}
             searchPlaceholder="Search highlights..."

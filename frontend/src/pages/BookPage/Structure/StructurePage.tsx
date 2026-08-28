@@ -12,6 +12,7 @@ import { useSemanticSearch } from '@/components/search/useSemanticSearch.ts';
 import { PageTitle } from '@/components/typography/PageTitle.tsx';
 import { useBookPage } from '@/pages/BookPage/BookPageContext';
 import { useBookTabFilters } from '@/pages/BookPage/common/useBookTabFilters.ts';
+import { BOOK_PAGE_LABELS } from '@/pages/BookPage/navigation/bookPageRoutes.ts';
 import { Alert, Box, Typography } from '@mui/material';
 import { keyBy } from 'lodash';
 import { useMemo } from 'react';
@@ -186,7 +187,7 @@ export const StructurePage = () => {
           justifyContent: 'space-between',
         }}
       >
-        <PageTitle text="Structure of the book" />
+        <PageTitle text={BOOK_PAGE_LABELS.structure} />
         <BatchDigestToolbar bookId={book.id} />
       </Box>
       <Box sx={{ display: 'flex', alignItems: 'flex-start', gap: 1 }}>

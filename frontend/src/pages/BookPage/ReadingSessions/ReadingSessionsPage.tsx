@@ -9,6 +9,7 @@ import {
   useHighlightDialog,
   type HighlightDialogController,
 } from '@/pages/BookPage/Highlights/hooks/useHighlightDialog';
+import { BOOK_PAGE_LABELS } from '@/pages/BookPage/navigation/bookPageRoutes.ts';
 import { Alert, Box, Pagination } from '@mui/material';
 import { useNavigate, useSearch } from '@tanstack/react-router';
 import { keyBy } from 'lodash';
@@ -81,7 +82,7 @@ export const ReadingSessionsPage = () => {
   return (
     <>
       <Box>
-        <PageTitle text="Reading sessions" />
+        <PageTitle text={BOOK_PAGE_LABELS.sessions} />
         {isLoading && <Spinner />}
 
         {isError && (

@@ -21,6 +21,7 @@ import { PageTitle } from '@/components/typography/PageTitle.tsx';
 import { SectionTitle } from '@/components/typography/SectionTitle.tsx';
 import { useMutationErrorHandler } from '@/hooks/useMutationErrorHandler.ts';
 import { useBookPage } from '@/pages/BookPage/BookPageContext';
+import { BOOK_PAGE_LABELS } from '@/pages/BookPage/navigation/bookPageRoutes.ts';
 import { NoteEditorDialog } from '@/pages/BookPage/Notes/NoteEditorDialog.tsx';
 import { NoteViewDialog } from '@/pages/BookPage/Notes/NoteViewDialog.tsx';
 import { EditIcon } from '@/theme/Icons.tsx';
@@ -128,7 +129,7 @@ export const ReflectionPage = () => {
 
   return (
     <MiddleContentColumn>
-      <PageTitle text="Reflection" />
+      <PageTitle text={BOOK_PAGE_LABELS.reflection} />
       {stageHint && (
         <Typography
           variant="body2"
