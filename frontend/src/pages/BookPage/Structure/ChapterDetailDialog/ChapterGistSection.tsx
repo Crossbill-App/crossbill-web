@@ -12,6 +12,30 @@ import { useRef, useState, type KeyboardEvent } from 'react';
 
 const PLACEHOLDER = 'What was this chapter about?';
 
+interface ExistingGistTextProps {
+  text: string;
+  onEdit: () => void;
+}
+
+const ExistingGistText = ({ text, onEdit }: ExistingGistTextProps) => (
+  <ButtonBase
+    onClick={onEdit}
+    sx={{
+      width: '100%',
+      justifyContent: 'flex-start',
+      textAlign: 'left',
+      borderRadius: 1,
+      px: 1,
+      py: 0.5,
+      '&:hover': { bgcolor: 'action.hover' },
+    }}
+  >
+    <Typography sx={{ fontStyle: 'italic' }} variant="body1">
+      {text}
+    </Typography>
+  </ButtonBase>
+);
+
 interface ChapterGistSectionProps {
   chapterId: number;
   chapterName: string;
@@ -145,22 +169,7 @@ export const ChapterGistSection = ({ chapterId, chapterName, notes }: ChapterGis
         Gist
       </Typography>
       {gist && !isEditing ? (
-        <ButtonBase
-          onClick={() => setIsEditing(true)}
-          sx={{
-            width: '100%',
-            justifyContent: 'flex-start',
-            textAlign: 'left',
-            borderRadius: 1,
-            px: 1,
-            py: 0.5,
-            '&:hover': { bgcolor: 'action.hover' },
-          }}
-        >
-          <Typography sx={{ fontStyle: 'italic' }} variant="body1">
-            {value}
-          </Typography>
-        </ButtonBase>
+        <ExistingGistText text={value} onEdit={() => setIsEditing(true)} />
       ) : (
         <TextField
           fullWidth
