@@ -246,6 +246,12 @@ test('tabbing away closes the dropdown instead of reopening it', async () => {
   await search(screen, 'attention');
   await expect.element(screen.getByRole('option').first()).toBeVisible();
 
+  // The clear button is focusable, and it belongs to the widget, so the first
+  // Tab is not a dismissal.
+  await userEvent.tab();
+  await expect.element(screen.getByRole('button', { name: 'Clear search' })).toHaveFocus();
+  await expect.element(screen.getByRole('listbox')).toBeVisible();
+
   await userEvent.tab();
 
   await expect.element(screen.getByRole('listbox')).not.toBeInTheDocument();
