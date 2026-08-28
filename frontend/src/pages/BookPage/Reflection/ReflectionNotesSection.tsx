@@ -101,7 +101,7 @@ export const ReflectionNotesSection = ({
         open={pickerOpen}
         onClose={() => setPickerOpen(false)}
         bookId={bookId}
-        title="Link note to reflection"
+        target="reflection"
         onSelect={handleLink}
       />
     </Box>

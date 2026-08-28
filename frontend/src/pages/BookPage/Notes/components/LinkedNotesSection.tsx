@@ -121,7 +121,7 @@ export const LinkedNotesSection = ({
         open={pickerOpen}
         onClose={() => setPickerOpen(false)}
         bookId={bookId}
-        title={target.kind === 'highlight' ? 'Add highlight to note' : 'Add chapter to note'}
+        target={target.kind}
         onSelect={handleLink}
       />
 
