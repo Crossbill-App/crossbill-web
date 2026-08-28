@@ -18,7 +18,6 @@ const FlashcardStyled = styled(Box, {
   shouldForwardProp: (prop) => prop !== 'borderStyle' && prop !== 'borderColor',
 })<{ borderStyle?: 'solid' | 'dashed'; borderColor?: 'primary' | 'grey' }>(
   ({ theme, borderStyle = 'solid', borderColor = 'primary' }) => ({
-    position: 'relative',
     borderLeft: `3px ${borderStyle} ${borderColor === 'grey' ? theme.palette.divider : theme.palette.primary.main}`,
     paddingLeft: theme.spacing(2),
     paddingTop: theme.spacing(1),
@@ -30,13 +29,15 @@ const FlashcardStyled = styled(Box, {
   })
 );
 
+/**
+ * In the flow beside the question rather than floating over it: the cluster is
+ * three icons wide on the flashcards page, more than any fixed reserve on the
+ * text would cover, so overlaying it meant covering the question on a narrow
+ * row.
+ */
 const ActionButtonsStyled = styled(Box)(() => ({
-  position: 'absolute',
-  top: 8,
-  right: 0,
   display: 'flex',
-  gap: 0.5,
-  zIndex: 1,
+  flexShrink: 0,
   opacity: 0.7,
   transition: 'opacity 0.2s ease',
   '&:hover': {
@@ -57,29 +58,32 @@ export const FlashcardCard = ({
 
   return (
     <FlashcardStyled borderStyle={borderStyle} borderColor={borderColor}>
-      <ButtonBase
-        onClick={() => setIsExpanded(!isExpanded)}
-        aria-expanded={isExpanded}
-        sx={{
-          display: 'flex',
-          alignItems: 'flex-start',
-          gap: 1,
-          width: '100%',
-          textAlign: 'left',
-          pr: 8,
-        }}
-      >
-        <Typography variant="body1" sx={{ flex: 1, lineHeight: 1.5 }}>
-          {question}
-        </Typography>
-        <CollapseChevron
-          isExpanded={isExpanded}
-          sx={{ fontSize: 20, color: 'text.secondary', flexShrink: 0 }}
-        />
-      </ButtonBase>
+      <Box sx={{ display: 'flex', alignItems: 'flex-start', gap: 0.5 }}>
+        <ButtonBase
+          onClick={() => setIsExpanded(!isExpanded)}
+          aria-expanded={isExpanded}
+          sx={{
+            display: 'flex',
+            alignItems: 'flex-start',
+            gap: 1,
+            flex: 1,
+            minWidth: 0,
+            textAlign: 'left',
+          }}
+        >
+          <Typography variant="body1" sx={{ flex: 1, lineHeight: 1.5 }}>
+            {question}
+          </Typography>
+          <CollapseChevron
+            isExpanded={isExpanded}
+            sx={{ fontSize: 20, color: 'text.secondary', flexShrink: 0 }}
+          />
+        </ButtonBase>
+        <ActionButtonsStyled>{renderActions()}</ActionButtonsStyled>
+      </Box>
 
       <Collapsable isExpanded={isExpanded}>
-        <Box sx={{ mt: 1.5, pr: 8 }}>
+        <Box sx={{ mt: 1.5 }}>
           <Typography
             variant="caption"
             sx={{
@@ -129,8 +133,6 @@ export const FlashcardCard = ({
           )}
         </Box>
       </Collapsable>
-
-      <ActionButtonsStyled>{renderActions()}</ActionButtonsStyled>
     </FlashcardStyled>
   );
 };
