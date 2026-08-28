@@ -3,7 +3,7 @@ import { useLongPress, type LongPressCoords } from '@/hooks/useLongPress.ts';
 import { Chip } from '@mui/material';
 import { useState } from 'react';
 
-import { filterChipBaseSx, filterChipOutlinedSx } from '../filterChipStyles.ts';
+import { filterChipSx } from '../filterChipStyles.ts';
 import { TagMoveMenu } from './TagMoveMenu.tsx';
 
 interface TagChipProps {
@@ -48,17 +48,7 @@ export const TagChip = ({ tag, tagGroups, selectedTag, onTagClick, onMove }: Tag
           if (consumeClick()) return;
           onTagClick(isSelected ? null : tag.id);
         }}
-        sx={{
-          ...filterChipBaseSx,
-          ...(isSelected
-            ? {
-                '&:hover': {
-                  bgcolor: 'primary.dark',
-                  transform: 'translateY(-1px)',
-                },
-              }
-            : filterChipOutlinedSx),
-        }}
+        sx={filterChipSx(isSelected)}
       />
       <TagMoveMenu
         tag={tag}
