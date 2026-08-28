@@ -94,3 +94,29 @@ test('a failed save reports the error and keeps the answer on screen', async () 
     .element(dialog.getByPlaceholder(ANSWER_PLACEHOLDER).first())
     .toHaveValue('Worth keeping.');
 });
+
+test('a failed save can be retried without changing the answer', async () => {
+  const { dialog, state } = await openChapterDialog();
+  let attempts = 0;
+  worker.use(
+    http.put('/api/v1/chapters/:chapterId/digest/answers', async ({ request }) => {
+      attempts += 1;
+      if (attempts === 1) return new HttpResponse(null, { status: 500 });
+
+      const body = (await request.json()) as { answers: { user_answer: string }[] };
+      state.digests[0].questions[0].user_answer = body.answers[0].user_answer;
+      return HttpResponse.json(state.digests[0]);
+    })
+  );
+
+  const field = dialog.getByPlaceholder(ANSWER_PLACEHOLDER).first();
+  await userEvent.fill(field, 'Worth keeping.');
+  await userEvent.tab();
+  await expect.poll(() => attempts).toBe(1);
+
+  await userEvent.click(field);
+  await userEvent.tab();
+
+  await expect.poll(() => attempts).toBe(2);
+  await expect.poll(() => state.digests[0].questions[0].user_answer).toBe('Worth keeping.');
+});

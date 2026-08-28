@@ -23,11 +23,15 @@ import { CollapsibleSection } from './CollapsibleSection.tsx';
 interface DigestAnswerFieldProps {
   question: string;
   savedAnswer: string;
-  onSave: (answer: string) => void;
+  onSave: (answer: string, onError: () => void) => void;
 }
 
 const DigestAnswerField = ({ question, savedAnswer, onSave }: DigestAnswerFieldProps) => {
-  const field = useCommitOnBlur({ saved: savedAnswer, onCommit: onSave, submitOnEnter: false });
+  function save(answer: string) {
+    onSave(answer, field.allowRecommit);
+  }
+
+  const field = useCommitOnBlur({ saved: savedAnswer, onCommit: save, submitOnEnter: false });
 
   return (
     <Box sx={{ py: 1 }}>
@@ -107,8 +111,11 @@ export const ChapterReviewSection = ({
 
   // The endpoint patches by question index, so one field's save leaves the
   // other answers as they are.
-  const handleAnswerSave = (index: number, answer: string) => {
-    saveAnswers({ chapterId, data: { answers: [{ question_index: index, user_answer: answer }] } });
+  const handleAnswerSave = (index: number, answer: string, onError: () => void) => {
+    saveAnswers(
+      { chapterId, data: { answers: [{ question_index: index, user_answer: answer }] } },
+      { onError }
+    );
   };
 
   return (
@@ -151,7 +158,7 @@ export const ChapterReviewSection = ({
                   key={`${chapterId}-${index}`}
                   question={q.question}
                   savedAnswer={answers[index] ?? ''}
-                  onSave={(answer) => handleAnswerSave(index, answer)}
+                  onSave={(answer, onError) => handleAnswerSave(index, answer, onError)}
                 />
               ))}
             </Stack>
