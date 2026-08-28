@@ -1,4 +1,5 @@
 import type { ChapterWithHighlights } from '@/api/generated/model';
+import { formatDateTime } from '@/utils/date.ts';
 import { DateTime } from 'luxon';
 
 export const DATE_SEARCH_FORMAT = 'yyyy-MM-dd';
@@ -9,6 +10,13 @@ export interface HighlightDateRange {
   to?: string;
 }
 
+/**
+ * The locale pin is about digits, not date order. These formats are numeric,
+ * but luxon parses and re-renders in the ambient locale's numbering system, so
+ * for a reader on `ar-EG` the round-trip below comes back in Arabic-Indic
+ * digits and rejects a perfectly good timestamp, and on `hi-IN-u-nu-deva` the
+ * parse fails outright.
+ */
 const parseStrictly = (value: string, format: string): DateTime | undefined => {
   const parsed = DateTime.fromFormat(value, format, { locale: 'en-US' });
   return parsed.isValid && parsed.toFormat(format) === value ? parsed : undefined;
@@ -47,13 +55,15 @@ export const filterChaptersByHighlightDate = (
 export const getLastSevenDaysFrom = (today: DateTime<boolean> = DateTime.local()): string =>
   today.minus({ days: 6 }).toFormat(DATE_SEARCH_FORMAT);
 
+/**
+ * `highlight.datetime` is KOReader's own `yyyy-MM-dd HH:mm:ss` string, passed
+ * through rather than normalised to ISO like every other timestamp the API
+ * sends. Rendering goes through the app's one formatter, in the browser's
+ * locale.
+ */
 export const formatHighlightDate = (value: string): string => {
   const parsed = parseStrictly(value, HIGHLIGHT_DATETIME_FORMAT);
   if (!parsed) return value;
 
-  return parsed.setLocale('en-US').toLocaleString({
-    year: 'numeric',
-    month: 'long',
-    day: 'numeric',
-  });
+  return formatDateTime(parsed);
 };
