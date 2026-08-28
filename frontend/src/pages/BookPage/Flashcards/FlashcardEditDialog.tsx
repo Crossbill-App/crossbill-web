@@ -111,7 +111,7 @@ export const FlashcardEditDialog = ({
           <Typography
             variant="caption"
             sx={{
-              color: 'primary.main',
+              color: 'text.secondary',
               fontWeight: 600,
               textTransform: 'uppercase',
               letterSpacing: '0.05em',
@@ -138,7 +138,7 @@ export const FlashcardEditDialog = ({
           <Typography
             variant="caption"
             sx={{
-              color: 'secondary.main',
+              color: 'text.secondary',
               fontWeight: 600,
               textTransform: 'uppercase',
               letterSpacing: '0.05em',
