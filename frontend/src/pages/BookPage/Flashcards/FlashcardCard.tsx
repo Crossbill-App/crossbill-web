@@ -1,5 +1,4 @@
 import { Collapsable } from '@/components/animations/Collapsable';
-import { CollapseChevron } from '@/components/CollapseChevron.tsx';
 import { QuoteIcon } from '@/theme/Icons';
 import { Box, ButtonBase, styled, Typography } from '@mui/material';
 import { ReactNode, useState } from 'react';
@@ -63,21 +62,15 @@ export const FlashcardCard = ({
           onClick={() => setIsExpanded(!isExpanded)}
           aria-expanded={isExpanded}
           sx={{
-            display: 'flex',
-            alignItems: 'flex-start',
-            gap: 1,
+            display: 'block',
             flex: 1,
             minWidth: 0,
             textAlign: 'left',
           }}
         >
-          <Typography variant="body1" sx={{ flex: 1, lineHeight: 1.5 }}>
+          <Typography variant="body1" sx={{ lineHeight: 1.5 }}>
             {question}
           </Typography>
-          <CollapseChevron
-            isExpanded={isExpanded}
-            sx={{ fontSize: 20, color: 'text.secondary', flexShrink: 0 }}
-          />
         </ButtonBase>
         <ActionButtonsStyled>{renderActions()}</ActionButtonsStyled>
       </Box>
