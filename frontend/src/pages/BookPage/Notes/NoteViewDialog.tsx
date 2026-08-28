@@ -19,7 +19,7 @@ import { useNavigate } from '@tanstack/react-router';
 import { useMemo, useRef, useState } from 'react';
 import ReactMarkdown from 'react-markdown';
 
-import { NoteEditorForm, type NoteEditorFormHandle } from './NoteEditorForm';
+import { NoteEditorForm, type NoteEditorFormHandle, type NoteGuidance } from './NoteEditorForm';
 import { NoteTabs } from './components/NoteTabs';
 import { NoteToolbar } from './components/NoteToolbar';
 import { useNoteLinks } from './hooks/useNoteLinks';
@@ -33,12 +33,19 @@ interface NoteViewDialogProps {
   currentIndex?: number;
   totalCount?: number;
   onNavigate?: (newIndex: number) => void;
+  /** Opens straight into the in-place editor, for entry points that mean "edit this". */
+  initiallyEditing?: boolean;
+  /** Always-visible prompt shown above the editor (e.g. a reflection question). */
+  guidance?: NoteGuidance;
 }
 
 /**
  * Read-only note detail dialog that toggles into an in-place editor. Read mode
  * shows the full note (content first) with an action toolbar underneath;
- * clicking Edit swaps the same dialog to the note editor form.
+ * clicking Edit swaps the same dialog to the note editor form. This is the one
+ * surface for editing an existing note — entry points that mean "edit this"
+ * open it with `initiallyEditing`, so the note's context is never lost behind a
+ * second modal.
  *
  * Opened by note id (deep-linkable via the `noteId` URL param). Stays mounted
  * across prev/next navigation (mirroring the highlight dialog), so transient
@@ -50,6 +57,8 @@ export const NoteViewDialog = ({
   currentIndex,
   totalCount,
   onNavigate,
+  initiallyEditing = false,
+  guidance,
 }: NoteViewDialogProps) => {
   const theme = useTheme();
   const { book } = useBookPage();
@@ -76,7 +85,7 @@ export const NoteViewDialog = ({
     });
   };
 
-  const [isEditing, setIsEditing] = useState(false);
+  const [isEditing, setIsEditing] = useState(initiallyEditing);
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
   const formRef = useRef<NoteEditorFormHandle>(null);
   const [formStatus, setFormStatus] = useState({ isSaving: false, canSave: false });
@@ -86,7 +95,7 @@ export const NoteViewDialog = ({
   const [prevNoteId, setPrevNoteId] = useState(noteId);
   if (prevNoteId !== noteId) {
     setPrevNoteId(noteId);
-    setIsEditing(false);
+    setIsEditing(initiallyEditing);
     setDeleteConfirmOpen(false);
   }
 
@@ -154,7 +163,7 @@ export const NoteViewDialog = ({
   // Only while editing: viewing has nothing to confirm, and the header's close
   // button is the way out.
   const footerActions = isEditing ? (
-    <Box sx={{ display: 'flex', gap: 1, justifyContent: 'flex-end' }}>
+    <Box sx={{ display: 'flex', gap: 1 }}>
       <Button onClick={() => setIsEditing(false)} disabled={formStatus.isSaving}>
         Cancel
       </Button>
@@ -206,6 +215,7 @@ export const NoteViewDialog = ({
               ref={formRef}
               open={isEditing}
               note={activeNote}
+              guidance={guidance}
               onSaved={() => setIsEditing(false)}
               onStatusChange={setFormStatus}
             />

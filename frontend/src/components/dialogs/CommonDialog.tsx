@@ -234,7 +234,7 @@ export const CommonDialog = ({
               </Box>
             </>
           ) : (
-            footerActions
+            <Box sx={{ flex: 1, display: 'flex', justifyContent: 'flex-end' }}>{footerActions}</Box>
           )}
         </DialogActions>
       )}
