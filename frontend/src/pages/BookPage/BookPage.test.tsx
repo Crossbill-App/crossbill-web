@@ -39,10 +39,11 @@ test('a book can be marked as not finished, and the chip keeps saying so', async
   expect(state.book.reading_stage).toBe('did_not_finish');
 });
 
-test('the stats strip counts highlights, notes, flashcards and reading sessions', async () => {
+test('the stats strip counts highlights, notes, flashcards, bookmarks and sessions', async () => {
   const { handlers } = bookApi({
     book: aBookDetails({
       chapters: [aChapter({ highlights: [aHighlight({ id: 300 }), aHighlight({ id: 301 })] })],
+      bookmarks: [{ id: 900, book_id: 1, highlight_id: 300, created_at: '2026-01-01T00:00:00Z' }],
     }),
     notes: [aNote({ id: 1 }), aNote({ id: 2, kind: null })],
     sessionTotal: 8,
@@ -54,6 +55,7 @@ test('the stats strip counts highlights, notes, flashcards and reading sessions'
   await expect.element(screen.getByText('2 highlights')).toBeVisible();
   await expect.element(screen.getByText('2 notes')).toBeVisible();
   await expect.element(screen.getByText('0 flashcards')).toBeVisible();
+  await expect.element(screen.getByText('1 bookmark')).toBeVisible();
   await expect.element(screen.getByText('8 sessions')).toBeVisible();
 });
 
@@ -68,7 +70,7 @@ test('the note count leaves out gists', async () => {
 
   const screen = await renderApp({ path: '/book/1' });
 
-  await expect.element(screen.getByText('1 notes')).toBeVisible();
+  await expect.element(screen.getByText('1 note')).toBeVisible();
 });
 
 test('a blurb renders as markdown and starts collapsed', async () => {

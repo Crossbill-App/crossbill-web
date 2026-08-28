@@ -2,6 +2,7 @@ import type { ChapterWithHighlights, PositionResponse } from '@/api/generated/mo
 import { CollapseChevron } from '@/components/CollapseChevron.tsx';
 import { FlashcardsIcon, HighlightsIcon, NotesIcon } from '@/theme/Icons.tsx';
 import { ICON_SIZE } from '@/theme/iconSizes.ts';
+import { countLabel } from '@/utils/counts.ts';
 import type { SvgIconComponent } from '@mui/icons-material';
 import { Box, ButtonBase, Collapse, IconButton, Typography, type Theme } from '@mui/material';
 import { sumBy } from 'lodash';
@@ -82,7 +83,7 @@ const CountWithIcon = ({
   count > 0 ? (
     <Box
       role="img"
-      aria-label={`${count} ${noun}${count === 1 ? '' : 's'}`}
+      aria-label={countLabel(count, noun)}
       sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}
     >
       <Icon sx={{ fontSize: ICON_SIZE.inline }} />

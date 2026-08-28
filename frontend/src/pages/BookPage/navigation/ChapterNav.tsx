@@ -1,6 +1,7 @@
 import { Collapsable } from '@/components/animations/Collapsable.tsx';
 import { MetadataRow } from '@/components/cards/MetadataRow.tsx';
 import { ChapterListIcon } from '@/theme/Icons.tsx';
+import { countLabel } from '@/utils/counts.ts';
 import { Box, Button, Typography } from '@mui/material';
 import { useId, useState } from 'react';
 
@@ -20,8 +21,8 @@ interface ChapterNavProps {
 }
 
 /** Omitted at zero, so a chapter reads the same on whichever tab lists it. */
-const countLabel = (count: number, noun: string) =>
-  count > 0 ? `${count} ${noun}${count === 1 ? '' : 's'}` : null;
+const countOrNothing = (count: number, noun: string) =>
+  count > 0 ? countLabel(count, noun) : null;
 
 export const ChapterNav = ({ chapters, onChapterClick, hideTitle }: ChapterNavProps) => {
   const [isExpanded, setIsExpanded] = useState(() => true);
@@ -114,8 +115,8 @@ export const ChapterNav = ({ chapters, onChapterClick, hideTitle }: ChapterNavPr
                   <MetadataRow
                     variant="caption"
                     items={[
-                      countLabel(chapter.highlightCount, 'highlight'),
-                      countLabel(chapter.flashcardCount, 'flashcard'),
+                      countOrNothing(chapter.highlightCount, 'highlight'),
+                      countOrNothing(chapter.flashcardCount, 'flashcard'),
                     ]}
                     sx={{ fontSize: '0.75rem', mt: 0.25, display: 'block' }}
                   />
