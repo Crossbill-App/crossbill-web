@@ -296,3 +296,33 @@ test('the chapter sidebar carries both counts, so the number does not change wit
   await expect.element(chapters.getByText('2 highlights')).toBeVisible();
   await expect.element(chapters.getByText('1 flashcard')).toBeVisible();
 });
+
+test('the labels section appears with a single label', async () => {
+  worker.use(
+    // Ahead of the defaults: the first matching handler wins, and `bookApi`
+    // serves an empty label list.
+    http.get('/api/v1/books/:bookId/highlight-labels', () =>
+      HttpResponse.json({
+        items: [
+          {
+            id: 10,
+            device_color: 'yellow',
+            device_style: 'lighten',
+            label: 'Important',
+            ui_color: '#F59E0B',
+            label_source: 'book',
+            highlight_count: 3,
+          },
+        ],
+      })
+    ),
+    ...bookApi({ book: aBookDetails() }).handlers
+  );
+
+  const screen = await renderApp({ path: '/book/1/highlights' });
+
+  // One label is enough: without the section, naming or recolouring it is only
+  // reachable through the colour dot inside a highlight dialog.
+  await expect.element(screen.getByText('Labels')).toBeVisible();
+  await expect.element(screen.getByText('Important (3)')).toBeVisible();
+});

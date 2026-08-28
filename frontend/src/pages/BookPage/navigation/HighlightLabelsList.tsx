@@ -85,7 +85,11 @@ export const HighlightLabelsList = ({
   const { data } = useGetBookHighlightLabels(bookId);
   const labels = data?.items;
 
-  if (!labels || labels.length < 2) {
+  // Shown from one label up. Hiding the section below two meant a reader whose
+  // highlights are all one colour never learned labels can be named or
+  // recoloured — the editor is only reachable through the colour dot inside a
+  // highlight dialog.
+  if (!labels || labels.length === 0) {
     return null;
   }
 
