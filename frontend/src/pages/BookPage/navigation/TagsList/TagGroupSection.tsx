@@ -1,5 +1,6 @@
 import { TagGroupInBook, TagInBook } from '@/api/generated/model';
 import { Collapsable } from '@/components/animations/Collapsable.tsx';
+import { ConfirmationDialog } from '@/components/dialogs/ConfirmationDialog.tsx';
 import { Box, Typography } from '@mui/material';
 import { motion } from 'motion/react';
 import { useState } from 'react';
@@ -60,6 +61,12 @@ export const TagGroupSection = ({
 }: TagGroupSectionProps) => {
   const [isExpanded, setIsExpanded] = useState(true);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [isDeleteConfirmOpen, setIsDeleteConfirmOpen] = useState(false);
+
+  const handleConfirmDelete = () => {
+    setIsDeleteConfirmOpen(false);
+    onDelete();
+  };
 
   return (
     <Box
@@ -79,7 +86,7 @@ export const TagGroupSection = ({
         onToggleCollapse={() => setIsExpanded(!isExpanded)}
         onEditSubmit={(value) => onEditSubmit(group.id, value)}
         onEditTags={() => setIsDialogOpen(true)}
-        onDelete={onDelete}
+        onDelete={() => setIsDeleteConfirmOpen(true)}
         isProcessing={isProcessing}
       />
       <Collapsable isExpanded={isExpanded}>
@@ -127,6 +134,22 @@ export const TagGroupSection = ({
         bookId={bookId}
         open={isDialogOpen}
         onClose={() => setIsDialogOpen(false)}
+      />
+      <ConfirmationDialog
+        open={isDeleteConfirmOpen}
+        onClose={() => setIsDeleteConfirmOpen(false)}
+        onConfirm={handleConfirmDelete}
+        title="Delete Tag Group"
+        message={
+          tags.length > 0
+            ? `Delete the group "${group.name}"? Its ${tags.length} ${
+                tags.length === 1 ? 'tag stays' : 'tags stay'
+              } on your highlights and ${tags.length === 1 ? 'moves' : 'move'} to Ungrouped.`
+            : `Delete the group "${group.name}"?`
+        }
+        confirmText="Delete"
+        confirmColor="error"
+        isLoading={isProcessing}
       />
     </Box>
   );

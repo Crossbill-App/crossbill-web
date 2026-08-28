@@ -171,6 +171,7 @@ export const TagGroupHeader = ({
             <span>
               <IconButton
                 size="small"
+                aria-label="Edit tags"
                 onClick={(e) => {
                   e.stopPropagation();
                   onEditTags();
@@ -200,6 +201,7 @@ export const TagGroupHeader = ({
             <span>
               <IconButton
                 size="small"
+                aria-label="Delete group"
                 onClick={(e) => {
                   e.stopPropagation();
                   onDelete();
