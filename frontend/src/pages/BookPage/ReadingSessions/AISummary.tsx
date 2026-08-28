@@ -1,6 +1,7 @@
 import { Collapsable } from '@/components/animations/Collapsable';
 import { HoverableCardActionArea } from '@/components/cards/HoverableCardActionArea';
 import { CollapseChevron } from '@/components/CollapseChevron.tsx';
+import { ICON_SIZE } from '@/theme/iconSizes.ts';
 import { markdownStyles } from '@/theme/theme';
 import { Box, styled } from '@mui/material';
 import { useState } from 'react';
@@ -56,7 +57,7 @@ export const AISummary = ({ summary }: AISummaryProps) => {
       </Box>
       <CollapseChevron
         isExpanded={isExpanded}
-        sx={{ fontSize: 20, color: 'text.secondary', flexShrink: 0, mt: 0.25 }}
+        sx={{ fontSize: ICON_SIZE.ui, color: 'text.secondary', flexShrink: 0, mt: 0.25 }}
       />
     </HoverableCardActionArea>
   );

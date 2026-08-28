@@ -1,3 +1,4 @@
+import { ICON_SIZE } from '@/theme/iconSizes.ts';
 import { Box, Tooltip } from '@mui/material';
 import { readingStageMarker } from './readingStageMarker.ts';
 
@@ -27,7 +28,7 @@ export const ReadingStageIcon = ({ stage }: ReadingStageIconProps) => {
           boxShadow: (theme) => `0 2px 8px ${theme.customColors.shadows.medium}`,
         }}
       >
-        <Icon sx={{ fontSize: 16, color: 'primary.contrastText' }} />
+        <Icon sx={{ fontSize: ICON_SIZE.inline, color: 'primary.contrastText' }} />
       </Box>
     </Tooltip>
   );

@@ -1,5 +1,6 @@
 import { CollapseChevron } from '@/components/CollapseChevron.tsx';
 import { SectionTitle } from '@/components/typography/SectionTitle.tsx';
+import { ICON_SIZE } from '@/theme/iconSizes.ts';
 import type { SvgIconComponent } from '@mui/icons-material';
 import { Box, IconButton } from '@mui/material';
 import type { ReactNode } from 'react';
@@ -48,7 +49,7 @@ export const SidebarSectionHeader = ({
     }}
   >
     <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-      <Icon sx={{ fontSize: 18, color: 'primary.main' }} />
+      <Icon sx={{ fontSize: ICON_SIZE.ui, color: 'primary.main' }} />
       <SectionTitle component="h3" gutterBottom={false}>
         {title}
       </SectionTitle>

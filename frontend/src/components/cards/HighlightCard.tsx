@@ -6,6 +6,7 @@ import { formatHighlightDate } from '@/pages/BookPage/common/highlightDates.ts';
 import { LabelIndicator } from '@/pages/BookPage/common/LabelIndicator.tsx';
 import { NotOnDeviceChip } from '@/pages/BookPage/common/NotOnDeviceChip.tsx';
 import { BookmarkFilledIcon, DateIcon, FlashcardsIcon, HighlightsIcon } from '@/theme/Icons.tsx';
+import { ICON_SIZE } from '@/theme/iconSizes.ts';
 import { Box, Typography } from '@mui/material';
 
 export interface HighlightCardProps {
@@ -41,18 +42,22 @@ const Footer = ({ highlight, bookmark }: FooterProps) => {
       >
         <LabelIndicator label={highlight.label} size="small" />
         <NotOnDeviceChip removed={highlight.removed_from_devices} />
-        <DateIcon sx={{ fontSize: 14, color: 'text.secondary' }} />
+        <DateIcon sx={{ fontSize: ICON_SIZE.inline, color: 'text.secondary' }} />
         <MetadataRow
           variant="caption"
           items={[
             formatHighlightDate(highlight.datetime),
             highlight.page && `Page ${highlight.page}`,
             hasBookmark && (
-              <BookmarkFilledIcon sx={{ fontSize: 16, verticalAlign: 'middle', ml: 1, mt: -0.5 }} />
+              <BookmarkFilledIcon
+                sx={{ fontSize: ICON_SIZE.inline, verticalAlign: 'middle', ml: 1, mt: -0.5 }}
+              />
             ),
             !!highlight.flashcards.length && (
               <>
-                <FlashcardsIcon sx={{ fontSize: 16, verticalAlign: 'middle', ml: 1, mt: -0.5 }} />
+                <FlashcardsIcon
+                  sx={{ fontSize: ICON_SIZE.inline, verticalAlign: 'middle', ml: 1, mt: -0.5 }}
+                />
                 <span>&nbsp;&nbsp;{highlight.flashcards.length}</span>
               </>
             ),
@@ -100,7 +105,7 @@ export const HighlightCard = ({ highlight, bookmark, onOpenModal }: HighlightCar
         <Box sx={{ display: 'flex', alignItems: 'start', gap: 1.5, mb: 2 }}>
           <HighlightsIcon
             sx={{
-              fontSize: 22,
+              fontSize: ICON_SIZE.prominent,
               color: 'primary.main',
               flexShrink: 0,
               mt: 0.3,

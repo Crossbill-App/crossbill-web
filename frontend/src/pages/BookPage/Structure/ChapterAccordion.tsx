@@ -1,6 +1,7 @@
 import type { ChapterWithHighlights, PositionResponse } from '@/api/generated/model';
 import { CollapseChevron } from '@/components/CollapseChevron.tsx';
 import { FlashcardsIcon, HighlightsIcon } from '@/theme/Icons.tsx';
+import { ICON_SIZE } from '@/theme/iconSizes.ts';
 import { Box, ButtonBase, Collapse, IconButton, Typography, type Theme } from '@mui/material';
 import { sumBy } from 'lodash';
 import { useId, useState } from 'react';
@@ -70,13 +71,13 @@ const ChapterCounts = ({ chapter }: { chapter: ChapterWithHighlights }) => {
     <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, color: 'text.secondary' }}>
       {highlightCount > 0 && (
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-          <HighlightsIcon sx={{ fontSize: 16 }} />
+          <HighlightsIcon sx={{ fontSize: ICON_SIZE.inline }} />
           <Typography variant="caption">{highlightCount}</Typography>
         </Box>
       )}
       {flashcardCount > 0 && (
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-          <FlashcardsIcon sx={{ fontSize: 16 }} />
+          <FlashcardsIcon sx={{ fontSize: ICON_SIZE.inline }} />
           <Typography variant="caption">{flashcardCount}</Typography>
         </Box>
       )}

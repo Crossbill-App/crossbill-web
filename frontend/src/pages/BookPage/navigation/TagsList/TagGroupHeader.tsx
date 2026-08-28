@@ -4,6 +4,7 @@ import { SavedIndicator } from '@/components/SavedIndicator.tsx';
 import { useCommitOnBlur } from '@/hooks/useCommitOnBlur.ts';
 import type { SaveStatus } from '@/hooks/useSaveStatus.ts';
 import { DeleteIcon, EditIcon, EditTagsIcon } from '@/theme/Icons.tsx';
+import { ICON_SIZE } from '@/theme/iconSizes.ts';
 import { createAdaptiveHoverStyles, createAdaptiveTouchTarget } from '@/utils/adaptiveHover.ts';
 import { Box, IconButton, TextField, Tooltip, Typography } from '@mui/material';
 import { useState } from 'react';
@@ -32,7 +33,10 @@ export const TagGroupTitle = ({
         cursor: 'pointer',
       }}
     >
-      <CollapseChevron isExpanded={isExpanded} sx={{ fontSize: 16, color: 'text.secondary' }} />
+      <CollapseChevron
+        isExpanded={isExpanded}
+        sx={{ fontSize: ICON_SIZE.inline, color: 'text.secondary' }}
+      />
       <Typography
         variant="subtitle2"
         sx={{
@@ -179,7 +183,7 @@ export const TagGroupHeader = ({
                   }}
                   sx={{ ...touchTarget, color: 'text.disabled' }}
                 >
-                  <EditTagsIcon sx={{ fontSize: 14 }} />
+                  <EditTagsIcon sx={{ fontSize: ICON_SIZE.ui }} />
                 </IconButton>
               </span>
             </Tooltip>
@@ -194,7 +198,7 @@ export const TagGroupHeader = ({
                   }}
                   sx={{ ...touchTarget, color: 'text.disabled' }}
                 >
-                  <EditIcon sx={{ fontSize: 14 }} />
+                  <EditIcon sx={{ fontSize: ICON_SIZE.ui }} />
                 </IconButton>
               </span>
             </Tooltip>
@@ -210,7 +214,7 @@ export const TagGroupHeader = ({
                   disabled={isProcessing}
                   sx={{ ...touchTarget, color: 'text.disabled' }}
                 >
-                  <DeleteIcon sx={{ fontSize: 14 }} />
+                  <DeleteIcon sx={{ fontSize: ICON_SIZE.ui }} />
                 </IconButton>
               </span>
             </Tooltip>

@@ -1,5 +1,6 @@
 import { Collapsable } from '@/components/animations/Collapsable';
 import { HighlightsIcon } from '@/theme/Icons';
+import { ICON_SIZE } from '@/theme/iconSizes.ts';
 import { Box, ButtonBase, styled, Typography } from '@mui/material';
 import { ReactNode, useState } from 'react';
 
@@ -110,7 +111,12 @@ export const FlashcardCard = ({
             >
               <Box sx={{ display: 'flex', alignItems: 'flex-start', gap: 0.5 }}>
                 <HighlightsIcon
-                  sx={{ fontSize: 14, color: 'text.disabled', mt: 0.25, flexShrink: 0 }}
+                  sx={{
+                    fontSize: ICON_SIZE.inline,
+                    color: 'text.disabled',
+                    mt: 0.25,
+                    flexShrink: 0,
+                  }}
                 />
                 <Typography
                   variant="caption"

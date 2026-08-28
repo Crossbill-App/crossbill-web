@@ -1,4 +1,5 @@
 import { SelectedIcon } from '@/theme/Icons.tsx';
+import { ICON_SIZE } from '@/theme/iconSizes.ts';
 import { getContrastColor, type ColorOption } from '@/utils/colorUtils.ts';
 import { Box, IconButton, Tooltip } from '@mui/material';
 
@@ -50,7 +51,9 @@ export const ColorSwatchPicker = ({ colors, value, onChange, label }: ColorSwatc
               })}
             >
               {isSelected && (
-                <SelectedIcon sx={{ fontSize: 16, color: getContrastColor(color.value) }} />
+                <SelectedIcon
+                  sx={{ fontSize: ICON_SIZE.inline, color: getContrastColor(color.value) }}
+                />
               )}
             </IconButton>
           </Tooltip>
