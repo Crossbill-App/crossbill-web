@@ -1,4 +1,4 @@
-import type { Note, NoteWithLinks } from '@/api/generated/model';
+import type { Note } from '@/api/generated/model';
 import { CommonDialog } from '@/components/dialogs/CommonDialog.tsx';
 import { Box, Button } from '@mui/material';
 import { useRef, useState } from 'react';
@@ -9,8 +9,6 @@ import type { NoteKindValue } from './noteKinds';
 interface NoteEditorDialogProps {
   open: boolean;
   onClose: () => void;
-  /** Edit mode when set; create mode otherwise */
-  note?: NoteWithLinks | null;
   initialChapterIds?: number[];
   initialHighlightIds?: number[];
   initialBody?: string;
@@ -22,10 +20,13 @@ interface NoteEditorDialogProps {
   onCreated?: (note: Note) => void;
 }
 
+/**
+ * Creating a note. Editing an existing one belongs to `NoteViewDialog`, which
+ * keeps the note itself on screen around the form.
+ */
 export const NoteEditorDialog = ({
   open,
   onClose,
-  note,
   initialChapterIds,
   initialHighlightIds,
   initialBody,
@@ -41,11 +42,11 @@ export const NoteEditorDialog = ({
     <CommonDialog
       open={open}
       onClose={onClose}
-      title={note ? 'Edit Note' : 'New Note'}
+      title="New note"
       maxWidth="md"
       isLoading={status.isSaving}
       footerActions={
-        <Box sx={{ display: 'flex', gap: 1, width: '100%', justifyContent: 'flex-end' }}>
+        <Box sx={{ display: 'flex', gap: 1 }}>
           <Button onClick={onClose} disabled={status.isSaving}>
             Cancel
           </Button>
@@ -62,7 +63,6 @@ export const NoteEditorDialog = ({
       <NoteEditorForm
         ref={formRef}
         open={open}
-        note={note}
         initialChapterIds={initialChapterIds}
         initialHighlightIds={initialHighlightIds}
         initialBody={initialBody}

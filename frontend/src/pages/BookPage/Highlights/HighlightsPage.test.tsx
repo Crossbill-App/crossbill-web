@@ -1,5 +1,6 @@
 import { getLastSevenDaysFrom } from '@/pages/BookPage/common/highlightDates.ts';
 import { aBookDetails, aChapter, aHighlight } from '@tests/fixtures/book';
+import { aNote } from '@tests/fixtures/notes';
 import { renderApp } from '@tests/harness/renderApp';
 import { bookApi } from '@tests/msw/bookApi';
 import { worker } from '@tests/msw/worker';
@@ -171,7 +172,15 @@ test('composes date, search, tag, and label filters and shows the generic empty 
     replace: true,
   });
 
-  await expect.element(screen.getByText('No highlights match the filters.')).toBeVisible();
+  await expect.element(screen.getByText('No highlights match the current filters.')).toBeVisible();
+
+  // One control undoes all four: search, tag, label and date range.
+  await userEvent.click(screen.getByRole('button', { name: 'Clear filters' }));
+
+  await expect.element(screen.getByText('All filters match')).toBeVisible();
+  await expect.element(screen.getByText('Wrong tag')).toBeVisible();
+  await expect.element(screen.getByText('Wrong label')).toBeVisible();
+  await expect.element(screen.getByText('Wrong date')).toBeVisible();
 });
 
 test('places the preset above mobile tabs and exposes active date filters accessibly', async () => {
@@ -181,7 +190,8 @@ test('places the preset above mobile tabs and exposes active date filters access
     worker.use(...handlers);
 
     const screen = await renderApp({ path: '/book/1/highlights?to=2026-07-05' });
-    const filterButton = screen.getByRole('button', { name: 'Open filters (filters active)' });
+    // The label counts what is on, so it says which filters are in play.
+    const filterButton = screen.getByRole('button', { name: 'Open filters (1 active)' });
     await expect.element(filterButton).toBeVisible();
     await userEvent.click(filterButton);
 
@@ -223,4 +233,156 @@ test('uses the browser regional locale for date field order', async () => {
   } finally {
     resolvedOptions.mockRestore();
   }
+});
+
+/**
+ * The sidebar collapse used to be an `onClick` on a plain `Box`, with a
+ * labelled `IconButton` inside it that had no handler of its own — so a
+ * keyboard user reached a button that did nothing when activated.
+ */
+test('the chapters section collapses from the keyboard', async () => {
+  const { handlers } = bookApi({ book: aDateRangeBook() });
+  worker.use(...handlers);
+
+  const screen = await renderApp({ path: '/book/1/highlights' });
+  await expect.element(screen.getByRole('list', { name: 'Chapters' })).toBeVisible();
+
+  const toggle = screen.getByRole('button', { name: 'Collapse chapters list' });
+  await expect.element(toggle).toHaveAttribute('aria-expanded', 'true');
+
+  (toggle.element() as HTMLElement).focus();
+  await userEvent.keyboard('{Enter}');
+
+  await expect
+    .element(screen.getByRole('button', { name: 'Expand chapters list' }))
+    .toHaveAttribute('aria-expanded', 'false');
+  await expect.element(screen.getByRole('list', { name: 'Chapters' })).not.toBeInTheDocument();
+});
+
+test('the chapter sidebar carries both counts, so the number does not change with the tab', async () => {
+  worker.use(
+    ...bookApi({
+      book: aBookDetails({
+        chapters: [
+          aChapter({
+            id: 10,
+            name: 'On Attention',
+            highlights: [
+              aHighlight({ id: 301, text: 'A filter, not a spotlight.', flashcards: [] }),
+              aHighlight({
+                id: 302,
+                text: 'Attention is finite.',
+                flashcards: [
+                  {
+                    id: 700,
+                    user_id: 1,
+                    book_id: 1,
+                    highlight_id: 302,
+                    chapter_id: 10,
+                    question: 'What is attention?',
+                    answer: 'A filter.',
+                  },
+                ],
+              }),
+            ],
+          }),
+        ],
+      }),
+    }).handlers
+  );
+
+  const screen = await renderApp({ path: '/book/1/highlights' });
+  const chapters = screen.getByRole('list', { name: 'Chapters' });
+
+  await expect.element(chapters.getByText('2 highlights')).toBeVisible();
+  await expect.element(chapters.getByText('1 flashcard')).toBeVisible();
+});
+
+test('the labels section appears with a single label', async () => {
+  worker.use(
+    // Ahead of the defaults: the first matching handler wins, and `bookApi`
+    // serves an empty label list.
+    http.get('/api/v1/books/:bookId/highlight-labels', () =>
+      HttpResponse.json({
+        items: [
+          {
+            id: 10,
+            device_color: 'yellow',
+            device_style: 'lighten',
+            label: 'Important',
+            ui_color: '#F59E0B',
+            label_source: 'book',
+            highlight_count: 3,
+          },
+        ],
+      })
+    ),
+    ...bookApi({ book: aBookDetails() }).handlers
+  );
+
+  const screen = await renderApp({ path: '/book/1/highlights' });
+
+  // One label is enough: without the section, naming or recolouring it is only
+  // reachable through the colour dot inside a highlight dialog.
+  await expect.element(screen.getByText('Labels')).toBeVisible();
+  await expect.element(screen.getByText('Important (3)')).toBeVisible();
+});
+
+test('a highlight card counts the notes linked to it', async () => {
+  worker.use(
+    ...bookApi({
+      book: aBookDetails({
+        chapters: [
+          aChapter({
+            id: 10,
+            name: 'On Attention',
+            highlights: [
+              aHighlight({ id: 301, text: 'A filter, not a spotlight.' }),
+              aHighlight({ id: 302, text: 'Attention is finite.' }),
+            ],
+          }),
+        ],
+      }),
+      notes: [
+        aNote({ id: 100, title: 'Filters', highlight_ids: [301] }),
+        aNote({ id: 101, title: 'Spotlights', highlight_ids: [301] }),
+        aNote({ id: 102, title: 'Unlinked', highlight_ids: [] }),
+      ],
+    }).handlers
+  );
+
+  const screen = await renderApp({ path: '/book/1/highlights' });
+
+  const linked = screen.getByRole('button', { name: /A filter, not a spotlight/ });
+  await expect.element(linked.getByRole('img', { name: '2 notes' })).toBeVisible();
+
+  const bare = screen.getByRole('button', { name: /Attention is finite/ });
+  expect(bare.getByRole('img', { name: /note/ }).elements()).toHaveLength(0);
+});
+
+/**
+ * The other half of the same defect: the tag group's title was a clickable
+ * `Box` — no role, no tab stop, no key handler — so the group could only be
+ * collapsed with a mouse.
+ */
+test('a tag group collapses from the keyboard', async () => {
+  worker.use(
+    ...bookApi({
+      book: aBookDetails({
+        tags: [{ id: 1, name: 'Keep', tag_group_id: 5 }],
+        tag_groups: [{ id: 5, name: 'Themes' }],
+      }),
+    }).handlers
+  );
+
+  const screen = await renderApp({ path: '/book/1/highlights' });
+  const toggle = screen.getByRole('button', { name: /Themes/ });
+  await expect.element(toggle).toHaveAttribute('aria-expanded', 'true');
+  await expect.element(screen.getByText('Keep')).toBeVisible();
+
+  (toggle.element() as HTMLElement).focus();
+  await userEvent.keyboard('{Enter}');
+
+  await expect.element(toggle).toHaveAttribute('aria-expanded', 'false');
+  await expect.element(screen.getByText('Keep')).not.toBeInTheDocument();
 });

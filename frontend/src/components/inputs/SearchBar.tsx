@@ -1,5 +1,6 @@
 import { useResetOnChange } from '@/hooks/useResetOnChange.ts';
-import { Box, TextField, type SxProps, type Theme } from '@mui/material';
+import { CloseIcon } from '@/theme/Icons.tsx';
+import { Box, IconButton, TextField, type SxProps, type Theme } from '@mui/material';
 import { debounce } from 'lodash';
 import { useEffect, useMemo, useState } from 'react';
 
@@ -92,20 +93,17 @@ export const SearchBar = ({
         slotProps={{
           input: {
             endAdornment: searchInput && (
-              <Box
-                component="span"
+              <IconButton
+                size="small"
+                aria-label="Clear search"
                 // Keep the focus in the field: a blur here would commit the
                 // text the click is about to throw away.
                 onMouseDown={(e: React.MouseEvent) => e.preventDefault()}
                 onClick={handleClear}
-                sx={{
-                  cursor: 'pointer',
-                  color: 'text.secondary',
-                  '&:hover': { color: 'text.primary' },
-                }}
+                sx={{ color: 'text.secondary', '&:hover': { color: 'text.primary' } }}
               >
-                ✕
-              </Box>
+                <CloseIcon fontSize="small" />
+              </IconButton>
             ),
           },
           htmlInput: slotProps?.htmlInput,

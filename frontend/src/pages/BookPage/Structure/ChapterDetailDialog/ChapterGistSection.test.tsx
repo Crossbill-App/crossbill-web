@@ -37,7 +37,7 @@ test('a gist is written from the chapter dialog without a second dialog opening'
   await expect
     .element(dialog.getByRole('button', { name: 'Attention is a filter, not a spotlight.' }))
     .toBeVisible();
-  expect(screen.getByRole('heading', { name: 'New Note' }).elements()).toHaveLength(0);
+  expect(screen.getByRole('heading', { name: 'New note' }).elements()).toHaveLength(0);
 
   await expect.poll(() => state.notes.length).toBe(1);
   expect(state.notes[0]).toMatchObject({

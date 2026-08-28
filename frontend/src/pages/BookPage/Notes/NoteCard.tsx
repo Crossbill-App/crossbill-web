@@ -1,87 +1,61 @@
 import type { NoteWithLinks } from '@/api/generated/model';
+import { HoverableCardActionArea } from '@/components/cards/HoverableCardActionArea';
 import { markdownStyles } from '@/theme/theme';
-import { Box, Chip, Stack, styled, Typography, useTheme } from '@mui/material';
+import { Box, Stack, Typography, useTheme } from '@mui/material';
 import type { ReactNode } from 'react';
 import ReactMarkdown from 'react-markdown';
 
-import { NOTE_KIND_LABELS, type NoteKindValue } from './noteKinds';
+import { NoteKindChip } from './NoteKindChip';
 
 interface NoteCardProps {
   note: NoteWithLinks;
   onClick: () => void;
   /**
-   * Right-aligned action in the title row (e.g. an unlink button). The whole
-   * card is clickable, so the action must stopPropagation on its own click.
+   * Right-aligned action (e.g. an unlink button), laid over the card's top
+   * corner rather than inside it: the card itself is a button, and a button
+   * cannot contain another one.
    */
   action?: ReactNode;
 }
-
-const NoteStyled = styled(Box)(({ theme }) => ({
-  borderLeft: `3px solid ${theme.palette.primary.main}`,
-  paddingLeft: theme.spacing(2),
-  paddingTop: theme.spacing(2),
-  paddingBottom: theme.spacing(2),
-  cursor: 'pointer',
-  transition: 'background-color 0.15s ease',
-  '&:hover': {
-    backgroundColor: theme.palette.action.hover,
-  },
-  '&:focus-visible': {
-    outline: `2px solid ${theme.palette.primary.main}`,
-    outlineOffset: 2,
-  },
-}));
 
 export const NoteCard = ({ note, onClick, action }: NoteCardProps) => {
   const theme = useTheme();
 
   return (
-    <NoteStyled
-      role="button"
-      tabIndex={0}
-      onClick={onClick}
-      onKeyDown={(event) => {
-        // Ignore keys bubbling from the action button — only the card itself.
-        if (event.target !== event.currentTarget) return;
-        if (event.key === 'Enter' || event.key === ' ') {
-          event.preventDefault();
-          onClick();
-        }
-      }}
-    >
-      <Stack
-        direction="row"
+    <Box sx={{ position: 'relative' }}>
+      <HoverableCardActionArea
+        onClick={onClick}
         sx={{
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          mb: 0.5,
+          // The rail is the type marker, per B9; hover is the tint and lift
+          // the shared action area already carries.
+          borderLeft: `3px solid ${theme.palette.primary.main}`,
+          borderRadius: 0,
+          display: 'block',
+          textAlign: 'left',
+          pl: 2,
+          py: 2,
+          pr: action ? 6 : 0,
         }}
       >
-        <Stack
-          direction="row"
-          spacing={1}
-          sx={{
-            alignItems: 'center',
-          }}
-        >
+        <Stack direction="row" spacing={1} sx={{ alignItems: 'center', mb: 0.5 }}>
           <Typography variant="h3">{note.title}</Typography>
-          {note.kind && <Chip size="small" label={NOTE_KIND_LABELS[note.kind as NoteKindValue]} />}
+          <NoteKindChip kind={note.kind} />
         </Stack>
-        {action}
-      </Stack>
-      {note.body && (
-        <Box
-          sx={{
-            ...markdownStyles(theme),
-            display: '-webkit-box',
-            WebkitLineClamp: 3,
-            WebkitBoxOrient: 'vertical',
-            overflow: 'hidden',
-          }}
-        >
-          <ReactMarkdown>{note.body}</ReactMarkdown>
-        </Box>
-      )}
-    </NoteStyled>
+        {note.body && (
+          <Box
+            sx={{
+              ...markdownStyles(theme),
+              display: '-webkit-box',
+              WebkitLineClamp: 3,
+              WebkitBoxOrient: 'vertical',
+              overflow: 'hidden',
+            }}
+          >
+            <ReactMarkdown>{note.body}</ReactMarkdown>
+          </Box>
+        )}
+      </HoverableCardActionArea>
+      {action && <Box sx={{ position: 'absolute', top: 8, right: 8 }}>{action}</Box>}
+    </Box>
   );
 };

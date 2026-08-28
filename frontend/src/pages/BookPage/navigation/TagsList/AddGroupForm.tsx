@@ -64,27 +64,19 @@ export const AddGroupForm = ({
                 sx={{ mb: 1 }}
               />
             </ClickAwayListener>
-            <Box sx={{ display: 'flex', gap: 1 }}>
+            {/* The dialog footer convention: a right-aligned text Cancel
+                beside a contained primary. */}
+            <Box sx={{ display: 'flex', justifyContent: 'flex-end', gap: 1 }}>
+              <Button size="small" onClick={onCancel}>
+                Cancel
+              </Button>
               <Button
+                size="small"
                 variant="contained"
                 onClick={handleSubmit}
                 disabled={isProcessing}
-                sx={{
-                  flex: 1,
-                  fontSize: '0.75rem',
-                }}
               >
-                Add
-              </Button>
-              <Button
-                variant="outlined"
-                onClick={onCancel}
-                sx={{
-                  flex: 1,
-                  fontSize: '0.75rem',
-                }}
-              >
-                Cancel
+                Add group
               </Button>
             </Box>
           </Box>

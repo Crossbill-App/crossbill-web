@@ -12,7 +12,6 @@ import {
 } from '@/api/generated/reflections/reflections.ts';
 import { Spinner } from '@/components/animations/Spinner.tsx';
 import { IconButtonWithTooltip } from '@/components/buttons/IconButtonWithTooltip.tsx';
-import { MiddleContentColumn } from '@/components/layout/Layouts.tsx';
 import {
   READING_STAGE_HINTS,
   type ReadingStageValue,
@@ -21,7 +20,9 @@ import { PageTitle } from '@/components/typography/PageTitle.tsx';
 import { SectionTitle } from '@/components/typography/SectionTitle.tsx';
 import { useMutationErrorHandler } from '@/hooks/useMutationErrorHandler.ts';
 import { useBookPage } from '@/pages/BookPage/BookPageContext';
+import { BOOK_PAGE_LABELS } from '@/pages/BookPage/navigation/bookPageRoutes.ts';
 import { NoteEditorDialog } from '@/pages/BookPage/Notes/NoteEditorDialog.tsx';
+import { NoteViewDialog } from '@/pages/BookPage/Notes/NoteViewDialog.tsx';
 import { EditIcon } from '@/theme/Icons.tsx';
 import { markdownStyles } from '@/theme/theme';
 import { Box, Button, Stack, Typography, useTheme } from '@mui/material';
@@ -35,15 +36,17 @@ import {
   type ReflectionQuestion,
 } from './reflectionQuestions.ts';
 
-interface EditorState {
+/** Editing an existing answer opens the note dialog instead — see `answerEdit`. */
+interface AnswerEditState {
   question: ReflectionQuestion;
-  note: NoteWithLinks | null;
+  noteId: number;
 }
 
 const EditNoteButton = ({ onClick }: { onClick: () => void }) => (
   <Box sx={{ position: 'absolute', top: 8, right: 8 }}>
     <IconButtonWithTooltip
       title="Edit answer"
+      ariaLabel="Edit answer"
       icon={<EditIcon fontSize="small" />}
       onClick={onClick}
     />
@@ -81,7 +84,8 @@ export const ReflectionPage = () => {
   const allNotes = notesData?.items ?? [];
   const notesById = new Map(allNotes.map((note) => [note.id, note]));
 
-  const [editor, setEditor] = useState<EditorState | null>(null);
+  const [newAnswer, setNewAnswer] = useState<ReflectionQuestion | null>(null);
+  const [answerEdit, setAnswerEdit] = useState<AnswerEditState | null>(null);
 
   const server = reflection ?? emptyReflection(bookId);
 
@@ -123,8 +127,8 @@ export const ReflectionPage = () => {
     : undefined;
 
   return (
-    <MiddleContentColumn>
-      <PageTitle text="Reflection" />
+    <>
+      <PageTitle text={BOOK_PAGE_LABELS.reflection} />
       {stageHint && (
         <Typography
           variant="body2"
@@ -165,13 +169,11 @@ export const ReflectionPage = () => {
               {answerNote && (
                 <AnswerNote
                   note={answerNote}
-                  onEdit={() => setEditor({ question, note: answerNote })}
+                  onEdit={() => setAnswerEdit({ question, noteId: answerNote.id })}
                 />
               )}
 
-              {noteId == null && (
-                <AnswerButton onClick={() => setEditor({ question, note: null })} />
-              )}
+              {noteId == null && <AnswerButton onClick={() => setNewAnswer(question)} />}
 
               {question.noteIdField === 'what_does_it_say_note_id' && (
                 <Box sx={{ mt: 2 }}>
@@ -188,17 +190,25 @@ export const ReflectionPage = () => {
         })}
       </Stack>
 
-      {editor && (
+      {newAnswer && (
         <NoteEditorDialog
           open
-          onClose={() => setEditor(null)}
-          note={editor.note}
-          initialKind={editor.note ? undefined : 'reflection'}
-          initialTitle={editor.note ? undefined : editor.question.title}
-          guidance={{ title: editor.question.title, text: editor.question.guide }}
-          onCreated={(note) => handleCreated(editor.question, note)}
+          onClose={() => setNewAnswer(null)}
+          initialKind="reflection"
+          initialTitle={newAnswer.title}
+          guidance={{ title: newAnswer.title, text: newAnswer.guide }}
+          onCreated={(note) => handleCreated(newAnswer, note)}
         />
       )}
-    </MiddleContentColumn>
+
+      {answerEdit && (
+        <NoteViewDialog
+          noteId={answerEdit.noteId}
+          initiallyEditing
+          guidance={{ title: answerEdit.question.title, text: answerEdit.question.guide }}
+          onClose={() => setAnswerEdit(null)}
+        />
+      )}
+    </>
   );
 };

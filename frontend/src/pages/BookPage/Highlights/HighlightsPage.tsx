@@ -8,10 +8,11 @@ import type {
 } from '@/api/generated/model';
 import { useGetTags } from '@/api/generated/tags/tags.ts';
 import { scrollToElementWithHighlight } from '@/components/animations/scrollUtils';
-import { ContentWithSidebar } from '@/components/layout/Layouts.tsx';
+import { EmptyStateText } from '@/components/EmptyStateText.tsx';
 import { PageTitle } from '@/components/typography/PageTitle.tsx';
 import { useResetOnChange } from '@/hooks/useResetOnChange.ts';
 import { useBookPage } from '@/pages/BookPage/BookPageContext';
+import { FilteredEmptyState } from '@/pages/BookPage/common/FilteredEmptyState.tsx';
 import {
   filterChaptersByHighlightDate,
   parseDateSearchParam,
@@ -20,9 +21,11 @@ import {
 import { ListSearchSortHeader } from '@/pages/BookPage/common/ListSearchSortHeader.tsx';
 import { useBookTabFilters } from '@/pages/BookPage/common/useBookTabFilters.ts';
 import { useHighlightDialog } from '@/pages/BookPage/Highlights/hooks/useHighlightDialog.ts';
+import { BOOK_PAGE_LABELS } from '@/pages/BookPage/navigation/bookPageRoutes.ts';
+import { useNoteCountsByHighlight } from '@/pages/BookPage/Notes/hooks/useNoteCountsByHighlight.ts';
 import { Box, Divider } from '@mui/material';
 import { useLocation, useNavigate, useSearch } from '@tanstack/react-router';
-import { keyBy } from 'lodash';
+import { keyBy, sumBy } from 'lodash';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { FilterFab } from '../common/FilterFab.tsx';
@@ -36,7 +39,7 @@ import { HighlightsList, type ChapterData } from './HighlightsList.tsx';
 import { HighlightViewDialog } from './HighlightViewDialog';
 
 export const HighlightsPage = () => {
-  const { book, isDesktop, leftSidebarEl, fabContainerEl } = useBookPage();
+  const { book, isDesktop, leftSidebarEl, rightSidebarEl, fabContainerEl } = useBookPage();
 
   const {
     search: urlSearch,
@@ -47,14 +50,23 @@ export const HighlightsPage = () => {
   const locationSearch = useLocation({ select: (location) => location.searchStr });
   const navigate = useNavigate({ from: '/book/$bookId/highlights' });
 
-  const { searchText, selectedTagId, handleSearch, handleTagClick, handleChapterClick } =
-    useBookTabFilters('/book/$bookId/highlights');
+  const {
+    searchText,
+    selectedTagId,
+    handleSearch,
+    handleTagClick,
+    handleChapterClick,
+    clearFilters,
+  } = useBookTabFilters('/book/$bookId/highlights');
   const [selectedLabelId, setSelectedLabelId] = useState<number | undefined>(urlLabelId);
   const [isReversed, setIsReversed] = useState(false);
   const [filterDrawerOpen, setFilterDrawerOpen] = useState(false);
 
   const hasDateValues = !!dateFrom || !!dateTo;
-  const filterEnabled = !!selectedLabelId || !!selectedTagId || hasDateValues;
+  // A date range counts once, however many bounds it has.
+  const activeFilterCount = [!!selectedLabelId, !!selectedTagId, hasDateValues].filter(
+    Boolean
+  ).length;
 
   useResetOnChange([urlLabelId], () => setSelectedLabelId(urlLabelId));
 
@@ -113,6 +125,8 @@ export const HighlightsPage = () => {
 
   const bookSearch = useBookSearch(book.id, searchText);
 
+  const noteCountByHighlightId = useNoteCountsByHighlight();
+
   const bookmarksByHighlightId = useMemo(
     () => keyBy(book.bookmarks, 'highlight_id'),
     [book.bookmarks]
@@ -128,7 +142,7 @@ export const HighlightsPage = () => {
       { from: dateFrom, to: dateTo }
     ).map((chapter) => ({
       id: chapter.id,
-      name: chapter.name || 'Unknown Chapter',
+      name: chapter.name || 'Unknown chapter',
       chapterNumber: chapter.chapter_number ?? undefined,
       highlights: chapter.highlights,
     }));
@@ -164,9 +178,17 @@ export const HighlightsPage = () => {
 
   const listFilterActive =
     bookSearch.showSearchResults || !!selectedTagId || !!selectedLabelId || hasDateValues;
-  const emptyMessage = listFilterActive
-    ? 'No highlights match the filters.'
-    : 'No chapters found for this book.';
+  const emptyState = listFilterActive ? (
+    <FilteredEmptyState
+      noun="highlights"
+      onClearFilters={() => {
+        setSelectedLabelId(undefined);
+        clearFilters(['labelId', 'from', 'to']);
+      }}
+    />
+  ) : (
+    <EmptyStateText>No chapters found for this book.</EmptyStateText>
+  );
 
   const filterTabs = useHighlightsFilterTabs({
     navChapters: navData.chapters,
@@ -208,9 +230,9 @@ export const HighlightsPage = () => {
 
       {/* Content */}
       {isDesktop ? (
-        <ContentWithSidebar>
+        <>
           <Box>
-            <PageTitle text="Highlights" />
+            <PageTitle text={BOOK_PAGE_LABELS.highlights} />
             <ListSearchSortHeader
               onSearch={handleSearch}
               searchPlaceholder="Search highlights..."
@@ -221,30 +243,31 @@ export const HighlightsPage = () => {
             <HighlightsList
               chapters={chapters}
               bookmarksByHighlightId={bookmarksByHighlightId}
+              noteCountByHighlightId={noteCountByHighlightId}
               isLoading={bookSearch.isSearching}
-              emptyMessage={emptyMessage}
+              emptyState={emptyState}
               animationKey="chapters-highlights"
               onOpenHighlight={highlightDialog.open}
             />
           </Box>
-          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
-            <BookmarkList
-              bookmarks={book.bookmarks}
-              allHighlights={allHighlights}
-              onBookmarkClick={handleBookmarkClick}
-              filterActive={listFilterActive}
-            />
-            <Divider />
-            <ChapterNav
-              chapters={navData.chapters}
-              onChapterClick={handleChapterClick}
-              countType="highlight"
-            />
-          </Box>
-        </ContentWithSidebar>
+          {rightSidebarEl &&
+            createPortal(
+              <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+                <BookmarkList
+                  bookmarks={book.bookmarks}
+                  allHighlights={allHighlights}
+                  onBookmarkClick={handleBookmarkClick}
+                  filterActive={listFilterActive}
+                />
+                <Divider />
+                <ChapterNav chapters={navData.chapters} onChapterClick={handleChapterClick} />
+              </Box>,
+              rightSidebarEl
+            )}
+        </>
       ) : (
         <>
-          <PageTitle text="Highlights" />
+          <PageTitle text={BOOK_PAGE_LABELS.highlights} />
           <ListSearchSortHeader
             onSearch={handleSearch}
             searchPlaceholder="Search highlights..."
@@ -255,15 +278,19 @@ export const HighlightsPage = () => {
           <HighlightsList
             chapters={chapters}
             bookmarksByHighlightId={bookmarksByHighlightId}
+            noteCountByHighlightId={noteCountByHighlightId}
             isLoading={bookSearch.isSearching}
-            emptyMessage={emptyMessage}
+            emptyState={emptyState}
             animationKey="chapters-highlights"
             onOpenHighlight={highlightDialog.open}
           />
 
           {fabContainerEl &&
             createPortal(
-              <FilterFab filterEnabled={filterEnabled} onClick={() => setFilterDrawerOpen(true)} />,
+              <FilterFab
+                activeFilterCount={activeFilterCount}
+                onClick={() => setFilterDrawerOpen(true)}
+              />,
               fabContainerEl
             )}
 
@@ -383,7 +410,6 @@ const useHighlightsFilterTabs = ({
               setFilterDrawerOpen(false);
             }}
             hideTitle
-            countType="highlight"
           />
         ),
       },
@@ -456,7 +482,8 @@ const useHighlightsPageData = (chapters: ChapterData[]) => {
     return chapters.map((chapter) => ({
       id: chapter.id,
       name: chapter.name,
-      itemCount: chapter.highlights.length,
+      highlightCount: chapter.highlights.length,
+      flashcardCount: sumBy(chapter.highlights, (h) => h.flashcards.length),
     }));
   }, [chapters]);
 

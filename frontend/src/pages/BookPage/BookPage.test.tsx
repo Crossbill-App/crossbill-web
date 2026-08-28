@@ -39,10 +39,11 @@ test('a book can be marked as not finished, and the chip keeps saying so', async
   expect(state.book.reading_stage).toBe('did_not_finish');
 });
 
-test('the stats strip counts highlights, notes, flashcards and reading sessions', async () => {
+test('the stats strip counts highlights, notes, flashcards, bookmarks and sessions', async () => {
   const { handlers } = bookApi({
     book: aBookDetails({
       chapters: [aChapter({ highlights: [aHighlight({ id: 300 }), aHighlight({ id: 301 })] })],
+      bookmarks: [{ id: 900, book_id: 1, highlight_id: 300, created_at: '2026-01-01T00:00:00Z' }],
     }),
     notes: [aNote({ id: 1 }), aNote({ id: 2, kind: null })],
     sessionTotal: 8,
@@ -54,6 +55,7 @@ test('the stats strip counts highlights, notes, flashcards and reading sessions'
   await expect.element(screen.getByText('2 highlights')).toBeVisible();
   await expect.element(screen.getByText('2 notes')).toBeVisible();
   await expect.element(screen.getByText('0 flashcards')).toBeVisible();
+  await expect.element(screen.getByText('1 bookmark')).toBeVisible();
   await expect.element(screen.getByText('8 sessions')).toBeVisible();
 });
 
@@ -68,7 +70,7 @@ test('the note count leaves out gists', async () => {
 
   const screen = await renderApp({ path: '/book/1' });
 
-  await expect.element(screen.getByText('1 notes')).toBeVisible();
+  await expect.element(screen.getByText('1 note')).toBeVisible();
 });
 
 test('a blurb renders as markdown and starts collapsed', async () => {
@@ -254,4 +256,44 @@ test('clearing the blurb removes it from the header', async () => {
   await expect.element(screen.getByRole('dialog')).not.toBeInTheDocument();
   await expect.element(screen.getByText('A blurb worth deleting.')).not.toBeInTheDocument();
   expect(state.book.description).toBeNull();
+});
+
+/** The width of the column the current tab's content is laid out in. */
+const contentWidth = (screen: Awaited<ReturnType<typeof renderApp>>) =>
+  screen.getByRole('main').elements()[0].getBoundingClientRect().width;
+
+test('every tab lays its content out in the same column', async () => {
+  worker.use(...bookApi({ book: aBookDetails() }).handlers);
+
+  const screen = await renderApp({ path: '/book/1/highlights' });
+  await expect.element(screen.getByRole('heading', { name: 'Highlights' })).toBeVisible();
+  const withRail = contentWidth(screen);
+
+  // Structure has no right rail; the shell reserves its column regardless, so
+  // moving between the two must not reflow the page.
+  await screen.router.navigate({ to: '/book/$bookId/structure', params: { bookId: '1' } });
+  await expect.element(screen.getByRole('heading', { name: 'Structure' })).toBeVisible();
+
+  expect(contentWidth(screen)).toBe(withRail);
+});
+
+test('a tab renders its right rail into the shell, not inside its own content', async () => {
+  worker.use(
+    // ChapterNav lists only chapters that have highlights.
+    ...bookApi({
+      book: aBookDetails({
+        chapters: [aChapter({ id: 10, highlights: [aHighlight({ id: 300 })] })],
+      }),
+    }).handlers
+  );
+
+  const screen = await renderApp({ path: '/book/1/highlights' });
+  const chapters = screen.getByRole('list', { name: 'Chapters' });
+  await expect.element(chapters).toBeVisible();
+
+  // The rail used to sit inside the tab's own grid, which is what made the
+  // content column a different width here than on a tab without one.
+  expect(screen.getByRole('main').getByRole('list', { name: 'Chapters' }).elements()).toHaveLength(
+    0
+  );
 });

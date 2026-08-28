@@ -1,16 +1,4 @@
-import { Box, Container, styled } from '@mui/material';
-
-export const ContentWithSidebar = styled(Box)(({ theme }) => ({
-  display: 'grid',
-  gridTemplateColumns: '1fr 280px',
-  gap: theme.spacing(4),
-  alignItems: 'start',
-}));
-
-export const MiddleContentColumn = styled(Box)(({ theme }) => ({
-  gap: theme.spacing(4),
-  maxWidth: 864,
-}));
+import { Container, styled } from '@mui/material';
 
 /**
  * PageContainer's horizontal gutters, in theme spacing units. Stated here

@@ -5,16 +5,18 @@ import type {
   TagGroupInBook,
   TagInBook,
 } from '@/api/generated/model';
+import { EmptyStateText } from '@/components/EmptyStateText.tsx';
 import {
   FlashcardChapterList,
   type FlashcardChapterData,
   type FlashcardWithContext,
 } from '@/components/features/flashcards/FlashcardChapterList.tsx';
-import { ContentWithSidebar } from '@/components/layout/Layouts.tsx';
 import { PageTitle } from '@/components/typography/PageTitle.tsx';
 import { useBookPage } from '@/pages/BookPage/BookPageContext';
+import { FilteredEmptyState } from '@/pages/BookPage/common/FilteredEmptyState.tsx';
 import { ListSearchSortHeader } from '@/pages/BookPage/common/ListSearchSortHeader.tsx';
 import { useBookTabFilters } from '@/pages/BookPage/common/useBookTabFilters.ts';
+import { BOOK_PAGE_LABELS } from '@/pages/BookPage/navigation/bookPageRoutes.ts';
 import { ChapterNav, type ChapterNavigationData } from '@/pages/BookPage/navigation/ChapterNav.tsx';
 import { Box, Divider } from '@mui/material';
 import { flatMap } from 'lodash';
@@ -27,11 +29,24 @@ import { FlashcardEditDialog } from './FlashcardEditDialog.tsx';
 
 const BOOK_FLASHCARDS_KEY = -1;
 
-export const FlashcardsPage = () => {
-  const { book, isDesktop, leftSidebarEl, fabContainerEl } = useBookPage();
+/**
+ * Heading for the group of cards tied to no chapter. Named for what the group
+ * is rather than for the API's `book_flashcards`, which read as a chapter with
+ * an odd name under the same heading style as the real ones.
+ */
+const NOT_IN_A_CHAPTER = 'Not in a chapter';
 
-  const { searchText, selectedTagId, handleSearch, handleTagClick, handleChapterClick } =
-    useBookTabFilters('/book/$bookId/flashcards');
+export const FlashcardsPage = () => {
+  const { book, isDesktop, leftSidebarEl, rightSidebarEl, fabContainerEl } = useBookPage();
+
+  const {
+    searchText,
+    selectedTagId,
+    handleSearch,
+    handleTagClick,
+    handleChapterClick,
+    clearFilters,
+  } = useBookTabFilters('/book/$bookId/flashcards');
   const [isReversed, setIsReversed] = useState(false);
   const [editingFlashcard, setEditingFlashcard] = useState<FlashcardWithContext | null>(null);
   const [filterDrawerOpen, setFilterDrawerOpen] = useState(false);
@@ -42,7 +57,7 @@ export const FlashcardsPage = () => {
   const chapterNameMap = useMemo(() => {
     const map: Record<number, string> = {};
     for (const ch of bookChapters) {
-      map[ch.id] = ch.name || 'Unknown Chapter';
+      map[ch.id] = ch.name || 'Unknown chapter';
     }
     return map;
   }, [bookChapters]);
@@ -54,7 +69,7 @@ export const FlashcardsPage = () => {
         highlight.flashcards.map((flashcard: Flashcard) => ({
           ...flashcard,
           highlight: highlight,
-          chapterName: chapter.name || 'Unknown Chapter',
+          chapterName: chapter.name || 'Unknown chapter',
           chapterId: chapter.id,
           tags: highlight.tags,
         }))
@@ -67,8 +82,8 @@ export const FlashcardsPage = () => {
       ...fc,
       highlight: null,
       chapterName: fc.chapter_id
-        ? (chapterNameMap[fc.chapter_id] ?? 'Unknown Chapter')
-        : 'Book Flashcards',
+        ? (chapterNameMap[fc.chapter_id] ?? 'Unknown chapter')
+        : NOT_IN_A_CHAPTER,
       chapterId: fc.chapter_id ?? null,
       tags: [],
     }));
@@ -113,7 +128,7 @@ export const FlashcardsPage = () => {
     const bookFlashcardsGroup = grouped[BOOK_FLASHCARDS_KEY];
     delete grouped[BOOK_FLASHCARDS_KEY];
 
-    const chapterResults = Object.entries(grouped)
+    const chapterResults: FlashcardChapterData[] = Object.entries(grouped)
       .filter((entry): entry is [string, FlashcardWithContext[]] => entry[1] !== undefined)
       .map(([chapterId, flashcards]) => ({
         id: Number(chapterId),
@@ -125,7 +140,8 @@ export const FlashcardsPage = () => {
     if (bookFlashcardsGroup && bookFlashcardsGroup.length > 0) {
       chapterResults.push({
         id: BOOK_FLASHCARDS_KEY,
-        name: 'Book Flashcards',
+        name: NOT_IN_A_CHAPTER,
+        listLabel: 'Flashcards not in a chapter',
         flashcards: bookFlashcardsGroup,
       });
     }
@@ -140,19 +156,21 @@ export const FlashcardsPage = () => {
     return chapterResults;
   }, [filteredFlashcards, isReversed]);
 
-  // Compute empty message based on state
-  const emptyMessage = useMemo(() => {
-    if (searchText) {
-      return selectedTagId
-        ? 'No flashcards found matching your search with the selected tag.'
-        : 'No flashcards found matching your search.';
-    }
-    return selectedTagId
-      ? 'No flashcards found with the selected tag.'
-      : 'No flashcards yet. Create flashcards from your highlights to start studying.';
-  }, [searchText, selectedTagId]);
+  const emptyState =
+    searchText || selectedTagId ? (
+      <FilteredEmptyState noun="flashcards" onClearFilters={() => clearFilters()} />
+    ) : (
+      <EmptyStateText>
+        No flashcards yet. Create flashcards from your highlights to start studying.
+      </EmptyStateText>
+    );
 
-  const navData = useFlashcardsPageData(allFlashcardsWithContext, flashcardChapters, book.tags);
+  const navData = useFlashcardsPageData(
+    allFlashcardsWithContext,
+    flashcardChapters,
+    bookChapters,
+    book.tags
+  );
 
   const filterTabs = useFlashcardsFilterTabs({
     navChapters: navData.chapters,
@@ -183,9 +201,9 @@ export const FlashcardsPage = () => {
 
       {/* Content */}
       {isDesktop ? (
-        <ContentWithSidebar>
+        <>
           <Box>
-            <PageTitle text="Flashcards" />
+            <PageTitle text={BOOK_PAGE_LABELS.flashcards} />
             <ListSearchSortHeader
               onSearch={handleSearch}
               searchPlaceholder="Search flashcards..."
@@ -196,20 +214,20 @@ export const FlashcardsPage = () => {
             <FlashcardChapterList
               chapters={flashcardChapters}
               bookId={book.id}
-              emptyMessage={emptyMessage}
+              emptyState={emptyState}
               animationKey="flashcards"
               onEditFlashcard={setEditingFlashcard}
             />
           </Box>
-          <ChapterNav
-            chapters={navData.chapters}
-            onChapterClick={handleChapterClick}
-            countType="flashcard"
-          />
-        </ContentWithSidebar>
+          {rightSidebarEl &&
+            createPortal(
+              <ChapterNav chapters={navData.chapters} onChapterClick={handleChapterClick} />,
+              rightSidebarEl
+            )}
+        </>
       ) : (
         <>
-          <PageTitle text="Flashcards" />
+          <PageTitle text={BOOK_PAGE_LABELS.flashcards} />
           <ListSearchSortHeader
             onSearch={handleSearch}
             searchPlaceholder="Search flashcards..."
@@ -220,14 +238,14 @@ export const FlashcardsPage = () => {
           <FlashcardChapterList
             chapters={flashcardChapters}
             bookId={book.id}
-            emptyMessage={emptyMessage}
+            emptyState={emptyState}
             animationKey="flashcards"
             onEditFlashcard={setEditingFlashcard}
           />
           {fabContainerEl &&
             createPortal(
               <FilterFab
-                filterEnabled={!!selectedTagId}
+                activeFilterCount={selectedTagId ? 1 : 0}
                 onClick={() => setFilterDrawerOpen(true)}
               />,
               fabContainerEl
@@ -315,7 +333,6 @@ const useFlashcardsFilterTabs = ({
               setFilterDrawerOpen(false);
             }}
             hideTitle
-            countType="flashcard"
           />
         ),
       },
@@ -354,6 +371,7 @@ const useFlashcardsFilterTabs = ({
 const useFlashcardsPageData = (
   allFlashcardsWithContext: FlashcardWithContext[],
   chapters: FlashcardChapterData[],
+  bookChapters: ChapterWithHighlights[],
   tagsInBook: TagInBook[] | undefined
 ) => {
   const tagsWithFlashcards = useMemo(() => {
@@ -367,13 +385,19 @@ const useFlashcardsPageData = (
     return tagsInBook.filter((tag) => tagIdsWithFlashcards.has(tag.id));
   }, [tagsInBook, allFlashcardsWithContext]);
 
+  // The sidebar carries both counts on both tabs, so a chapter reads the same
+  // wherever it is listed. Highlights are not on `FlashcardChapterData`, so
+  // they come from the book; the "Not in a chapter" bucket matches none and
+  // gets no highlight count.
   const navChapters: ChapterNavigationData[] = useMemo(() => {
+    const highlightCountById = new Map(bookChapters.map((ch) => [ch.id, ch.highlights.length]));
     return chapters.map((ch) => ({
       id: ch.id,
       name: ch.name,
-      itemCount: ch.flashcards.length,
+      highlightCount: highlightCountById.get(ch.id) ?? 0,
+      flashcardCount: ch.flashcards.length,
     }));
-  }, [chapters]);
+  }, [chapters, bookChapters]);
 
   return {
     chapters: navChapters,

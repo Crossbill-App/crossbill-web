@@ -15,3 +15,7 @@ This app has an established design system; consistency with it beats novelty.
 - Style through MUI components and the `sx` prop. Use semantic components
   (`Button`, `IconButton`) — never `<Box component="button">`; the semantic
   components carry the accessibility and interaction behavior.
+- Icons come from `frontend/src/theme/Icons.tsx`, one glyph per domain name —
+  an eslint rule blocks importing them from `@mui/icons-material` anywhere
+  else. Size them from `ICON_SIZE` in `theme/iconSizes.ts` (`inline` 16, `ui`
+  20, `prominent` 24), never below `ui` for something clickable.

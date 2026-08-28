@@ -1,5 +1,7 @@
 import { Collapsable } from '@/components/animations/Collapsable';
 import { HoverableCardActionArea } from '@/components/cards/HoverableCardActionArea';
+import { CollapseChevron } from '@/components/CollapseChevron.tsx';
+import { ICON_SIZE } from '@/theme/iconSizes.ts';
 import { markdownStyles } from '@/theme/theme';
 import { Box, styled } from '@mui/material';
 import { useState } from 'react';
@@ -31,23 +33,32 @@ export const AISummary = ({ summary }: AISummaryProps) => {
   return (
     <HoverableCardActionArea
       onClick={() => setIsExpanded(!isExpanded)}
-      sx={(theme) => ({ padding: theme.spacing(1.5, 2) })}
+      aria-expanded={isExpanded}
+      aria-label={isExpanded ? 'Hide summary' : 'Show full summary'}
+      sx={(theme) => ({
+        padding: theme.spacing(1.5, 2),
+        display: 'flex',
+        alignItems: 'flex-start',
+        gap: 1,
+      })}
     >
-      <Box sx={{ pointerEvents: 'none' }}>
-        {!isExpanded && summary && (
+      <Box sx={{ flex: 1, minWidth: 0, pointerEvents: 'none' }}>
+        {!isExpanded && (
           <PreviewContent>
             <ReactMarkdown>{summary}</ReactMarkdown>
           </PreviewContent>
         )}
 
-        {summary && (
-          <Collapsable isExpanded={isExpanded}>
-            <ExpandedContent>
-              <ReactMarkdown>{summary}</ReactMarkdown>
-            </ExpandedContent>
-          </Collapsable>
-        )}
+        <Collapsable isExpanded={isExpanded}>
+          <ExpandedContent>
+            <ReactMarkdown>{summary}</ReactMarkdown>
+          </ExpandedContent>
+        </Collapsable>
       </Box>
+      <CollapseChevron
+        isExpanded={isExpanded}
+        sx={{ fontSize: ICON_SIZE.ui, color: 'text.secondary', flexShrink: 0, mt: 0.25 }}
+      />
     </HoverableCardActionArea>
   );
 };

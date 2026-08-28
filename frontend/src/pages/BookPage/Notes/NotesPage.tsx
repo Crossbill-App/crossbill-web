@@ -6,6 +6,7 @@ import { Spinner } from '@/components/animations/Spinner.tsx';
 import { SemanticSearchField } from '@/components/search/SemanticSearchField.tsx';
 import { useSemanticSearch } from '@/components/search/useSemanticSearch.ts';
 import { useBookPage } from '@/pages/BookPage/BookPageContext';
+import { FilteredEmptyState } from '@/pages/BookPage/common/FilteredEmptyState.tsx';
 import { useBookTabFilters } from '@/pages/BookPage/common/useBookTabFilters.ts';
 import { AddIcon } from '@/theme/Icons.tsx';
 import { Alert, Box, Divider, IconButton } from '@mui/material';
@@ -13,8 +14,8 @@ import { useNavigate, useSearch } from '@tanstack/react-router';
 import { useState } from 'react';
 import { createPortal } from 'react-dom';
 
-import { MiddleContentColumn } from '@/components/layout/Layouts.tsx';
 import { PageTitle } from '@/components/typography/PageTitle.tsx';
+import { BOOK_PAGE_LABELS } from '@/pages/BookPage/navigation/bookPageRoutes.ts';
 import { FilterFab } from '../common/FilterFab.tsx';
 import { FilterDrawer, type FilterTab } from '../navigation/FilterDrawer.tsx';
 import { TagsList } from '../navigation/TagsList/TagsList.tsx';
@@ -34,7 +35,7 @@ export const NotesPage = () => {
   const navigate = useNavigate({ from: '/book/$bookId/notes' });
   const { kinds, chapterId } = useSearch({ from: '/book/$bookId/notes' });
 
-  const { searchText, handleSearch, selectedTagId, handleTagClick } =
+  const { searchText, handleSearch, selectedTagId, handleTagClick, clearFilters } =
     useBookTabFilters('/book/$bookId/notes');
   const [filterDrawerOpen, setFilterDrawerOpen] = useState(false);
 
@@ -61,6 +62,9 @@ export const NotesPage = () => {
         .filter((note) => scoreByNoteId.has(note.id))
         .sort((a, b) => (scoreByNoteId.get(b.id) ?? 0) - (scoreByNoteId.get(a.id) ?? 0))
     : visibleNotes;
+
+  const filtersActive =
+    search.hasQuery || kindFilterActive || !!selectedTagId || chapterId !== undefined;
 
   const noteDialogs = useNoteDialogs({ allNotes: notesToShow });
 
@@ -99,7 +103,7 @@ export const NotesPage = () => {
   ];
 
   return (
-    <MiddleContentColumn>
+    <>
       {isDesktop &&
         leftSidebarEl &&
         createPortal(
@@ -127,7 +131,7 @@ export const NotesPage = () => {
           justifyContent: 'space-between',
         }}
       >
-        <PageTitle text="Notes" />
+        <PageTitle text={BOOK_PAGE_LABELS.notes} />
         <IconButton aria-label="Add note" color="primary" onClick={noteDialogs.openCreate}>
           <AddIcon />
         </IconButton>
@@ -138,7 +142,7 @@ export const NotesPage = () => {
           <SemanticSearchField
             value={searchText}
             onChange={handleSearch}
-            placeholder="Search notes by meaning…"
+            placeholder="Search notes by meaning..."
           />
         </Box>
       </Box>
@@ -151,15 +155,19 @@ export const NotesPage = () => {
 
       {isLoading && <Spinner />}
       {isError && <Alert severity="error">Failed to load notes.</Alert>}
-      {!isLoading && !isError && notesToShow.length === 0 && (
-        <EmptyStateText>
-          {search.hasQuery && visibleNotes.length > 0
-            ? `No notes match “${searchText}”.`
-            : notes.length > 0
-              ? 'No notes match the selected filters.'
-              : 'No notes yet. Create notes about characters, terms, and concepts as you read.'}
-        </EmptyStateText>
-      )}
+      {!isLoading &&
+        !isError &&
+        notesToShow.length === 0 &&
+        (filtersActive ? (
+          <FilteredEmptyState
+            noun="notes"
+            onClearFilters={() => clearFilters(['kinds', 'chapterId'])}
+          />
+        ) : (
+          <EmptyStateText>
+            No notes yet. Create notes about characters, terms, and concepts as you read.
+          </EmptyStateText>
+        ))}
 
       <CardList>
         {notesToShow.map((note) => (
@@ -173,7 +181,7 @@ export const NotesPage = () => {
         fabContainerEl &&
         createPortal(
           <FilterFab
-            filterEnabled={!!selectedTagId || kindFilterActive}
+            activeFilterCount={[!!selectedTagId, kindFilterActive].filter(Boolean).length}
             onClick={() => setFilterDrawerOpen(true)}
           />,
           fabContainerEl
@@ -187,6 +195,6 @@ export const NotesPage = () => {
       )}
 
       <NoteDialogs controller={noteDialogs} />
-    </MiddleContentColumn>
+    </>
   );
 };

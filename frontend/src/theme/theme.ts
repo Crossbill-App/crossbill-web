@@ -8,6 +8,7 @@ const colors = {
   },
   stone: {
     50: '#fafaf9',
+    100: '#f5f5f4',
     400: '#a8a29e',
     600: '#78716c',
     700: '#57534e',
@@ -25,12 +26,18 @@ const customColors = {
     light: 'rgba(25, 118, 210, 0.08)', // Light blue for highlight effect (BookPage)
   },
 
-  // Hover and interaction colors
+  // Translucent whites, for the one place they belong: over the amber app bar,
+  // where what sits behind them is known and fixed.
   whiteOverlay: {
     light: 'rgba(255, 255, 255, 0.1)', // White overlay for hover effects (AppBar)
     hover: 'rgba(255, 255, 255, 0.18)', // Search field surface on hover (AppBar)
-    group: 'rgba(255, 255, 255, 0.6)', // Tag group surface over page background (TagsList)
-    ungrouped: 'rgba(255, 255, 255, 0.4)', // Ungrouped tag bucket surface (TagsList)
+  },
+
+  // Opaque panel fills. A white veil reads only against a darker page — these
+  // are the same on the stone page background and on a paper-white drawer.
+  surfaces: {
+    tagGroup: colors.stone[100], // Tag group panel (TagsList)
+    tagUngrouped: colors.stone[50], // Ungrouped tag bucket, with its dashed border
   },
 
   // Shadow colors

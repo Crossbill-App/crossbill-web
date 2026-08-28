@@ -61,5 +61,33 @@ export default tseslint.config(
     // The one module allowed to invalidate, since it is where the keys live.
     files: ['src/lib/cacheEvents.ts'],
     rules: { 'no-restricted-syntax': 'off' },
+  },
+  {
+    // Icons come from the registry, which gives each glyph one domain name and
+    // is what keeps two unrelated meanings from sharing one. The type is not an
+    // icon, so it stays importable anywhere.
+    files: ['src/**/*.{ts,tsx}'],
+    ignores: ['src/theme/Icons.tsx'],
+    rules: {
+      // The typescript-eslint variant, for `allowTypeImports`.
+      '@typescript-eslint/no-restricted-imports': [
+        'error',
+        {
+          paths: [
+            {
+              name: '@mui/icons-material',
+              allowTypeImports: true,
+              message: 'Import icons from @/theme/Icons.tsx, adding one there if it is missing.',
+            },
+          ],
+          patterns: [
+            {
+              group: ['@mui/icons-material/*'],
+              message: 'Import icons from @/theme/Icons.tsx, adding one there if it is missing.',
+            },
+          ],
+        },
+      ],
+    },
   }
 );

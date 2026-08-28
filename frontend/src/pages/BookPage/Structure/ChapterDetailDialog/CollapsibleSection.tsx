@@ -1,5 +1,6 @@
+import { SectionTitle } from '@/components/typography/SectionTitle.tsx';
 import { ExpandMoreIcon } from '@/theme/Icons.tsx';
-import { Accordion, AccordionDetails, AccordionSummary, Typography } from '@mui/material';
+import { Accordion, AccordionDetails, AccordionSummary } from '@mui/material';
 import type { ReactNode } from 'react';
 
 interface CollapsibleSectionProps {
@@ -36,9 +37,9 @@ export const CollapsibleSection = ({
           '& .MuiAccordionSummary-content.Mui-expanded': { my: '12px' },
         }}
       >
-        <Typography variant="body1" sx={{ fontWeight: 600, color: 'primary.main' }}>
+        <SectionTitle component="h3" gutterBottom={false}>
           {headerText}
-        </Typography>
+        </SectionTitle>
       </AccordionSummary>
       <AccordionDetails sx={{ pt: 0 }}>{children}</AccordionDetails>
     </Accordion>

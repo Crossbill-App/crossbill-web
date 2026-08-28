@@ -1,7 +1,8 @@
 import { RHFTextField } from '@/components/inputs/RHFTextField.tsx';
+import { PageTitle } from '@/components/typography/PageTitle.tsx';
 import { useAuth } from '@/context/AuthContext';
 import { getApiErrorMessage } from '@/utils/getApiErrorMessage.ts';
-import { Alert, Box, Button, Container, Link, Paper, Typography } from '@mui/material';
+import { Alert, Box, Button, Card, Container, Link, Typography } from '@mui/material';
 import { Link as RouterLink, useNavigate } from '@tanstack/react-router';
 import { useForm } from 'react-hook-form';
 
@@ -45,8 +46,7 @@ export const RegistrationPage = () => {
           justifyContent: 'center',
         }}
       >
-        <Paper
-          elevation={3}
+        <Card
           sx={{
             p: 4,
             width: '100%',
@@ -60,15 +60,7 @@ export const RegistrationPage = () => {
               alt="Crossbill"
               sx={{ height: 64, width: 64, mb: 2 }}
             />
-            <Typography
-              variant="h5"
-              component="h1"
-              sx={{
-                fontWeight: 600,
-              }}
-            >
-              Create your account
-            </Typography>
+            <PageTitle text="Create your account" component="h1" />
           </Box>
 
           {errors.root && (
@@ -112,7 +104,7 @@ export const RegistrationPage = () => {
                 required: 'Please confirm your password',
                 validate: (value, values) => value === values.password || 'Passwords do not match',
               }}
-              label="Confirm Password"
+              label="Confirm password"
               type="password"
               fullWidth
               margin="normal"
@@ -143,7 +135,7 @@ export const RegistrationPage = () => {
               </Link>
             </Typography>
           </Box>
-        </Paper>
+        </Card>
       </Box>
     </Container>
   );

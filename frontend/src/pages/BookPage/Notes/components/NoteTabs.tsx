@@ -5,6 +5,7 @@ import { UnlinkButton } from '@/components/buttons/UnlinkButton.tsx';
 import { HighlightCard } from '@/components/cards/HighlightCard.tsx';
 import { DialogTabs, type DialogTabItem } from '@/components/dialogs/DialogTabs.tsx';
 import { NoteFlashcardSection } from '@/pages/BookPage/Notes/components/NoteFlashcardSection.tsx';
+import { useNoteCountsByHighlight } from '@/pages/BookPage/Notes/hooks/useNoteCountsByHighlight.ts';
 import { Box, List, ListItem, ListItemButton, ListItemText } from '@mui/material';
 
 interface NoteTabsProps {
@@ -36,6 +37,8 @@ export const NoteTabs = ({
   onUnlinkChapter,
   disabled = false,
 }: NoteTabsProps) => {
+  const noteCountByHighlightId = useNoteCountsByHighlight();
+
   const tabs: DialogTabItem[] = [
     {
       key: 'highlights',
@@ -48,10 +51,14 @@ export const NoteTabs = ({
           <CardList>
             {highlights.map((highlight) => (
               <Box component="li" key={highlight.id} sx={{ position: 'relative' }}>
-                <HighlightCard highlight={highlight} onOpenModal={onOpenHighlight} />
+                <HighlightCard
+                  highlight={highlight}
+                  noteCount={noteCountByHighlightId[highlight.id]}
+                  onOpenModal={onOpenHighlight}
+                />
                 {onUnlinkHighlight && (
                   <UnlinkButton
-                    title="Unlink from note"
+                    title="Remove link to this highlight"
                     disabled={disabled}
                     onClick={() => onUnlinkHighlight(highlight.id)}
                     sx={{ position: 'absolute', top: 8, right: 8 }}
@@ -79,7 +86,7 @@ export const NoteTabs = ({
                   onUnlinkChapter && (
                     <UnlinkButton
                       edge="end"
-                      title="Unlink from note"
+                      title="Remove link to this chapter"
                       disabled={disabled}
                       onClick={() => onUnlinkChapter(chapter.id)}
                     />

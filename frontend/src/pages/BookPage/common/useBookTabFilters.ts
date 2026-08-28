@@ -64,6 +64,26 @@ export const useBookTabFilters = (from: BookTabFilterRoute) => {
     [navigate]
   );
 
+  /**
+   * Unsets every filter the page holds: the search and tag params owned here,
+   * plus any extra param names the caller passes (a label, a date range, a
+   * kind selection). Pages differ only in that list.
+   */
+  const clearFilters = useCallback(
+    (alsoClear: string[] = []) => {
+      setSelectedTagId(undefined);
+      navigate({
+        search: (prev) => {
+          const next: Record<string, unknown> = { ...prev, search: undefined, tagId: undefined };
+          for (const key of alsoClear) next[key] = undefined;
+          return next;
+        },
+        replace: true,
+      });
+    },
+    [navigate]
+  );
+
   const handleChapterClick = useCallback(
     (chapterId: number) => {
       if (urlSearch) {
@@ -87,5 +107,6 @@ export const useBookTabFilters = (from: BookTabFilterRoute) => {
     handleSearch,
     handleTagClick,
     handleChapterClick,
+    clearFilters,
   };
 };

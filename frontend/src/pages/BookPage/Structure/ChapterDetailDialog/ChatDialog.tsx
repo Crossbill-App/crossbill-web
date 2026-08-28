@@ -122,6 +122,7 @@ const ChatContent = ({ chapterId, variant, onSaveNote }: ChatContentProps) => {
       />
       <ChatInput
         value={input}
+        placeholder={variant.inputPlaceholder}
         onChange={setInput}
         onSend={handleSend}
         disabled={isSending || isCreating || hasSessionError}

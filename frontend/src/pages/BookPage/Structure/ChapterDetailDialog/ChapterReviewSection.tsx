@@ -10,25 +10,41 @@ import type {
 } from '@/api/generated/model';
 import { AIActionButton } from '@/components/buttons/AIActionButton.tsx';
 import { AIFeature } from '@/components/features/AIFeature.tsx';
-import { RelatedContentSection } from '@/components/search/RelatedContentSection.tsx';
+import { SavedIndicator } from '@/components/SavedIndicator.tsx';
 import { digestRows } from '@/components/search/globalSearchRows.ts';
+import { RelatedContentSection } from '@/components/search/RelatedContentSection.tsx';
 import { useCommitOnBlur } from '@/hooks/useCommitOnBlur.ts';
 import { useMutationErrorHandler } from '@/hooks/useMutationErrorHandler.ts';
+import { useSaveStatus } from '@/hooks/useSaveStatus.ts';
 import { useCacheEvents } from '@/lib/cacheEvents.ts';
 import { Box, CircularProgress, Stack, TextField, Typography } from '@mui/material';
 import { useQueryClient } from '@tanstack/react-query';
 import { useMemo } from 'react';
 import { CollapsibleSection } from './CollapsibleSection.tsx';
 
+interface SaveCallbacks {
+  onSuccess: () => void;
+  onError: () => void;
+}
+
 interface DigestAnswerFieldProps {
   question: string;
   savedAnswer: string;
-  onSave: (answer: string, onError: () => void) => void;
+  onSave: (answer: string, callbacks: SaveCallbacks) => void;
 }
 
 const DigestAnswerField = ({ question, savedAnswer, onSave }: DigestAnswerFieldProps) => {
+  const saveStatus = useSaveStatus();
+
   function save(answer: string) {
-    onSave(answer, field.allowRecommit);
+    saveStatus.saving();
+    onSave(answer, {
+      onSuccess: saveStatus.saved,
+      onError: () => {
+        saveStatus.reset();
+        field.allowRecommit();
+      },
+    });
   }
 
   const field = useCommitOnBlur({ saved: savedAnswer, onCommit: save, submitOnEnter: false });
@@ -46,6 +62,7 @@ const DigestAnswerField = ({ question, savedAnswer, onSave }: DigestAnswerFieldP
         placeholder="Write your answer..."
         {...field.inputProps}
       />
+      <SavedIndicator status={saveStatus.status} sx={{ textAlign: 'right', mt: 0.5 }} />
     </Box>
   );
 };
@@ -78,6 +95,7 @@ export const ChapterReviewSection = ({
 
   const { mutate: generate, isPending } = useGenerateChapterDigest({
     mutation: {
+      onError: mutationErrorHandler('generate questions'),
       onSuccess: () => {
         cache.digestChanged(bookId);
       },
@@ -111,10 +129,10 @@ export const ChapterReviewSection = ({
 
   // The endpoint patches by question index, so one field's save leaves the
   // other answers as they are.
-  const handleAnswerSave = (index: number, answer: string, onError: () => void) => {
+  const handleAnswerSave = (index: number, answer: string, callbacks: SaveCallbacks) => {
     saveAnswers(
       { chapterId, data: { answers: [{ question_index: index, user_answer: answer }] } },
-      { onError }
+      callbacks
     );
   };
 
@@ -140,12 +158,12 @@ export const ChapterReviewSection = ({
               color: 'text.secondary',
             }}
           >
-            No digest questions available.
+            No questions generated for this chapter.
           </Typography>
         )}
 
         {!isPending && digestSummary && digestSummary.questions.length > 0 && (
-          <CollapsibleSection title="Questions to think while reading" defaultExpanded>
+          <CollapsibleSection title="Questions to think about while reading" defaultExpanded>
             <Stack
               sx={{
                 gap: 1,
@@ -158,7 +176,7 @@ export const ChapterReviewSection = ({
                   key={`${chapterId}-${index}`}
                   question={q.question}
                   savedAnswer={answers[index] ?? ''}
-                  onSave={(answer, onError) => handleAnswerSave(index, answer, onError)}
+                  onSave={(answer, callbacks) => handleAnswerSave(index, answer, callbacks)}
                 />
               ))}
             </Stack>

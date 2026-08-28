@@ -2,6 +2,7 @@ import { FilterListIcon } from '@/theme/Icons';
 import { Box, Chip } from '@mui/material';
 
 import { theme } from '@/theme/theme.ts';
+import { filterChipSx } from '../../navigation/filterChipStyles.ts';
 import { SidebarSectionHeader } from '../../navigation/SidebarSectionHeader';
 import { NOTE_KINDS, NOTE_KIND_LABELS, type NoteKindValue } from '../noteKinds';
 
@@ -18,7 +19,7 @@ export const NoteKindFilter = ({ selected, onChange, hideTitle = false }: NoteKi
 
   return (
     <Box>
-      {!hideTitle && <SidebarSectionHeader icon={FilterListIcon} title="Note types" />}
+      {!hideTitle && <SidebarSectionHeader icon={FilterListIcon} title="Types" />}
       <Box
         sx={{
           display: 'flex',
@@ -41,6 +42,7 @@ export const NoteKindFilter = ({ selected, onChange, hideTitle = false }: NoteKi
               color={active ? 'primary' : 'default'}
               variant={active ? 'filled' : 'outlined'}
               onClick={() => toggle(kind)}
+              sx={filterChipSx(active)}
             />
           );
         })}

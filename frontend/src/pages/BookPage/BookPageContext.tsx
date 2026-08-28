@@ -6,6 +6,10 @@ interface BookPageContextValue {
   isDesktop: boolean;
   // Portal element to add content to the left side bar below navigation
   leftSidebarEl: HTMLDivElement | null;
+  // Portal element for the right rail. The shell reserves its column on every
+  // tab, so a tab that has nothing to put there leaves it empty rather than
+  // widening its content into it.
+  rightSidebarEl: HTMLDivElement | null;
   // Portal element to add fabs under the scroll to top button
   fabContainerEl: HTMLDivElement | null;
 }

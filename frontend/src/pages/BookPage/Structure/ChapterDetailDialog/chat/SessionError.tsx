@@ -1,4 +1,4 @@
-import ReplayIcon from '@mui/icons-material/Replay';
+import { RetryIcon } from '@/theme/Icons.tsx';
 import { Alert, Box, Button, CircularProgress } from '@mui/material';
 
 interface SessionErrorProps {
@@ -23,7 +23,7 @@ export const SessionError = ({ error, hasSession, isCreating, onRetry }: Session
         <Alert severity="error" sx={{ width: '100%', maxWidth: 400 }}>
           {error}
         </Alert>
-        <Button variant="outlined" startIcon={<ReplayIcon />} onClick={onRetry}>
+        <Button variant="outlined" startIcon={<RetryIcon />} onClick={onRetry}>
           Try again
         </Button>
       </Box>

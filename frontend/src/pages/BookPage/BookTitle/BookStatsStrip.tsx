@@ -1,9 +1,10 @@
 import type { BookDetails } from '@/api/generated/model';
 import { useGetNotesForBook } from '@/api/generated/notes/notes.ts';
 import { useGetBookReadingSessions } from '@/api/generated/reading-sessions/reading-sessions';
+import { MetadataRow } from '@/components/cards/MetadataRow.tsx';
 import { DEFAULT_NOTE_KINDS, noteKindOf } from '@/pages/BookPage/Notes/noteKinds';
+import { countLabel } from '@/utils/counts.ts';
 import { formatDate } from '@/utils/date';
-import { Box, Typography } from '@mui/material';
 
 interface BookStatsStripProps {
   book: BookDetails;
@@ -29,46 +30,25 @@ export const BookStatsStrip = ({ book }: BookStatsStripProps) => {
   const lastReadDate = latestSession ? formatDate(latestSession.start_time) : null;
 
   const items = [
-    book.page_count ? `${book.page_count} pages` : null,
-    `${highlightCount} highlights`,
-    `${noteCount} notes`,
-    `${flashcardCount} flashcards`,
-    `${sessionsData?.total ?? 0} sessions`,
+    book.page_count ? countLabel(book.page_count, 'page') : null,
+    countLabel(highlightCount, 'highlight'),
+    countLabel(noteCount, 'note'),
+    countLabel(flashcardCount, 'flashcard'),
+    countLabel(book.bookmarks.length, 'bookmark'),
+    countLabel(sessionsData?.total ?? 0, 'session'),
     `Added ${formatDate(book.created_at)}`,
     lastReadDate ? `Last read ${lastReadDate}` : null,
   ].filter(Boolean);
 
   return (
-    <Typography
-      variant="body2"
+    <MetadataRow
+      items={items}
       sx={{
-        color: 'text.secondary',
-        display: 'flex',
-        flexWrap: 'wrap',
-        justifyContent: {
-          xs: 'center',
-          lg: 'left',
-        },
-        gap: 0.5,
+        textAlign: { xs: 'center', lg: 'left' },
         mt: 'auto',
         mb: 2,
         width: '100%',
       }}
-    >
-      {items.map((item, i) => (
-        <Box
-          component="span"
-          key={i}
-          sx={{ display: 'inline-flex', alignItems: 'center', gap: 0.5 }}
-        >
-          {i > 0 && (
-            <Box component="span" sx={{ color: 'text.disabled' }}>
-              ·
-            </Box>
-          )}
-          {item}
-        </Box>
-      ))}
-    </Typography>
+    />
   );
 };

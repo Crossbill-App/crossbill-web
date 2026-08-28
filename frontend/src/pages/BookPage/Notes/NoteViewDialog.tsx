@@ -3,7 +3,6 @@ import { useDeleteNote, useGetNote } from '@/api/generated/notes/notes.ts';
 import { FadeInOut } from '@/components/animations/FadeInOut.tsx';
 import { Spinner } from '@/components/animations/Spinner.tsx';
 import { CommonDialog } from '@/components/dialogs/CommonDialog.tsx';
-import { CommonDialogHorizontalNavigation } from '@/components/dialogs/CommonDialogHorizontalNavigation.tsx';
 import { CommonDialogTitle } from '@/components/dialogs/CommonDialogTitle.tsx';
 import { ConfirmationDialog } from '@/components/dialogs/ConfirmationDialog.tsx';
 import { ProgressBar } from '@/components/dialogs/ProgressBar.tsx';
@@ -19,11 +18,11 @@ import { useNavigate } from '@tanstack/react-router';
 import { useMemo, useRef, useState } from 'react';
 import ReactMarkdown from 'react-markdown';
 
-import { NoteEditorForm, type NoteEditorFormHandle } from './NoteEditorForm';
 import { NoteTabs } from './components/NoteTabs';
 import { NoteToolbar } from './components/NoteToolbar';
 import { useNoteLinks } from './hooks/useNoteLinks';
-import { NOTE_KIND_LABELS, type NoteKindValue } from './noteKinds';
+import { NoteEditorForm, type NoteEditorFormHandle, type NoteGuidance } from './NoteEditorForm';
+import { NoteKindChip } from './NoteKindChip';
 
 interface NoteViewDialogProps {
   /** Note to display; its full detail (with linked summaries) is fetched by id. */
@@ -33,12 +32,19 @@ interface NoteViewDialogProps {
   currentIndex?: number;
   totalCount?: number;
   onNavigate?: (newIndex: number) => void;
+  /** Opens straight into the in-place editor, for entry points that mean "edit this". */
+  initiallyEditing?: boolean;
+  /** Always-visible prompt shown above the editor (e.g. a reflection question). */
+  guidance?: NoteGuidance;
 }
 
 /**
  * Read-only note detail dialog that toggles into an in-place editor. Read mode
  * shows the full note (content first) with an action toolbar underneath;
- * clicking Edit swaps the same dialog to the note editor form.
+ * clicking Edit swaps the same dialog to the note editor form. This is the one
+ * surface for editing an existing note — entry points that mean "edit this"
+ * open it with `initiallyEditing`, so the note's context is never lost behind a
+ * second modal.
  *
  * Opened by note id (deep-linkable via the `noteId` URL param). Stays mounted
  * across prev/next navigation (mirroring the highlight dialog), so transient
@@ -50,6 +56,8 @@ export const NoteViewDialog = ({
   currentIndex,
   totalCount,
   onNavigate,
+  initiallyEditing = false,
+  guidance,
 }: NoteViewDialogProps) => {
   const theme = useTheme();
   const { book } = useBookPage();
@@ -76,7 +84,7 @@ export const NoteViewDialog = ({
     });
   };
 
-  const [isEditing, setIsEditing] = useState(false);
+  const [isEditing, setIsEditing] = useState(initiallyEditing);
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
   const formRef = useRef<NoteEditorFormHandle>(null);
   const [formStatus, setFormStatus] = useState({ isSaving: false, canSave: false });
@@ -86,7 +94,7 @@ export const NoteViewDialog = ({
   const [prevNoteId, setPrevNoteId] = useState(noteId);
   if (prevNoteId !== noteId) {
     setPrevNoteId(noteId);
-    setIsEditing(false);
+    setIsEditing(initiallyEditing);
     setDeleteConfirmOpen(false);
   }
 
@@ -154,7 +162,7 @@ export const NoteViewDialog = ({
   // Only while editing: viewing has nothing to confirm, and the header's close
   // button is the way out.
   const footerActions = isEditing ? (
-    <Box sx={{ display: 'flex', gap: 1, justifyContent: 'flex-end' }}>
+    <Box sx={{ display: 'flex', gap: 1 }}>
       <Button onClick={() => setIsEditing(false)} disabled={formStatus.isSaving}>
         Cancel
       </Button>
@@ -182,94 +190,87 @@ export const NoteViewDialog = ({
       title={
         <CommonDialogTitle>
           {isEditing ? 'Edit note' : (activeNote?.title ?? 'Note')}
-          {activeNote?.kind && (
-            <Chip
-              size="small"
-              label={NOTE_KIND_LABELS[activeNote.kind as NoteKindValue]}
-              sx={{ mb: 0.5, ml: 1 }}
-            />
-          )}
+          <NoteKindChip kind={activeNote?.kind} sx={{ mb: 0.5, ml: 1 }} />
         </CommonDialogTitle>
       }
       footerActions={footerActions}
       navigation={navigation}
     >
-      <CommonDialogHorizontalNavigation navigation={navigation} disabled={isDeleting}>
-        <Box
-          sx={{
-            mt: 2,
-            mb: 2,
-          }}
-        >
-          {isEditing && activeNote ? (
-            <NoteEditorForm
-              ref={formRef}
-              open={isEditing}
-              note={activeNote}
-              onSaved={() => setIsEditing(false)}
-              onStatusChange={setFormStatus}
-            />
-          ) : activeNote ? (
-            <FadeInOut ekey={noteId}>
-              <Stack
-                sx={{
-                  gap: 2,
-                }}
-              >
-                <Box>
-                  {activeNote.body && (
-                    <Box sx={markdownStyles(theme)}>
-                      <ReactMarkdown>{activeNote.body}</ReactMarkdown>
-                    </Box>
-                  )}
-                  {tags.length > 0 && (
-                    <Stack direction="row" spacing={1} sx={{ mt: 2, flexWrap: 'wrap', gap: 0.5 }}>
-                      {tags.map((tag) => (
-                        <Chip
-                          key={`tag-${tag.id}`}
-                          size="small"
-                          variant="outlined"
-                          label={`#${tag.name}`}
-                        />
-                      ))}
-                    </Stack>
-                  )}
-                </Box>
-                <NoteToolbar
-                  onCopyLink={() => void handleCopyLink()}
-                  onEdit={() => setIsEditing(true)}
-                  onCopy={() => void handleCopy()}
-                  onDelete={() => setDeleteConfirmOpen(true)}
-                  disabled={isDeleting}
-                />
-                <NoteTabs
-                  note={activeNote}
-                  bookId={book.id}
-                  highlights={highlights}
-                  chapters={chapters}
-                  onOpenHighlight={handleOpenHighlight}
-                  onOpenChapter={handleOpenChapter}
-                  onUnlinkHighlight={(highlightId) =>
-                    noteLinks.unlinkHighlight(activeNote, highlightId)
-                  }
-                  onUnlinkChapter={(chapterId) => noteLinks.unlinkChapter(activeNote, chapterId)}
-                  disabled={isDeleting || noteLinks.isPending}
-                />
-              </Stack>
-            </FadeInOut>
-          ) : isError ? (
-            <Typography
+      <Box
+        sx={{
+          mt: 2,
+          mb: 2,
+        }}
+      >
+        {isEditing && activeNote ? (
+          <NoteEditorForm
+            ref={formRef}
+            open={isEditing}
+            note={activeNote}
+            guidance={guidance}
+            onSaved={() => setIsEditing(false)}
+            onStatusChange={setFormStatus}
+          />
+        ) : activeNote ? (
+          <FadeInOut ekey={noteId}>
+            <Stack
               sx={{
-                color: 'text.secondary',
+                gap: 2,
               }}
             >
-              This note could not be found. It may have been deleted.
-            </Typography>
-          ) : (
-            isLoading && <Spinner />
-          )}
-        </Box>
-      </CommonDialogHorizontalNavigation>
+              <Box>
+                {activeNote.body && (
+                  <Box sx={markdownStyles(theme)}>
+                    <ReactMarkdown>{activeNote.body}</ReactMarkdown>
+                  </Box>
+                )}
+                {tags.length > 0 && (
+                  <Stack direction="row" spacing={1} sx={{ mt: 2, flexWrap: 'wrap', gap: 0.5 }}>
+                    {tags.map((tag) => (
+                      <Chip
+                        key={`tag-${tag.id}`}
+                        size="small"
+                        variant="outlined"
+                        label={`#${tag.name}`}
+                      />
+                    ))}
+                  </Stack>
+                )}
+              </Box>
+              <NoteToolbar
+                onCopyLink={() => void handleCopyLink()}
+                onEdit={() => setIsEditing(true)}
+                onCopy={() => void handleCopy()}
+                onDelete={() => setDeleteConfirmOpen(true)}
+                disabled={isDeleting}
+              />
+              <NoteTabs
+                note={activeNote}
+                bookId={book.id}
+                highlights={highlights}
+                chapters={chapters}
+                onOpenHighlight={handleOpenHighlight}
+                onOpenChapter={handleOpenChapter}
+                onUnlinkHighlight={(highlightId) =>
+                  noteLinks.unlinkHighlight(activeNote, highlightId)
+                }
+                onUnlinkChapter={(chapterId) => noteLinks.unlinkChapter(activeNote, chapterId)}
+                disabled={isDeleting || noteLinks.isPending}
+              />
+            </Stack>
+          </FadeInOut>
+        ) : isError ? (
+          <Typography
+            sx={{
+              color: 'text.secondary',
+            }}
+          >
+            This note could not be found. It may have been deleted.
+          </Typography>
+        ) : (
+          isLoading && <Spinner />
+        )}
+      </Box>
 
       <ConfirmationDialog
         open={deleteConfirmOpen}

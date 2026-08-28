@@ -2,12 +2,12 @@ import { useDeleteHighlights } from '@/api/generated/highlights/highlights.ts';
 import type { Bookmark, TagInBook } from '@/api/generated/model';
 import { FadeInOut } from '@/components/animations/FadeInOut.tsx';
 import { CommonDialog } from '@/components/dialogs/CommonDialog.tsx';
-import { CommonDialogHorizontalNavigation } from '@/components/dialogs/CommonDialogHorizontalNavigation.tsx';
 import { CommonDialogTitle } from '@/components/dialogs/CommonDialogTitle.tsx';
 import { ConfirmationDialog } from '@/components/dialogs/ConfirmationDialog.tsx';
 import { ProgressBar } from '@/components/dialogs/ProgressBar.tsx';
 import { useDialogHorizontalNavigation } from '@/components/dialogs/useDialogHorizontalNavigation.ts';
 import { TagInput } from '@/components/inputs/TagInput.tsx';
+import { SavedIndicator } from '@/components/SavedIndicator.tsx';
 import { useMutationErrorHandler } from '@/hooks/useMutationErrorHandler.ts';
 import { useCacheEvents } from '@/lib/cacheEvents.ts';
 import { useImmediateTagMutation } from '@/pages/BookPage/Highlights/HighlightViewDialog/hooks/useImmediateTagMutation.ts';
@@ -43,7 +43,7 @@ export const HighlightViewDialog = ({
 
   const currentBookmark = bookmarksByHighlightId[highlight.id] ?? undefined;
 
-  const { isProcessing, currentTags, updateTagList } = useImmediateTagMutation({
+  const { isProcessing, saveStatus, currentTags, updateTagList } = useImmediateTagMutation({
     bookId,
     highlightId: highlight.id,
     initialTags: highlight.tags,
@@ -109,13 +109,16 @@ export const HighlightViewDialog = ({
           onDelete={handleDelete}
           disabled={isLoading}
         />
-        <TagInput
-          value={currentTags}
-          onChange={updateTagList}
-          availableTags={availableTags}
-          isProcessing={isProcessing}
-          disabled={isLoading}
-        />
+        <Box>
+          <TagInput
+            value={currentTags}
+            onChange={updateTagList}
+            availableTags={availableTags}
+            isProcessing={isProcessing}
+            disabled={isLoading}
+          />
+          <SavedIndicator status={saveStatus} sx={{ textAlign: 'right' }} />
+        </Box>
         <HighlightTabs highlight={highlight} bookId={bookId} disabled={isLoading} />
       </Stack>
     </Box>
@@ -135,18 +138,16 @@ export const HighlightViewDialog = ({
       }
       navigation={navigation}
     >
-      <CommonDialogHorizontalNavigation navigation={navigation} disabled={isLoading}>
-        <FadeInOut ekey={highlight.id}>
-          <HighlightContent highlight={highlight} onLabelClick={handleLabelClick} />
-        </FadeInOut>
-        {renderContent()}
-      </CommonDialogHorizontalNavigation>
+      <FadeInOut ekey={highlight.id}>
+        <HighlightContent highlight={highlight} onLabelClick={handleLabelClick} />
+      </FadeInOut>
+      {renderContent()}
 
       <ConfirmationDialog
         open={deleteConfirmOpen}
         onClose={() => setDeleteConfirmOpen(false)}
         onConfirm={handleConfirmDelete}
-        title="Delete Highlight"
+        title="Delete highlight"
         message="Are you sure you want to delete this highlight?"
         confirmText="Delete"
         confirmColor="error"

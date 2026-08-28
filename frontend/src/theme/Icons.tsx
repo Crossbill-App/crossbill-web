@@ -12,7 +12,6 @@ export {
   OpenInNew as ExternalLinkIcon,
   FilterList as FilterListIcon,
   MoreVert as ManageIcon,
-  Menu as MenuIcon,
   MoreHoriz as MoreIcon,
   KeyboardArrowUp as ScrollToTopIcon,
   Search as SearchIcon,
@@ -25,10 +24,11 @@ export {
   BookmarkBorder as BookmarkIcon,
   List as ChapterListIcon,
   StyleOutlined as FlashcardsIcon,
-  MenuBook as HighlightsIcon,
+  // One glyph, one name: the quote mark on a card and the Highlights nav item
+  // are the same idea, and `MenuBook` now means only "a book".
+  FormatQuote as HighlightsIcon,
   Notes as NotesIcon,
   PaletteOutlined as PaletteIcon,
-  FormatQuote as QuoteIcon,
   AutoStories as ReadingSessionIcon,
   Psychology as ReflectionIcon,
   LocalOffer as TagIcon,
@@ -37,6 +37,7 @@ export {
 // Action icons
 export {
   AutoAwesome as AIIcon,
+  Check as AcceptIcon,
   Add as AddIcon,
   ContentCopy as CopyIcon,
   Delete as DeleteIcon,
@@ -46,12 +47,19 @@ export {
   LinkOff as LinkOffIcon,
   NoteAdd as NoteAddIcon,
   Refresh as RegenerateIcon,
+  Close as RejectIcon,
+  Replay as RetryIcon,
   Check as SelectedIcon,
+  Send as SendIcon,
   SwapVert as SortIcon,
 } from '@mui/icons-material';
 
 // User/System icons
-export { Logout as LogoutIcon, Settings as SettingsIcon } from '@mui/icons-material';
+export {
+  AccountCircle as AccountIcon,
+  Logout as LogoutIcon,
+  Settings as SettingsIcon,
+} from '@mui/icons-material';
 
 // Device sync icons
 export { PhonelinkOff as NotOnDeviceIcon } from '@mui/icons-material';

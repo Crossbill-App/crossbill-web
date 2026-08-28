@@ -9,7 +9,7 @@ import { userEvent } from 'vitest/browser';
 
 type Screen = Awaited<ReturnType<typeof renderApp>>;
 
-const RUN_BUTTON = 'Run text embedding for the library';
+const RUN_BUTTON = 'Index library';
 // One poll interval plus room for the request itself.
 const POLL_TIMEOUT = 8000;
 
@@ -29,17 +29,17 @@ test('starting a backfill shows its progress and reports completion', async () =
   const { handlers, advance } = semanticApi({ pendingJobs: 4 });
 
   const screen = await renderSettings(handlers);
-  await expect.element(screen.getByRole('heading', { name: 'Background processes' })).toBeVisible();
+  await expect.element(screen.getByRole('heading', { name: 'Search by meaning' })).toBeVisible();
 
   await clickRun(screen);
 
-  await expect.element(screen.getByText('Embedding content (0/4)')).toBeVisible();
+  await expect.element(screen.getByText('Indexing (0/4)')).toBeVisible();
   await expect.element(screen.getByRole('button', { name: RUN_BUTTON })).toBeDisabled();
 
   advance({ completed_jobs: 4, status: 'completed' });
 
   await expect
-    .element(screen.getByRole('alert').filter({ hasText: 'Text embedding complete' }), {
+    .element(screen.getByRole('alert').filter({ hasText: 'Library indexed' }), {
       timeout: POLL_TIMEOUT,
     })
     .toBeVisible();
@@ -53,13 +53,13 @@ test('a backfill already running when the page loads is shown and can be cancell
 
   const screen = await renderSettings(handlers);
 
-  await expect.element(screen.getByText('Embedding content (3/10)')).toBeVisible();
+  await expect.element(screen.getByText('Indexing (3/10)')).toBeVisible();
   await expect.element(screen.getByRole('button', { name: RUN_BUTTON })).toBeDisabled();
 
-  await userEvent.click(screen.getByRole('button', { name: 'Cancel text embedding' }));
+  await userEvent.click(screen.getByRole('button', { name: 'Cancel indexing' }));
 
   await expectRunReady(screen);
-  expect(screen.getByText('Embedding content (3/10)').elements()).toHaveLength(0);
+  expect(screen.getByText('Indexing (3/10)').elements()).toHaveLength(0);
   expect(state.batch?.status).toBe('cancelled');
 });
 
@@ -87,7 +87,7 @@ test('a failed start reports the error and leaves the button ready', async () =>
   await clickRun(screen);
 
   await expect
-    .element(screen.getByRole('alert').filter({ hasText: 'Failed to start text embedding' }))
+    .element(screen.getByRole('alert').filter({ hasText: 'Failed to start indexing' }))
     .toBeVisible();
   await expectRunReady(screen);
 });
@@ -98,5 +98,24 @@ test('the section is hidden when embeddings are disabled', async () => {
   const screen = await renderApp({ path: '/settings' });
   await expect.element(screen.getByRole('heading', { name: 'Settings' })).toBeVisible();
 
-  expect(screen.getByRole('heading', { name: 'Background processes' }).elements()).toHaveLength(0);
+  expect(screen.getByRole('heading', { name: 'Search by meaning' }).elements()).toHaveLength(0);
+});
+
+/**
+ * Settings used to hold its own `success` state and render an inline `Alert`,
+ * while every other mutation in the app reports through the snackbar.
+ */
+test('updating the email reports through the snackbar', async () => {
+  const { handlers } = semanticApi();
+  const screen = await renderSettings([
+    http.post('/api/v1/users/me', () => HttpResponse.json({ id: 1, email: 'ada@example.com' })),
+    ...handlers,
+  ]);
+
+  await userEvent.fill(screen.getByRole('textbox', { name: 'Email' }), 'ada@example.com');
+  await userEvent.click(screen.getByRole('button', { name: 'Save email' }));
+
+  await expect
+    .element(screen.getByRole('alert').filter({ hasText: 'Email updated.' }))
+    .toBeVisible();
 });

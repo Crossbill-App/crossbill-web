@@ -1,3 +1,4 @@
+import { formatDate } from '@/utils/date.ts';
 import { aChapter, aHighlight } from '@tests/fixtures/book';
 import { DateTime } from 'luxon';
 import { describe, expect, test } from 'vitest';
@@ -96,7 +97,9 @@ test('calculates a snapshot lower bound covering today and the preceding six dat
   expect(getLastSevenDaysFrom(DateTime.fromISO('2026-08-26T15:00:00'))).toBe('2026-08-20');
 });
 
-test('formats valid timestamps in the existing US style and preserves malformed values', () => {
-  expect(formatHighlightDate('2026-07-05 23:00:00')).toBe('July 5, 2026');
+test('renders a highlight timestamp exactly as every other date, and preserves malformed values', () => {
+  // The rule, not one locale's spelling of it: a highlight's date and a
+  // session's date are the same string for the same day.
+  expect(formatHighlightDate('2026-07-05 23:00:00')).toBe(formatDate('2026-07-05T23:00:00'));
   expect(formatHighlightDate('legacy timestamp')).toBe('legacy timestamp');
 });

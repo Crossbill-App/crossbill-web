@@ -10,8 +10,6 @@ interface BaseTagInputProps {
   label?: string;
   /** Placeholder text shown when input is empty */
   placeholder?: string;
-  /** Helper text shown below the input */
-  helperText?: string;
   /** Whether the input is disabled */
   disabled?: boolean;
   /** Whether to blur the input after selecting an option (default: false for better UX) */
@@ -30,7 +28,6 @@ interface TagAutocompleteProps<T> {
   disabled: boolean;
   blurOnSelect: boolean;
   placeholder: string;
-  helperText: string;
   preventParentNavigation: boolean;
   chipAriaDescription: string;
   getOptionLabel: (option: T | string) => string;
@@ -47,7 +44,6 @@ const TagAutocomplete = <T,>({
   disabled,
   blurOnSelect,
   placeholder,
-  helperText,
   preventParentNavigation,
   chipAriaDescription,
   getOptionLabel,
@@ -103,7 +99,6 @@ const TagAutocomplete = <T,>({
             inputRef={inputRef}
             label={!showLabelAsTypography ? label : undefined}
             placeholder={placeholder}
-            helperText={helperText}
             disabled={disabled}
           />
         )}
@@ -147,7 +142,6 @@ export const TagInput = ({
   onChange,
   label = 'Tags',
   placeholder = 'Add tags...',
-  helperText = 'Press Enter to add a tag, click X to remove',
   disabled = false,
   availableTags = [],
   isProcessing = false,
@@ -163,7 +157,6 @@ export const TagInput = ({
       disabled={isDisabled}
       blurOnSelect={false}
       placeholder={placeholder}
-      helperText={helperText}
       preventParentNavigation={true}
       chipAriaDescription={chipAriaDescription}
       getOptionLabel={(option) => (typeof option === 'string' ? option : option.name)}

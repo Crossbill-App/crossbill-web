@@ -95,7 +95,7 @@ export const CreateFlashcardForm = ({
           disabled={!canSave}
           sx={{ flexShrink: 0, height: 'fit-content', mt: 0.5 }}
         >
-          {isProcessing ? 'Saving...' : editingFlashcardId ? 'Update Flashcard' : 'Add Flashcard'}
+          {isProcessing ? 'Saving...' : editingFlashcardId ? 'Save' : 'Add flashcard'}
         </Button>
       </Box>
     </Box>

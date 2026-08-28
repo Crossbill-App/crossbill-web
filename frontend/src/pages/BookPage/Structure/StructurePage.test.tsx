@@ -1,14 +1,16 @@
 import { aBookDetails, aChapter } from '@tests/fixtures/book';
+import { aChapterDigest, aDigestQuestion } from '@tests/fixtures/digest';
+import { aNote } from '@tests/fixtures/notes';
 import { aDigestHit } from '@tests/fixtures/semantic';
 import { renderApp } from '@tests/harness/renderApp';
-import { settingsWithEmbeddings } from '@tests/msw/auth';
+import { settingsWithAi, settingsWithEmbeddings } from '@tests/msw/auth';
 import { bookApi } from '@tests/msw/bookApi';
 import { semanticSearchApi } from '@tests/msw/semanticSearchApi';
 import { worker } from '@tests/msw/worker';
 import { expect, test } from 'vitest';
 import { userEvent } from 'vitest/browser';
 
-const SEARCH_PLACEHOLDER = 'Search chapters by meaning…';
+const SEARCH_PLACEHOLDER = 'Search chapters by meaning...';
 
 /** Two parts, one leaf chapter each — enough to prove ancestors survive. */
 const aStructuredBook = () =>
@@ -186,7 +188,7 @@ test('a parent chapter opens from its title, and expands from its chevron', asyn
   await userEvent.click(screen.getByText('Part One'));
 
   await expect
-    .element(screen.getByRole('dialog').getByRole('tab', { name: 'Chapter review' }))
+    .element(screen.getByRole('dialog').getByRole('tab', { name: 'Questions' }))
     .toBeVisible();
   // The title must not double as a toggle: the branch stays open behind it.
   await expect.element(screen.getByText('Attention and memory')).toBeInTheDocument();
@@ -204,7 +206,7 @@ test('a link straight to a parent chapter opens its dialog', async () => {
   const screen = await renderApp({ path: '/book/1/structure?chapterId=10' });
 
   await expect
-    .element(screen.getByRole('dialog').getByRole('tab', { name: 'Chapter review' }))
+    .element(screen.getByRole('dialog').getByRole('tab', { name: 'Questions' }))
     .toBeVisible();
 });
 
@@ -255,7 +257,7 @@ test('closing a chapter dialog leaves the page where it was scrolled to', async 
 
   await userEvent.click(screen.getByText('Chapter 10'));
   await expect
-    .element(screen.getByRole('dialog').getByRole('tab', { name: 'Chapter review' }))
+    .element(screen.getByRole('dialog').getByRole('tab', { name: 'Questions' }))
     .toBeVisible();
 
   // Where the dialog's body-scroll lock parked the page, read rather than
@@ -271,4 +273,81 @@ test('closing a chapter dialog leaves the page where it was scrolled to', async 
   // scrolled away from it a frame later, which a poll would call a pass.
   await new Promise((resolve) => setTimeout(resolve, 400));
   expect(window.scrollY).toBe(parked);
+});
+
+/**
+ * A digest answer saves itself when the field is left, with nothing else on
+ * screen to say so — the reader had no way to know their answer was stored.
+ */
+test('a digest answer says it saved when the field is left', async () => {
+  worker.use(
+    settingsWithAi(true),
+    ...bookApi({
+      book: aStructuredBook(),
+      digests: [
+        aChapterDigest({
+          chapter_id: 11,
+          questions: [aDigestQuestion({ question: 'What makes attention a filter?' })],
+        }),
+      ],
+    }).handlers
+  );
+
+  const screen = await renderApp({ path: '/book/1/structure' });
+  await userEvent.click(screen.getByText('Attention and memory'));
+
+  const dialog = screen.getByRole('dialog');
+  const answer = dialog.getByPlaceholder('Write your answer...');
+  await expect.element(answer).toBeVisible();
+  expect(dialog.getByText('Saved').elements()).toHaveLength(0);
+
+  // The marker's space is reserved, so appearing must not push what is under
+  // it. Measured as the gap between the field and the next control rather than
+  // an absolute position, which the dialog's own scrolling would move.
+  const gapBelowField = () =>
+    dialog.getByRole('button', { name: 'Quiz me' }).element().getBoundingClientRect().top -
+    answer.element().getBoundingClientRect().bottom;
+  const restingGap = gapBelowField();
+
+  await userEvent.fill(answer, 'It drops what is not attended to.');
+  await userEvent.click(dialog.getByText('What makes attention a filter?'));
+
+  await expect.element(dialog.getByText('Saved')).toBeVisible();
+  expect(gapBelowField()).toBe(restingGap);
+
+  // And it clears itself again — the marker fades out rather than sticking.
+  await expect.element(dialog.getByText('Saved')).not.toBeInTheDocument();
+  expect(gapBelowField()).toBe(restingGap);
+});
+
+test('a chapter row counts its notes, like the dialog it opens', async () => {
+  worker.use(
+    ...bookApi({
+      book: aStructuredBook(),
+      notes: [
+        aNote({ id: 100, title: 'Attention as a filter', chapter_ids: [11] }),
+        aNote({ id: 101, title: 'Spotlight metaphor', chapter_ids: [11] }),
+        aNote({ id: 102, title: 'Unlinked', chapter_ids: [] }),
+      ],
+    }).handlers
+  );
+
+  const screen = await renderApp({ path: '/book/1/structure' });
+  await expect.element(screen.getByText('Attention and memory')).toBeVisible();
+
+  await expect.element(screen.getByRole('img', { name: '2 notes' })).toBeVisible();
+  // The note linked to no chapter is counted against none of them.
+  expect(screen.getByRole('img', { name: '3 notes' }).elements()).toHaveLength(0);
+  expect(screen.getByRole('img', { name: '1 note' }).elements()).toHaveLength(0);
+});
+
+test('the chapter dialog offers a copy-link, with or without AI', async () => {
+  worker.use(settingsWithAi(false), ...bookApi({ book: aStructuredBook() }).handlers);
+
+  const screen = await renderApp({ path: '/book/1/structure?chapterId=11' });
+  const dialog = screen.getByRole('dialog');
+
+  await expect.element(dialog.getByRole('button', { name: 'Copy link to chapter' })).toBeVisible();
+  // The generate button is the AI feature, not the toolbar it sits in.
+  expect(dialog.getByRole('button', { name: /Generate summary/ }).elements()).toHaveLength(0);
 });

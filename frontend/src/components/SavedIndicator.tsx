@@ -1,0 +1,67 @@
+import type { SaveStatus } from '@/hooks/useSaveStatus.ts';
+import { Box, Typography, type SxProps, type Theme } from '@mui/material';
+import { AnimatePresence, motion } from 'motion/react';
+
+const LABELS: Record<Exclude<SaveStatus, 'idle'>, string> = {
+  saving: 'Saving...',
+  saved: 'Saved',
+};
+
+/**
+ * Pinned on the container and on the text alike, so the space reserved for the
+ * marker is exactly the space it takes. Left to inherit, the wrapper's line box
+ * came from whatever typography surrounded the field, which was taller than the
+ * caption and nudged the layout each time the marker appeared.
+ */
+const LINE_HEIGHT = '1.25rem';
+
+interface SavedIndicatorProps {
+  status: SaveStatus;
+  sx?: SxProps<Theme>;
+}
+
+/**
+ * The app's one marker for a save the reader never asked for: small, beside
+ * the field that autosaved, gone again a moment later. Anything with an
+ * explicit Save button reports itself through that button instead.
+ *
+ * The marker fades both ways. `AnimatePresence` holds the last text on screen
+ * through the fade out — the status is already back to idle by then, so
+ * rendering from it alone would blank the text before it had faded. One
+ * constant key, so "Saving..." becoming "Saved" swaps the text in place rather
+ * than fading the marker out and back in mid-save.
+ */
+export const SavedIndicator = ({ status, sx }: SavedIndicatorProps) => (
+  <Box
+    aria-live="polite"
+    sx={[
+      {
+        // Reserved whether or not there is anything to say, so a save does not
+        // shift the layout around the field.
+        minHeight: LINE_HEIGHT,
+        lineHeight: LINE_HEIGHT,
+        fontSize: '0.75rem',
+      },
+      ...(Array.isArray(sx) ? sx : [sx]),
+    ]}
+  >
+    <AnimatePresence>
+      {status !== 'idle' && (
+        <motion.div
+          key="saved-indicator"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          transition={{ duration: 0.25, ease: 'easeInOut' }}
+        >
+          <Typography
+            variant="caption"
+            sx={{ display: 'block', lineHeight: LINE_HEIGHT, color: 'text.secondary' }}
+          >
+            {LABELS[status]}
+          </Typography>
+        </motion.div>
+      )}
+    </AnimatePresence>
+  </Box>
+);

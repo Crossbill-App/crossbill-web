@@ -2,6 +2,7 @@ import type { TagInBook } from '@/api/generated/model';
 import { useAddTagToHighlight, useRemoveTagFromHighlight } from '@/api/generated/tags/tags.ts';
 import { useMutationErrorHandler } from '@/hooks/useMutationErrorHandler.ts';
 import { useResetOnChange } from '@/hooks/useResetOnChange.ts';
+import { useSaveStatus, type SaveStatus } from '@/hooks/useSaveStatus.ts';
 import { useCacheEvents } from '@/lib/cacheEvents.ts';
 import { filter, map } from 'lodash';
 import { useState } from 'react';
@@ -18,6 +19,8 @@ export interface UseImmediateTagMutationParams {
 export interface UseImmediateTagMutationReturn {
   /** Whether a mutation is currently processing */
   isProcessing: boolean;
+  /** Tags save themselves as they are added or removed; this reports it. */
+  saveStatus: SaveStatus;
   /** Current list of tags */
   currentTags: TagInBook[];
   /** Function to update the tag list - handles add/remove mutations */
@@ -58,6 +61,7 @@ export const useImmediateTagMutation = ({
   const cache = useCacheEvents();
   const [currentTags, setCurrentTags] = useState<TagInBook[]>(initialTags);
   const [isProcessing, setIsProcessing] = useState(false);
+  const saveStatus = useSaveStatus();
 
   useResetOnChange([highlightId, initialTags], () => setCurrentTags(initialTags));
 
@@ -114,17 +118,27 @@ export const useImmediateTagMutation = ({
     const addedTags = calculateAddedTags(currentTagNames, newTagNames);
     const removedTags = calculateRemovedTags(currentTags, newTagNames);
 
-    for (const tagName of addedTags) {
-      await addTagToHighlight(tagName);
-    }
+    if (addedTags.length === 0 && removedTags.length === 0) return;
 
-    for (const tag of removedTags) {
-      await removeTagFromHighlight(tag.id);
+    saveStatus.saving();
+    try {
+      for (const tagName of addedTags) {
+        await addTagToHighlight(tagName);
+      }
+
+      for (const tag of removedTags) {
+        await removeTagFromHighlight(tag.id);
+      }
+      saveStatus.saved();
+    } catch {
+      // The mutations' own handlers have already reported it.
+      saveStatus.reset();
     }
   };
 
   return {
     isProcessing,
+    saveStatus: saveStatus.status,
     currentTags,
     updateTagList,
   };

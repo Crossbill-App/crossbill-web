@@ -89,7 +89,7 @@ export const BookEditDialog = ({ book, open, onClose }: BookEditDialogProps) => 
       onClose={onClose}
       maxWidth="sm"
       isLoading={isDeleting || isSaving}
-      title="Manage Book"
+      title="Manage book"
       footerActions={
         <Box sx={{ display: 'flex', gap: 1, width: '100%', justifyContent: 'flex-end' }}>
           <Button onClick={onClose} disabled={isSaving || isDeleting}>
@@ -148,7 +148,7 @@ export const BookEditDialog = ({ book, open, onClose }: BookEditDialogProps) => 
                 color: 'text.secondary',
               }}
             >
-              {book.author || 'Unknown Author'}
+              {book.author || 'Unknown author'}
             </Typography>
             {book.isbn && (
               <Typography
@@ -196,7 +196,7 @@ export const BookEditDialog = ({ book, open, onClose }: BookEditDialogProps) => 
         open={deleteConfirmOpen}
         onClose={() => setDeleteConfirmOpen(false)}
         onConfirm={handleConfirmDelete}
-        title="Delete Book"
+        title="Delete book"
         message={`Are you sure you want to delete "${book.title}"? This will permanently delete the book and all its highlights.`}
         confirmText="Delete"
         confirmColor="error"

@@ -1,8 +1,10 @@
 import { TagGroupInBook, TagInBook } from '@/api/generated/model';
 import { Collapsable } from '@/components/animations/Collapsable.tsx';
+import { ConfirmationDialog } from '@/components/dialogs/ConfirmationDialog.tsx';
+import { useSaveStatus } from '@/hooks/useSaveStatus.ts';
 import { Box, Typography } from '@mui/material';
 import { motion } from 'motion/react';
-import { useState } from 'react';
+import { useId, useState } from 'react';
 
 import { GroupTagsDialog } from './GroupTagsDialog.tsx';
 import { TagChip } from './TagChip.tsx';
@@ -17,7 +19,7 @@ interface TagChipRowProps {
 }
 
 const TagChipRow = ({ tags, tagGroups, selectedTag, onTagClick, onMove }: TagChipRowProps) => (
-  <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.75 }}>
+  <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.75, pt: 0.5 }}>
     {tags.map((tag) => (
       <TagChip
         key={tag.id}
@@ -39,7 +41,7 @@ interface TagGroupSectionProps {
   bookId: number;
   isProcessing: boolean;
   selectedTag: number | null | undefined;
-  onEditSubmit: (groupId: number, value: string) => void;
+  onEditSubmit: (groupId: number, value: string) => Promise<void>;
   onDelete: () => void;
   onTagClick: (tagId: number | null) => void;
   onMove: (tagId: number, groupId: number | null) => void;
@@ -59,13 +61,28 @@ export const TagGroupSection = ({
   onMove,
 }: TagGroupSectionProps) => {
   const [isExpanded, setIsExpanded] = useState(true);
+  const tagsId = useId();
   const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [isDeleteConfirmOpen, setIsDeleteConfirmOpen] = useState(false);
+  const saveStatus = useSaveStatus();
+
+  // The rename commits when the field is left, with nothing else on screen to
+  // show it landed.
+  const handleEditSubmit = (value: string) => {
+    saveStatus.saving();
+    onEditSubmit(group.id, value).then(saveStatus.saved, saveStatus.reset);
+  };
+
+  const handleConfirmDelete = () => {
+    setIsDeleteConfirmOpen(false);
+    onDelete();
+  };
 
   return (
     <Box
       sx={(theme) => ({
         p: 1.5,
-        bgcolor: theme.customColors.whiteOverlay.group,
+        bgcolor: theme.customColors.surfaces.tagGroup,
         borderRadius: 1,
         border: '1px solid',
         borderColor: 'divider',
@@ -77,48 +94,52 @@ export const TagGroupSection = ({
         tagCount={tags.length}
         isExpanded={isExpanded}
         onToggleCollapse={() => setIsExpanded(!isExpanded)}
-        onEditSubmit={(value) => onEditSubmit(group.id, value)}
+        onEditSubmit={handleEditSubmit}
         onEditTags={() => setIsDialogOpen(true)}
-        onDelete={onDelete}
+        onDelete={() => setIsDeleteConfirmOpen(true)}
         isProcessing={isProcessing}
+        saveStatus={saveStatus.status}
+        controlsId={tagsId}
       />
       <Collapsable isExpanded={isExpanded}>
-        {tags.length > 0 ? (
-          <TagChipRow
-            tags={tags}
-            tagGroups={tagGroups}
-            selectedTag={selectedTag}
-            onTagClick={onTagClick}
-            onMove={onMove}
-          />
-        ) : (
-          <Box
-            onClick={() => setIsDialogOpen(true)}
-            sx={{
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              p: 1.5,
-              cursor: 'pointer',
-              borderRadius: 1,
-              border: '1px dashed',
-              borderColor: 'divider',
-              '&:hover': { bgcolor: 'action.hover' },
-            }}
-          >
-            <Typography
-              variant="body2"
+        <Box id={tagsId}>
+          {tags.length > 0 ? (
+            <TagChipRow
+              tags={tags}
+              tagGroups={tagGroups}
+              selectedTag={selectedTag}
+              onTagClick={onTagClick}
+              onMove={onMove}
+            />
+          ) : (
+            <Box
+              onClick={() => setIsDialogOpen(true)}
               sx={{
-                color: 'text.secondary',
-                textAlign: 'center',
-                fontSize: '0.75rem',
-                fontStyle: 'italic',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                p: 1.5,
+                cursor: 'pointer',
+                borderRadius: 1,
+                border: '1px dashed',
+                borderColor: 'divider',
+                '&:hover': { bgcolor: 'action.hover' },
               }}
             >
-              No tags yet — click to add
-            </Typography>
-          </Box>
-        )}
+              <Typography
+                variant="body2"
+                sx={{
+                  color: 'text.secondary',
+                  textAlign: 'center',
+                  fontSize: '0.75rem',
+                  fontStyle: 'italic',
+                }}
+              >
+                No tags yet — click to add
+              </Typography>
+            </Box>
+          )}
+        </Box>
       </Collapsable>
       <GroupTagsDialog
         group={group}
@@ -127,6 +148,22 @@ export const TagGroupSection = ({
         bookId={bookId}
         open={isDialogOpen}
         onClose={() => setIsDialogOpen(false)}
+      />
+      <ConfirmationDialog
+        open={isDeleteConfirmOpen}
+        onClose={() => setIsDeleteConfirmOpen(false)}
+        onConfirm={handleConfirmDelete}
+        title="Delete tag group"
+        message={
+          tags.length > 0
+            ? `Delete the group "${group.name}"? Its ${tags.length} ${
+                tags.length === 1 ? 'tag stays' : 'tags stay'
+              } on your highlights and ${tags.length === 1 ? 'moves' : 'move'} to Ungrouped.`
+            : `Delete the group "${group.name}"?`
+        }
+        confirmText="Delete"
+        confirmColor="error"
+        isLoading={isProcessing}
       />
     </Box>
   );
@@ -148,6 +185,7 @@ export const UngroupedTagsSection = ({
   onMove,
 }: UngroupedTagsSectionProps) => {
   const [isExpanded, setIsExpanded] = useState(true);
+  const tagsId = useId();
   const shouldHide = tags.length === 0;
 
   return (
@@ -163,7 +201,7 @@ export const UngroupedTagsSection = ({
       <Box
         sx={(theme) => ({
           p: 1.5,
-          bgcolor: theme.customColors.whiteOverlay.ungrouped,
+          bgcolor: theme.customColors.surfaces.tagUngrouped,
           borderRadius: 1,
           border: '1px dashed',
           borderColor: 'divider',
@@ -175,16 +213,19 @@ export const UngroupedTagsSection = ({
             count={tags.length}
             isExpanded={isExpanded}
             onToggleCollapse={() => setIsExpanded(!isExpanded)}
+            controlsId={tagsId}
           />
         </Box>
         <Collapsable isExpanded={isExpanded}>
-          <TagChipRow
-            tags={tags}
-            tagGroups={tagGroups}
-            selectedTag={selectedTag}
-            onTagClick={onTagClick}
-            onMove={onMove}
-          />
+          <Box id={tagsId}>
+            <TagChipRow
+              tags={tags}
+              tagGroups={tagGroups}
+              selectedTag={selectedTag}
+              onTagClick={onTagClick}
+              onMove={onMove}
+            />
+          </Box>
         </Collapsable>
       </Box>
     </motion.div>

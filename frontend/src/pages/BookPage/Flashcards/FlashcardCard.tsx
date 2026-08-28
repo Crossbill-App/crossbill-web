@@ -1,5 +1,6 @@
 import { Collapsable } from '@/components/animations/Collapsable';
-import { QuoteIcon } from '@/theme/Icons';
+import { HighlightsIcon } from '@/theme/Icons';
+import { ICON_SIZE } from '@/theme/iconSizes.ts';
 import { Box, ButtonBase, styled, Typography } from '@mui/material';
 import { ReactNode, useState } from 'react';
 
@@ -17,29 +18,37 @@ const FlashcardStyled = styled(Box, {
   shouldForwardProp: (prop) => prop !== 'borderStyle' && prop !== 'borderColor',
 })<{ borderStyle?: 'solid' | 'dashed'; borderColor?: 'primary' | 'grey' }>(
   ({ theme, borderStyle = 'solid', borderColor = 'primary' }) => ({
-    position: 'relative',
     borderLeft: `3px ${borderStyle} ${borderColor === 'grey' ? theme.palette.divider : theme.palette.primary.main}`,
     paddingLeft: theme.spacing(2),
     paddingTop: theme.spacing(1),
     paddingBottom: theme.spacing(1),
-    transition: 'background-color 0.15s ease',
-    '&:hover': {
-      backgroundColor: theme.palette.action.hover,
+    transition: 'all 0.2s ease',
+    '@media (hover: hover)': {
+      '&:hover': {
+        backgroundColor: theme.palette.action.hover,
+        boxShadow: theme.shadows[2],
+      },
     },
   })
 );
 
+/**
+ * In the flow beside the question rather than floating over it: the cluster is
+ * three icons wide on the flashcards page, more than any fixed reserve on the
+ * text would cover, so overlaying it meant covering the question on a narrow
+ * row.
+ */
 const ActionButtonsStyled = styled(Box)(() => ({
-  position: 'absolute',
-  top: 8,
-  right: 0,
   display: 'flex',
-  gap: 0.5,
-  zIndex: 1,
-  opacity: 0.7,
+  flexShrink: 0,
   transition: 'opacity 0.2s ease',
-  '&:hover': {
-    opacity: 1,
+  // Dimmed only where a pointer can bring it back. On touch there is no hover
+  // to restore it, so 0.7 would just be a permanently fainter control.
+  '@media (hover: hover)': {
+    opacity: 0.7,
+    '&:hover': {
+      opacity: 1,
+    },
   },
 }));
 
@@ -56,26 +65,30 @@ export const FlashcardCard = ({
 
   return (
     <FlashcardStyled borderStyle={borderStyle} borderColor={borderColor}>
-      <ButtonBase
-        onClick={() => setIsExpanded(!isExpanded)}
-        sx={{
-          display: 'block',
-          width: '100%',
-          textAlign: 'left',
-          pr: 8,
-        }}
-      >
-        <Typography variant="body1" sx={{ lineHeight: 1.5 }}>
-          {question}
-        </Typography>
-      </ButtonBase>
+      <Box sx={{ display: 'flex', alignItems: 'flex-start', gap: 0.5 }}>
+        <ButtonBase
+          onClick={() => setIsExpanded(!isExpanded)}
+          aria-expanded={isExpanded}
+          sx={{
+            display: 'block',
+            flex: 1,
+            minWidth: 0,
+            textAlign: 'left',
+          }}
+        >
+          <Typography variant="body1" sx={{ lineHeight: 1.5 }}>
+            {question}
+          </Typography>
+        </ButtonBase>
+        <ActionButtonsStyled>{renderActions()}</ActionButtonsStyled>
+      </Box>
 
       <Collapsable isExpanded={isExpanded}>
-        <Box sx={{ mt: 1.5, pr: 8 }}>
+        <Box sx={{ mt: 1.5 }}>
           <Typography
             variant="caption"
             sx={{
-              color: 'secondary.main',
+              color: 'text.secondary',
               fontWeight: 600,
               textTransform: 'uppercase',
               letterSpacing: '0.05em',
@@ -101,7 +114,14 @@ export const FlashcardCard = ({
               }}
             >
               <Box sx={{ display: 'flex', alignItems: 'flex-start', gap: 0.5 }}>
-                <QuoteIcon sx={{ fontSize: 14, color: 'text.disabled', mt: 0.25, flexShrink: 0 }} />
+                <HighlightsIcon
+                  sx={{
+                    fontSize: ICON_SIZE.inline,
+                    color: 'text.disabled',
+                    mt: 0.25,
+                    flexShrink: 0,
+                  }}
+                />
                 <Typography
                   variant="caption"
                   sx={{
@@ -121,8 +141,6 @@ export const FlashcardCard = ({
           )}
         </Box>
       </Collapsable>
-
-      <ActionButtonsStyled>{renderActions()}</ActionButtonsStyled>
     </FlashcardStyled>
   );
 };

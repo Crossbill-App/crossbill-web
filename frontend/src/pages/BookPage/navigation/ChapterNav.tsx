@@ -1,23 +1,32 @@
 import { Collapsable } from '@/components/animations/Collapsable.tsx';
-import { ChapterListIcon, ExpandMoreIcon } from '@/theme/Icons.tsx';
-import { Box, Button, IconButton, Typography } from '@mui/material';
-import { useState } from 'react';
+import { MetadataRow } from '@/components/cards/MetadataRow.tsx';
+import { ChapterListIcon } from '@/theme/Icons.tsx';
+import { countLabel } from '@/utils/counts.ts';
+import { Box, Button, Typography } from '@mui/material';
+import { useId, useState } from 'react';
+
+import { SidebarSectionHeader } from './SidebarSectionHeader.tsx';
 
 export interface ChapterNavigationData {
   id: number;
   name: string;
-  itemCount: number;
+  highlightCount: number;
+  flashcardCount: number;
 }
 
 interface ChapterNavProps {
   chapters: ChapterNavigationData[];
   onChapterClick: (chapterId: number) => void;
   hideTitle?: boolean;
-  countType: 'highlight' | 'flashcard';
 }
 
-export const ChapterNav = ({ chapters, onChapterClick, hideTitle, countType }: ChapterNavProps) => {
+/** Omitted at zero, so a chapter reads the same on whichever tab lists it. */
+const countOrNothing = (count: number, noun: string) =>
+  count > 0 ? countLabel(count, noun) : null;
+
+export const ChapterNav = ({ chapters, onChapterClick, hideTitle }: ChapterNavProps) => {
   const [isExpanded, setIsExpanded] = useState(() => true);
+  const chaptersId = useId();
   const effectiveIsExpanded = hideTitle ? true : isExpanded;
 
   if (chapters.length === 0) {
@@ -33,39 +42,21 @@ export const ChapterNav = ({ chapters, onChapterClick, hideTitle, countType }: C
       }}
     >
       {!hideTitle && (
-        <Box
-          sx={{
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-            mb: 2,
-            cursor: 'pointer',
-            flexShrink: 0,
+        <SidebarSectionHeader
+          icon={ChapterListIcon}
+          title="Chapters"
+          collapse={{
+            isExpanded,
+            onToggle: () => setIsExpanded((prev) => !prev),
+            sectionLabel: 'chapters list',
+            controlsId: chaptersId,
           }}
-          onClick={() => setIsExpanded((prev) => !prev)}
-        >
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-            <ChapterListIcon sx={{ fontSize: 20, color: 'primary.main' }} />
-            <Typography variant="h6" sx={{ fontSize: '1rem', fontWeight: 600 }}>
-              Chapters
-            </Typography>
-          </Box>
-          <IconButton
-            size="small"
-            aria-label={isExpanded ? 'Collapse chapters list' : 'Expand chapters list'}
-            sx={{
-              transform: isExpanded ? 'rotate(180deg)' : 'rotate(0deg)',
-              transition: 'transform 0.2s',
-              display: { xs: 'none', lg: 'block' },
-            }}
-          >
-            <ExpandMoreIcon fontSize="small" />
-          </IconButton>
-        </Box>
+        />
       )}
 
       <Collapsable isExpanded={effectiveIsExpanded}>
         <Box
+          id={chaptersId}
           component="ul"
           sx={{
             display: 'flex',
@@ -121,18 +112,14 @@ export const ChapterNav = ({ chapters, onChapterClick, hideTitle, countType }: C
                   >
                     {chapter.name}
                   </Typography>
-                  <Typography
+                  <MetadataRow
                     variant="caption"
-                    sx={{
-                      color: 'text.secondary',
-                      fontSize: '0.75rem',
-                      mt: 0.25,
-                      display: 'block',
-                    }}
-                  >
-                    {chapter.itemCount} {countType === 'highlight' ? 'highlight' : 'flashcard'}
-                    {chapter.itemCount !== 1 ? 's' : ''}
-                  </Typography>
+                    items={[
+                      countOrNothing(chapter.highlightCount, 'highlight'),
+                      countOrNothing(chapter.flashcardCount, 'flashcard'),
+                    ]}
+                    sx={{ fontSize: '0.75rem', mt: 0.25, display: 'block' }}
+                  />
                 </Box>
               </Button>
             </Box>

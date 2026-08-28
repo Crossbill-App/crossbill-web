@@ -78,7 +78,7 @@ export const FlashcardEditDialog = ({
     <CommonDialog
       open={open}
       onClose={onClose}
-      title="Edit Flashcard"
+      title="Edit flashcard"
       maxWidth="md"
       isLoading={isSaving}
       footerActions={
@@ -91,7 +91,7 @@ export const FlashcardEditDialog = ({
             onClick={handleSubmit(onSubmit)}
             disabled={!isDirty || !isValid || isSaving}
           >
-            {isSaving ? 'Saving...' : 'Save Changes'}
+            {isSaving ? 'Saving...' : 'Save'}
           </Button>
         </Box>
       }
@@ -111,7 +111,7 @@ export const FlashcardEditDialog = ({
           <Typography
             variant="caption"
             sx={{
-              color: 'primary.main',
+              color: 'text.secondary',
               fontWeight: 600,
               textTransform: 'uppercase',
               letterSpacing: '0.05em',
@@ -138,7 +138,7 @@ export const FlashcardEditDialog = ({
           <Typography
             variant="caption"
             sx={{
-              color: 'secondary.main',
+              color: 'text.secondary',
               fontWeight: 600,
               textTransform: 'uppercase',
               letterSpacing: '0.05em',

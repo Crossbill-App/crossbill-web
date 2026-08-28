@@ -120,3 +120,27 @@ test('a failed save can be retried without changing the answer', async () => {
   await expect.poll(() => attempts).toBe(2);
   await expect.poll(() => state.digests[0].questions[0].user_answer).toBe('Worth keeping.');
 });
+
+/**
+ * The generate mutation used to attach no error handler at all, so a failure
+ * just stopped the spinner and left the reader with nothing.
+ */
+test('a failed generation says so', async () => {
+  const { handlers } = bookApi({ book: aBookDetails({ chapters: [CHAPTER] }) });
+  worker.use(
+    settingsWithAi(true),
+    http.post(
+      '/api/v1/chapters/:chapterId/digest/generate',
+      () => new HttpResponse(null, { status: 500 })
+    ),
+    ...handlers
+  );
+
+  const screen = await renderApp({ path: '/book/1/structure?chapterId=10' });
+  const dialog = screen.getByRole('dialog');
+  await userEvent.click(dialog.getByRole('button', { name: 'Generate questions' }));
+
+  await expect
+    .element(screen.getByRole('alert').filter({ hasText: 'Failed to generate questions' }))
+    .toBeVisible();
+});

@@ -11,6 +11,7 @@ import { RelatedContentSection } from '@/components/search/RelatedContentSection
 import { highlightRows } from '@/components/search/globalSearchRows.ts';
 import { HighlightViewDialog } from '@/pages/BookPage/Highlights/HighlightViewDialog/HighlightViewDialog.tsx';
 import { useHighlightDialog } from '@/pages/BookPage/Highlights/hooks/useHighlightDialog.ts';
+import { useNoteCountsByHighlight } from '@/pages/BookPage/Notes/hooks/useNoteCountsByHighlight.ts';
 
 interface HighlightsSectionProps {
   chapter: ChapterWithHighlights;
@@ -28,6 +29,7 @@ export const HighlightsSection = ({
   availableTags,
 }: HighlightsSectionProps) => {
   const highlights = chapter.highlights;
+  const noteCountByHighlightId = useNoteCountsByHighlight();
 
   const highlightDialog = useHighlightDialog({
     allHighlights: highlights,
@@ -47,6 +49,7 @@ export const HighlightsSection = ({
             <HighlightCard
               highlight={highlight}
               bookmark={bookmarksByHighlightId[highlight.id]}
+              noteCount={noteCountByHighlightId[highlight.id]}
               onOpenModal={highlightDialog.open}
             />
           </li>

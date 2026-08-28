@@ -1,5 +1,5 @@
 import { GlobalSearch } from '@/components/search/GlobalSearch.tsx';
-import { LogoutIcon, MenuIcon, SettingsIcon } from '@/theme/Icons.tsx';
+import { AccountIcon, LogoutIcon, SettingsIcon } from '@/theme/Icons.tsx';
 import {
   Box,
   Container,
@@ -90,13 +90,13 @@ export function AppBar() {
           {/* Hamburger menu */}
           <IconButton
             color="inherit"
-            aria-label="Menu"
+            aria-label="Account"
             onClick={handleMenuOpen}
             sx={{
               color: 'primary.contrastText',
             }}
           >
-            <MenuIcon />
+            <AccountIcon />
           </IconButton>
 
           <Menu
@@ -122,7 +122,7 @@ export function AppBar() {
               <ListItemIcon>
                 <LogoutIcon fontSize="small" />
               </ListItemIcon>
-              <ListItemText>Logout</ListItemText>
+              <ListItemText>Log out</ListItemText>
             </MenuItem>
           </Menu>
         </Toolbar>

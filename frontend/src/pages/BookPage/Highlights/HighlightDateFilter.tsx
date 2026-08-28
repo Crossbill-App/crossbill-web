@@ -5,6 +5,7 @@ import {
   isHighlightDateRangeReversed,
   type HighlightDateRange,
 } from '@/pages/BookPage/common/highlightDates.ts';
+import { browserLocale } from '@/utils/date.ts';
 import { Box, Button, FormHelperText, Typography } from '@mui/material';
 import { AdapterLuxon } from '@mui/x-date-pickers/AdapterLuxon';
 import { DatePicker } from '@mui/x-date-pickers/DatePicker';
@@ -34,7 +35,7 @@ const validationMessage = (
 };
 
 export const HighlightDateFilter = ({ from, to, onChange }: HighlightDateFilterProps) => {
-  const dateLocale = Intl.DateTimeFormat().resolvedOptions().locale;
+  const dateLocale = browserLocale();
   const [fromError, setFromError] = useState<DateValidationError | null>(null);
   const [toError, setToError] = useState<DateValidationError | null>(null);
   const [fromValue, setFromValue] = useState<DateTime<boolean> | null>(() => asPickerValue(from));

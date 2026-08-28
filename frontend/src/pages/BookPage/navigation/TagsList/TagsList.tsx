@@ -1,6 +1,7 @@
 import { TagGroupInBook, TagInBook } from '@/api/generated/model';
+import { EmptyStateText } from '@/components/EmptyStateText.tsx';
 import { AddIcon, TagIcon } from '@/theme/Icons.tsx';
-import { Box, Button, IconButton, Tooltip, Typography } from '@mui/material';
+import { Box, Button } from '@mui/material';
 import { sortBy } from 'lodash';
 import { useState } from 'react';
 
@@ -52,36 +53,21 @@ export const TagsList = ({
     'group.name'
   );
 
+  const addGroupButton = (
+    <Button size="small" startIcon={<AddIcon />} onClick={() => setShowAddGroup(true)}>
+      Add group
+    </Button>
+  );
+
   return (
     <Box>
+      {/* The same labelled button either way: the sidebar has room for it, and
+          the action should not change shape with the layout. */}
       {!hideTitle ? (
-        <SidebarSectionHeader
-          icon={TagIcon}
-          title="Tags"
-          action={
-            <Tooltip title="Add new group">
-              <IconButton
-                size="small"
-                onClick={() => setShowAddGroup(true)}
-                sx={{ color: 'text.secondary', padding: 0.5 }}
-              >
-                <AddIcon sx={{ fontSize: 18 }} />
-              </IconButton>
-            </Tooltip>
-          }
-        />
+        <SidebarSectionHeader icon={TagIcon} title="Tags" action={addGroupButton} />
       ) : (
         !showAddGroup && (
-          <Box sx={{ display: 'flex', justifyContent: 'flex-end', mb: 1 }}>
-            <Button
-              size="small"
-              startIcon={<AddIcon sx={{ fontSize: 16 }} />}
-              onClick={() => setShowAddGroup(true)}
-              sx={{ color: 'text.secondary', fontSize: '0.75rem' }}
-            >
-              Add group
-            </Button>
-          </Box>
+          <Box sx={{ display: 'flex', justifyContent: 'flex-end', mb: 1 }}>{addGroupButton}</Box>
         )
       )}
 
@@ -126,15 +112,7 @@ export const TagsList = ({
           )}
         </Box>
       ) : (
-        <Typography
-          variant="body2"
-          sx={{
-            color: 'text.secondary',
-            fontSize: '0.813rem',
-          }}
-        >
-          No tagged highlights yet.
-        </Typography>
+        <EmptyStateText>No tagged highlights yet.</EmptyStateText>
       )}
     </Box>
   );

@@ -115,7 +115,7 @@ export const BookTitle = ({ book }: BookTitleProps) => {
             }}
             gutterBottom
           >
-            {book.author || 'Unknown Author'}
+            {book.author || 'Unknown author'}
           </Typography>
 
           <BookBlurb description={book.description ?? null} />

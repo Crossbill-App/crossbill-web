@@ -1,11 +1,12 @@
 import type { Bookmark, ReadingSession } from '@/api/generated/model';
 import { useGetReadingSessionAiSummary } from '@/api/generated/reading-sessions/reading-sessions';
 import { AIActionButton } from '@/components/buttons/AIActionButton';
+import { CardList } from '@/components/CardList.tsx';
 import { HighlightCard } from '@/components/cards/HighlightCard';
 import { MetadataRow } from '@/components/cards/MetadataRow.tsx';
 import { AIFeature } from '@/components/features/AIFeature.tsx';
-import { useSettings } from '@/context/SettingsContext';
 import { useSnackbar } from '@/context/SnackbarContext';
+import { useNoteCountsByHighlight } from '@/pages/BookPage/Notes/hooks/useNoteCountsByHighlight.ts';
 import { formatDate, formatDuration, formatTime } from '@/utils/date';
 import { Box, Typography } from '@mui/material';
 import type { AxiosError } from 'axios';
@@ -51,7 +52,6 @@ const SessionMetadata = ({ startTime, endTime, startPage, endPage }: SessionMeta
 
 interface ReadingSessionCardProps {
   session: ReadingSession;
-  component?: React.ElementType;
   bookmarksByHighlightId: Record<number, Bookmark>;
   onOpenHighlight: (sessionId: number, highlightId: number) => void;
 }
@@ -68,7 +68,7 @@ const SummaryPlaceholder = ({ onGenerate, isLoading }: SummaryPlaceholderProps) 
     }}
   >
     <AIActionButton
-      text={isLoading ? 'Generating...' : 'Generate Summary'}
+      text={isLoading ? 'Generating...' : 'Generate summary'}
       disabled={isLoading}
       onClick={onGenerate}
     />
@@ -81,6 +81,7 @@ export const ReadingSessionCard = ({
   onOpenHighlight,
 }: ReadingSessionCardProps) => {
   const { showSnackbar } = useSnackbar();
+  const noteCountByHighlightId = useNoteCountsByHighlight();
 
   const { data, isLoading, error, refetch } = useGetReadingSessionAiSummary(session.id, {
     query: {
@@ -102,7 +103,6 @@ export const ReadingSessionCard = ({
 
   const summary = session.ai_summary || data?.summary;
   const hasSummary = Boolean(summary);
-  const aiEnabled = !!useSettings().featureFlags?.ai;
 
   const handleHighlightClick = (highlightId: number) => {
     onOpenHighlight(session.id, highlightId);
@@ -111,79 +111,70 @@ export const ReadingSessionCard = ({
   const hasHighlights = session.highlights.length > 0;
 
   return (
-    <li key={session.id}>
-      <Box
-        sx={{
-          py: aiEnabled ? 3.5 : 1,
-          px: 2.5,
-          '@media (max-width: 768px)': {
-            px: 2,
-            py: 2,
-          },
-        }}
-      >
-        <SessionMetadata
-          startTime={session.start_time}
-          endTime={session.end_time}
-          startPage={session.start_page}
-          endPage={session.end_page}
-        />
+    <Box
+      sx={{
+        py: 2,
+        px: 2.5,
+        '@media (max-width: 768px)': {
+          px: 2,
+          py: 2,
+        },
+      }}
+    >
+      <SessionMetadata
+        startTime={session.start_time}
+        endTime={session.end_time}
+        startPage={session.start_page}
+        endPage={session.end_page}
+      />
 
-        <AIFeature>
-          {hasSummary ? (
-            <>
-              <Typography
-                variant="subtitle2"
-                sx={{
-                  mb: 1,
-                  mt: 3,
-                  color: 'text.secondary',
-                  fontWeight: 600,
-                }}
-              >
-                Summary
-              </Typography>
-              <AISummary summary={summary} />
-            </>
-          ) : (
-            <SummaryPlaceholder onGenerate={() => refetch()} isLoading={isLoading} />
-          )}
-        </AIFeature>
-
-        {hasHighlights && (
-          <Box sx={{ mt: 3 }}>
+      <AIFeature>
+        {hasSummary ? (
+          <>
             <Typography
               variant="subtitle2"
               sx={{
                 mb: 1,
+                mt: 3,
                 color: 'text.secondary',
                 fontWeight: 600,
               }}
             >
-              Highlights ({session.highlights.length})
+              Summary
             </Typography>
-            <Box
-              component="ul"
-              sx={{
-                display: 'flex',
-                flexDirection: 'column',
-                listStyle: 'none',
-                p: 0,
-                m: 0,
-              }}
-            >
-              {session.highlights.map((highlight) => (
+            <AISummary summary={summary} />
+          </>
+        ) : (
+          <SummaryPlaceholder onGenerate={() => refetch()} isLoading={isLoading} />
+        )}
+      </AIFeature>
+
+      {hasHighlights && (
+        <Box sx={{ mt: 3 }}>
+          <Typography
+            variant="subtitle2"
+            sx={{
+              mb: 1,
+              color: 'text.secondary',
+              fontWeight: 600,
+            }}
+          >
+            Highlights ({session.highlights.length})
+          </Typography>
+          <CardList sx={{ gap: 0 }}>
+            {session.highlights.map((highlight) => (
+              <li key={highlight.id}>
                 <HighlightCard
-                  key={highlight.id}
                   highlight={highlight}
                   bookmark={bookmarksByHighlightId[highlight.id]}
+                  noteCount={noteCountByHighlightId[highlight.id]}
                   onOpenModal={handleHighlightClick}
                 />
-              ))}
-            </Box>
-          </Box>
-        )}
-      </Box>
-    </li>
+              </li>
+            ))}
+          </CardList>
+        </Box>
+      )}
+    </Box>
   );
 };

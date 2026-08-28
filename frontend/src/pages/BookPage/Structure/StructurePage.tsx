@@ -12,6 +12,7 @@ import { useSemanticSearch } from '@/components/search/useSemanticSearch.ts';
 import { PageTitle } from '@/components/typography/PageTitle.tsx';
 import { useBookPage } from '@/pages/BookPage/BookPageContext';
 import { useBookTabFilters } from '@/pages/BookPage/common/useBookTabFilters.ts';
+import { BOOK_PAGE_LABELS } from '@/pages/BookPage/navigation/bookPageRoutes.ts';
 import { Alert, Box, Typography } from '@mui/material';
 import { keyBy } from 'lodash';
 import { useMemo } from 'react';
@@ -82,6 +83,21 @@ export const StructurePage = () => {
     }
     return map;
   }, [gistNotes]);
+
+  // Unfiltered: the chapter dialog's Notes tab counts every note linked to the
+  // chapter, gists included, and the row is meant to agree with it. Shares a
+  // query key with the book header's own notes fetch, so it costs no request.
+  const { data: allNotes } = useGetNotesForBook(book.id);
+
+  const noteCountByChapterId = useMemo(() => {
+    const map = new Map<number, number>();
+    for (const note of allNotes?.items ?? []) {
+      for (const chapterId of note.chapter_ids) {
+        map.set(chapterId, (map.get(chapterId) ?? 0) + 1);
+      }
+    }
+    return map;
+  }, [allNotes]);
 
   const childrenByParentId = useMemo(() => {
     const map = new Map<number | null, ChapterWithHighlights[]>();
@@ -186,7 +202,7 @@ export const StructurePage = () => {
           justifyContent: 'space-between',
         }}
       >
-        <PageTitle text="Structure of the book" />
+        <PageTitle text={BOOK_PAGE_LABELS.structure} />
         <BatchDigestToolbar bookId={book.id} />
       </Box>
       <Box sx={{ display: 'flex', alignItems: 'flex-start', gap: 1 }}>
@@ -194,7 +210,7 @@ export const StructurePage = () => {
           <SemanticSearchField
             value={searchText}
             onChange={handleSearch}
-            placeholder="Search chapters by meaning…"
+            placeholder="Search chapters by meaning..."
           />
         </Box>
       </Box>
@@ -206,9 +222,7 @@ export const StructurePage = () => {
       )}
 
       {search.hasQuery && topLevelChapters.length === 0 ? (
-        <Box sx={{ p: 3, textAlign: 'center' }}>
-          <EmptyStateText>No chapters match “{searchText}”.</EmptyStateText>
-        </Box>
+        <EmptyStateText variant="page">No chapters match “{searchText}”.</EmptyStateText>
       ) : (
         topLevelChapters.map((chapter) => (
           <ChapterAccordion
@@ -218,6 +232,7 @@ export const StructurePage = () => {
             chapter={chapter}
             childrenByParentId={visibleChildrenByParentId}
             gistByChapterId={gistByChapterId}
+            noteCountByChapterId={noteCountByChapterId}
             bookId={book.id}
             readingPosition={readingPosition}
             currentChapterIds={currentChapterIds}

@@ -10,7 +10,7 @@ import {
 } from '@mui/material';
 import { useNavigate, useParams, useRouterState } from '@tanstack/react-router';
 import { useState } from 'react';
-import { BOOK_PAGE_ROUTES } from './bookPageRoutes.ts';
+import { BOOK_PAGE_LABELS, BOOK_PAGE_ROUTES } from './bookPageRoutes.ts';
 
 const MORE_VALUE = 'more';
 
@@ -74,7 +74,7 @@ export const MobileBottomNav = () => {
             <BottomNavigationAction
               key={route.segment}
               value={route.segment}
-              label={route.label}
+              label={BOOK_PAGE_LABELS[route.segment]}
               icon={<Icon />}
             />
           );
@@ -104,7 +104,7 @@ export const MobileBottomNav = () => {
               <ListItemIcon>
                 <Icon fontSize="small" />
               </ListItemIcon>
-              <ListItemText>{route.label}</ListItemText>
+              <ListItemText>{BOOK_PAGE_LABELS[route.segment]}</ListItemText>
             </MenuItem>
           );
         })}
