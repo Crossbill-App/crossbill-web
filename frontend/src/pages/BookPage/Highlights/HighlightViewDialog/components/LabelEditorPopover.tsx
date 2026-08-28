@@ -77,7 +77,7 @@ const LabelEditorContent = ({
   return (
     <Box sx={{ p: 2, width: 280 }}>
       <Typography variant="subtitle2" sx={{ mb: 1.5, fontWeight: 600 }}>
-        Edit Label
+        Edit label
       </Typography>
       <TextField
         value={labelText}

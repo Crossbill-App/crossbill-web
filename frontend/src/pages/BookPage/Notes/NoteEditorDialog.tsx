@@ -42,7 +42,7 @@ export const NoteEditorDialog = ({
     <CommonDialog
       open={open}
       onClose={onClose}
-      title="New Note"
+      title="New note"
       maxWidth="md"
       isLoading={status.isSaving}
       footerActions={

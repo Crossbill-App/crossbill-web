@@ -135,7 +135,7 @@ const PasswordForm = () => {
 
   return (
     <Box>
-      <SectionTitle showDivider>Change Password</SectionTitle>
+      <SectionTitle showDivider>Change password</SectionTitle>
       <Typography variant="body2" sx={{ mb: 3, color: 'text.secondary' }}>
         Update your password to keep your account secure
       </Typography>
@@ -157,7 +157,7 @@ const PasswordForm = () => {
           name="currentPassword"
           control={control}
           rules={{ required: 'Current password is required' }}
-          label="Current Password"
+          label="Current password"
           type="password"
           fullWidth
           margin="normal"
@@ -170,7 +170,7 @@ const PasswordForm = () => {
             required: 'New password is required',
             minLength: { value: 8, message: 'New password must be at least 8 characters' },
           }}
-          label="New Password"
+          label="New password"
           type="password"
           fullWidth
           margin="normal"
@@ -184,7 +184,7 @@ const PasswordForm = () => {
             required: 'Please confirm your new password',
             validate: (value, values) => value === values.newPassword || 'Passwords do not match',
           }}
-          label="Confirm New Password"
+          label="Confirm new password"
           type="password"
           fullWidth
           margin="normal"

@@ -68,7 +68,7 @@ const SummaryPlaceholder = ({ onGenerate, isLoading }: SummaryPlaceholderProps) 
     }}
   >
     <AIActionButton
-      text={isLoading ? 'Generating...' : 'Generate Summary'}
+      text={isLoading ? 'Generating...' : 'Generate summary'}
       disabled={isLoading}
       onClick={onGenerate}
     />

@@ -43,7 +43,7 @@ export const FlashcardsPage = () => {
   const chapterNameMap = useMemo(() => {
     const map: Record<number, string> = {};
     for (const ch of bookChapters) {
-      map[ch.id] = ch.name || 'Unknown Chapter';
+      map[ch.id] = ch.name || 'Unknown chapter';
     }
     return map;
   }, [bookChapters]);
@@ -55,7 +55,7 @@ export const FlashcardsPage = () => {
         highlight.flashcards.map((flashcard: Flashcard) => ({
           ...flashcard,
           highlight: highlight,
-          chapterName: chapter.name || 'Unknown Chapter',
+          chapterName: chapter.name || 'Unknown chapter',
           chapterId: chapter.id,
           tags: highlight.tags,
         }))
@@ -68,8 +68,8 @@ export const FlashcardsPage = () => {
       ...fc,
       highlight: null,
       chapterName: fc.chapter_id
-        ? (chapterNameMap[fc.chapter_id] ?? 'Unknown Chapter')
-        : 'Book Flashcards',
+        ? (chapterNameMap[fc.chapter_id] ?? 'Unknown chapter')
+        : 'Book flashcards',
       chapterId: fc.chapter_id ?? null,
       tags: [],
     }));
@@ -126,7 +126,7 @@ export const FlashcardsPage = () => {
     if (bookFlashcardsGroup && bookFlashcardsGroup.length > 0) {
       chapterResults.push({
         id: BOOK_FLASHCARDS_KEY,
-        name: 'Book Flashcards',
+        name: 'Book flashcards',
         flashcards: bookFlashcardsGroup,
       });
     }

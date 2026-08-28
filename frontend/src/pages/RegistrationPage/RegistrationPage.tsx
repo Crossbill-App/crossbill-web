@@ -104,7 +104,7 @@ export const RegistrationPage = () => {
                 required: 'Please confirm your password',
                 validate: (value, values) => value === values.password || 'Passwords do not match',
               }}
-              label="Confirm Password"
+              label="Confirm password"
               type="password"
               fullWidth
               margin="normal"

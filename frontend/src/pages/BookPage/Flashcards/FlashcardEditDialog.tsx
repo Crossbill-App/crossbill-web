@@ -78,7 +78,7 @@ export const FlashcardEditDialog = ({
     <CommonDialog
       open={open}
       onClose={onClose}
-      title="Edit Flashcard"
+      title="Edit flashcard"
       maxWidth="md"
       isLoading={isSaving}
       footerActions={

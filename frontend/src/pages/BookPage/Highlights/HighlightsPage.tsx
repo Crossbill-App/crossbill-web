@@ -132,7 +132,7 @@ export const HighlightsPage = () => {
       { from: dateFrom, to: dateTo }
     ).map((chapter) => ({
       id: chapter.id,
-      name: chapter.name || 'Unknown Chapter',
+      name: chapter.name || 'Unknown chapter',
       chapterNumber: chapter.chapter_number ?? undefined,
       highlights: chapter.highlights,
     }));

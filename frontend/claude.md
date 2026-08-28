@@ -49,6 +49,12 @@ is stale. Never hand-edit files under `src/api/generated`.
 - User-facing copy uses three periods for an ellipsis (`Saving...`,
   `Search highlights...`), never the `…` character. Prose in comments and docs
   may use either.
+- User-facing copy is sentence case — dialog titles, tooltips, buttons, form
+  labels, section headings, tab labels. `Delete highlight`, not
+  `Delete Highlight`; `Confirm new password`, not `Confirm New Password`. Only
+  proper nouns keep their capitals (Crossbill, KOReader, and whatever the
+  reader's own books and chapters are called). There is no lint rule for this:
+  a checker cannot tell a proper noun from Title Case, so it is on review.
 - One label for committing a form: **Save** for editing something that already
   exists, and a named create (**Add flashcard**, **Add group**) only where the
   form is one of several controls on screen. Pending states are the verb in

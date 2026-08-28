@@ -105,7 +105,7 @@ export const FlashcardListCard = ({
         open={deleteConfirmOpen}
         onClose={() => setDeleteConfirmOpen(false)}
         onConfirm={handleConfirmDelete}
-        title="Delete Flashcard"
+        title="Delete flashcard"
         message="Are you sure you want to delete this flashcard?"
         confirmText="Delete"
         confirmColor="error"
