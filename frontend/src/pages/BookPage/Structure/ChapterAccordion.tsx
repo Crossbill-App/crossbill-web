@@ -1,5 +1,6 @@
 import type { ChapterWithHighlights, PositionResponse } from '@/api/generated/model';
-import { ExpandMoreIcon, FlashcardsIcon, HighlightsIcon } from '@/theme/Icons.tsx';
+import { CollapseChevron } from '@/components/CollapseChevron.tsx';
+import { FlashcardsIcon, HighlightsIcon } from '@/theme/Icons.tsx';
 import { Box, ButtonBase, Collapse, IconButton, Typography, type Theme } from '@mui/material';
 import { sumBy } from 'lodash';
 import { useId, useState } from 'react';
@@ -177,13 +178,9 @@ const ParentChapterRow = ({
       aria-label={`${expanded ? 'Collapse' : 'Expand'} ${chapter.name}`}
       aria-expanded={expanded}
       aria-controls={childrenId}
-      sx={{
-        mr: 1,
-        transition: 'transform 0.2s ease',
-        transform: expanded ? 'rotate(180deg)' : 'none',
-      }}
+      sx={{ mr: 1 }}
     >
-      <ExpandMoreIcon />
+      <CollapseChevron isExpanded={expanded} />
     </IconButton>
   </Box>
 );

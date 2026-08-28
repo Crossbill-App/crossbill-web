@@ -1,6 +1,7 @@
 import { TagGroupInBook } from '@/api/generated/model';
 import { useCommitOnBlur } from '@/hooks/useCommitOnBlur.ts';
-import { DeleteIcon, EditIcon, EditTagsIcon, ExpandMoreIcon } from '@/theme/Icons.tsx';
+import { CollapseChevron } from '@/components/CollapseChevron.tsx';
+import { DeleteIcon, EditIcon, EditTagsIcon } from '@/theme/Icons.tsx';
 import { createAdaptiveHoverStyles, createAdaptiveTouchTarget } from '@/utils/adaptiveHover.ts';
 import { Box, IconButton, TextField, Tooltip, Typography } from '@mui/material';
 import { useState } from 'react';
@@ -29,14 +30,7 @@ export const TagGroupTitle = ({
         cursor: 'pointer',
       }}
     >
-      <ExpandMoreIcon
-        sx={{
-          fontSize: 16,
-          color: 'text.secondary',
-          transform: isExpanded ? 'rotate(0deg)' : 'rotate(-90deg)',
-          transition: 'transform 0.15s',
-        }}
-      />
+      <CollapseChevron isExpanded={isExpanded} sx={{ fontSize: 16, color: 'text.secondary' }} />
       <Typography
         variant="subtitle2"
         sx={{

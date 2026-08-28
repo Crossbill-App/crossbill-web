@@ -1,6 +1,7 @@
 import type { Bookmark, Highlight } from '@/api/generated/model';
 import { Collapsable } from '@/components/animations/Collapsable.tsx';
-import { BookmarkFilledIcon, ExpandMoreIcon } from '@/theme/Icons.tsx';
+import { CollapseChevron } from '@/components/CollapseChevron.tsx';
+import { BookmarkFilledIcon } from '@/theme/Icons.tsx';
 import { Box, Button, IconButton, Typography } from '@mui/material';
 import { useState } from 'react';
 
@@ -80,13 +81,9 @@ export const BookmarkList = ({
           <IconButton
             size="small"
             aria-label={isExpanded ? 'Collapse bookmark list' : 'Expand bookmark list'}
-            sx={{
-              transform: isExpanded ? 'rotate(180deg)' : 'rotate(0deg)',
-              transition: 'transform 0.2s',
-              display: { xs: 'none', lg: 'block' },
-            }}
+            sx={{ display: { xs: 'none', lg: 'block' } }}
           >
-            <ExpandMoreIcon fontSize="small" />
+            <CollapseChevron isExpanded={isExpanded} sx={{ fontSize: 'small', display: 'block' }} />
           </IconButton>
         </Box>
       )}
