@@ -138,7 +138,7 @@ export const NotesPage = () => {
           <SemanticSearchField
             value={searchText}
             onChange={handleSearch}
-            placeholder="Search notes by meaning…"
+            placeholder="Search notes by meaning..."
           />
         </Box>
       </Box>

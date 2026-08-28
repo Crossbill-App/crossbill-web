@@ -12,7 +12,7 @@ import { userEvent } from 'vitest/browser';
 
 type Screen = Awaited<ReturnType<typeof renderApp>>;
 
-const NOTES_SEARCH_PLACEHOLDER = 'Search notes by meaning…';
+const NOTES_SEARCH_PLACEHOLDER = 'Search notes by meaning...';
 
 const openNoteForEditing = async (screen: Screen, title: string) => {
   await userEvent.click(screen.getByRole('button', { name: new RegExp(title) }));

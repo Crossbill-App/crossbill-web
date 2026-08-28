@@ -194,7 +194,7 @@ export const StructurePage = () => {
           <SemanticSearchField
             value={searchText}
             onChange={handleSearch}
-            placeholder="Search chapters by meaning…"
+            placeholder="Search chapters by meaning..."
           />
         </Box>
       </Box>

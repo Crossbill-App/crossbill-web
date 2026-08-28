@@ -24,7 +24,7 @@ interface ChapterGroupedListProps<TChapter, TItem> {
 }
 
 /**
- * Generic chapter-grouped list: an optional "Searching…" loading state, a
+ * Generic chapter-grouped list: an optional "Searching..." loading state, a
  * fade-in wrapper, an empty-message branch, then a `SectionTitle` + `CardList`
  * per chapter. Shared by the highlights and flashcards tabs, which differ only
  * in the item card and a couple of presentational knobs.

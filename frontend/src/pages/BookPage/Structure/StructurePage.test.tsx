@@ -9,7 +9,7 @@ import { worker } from '@tests/msw/worker';
 import { expect, test } from 'vitest';
 import { userEvent } from 'vitest/browser';
 
-const SEARCH_PLACEHOLDER = 'Search chapters by meaning…';
+const SEARCH_PLACEHOLDER = 'Search chapters by meaning...';
 
 /** Two parts, one leaf chapter each — enough to prove ancestors survive. */
 const aStructuredBook = () =>

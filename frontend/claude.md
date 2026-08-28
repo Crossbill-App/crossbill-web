@@ -46,6 +46,9 @@ is stale. Never hand-edit files under `src/api/generated`.
   `@/context/SnackbarContext.tsx` for transient feedback and
   `ConfirmationDialog` from `@/components/common/ConfirmationDialog.tsx` for
   destructive actions.
+- User-facing copy uses three periods for an ellipsis (`Saving...`, `Search
+highlights...`), never the `…` character. Prose in comments and docs may use
+  either.
 
 ## Testing
 
