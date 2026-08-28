@@ -1,5 +1,6 @@
 import { getLastSevenDaysFrom } from '@/pages/BookPage/common/highlightDates.ts';
 import { aBookDetails, aChapter, aHighlight } from '@tests/fixtures/book';
+import { aNote } from '@tests/fixtures/notes';
 import { renderApp } from '@tests/harness/renderApp';
 import { bookApi } from '@tests/msw/bookApi';
 import { worker } from '@tests/msw/worker';
@@ -325,4 +326,36 @@ test('the labels section appears with a single label', async () => {
   // reachable through the colour dot inside a highlight dialog.
   await expect.element(screen.getByText('Labels')).toBeVisible();
   await expect.element(screen.getByText('Important (3)')).toBeVisible();
+});
+
+test('a highlight card counts the notes linked to it', async () => {
+  worker.use(
+    ...bookApi({
+      book: aBookDetails({
+        chapters: [
+          aChapter({
+            id: 10,
+            name: 'On Attention',
+            highlights: [
+              aHighlight({ id: 301, text: 'A filter, not a spotlight.' }),
+              aHighlight({ id: 302, text: 'Attention is finite.' }),
+            ],
+          }),
+        ],
+      }),
+      notes: [
+        aNote({ id: 100, title: 'Filters', highlight_ids: [301] }),
+        aNote({ id: 101, title: 'Spotlights', highlight_ids: [301] }),
+        aNote({ id: 102, title: 'Unlinked', highlight_ids: [] }),
+      ],
+    }).handlers
+  );
+
+  const screen = await renderApp({ path: '/book/1/highlights' });
+
+  const linked = screen.getByRole('button', { name: /A filter, not a spotlight/ });
+  await expect.element(linked.getByRole('img', { name: '2 notes' })).toBeVisible();
+
+  const bare = screen.getByRole('button', { name: /Attention is finite/ });
+  expect(bare.getByRole('img', { name: /note/ }).elements()).toHaveLength(0);
 });

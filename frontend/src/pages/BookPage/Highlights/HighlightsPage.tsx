@@ -23,6 +23,7 @@ import { ListSearchSortHeader } from '@/pages/BookPage/common/ListSearchSortHead
 import { useBookTabFilters } from '@/pages/BookPage/common/useBookTabFilters.ts';
 import { useHighlightDialog } from '@/pages/BookPage/Highlights/hooks/useHighlightDialog.ts';
 import { BOOK_PAGE_LABELS } from '@/pages/BookPage/navigation/bookPageRoutes.ts';
+import { useNoteCountsByHighlight } from '@/pages/BookPage/Notes/hooks/useNoteCountsByHighlight.ts';
 import { Box, Divider } from '@mui/material';
 import { useLocation, useNavigate, useSearch } from '@tanstack/react-router';
 import { keyBy, sumBy } from 'lodash';
@@ -124,6 +125,8 @@ export const HighlightsPage = () => {
   );
 
   const bookSearch = useBookSearch(book.id, searchText);
+
+  const noteCountByHighlightId = useNoteCountsByHighlight();
 
   const bookmarksByHighlightId = useMemo(
     () => keyBy(book.bookmarks, 'highlight_id'),
@@ -241,6 +244,7 @@ export const HighlightsPage = () => {
             <HighlightsList
               chapters={chapters}
               bookmarksByHighlightId={bookmarksByHighlightId}
+              noteCountByHighlightId={noteCountByHighlightId}
               isLoading={bookSearch.isSearching}
               emptyState={emptyState}
               animationKey="chapters-highlights"
@@ -271,6 +275,7 @@ export const HighlightsPage = () => {
           <HighlightsList
             chapters={chapters}
             bookmarksByHighlightId={bookmarksByHighlightId}
+            noteCountByHighlightId={noteCountByHighlightId}
             isLoading={bookSearch.isSearching}
             emptyState={emptyState}
             animationKey="chapters-highlights"

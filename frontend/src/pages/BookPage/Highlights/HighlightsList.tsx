@@ -14,6 +14,7 @@ export interface ChapterData {
 interface ChapterListProps {
   chapters: ChapterData[];
   bookmarksByHighlightId: Record<number, Bookmark>;
+  noteCountByHighlightId: Record<number, number>;
   isLoading?: boolean;
   emptyState?: ReactNode;
   animationKey?: string;
@@ -23,6 +24,7 @@ interface ChapterListProps {
 export const HighlightsList = ({
   chapters,
   bookmarksByHighlightId,
+  noteCountByHighlightId,
   isLoading,
   emptyState,
   animationKey = 'chapters',
@@ -43,6 +45,7 @@ export const HighlightsList = ({
       <HighlightCard
         highlight={highlight}
         bookmark={bookmarksByHighlightId[highlight.id]}
+        noteCount={noteCountByHighlightId[highlight.id]}
         onOpenModal={onOpenHighlight}
       />
     )}

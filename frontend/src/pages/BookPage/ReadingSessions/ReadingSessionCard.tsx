@@ -6,6 +6,7 @@ import { MetadataRow } from '@/components/cards/MetadataRow.tsx';
 import { AIFeature } from '@/components/features/AIFeature.tsx';
 import { useSettings } from '@/context/SettingsContext';
 import { useSnackbar } from '@/context/SnackbarContext';
+import { useNoteCountsByHighlight } from '@/pages/BookPage/Notes/hooks/useNoteCountsByHighlight.ts';
 import { formatDate, formatDuration, formatTime } from '@/utils/date';
 import { Box, Typography } from '@mui/material';
 import type { AxiosError } from 'axios';
@@ -81,6 +82,7 @@ export const ReadingSessionCard = ({
   onOpenHighlight,
 }: ReadingSessionCardProps) => {
   const { showSnackbar } = useSnackbar();
+  const noteCountByHighlightId = useNoteCountsByHighlight();
 
   const { data, isLoading, error, refetch } = useGetReadingSessionAiSummary(session.id, {
     query: {
@@ -177,6 +179,7 @@ export const ReadingSessionCard = ({
                   key={highlight.id}
                   highlight={highlight}
                   bookmark={bookmarksByHighlightId[highlight.id]}
+                  noteCount={noteCountByHighlightId[highlight.id]}
                   onOpenModal={handleHighlightClick}
                 />
               ))}
