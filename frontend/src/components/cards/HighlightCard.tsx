@@ -44,7 +44,6 @@ const Footer = ({ highlight, bookmark }: FooterProps) => {
         <DateIcon sx={{ fontSize: 14, color: 'text.secondary' }} />
         <MetadataRow
           variant="caption"
-          sx={{ color: 'text.secondary' }}
           items={[
             formatHighlightDate(highlight.datetime),
             highlight.page && `Page ${highlight.page}`,

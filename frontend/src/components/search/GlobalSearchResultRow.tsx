@@ -1,4 +1,5 @@
 import { BookCover } from '@/components/BookCover.tsx';
+import { MetadataRow } from '@/components/cards/MetadataRow.tsx';
 import {
   globalSearchRowDomId,
   rowLinkProps,
@@ -60,9 +61,7 @@ export const GlobalSearchResultRow = ({ row, isActive, onSelect }: GlobalSearchR
       )}
       <Box sx={{ gap: 1, display: 'flex', alignItems: 'center' }}>
         <Chip label={SEARCH_ROW_TYPE_LABELS[row.type]} size="small" variant="outlined" />
-        <Typography variant="caption" color="text.secondary" noWrap>
-          {row.chapterLabel ? `${row.bookTitle} · ${row.chapterLabel}` : row.bookTitle}
-        </Typography>
+        <MetadataRow variant="caption" noWrap items={[row.bookTitle, row.chapterLabel]} />
       </Box>
       <Typography variant="body1" sx={clampToTwoLines}>
         {row.text}
