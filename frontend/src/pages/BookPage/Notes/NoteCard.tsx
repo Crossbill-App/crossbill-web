@@ -22,9 +22,12 @@ const NoteStyled = styled(Box)(({ theme }) => ({
   paddingTop: theme.spacing(2),
   paddingBottom: theme.spacing(2),
   cursor: 'pointer',
-  transition: 'background-color 0.15s ease',
-  '&:hover': {
-    backgroundColor: theme.palette.action.hover,
+  transition: 'all 0.2s ease',
+  '@media (hover: hover)': {
+    '&:hover': {
+      backgroundColor: theme.palette.action.hover,
+      boxShadow: theme.shadows[2],
+    },
   },
   '&:focus-visible': {
     outline: `2px solid ${theme.palette.primary.main}`,
