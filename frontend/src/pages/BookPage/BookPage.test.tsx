@@ -88,6 +88,16 @@ test('a blurb renders as markdown and starts collapsed', async () => {
   await expect.element(screen.getByRole('button', { name: 'Show less' })).toBeVisible();
 });
 
+test('a blurb that already fits shows no expand toggle', async () => {
+  const { handlers } = bookApi({ book: aBookDetails({ description: 'Short and complete.' }) });
+  worker.use(...handlers);
+
+  const screen = await renderApp({ path: '/book/1' });
+
+  await expect.element(screen.getByText('Short and complete.')).toBeVisible();
+  await expect(screen.getByRole('button', { name: 'Show more' }).query()).toBeNull();
+});
+
 test('a book with no blurb shows no blurb controls', async () => {
   const { handlers } = bookApi({ book: aBookDetails({ description: null }) });
   worker.use(...handlers);
