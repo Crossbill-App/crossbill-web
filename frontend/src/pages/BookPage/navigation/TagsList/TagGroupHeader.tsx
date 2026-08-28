@@ -1,8 +1,8 @@
 import { TagGroupInBook } from '@/api/generated/model';
-import { useCommitOnBlur } from '@/hooks/useCommitOnBlur.ts';
-import type { SaveStatus } from '@/hooks/useSaveStatus.ts';
 import { CollapseChevron } from '@/components/CollapseChevron.tsx';
 import { SavedIndicator } from '@/components/SavedIndicator.tsx';
+import { useCommitOnBlur } from '@/hooks/useCommitOnBlur.ts';
+import type { SaveStatus } from '@/hooks/useSaveStatus.ts';
 import { DeleteIcon, EditIcon, EditTagsIcon } from '@/theme/Icons.tsx';
 import { createAdaptiveHoverStyles, createAdaptiveTouchTarget } from '@/utils/adaptiveHover.ts';
 import { Box, IconButton, TextField, Tooltip, Typography } from '@mui/material';
@@ -168,51 +168,51 @@ export const TagGroupHeader = ({
               gap: 0.25,
             }}
           >
-          <Tooltip title="Edit tags">
-            <span>
-              <IconButton
-                size="small"
-                aria-label="Edit tags"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  onEditTags();
-                }}
-                sx={{ ...touchTarget, color: 'text.disabled' }}
-              >
-                <EditTagsIcon sx={{ fontSize: 14 }} />
-              </IconButton>
-            </span>
-          </Tooltip>
-          <Tooltip title="Rename group">
-            <span>
-              <IconButton
-                size="small"
-                aria-label="Rename group"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  setIsEditing(true);
-                }}
-                sx={{ ...touchTarget, color: 'text.disabled' }}
-              >
-                <EditIcon sx={{ fontSize: 14 }} />
-              </IconButton>
-            </span>
-          </Tooltip>
-          <Tooltip title="Delete group">
-            <span>
-              <IconButton
-                size="small"
-                aria-label="Delete group"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  onDelete();
-                }}
-                disabled={isProcessing}
-                sx={{ ...touchTarget, color: 'text.disabled' }}
-              >
-                <DeleteIcon sx={{ fontSize: 14 }} />
-              </IconButton>
-            </span>
+            <Tooltip title="Edit tags">
+              <span>
+                <IconButton
+                  size="small"
+                  aria-label="Edit tags"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onEditTags();
+                  }}
+                  sx={{ ...touchTarget, color: 'text.disabled' }}
+                >
+                  <EditTagsIcon sx={{ fontSize: 14 }} />
+                </IconButton>
+              </span>
+            </Tooltip>
+            <Tooltip title="Rename group">
+              <span>
+                <IconButton
+                  size="small"
+                  aria-label="Rename group"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setIsEditing(true);
+                  }}
+                  sx={{ ...touchTarget, color: 'text.disabled' }}
+                >
+                  <EditIcon sx={{ fontSize: 14 }} />
+                </IconButton>
+              </span>
+            </Tooltip>
+            <Tooltip title="Delete group">
+              <span>
+                <IconButton
+                  size="small"
+                  aria-label="Delete group"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onDelete();
+                  }}
+                  disabled={isProcessing}
+                  sx={{ ...touchTarget, color: 'text.disabled' }}
+                >
+                  <DeleteIcon sx={{ fontSize: 14 }} />
+                </IconButton>
+              </span>
             </Tooltip>
           </Box>
         </Box>

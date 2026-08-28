@@ -5,7 +5,8 @@ import { worker } from '@tests/msw/worker';
 import { expect, test } from 'vitest';
 import { page } from 'vitest/browser';
 
-const QUESTION = 'What did the cartographer mistake the map for, in the end, and why did it matter?';
+const QUESTION =
+  'What did the cartographer mistake the map for, in the end, and why did it matter?';
 
 /** A card with a linked note, so the row carries all three action icons. */
 const aBookWithLinkedFlashcard = () =>
@@ -46,10 +47,7 @@ test('a flashcard row keeps its actions clear of the question at any width', asy
   for (const width of [1440, 380]) {
     await page.viewport(width, 800);
 
-    const toggle = screen
-      .getByRole('button', { name: QUESTION })
-      .element()
-      .getBoundingClientRect();
+    const toggle = screen.getByRole('button', { name: QUESTION }).element().getBoundingClientRect();
     const viewNote = screen
       .getByRole('button', { name: 'View linked note' })
       .element()

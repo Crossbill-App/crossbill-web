@@ -173,9 +173,7 @@ export const ReflectionPage = () => {
                 />
               )}
 
-              {noteId == null && (
-                <AnswerButton onClick={() => setNewAnswer(question)} />
-              )}
+              {noteId == null && <AnswerButton onClick={() => setNewAnswer(question)} />}
 
               {question.noteIdField === 'what_does_it_say_note_id' && (
                 <Box sx={{ mt: 2 }}>

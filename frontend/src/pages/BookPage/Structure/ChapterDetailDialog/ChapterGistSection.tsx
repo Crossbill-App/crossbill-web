@@ -1,8 +1,8 @@
 import type { NoteUpdateRequestKind, NoteWithLinks } from '@/api/generated/model';
 import { useCreateNote, useDeleteNote, useUpdateNote } from '@/api/generated/notes/notes.ts';
+import { SavedIndicator } from '@/components/SavedIndicator.tsx';
 import { useSnackbar } from '@/context/SnackbarContext.tsx';
 import { useCommitOnBlur } from '@/hooks/useCommitOnBlur.ts';
-import { SavedIndicator } from '@/components/SavedIndicator.tsx';
 import { useMutationErrorHandler } from '@/hooks/useMutationErrorHandler.ts';
 import { useResetOnChange } from '@/hooks/useResetOnChange.ts';
 import { useSaveStatus } from '@/hooks/useSaveStatus.ts';

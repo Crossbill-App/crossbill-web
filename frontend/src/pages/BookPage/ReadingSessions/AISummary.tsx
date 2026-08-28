@@ -1,6 +1,6 @@
 import { Collapsable } from '@/components/animations/Collapsable';
-import { CollapseChevron } from '@/components/CollapseChevron.tsx';
 import { HoverableCardActionArea } from '@/components/cards/HoverableCardActionArea';
+import { CollapseChevron } from '@/components/CollapseChevron.tsx';
 import { markdownStyles } from '@/theme/theme';
 import { Box, styled } from '@mui/material';
 import { useState } from 'react';

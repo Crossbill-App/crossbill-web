@@ -11,8 +11,8 @@ import type {
 import { AIActionButton } from '@/components/buttons/AIActionButton.tsx';
 import { AIFeature } from '@/components/features/AIFeature.tsx';
 import { SavedIndicator } from '@/components/SavedIndicator.tsx';
-import { RelatedContentSection } from '@/components/search/RelatedContentSection.tsx';
 import { digestRows } from '@/components/search/globalSearchRows.ts';
+import { RelatedContentSection } from '@/components/search/RelatedContentSection.tsx';
 import { useCommitOnBlur } from '@/hooks/useCommitOnBlur.ts';
 import { useMutationErrorHandler } from '@/hooks/useMutationErrorHandler.ts';
 import { useSaveStatus } from '@/hooks/useSaveStatus.ts';
