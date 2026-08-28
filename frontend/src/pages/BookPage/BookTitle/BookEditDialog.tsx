@@ -88,14 +88,9 @@ export const BookEditDialog = ({ book, open, onClose }: BookEditDialogProps) => 
       isLoading={isDeleting || isSaving}
       title="Manage Book"
       footerActions={
-        <>
-          <Button
-            onClick={handleDelete}
-            color="error"
-            startIcon={<DeleteIcon />}
-            disabled={isDeleting}
-          >
-            {isDeleting ? 'Deleting...' : 'Delete'}
+        <Box sx={{ display: 'flex', gap: 1, width: '100%', justifyContent: 'flex-end' }}>
+          <Button onClick={onClose} disabled={isSaving || isDeleting}>
+            Cancel
           </Button>
           <Button
             onClick={handleSubmit(onSubmit)}
@@ -104,10 +99,7 @@ export const BookEditDialog = ({ book, open, onClose }: BookEditDialogProps) => 
           >
             {isSaving ? 'Saving...' : 'Save'}
           </Button>
-          <Button onClick={onClose} disabled={isDeleting}>
-            Close
-          </Button>
-        </>
+        </Box>
       }
     >
       <Box
@@ -134,6 +126,7 @@ export const BookEditDialog = ({ book, open, onClose }: BookEditDialogProps) => 
             width="120px"
             height="180px"
             objectFit="cover"
+            sx={{ borderRadius: 1 }}
           />
           <Box
             sx={{
@@ -165,6 +158,16 @@ export const BookEditDialog = ({ book, open, onClose }: BookEditDialogProps) => 
                 ISBN: {book.isbn}
               </Typography>
             )}
+            <Button
+              onClick={handleDelete}
+              color="error"
+              size="small"
+              startIcon={<DeleteIcon />}
+              disabled={isDeleting || isSaving}
+              sx={{ mt: 1 }}
+            >
+              {isDeleting ? 'Deleting...' : 'Delete'}
+            </Button>
           </Box>
         </Box>
 

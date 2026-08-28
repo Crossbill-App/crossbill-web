@@ -171,7 +171,7 @@ test('a failed blurb save reports the error and keeps the typed edit and the ori
     .toHaveValue('A doomed edit about attention.');
 
   // ...and closing without retrying leaves the original blurb on screen.
-  await dialog.getByRole('button', { name: 'Close', exact: true }).click();
+  await dialog.getByRole('button', { name: 'Cancel', exact: true }).click();
   await expect.element(screen.getByText('The original blurb.')).toBeVisible();
 
   // Reopening must not resurrect the abandoned draft: the field should show

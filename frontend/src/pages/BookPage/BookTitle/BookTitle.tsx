@@ -111,13 +111,15 @@ export const BookTitle = ({ book }: BookTitleProps) => {
             {book.author || 'Unknown Author'}
           </Typography>
 
+          <BookBlurb description={book.description ?? null} />
+
           <Box
             sx={{
               display: 'flex',
               justifyContent: { xs: 'center', lg: 'flex-start' },
               alignItems: 'center',
               gap: 1,
-              mb: 2,
+              my: 2,
               width: '100%',
               flexWrap: 'wrap',
             }}
@@ -128,8 +130,6 @@ export const BookTitle = ({ book }: BookTitleProps) => {
           </Box>
 
           <BookStatsStrip book={book} />
-
-          <BookBlurb description={book.description ?? null} />
         </Box>
       </Box>
 
