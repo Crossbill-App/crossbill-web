@@ -157,7 +157,7 @@ export const ChapterReviewSection = ({
               color: 'text.secondary',
             }}
           >
-            No digest questions available.
+            No questions generated for this chapter.
           </Typography>
         )}
 

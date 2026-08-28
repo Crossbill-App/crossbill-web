@@ -187,7 +187,7 @@ test('a parent chapter opens from its title, and expands from its chevron', asyn
   await userEvent.click(screen.getByText('Part One'));
 
   await expect
-    .element(screen.getByRole('dialog').getByRole('tab', { name: 'Chapter review' }))
+    .element(screen.getByRole('dialog').getByRole('tab', { name: 'Questions' }))
     .toBeVisible();
   // The title must not double as a toggle: the branch stays open behind it.
   await expect.element(screen.getByText('Attention and memory')).toBeInTheDocument();
@@ -205,7 +205,7 @@ test('a link straight to a parent chapter opens its dialog', async () => {
   const screen = await renderApp({ path: '/book/1/structure?chapterId=10' });
 
   await expect
-    .element(screen.getByRole('dialog').getByRole('tab', { name: 'Chapter review' }))
+    .element(screen.getByRole('dialog').getByRole('tab', { name: 'Questions' }))
     .toBeVisible();
 });
 
@@ -256,7 +256,7 @@ test('closing a chapter dialog leaves the page where it was scrolled to', async 
 
   await userEvent.click(screen.getByText('Chapter 10'));
   await expect
-    .element(screen.getByRole('dialog').getByRole('tab', { name: 'Chapter review' }))
+    .element(screen.getByRole('dialog').getByRole('tab', { name: 'Questions' }))
     .toBeVisible();
 
   // Where the dialog's body-scroll lock parked the page, read rather than

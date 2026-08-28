@@ -90,7 +90,7 @@ export const ChapterDetailDialog = ({
   const tabs: DialogTabItem[] = [
     {
       key: 'review',
-      label: 'Chapter review',
+      label: 'Questions',
       content: (
         <ChapterReviewSection
           chapterId={chapter.id}

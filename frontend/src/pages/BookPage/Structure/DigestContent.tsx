@@ -31,7 +31,7 @@ export const DigestContent = ({ content, isGenerating }: DigestContentProps) => 
             (theme) => ({ mt: theme.spacing(1) }),
           ]}
         >
-          Generating digest...
+          Generating summary...
         </Typography>
       </Box>
     );
