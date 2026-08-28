@@ -74,7 +74,7 @@ export const AddGroupForm = ({
                   fontSize: '0.75rem',
                 }}
               >
-                Add
+                Add group
               </Button>
               <Button
                 variant="outlined"

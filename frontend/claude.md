@@ -46,9 +46,13 @@ is stale. Never hand-edit files under `src/api/generated`.
   `@/context/SnackbarContext.tsx` for transient feedback and
   `ConfirmationDialog` from `@/components/common/ConfirmationDialog.tsx` for
   destructive actions.
-- User-facing copy uses three periods for an ellipsis (`Saving...`, `Search
-highlights...`), never the `…` character. Prose in comments and docs may use
-  either.
+- User-facing copy uses three periods for an ellipsis (`Saving...`,
+  `Search highlights...`), never the `…` character. Prose in comments and docs
+  may use either.
+- One label for committing a form: **Save** for editing something that already
+  exists, and a named create (**Add flashcard**, **Add group**) only where the
+  form is one of several controls on screen. Pending states are the verb in
+  sentence case plus an ellipsis — `Saving...`, never `Updating...`.
 
 ## Testing
 

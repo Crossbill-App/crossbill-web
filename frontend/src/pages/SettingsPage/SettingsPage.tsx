@@ -76,7 +76,7 @@ const EmailForm = () => {
           disabled={updateMutation.isPending || !isDirty}
           sx={{ mt: 2 }}
         >
-          {updateMutation.isPending ? 'Saving...' : 'Update Email'}
+          {updateMutation.isPending ? 'Saving...' : 'Save email'}
         </Button>
       </Box>
     </Box>
@@ -196,7 +196,7 @@ const PasswordForm = () => {
           disabled={updateMutation.isPending}
           sx={{ mt: 2 }}
         >
-          {updateMutation.isPending ? 'Updating...' : 'Update Password'}
+          {updateMutation.isPending ? 'Saving...' : 'Save password'}
         </Button>
       </Box>
     </Box>

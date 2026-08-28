@@ -91,7 +91,7 @@ export const FlashcardEditDialog = ({
             onClick={handleSubmit(onSubmit)}
             disabled={!isDirty || !isValid || isSaving}
           >
-            {isSaving ? 'Saving...' : 'Save Changes'}
+            {isSaving ? 'Saving...' : 'Save'}
           </Button>
         </Box>
       }
