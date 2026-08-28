@@ -19,7 +19,7 @@ export const NoteKindFilter = ({ selected, onChange, hideTitle = false }: NoteKi
 
   return (
     <Box>
-      {!hideTitle && <SidebarSectionHeader icon={FilterListIcon} title="Note types" />}
+      {!hideTitle && <SidebarSectionHeader icon={FilterListIcon} title="Types" />}
       <Box
         sx={{
           display: 'flex',

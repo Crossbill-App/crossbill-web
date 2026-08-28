@@ -208,7 +208,7 @@ export const NoteEditorForm = forwardRef<NoteEditorFormHandle, NoteEditorFormPro
           </Box>
         )}
         <RHFTextField name="title" control={control} label="Title" fullWidth autoFocus />
-        <RHFTextField name="kind" control={control} select label="Kind" fullWidth>
+        <RHFTextField name="kind" control={control} select label="Type" fullWidth>
           <MenuItem value="">None</MenuItem>
           {NOTE_KINDS.map((value) => (
             <MenuItem key={value} value={value}>
