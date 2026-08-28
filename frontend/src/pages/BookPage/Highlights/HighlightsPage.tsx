@@ -25,7 +25,7 @@ import { useHighlightDialog } from '@/pages/BookPage/Highlights/hooks/useHighlig
 import { BOOK_PAGE_LABELS } from '@/pages/BookPage/navigation/bookPageRoutes.ts';
 import { Box, Divider } from '@mui/material';
 import { useLocation, useNavigate, useSearch } from '@tanstack/react-router';
-import { keyBy } from 'lodash';
+import { keyBy, sumBy } from 'lodash';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { FilterFab } from '../common/FilterFab.tsx';
@@ -255,11 +255,7 @@ export const HighlightsPage = () => {
               filterActive={listFilterActive}
             />
             <Divider />
-            <ChapterNav
-              chapters={navData.chapters}
-              onChapterClick={handleChapterClick}
-              countType="highlight"
-            />
+            <ChapterNav chapters={navData.chapters} onChapterClick={handleChapterClick} />
           </Box>
         </ContentWithSidebar>
       ) : (
@@ -406,7 +402,6 @@ const useHighlightsFilterTabs = ({
               setFilterDrawerOpen(false);
             }}
             hideTitle
-            countType="highlight"
           />
         ),
       },
@@ -479,7 +474,8 @@ const useHighlightsPageData = (chapters: ChapterData[]) => {
     return chapters.map((chapter) => ({
       id: chapter.id,
       name: chapter.name,
-      itemCount: chapter.highlights.length,
+      highlightCount: chapter.highlights.length,
+      flashcardCount: sumBy(chapter.highlights, (h) => h.flashcards.length),
     }));
   }, [chapters]);
 

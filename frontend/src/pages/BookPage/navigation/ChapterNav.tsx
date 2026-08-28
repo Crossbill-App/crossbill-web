@@ -1,4 +1,5 @@
 import { Collapsable } from '@/components/animations/Collapsable.tsx';
+import { MetadataRow } from '@/components/cards/MetadataRow.tsx';
 import { ChapterListIcon } from '@/theme/Icons.tsx';
 import { Box, Button, Typography } from '@mui/material';
 import { useId, useState } from 'react';
@@ -8,17 +9,21 @@ import { SidebarSectionHeader } from './SidebarSectionHeader.tsx';
 export interface ChapterNavigationData {
   id: number;
   name: string;
-  itemCount: number;
+  highlightCount: number;
+  flashcardCount: number;
 }
 
 interface ChapterNavProps {
   chapters: ChapterNavigationData[];
   onChapterClick: (chapterId: number) => void;
   hideTitle?: boolean;
-  countType: 'highlight' | 'flashcard';
 }
 
-export const ChapterNav = ({ chapters, onChapterClick, hideTitle, countType }: ChapterNavProps) => {
+/** Omitted at zero, so a chapter reads the same on whichever tab lists it. */
+const countLabel = (count: number, noun: string) =>
+  count > 0 ? `${count} ${noun}${count === 1 ? '' : 's'}` : null;
+
+export const ChapterNav = ({ chapters, onChapterClick, hideTitle }: ChapterNavProps) => {
   const [isExpanded, setIsExpanded] = useState(() => true);
   const chaptersId = useId();
   const effectiveIsExpanded = hideTitle ? true : isExpanded;
@@ -106,18 +111,14 @@ export const ChapterNav = ({ chapters, onChapterClick, hideTitle, countType }: C
                   >
                     {chapter.name}
                   </Typography>
-                  <Typography
+                  <MetadataRow
                     variant="caption"
-                    sx={{
-                      color: 'text.secondary',
-                      fontSize: '0.75rem',
-                      mt: 0.25,
-                      display: 'block',
-                    }}
-                  >
-                    {chapter.itemCount} {countType === 'highlight' ? 'highlight' : 'flashcard'}
-                    {chapter.itemCount !== 1 ? 's' : ''}
-                  </Typography>
+                    items={[
+                      countLabel(chapter.highlightCount, 'highlight'),
+                      countLabel(chapter.flashcardCount, 'flashcard'),
+                    ]}
+                    sx={{ fontSize: '0.75rem', mt: 0.25, display: 'block' }}
+                  />
                 </Box>
               </Button>
             </Box>

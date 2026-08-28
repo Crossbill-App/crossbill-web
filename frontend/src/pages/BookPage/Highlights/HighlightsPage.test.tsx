@@ -257,3 +257,42 @@ test('the chapters section collapses from the keyboard', async () => {
     .toHaveAttribute('aria-expanded', 'false');
   await expect.element(screen.getByRole('list', { name: 'Chapters' })).not.toBeInTheDocument();
 });
+
+test('the chapter sidebar carries both counts, so the number does not change with the tab', async () => {
+  worker.use(
+    ...bookApi({
+      book: aBookDetails({
+        chapters: [
+          aChapter({
+            id: 10,
+            name: 'On Attention',
+            highlights: [
+              aHighlight({ id: 301, text: 'A filter, not a spotlight.', flashcards: [] }),
+              aHighlight({
+                id: 302,
+                text: 'Attention is finite.',
+                flashcards: [
+                  {
+                    id: 700,
+                    user_id: 1,
+                    book_id: 1,
+                    highlight_id: 302,
+                    chapter_id: 10,
+                    question: 'What is attention?',
+                    answer: 'A filter.',
+                  },
+                ],
+              }),
+            ],
+          }),
+        ],
+      }),
+    }).handlers
+  );
+
+  const screen = await renderApp({ path: '/book/1/highlights' });
+  const chapters = screen.getByRole('list', { name: 'Chapters' });
+
+  await expect.element(chapters.getByText('2 highlights')).toBeVisible();
+  await expect.element(chapters.getByText('1 flashcard')).toBeVisible();
+});

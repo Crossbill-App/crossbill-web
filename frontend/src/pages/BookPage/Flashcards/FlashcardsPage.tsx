@@ -166,7 +166,12 @@ export const FlashcardsPage = () => {
       </EmptyStateText>
     );
 
-  const navData = useFlashcardsPageData(allFlashcardsWithContext, flashcardChapters, book.tags);
+  const navData = useFlashcardsPageData(
+    allFlashcardsWithContext,
+    flashcardChapters,
+    bookChapters,
+    book.tags
+  );
 
   const filterTabs = useFlashcardsFilterTabs({
     navChapters: navData.chapters,
@@ -215,11 +220,7 @@ export const FlashcardsPage = () => {
               onEditFlashcard={setEditingFlashcard}
             />
           </Box>
-          <ChapterNav
-            chapters={navData.chapters}
-            onChapterClick={handleChapterClick}
-            countType="flashcard"
-          />
+          <ChapterNav chapters={navData.chapters} onChapterClick={handleChapterClick} />
         </ContentWithSidebar>
       ) : (
         <>
@@ -329,7 +330,6 @@ const useFlashcardsFilterTabs = ({
               setFilterDrawerOpen(false);
             }}
             hideTitle
-            countType="flashcard"
           />
         ),
       },
@@ -368,6 +368,7 @@ const useFlashcardsFilterTabs = ({
 const useFlashcardsPageData = (
   allFlashcardsWithContext: FlashcardWithContext[],
   chapters: FlashcardChapterData[],
+  bookChapters: ChapterWithHighlights[],
   tagsInBook: TagInBook[] | undefined
 ) => {
   const tagsWithFlashcards = useMemo(() => {
@@ -381,13 +382,19 @@ const useFlashcardsPageData = (
     return tagsInBook.filter((tag) => tagIdsWithFlashcards.has(tag.id));
   }, [tagsInBook, allFlashcardsWithContext]);
 
+  // The sidebar carries both counts on both tabs, so a chapter reads the same
+  // wherever it is listed. Highlights are not on `FlashcardChapterData`, so
+  // they come from the book; the "Not in a chapter" bucket matches none and
+  // gets no highlight count.
   const navChapters: ChapterNavigationData[] = useMemo(() => {
+    const highlightCountById = new Map(bookChapters.map((ch) => [ch.id, ch.highlights.length]));
     return chapters.map((ch) => ({
       id: ch.id,
       name: ch.name,
-      itemCount: ch.flashcards.length,
+      highlightCount: highlightCountById.get(ch.id) ?? 0,
+      flashcardCount: ch.flashcards.length,
     }));
-  }, [chapters]);
+  }, [chapters, bookChapters]);
 
   return {
     chapters: navChapters,
