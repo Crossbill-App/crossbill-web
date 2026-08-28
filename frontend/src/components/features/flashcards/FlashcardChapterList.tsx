@@ -15,6 +15,9 @@ export interface FlashcardChapterData {
   id: number;
   name: string;
   flashcards: FlashcardWithContext[];
+  /** Accessible name for the group's list, where "Flashcards in <name>" does
+   *  not read as English — the bucket for cards that are in no chapter. */
+  listLabel?: string;
 }
 
 interface FlashcardChapterListProps {
@@ -40,7 +43,7 @@ export const FlashcardChapterList = ({
     getChapterName={(chapter) => chapter.name}
     getItems={(chapter) => chapter.flashcards}
     getItemKey={(flashcard) => flashcard.id}
-    ariaLabel={(chapterName) => `Flashcards in ${chapterName}`}
+    ariaLabel={(chapter) => chapter.listLabel ?? `Flashcards in ${chapter.name}`}
     isLoading={isLoading}
     emptyState={emptyState}
     animationKey={animationKey}

@@ -34,7 +34,7 @@ export const HighlightsList = ({
     getChapterName={(chapter) => chapter.name}
     getItems={(chapter) => chapter.highlights}
     getItemKey={(highlight) => highlight.id}
-    ariaLabel={(chapterName) => `Highlights in ${chapterName}`}
+    ariaLabel={(chapter) => `Highlights in ${chapter.name}`}
     isLoading={isLoading}
     emptyState={emptyState}
     animationKey={animationKey}

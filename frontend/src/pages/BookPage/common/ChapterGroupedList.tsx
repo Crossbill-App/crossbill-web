@@ -12,8 +12,9 @@ interface ChapterGroupedListProps<TChapter, TItem> {
   getItems: (chapter: TChapter) => TItem[];
   getItemKey: (item: TItem) => number | string;
   renderItem: (item: TItem) => ReactNode;
-  /** Builds the CardList aria-label from the chapter name. */
-  ariaLabel: (chapterName: string) => string;
+  /** Builds the CardList aria-label. Takes the chapter, not just its name, so
+   *  a group that is not a chapter can name itself differently. */
+  ariaLabel: (chapter: TChapter) => string;
   isLoading?: boolean;
   /** Shown in place of the list when there is no chapter to show. */
   emptyState?: ReactNode;
@@ -76,7 +77,7 @@ export const ChapterGroupedList = <TChapter, TItem>({
                   {items.length === 0 && renderEmptyChapter ? (
                     renderEmptyChapter()
                   ) : (
-                    <CardList sx={cardListSx} aria-label={ariaLabel(chapterName)}>
+                    <CardList sx={cardListSx} aria-label={ariaLabel(chapter)}>
                       {items.map((item) => (
                         <li key={getItemKey(item)}>{renderItem(item)}</li>
                       ))}

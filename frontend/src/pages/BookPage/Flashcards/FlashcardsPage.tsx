@@ -30,6 +30,13 @@ import { FlashcardEditDialog } from './FlashcardEditDialog.tsx';
 
 const BOOK_FLASHCARDS_KEY = -1;
 
+/**
+ * Heading for the group of cards tied to no chapter. Named for what the group
+ * is rather than for the API's `book_flashcards`, which read as a chapter with
+ * an odd name under the same heading style as the real ones.
+ */
+const NOT_IN_A_CHAPTER = 'Not in a chapter';
+
 export const FlashcardsPage = () => {
   const { book, isDesktop, leftSidebarEl, fabContainerEl } = useBookPage();
 
@@ -77,7 +84,7 @@ export const FlashcardsPage = () => {
       highlight: null,
       chapterName: fc.chapter_id
         ? (chapterNameMap[fc.chapter_id] ?? 'Unknown chapter')
-        : 'Book flashcards',
+        : NOT_IN_A_CHAPTER,
       chapterId: fc.chapter_id ?? null,
       tags: [],
     }));
@@ -122,7 +129,7 @@ export const FlashcardsPage = () => {
     const bookFlashcardsGroup = grouped[BOOK_FLASHCARDS_KEY];
     delete grouped[BOOK_FLASHCARDS_KEY];
 
-    const chapterResults = Object.entries(grouped)
+    const chapterResults: FlashcardChapterData[] = Object.entries(grouped)
       .filter((entry): entry is [string, FlashcardWithContext[]] => entry[1] !== undefined)
       .map(([chapterId, flashcards]) => ({
         id: Number(chapterId),
@@ -134,7 +141,8 @@ export const FlashcardsPage = () => {
     if (bookFlashcardsGroup && bookFlashcardsGroup.length > 0) {
       chapterResults.push({
         id: BOOK_FLASHCARDS_KEY,
-        name: 'Book flashcards',
+        name: NOT_IN_A_CHAPTER,
+        listLabel: 'Flashcards not in a chapter',
         flashcards: bookFlashcardsGroup,
       });
     }
