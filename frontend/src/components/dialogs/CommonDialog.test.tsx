@@ -61,9 +61,9 @@ test('navigation alone is enough to render the arrows', async () => {
 });
 
 /**
- * The pair beside the content and the pair in the footer are alternatives, not
- * a set: both used to render from `sm` up, so a tablet carried four arrow
- * buttons for two actions.
+ * There was briefly a second pair flanking the content from `sm` up, so a
+ * tablet carried four arrow buttons for two actions. The footer is the one
+ * place they live.
  */
 test.for([
   ['a phone', PHONE],
@@ -84,8 +84,7 @@ test('a dialog with neither actions nor navigation renders no footer at all', as
   expect(screen.getByRole('button', { name: 'Previous' }).elements()).toHaveLength(0);
 });
 
-test('footer actions sit alongside the arrows on a phone', async () => {
-  await page.viewport(PHONE.width, PHONE.height);
+test('footer actions sit alongside the arrows', async () => {
   const screen = await renderDialog({
     navigation: aNavigation(),
     footerActions: <button type="button">Save</button>,

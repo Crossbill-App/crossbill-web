@@ -22,8 +22,7 @@ interface CommonDialogProps {
   footerActions?: ReactNode;
   /**
    * Paging to the previous/next entity, bound to the left/right arrow keys and
-   * rendered as exactly one pair of controls: beside the content where there is
-   * room for them, centred in the footer on a phone where there is not.
+   * rendered as one pair of controls, centred in the footer, at every width.
    */
   navigation?: DialogNavigation;
   maxWidth?: 'xs' | 'sm' | 'md' | 'lg' | 'xl';
@@ -35,16 +34,9 @@ interface NavArrowProps {
   direction: 'previous' | 'next';
   navigation: DialogNavigation;
   disabled?: boolean;
-  /**
-   * Beside the content rather than in the footer, which changes how an end of
-   * the list is shown: the arrow is held in place and turned invisible, so the
-   * content column does not shift sideways as the reader pages into the first
-   * or last entity.
-   */
-  flanking?: boolean;
 }
 
-const NavArrow = ({ direction, navigation, disabled, flanking }: NavArrowProps) => {
+const NavArrow = ({ direction, navigation, disabled }: NavArrowProps) => {
   const isPrevious = direction === 'previous';
   const enabled = isPrevious ? navigation.hasPrevious : navigation.hasNext;
 
@@ -53,7 +45,6 @@ const NavArrow = ({ direction, navigation, disabled, flanking }: NavArrowProps) 
       onClick={isPrevious ? navigation.onPrevious : navigation.onNext}
       disabled={!enabled || disabled}
       aria-label={isPrevious ? 'Previous' : 'Next'}
-      sx={flanking ? { flexShrink: 0, visibility: enabled ? 'visible' : 'hidden' } : undefined}
     >
       {isPrevious ? <ArrowBackIcon /> : <ArrowForwardIcon />}
     </IconButton>
@@ -83,17 +74,13 @@ export const CommonDialog = ({
   const fullScreen = useMediaQuery(theme.breakpoints.down('sm'));
   const isTopmostDialog = useDialogStackEntry(open);
 
-  // One pair of arrows, never two. The footer's pair used to render at every
-  // width alongside the pair beside the content, so a tablet showed four arrow
-  // buttons for two actions. `fullScreen` is the same query that decides
-  // whether there is room beside the content at all.
-  const footerNavigation =
-    navigation && fullScreen ? (
-      <Box sx={{ display: 'flex', gap: 1 }}>
-        <NavArrow direction="previous" navigation={navigation} disabled={isLoading} />
-        <NavArrow direction="next" navigation={navigation} disabled={isLoading} />
-      </Box>
-    ) : null;
+  // One pair of arrows, in one place, at every width.
+  const footerNavigation = navigation ? (
+    <Box sx={{ display: 'flex', gap: 1 }}>
+      <NavArrow direction="previous" navigation={navigation} disabled={isLoading} />
+      <NavArrow direction="next" navigation={navigation} disabled={isLoading} />
+    </Box>
+  ) : null;
 
   useBodyScrollLock(open);
 
@@ -231,21 +218,20 @@ export const CommonDialog = ({
         )}
         <Box sx={{ px: 3 }}>
           {navigation ? (
-            <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-              {!fullScreen && (
-                <NavArrow
-                  direction="previous"
-                  navigation={navigation}
-                  disabled={isLoading}
-                  flanking
-                />
-              )}
-              <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3, flex: 1, minWidth: 0 }}>
-                {children}
-              </Box>
-              {!fullScreen && (
-                <NavArrow direction="next" navigation={navigation} disabled={isLoading} flanking />
-              )}
+            <Box
+              sx={{
+                display: 'flex',
+                flexDirection: 'column',
+                gap: 3,
+                minWidth: 0,
+                // A pair of arrows used to flank the content here. They are in
+                // the footer now, but the room they took stays: 40px of button
+                // and a 16px gap on each side, so a paging dialog keeps the
+                // measure it had.
+                px: fullScreen ? 0 : 7,
+              }}
+            >
+              {children}
             </Box>
           ) : (
             children

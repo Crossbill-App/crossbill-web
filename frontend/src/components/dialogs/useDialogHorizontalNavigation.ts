@@ -28,8 +28,8 @@ interface UseDialogHorizontalNavigationOptions {
  * to page the whole modal, which put it in competition with every horizontally
  * scrollable thing inside one — carousels most of all, where the gesture to
  * scroll a strip is exactly the gesture to leave the entity it belongs to. The
- * controls are explicit instead: arrows in the footer on mobile, beside the
- * content on wider screens.
+ * controls are explicit instead: one pair of arrows in the dialog's footer, in
+ * the same place at every width.
  */
 export const useDialogHorizontalNavigation = ({
   currentIndex,
