@@ -8,7 +8,6 @@ import type {
 import { useGetNotesForBook } from '@/api/generated/notes/notes.ts';
 import { FadeInOut } from '@/components/animations/FadeInOut.tsx';
 import { CommonDialog } from '@/components/dialogs/CommonDialog.tsx';
-import { CommonDialogHorizontalNavigation } from '@/components/dialogs/CommonDialogHorizontalNavigation.tsx';
 import { CommonDialogTitle } from '@/components/dialogs/CommonDialogTitle.tsx';
 import { DialogTabs, type DialogTabItem } from '@/components/dialogs/DialogTabs.tsx';
 import { ProgressBar } from '@/components/dialogs/ProgressBar.tsx';
@@ -171,9 +170,7 @@ export const ChapterDetailDialog = ({
         }
         navigation={navigation}
       >
-        <CommonDialogHorizontalNavigation navigation={navigation}>
-          <FadeInOut ekey={chapter.id}>{renderContent()}</FadeInOut>
-        </CommonDialogHorizontalNavigation>
+        <FadeInOut ekey={chapter.id}>{renderContent()}</FadeInOut>
       </CommonDialog>
       <ChatDialog
         open={quizOpen}

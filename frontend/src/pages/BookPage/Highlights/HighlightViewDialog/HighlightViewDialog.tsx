@@ -2,7 +2,6 @@ import { useDeleteHighlights } from '@/api/generated/highlights/highlights.ts';
 import type { Bookmark, TagInBook } from '@/api/generated/model';
 import { FadeInOut } from '@/components/animations/FadeInOut.tsx';
 import { CommonDialog } from '@/components/dialogs/CommonDialog.tsx';
-import { CommonDialogHorizontalNavigation } from '@/components/dialogs/CommonDialogHorizontalNavigation.tsx';
 import { CommonDialogTitle } from '@/components/dialogs/CommonDialogTitle.tsx';
 import { ConfirmationDialog } from '@/components/dialogs/ConfirmationDialog.tsx';
 import { ProgressBar } from '@/components/dialogs/ProgressBar.tsx';
@@ -139,12 +138,10 @@ export const HighlightViewDialog = ({
       }
       navigation={navigation}
     >
-      <CommonDialogHorizontalNavigation navigation={navigation} disabled={isLoading}>
-        <FadeInOut ekey={highlight.id}>
-          <HighlightContent highlight={highlight} onLabelClick={handleLabelClick} />
-        </FadeInOut>
-        {renderContent()}
-      </CommonDialogHorizontalNavigation>
+      <FadeInOut ekey={highlight.id}>
+        <HighlightContent highlight={highlight} onLabelClick={handleLabelClick} />
+      </FadeInOut>
+      {renderContent()}
 
       <ConfirmationDialog
         open={deleteConfirmOpen}

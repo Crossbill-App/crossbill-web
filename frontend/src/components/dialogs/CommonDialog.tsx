@@ -21,17 +21,44 @@ interface CommonDialogProps {
   children: ReactNode;
   footerActions?: ReactNode;
   /**
-   * Paging to the previous/next entity, rendered centred in the footer at
-   * every width, and bound to the left/right arrow keys. Wider screens
-   * additionally get the controls beside the content
-   * (`CommonDialogHorizontalNavigation`); the footer is the pair that is
-   * always in the same place, whatever the dialog is showing.
+   * Paging to the previous/next entity, bound to the left/right arrow keys and
+   * rendered as exactly one pair of controls: beside the content where there is
+   * room for them, centred in the footer on a phone where there is not.
    */
   navigation?: DialogNavigation;
   maxWidth?: 'xs' | 'sm' | 'md' | 'lg' | 'xl';
   isLoading?: boolean;
   headerElement?: ReactNode;
 }
+
+interface NavArrowProps {
+  direction: 'previous' | 'next';
+  navigation: DialogNavigation;
+  disabled?: boolean;
+  /**
+   * Beside the content rather than in the footer, which changes how an end of
+   * the list is shown: the arrow is held in place and turned invisible, so the
+   * content column does not shift sideways as the reader pages into the first
+   * or last entity.
+   */
+  flanking?: boolean;
+}
+
+const NavArrow = ({ direction, navigation, disabled, flanking }: NavArrowProps) => {
+  const isPrevious = direction === 'previous';
+  const enabled = isPrevious ? navigation.hasPrevious : navigation.hasNext;
+
+  return (
+    <IconButton
+      onClick={isPrevious ? navigation.onPrevious : navigation.onNext}
+      disabled={!enabled || disabled}
+      aria-label={isPrevious ? 'Previous' : 'Next'}
+      sx={flanking ? { flexShrink: 0, visibility: enabled ? 'visible' : 'hidden' } : undefined}
+    >
+      {isPrevious ? <ArrowBackIcon /> : <ArrowForwardIcon />}
+    </IconButton>
+  );
+};
 
 /**
  * Common dialog component with standard structure:
@@ -56,24 +83,17 @@ export const CommonDialog = ({
   const fullScreen = useMediaQuery(theme.breakpoints.down('sm'));
   const isTopmostDialog = useDialogStackEntry(open);
 
-  const footerNavigation = navigation ? (
-    <Box sx={{ display: 'flex', gap: 1 }}>
-      <IconButton
-        onClick={navigation.onPrevious}
-        disabled={!navigation.hasPrevious || isLoading}
-        aria-label="Previous"
-      >
-        <ArrowBackIcon />
-      </IconButton>
-      <IconButton
-        onClick={navigation.onNext}
-        disabled={!navigation.hasNext || isLoading}
-        aria-label="Next"
-      >
-        <ArrowForwardIcon />
-      </IconButton>
-    </Box>
-  ) : null;
+  // One pair of arrows, never two. The footer's pair used to render at every
+  // width alongside the pair beside the content, so a tablet showed four arrow
+  // buttons for two actions. `fullScreen` is the same query that decides
+  // whether there is room beside the content at all.
+  const footerNavigation =
+    navigation && fullScreen ? (
+      <Box sx={{ display: 'flex', gap: 1 }}>
+        <NavArrow direction="previous" navigation={navigation} disabled={isLoading} />
+        <NavArrow direction="next" navigation={navigation} disabled={isLoading} />
+      </Box>
+    ) : null;
 
   useBodyScrollLock(open);
 
@@ -209,7 +229,28 @@ export const CommonDialog = ({
             {headerElement}
           </Box>
         )}
-        <Box sx={{ px: 3 }}>{children}</Box>
+        <Box sx={{ px: 3 }}>
+          {navigation ? (
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+              {!fullScreen && (
+                <NavArrow
+                  direction="previous"
+                  navigation={navigation}
+                  disabled={isLoading}
+                  flanking
+                />
+              )}
+              <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3, flex: 1, minWidth: 0 }}>
+                {children}
+              </Box>
+              {!fullScreen && (
+                <NavArrow direction="next" navigation={navigation} disabled={isLoading} flanking />
+              )}
+            </Box>
+          ) : (
+            children
+          )}
+        </Box>
       </DialogContent>
 
       {(footerActions || footerNavigation) && (

@@ -33,7 +33,7 @@ const aNavigation = (overrides = {}) => ({
 test.for([
   ['a phone', PHONE],
   ['a wide screen', DESKTOP],
-] as const)('%s pages between entities from arrows in the footer', async ([, viewport]) => {
+] as const)('%s pages between entities from its arrows', async ([, viewport]) => {
   await page.viewport(viewport.width, viewport.height);
   const navigation = aNavigation();
   const screen = await renderDialog({ navigation });
@@ -53,14 +53,28 @@ test('an end of the list retires its arrow rather than hiding it', async () => {
   await expect.element(screen.getByRole('button', { name: 'Next' })).toBeEnabled();
 });
 
-/**
- * The footer is the one place paging is always available, so it carries the
- * arrows even for a dialog that has no actions of its own to put beside them.
- */
-test('navigation alone is enough to render the footer', async () => {
+/** Paging does not depend on the dialog having actions of its own. */
+test('navigation alone is enough to render the arrows', async () => {
   const screen = await renderDialog({ navigation: aNavigation() });
 
   await expect.element(screen.getByRole('button', { name: 'Next' })).toBeVisible();
+});
+
+/**
+ * The pair beside the content and the pair in the footer are alternatives, not
+ * a set: both used to render from `sm` up, so a tablet carried four arrow
+ * buttons for two actions.
+ */
+test.for([
+  ['a phone', PHONE],
+  ['a wide screen', DESKTOP],
+] as const)('%s shows one pair of arrows, not two', async ([, viewport]) => {
+  await page.viewport(viewport.width, viewport.height);
+  const screen = await renderDialog({ navigation: aNavigation() });
+
+  await expect.element(screen.getByRole('button', { name: 'Next' })).toBeVisible();
+  expect(screen.getByRole('button', { name: 'Next' }).elements()).toHaveLength(1);
+  expect(screen.getByRole('button', { name: 'Previous' }).elements()).toHaveLength(1);
 });
 
 test('a dialog with neither actions nor navigation renders no footer at all', async () => {
@@ -70,7 +84,8 @@ test('a dialog with neither actions nor navigation renders no footer at all', as
   expect(screen.getByRole('button', { name: 'Previous' }).elements()).toHaveLength(0);
 });
 
-test('footer actions sit alongside the arrows', async () => {
+test('footer actions sit alongside the arrows on a phone', async () => {
+  await page.viewport(PHONE.width, PHONE.height);
   const screen = await renderDialog({
     navigation: aNavigation(),
     footerActions: <button type="button">Save</button>,
