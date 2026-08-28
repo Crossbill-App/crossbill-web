@@ -81,7 +81,7 @@ export const TagGroupSection = ({
     <Box
       sx={(theme) => ({
         p: 1.5,
-        bgcolor: theme.customColors.whiteOverlay.group,
+        bgcolor: theme.customColors.surfaces.tagGroup,
         borderRadius: 1,
         border: '1px solid',
         borderColor: 'divider',
@@ -196,7 +196,7 @@ export const UngroupedTagsSection = ({
       <Box
         sx={(theme) => ({
           p: 1.5,
-          bgcolor: theme.customColors.whiteOverlay.ungrouped,
+          bgcolor: theme.customColors.surfaces.tagUngrouped,
           borderRadius: 1,
           border: '1px dashed',
           borderColor: 'divider',
