@@ -19,7 +19,7 @@ interface TagChipRowProps {
 }
 
 const TagChipRow = ({ tags, tagGroups, selectedTag, onTagClick, onMove }: TagChipRowProps) => (
-  <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.75 }}>
+  <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.75, pt: 0.5 }}>
     {tags.map((tag) => (
       <TagChip
         key={tag.id}
