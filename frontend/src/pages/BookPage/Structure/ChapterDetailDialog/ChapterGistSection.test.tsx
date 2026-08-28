@@ -48,6 +48,35 @@ test('a gist is written from the chapter dialog without a second dialog opening'
   });
 });
 
+test('a new gist cannot be edited into a duplicate while its create is pending', async () => {
+  const { dialog, state } = await openChapterDialog();
+  let finishCreate: (() => void) | undefined;
+  const createCanFinish = new Promise<void>((resolve) => {
+    finishCreate = resolve;
+  });
+  worker.use(
+    http.post('/api/v1/notes', async () => {
+      await createCanFinish;
+      state.notes.push(aGist('Attention is selective.'));
+      return HttpResponse.json({ success: true, message: 'Note created', note: state.notes[0] });
+    })
+  );
+
+  const field = dialog.getByPlaceholder(PLACEHOLDER);
+  await userEvent.fill(field, 'Attention is selective.');
+  await userEvent.tab();
+
+  await expect.element(field).toBeDisabled();
+  finishCreate?.();
+
+  // The saved gist renders as a button; `getByText` would match the field's own
+  // textarea and pass before the create has even been answered.
+  await expect
+    .element(dialog.getByRole('button', { name: 'Attention is selective.' }))
+    .toBeVisible();
+  expect(state.notes).toHaveLength(1);
+});
+
 test('an existing gist is edited in place, keeping the links it already had', async () => {
   const { dialog, state } = await openChapterDialog([
     { ...aGist('A first pass.'), tag_ids: [7], chapter_ids: [10, 11] },

@@ -146,6 +146,7 @@ export const ChapterGistSection = ({ chapterId, chapterName, notes }: ChapterGis
           multiline
           minRows={2}
           size="small"
+          disabled={createMutation.isPending}
           autoFocus={isEditing}
           error={saveFailed}
           placeholder={PLACEHOLDER}
