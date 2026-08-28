@@ -1,7 +1,7 @@
 import type { Bookmark, ReadingSession } from '@/api/generated/model';
 import { FadeInOut } from '@/components/animations/FadeInOut';
+import { CardList } from '@/components/CardList.tsx';
 import { EmptyStateText } from '@/components/EmptyStateText.tsx';
-import { Box } from '@mui/material';
 import { ReadingSessionCard } from './ReadingSessionCard';
 
 interface ReadingSessionListProps {
@@ -24,26 +24,17 @@ export const ReadingSessionList = ({
       {sessions.length === 0 ? (
         <EmptyStateText variant="page">{emptyMessage}</EmptyStateText>
       ) : (
-        <Box
-          component="ul"
-          sx={{
-            display: 'flex',
-            flexDirection: 'column',
-            listStyle: 'none',
-            p: 0,
-            m: 0,
-          }}
-          aria-label="Reading sessions"
-        >
+        <CardList sx={{ gap: 0 }} aria-label="Reading sessions">
           {sessions.map((session) => (
-            <ReadingSessionCard
-              key={session.id}
-              session={session}
-              bookmarksByHighlightId={bookmarksByHighlightId}
-              onOpenHighlight={onOpenHighlight}
-            />
+            <li key={session.id}>
+              <ReadingSessionCard
+                session={session}
+                bookmarksByHighlightId={bookmarksByHighlightId}
+                onOpenHighlight={onOpenHighlight}
+              />
+            </li>
           ))}
-        </Box>
+        </CardList>
       )}
     </FadeInOut>
   );
