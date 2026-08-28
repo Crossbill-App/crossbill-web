@@ -24,10 +24,11 @@ export {
   BookmarkBorder as BookmarkIcon,
   List as ChapterListIcon,
   StyleOutlined as FlashcardsIcon,
-  MenuBook as HighlightsIcon,
+  // One glyph, one name: the quote mark on a card and the Highlights nav item
+  // are the same idea, and `MenuBook` now means only "a book".
+  FormatQuote as HighlightsIcon,
   Notes as NotesIcon,
   PaletteOutlined as PaletteIcon,
-  FormatQuote as QuoteIcon,
   AutoStories as ReadingSessionIcon,
   Psychology as ReflectionIcon,
   LocalOffer as TagIcon,

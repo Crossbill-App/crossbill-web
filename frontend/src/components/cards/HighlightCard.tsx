@@ -5,7 +5,7 @@ import { TagChipList } from '@/components/TagChipList.tsx';
 import { formatHighlightDate } from '@/pages/BookPage/common/highlightDates.ts';
 import { LabelIndicator } from '@/pages/BookPage/common/LabelIndicator.tsx';
 import { NotOnDeviceChip } from '@/pages/BookPage/common/NotOnDeviceChip.tsx';
-import { BookmarkFilledIcon, DateIcon, FlashcardsIcon, QuoteIcon } from '@/theme/Icons.tsx';
+import { BookmarkFilledIcon, DateIcon, FlashcardsIcon, HighlightsIcon } from '@/theme/Icons.tsx';
 import { Box, Typography } from '@mui/material';
 
 export interface HighlightCardProps {
@@ -98,7 +98,7 @@ export const HighlightCard = ({ highlight, bookmark, onOpenModal }: HighlightCar
     >
       <Box sx={{ flex: 1, minWidth: 0 }}>
         <Box sx={{ display: 'flex', alignItems: 'start', gap: 1.5, mb: 2 }}>
-          <QuoteIcon
+          <HighlightsIcon
             sx={{
               fontSize: 22,
               color: 'primary.main',

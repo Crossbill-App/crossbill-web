@@ -1,5 +1,5 @@
 import { Collapsable } from '@/components/animations/Collapsable';
-import { QuoteIcon } from '@/theme/Icons';
+import { HighlightsIcon } from '@/theme/Icons';
 import { Box, ButtonBase, styled, Typography } from '@mui/material';
 import { ReactNode, useState } from 'react';
 
@@ -109,7 +109,9 @@ export const FlashcardCard = ({
               }}
             >
               <Box sx={{ display: 'flex', alignItems: 'flex-start', gap: 0.5 }}>
-                <QuoteIcon sx={{ fontSize: 14, color: 'text.disabled', mt: 0.25, flexShrink: 0 }} />
+                <HighlightsIcon
+                  sx={{ fontSize: 14, color: 'text.disabled', mt: 0.25, flexShrink: 0 }}
+                />
                 <Typography
                   variant="caption"
                   sx={{

@@ -2,7 +2,7 @@ import type { Highlight } from '@/api/generated/model';
 import { LabelIndicator } from '@/pages/BookPage/common/LabelIndicator.tsx';
 import { NotOnDeviceChip } from '@/pages/BookPage/common/NotOnDeviceChip.tsx';
 import { formatHighlightDate } from '@/pages/BookPage/common/highlightDates.ts';
-import { DateIcon, QuoteIcon } from '@/theme/Icons.tsx';
+import { DateIcon, HighlightsIcon } from '@/theme/Icons.tsx';
 import { Box, Typography } from '@mui/material';
 
 interface HighlightContentProps {
@@ -54,7 +54,7 @@ export const HighlightContent = ({ highlight, onLabelClick }: HighlightContentPr
     >
       {/* Highlight Text */}
       <Box sx={{ display: 'flex', alignItems: 'start', gap: 2 }}>
-        <QuoteIcon
+        <HighlightsIcon
           sx={{
             fontSize: 28,
             color: 'primary.main',
