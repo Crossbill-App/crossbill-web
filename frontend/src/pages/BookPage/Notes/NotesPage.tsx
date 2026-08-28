@@ -14,7 +14,6 @@ import { useNavigate, useSearch } from '@tanstack/react-router';
 import { useState } from 'react';
 import { createPortal } from 'react-dom';
 
-import { MiddleContentColumn } from '@/components/layout/Layouts.tsx';
 import { PageTitle } from '@/components/typography/PageTitle.tsx';
 import { BOOK_PAGE_LABELS } from '@/pages/BookPage/navigation/bookPageRoutes.ts';
 import { FilterFab } from '../common/FilterFab.tsx';
@@ -104,7 +103,7 @@ export const NotesPage = () => {
   ];
 
   return (
-    <MiddleContentColumn>
+    <>
       {isDesktop &&
         leftSidebarEl &&
         createPortal(
@@ -196,6 +195,6 @@ export const NotesPage = () => {
       )}
 
       <NoteDialogs controller={noteDialogs} />
-    </MiddleContentColumn>
+    </>
   );
 };

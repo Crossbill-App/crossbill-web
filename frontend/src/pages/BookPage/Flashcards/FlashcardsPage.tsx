@@ -11,7 +11,6 @@ import {
   type FlashcardChapterData,
   type FlashcardWithContext,
 } from '@/components/features/flashcards/FlashcardChapterList.tsx';
-import { ContentWithSidebar } from '@/components/layout/Layouts.tsx';
 import { PageTitle } from '@/components/typography/PageTitle.tsx';
 import { useBookPage } from '@/pages/BookPage/BookPageContext';
 import { FilteredEmptyState } from '@/pages/BookPage/common/FilteredEmptyState.tsx';
@@ -38,7 +37,7 @@ const BOOK_FLASHCARDS_KEY = -1;
 const NOT_IN_A_CHAPTER = 'Not in a chapter';
 
 export const FlashcardsPage = () => {
-  const { book, isDesktop, leftSidebarEl, fabContainerEl } = useBookPage();
+  const { book, isDesktop, leftSidebarEl, rightSidebarEl, fabContainerEl } = useBookPage();
 
   const {
     searchText,
@@ -202,7 +201,7 @@ export const FlashcardsPage = () => {
 
       {/* Content */}
       {isDesktop ? (
-        <ContentWithSidebar>
+        <>
           <Box>
             <PageTitle text={BOOK_PAGE_LABELS.flashcards} />
             <ListSearchSortHeader
@@ -220,8 +219,12 @@ export const FlashcardsPage = () => {
               onEditFlashcard={setEditingFlashcard}
             />
           </Box>
-          <ChapterNav chapters={navData.chapters} onChapterClick={handleChapterClick} />
-        </ContentWithSidebar>
+          {rightSidebarEl &&
+            createPortal(
+              <ChapterNav chapters={navData.chapters} onChapterClick={handleChapterClick} />,
+              rightSidebarEl
+            )}
+        </>
       ) : (
         <>
           <PageTitle text={BOOK_PAGE_LABELS.flashcards} />

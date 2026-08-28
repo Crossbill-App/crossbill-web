@@ -21,6 +21,7 @@ export const BookPage = () => {
   const cache = useCacheEvents();
 
   const [leftSidebarEl, setLeftSidebarEl] = useState<HTMLDivElement | null>(null);
+  const [rightSidebarEl, setRightSidebarEl] = useState<HTMLDivElement | null>(null);
   const [fabContainerEl, setFabContainerEl] = useState<HTMLDivElement | null>(null);
 
   // Update recently viewed on mount. `cache` is memoised on the query client, so
@@ -53,6 +54,7 @@ export const BookPage = () => {
         book,
         isDesktop,
         leftSidebarEl,
+        rightSidebarEl,
         fabContainerEl,
       }}
     >
@@ -77,10 +79,16 @@ export const BookPage = () => {
           {isDesktop ? (
             <>
               <BookTitle book={book} />
+              {/* One grid for every tab: fixed nav, a fixed content measure,
+                  and a right rail whose column is reserved whether or not the
+                  tab fills it. Tabs used to own their own layout, so the
+                  content column was one of three widths depending on which one
+                  you were looking at, and the page reflowed as you moved
+                  between them. */}
               <Box
                 sx={{
                   display: 'grid',
-                  gridTemplateColumns: '280px 1fr',
+                  gridTemplateColumns: '280px 1fr 280px',
                   gap: 4,
                   alignItems: 'start',
                   mt: 5,
@@ -90,15 +98,18 @@ export const BookPage = () => {
                   <DesktopNavLinks bookId={String(bookId)} />
                   <div ref={setLeftSidebarEl} />
                 </Box>
-                <Box>
+                <Box component="main" sx={{ minWidth: 0 }}>
                   <Outlet />
                 </Box>
+                <Box ref={setRightSidebarEl} />
               </Box>
             </>
           ) : (
             <Box sx={{ maxWidth: '800px', mx: 'auto' }}>
               <BookTitle book={book} />
-              <Outlet />
+              <Box component="main">
+                <Outlet />
+              </Box>
             </Box>
           )}
         </FadeInOut>

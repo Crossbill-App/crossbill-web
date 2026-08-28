@@ -9,7 +9,6 @@ import type {
 import { useGetTags } from '@/api/generated/tags/tags.ts';
 import { scrollToElementWithHighlight } from '@/components/animations/scrollUtils';
 import { EmptyStateText } from '@/components/EmptyStateText.tsx';
-import { ContentWithSidebar } from '@/components/layout/Layouts.tsx';
 import { PageTitle } from '@/components/typography/PageTitle.tsx';
 import { useResetOnChange } from '@/hooks/useResetOnChange.ts';
 import { useBookPage } from '@/pages/BookPage/BookPageContext';
@@ -40,7 +39,7 @@ import { HighlightsList, type ChapterData } from './HighlightsList.tsx';
 import { HighlightViewDialog } from './HighlightViewDialog';
 
 export const HighlightsPage = () => {
-  const { book, isDesktop, leftSidebarEl, fabContainerEl } = useBookPage();
+  const { book, isDesktop, leftSidebarEl, rightSidebarEl, fabContainerEl } = useBookPage();
 
   const {
     search: urlSearch,
@@ -231,7 +230,7 @@ export const HighlightsPage = () => {
 
       {/* Content */}
       {isDesktop ? (
-        <ContentWithSidebar>
+        <>
           <Box>
             <PageTitle text={BOOK_PAGE_LABELS.highlights} />
             <ListSearchSortHeader
@@ -251,17 +250,21 @@ export const HighlightsPage = () => {
               onOpenHighlight={highlightDialog.open}
             />
           </Box>
-          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
-            <BookmarkList
-              bookmarks={book.bookmarks}
-              allHighlights={allHighlights}
-              onBookmarkClick={handleBookmarkClick}
-              filterActive={listFilterActive}
-            />
-            <Divider />
-            <ChapterNav chapters={navData.chapters} onChapterClick={handleChapterClick} />
-          </Box>
-        </ContentWithSidebar>
+          {rightSidebarEl &&
+            createPortal(
+              <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+                <BookmarkList
+                  bookmarks={book.bookmarks}
+                  allHighlights={allHighlights}
+                  onBookmarkClick={handleBookmarkClick}
+                  filterActive={listFilterActive}
+                />
+                <Divider />
+                <ChapterNav chapters={navData.chapters} onChapterClick={handleChapterClick} />
+              </Box>,
+              rightSidebarEl
+            )}
+        </>
       ) : (
         <>
           <PageTitle text={BOOK_PAGE_LABELS.highlights} />

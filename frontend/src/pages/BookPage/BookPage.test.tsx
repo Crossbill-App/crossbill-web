@@ -257,3 +257,43 @@ test('clearing the blurb removes it from the header', async () => {
   await expect.element(screen.getByText('A blurb worth deleting.')).not.toBeInTheDocument();
   expect(state.book.description).toBeNull();
 });
+
+/** The width of the column the current tab's content is laid out in. */
+const contentWidth = (screen: Awaited<ReturnType<typeof renderApp>>) =>
+  screen.getByRole('main').elements()[0].getBoundingClientRect().width;
+
+test('every tab lays its content out in the same column', async () => {
+  worker.use(...bookApi({ book: aBookDetails() }).handlers);
+
+  const screen = await renderApp({ path: '/book/1/highlights' });
+  await expect.element(screen.getByRole('heading', { name: 'Highlights' })).toBeVisible();
+  const withRail = contentWidth(screen);
+
+  // Structure has no right rail; the shell reserves its column regardless, so
+  // moving between the two must not reflow the page.
+  await screen.router.navigate({ to: '/book/$bookId/structure', params: { bookId: '1' } });
+  await expect.element(screen.getByRole('heading', { name: 'Structure' })).toBeVisible();
+
+  expect(contentWidth(screen)).toBe(withRail);
+});
+
+test('a tab renders its right rail into the shell, not inside its own content', async () => {
+  worker.use(
+    // ChapterNav lists only chapters that have highlights.
+    ...bookApi({
+      book: aBookDetails({
+        chapters: [aChapter({ id: 10, highlights: [aHighlight({ id: 300 })] })],
+      }),
+    }).handlers
+  );
+
+  const screen = await renderApp({ path: '/book/1/highlights' });
+  const chapters = screen.getByRole('list', { name: 'Chapters' });
+  await expect.element(chapters).toBeVisible();
+
+  // The rail used to sit inside the tab's own grid, which is what made the
+  // content column a different width here than on a tab without one.
+  expect(screen.getByRole('main').getByRole('list', { name: 'Chapters' }).elements()).toHaveLength(
+    0
+  );
+});

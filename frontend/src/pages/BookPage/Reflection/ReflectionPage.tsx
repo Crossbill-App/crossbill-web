@@ -12,7 +12,6 @@ import {
 } from '@/api/generated/reflections/reflections.ts';
 import { Spinner } from '@/components/animations/Spinner.tsx';
 import { IconButtonWithTooltip } from '@/components/buttons/IconButtonWithTooltip.tsx';
-import { MiddleContentColumn } from '@/components/layout/Layouts.tsx';
 import {
   READING_STAGE_HINTS,
   type ReadingStageValue,
@@ -128,7 +127,7 @@ export const ReflectionPage = () => {
     : undefined;
 
   return (
-    <MiddleContentColumn>
+    <>
       <PageTitle text={BOOK_PAGE_LABELS.reflection} />
       {stageHint && (
         <Typography
@@ -210,6 +209,6 @@ export const ReflectionPage = () => {
           onClose={() => setAnswerEdit(null)}
         />
       )}
-    </MiddleContentColumn>
+    </>
   );
 };
