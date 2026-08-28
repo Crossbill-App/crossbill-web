@@ -1,10 +1,10 @@
 import type { NoteWithLinks } from '@/api/generated/model';
 import { markdownStyles } from '@/theme/theme';
-import { Box, Chip, Stack, styled, Typography, useTheme } from '@mui/material';
+import { Box, Stack, styled, Typography, useTheme } from '@mui/material';
 import type { ReactNode } from 'react';
 import ReactMarkdown from 'react-markdown';
 
-import { NOTE_KIND_LABELS, type NoteKindValue } from './noteKinds';
+import { NoteKindChip } from './NoteKindChip';
 
 interface NoteCardProps {
   note: NoteWithLinks;
@@ -68,7 +68,7 @@ export const NoteCard = ({ note, onClick, action }: NoteCardProps) => {
           }}
         >
           <Typography variant="h3">{note.title}</Typography>
-          {note.kind && <Chip size="small" label={NOTE_KIND_LABELS[note.kind as NoteKindValue]} />}
+          <NoteKindChip kind={note.kind} />
         </Stack>
         {action}
       </Stack>

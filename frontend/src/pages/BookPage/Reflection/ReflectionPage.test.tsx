@@ -19,6 +19,7 @@ const renderReflection = async () => {
         body: 'A book about reading well.',
         kind: 'reflection',
       }),
+      aNote({ id: 101, title: 'Attention', kind: 'concept' }),
     ],
   });
   worker.use(
@@ -61,4 +62,16 @@ test('cancelling the edit falls back to the note, not out of the dialog', async 
   await userEvent.click(dialog.getByRole('button', { name: 'Cancel' }));
 
   await expect.element(dialog.getByRole('button', { name: 'Edit note' })).toBeVisible();
+});
+
+test("the note picker names a note's type the way the cards do", async () => {
+  const screen = await renderReflection();
+
+  await userEvent.click(screen.getByRole('button', { name: 'Link existing note' }));
+
+  const picker = screen.getByRole('dialog');
+  await expect.element(picker.getByText('Attention')).toBeVisible();
+  // The API sends "concept"; the reader is shown the label, as on every card.
+  await expect.element(picker.getByText('Concept')).toBeVisible();
+  expect(picker.getByText('concept', { exact: true }).elements()).toHaveLength(0);
 });

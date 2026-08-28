@@ -19,11 +19,11 @@ import { useNavigate } from '@tanstack/react-router';
 import { useMemo, useRef, useState } from 'react';
 import ReactMarkdown from 'react-markdown';
 
-import { NoteEditorForm, type NoteEditorFormHandle, type NoteGuidance } from './NoteEditorForm';
 import { NoteTabs } from './components/NoteTabs';
 import { NoteToolbar } from './components/NoteToolbar';
 import { useNoteLinks } from './hooks/useNoteLinks';
-import { NOTE_KIND_LABELS, type NoteKindValue } from './noteKinds';
+import { NoteEditorForm, type NoteEditorFormHandle, type NoteGuidance } from './NoteEditorForm';
+import { NoteKindChip } from './NoteKindChip';
 
 interface NoteViewDialogProps {
   /** Note to display; its full detail (with linked summaries) is fetched by id. */
@@ -191,13 +191,7 @@ export const NoteViewDialog = ({
       title={
         <CommonDialogTitle>
           {isEditing ? 'Edit note' : (activeNote?.title ?? 'Note')}
-          {activeNote?.kind && (
-            <Chip
-              size="small"
-              label={NOTE_KIND_LABELS[activeNote.kind as NoteKindValue]}
-              sx={{ mb: 0.5, ml: 1 }}
-            />
-          )}
+          <NoteKindChip kind={activeNote?.kind} sx={{ mb: 0.5, ml: 1 }} />
         </CommonDialogTitle>
       }
       footerActions={footerActions}
