@@ -1,8 +1,9 @@
 import { Collapsable } from '@/components/animations/Collapsable.tsx';
-import { CollapseChevron } from '@/components/CollapseChevron.tsx';
 import { ChapterListIcon } from '@/theme/Icons.tsx';
-import { Box, Button, IconButton, Typography } from '@mui/material';
-import { useState } from 'react';
+import { Box, Button, Typography } from '@mui/material';
+import { useId, useState } from 'react';
+
+import { SidebarSectionHeader } from './SidebarSectionHeader.tsx';
 
 export interface ChapterNavigationData {
   id: number;
@@ -19,6 +20,7 @@ interface ChapterNavProps {
 
 export const ChapterNav = ({ chapters, onChapterClick, hideTitle, countType }: ChapterNavProps) => {
   const [isExpanded, setIsExpanded] = useState(() => true);
+  const chaptersId = useId();
   const effectiveIsExpanded = hideTitle ? true : isExpanded;
 
   if (chapters.length === 0) {
@@ -34,35 +36,21 @@ export const ChapterNav = ({ chapters, onChapterClick, hideTitle, countType }: C
       }}
     >
       {!hideTitle && (
-        <Box
-          sx={{
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-            mb: 2,
-            cursor: 'pointer',
-            flexShrink: 0,
+        <SidebarSectionHeader
+          icon={ChapterListIcon}
+          title="Chapters"
+          collapse={{
+            isExpanded,
+            onToggle: () => setIsExpanded((prev) => !prev),
+            sectionLabel: 'chapters list',
+            controlsId: chaptersId,
           }}
-          onClick={() => setIsExpanded((prev) => !prev)}
-        >
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-            <ChapterListIcon sx={{ fontSize: 20, color: 'primary.main' }} />
-            <Typography variant="h6" sx={{ fontSize: '1rem', fontWeight: 600 }}>
-              Chapters
-            </Typography>
-          </Box>
-          <IconButton
-            size="small"
-            aria-label={isExpanded ? 'Collapse chapters list' : 'Expand chapters list'}
-            sx={{ display: { xs: 'none', lg: 'block' } }}
-          >
-            <CollapseChevron isExpanded={isExpanded} sx={{ fontSize: 'small', display: 'block' }} />
-          </IconButton>
-        </Box>
+        />
       )}
 
       <Collapsable isExpanded={effectiveIsExpanded}>
         <Box
+          id={chaptersId}
           component="ul"
           sx={{
             display: 'flex',

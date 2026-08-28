@@ -224,3 +224,27 @@ test('uses the browser regional locale for date field order', async () => {
     resolvedOptions.mockRestore();
   }
 });
+
+/**
+ * The sidebar collapse used to be an `onClick` on a plain `Box`, with a
+ * labelled `IconButton` inside it that had no handler of its own — so a
+ * keyboard user reached a button that did nothing when activated.
+ */
+test('the chapters section collapses from the keyboard', async () => {
+  const { handlers } = bookApi({ book: aDateRangeBook() });
+  worker.use(...handlers);
+
+  const screen = await renderApp({ path: '/book/1/highlights' });
+  await expect.element(screen.getByRole('list', { name: 'Chapters' })).toBeVisible();
+
+  const toggle = screen.getByRole('button', { name: 'Collapse chapters list' });
+  await expect.element(toggle).toHaveAttribute('aria-expanded', 'true');
+
+  (toggle.element() as HTMLElement).focus();
+  await userEvent.keyboard('{Enter}');
+
+  await expect
+    .element(screen.getByRole('button', { name: 'Expand chapters list' }))
+    .toHaveAttribute('aria-expanded', 'false');
+  await expect.element(screen.getByRole('list', { name: 'Chapters' })).not.toBeInTheDocument();
+});

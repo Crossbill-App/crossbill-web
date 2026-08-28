@@ -1,10 +1,11 @@
 import type { Bookmark, Highlight } from '@/api/generated/model';
 import { Collapsable } from '@/components/animations/Collapsable.tsx';
 import { EmptyStateText } from '@/components/EmptyStateText.tsx';
-import { CollapseChevron } from '@/components/CollapseChevron.tsx';
 import { BookmarkFilledIcon } from '@/theme/Icons.tsx';
-import { Box, Button, IconButton, Typography } from '@mui/material';
-import { useState } from 'react';
+import { Box, Button, Typography } from '@mui/material';
+import { useId, useState } from 'react';
+
+import { SidebarSectionHeader } from './SidebarSectionHeader.tsx';
 
 interface BookmarkListProps {
   bookmarks: Bookmark[];
@@ -22,6 +23,7 @@ export const BookmarkList = ({
   filterActive = false,
 }: BookmarkListProps) => {
   const [isExpanded, setIsExpanded] = useState(true);
+  const bookmarksId = useId();
   const effectiveIsExpanded = hideTitle ? true : isExpanded;
 
   // Create a map of highlight IDs to highlights for quick lookup
@@ -62,31 +64,16 @@ export const BookmarkList = ({
       }}
     >
       {!hideTitle && (
-        <Box
-          sx={{
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-            mb: 2,
-            cursor: 'pointer',
-            flexShrink: 0,
+        <SidebarSectionHeader
+          icon={BookmarkFilledIcon}
+          title="Bookmarks"
+          collapse={{
+            isExpanded,
+            onToggle: () => setIsExpanded((prev) => !prev),
+            sectionLabel: 'bookmark list',
+            controlsId: bookmarksId,
           }}
-          onClick={() => setIsExpanded((prev) => !prev)}
-        >
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-            <BookmarkFilledIcon sx={{ fontSize: 20, color: 'primary.main' }} />
-            <Typography variant="h6" sx={{ fontSize: '1rem', fontWeight: 600 }}>
-              Bookmarks
-            </Typography>
-          </Box>
-          <IconButton
-            size="small"
-            aria-label={isExpanded ? 'Collapse bookmark list' : 'Expand bookmark list'}
-            sx={{ display: { xs: 'none', lg: 'block' } }}
-          >
-            <CollapseChevron isExpanded={isExpanded} sx={{ fontSize: 'small', display: 'block' }} />
-          </IconButton>
-        </Box>
+        />
       )}
 
       <Collapsable isExpanded={effectiveIsExpanded}>
