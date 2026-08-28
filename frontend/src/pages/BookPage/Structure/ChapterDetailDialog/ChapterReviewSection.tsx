@@ -12,11 +12,43 @@ import { AIActionButton } from '@/components/buttons/AIActionButton.tsx';
 import { AIFeature } from '@/components/features/AIFeature.tsx';
 import { RelatedContentSection } from '@/components/search/RelatedContentSection.tsx';
 import { digestRows } from '@/components/search/globalSearchRows.ts';
+import { useCommitOnBlur } from '@/hooks/useCommitOnBlur.ts';
+import { useMutationErrorHandler } from '@/hooks/useMutationErrorHandler.ts';
 import { useCacheEvents } from '@/lib/cacheEvents.ts';
 import { Box, CircularProgress, Stack, TextField, Typography } from '@mui/material';
 import { useQueryClient } from '@tanstack/react-query';
-import { useCallback, useMemo, useState } from 'react';
+import { useMemo } from 'react';
 import { CollapsibleSection } from './CollapsibleSection.tsx';
+
+interface DigestAnswerFieldProps {
+  question: string;
+  savedAnswer: string;
+  onSave: (answer: string, onError: () => void) => void;
+}
+
+const DigestAnswerField = ({ question, savedAnswer, onSave }: DigestAnswerFieldProps) => {
+  function save(answer: string) {
+    onSave(answer, field.allowRecommit);
+  }
+
+  const field = useCommitOnBlur({ saved: savedAnswer, onCommit: save, submitOnEnter: false });
+
+  return (
+    <Box sx={{ py: 1 }}>
+      <Typography variant="body2" sx={{ fontWeight: 600, mb: 1.5 }}>
+        {question}
+      </Typography>
+      <TextField
+        multiline
+        minRows={2}
+        fullWidth
+        size="small"
+        placeholder="Write your answer..."
+        {...field.inputProps}
+      />
+    </Box>
+  );
+};
 
 interface ChapterReviewSectionProps {
   chapterId: number;
@@ -37,20 +69,12 @@ export const ChapterReviewSection = ({
 }: ChapterReviewSectionProps) => {
   const queryClient = useQueryClient();
   const cache = useCacheEvents();
+  const mutationErrorHandler = useMutationErrorHandler();
 
-  // Local edits keyed by chapterId so they reset when switching chapters
-  const [localEdits, setLocalEdits] = useState<Record<number, Record<number, string>>>({});
-  // Server answers derived from digestSummary
-  const serverAnswers = useMemo<Record<number, string>>(() => {
+  const answers = useMemo<Record<number, string>>(() => {
     if (!digestSummary) return {};
     return Object.fromEntries(digestSummary.questions.map((q, index) => [index, q.user_answer]));
   }, [digestSummary]);
-
-  // Merge server answers with local edits for the current chapter
-  const answers: Record<number, string> = {
-    ...serverAnswers,
-    ...(localEdits[chapterId] ?? {}),
-  };
 
   const { mutate: generate, isPending } = useGenerateChapterDigest({
     mutation: {
@@ -64,6 +88,7 @@ export const ChapterReviewSection = ({
 
   const { mutate: saveAnswers } = useUpdateDigestAnswers({
     mutation: {
+      onError: mutationErrorHandler('save answer'),
       onSuccess: (updatedChapter) => {
         queryClient.setQueryData<CollectionResponseChapterDigestResponse>(queryKey, (old) => {
           if (!old) return old;
@@ -76,37 +101,21 @@ export const ChapterReviewSection = ({
             ),
           };
         });
-        setLocalEdits((prev) =>
-          Object.fromEntries(Object.entries(prev).filter(([key]) => Number(key) !== chapterId))
-        );
       },
     },
   });
-
-  const saveNow = useCallback(
-    (answersToSave: Record<number, string>) => {
-      const answerList = Object.entries(answersToSave).map(([index, answer]) => ({
-        question_index: Number(index),
-        user_answer: answer,
-      }));
-      saveAnswers({ chapterId, data: { answers: answerList } });
-    },
-    [chapterId, saveAnswers]
-  );
 
   const handleGenerate = () => {
     generate({ chapterId });
   };
 
-  const handleAnswerChange = (index: number, value: string) => {
-    setLocalEdits((prev) => ({
-      ...prev,
-      [chapterId]: { ...(prev[chapterId] ?? {}), [index]: value },
-    }));
-  };
-
-  const handleBlur = () => {
-    saveNow(answers);
+  // The endpoint patches by question index, so one field's save leaves the
+  // other answers as they are.
+  const handleAnswerSave = (index: number, answer: string, onError: () => void) => {
+    saveAnswers(
+      { chapterId, data: { answers: [{ question_index: index, user_answer: answer }] } },
+      { onError }
+    );
   };
 
   return (
@@ -143,21 +152,14 @@ export const ChapterReviewSection = ({
               }}
             >
               {digestSummary.questions.map((q, index) => (
-                <Box key={index} sx={{ py: 1 }}>
-                  <Typography variant="body2" sx={{ fontWeight: 600, mb: 1.5 }}>
-                    {q.question}
-                  </Typography>
-                  <TextField
-                    multiline
-                    minRows={2}
-                    fullWidth
-                    size="small"
-                    placeholder="Write your answer..."
-                    value={answers[index] ?? ''}
-                    onChange={(e) => handleAnswerChange(index, e.target.value)}
-                    onBlur={handleBlur}
-                  />
-                </Box>
+                <DigestAnswerField
+                  // Keyed by chapter as well, so navigating chapters starts the
+                  // fields fresh rather than carrying one chapter's text over.
+                  key={`${chapterId}-${index}`}
+                  question={q.question}
+                  savedAnswer={answers[index] ?? ''}
+                  onSave={(answer, onError) => handleAnswerSave(index, answer, onError)}
+                />
               ))}
             </Stack>
           </CollapsibleSection>

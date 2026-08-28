@@ -1,8 +1,9 @@
 import { TagGroupInBook } from '@/api/generated/model';
+import { useCommitOnBlur } from '@/hooks/useCommitOnBlur.ts';
 import { DeleteIcon, EditIcon, EditTagsIcon, ExpandMoreIcon } from '@/theme/Icons.tsx';
 import { createAdaptiveHoverStyles, createAdaptiveTouchTarget } from '@/utils/adaptiveHover.ts';
-import { Box, ClickAwayListener, IconButton, TextField, Tooltip, Typography } from '@mui/material';
-import { KeyboardEvent, useState } from 'react';
+import { Box, IconButton, TextField, Tooltip, Typography } from '@mui/material';
+import { useState } from 'react';
 
 interface TagGroupTitleProps {
   title: string;
@@ -67,43 +68,34 @@ interface TagGroupNameEditFormProps {
   initialValue: string;
   isProcessing: boolean;
   onSubmit: (value: string) => void;
-  onCancel: () => void;
+  /** Ends the edit — after Escape, and after leaving the field either way. */
+  onClose: () => void;
 }
 
 const TagGroupNameEditForm = ({
   initialValue,
   isProcessing,
   onSubmit,
-  onCancel,
+  onClose,
 }: TagGroupNameEditFormProps) => {
-  const [editValue, setEditValue] = useState(initialValue);
-
-  const handleSubmit = () => {
-    onSubmit(editValue);
-  };
-
-  const handleKeyDown = (e: KeyboardEvent<HTMLInputElement>) => {
-    if (e.key === 'Enter') {
-      e.preventDefault();
-      handleSubmit();
-    } else if (e.key === 'Escape') {
-      onCancel();
-    }
-  };
+  // Clicking away blurs the input, which is what saves the name — the shared
+  // hook also keeps that from renaming twice when the field is left again
+  // while the first rename is still in flight.
+  const field = useCommitOnBlur({
+    saved: initialValue,
+    onCommit: onSubmit,
+    onBlur: onClose,
+    onCancel: onClose,
+  });
 
   return (
-    <ClickAwayListener onClickAway={handleSubmit}>
-      <TextField
-        value={editValue}
-        onChange={(e) => setEditValue(e.target.value)}
-        onKeyDown={handleKeyDown}
-        onBlur={handleSubmit}
-        size="small"
-        autoFocus
-        disabled={isProcessing}
-        sx={{ flex: 1, mr: 1 }}
-      />
-    </ClickAwayListener>
+    <TextField
+      {...field.inputProps}
+      size="small"
+      autoFocus
+      disabled={isProcessing}
+      sx={{ flex: 1, mr: 1 }}
+    />
   );
 };
 
@@ -157,7 +149,7 @@ export const TagGroupHeader = ({
           initialValue={group.name}
           isProcessing={isProcessing}
           onSubmit={handleEditSubmit}
-          onCancel={() => setIsEditing(false)}
+          onClose={() => setIsEditing(false)}
         />
       ) : (
         <TagGroupTitle
@@ -193,6 +185,7 @@ export const TagGroupHeader = ({
             <span>
               <IconButton
                 size="small"
+                aria-label="Rename group"
                 onClick={(e) => {
                   e.stopPropagation();
                   setIsEditing(true);
