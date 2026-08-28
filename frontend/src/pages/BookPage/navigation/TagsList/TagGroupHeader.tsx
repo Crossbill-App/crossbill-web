@@ -185,6 +185,7 @@ export const TagGroupHeader = ({
             <span>
               <IconButton
                 size="small"
+                aria-label="Rename group"
                 onClick={(e) => {
                   e.stopPropagation();
                   setIsEditing(true);
