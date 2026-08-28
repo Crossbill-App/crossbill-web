@@ -95,7 +95,9 @@ export const LandingPage = () => {
 
       {data?.items && data.items.length === 0 && (
         <EmptyStateText variant="page">
-          No books found. Upload some highlights to get started!
+          {searchText
+            ? 'No books match your search.'
+            : 'No books yet. Upload highlights from your e-reader to get started.'}
         </EmptyStateText>
       )}
 

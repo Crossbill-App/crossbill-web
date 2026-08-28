@@ -122,7 +122,7 @@ export function AppBar() {
               <ListItemIcon>
                 <LogoutIcon fontSize="small" />
               </ListItemIcon>
-              <ListItemText>Logout</ListItemText>
+              <ListItemText>Log out</ListItemText>
             </MenuItem>
           </Menu>
         </Toolbar>

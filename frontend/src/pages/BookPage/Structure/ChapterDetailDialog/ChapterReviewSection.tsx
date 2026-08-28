@@ -162,7 +162,7 @@ export const ChapterReviewSection = ({
         )}
 
         {!isPending && digestSummary && digestSummary.questions.length > 0 && (
-          <CollapsibleSection title="Questions to think while reading" defaultExpanded>
+          <CollapsibleSection title="Questions to think about while reading" defaultExpanded>
             <Stack
               sx={{
                 gap: 1,
