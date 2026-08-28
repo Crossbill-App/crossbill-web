@@ -1,5 +1,6 @@
 import { FeatureGate } from '@/components/features/FeatureGate.tsx';
 import { RHFTextField } from '@/components/inputs/RHFTextField.tsx';
+import { PageTitle } from '@/components/typography/PageTitle.tsx';
 import { useAuth } from '@/context/AuthContext';
 import { Alert, Box, Button, Container, Link, Paper, Typography } from '@mui/material';
 import { Link as RouterLink, useNavigate } from '@tanstack/react-router';
@@ -57,15 +58,7 @@ export const LoginPage = () => {
               alt="Crossbill"
               sx={{ height: 64, width: 64, mb: 2 }}
             />
-            <Typography
-              variant="h5"
-              component="h1"
-              sx={{
-                fontWeight: 600,
-              }}
-            >
-              Sign in to Crossbill
-            </Typography>
+            <PageTitle text="Sign in to Crossbill" component="h1" />
           </Box>
 
           {errors.root && (

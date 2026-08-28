@@ -3,6 +3,7 @@ import { Spinner } from '@/components/animations/Spinner.tsx';
 import { EmptyStateText } from '@/components/EmptyStateText.tsx';
 import { SearchBar } from '@/components/inputs/SearchBar.tsx';
 import { PageContainer } from '@/components/layout/Layouts.tsx';
+import { PageTitle } from '@/components/typography/PageTitle.tsx';
 import { SectionTitle } from '@/components/typography/SectionTitle.tsx';
 import { Alert, Box, Pagination, Typography } from '@mui/material';
 import { useNavigate, useSearch } from '@tanstack/react-router';
@@ -54,9 +55,7 @@ export const LandingPage = () => {
   return (
     <PageContainer maxWidth="xl">
       <Box sx={{ mt: { xs: 6, md: 8 }, mb: 6, textAlign: 'center' }}>
-        <Typography variant="h2" component="h1" gutterBottom>
-          Welcome to Crossbill
-        </Typography>
+        <PageTitle text="Welcome to Crossbill" component="h1" />
         <Typography
           variant="body1"
           sx={{

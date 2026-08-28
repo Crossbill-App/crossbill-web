@@ -1,4 +1,5 @@
 import { RHFTextField } from '@/components/inputs/RHFTextField.tsx';
+import { PageTitle } from '@/components/typography/PageTitle.tsx';
 import { useAuth } from '@/context/AuthContext';
 import { getApiErrorMessage } from '@/utils/getApiErrorMessage.ts';
 import { Alert, Box, Button, Container, Link, Paper, Typography } from '@mui/material';
@@ -60,15 +61,7 @@ export const RegistrationPage = () => {
               alt="Crossbill"
               sx={{ height: 64, width: 64, mb: 2 }}
             />
-            <Typography
-              variant="h5"
-              component="h1"
-              sx={{
-                fontWeight: 600,
-              }}
-            >
-              Create your account
-            </Typography>
+            <PageTitle text="Create your account" component="h1" />
           </Box>
 
           {errors.root && (

@@ -2,6 +2,7 @@ import { useUpdateMe } from '@/api/generated/users/users';
 import { EmbeddingFeature } from '@/components/features/EmbeddingFeature.tsx';
 import { RHFTextField } from '@/components/inputs/RHFTextField.tsx';
 import { PageContainer } from '@/components/layout/Layouts.tsx';
+import { PageTitle } from '@/components/typography/PageTitle.tsx';
 import { useAuth } from '@/context/AuthContext';
 import { Alert, Box, Button, Divider, Typography } from '@mui/material';
 import { useState } from 'react';
@@ -212,9 +213,7 @@ const PasswordForm = () => {
 export const SettingsPage = () => {
   return (
     <PageContainer maxWidth="sm">
-      <Typography variant="h1" sx={{ mb: 4, color: 'text.primary' }}>
-        Settings
-      </Typography>
+      <PageTitle text="Settings" component="h1" />
 
       <EmailForm />
       <PasswordForm />
