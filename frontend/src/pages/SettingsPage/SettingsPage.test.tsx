@@ -100,3 +100,22 @@ test('the section is hidden when embeddings are disabled', async () => {
 
   expect(screen.getByRole('heading', { name: 'Search by meaning' }).elements()).toHaveLength(0);
 });
+
+/**
+ * Settings used to hold its own `success` state and render an inline `Alert`,
+ * while every other mutation in the app reports through the snackbar.
+ */
+test('updating the email reports through the snackbar', async () => {
+  const { handlers } = semanticApi();
+  const screen = await renderSettings([
+    http.post('/api/v1/users/me', () => HttpResponse.json({ id: 1, email: 'ada@example.com' })),
+    ...handlers,
+  ]);
+
+  await userEvent.fill(screen.getByRole('textbox', { name: 'Email' }), 'ada@example.com');
+  await userEvent.click(screen.getByRole('button', { name: 'Save email' }));
+
+  await expect
+    .element(screen.getByRole('alert').filter({ hasText: 'Email updated.' }))
+    .toBeVisible();
+});

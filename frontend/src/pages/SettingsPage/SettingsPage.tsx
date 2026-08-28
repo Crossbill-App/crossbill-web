@@ -5,8 +5,8 @@ import { PageContainer } from '@/components/layout/Layouts.tsx';
 import { PageTitle } from '@/components/typography/PageTitle.tsx';
 import { SectionTitle } from '@/components/typography/SectionTitle.tsx';
 import { useAuth } from '@/context/AuthContext';
+import { useSnackbar } from '@/context/SnackbarContext';
 import { Alert, Box, Button, Typography } from '@mui/material';
-import { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { AboutSection } from './AboutSection.tsx';
 import { EmbeddingBackfillSection } from './EmbeddingBackfillSection.tsx';
@@ -17,7 +17,7 @@ interface EmailFormValues {
 
 const EmailForm = () => {
   const { user, refreshUser } = useAuth();
-  const [success, setSuccess] = useState(false);
+  const { showSnackbar } = useSnackbar();
 
   const {
     control,
@@ -31,11 +31,10 @@ const EmailForm = () => {
   const updateMutation = useUpdateMe();
 
   const onSubmit = async ({ email }: EmailFormValues) => {
-    setSuccess(false);
     try {
       await updateMutation.mutateAsync({ data: { email: email.trim() } });
       await refreshUser();
-      setSuccess(true);
+      showSnackbar('Email updated.', 'success');
     } catch {
       setError('root', { message: 'Failed to update email' });
     }
@@ -44,12 +43,6 @@ const EmailForm = () => {
   return (
     <Box sx={{ mb: 6 }}>
       <SectionTitle showDivider>Profile</SectionTitle>
-
-      {success && (
-        <Alert severity="success" sx={{ mb: 2 }}>
-          Email updated successfully
-        </Alert>
-      )}
 
       {errors.root && (
         <Alert severity="error" sx={{ mb: 2 }}>
@@ -96,8 +89,8 @@ const EMPTY_PASSWORD_FORM: PasswordFormValues = {
 };
 
 const PasswordForm = () => {
-  const [success, setSuccess] = useState(false);
   const { logout } = useAuth();
+  const { showSnackbar } = useSnackbar();
 
   const {
     control,
@@ -112,7 +105,6 @@ const PasswordForm = () => {
   const updateMutation = useUpdateMe();
 
   const onSubmit = async ({ currentPassword, newPassword }: PasswordFormValues) => {
-    setSuccess(false);
     try {
       await updateMutation.mutateAsync({
         data: {
@@ -120,7 +112,7 @@ const PasswordForm = () => {
           new_password: newPassword,
         },
       });
-      setSuccess(true);
+      showSnackbar('Password updated. Signing you out.', 'success');
       reset(EMPTY_PASSWORD_FORM);
       // The server revokes every session on a password change, this one
       // included. Sign out now rather than let the access token expire into a
@@ -139,12 +131,6 @@ const PasswordForm = () => {
       <Typography variant="body2" sx={{ mb: 3, color: 'text.secondary' }}>
         Update your password to keep your account secure
       </Typography>
-
-      {success && (
-        <Alert severity="success" sx={{ mb: 2 }}>
-          Password updated successfully
-        </Alert>
-      )}
 
       {errors.root && (
         <Alert severity="error" sx={{ mb: 2 }}>
