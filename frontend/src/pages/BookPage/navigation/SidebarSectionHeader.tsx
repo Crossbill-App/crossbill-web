@@ -1,6 +1,7 @@
 import { CollapseChevron } from '@/components/CollapseChevron.tsx';
+import { SectionTitle } from '@/components/typography/SectionTitle.tsx';
 import type { SvgIconComponent } from '@mui/icons-material';
-import { Box, IconButton, Typography } from '@mui/material';
+import { Box, IconButton } from '@mui/material';
 import type { ReactNode } from 'react';
 
 interface SidebarSectionCollapse {
@@ -48,9 +49,9 @@ export const SidebarSectionHeader = ({
   >
     <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
       <Icon sx={{ fontSize: 18, color: 'primary.main' }} />
-      <Typography variant="h6" sx={{ fontSize: '1rem', fontWeight: 600 }}>
+      <SectionTitle component="h3" gutterBottom={false}>
         {title}
-      </Typography>
+      </SectionTitle>
     </Box>
     <Box sx={{ display: 'flex', alignItems: 'center' }}>
       {action}

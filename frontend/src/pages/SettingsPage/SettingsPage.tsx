@@ -3,8 +3,9 @@ import { EmbeddingFeature } from '@/components/features/EmbeddingFeature.tsx';
 import { RHFTextField } from '@/components/inputs/RHFTextField.tsx';
 import { PageContainer } from '@/components/layout/Layouts.tsx';
 import { PageTitle } from '@/components/typography/PageTitle.tsx';
+import { SectionTitle } from '@/components/typography/SectionTitle.tsx';
 import { useAuth } from '@/context/AuthContext';
-import { Alert, Box, Button, Divider, Typography } from '@mui/material';
+import { Alert, Box, Button, Typography } from '@mui/material';
 import { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { AboutSection } from './AboutSection.tsx';
@@ -42,11 +43,7 @@ const EmailForm = () => {
 
   return (
     <Box sx={{ mb: 6 }}>
-      <Typography variant="h3" sx={{ mb: 3, color: 'text.primary' }}>
-        Profile
-      </Typography>
-
-      <Divider sx={{ mb: 3 }} />
+      <SectionTitle showDivider>Profile</SectionTitle>
 
       {success && (
         <Alert severity="success" sx={{ mb: 2 }}>
@@ -138,14 +135,10 @@ const PasswordForm = () => {
 
   return (
     <Box>
-      <Typography variant="h3" sx={{ mb: 1, color: 'text.primary' }}>
-        Change Password
-      </Typography>
+      <SectionTitle showDivider>Change Password</SectionTitle>
       <Typography variant="body2" sx={{ mb: 3, color: 'text.secondary' }}>
         Update your password to keep your account secure
       </Typography>
-
-      <Divider sx={{ mb: 3 }} />
 
       {success && (
         <Alert severity="success" sx={{ mb: 2 }}>
