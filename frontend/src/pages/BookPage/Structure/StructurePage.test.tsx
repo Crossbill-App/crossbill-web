@@ -304,4 +304,7 @@ test('a digest answer says it saved when the field is left', async () => {
   await userEvent.click(dialog.getByText('What makes attention a filter?'));
 
   await expect.element(dialog.getByText('Saved')).toBeVisible();
+
+  // And it clears itself again — the marker fades out rather than sticking.
+  await expect.element(dialog.getByText('Saved')).not.toBeInTheDocument();
 });
