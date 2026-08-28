@@ -12,6 +12,11 @@ import { useNavigate } from '@tanstack/react-router';
 import { useEffect, useState } from 'react';
 import { useForm } from 'react-hook-form';
 
+const BLURB_MAX_LENGTH = 5000;
+
+const seedBlurb = (description: string | null | undefined) =>
+  (description ?? '').slice(0, BLURB_MAX_LENGTH);
+
 interface BookEditDialogProps {
   book: BookDetails;
   open: boolean;
@@ -52,14 +57,14 @@ export const BookEditDialog = ({ book, open, onClose }: BookEditDialogProps) => 
     reset,
     formState: { isDirty },
   } = useForm<{ description: string }>({
-    defaultValues: { description: book.description ?? '' },
+    defaultValues: { description: seedBlurb(book.description) },
   });
 
   // Re-seed whenever the dialog (re)opens or a refetch brings a newer blurb,
   // so a closed dialog's abandoned draft never survives to the next open —
   // discarding it on close is what keeps the dialog and header consistent.
   useEffect(() => {
-    if (open) reset({ description: book.description ?? '' });
+    if (open) reset({ description: seedBlurb(book.description) });
   }, [open, book.description, reset]);
 
   const updateBookMutation = useUpdateBook({
@@ -180,8 +185,12 @@ export const BookEditDialog = ({ book, open, onClose }: BookEditDialogProps) => 
           maxRows={5}
           fullWidth
           disabled={isSaving}
-          slotProps={{ htmlInput: { maxLength: 5000 } }}
-          helperText="Markdown is supported. Shown under the book's title."
+          slotProps={{ htmlInput: { maxLength: BLURB_MAX_LENGTH } }}
+          helperText={
+            (book.description?.length ?? 0) > BLURB_MAX_LENGTH
+              ? `Shortened to the ${BLURB_MAX_LENGTH}-character limit. Markdown is supported.`
+              : "Markdown is supported. Shown under the book's title."
+          }
         />
       </Box>
 

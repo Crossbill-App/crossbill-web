@@ -25,6 +25,15 @@ export const BookBlurb = ({ description }: BookBlurbProps) => {
   const clamped = useRef<HTMLDivElement>(null);
   const overflows = useOverflows(clamped, description, expanded);
 
+  // Global search jumps straight from one book to the next, and the route
+  // keeps `BookPage` mounted across the param change, so an expanded blurb
+  // would carry both its state and its stale measurement into the new book.
+  const [measured, setMeasured] = useState(description);
+  if (description !== measured) {
+    setMeasured(description);
+    setExpanded(false);
+  }
+
   if (!description?.trim()) return null;
 
   return (
@@ -77,7 +86,19 @@ const useOverflows = (
 
     const observer = new ResizeObserver(measure);
     observer.observe(element);
-    return () => observer.disconnect();
+
+    // The clamp pins the element's height, so the box the observer watches
+    // never changes size when a web font swaps in — only the line count does.
+    // Without this the first measurement, taken in the fallback font, stands.
+    let stale = false;
+    void document.fonts.ready.then(() => {
+      if (!stale) measure();
+    });
+
+    return () => {
+      stale = true;
+      observer.disconnect();
+    };
   }, [ref, description, expanded]);
 
   return overflows;

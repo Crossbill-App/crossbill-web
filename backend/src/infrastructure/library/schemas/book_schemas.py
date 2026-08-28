@@ -4,6 +4,7 @@ from datetime import datetime
 
 from pydantic import BaseModel, ConfigDict, Field
 
+from src.domain.library.entities.book import MAX_DESCRIPTION_LENGTH
 from src.infrastructure.common.schemas.position_schemas import PositionResponse
 from src.infrastructure.reading.schemas.highlight_schemas import ReadingStageLiteral
 
@@ -34,7 +35,7 @@ class BookUpdateRequest(BaseModel):
 
     description: str | None = Field(
         None,
-        max_length=5000,
+        max_length=MAX_DESCRIPTION_LENGTH,
         description="Book blurb in Markdown, or null to clear it",
     )
 

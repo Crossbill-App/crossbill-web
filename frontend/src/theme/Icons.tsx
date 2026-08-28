@@ -11,9 +11,9 @@ export {
   ExpandMore as ExpandMoreIcon,
   OpenInNew as ExternalLinkIcon,
   FilterList as FilterListIcon,
+  MoreVert as ManageIcon,
   Menu as MenuIcon,
   MoreHoriz as MoreIcon,
-  MoreVert as ManageIcon,
   KeyboardArrowUp as ScrollToTopIcon,
   Search as SearchIcon,
 } from '@mui/icons-material';

@@ -968,6 +968,32 @@ class TestUpdateBook:
         )
         assert response.status_code == status.HTTP_422_UNPROCESSABLE_CONTENT
 
+    async def test_imported_description_truncated_to_limit(
+        self, client: AsyncClient, create_book_via_api: CreateBookFunc
+    ) -> None:
+        """An over-long publisher blurb is truncated on import, not rejected.
+
+        The plugin's ``/ereader/books`` contract must not start failing on a
+        long blurb, but a blurb stored over the limit would make every save
+        from the manage dialog a 422 the reader cannot explain.
+        """
+        book = await create_book_via_api(
+            {
+                "client_book_id": "long-blurb",
+                "title": "Long Blurb",
+                "description": "x" * 6000,
+            }
+        )
+
+        details = await client.get(f"/api/v1/books/{book.book_id}")
+        assert details.json()["description"] == "x" * 5000
+
+        response = await client.patch(
+            f"/api/v1/books/{book.book_id}",
+            json={"description": details.json()["description"]},
+        )
+        assert response.status_code == status.HTTP_204_NO_CONTENT
+
     async def test_unknown_key_rejected(self, client: AsyncClient, test_book: models.Book) -> None:
         """An unrecognised key must 422, not silently no-op with a 204.
 

@@ -192,6 +192,26 @@ test('a failed blurb save reports the error and keeps the typed edit and the ori
     .toHaveValue('The original blurb.');
 });
 
+test('shortening an expanded blurb collapses it again', async () => {
+  const { handlers } = bookApi({
+    book: aBookDetails({ description: 'A long sentence about attention. '.repeat(40) }),
+  });
+  worker.use(...handlers);
+
+  const screen = await renderApp({ path: '/book/1' });
+  await screen.getByRole('button', { name: 'Show more' }).click();
+  await expect.element(screen.getByRole('button', { name: 'Show less' })).toBeVisible();
+
+  await screen.getByRole('button', { name: 'Manage book' }).click();
+  await screen.getByRole('textbox', { name: 'Blurb' }).fill('Short and complete.');
+  await screen.getByRole('button', { name: 'Save' }).click();
+
+  await expect.element(screen.getByRole('dialog')).not.toBeInTheDocument();
+  await expect.element(screen.getByText('Short and complete.')).toBeVisible();
+  await expect(screen.getByRole('button', { name: 'Show less' }).query()).toBeNull();
+  await expect(screen.getByRole('button', { name: 'Show more' }).query()).toBeNull();
+});
+
 test('clearing the blurb removes it from the header', async () => {
   const { handlers, state } = bookApi({
     book: aBookDetails({ description: 'A blurb worth deleting.' }),
