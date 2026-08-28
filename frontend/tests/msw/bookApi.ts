@@ -2,9 +2,11 @@ import type {
   BookDetails,
   BookReadingStageUpdateRequest,
   BookUpdateRequest,
+  ChapterDigestResponse,
   NoteCreateRequest,
   NoteUpdateRequest,
   NoteWithLinks,
+  UpdateDigestAnswersRequest,
 } from '@/api/generated/model';
 import { http, HttpResponse } from 'msw';
 import { aBookDetails } from '../fixtures/book';
@@ -13,6 +15,7 @@ import { aNote } from '../fixtures/notes';
 interface BookApiState {
   book: BookDetails;
   notes: NoteWithLinks[];
+  digests: ChapterDigestResponse[];
   sessionTotal: number;
 }
 
@@ -25,6 +28,7 @@ export function bookApi(initial: Partial<BookApiState> = {}) {
   const state: BookApiState = {
     book: initial.book ?? aBookDetails(),
     notes: initial.notes ?? [],
+    digests: initial.digests ?? [],
     sessionTotal: initial.sessionTotal ?? 0,
   };
 
@@ -34,7 +38,32 @@ export function bookApi(initial: Partial<BookApiState> = {}) {
   const handlers = [
     http.get('/api/v1/books/:bookId', () => HttpResponse.json(state.book)),
     http.get('/api/v1/books/:bookId/notes', () => HttpResponse.json({ items: state.notes })),
-    http.get('/api/v1/books/:bookId/digest', () => HttpResponse.json({ items: [] })),
+    http.get('/api/v1/books/:bookId/digest', () => HttpResponse.json({ items: state.digests })),
+
+    http.put('/api/v1/chapters/:chapterId/digest/answers', async ({ params, request }) => {
+      const digest = state.digests.find(
+        (candidate) => candidate.chapter_id === Number(params.chapterId)
+      );
+      if (!digest) {
+        return new HttpResponse(null, { status: 404 });
+      }
+
+      const body = (await request.json()) as UpdateDigestAnswersRequest;
+      const updated: ChapterDigestResponse = {
+        ...digest,
+        questions: digest.questions.map((question, index) => ({
+          ...question,
+          user_answer:
+            body.answers.find((answer) => answer.question_index === index)?.user_answer ??
+            question.user_answer,
+        })),
+      };
+      state.digests = state.digests.map((candidate) =>
+        candidate.chapter_id === updated.chapter_id ? updated : candidate
+      );
+
+      return HttpResponse.json(updated);
+    }),
     http.get('/api/v1/books/:bookId/reading_sessions', () =>
       HttpResponse.json({ items: [], total: state.sessionTotal, offset: 0, limit: 1 })
     ),

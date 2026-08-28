@@ -1,6 +1,7 @@
 import type { NoteUpdateRequestKind, NoteWithLinks } from '@/api/generated/model';
 import { useCreateNote, useDeleteNote, useUpdateNote } from '@/api/generated/notes/notes.ts';
 import { useSnackbar } from '@/context/SnackbarContext.tsx';
+import { useCommitOnBlur } from '@/hooks/useCommitOnBlur.ts';
 import { useMutationErrorHandler } from '@/hooks/useMutationErrorHandler.ts';
 import { useResetOnChange } from '@/hooks/useResetOnChange.ts';
 import { useCacheEvents } from '@/lib/cacheEvents.ts';
@@ -8,7 +9,7 @@ import { useBookPage } from '@/pages/BookPage/BookPageContext';
 import { GistHelperText } from '@/pages/BookPage/Notes/GistHelperText.tsx';
 import { Box, ButtonBase, TextField, Typography } from '@mui/material';
 import { find } from 'lodash';
-import { useRef, useState, type KeyboardEvent } from 'react';
+import { useState } from 'react';
 
 const PLACEHOLDER = 'What was this chapter about?';
 
@@ -51,32 +52,28 @@ export const ChapterGistSection = ({ chapterId, chapterName, notes }: ChapterGis
   const gist = find(notes, (note) => note.kind === 'gist') ?? null;
   const savedBody = gist?.body ?? '';
 
-  // The text on screen while a save is in flight; `null` means the server's
-  // value is what is shown.
-  const [draft, setDraft] = useState<string | null>(null);
   const [isEditing, setIsEditing] = useState(false);
   const [saveFailed, setSaveFailed] = useState(false);
-  // Set by Escape so the blur it causes does not save the reverted text.
-  const cancelled = useRef(false);
+
+  const field = useCommitOnBlur({
+    saved: savedBody,
+    onCommit: (body) => save(body),
+    onBlur: () => setIsEditing(false),
+    onCancel: () => setIsEditing(false),
+  });
 
   useResetOnChange([chapterId], () => {
-    setDraft(null);
+    field.revert();
     setIsEditing(false);
     setSaveFailed(false);
   });
-
-  // Once the refetched note carries the draft, the server value takes over —
-  // dropping the draft any earlier would flash the old body on screen.
-  useResetOnChange([savedBody], () => {
-    if (!isEditing) setDraft(null);
-  });
-
-  const value = draft ?? savedBody;
 
   const failed = (action: string) => (error: unknown) => {
     mutationErrorHandler(action)(error);
     setSaveFailed(true);
     setIsEditing(true);
+    // The save never landed, so leaving the field again should retry it.
+    field.allowRecommit();
   };
 
   const saved = () => {
@@ -100,13 +97,10 @@ export const ChapterGistSection = ({ chapterId, chapterName, notes }: ChapterGis
     },
   });
 
-  const commit = () => {
-    setIsEditing(false);
-    if (value === savedBody) return;
-
-    if (value.trim() === '') {
+  function save(body: string) {
+    if (body.trim() === '') {
       if (gist) deleteMutation.mutate({ noteId: gist.id });
-      else setDraft(null);
+      else field.revert();
       return;
     }
 
@@ -117,7 +111,7 @@ export const ChapterGistSection = ({ chapterId, chapterName, notes }: ChapterGis
         noteId: gist.id,
         data: {
           title: gist.title,
-          body: value,
+          body,
           kind: gist.kind as NoteUpdateRequestKind,
           chapter_ids: gist.chapter_ids,
           highlight_ids: gist.highlight_ids,
@@ -129,7 +123,7 @@ export const ChapterGistSection = ({ chapterId, chapterName, notes }: ChapterGis
         data: {
           book_id: book.id,
           title: chapterName,
-          body: value,
+          body,
           kind: 'gist',
           chapter_ids: [chapterId],
           highlight_ids: [],
@@ -137,31 +131,7 @@ export const ChapterGistSection = ({ chapterId, chapterName, notes }: ChapterGis
         },
       });
     }
-  };
-
-  const handleBlur = () => {
-    if (cancelled.current) {
-      cancelled.current = false;
-      return;
-    }
-    commit();
-  };
-
-  const handleKeyDown = (event: KeyboardEvent<HTMLDivElement>) => {
-    if (event.key === 'Enter' && !event.shiftKey) {
-      // Blur rather than save directly, so the save happens once whether the
-      // reader finishes with Enter or by clicking away.
-      event.preventDefault();
-      (event.target as HTMLElement).blur();
-    } else if (event.key === 'Escape') {
-      // The chapter dialog closes on Escape; reverting the field is what this
-      // Escape means.
-      event.stopPropagation();
-      cancelled.current = true;
-      setDraft(null);
-      setIsEditing(false);
-    }
-  };
+  }
 
   return (
     <Box sx={{ px: 2, mb: 2 }}>
@@ -169,7 +139,7 @@ export const ChapterGistSection = ({ chapterId, chapterName, notes }: ChapterGis
         Gist
       </Typography>
       {gist && !isEditing ? (
-        <ExistingGistText text={value} onEdit={() => setIsEditing(true)} />
+        <ExistingGistText text={field.value} onEdit={() => setIsEditing(true)} />
       ) : (
         <TextField
           fullWidth
@@ -179,17 +149,10 @@ export const ChapterGistSection = ({ chapterId, chapterName, notes }: ChapterGis
           autoFocus={isEditing}
           error={saveFailed}
           placeholder={PLACEHOLDER}
-          value={value}
-          onChange={(event) => {
-            cancelled.current = false;
-            setDraft(event.target.value);
-          }}
-          onFocus={() => setIsEditing(true)}
-          onBlur={handleBlur}
-          onKeyDown={handleKeyDown}
+          {...field.inputProps}
           helperText={
             <GistHelperText
-              length={value.length}
+              length={field.value.length}
               message={saveFailed ? 'Not saved — try again.' : undefined}
             />
           }
