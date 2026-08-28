@@ -41,19 +41,10 @@ const Footer = ({ highlight, bookmark }: FooterProps) => {
       >
         <LabelIndicator label={highlight.label} size="small" />
         <NotOnDeviceChip removed={highlight.removed_from_devices} />
-        <DateIcon
-          sx={(theme) => ({
-            fontSize: 14,
-            color:
-              theme.palette.mode === 'light' ? `theme.palette.secondary.main` : 'secondary.light',
-          })}
-        />
+        <DateIcon sx={{ fontSize: 14, color: 'text.secondary' }} />
         <MetadataRow
           variant="caption"
-          sx={(theme) => ({
-            color:
-              theme.palette.mode === 'light' ? `theme.palette.secondary.main` : 'secondary.light',
-          })}
+          sx={{ color: 'text.secondary' }}
           items={[
             formatHighlightDate(highlight.datetime),
             highlight.page && `Page ${highlight.page}`,
