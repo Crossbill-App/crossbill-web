@@ -60,12 +60,10 @@ export const BookEditDialog = ({ book, open, onClose }: BookEditDialogProps) => 
     defaultValues: { description: seedBlurb(book.description) },
   });
 
-  // Re-seed whenever the dialog (re)opens or a refetch brings a newer blurb,
-  // so a closed dialog's abandoned draft never survives to the next open —
-  // discarding it on close is what keeps the dialog and header consistent.
   useEffect(() => {
     if (open) reset({ description: seedBlurb(book.description) });
-  }, [open, book.description, reset]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open]);
 
   const updateBookMutation = useUpdateBook({
     mutation: {

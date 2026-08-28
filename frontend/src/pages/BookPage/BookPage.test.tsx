@@ -1,3 +1,4 @@
+import { getGetBookDetailsQueryKey } from '@/api/generated/books/books.ts';
 import { aBookDetails, aChapter, aHighlight } from '@tests/fixtures/book';
 import { aNote } from '@tests/fixtures/notes';
 import { renderApp } from '@tests/harness/renderApp';
@@ -210,6 +211,31 @@ test('shortening an expanded blurb collapses it again', async () => {
   await expect.element(screen.getByText('Short and complete.')).toBeVisible();
   await expect(screen.getByRole('button', { name: 'Show less' }).query()).toBeNull();
   await expect(screen.getByRole('button', { name: 'Show more' }).query()).toBeNull();
+});
+
+test('a blurb arriving while the dialog is open does not overwrite the draft', async () => {
+  const { handlers } = bookApi({ book: aBookDetails({ description: 'The original blurb.' }) });
+  worker.use(...handlers);
+
+  const screen = await renderApp({ path: '/book/1' });
+
+  await screen.getByRole('button', { name: 'Manage book' }).click();
+  await screen.getByRole('textbox', { name: 'Blurb' }).fill('A draft about attention.');
+
+  // The same book edited on another device, landing as a refetch would: the
+  // reader is mid-sentence and must not lose what they typed.
+  screen.queryClient.setQueryData(getGetBookDetailsQueryKey(1), {
+    ...aBookDetails({ description: 'Written somewhere else.' }),
+  });
+
+  // The header behind the dialog is inert while the modal is open, so a
+  // locator cannot see it. Asserting on the DOM proves the newer blurb really
+  // reached the page, which is what makes the draft assertion below meaningful
+  // rather than a race the fix happens to win.
+  await expect.poll(() => document.body.textContent).toContain('Written somewhere else.');
+  await expect
+    .element(screen.getByRole('textbox', { name: 'Blurb' }))
+    .toHaveValue('A draft about attention.');
 });
 
 test('clearing the blurb removes it from the header', async () => {
