@@ -75,3 +75,27 @@ test("the note picker names a note's type the way the cards do", async () => {
   await expect.element(picker.getByText('Concept')).toBeVisible();
   expect(picker.getByText('concept', { exact: true }).elements()).toHaveLength(0);
 });
+
+test("a note card's unlink control is not nested inside the card's own button", async () => {
+  const { handlers } = bookApi({
+    book: aBookDetails(),
+    notes: [aNote({ id: 101, title: 'Attention', kind: 'concept' })],
+  });
+  worker.use(
+    ...handlers,
+    http.get('/api/v1/books/:bookId/reflection', () =>
+      HttpResponse.json({ book_id: 1, what_is_it_about_note_id: null, note_ids: [101] })
+    )
+  );
+
+  const screen = await renderApp({ path: '/book/1/reflection' });
+  const card = screen.getByRole('button', { name: /Attention/ });
+  await expect.element(card).toBeVisible();
+
+  // The card used to be a div with a hand-written key handler, so the unlink
+  // button sat inside it — a button within a button once it became one.
+  await expect
+    .element(screen.getByRole('button', { name: 'Remove link to this note' }))
+    .toBeVisible();
+  expect(card.getByRole('button', { name: 'Remove link to this note' }).elements()).toHaveLength(0);
+});
