@@ -340,3 +340,14 @@ test('a chapter row counts its notes, like the dialog it opens', async () => {
   expect(screen.getByRole('img', { name: '3 notes' }).elements()).toHaveLength(0);
   expect(screen.getByRole('img', { name: '1 note' }).elements()).toHaveLength(0);
 });
+
+test('the chapter dialog offers a copy-link, with or without AI', async () => {
+  worker.use(settingsWithAi(false), ...bookApi({ book: aStructuredBook() }).handlers);
+
+  const screen = await renderApp({ path: '/book/1/structure?chapterId=11' });
+  const dialog = screen.getByRole('dialog');
+
+  await expect.element(dialog.getByRole('button', { name: 'Copy link to chapter' })).toBeVisible();
+  // The generate button is the AI feature, not the toolbar it sits in.
+  expect(dialog.getByRole('button', { name: /Generate summary/ }).elements()).toHaveLength(0);
+});

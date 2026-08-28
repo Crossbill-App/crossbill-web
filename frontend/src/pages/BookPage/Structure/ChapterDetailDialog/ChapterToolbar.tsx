@@ -1,9 +1,11 @@
 import { useGenerateChapterDigest } from '@/api/generated/digest/digest';
 import { AIActionButton } from '@/components/buttons/AIActionButton.tsx';
+import { IconButtonWithTooltip } from '@/components/buttons/IconButtonWithTooltip.tsx';
 import { DialogToolbar } from '@/components/dialogs/DialogToolbar.tsx';
 import { AIFeature } from '@/components/features/AIFeature.tsx';
 import { useCacheEvents } from '@/lib/cacheEvents.ts';
-import { AIIcon, RegenerateIcon } from '@/theme/Icons.tsx';
+import { AIIcon, LinkIcon, RegenerateIcon } from '@/theme/Icons.tsx';
+import { copyUrlWithSearchParam } from '@/utils/clipboard.ts';
 import { CircularProgress } from '@mui/material';
 
 interface ChapterToolbarProps {
@@ -30,15 +32,33 @@ export const ChapterToolbar = ({ chapterId, bookId, hasSummary }: ChapterToolbar
   const title = hasSummary ? 'Regenerate summary and questions' : 'Generate summary';
   const icon = hasSummary ? <RegenerateIcon /> : <AIIcon />;
 
+  // A link that works from any context: `chapterId` is only a validated search
+  // param on the structure route, so build the URL on that route.
+  const handleCopyLink = async () => {
+    await copyUrlWithSearchParam(
+      'chapterId',
+      chapterId,
+      `${window.location.origin}/book/${bookId}/structure`
+    );
+  };
+
+  // The toolbar itself is not an AI feature — only the generate button is, and
+  // gating the whole row would take copy-link away with it.
   return (
-    <AIFeature>
-      <DialogToolbar>
+    <DialogToolbar>
+      <IconButtonWithTooltip
+        title="Copy link"
+        ariaLabel="Copy link to chapter"
+        onClick={() => void handleCopyLink()}
+        icon={<LinkIcon />}
+      />
+      <AIFeature>
         {isPending ? (
           <CircularProgress size={24} sx={{ m: '4px' }} />
         ) : (
           <AIActionButton text={title} onClick={handleGenerate} iconOnly icon={icon} />
         )}
-      </DialogToolbar>
-    </AIFeature>
+      </AIFeature>
+    </DialogToolbar>
   );
 };
