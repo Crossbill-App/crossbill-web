@@ -173,7 +173,7 @@ export const NotesPage = () => {
         fabContainerEl &&
         createPortal(
           <FilterFab
-            filterEnabled={!!selectedTagId || kindFilterActive}
+            activeFilterCount={[!!selectedTagId, kindFilterActive].filter(Boolean).length}
             onClick={() => setFilterDrawerOpen(true)}
           />,
           fabContainerEl

@@ -43,7 +43,9 @@ export const ScrollToTopButton = ({
 
   return (
     <Zoom in={isVisible} mountOnEnter unmountOnExit>
-      <Fab size="small" color="primary" aria-label="scroll to top" onClick={handleClick}>
+      {/* Deliberately neutral: in this stack amber means "something is
+          filtered", and scrolling to the top is not a state. */}
+      <Fab size="small" aria-label="Scroll to top" onClick={handleClick}>
         <ScrollToTopIcon />
       </Fab>
     </Zoom>

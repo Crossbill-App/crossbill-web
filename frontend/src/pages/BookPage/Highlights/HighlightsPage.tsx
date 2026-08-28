@@ -54,7 +54,10 @@ export const HighlightsPage = () => {
   const [filterDrawerOpen, setFilterDrawerOpen] = useState(false);
 
   const hasDateValues = !!dateFrom || !!dateTo;
-  const filterEnabled = !!selectedLabelId || !!selectedTagId || hasDateValues;
+  // A date range counts once, however many bounds it has.
+  const activeFilterCount = [!!selectedLabelId, !!selectedTagId, hasDateValues].filter(
+    Boolean
+  ).length;
 
   useResetOnChange([urlLabelId], () => setSelectedLabelId(urlLabelId));
 
@@ -263,7 +266,10 @@ export const HighlightsPage = () => {
 
           {fabContainerEl &&
             createPortal(
-              <FilterFab filterEnabled={filterEnabled} onClick={() => setFilterDrawerOpen(true)} />,
+              <FilterFab
+                activeFilterCount={activeFilterCount}
+                onClick={() => setFilterDrawerOpen(true)}
+              />,
               fabContainerEl
             )}
 

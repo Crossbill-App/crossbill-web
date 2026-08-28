@@ -227,7 +227,7 @@ export const FlashcardsPage = () => {
           {fabContainerEl &&
             createPortal(
               <FilterFab
-                filterEnabled={!!selectedTagId}
+                activeFilterCount={selectedTagId ? 1 : 0}
                 onClick={() => setFilterDrawerOpen(true)}
               />,
               fabContainerEl

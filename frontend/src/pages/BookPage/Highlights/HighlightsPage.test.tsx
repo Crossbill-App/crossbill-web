@@ -181,7 +181,8 @@ test('places the preset above mobile tabs and exposes active date filters access
     worker.use(...handlers);
 
     const screen = await renderApp({ path: '/book/1/highlights?to=2026-07-05' });
-    const filterButton = screen.getByRole('button', { name: 'Open filters (filters active)' });
+    // The label counts what is on, so it says which filters are in play.
+    const filterButton = screen.getByRole('button', { name: 'Open filters (1 active)' });
     await expect.element(filterButton).toBeVisible();
     await userEvent.click(filterButton);
 
