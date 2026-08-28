@@ -181,7 +181,7 @@ export const TagGroupHeader = ({
                     e.stopPropagation();
                     onEditTags();
                   }}
-                  sx={{ ...touchTarget, color: 'text.disabled' }}
+                  sx={{ ...touchTarget, color: 'text.secondary' }}
                 >
                   <EditTagsIcon sx={{ fontSize: ICON_SIZE.ui }} />
                 </IconButton>
@@ -196,7 +196,7 @@ export const TagGroupHeader = ({
                     e.stopPropagation();
                     setIsEditing(true);
                   }}
-                  sx={{ ...touchTarget, color: 'text.disabled' }}
+                  sx={{ ...touchTarget, color: 'text.secondary' }}
                 >
                   <EditIcon sx={{ fontSize: ICON_SIZE.ui }} />
                 </IconButton>
@@ -212,7 +212,7 @@ export const TagGroupHeader = ({
                     onDelete();
                   }}
                   disabled={isProcessing}
-                  sx={{ ...touchTarget, color: 'text.disabled' }}
+                  sx={{ ...touchTarget, color: 'text.secondary' }}
                 >
                   <DeleteIcon sx={{ fontSize: ICON_SIZE.ui }} />
                 </IconButton>

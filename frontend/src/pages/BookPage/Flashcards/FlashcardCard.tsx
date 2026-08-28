@@ -41,10 +41,14 @@ const FlashcardStyled = styled(Box, {
 const ActionButtonsStyled = styled(Box)(() => ({
   display: 'flex',
   flexShrink: 0,
-  opacity: 0.7,
   transition: 'opacity 0.2s ease',
-  '&:hover': {
-    opacity: 1,
+  // Dimmed only where a pointer can bring it back. On touch there is no hover
+  // to restore it, so 0.7 would just be a permanently fainter control.
+  '@media (hover: hover)': {
+    opacity: 0.7,
+    '&:hover': {
+      opacity: 1,
+    },
   },
 }));
 
