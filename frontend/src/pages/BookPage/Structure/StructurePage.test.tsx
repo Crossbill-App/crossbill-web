@@ -300,11 +300,21 @@ test('a digest answer says it saved when the field is left', async () => {
   await expect.element(answer).toBeVisible();
   expect(dialog.getByText('Saved').elements()).toHaveLength(0);
 
+  // The marker's space is reserved, so appearing must not push what is under
+  // it. Measured as the gap between the field and the next control rather than
+  // an absolute position, which the dialog's own scrolling would move.
+  const gapBelowField = () =>
+    dialog.getByRole('button', { name: 'Quiz me' }).element().getBoundingClientRect().top -
+    answer.element().getBoundingClientRect().bottom;
+  const restingGap = gapBelowField();
+
   await userEvent.fill(answer, 'It drops what is not attended to.');
   await userEvent.click(dialog.getByText('What makes attention a filter?'));
 
   await expect.element(dialog.getByText('Saved')).toBeVisible();
+  expect(gapBelowField()).toBe(restingGap);
 
   // And it clears itself again — the marker fades out rather than sticking.
   await expect.element(dialog.getByText('Saved')).not.toBeInTheDocument();
+  expect(gapBelowField()).toBe(restingGap);
 });

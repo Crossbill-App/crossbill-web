@@ -7,6 +7,14 @@ const LABELS: Record<Exclude<SaveStatus, 'idle'>, string> = {
   saved: 'Saved',
 };
 
+/**
+ * Pinned on the container and on the text alike, so the space reserved for the
+ * marker is exactly the space it takes. Left to inherit, the wrapper's line box
+ * came from whatever typography surrounded the field, which was taller than the
+ * caption and nudged the layout each time the marker appeared.
+ */
+const LINE_HEIGHT = '1.25rem';
+
 interface SavedIndicatorProps {
   status: SaveStatus;
   sx?: SxProps<Theme>;
@@ -30,7 +38,9 @@ export const SavedIndicator = ({ status, sx }: SavedIndicatorProps) => (
       {
         // Reserved whether or not there is anything to say, so a save does not
         // shift the layout around the field.
-        minHeight: '1.25rem',
+        minHeight: LINE_HEIGHT,
+        lineHeight: LINE_HEIGHT,
+        fontSize: '0.75rem',
       },
       ...(Array.isArray(sx) ? sx : [sx]),
     ]}
@@ -44,7 +54,10 @@ export const SavedIndicator = ({ status, sx }: SavedIndicatorProps) => (
           exit={{ opacity: 0 }}
           transition={{ duration: 0.25, ease: 'easeInOut' }}
         >
-          <Typography variant="caption" sx={{ color: 'text.secondary' }}>
+          <Typography
+            variant="caption"
+            sx={{ display: 'block', lineHeight: LINE_HEIGHT, color: 'text.secondary' }}
+          >
             {LABELS[status]}
           </Typography>
         </motion.div>
