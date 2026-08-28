@@ -26,7 +26,7 @@ export const BookBlurb = ({ description }: BookBlurbProps) => {
   if (!description?.trim()) return null;
 
   return (
-    <Box sx={{ width: '100%', mt: 2 }}>
+    <Box sx={{ width: '100%', mb: 2 }}>
       <Box
         sx={{
           ...markdownStyles(theme),

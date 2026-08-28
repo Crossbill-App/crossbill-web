@@ -177,6 +177,7 @@ export const BookEditDialog = ({ book, open, onClose }: BookEditDialogProps) => 
           label="Blurb"
           multiline
           minRows={4}
+          maxRows={5}
           fullWidth
           disabled={isSaving}
           slotProps={{ htmlInput: { maxLength: 5000 } }}

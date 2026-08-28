@@ -99,35 +99,31 @@ export const BookTitle = ({ book }: BookTitleProps) => {
             {book.title}
           </Typography>
 
-          <Typography
-            variant="h2"
-            sx={{
-              color: 'primary.main',
-              mb: { xs: 1, md: 2 },
-              width: '100%',
-            }}
-            gutterBottom
-          >
-            {book.author || 'Unknown Author'}
-          </Typography>
-
-          <BookBlurb description={book.description ?? null} />
-
           <Box
             sx={{
               display: 'flex',
               justifyContent: { xs: 'center', lg: 'flex-start' },
-              alignItems: 'center',
+              alignItems: 'baseline',
               gap: 1,
-              my: 2,
+              mb: { xs: 1, md: 2 },
               width: '100%',
               flexWrap: 'wrap',
             }}
           >
+            <Typography
+              variant="h2"
+              sx={{
+                color: 'primary.main',
+              }}
+            >
+              {book.author || 'Unknown Author'}
+            </Typography>
             <Button variant="text" startIcon={<EditIcon />} onClick={handleEdit} size="small">
               Edit
             </Button>
           </Box>
+
+          <BookBlurb description={book.description ?? null} />
 
           <BookStatsStrip book={book} />
         </Box>
