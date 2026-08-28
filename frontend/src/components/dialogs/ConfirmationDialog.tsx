@@ -5,8 +5,6 @@ import {
   DialogContent,
   DialogContentText,
   DialogTitle,
-  useMediaQuery,
-  useTheme,
 } from '@mui/material';
 import type { ReactNode } from 'react';
 
@@ -32,36 +30,28 @@ export const ConfirmationDialog = ({
   cancelText = 'Cancel',
   confirmColor = 'primary',
   isLoading = false,
-}: ConfirmationDialogProps) => {
-  const theme = useTheme();
-  const fullScreen = useMediaQuery(theme.breakpoints.down('sm'));
-
-  return (
-    <Dialog
-      open={open}
-      onClose={isLoading ? undefined : onClose}
-      maxWidth="xs"
-      fullWidth
-      fullScreen={fullScreen}
-    >
-      <DialogTitle>{title}</DialogTitle>
-      <DialogContent>
-        {typeof message === 'string' ? <DialogContentText>{message}</DialogContentText> : message}
-      </DialogContent>
-      <DialogActions sx={{ px: 3, pb: 2 }}>
-        <Button onClick={onClose} disabled={isLoading}>
-          {cancelText}
-        </Button>
-        <Button
-          onClick={onConfirm}
-          color={confirmColor}
-          variant="contained"
-          disabled={isLoading}
-          autoFocus
-        >
-          {confirmText}
-        </Button>
-      </DialogActions>
-    </Dialog>
-  );
-};
+}: ConfirmationDialogProps) => (
+  /* Never full-screen: a two-button question is the canonical small centred
+     dialog at every width, and this one usually opens on top of an
+     already-full-screen dialog whose context the reader still needs. */
+  <Dialog open={open} onClose={isLoading ? undefined : onClose} maxWidth="xs" fullWidth>
+    <DialogTitle>{title}</DialogTitle>
+    <DialogContent>
+      {typeof message === 'string' ? <DialogContentText>{message}</DialogContentText> : message}
+    </DialogContent>
+    <DialogActions sx={{ px: 3, pb: 2 }}>
+      <Button onClick={onClose} disabled={isLoading}>
+        {cancelText}
+      </Button>
+      <Button
+        onClick={onConfirm}
+        color={confirmColor}
+        variant="contained"
+        disabled={isLoading}
+        autoFocus
+      >
+        {confirmText}
+      </Button>
+    </DialogActions>
+  </Dialog>
+);
