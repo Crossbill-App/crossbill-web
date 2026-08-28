@@ -359,3 +359,30 @@ test('a highlight card counts the notes linked to it', async () => {
   const bare = screen.getByRole('button', { name: /Attention is finite/ });
   expect(bare.getByRole('img', { name: /note/ }).elements()).toHaveLength(0);
 });
+
+/**
+ * The other half of the same defect: the tag group's title was a clickable
+ * `Box` — no role, no tab stop, no key handler — so the group could only be
+ * collapsed with a mouse.
+ */
+test('a tag group collapses from the keyboard', async () => {
+  worker.use(
+    ...bookApi({
+      book: aBookDetails({
+        tags: [{ id: 1, name: 'Keep', tag_group_id: 5 }],
+        tag_groups: [{ id: 5, name: 'Themes' }],
+      }),
+    }).handlers
+  );
+
+  const screen = await renderApp({ path: '/book/1/highlights' });
+  const toggle = screen.getByRole('button', { name: /Themes/ });
+  await expect.element(toggle).toHaveAttribute('aria-expanded', 'true');
+  await expect.element(screen.getByText('Keep')).toBeVisible();
+
+  (toggle.element() as HTMLElement).focus();
+  await userEvent.keyboard('{Enter}');
+
+  await expect.element(toggle).toHaveAttribute('aria-expanded', 'false');
+  await expect.element(screen.getByText('Keep')).not.toBeInTheDocument();
+});

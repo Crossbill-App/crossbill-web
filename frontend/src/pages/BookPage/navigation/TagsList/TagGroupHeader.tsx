@@ -6,7 +6,7 @@ import type { SaveStatus } from '@/hooks/useSaveStatus.ts';
 import { DeleteIcon, EditIcon, EditTagsIcon } from '@/theme/Icons.tsx';
 import { ICON_SIZE } from '@/theme/iconSizes.ts';
 import { createAdaptiveHoverStyles, createAdaptiveTouchTarget } from '@/utils/adaptiveHover.ts';
-import { Box, IconButton, TextField, Tooltip, Typography } from '@mui/material';
+import { Box, ButtonBase, IconButton, TextField, Tooltip, Typography } from '@mui/material';
 import { useState } from 'react';
 
 interface TagGroupTitleProps {
@@ -14,23 +14,40 @@ interface TagGroupTitleProps {
   count: number;
   isExpanded: boolean;
   onToggleCollapse: () => void;
+  /** Id of the region the title controls, for `aria-controls`. */
+  controlsId?: string;
 }
 
+/**
+ * The group's name, doubling as the control that collapses it. A `ButtonBase`
+ * rather than a clickable `Box`, so it is reachable and operable from the
+ * keyboard and announces whether the group is open.
+ */
 export const TagGroupTitle = ({
   title,
   count,
   isExpanded,
   onToggleCollapse,
+  controlsId,
 }: TagGroupTitleProps) => {
   return (
-    <Box
+    <ButtonBase
       onClick={onToggleCollapse}
+      aria-expanded={isExpanded}
+      aria-controls={controlsId}
       sx={{
         display: 'flex',
         alignItems: 'center',
+        justifyContent: 'flex-start',
+        textAlign: 'left',
         gap: 0.5,
         flex: 1,
-        cursor: 'pointer',
+        borderRadius: 0.5,
+        '&:focus-visible': {
+          outline: '2px solid',
+          outlineOffset: '-2px',
+          outlineColor: 'primary.main',
+        },
       }}
     >
       <CollapseChevron
@@ -60,7 +77,7 @@ export const TagGroupTitle = ({
           ({count})
         </Typography>
       </Typography>
-    </Box>
+    </ButtonBase>
   );
 };
 
@@ -110,6 +127,8 @@ interface TagGroupHeaderProps {
   isProcessing: boolean;
   /** Rename saves itself when the field is left, so the save is marked here. */
   saveStatus: SaveStatus;
+  /** Id of the region the title controls, for `aria-controls`. */
+  controlsId?: string;
 }
 
 export const TagGroupHeader = ({
@@ -122,6 +141,7 @@ export const TagGroupHeader = ({
   onDelete,
   isProcessing,
   saveStatus,
+  controlsId,
 }: TagGroupHeaderProps) => {
   const [isEditing, setIsEditing] = useState(false);
 
@@ -143,7 +163,6 @@ export const TagGroupHeader = ({
         alignItems: 'center',
         justifyContent: 'space-between',
         mb: isExpanded ? 1 : 0,
-        cursor: 'pointer',
         ...adaptiveStyles.container,
       }}
     >
@@ -160,6 +179,7 @@ export const TagGroupHeader = ({
           count={tagCount}
           isExpanded={isExpanded}
           onToggleCollapse={onToggleCollapse}
+          controlsId={controlsId}
         />
       )}
       {!isEditing && (
