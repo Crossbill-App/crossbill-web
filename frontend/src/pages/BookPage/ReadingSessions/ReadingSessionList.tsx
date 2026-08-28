@@ -1,7 +1,6 @@
 import type { Bookmark, ReadingSession } from '@/api/generated/model';
 import { FadeInOut } from '@/components/animations/FadeInOut';
 import { EmptyStateText } from '@/components/EmptyStateText.tsx';
-import { useSettings } from '@/context/SettingsContext';
 import { Box } from '@mui/material';
 import { ReadingSessionCard } from './ReadingSessionCard';
 
@@ -20,7 +19,6 @@ export const ReadingSessionList = ({
   bookmarksByHighlightId,
   onOpenHighlight,
 }: ReadingSessionListProps) => {
-  const aiEnabled = !!useSettings().featureFlags?.ai;
   return (
     <FadeInOut ekey={animationKey}>
       {sessions.length === 0 ? (
@@ -32,7 +30,8 @@ export const ReadingSessionList = ({
             display: 'flex',
             flexDirection: 'column',
             listStyle: 'none',
-            m: aiEnabled ? -3.5 : -1,
+            p: 0,
+            m: 0,
           }}
           aria-label="Reading sessions"
         >

@@ -4,7 +4,6 @@ import { AIActionButton } from '@/components/buttons/AIActionButton';
 import { HighlightCard } from '@/components/cards/HighlightCard';
 import { MetadataRow } from '@/components/cards/MetadataRow.tsx';
 import { AIFeature } from '@/components/features/AIFeature.tsx';
-import { useSettings } from '@/context/SettingsContext';
 import { useSnackbar } from '@/context/SnackbarContext';
 import { useNoteCountsByHighlight } from '@/pages/BookPage/Notes/hooks/useNoteCountsByHighlight.ts';
 import { formatDate, formatDuration, formatTime } from '@/utils/date';
@@ -104,7 +103,6 @@ export const ReadingSessionCard = ({
 
   const summary = session.ai_summary || data?.summary;
   const hasSummary = Boolean(summary);
-  const aiEnabled = !!useSettings().featureFlags?.ai;
 
   const handleHighlightClick = (highlightId: number) => {
     onOpenHighlight(session.id, highlightId);
@@ -116,7 +114,7 @@ export const ReadingSessionCard = ({
     <li key={session.id}>
       <Box
         sx={{
-          py: aiEnabled ? 3.5 : 1,
+          py: 2,
           px: 2.5,
           '@media (max-width: 768px)': {
             px: 2,
