@@ -23,6 +23,7 @@ import { useMutation, useQuery } from '@tanstack/react-query';
 import type {
   BookDetails,
   BookReadingStageUpdateRequest,
+  BookUpdateRequest,
   CollectionResponseBookWithHighlightCount,
   GetBooksParams,
   GetRecentlySyncedBooksParams,
@@ -565,6 +566,87 @@ export function useGetBookDetails<
   return withQueryKey(query, queryOptions.queryKey);
 }
 
+/**
+ * Apply the reader's edits to a book.
+ *
+ * Partial by contract: only fields present in the request body are applied,
+ * which is why this reads `model_fields_set` rather than the parsed values.
+ * @summary Update Book
+ */
+export const updateBook = (
+  bookId: number,
+  bookUpdateRequest: BookUpdateRequest,
+  signal?: AbortSignal
+) => {
+  return axiosInstance<void>({
+    url: `/api/v1/books/${bookId}`,
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    data: bookUpdateRequest,
+    signal,
+  });
+};
+
+export const getUpdateBookMutationOptions = <
+  TError = HTTPValidationError,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof updateBook>>,
+    TError,
+    { bookId: number; data: BookUpdateRequest },
+    TContext
+  >;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof updateBook>>,
+  TError,
+  { bookId: number; data: BookUpdateRequest },
+  TContext
+> => {
+  const mutationKey = ['updateBook'];
+  const { mutation: mutationOptions } = options
+    ? options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey } };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof updateBook>>,
+    { bookId: number; data: BookUpdateRequest }
+  > = (props) => {
+    const { bookId, data } = props ?? {};
+
+    return updateBook(bookId, data);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type UpdateBookMutationResult = NonNullable<Awaited<ReturnType<typeof updateBook>>>;
+export type UpdateBookMutationBody = BookUpdateRequest;
+export type UpdateBookMutationError = HTTPValidationError;
+
+/**
+ * @summary Update Book
+ */
+export const useUpdateBook = <TError = HTTPValidationError, TContext = unknown>(
+  options?: {
+    mutation?: UseMutationOptions<
+      Awaited<ReturnType<typeof updateBook>>,
+      TError,
+      { bookId: number; data: BookUpdateRequest },
+      TContext
+    >;
+  },
+  queryClient?: QueryClient
+): UseMutationResult<
+  Awaited<ReturnType<typeof updateBook>>,
+  TError,
+  { bookId: number; data: BookUpdateRequest },
+  TContext
+> => {
+  return useMutation(getUpdateBookMutationOptions(options), queryClient);
+};
 /**
  * Delete a book and all its contents (hard delete).
  *

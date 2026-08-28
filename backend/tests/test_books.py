@@ -913,6 +913,126 @@ class TestReadingStage:
         assert response.status_code == status.HTTP_404_NOT_FOUND
 
 
+class TestUpdateBook:
+    """Test suite for PATCH /books/{book_id}."""
+
+    async def test_set_description(self, client: AsyncClient, test_book: models.Book) -> None:
+        response = await client.patch(
+            f"/api/v1/books/{test_book.id}",
+            json={"description": "A **quiet** book about attention."},
+        )
+        assert response.status_code == status.HTTP_204_NO_CONTENT
+
+        details = await client.get(f"/api/v1/books/{test_book.id}")
+        assert details.json()["description"] == "A **quiet** book about attention."
+
+    async def test_clear_description(self, client: AsyncClient, test_book: models.Book) -> None:
+        await client.patch(f"/api/v1/books/{test_book.id}", json={"description": "Something"})
+
+        response = await client.patch(f"/api/v1/books/{test_book.id}", json={"description": None})
+
+        assert response.status_code == status.HTTP_204_NO_CONTENT
+        details = await client.get(f"/api/v1/books/{test_book.id}")
+        assert details.json()["description"] is None
+
+    async def test_blank_description_stored_as_null(
+        self, client: AsyncClient, test_book: models.Book
+    ) -> None:
+        """An emptied text field means "no blurb", not a book with a blank one."""
+        await client.patch(f"/api/v1/books/{test_book.id}", json={"description": "Something"})
+
+        await client.patch(f"/api/v1/books/{test_book.id}", json={"description": "   \n  "})
+
+        details = await client.get(f"/api/v1/books/{test_book.id}")
+        assert details.json()["description"] is None
+
+    async def test_omitted_field_leaves_book_untouched(
+        self, client: AsyncClient, test_book: models.Book
+    ) -> None:
+        """PATCH means partial: a key the client never sent must not be cleared."""
+        await client.patch(f"/api/v1/books/{test_book.id}", json={"description": "Kept"})
+
+        response = await client.patch(f"/api/v1/books/{test_book.id}", json={})
+
+        assert response.status_code == status.HTTP_204_NO_CONTENT
+        details = await client.get(f"/api/v1/books/{test_book.id}")
+        assert details.json()["description"] == "Kept"
+        assert details.json()["title"] == test_book.title
+
+    async def test_description_over_limit_rejected(
+        self, client: AsyncClient, test_book: models.Book
+    ) -> None:
+        response = await client.patch(
+            f"/api/v1/books/{test_book.id}",
+            json={"description": "x" * 5001},
+        )
+        assert response.status_code == status.HTTP_422_UNPROCESSABLE_CONTENT
+
+    async def test_imported_description_truncated_to_limit(
+        self, client: AsyncClient, create_book_via_api: CreateBookFunc
+    ) -> None:
+        """An over-long publisher blurb is truncated on import, not rejected.
+
+        The plugin's ``/ereader/books`` contract must not start failing on a
+        long blurb, but a blurb stored over the limit would make every save
+        from the manage dialog a 422 the reader cannot explain.
+        """
+        book = await create_book_via_api(
+            {
+                "client_book_id": "long-blurb",
+                "title": "Long Blurb",
+                "description": "x" * 6000,
+            }
+        )
+
+        details = await client.get(f"/api/v1/books/{book.book_id}")
+        assert details.json()["description"] == "x" * 5000
+
+        response = await client.patch(
+            f"/api/v1/books/{book.book_id}",
+            json={"description": details.json()["description"]},
+        )
+        assert response.status_code == status.HTTP_204_NO_CONTENT
+
+    async def test_unknown_key_rejected(self, client: AsyncClient, test_book: models.Book) -> None:
+        """An unrecognised key must 422, not silently no-op with a 204.
+
+        This endpoint's contract is defined by which keys are present in the
+        body (`model_fields_set`); a field it doesn't know about — like
+        `title`, not yet supported here — would otherwise parse to an empty
+        `model_fields_set` and the client would get a false-positive 204.
+        """
+        response = await client.patch(
+            f"/api/v1/books/{test_book.id}",
+            json={"title": "New title"},
+        )
+        assert response.status_code == status.HTTP_422_UNPROCESSABLE_CONTENT
+
+    async def test_update_book_not_found(self, client: AsyncClient) -> None:
+        response = await client.patch("/api/v1/books/99999", json={"description": "Nope"})
+        assert response.status_code == status.HTTP_404_NOT_FOUND
+
+    async def test_cannot_edit_another_users_book(
+        self, client: AsyncClient, db_session: AsyncSession
+    ) -> None:
+        """A stranger's book is invisible, so editing it is a 404, not a 403."""
+        stranger = models.User(email="stranger-blurb@test.com")
+        db_session.add(stranger)
+        await db_session.commit()
+        await db_session.refresh(stranger)
+        theirs = await create_test_book(
+            db_session, user_id=stranger.id, title="Theirs", description="Their blurb"
+        )
+
+        response = await client.patch(
+            f"/api/v1/books/{theirs.id}", json={"description": "Mine now"}
+        )
+
+        assert response.status_code == status.HTTP_404_NOT_FOUND
+        await db_session.refresh(theirs)
+        assert theirs.description == "Their blurb"
+
+
 def parse_stamp(value: object) -> datetime:
     """Read a timestamp off a response, as UTC.
 

@@ -8,6 +8,12 @@ from src.domain.common.exceptions import DomainError
 from src.domain.common.value_objects.ids import BookId, UserId
 from src.domain.common.value_objects.position import Position
 
+# The longest blurb a reader may save. Imported metadata is truncated to fit
+# rather than rejected, so that every stored blurb stays editable: the reader
+# edits this same field, and a longer one would fail every save with no way to
+# see why.
+MAX_DESCRIPTION_LENGTH = 5000
+
 
 class ReadingStage(StrEnum):
     """Manual, user-set stage of engagement with a book."""
@@ -118,6 +124,13 @@ class Book(Entity[BookId]):
         """Set the manual reading stage."""
         self.reading_stage = reading_stage
 
+    def set_description(self, description: str | None) -> None:
+        """Set the book's blurb, treating blank text as no blurb at all."""
+        stripped = description.strip() if description else ""
+        if len(stripped) > MAX_DESCRIPTION_LENGTH:
+            raise DomainError(f"Book blurb cannot exceed {MAX_DESCRIPTION_LENGTH} characters")
+        self.description = stripped or None
+
     # Factory methods
     @classmethod
     def create(
@@ -146,7 +159,7 @@ class Book(Entity[BookId]):
             client_book_id=client_book_id,
             author=author.strip() if author else None,
             isbn=isbn,
-            description=description,
+            description=description[:MAX_DESCRIPTION_LENGTH] if description else None,
             language=language,
             page_count=page_count,
             ebook_file=ebook_file,

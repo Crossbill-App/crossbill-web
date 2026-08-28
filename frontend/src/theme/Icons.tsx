@@ -11,6 +11,7 @@ export {
   ExpandMore as ExpandMoreIcon,
   OpenInNew as ExternalLinkIcon,
   FilterList as FilterListIcon,
+  MoreVert as ManageIcon,
   Menu as MenuIcon,
   MoreHoriz as MoreIcon,
   KeyboardArrowUp as ScrollToTopIcon,

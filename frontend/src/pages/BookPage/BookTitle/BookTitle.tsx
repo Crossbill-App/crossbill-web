@@ -1,9 +1,11 @@
 import type { BookDetails } from '@/api/generated/model';
 import { BookCover } from '@/components/BookCover.tsx';
+import { IconButtonWithTooltip } from '@/components/buttons/IconButtonWithTooltip.tsx';
 import { ReadingStageChip } from '@/pages/BookPage/Reflection/ReadingStageChip.tsx';
-import { EditIcon } from '@/theme/Icons.tsx';
-import { Box, Button, LinearProgress, Tooltip, Typography } from '@mui/material';
+import { ManageIcon } from '@/theme/Icons.tsx';
+import { Box, LinearProgress, Tooltip, Typography } from '@mui/material';
 import { useState } from 'react';
+import { BookBlurb } from './BookBlurb.tsx';
 import { BookEditDialog } from './BookEditDialog.tsx';
 import { BookStatsStrip } from './BookStatsStrip.tsx';
 
@@ -88,14 +90,20 @@ export const BookTitle = ({ book }: BookTitleProps) => {
             position: 'relative',
           }}
         >
-          <Typography
-            variant="h1"
-            component="h1"
-            sx={{
-              mb: 1,
-            }}
-          >
+          <Typography variant="h1" component="h1" aria-label={book.title} sx={{ mb: 1 }}>
             {book.title}
+            <IconButtonWithTooltip
+              title="Manage book"
+              ariaLabel="Manage book"
+              onClick={handleEdit}
+              icon={<ManageIcon />}
+              sx={{
+                color: 'text.primary',
+                ml: 0.5,
+                verticalAlign: 'middle',
+                '& svg': { fontSize: '1.75rem' },
+              }}
+            />
           </Typography>
 
           <Typography
@@ -110,21 +118,7 @@ export const BookTitle = ({ book }: BookTitleProps) => {
             {book.author || 'Unknown Author'}
           </Typography>
 
-          <Box
-            sx={{
-              display: 'flex',
-              justifyContent: { xs: 'center', lg: 'flex-start' },
-              alignItems: 'center',
-              gap: 1,
-              mb: 2,
-              width: '100%',
-              flexWrap: 'wrap',
-            }}
-          >
-            <Button variant="text" startIcon={<EditIcon />} onClick={handleEdit} size="small">
-              Edit
-            </Button>
-          </Box>
+          <BookBlurb description={book.description ?? null} />
 
           <BookStatsStrip book={book} />
         </Box>
