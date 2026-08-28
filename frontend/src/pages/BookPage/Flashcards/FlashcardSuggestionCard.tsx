@@ -1,6 +1,6 @@
 import { IconButtonWithTooltip } from '@/components/buttons/IconButtonWithTooltip';
 import { FlashcardCard } from '@/pages/BookPage/Flashcards/FlashcardCard.tsx';
-import { Check as AcceptIcon, Close as RejectIcon } from '@mui/icons-material';
+import { AcceptIcon, RejectIcon } from '@/theme/Icons.tsx';
 
 export interface FlashcardSuggestionCardProps {
   question: string;

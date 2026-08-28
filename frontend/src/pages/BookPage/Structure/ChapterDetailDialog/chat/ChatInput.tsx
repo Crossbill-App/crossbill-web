@@ -1,4 +1,4 @@
-import SendIcon from '@mui/icons-material/Send';
+import { SendIcon } from '@/theme/Icons.tsx';
 import { Box, IconButton, InputAdornment, TextField } from '@mui/material';
 import { useCallback } from 'react';
 

@@ -37,6 +37,7 @@ export {
 // Action icons
 export {
   AutoAwesome as AIIcon,
+  Check as AcceptIcon,
   Add as AddIcon,
   ContentCopy as CopyIcon,
   Delete as DeleteIcon,
@@ -46,7 +47,10 @@ export {
   LinkOff as LinkOffIcon,
   NoteAdd as NoteAddIcon,
   Refresh as RegenerateIcon,
+  Close as RejectIcon,
+  Replay as RetryIcon,
   Check as SelectedIcon,
+  Send as SendIcon,
   SwapVert as SortIcon,
 } from '@mui/icons-material';
 
