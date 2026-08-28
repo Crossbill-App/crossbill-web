@@ -84,6 +84,21 @@ export const StructurePage = () => {
     return map;
   }, [gistNotes]);
 
+  // Unfiltered: the chapter dialog's Notes tab counts every note linked to the
+  // chapter, gists included, and the row is meant to agree with it. Shares a
+  // query key with the book header's own notes fetch, so it costs no request.
+  const { data: allNotes } = useGetNotesForBook(book.id);
+
+  const noteCountByChapterId = useMemo(() => {
+    const map = new Map<number, number>();
+    for (const note of allNotes?.items ?? []) {
+      for (const chapterId of note.chapter_ids) {
+        map.set(chapterId, (map.get(chapterId) ?? 0) + 1);
+      }
+    }
+    return map;
+  }, [allNotes]);
+
   const childrenByParentId = useMemo(() => {
     const map = new Map<number | null, ChapterWithHighlights[]>();
     for (const ch of book.chapters) {
@@ -217,6 +232,7 @@ export const StructurePage = () => {
             chapter={chapter}
             childrenByParentId={visibleChildrenByParentId}
             gistByChapterId={gistByChapterId}
+            noteCountByChapterId={noteCountByChapterId}
             bookId={book.id}
             readingPosition={readingPosition}
             currentChapterIds={currentChapterIds}

@@ -1,5 +1,6 @@
 import { aBookDetails, aChapter } from '@tests/fixtures/book';
 import { aChapterDigest, aDigestQuestion } from '@tests/fixtures/digest';
+import { aNote } from '@tests/fixtures/notes';
 import { aDigestHit } from '@tests/fixtures/semantic';
 import { renderApp } from '@tests/harness/renderApp';
 import { settingsWithAi, settingsWithEmbeddings } from '@tests/msw/auth';
@@ -317,4 +318,25 @@ test('a digest answer says it saved when the field is left', async () => {
   // And it clears itself again — the marker fades out rather than sticking.
   await expect.element(dialog.getByText('Saved')).not.toBeInTheDocument();
   expect(gapBelowField()).toBe(restingGap);
+});
+
+test('a chapter row counts its notes, like the dialog it opens', async () => {
+  worker.use(
+    ...bookApi({
+      book: aStructuredBook(),
+      notes: [
+        aNote({ id: 100, title: 'Attention as a filter', chapter_ids: [11] }),
+        aNote({ id: 101, title: 'Spotlight metaphor', chapter_ids: [11] }),
+        aNote({ id: 102, title: 'Unlinked', chapter_ids: [] }),
+      ],
+    }).handlers
+  );
+
+  const screen = await renderApp({ path: '/book/1/structure' });
+  await expect.element(screen.getByText('Attention and memory')).toBeVisible();
+
+  await expect.element(screen.getByRole('img', { name: '2 notes' })).toBeVisible();
+  // The note linked to no chapter is counted against none of them.
+  expect(screen.getByRole('img', { name: '3 notes' }).elements()).toHaveLength(0);
+  expect(screen.getByRole('img', { name: '1 note' }).elements()).toHaveLength(0);
 });
