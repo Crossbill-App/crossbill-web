@@ -171,7 +171,15 @@ test('composes date, search, tag, and label filters and shows the generic empty 
     replace: true,
   });
 
-  await expect.element(screen.getByText('No highlights match the filters.')).toBeVisible();
+  await expect.element(screen.getByText('No highlights match the current filters.')).toBeVisible();
+
+  // One control undoes all four: search, tag, label and date range.
+  await userEvent.click(screen.getByRole('button', { name: 'Clear filters' }));
+
+  await expect.element(screen.getByText('All filters match')).toBeVisible();
+  await expect.element(screen.getByText('Wrong tag')).toBeVisible();
+  await expect.element(screen.getByText('Wrong label')).toBeVisible();
+  await expect.element(screen.getByText('Wrong date')).toBeVisible();
 });
 
 test('places the preset above mobile tabs and exposes active date filters accessibly', async () => {

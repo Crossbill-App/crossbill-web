@@ -1,6 +1,8 @@
 import type { Flashcard, Highlight } from '@/api/generated/model';
-import { FlashcardListCard } from '@/pages/BookPage/Flashcards/FlashcardListCard.tsx';
+import { EmptyStateText } from '@/components/EmptyStateText.tsx';
 import { ChapterGroupedList } from '@/pages/BookPage/common/ChapterGroupedList.tsx';
+import { FlashcardListCard } from '@/pages/BookPage/Flashcards/FlashcardListCard.tsx';
+import type { ReactNode } from 'react';
 
 export interface FlashcardWithContext extends Flashcard {
   highlight: Highlight | null;
@@ -19,7 +21,7 @@ interface FlashcardChapterListProps {
   chapters: FlashcardChapterData[];
   bookId: number;
   isLoading?: boolean;
-  emptyMessage?: string;
+  emptyState?: ReactNode;
   animationKey?: string;
   onEditFlashcard: (flashcard: FlashcardWithContext) => void;
 }
@@ -28,7 +30,7 @@ export const FlashcardChapterList = ({
   chapters,
   bookId,
   isLoading,
-  emptyMessage = 'No flashcards found.',
+  emptyState = <EmptyStateText>No flashcards found.</EmptyStateText>,
   animationKey = 'flashcard-chapters',
   onEditFlashcard,
 }: FlashcardChapterListProps) => (
@@ -40,7 +42,7 @@ export const FlashcardChapterList = ({
     getItemKey={(flashcard) => flashcard.id}
     ariaLabel={(chapterName) => `Flashcards in ${chapterName}`}
     isLoading={isLoading}
-    emptyMessage={emptyMessage}
+    emptyState={emptyState}
     animationKey={animationKey}
     renderItem={(flashcard) => (
       <FlashcardListCard

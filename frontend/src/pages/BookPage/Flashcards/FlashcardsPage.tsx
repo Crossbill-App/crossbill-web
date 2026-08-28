@@ -5,6 +5,7 @@ import type {
   TagGroupInBook,
   TagInBook,
 } from '@/api/generated/model';
+import { EmptyStateText } from '@/components/EmptyStateText.tsx';
 import {
   FlashcardChapterList,
   type FlashcardChapterData,
@@ -13,6 +14,7 @@ import {
 import { ContentWithSidebar } from '@/components/layout/Layouts.tsx';
 import { PageTitle } from '@/components/typography/PageTitle.tsx';
 import { useBookPage } from '@/pages/BookPage/BookPageContext';
+import { FilteredEmptyState } from '@/pages/BookPage/common/FilteredEmptyState.tsx';
 import { ListSearchSortHeader } from '@/pages/BookPage/common/ListSearchSortHeader.tsx';
 import { useBookTabFilters } from '@/pages/BookPage/common/useBookTabFilters.ts';
 import { BOOK_PAGE_LABELS } from '@/pages/BookPage/navigation/bookPageRoutes.ts';
@@ -31,8 +33,14 @@ const BOOK_FLASHCARDS_KEY = -1;
 export const FlashcardsPage = () => {
   const { book, isDesktop, leftSidebarEl, fabContainerEl } = useBookPage();
 
-  const { searchText, selectedTagId, handleSearch, handleTagClick, handleChapterClick } =
-    useBookTabFilters('/book/$bookId/flashcards');
+  const {
+    searchText,
+    selectedTagId,
+    handleSearch,
+    handleTagClick,
+    handleChapterClick,
+    clearFilters,
+  } = useBookTabFilters('/book/$bookId/flashcards');
   const [isReversed, setIsReversed] = useState(false);
   const [editingFlashcard, setEditingFlashcard] = useState<FlashcardWithContext | null>(null);
   const [filterDrawerOpen, setFilterDrawerOpen] = useState(false);
@@ -141,17 +149,14 @@ export const FlashcardsPage = () => {
     return chapterResults;
   }, [filteredFlashcards, isReversed]);
 
-  // Compute empty message based on state
-  const emptyMessage = useMemo(() => {
-    if (searchText) {
-      return selectedTagId
-        ? 'No flashcards found matching your search with the selected tag.'
-        : 'No flashcards found matching your search.';
-    }
-    return selectedTagId
-      ? 'No flashcards found with the selected tag.'
-      : 'No flashcards yet. Create flashcards from your highlights to start studying.';
-  }, [searchText, selectedTagId]);
+  const emptyState =
+    searchText || selectedTagId ? (
+      <FilteredEmptyState noun="flashcards" onClearFilters={() => clearFilters()} />
+    ) : (
+      <EmptyStateText>
+        No flashcards yet. Create flashcards from your highlights to start studying.
+      </EmptyStateText>
+    );
 
   const navData = useFlashcardsPageData(allFlashcardsWithContext, flashcardChapters, book.tags);
 
@@ -197,7 +202,7 @@ export const FlashcardsPage = () => {
             <FlashcardChapterList
               chapters={flashcardChapters}
               bookId={book.id}
-              emptyMessage={emptyMessage}
+              emptyState={emptyState}
               animationKey="flashcards"
               onEditFlashcard={setEditingFlashcard}
             />
@@ -221,7 +226,7 @@ export const FlashcardsPage = () => {
           <FlashcardChapterList
             chapters={flashcardChapters}
             bookId={book.id}
-            emptyMessage={emptyMessage}
+            emptyState={emptyState}
             animationKey="flashcards"
             onEditFlashcard={setEditingFlashcard}
           />

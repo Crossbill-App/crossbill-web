@@ -8,10 +8,12 @@ import type {
 } from '@/api/generated/model';
 import { useGetTags } from '@/api/generated/tags/tags.ts';
 import { scrollToElementWithHighlight } from '@/components/animations/scrollUtils';
+import { EmptyStateText } from '@/components/EmptyStateText.tsx';
 import { ContentWithSidebar } from '@/components/layout/Layouts.tsx';
 import { PageTitle } from '@/components/typography/PageTitle.tsx';
 import { useResetOnChange } from '@/hooks/useResetOnChange.ts';
 import { useBookPage } from '@/pages/BookPage/BookPageContext';
+import { FilteredEmptyState } from '@/pages/BookPage/common/FilteredEmptyState.tsx';
 import {
   filterChaptersByHighlightDate,
   parseDateSearchParam,
@@ -48,8 +50,14 @@ export const HighlightsPage = () => {
   const locationSearch = useLocation({ select: (location) => location.searchStr });
   const navigate = useNavigate({ from: '/book/$bookId/highlights' });
 
-  const { searchText, selectedTagId, handleSearch, handleTagClick, handleChapterClick } =
-    useBookTabFilters('/book/$bookId/highlights');
+  const {
+    searchText,
+    selectedTagId,
+    handleSearch,
+    handleTagClick,
+    handleChapterClick,
+    clearFilters,
+  } = useBookTabFilters('/book/$bookId/highlights');
   const [selectedLabelId, setSelectedLabelId] = useState<number | undefined>(urlLabelId);
   const [isReversed, setIsReversed] = useState(false);
   const [filterDrawerOpen, setFilterDrawerOpen] = useState(false);
@@ -168,9 +176,17 @@ export const HighlightsPage = () => {
 
   const listFilterActive =
     bookSearch.showSearchResults || !!selectedTagId || !!selectedLabelId || hasDateValues;
-  const emptyMessage = listFilterActive
-    ? 'No highlights match the filters.'
-    : 'No chapters found for this book.';
+  const emptyState = listFilterActive ? (
+    <FilteredEmptyState
+      noun="highlights"
+      onClearFilters={() => {
+        setSelectedLabelId(undefined);
+        clearFilters(['labelId', 'from', 'to']);
+      }}
+    />
+  ) : (
+    <EmptyStateText>No chapters found for this book.</EmptyStateText>
+  );
 
   const filterTabs = useHighlightsFilterTabs({
     navChapters: navData.chapters,
@@ -226,7 +242,7 @@ export const HighlightsPage = () => {
               chapters={chapters}
               bookmarksByHighlightId={bookmarksByHighlightId}
               isLoading={bookSearch.isSearching}
-              emptyMessage={emptyMessage}
+              emptyState={emptyState}
               animationKey="chapters-highlights"
               onOpenHighlight={highlightDialog.open}
             />
@@ -260,7 +276,7 @@ export const HighlightsPage = () => {
             chapters={chapters}
             bookmarksByHighlightId={bookmarksByHighlightId}
             isLoading={bookSearch.isSearching}
-            emptyMessage={emptyMessage}
+            emptyState={emptyState}
             animationKey="chapters-highlights"
             onOpenHighlight={highlightDialog.open}
           />
