@@ -10,7 +10,7 @@ export const ReadingStageIcon = ({ stage }: ReadingStageIconProps) => {
   const marker = readingStageMarker(stage);
   if (!marker) return null;
 
-  const { Icon, color, label } = marker;
+  const { Icon, label } = marker;
   return (
     <Tooltip title={label}>
       <Box
@@ -20,14 +20,14 @@ export const ReadingStageIcon = ({ stage }: ReadingStageIconProps) => {
           width: 28,
           height: 28,
           borderRadius: '50%',
-          backgroundColor: `${color}.main`,
+          backgroundColor: 'primary.main',
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
           boxShadow: (theme) => `0 2px 8px ${theme.customColors.shadows.medium}`,
         }}
       >
-        <Icon sx={{ fontSize: 16, color: `${color}.contrastText` }} />
+        <Icon sx={{ fontSize: 16, color: 'primary.contrastText' }} />
       </Box>
     </Tooltip>
   );

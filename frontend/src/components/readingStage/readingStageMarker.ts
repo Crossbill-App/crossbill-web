@@ -4,13 +4,11 @@ import { READING_STAGE_LABELS, type ReadingStageValue } from './readingStages.ts
 
 export interface ReadingStageMarker {
   Icon: SvgIconComponent;
-  /** Palette key for the circular backing. */
-  color: 'primary' | 'secondary';
   label: string;
 }
 
-const IN_PROGRESS = { Icon: ReadingInProgressIcon, color: 'primary' } as const;
-const DONE = { Icon: ReadingDoneIcon, color: 'primary' } as const;
+const IN_PROGRESS = { Icon: ReadingInProgressIcon } as const;
+const DONE = { Icon: ReadingDoneIcon } as const;
 
 /** Six stages collapse into three markers, and `to_read` deliberately gets none:
  *  unread is the default state of a library, so marking it would mark everything. */

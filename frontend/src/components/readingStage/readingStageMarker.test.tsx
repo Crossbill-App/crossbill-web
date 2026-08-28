@@ -5,12 +5,10 @@ import { READING_STAGE_LABELS } from './readingStages.ts';
 describe('readingStageMarker', () => {
   it('marks skimming and reading as the same in-progress marker', () => {
     expect(readingStageMarker('skimming')?.Icon).toBe(readingStageMarker('reading')?.Icon);
-    expect(readingStageMarker('reading')?.color).toBe('primary');
   });
 
   it('marks finished and reflected as the same done marker', () => {
     expect(readingStageMarker('finished')?.Icon).toBe(readingStageMarker('reflected')?.Icon);
-    expect(readingStageMarker('reflected')?.color).toBe('primary');
   });
 
   it('renders no marker for to_read or an unset stage', () => {
