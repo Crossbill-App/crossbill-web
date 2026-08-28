@@ -1,6 +1,8 @@
 import { TagGroupInBook } from '@/api/generated/model';
 import { useCommitOnBlur } from '@/hooks/useCommitOnBlur.ts';
+import type { SaveStatus } from '@/hooks/useSaveStatus.ts';
 import { CollapseChevron } from '@/components/CollapseChevron.tsx';
+import { SavedIndicator } from '@/components/SavedIndicator.tsx';
 import { DeleteIcon, EditIcon, EditTagsIcon } from '@/theme/Icons.tsx';
 import { createAdaptiveHoverStyles, createAdaptiveTouchTarget } from '@/utils/adaptiveHover.ts';
 import { Box, IconButton, TextField, Tooltip, Typography } from '@mui/material';
@@ -102,6 +104,8 @@ interface TagGroupHeaderProps {
   onEditTags: () => void;
   onDelete: () => void;
   isProcessing: boolean;
+  /** Rename saves itself when the field is left, so the save is marked here. */
+  saveStatus: SaveStatus;
 }
 
 export const TagGroupHeader = ({
@@ -113,6 +117,7 @@ export const TagGroupHeader = ({
   onEditTags,
   onDelete,
   isProcessing,
+  saveStatus,
 }: TagGroupHeaderProps) => {
   const [isEditing, setIsEditing] = useState(false);
 
@@ -154,13 +159,15 @@ export const TagGroupHeader = ({
         />
       )}
       {!isEditing && (
-        <Box
-          className="group-actions"
-          sx={{
-            ...adaptiveStyles.actions,
-            gap: 0.25,
-          }}
-        >
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+          <SavedIndicator status={saveStatus} sx={{ minHeight: 0 }} />
+          <Box
+            className="group-actions"
+            sx={{
+              ...adaptiveStyles.actions,
+              gap: 0.25,
+            }}
+          >
           <Tooltip title="Edit tags">
             <span>
               <IconButton
@@ -206,7 +213,8 @@ export const TagGroupHeader = ({
                 <DeleteIcon sx={{ fontSize: 14 }} />
               </IconButton>
             </span>
-          </Tooltip>
+            </Tooltip>
+          </Box>
         </Box>
       )}
     </Box>

@@ -1,6 +1,7 @@
 import { TagGroupInBook, TagInBook } from '@/api/generated/model';
 import { Collapsable } from '@/components/animations/Collapsable.tsx';
 import { ConfirmationDialog } from '@/components/dialogs/ConfirmationDialog.tsx';
+import { useSaveStatus } from '@/hooks/useSaveStatus.ts';
 import { Box, Typography } from '@mui/material';
 import { motion } from 'motion/react';
 import { useState } from 'react';
@@ -40,7 +41,7 @@ interface TagGroupSectionProps {
   bookId: number;
   isProcessing: boolean;
   selectedTag: number | null | undefined;
-  onEditSubmit: (groupId: number, value: string) => void;
+  onEditSubmit: (groupId: number, value: string) => Promise<void>;
   onDelete: () => void;
   onTagClick: (tagId: number | null) => void;
   onMove: (tagId: number, groupId: number | null) => void;
@@ -62,6 +63,14 @@ export const TagGroupSection = ({
   const [isExpanded, setIsExpanded] = useState(true);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [isDeleteConfirmOpen, setIsDeleteConfirmOpen] = useState(false);
+  const saveStatus = useSaveStatus();
+
+  // The rename commits when the field is left, with nothing else on screen to
+  // show it landed.
+  const handleEditSubmit = (value: string) => {
+    saveStatus.saving();
+    onEditSubmit(group.id, value).then(saveStatus.saved, saveStatus.reset);
+  };
 
   const handleConfirmDelete = () => {
     setIsDeleteConfirmOpen(false);
@@ -84,10 +93,11 @@ export const TagGroupSection = ({
         tagCount={tags.length}
         isExpanded={isExpanded}
         onToggleCollapse={() => setIsExpanded(!isExpanded)}
-        onEditSubmit={(value) => onEditSubmit(group.id, value)}
+        onEditSubmit={handleEditSubmit}
         onEditTags={() => setIsDialogOpen(true)}
         onDelete={() => setIsDeleteConfirmOpen(true)}
         isProcessing={isProcessing}
+        saveStatus={saveStatus.status}
       />
       <Collapsable isExpanded={isExpanded}>
         {tags.length > 0 ? (

@@ -2,8 +2,10 @@ import type { NoteUpdateRequestKind, NoteWithLinks } from '@/api/generated/model
 import { useCreateNote, useDeleteNote, useUpdateNote } from '@/api/generated/notes/notes.ts';
 import { useSnackbar } from '@/context/SnackbarContext.tsx';
 import { useCommitOnBlur } from '@/hooks/useCommitOnBlur.ts';
+import { SavedIndicator } from '@/components/SavedIndicator.tsx';
 import { useMutationErrorHandler } from '@/hooks/useMutationErrorHandler.ts';
 import { useResetOnChange } from '@/hooks/useResetOnChange.ts';
+import { useSaveStatus } from '@/hooks/useSaveStatus.ts';
 import { useCacheEvents } from '@/lib/cacheEvents.ts';
 import { useBookPage } from '@/pages/BookPage/BookPageContext';
 import { GistHelperText } from '@/pages/BookPage/Notes/GistHelperText.tsx';
@@ -54,10 +56,14 @@ export const ChapterGistSection = ({ chapterId, chapterName, notes }: ChapterGis
 
   const [isEditing, setIsEditing] = useState(false);
   const [saveFailed, setSaveFailed] = useState(false);
+  const saveStatus = useSaveStatus();
 
   const field = useCommitOnBlur({
     saved: savedBody,
-    onCommit: (body) => save(body),
+    onCommit: (body) => {
+      saveStatus.saving();
+      save(body);
+    },
     onBlur: () => setIsEditing(false),
     onCancel: () => setIsEditing(false),
   });
@@ -66,10 +72,12 @@ export const ChapterGistSection = ({ chapterId, chapterName, notes }: ChapterGis
     field.revert();
     setIsEditing(false);
     setSaveFailed(false);
+    saveStatus.reset();
   });
 
   const failed = (action: string) => (error: unknown) => {
     mutationErrorHandler(action)(error);
+    saveStatus.reset();
     setSaveFailed(true);
     setIsEditing(true);
     // The save never landed, so leaving the field again should retry it.
@@ -78,6 +86,7 @@ export const ChapterGistSection = ({ chapterId, chapterName, notes }: ChapterGis
 
   const saved = () => {
     setSaveFailed(false);
+    saveStatus.saved();
     cache.noteChanged(book.id, gist?.id);
   };
 
@@ -90,6 +99,7 @@ export const ChapterGistSection = ({ chapterId, chapterName, notes }: ChapterGis
   const deleteMutation = useDeleteNote({
     mutation: {
       onSuccess: (_data, variables) => {
+        saveStatus.reset();
         cache.noteDeleted(book.id, variables.noteId);
         showSnackbar('Gist deleted.', 'info');
       },
@@ -159,6 +169,7 @@ export const ChapterGistSection = ({ chapterId, chapterName, notes }: ChapterGis
           }
         />
       )}
+      <SavedIndicator status={saveStatus.status} />
     </Box>
   );
 };

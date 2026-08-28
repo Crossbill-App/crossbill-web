@@ -1,7 +1,8 @@
 import { aBookDetails, aChapter } from '@tests/fixtures/book';
+import { aChapterDigest, aDigestQuestion } from '@tests/fixtures/digest';
 import { aDigestHit } from '@tests/fixtures/semantic';
 import { renderApp } from '@tests/harness/renderApp';
-import { settingsWithEmbeddings } from '@tests/msw/auth';
+import { settingsWithAi, settingsWithEmbeddings } from '@tests/msw/auth';
 import { bookApi } from '@tests/msw/bookApi';
 import { semanticSearchApi } from '@tests/msw/semanticSearchApi';
 import { worker } from '@tests/msw/worker';
@@ -271,4 +272,36 @@ test('closing a chapter dialog leaves the page where it was scrolled to', async 
   // scrolled away from it a frame later, which a poll would call a pass.
   await new Promise((resolve) => setTimeout(resolve, 400));
   expect(window.scrollY).toBe(parked);
+});
+
+/**
+ * A digest answer saves itself when the field is left, with nothing else on
+ * screen to say so — the reader had no way to know their answer was stored.
+ */
+test('a digest answer says it saved when the field is left', async () => {
+  worker.use(
+    settingsWithAi(true),
+    ...bookApi({
+      book: aStructuredBook(),
+      digests: [
+        aChapterDigest({
+          chapter_id: 11,
+          questions: [aDigestQuestion({ question: 'What makes attention a filter?' })],
+        }),
+      ],
+    }).handlers
+  );
+
+  const screen = await renderApp({ path: '/book/1/structure' });
+  await userEvent.click(screen.getByText('Attention and memory'));
+
+  const dialog = screen.getByRole('dialog');
+  const answer = dialog.getByPlaceholder('Write your answer...');
+  await expect.element(answer).toBeVisible();
+  expect(dialog.getByText('Saved').elements()).toHaveLength(0);
+
+  await userEvent.fill(answer, 'It drops what is not attended to.');
+  await userEvent.click(dialog.getByText('What makes attention a filter?'));
+
+  await expect.element(dialog.getByText('Saved')).toBeVisible();
 });

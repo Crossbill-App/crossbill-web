@@ -20,6 +20,7 @@ const renderHeader = async (isProcessing = false) => {
         onEditTags={() => {}}
         onDelete={() => {}}
         isProcessing={isProcessing}
+        saveStatus="idle"
       />
       <button>elsewhere</button>
     </>

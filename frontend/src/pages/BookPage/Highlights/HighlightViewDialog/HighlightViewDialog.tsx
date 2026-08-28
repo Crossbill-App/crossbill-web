@@ -7,6 +7,7 @@ import { CommonDialogTitle } from '@/components/dialogs/CommonDialogTitle.tsx';
 import { ConfirmationDialog } from '@/components/dialogs/ConfirmationDialog.tsx';
 import { ProgressBar } from '@/components/dialogs/ProgressBar.tsx';
 import { useDialogHorizontalNavigation } from '@/components/dialogs/useDialogHorizontalNavigation.ts';
+import { SavedIndicator } from '@/components/SavedIndicator.tsx';
 import { TagInput } from '@/components/inputs/TagInput.tsx';
 import { useMutationErrorHandler } from '@/hooks/useMutationErrorHandler.ts';
 import { useCacheEvents } from '@/lib/cacheEvents.ts';
@@ -43,7 +44,7 @@ export const HighlightViewDialog = ({
 
   const currentBookmark = bookmarksByHighlightId[highlight.id] ?? undefined;
 
-  const { isProcessing, currentTags, updateTagList } = useImmediateTagMutation({
+  const { isProcessing, saveStatus, currentTags, updateTagList } = useImmediateTagMutation({
     bookId,
     highlightId: highlight.id,
     initialTags: highlight.tags,
@@ -109,13 +110,16 @@ export const HighlightViewDialog = ({
           onDelete={handleDelete}
           disabled={isLoading}
         />
-        <TagInput
-          value={currentTags}
-          onChange={updateTagList}
-          availableTags={availableTags}
-          isProcessing={isProcessing}
-          disabled={isLoading}
-        />
+        <Box>
+          <TagInput
+            value={currentTags}
+            onChange={updateTagList}
+            availableTags={availableTags}
+            isProcessing={isProcessing}
+            disabled={isLoading}
+          />
+          <SavedIndicator status={saveStatus} sx={{ textAlign: 'right' }} />
+        </Box>
         <HighlightTabs highlight={highlight} bookId={bookId} disabled={isLoading} />
       </Stack>
     </Box>

@@ -1,6 +1,8 @@
 import { useUpdateHighlightLabel } from '@/api/generated/highlight-labels/highlight-labels.ts';
+import { SavedIndicator } from '@/components/SavedIndicator.tsx';
 import { ColorSwatchPicker } from '@/components/inputs/ColorSwatchPicker.tsx';
 import { useMutationErrorHandler } from '@/hooks/useMutationErrorHandler.ts';
+import { useSaveStatus } from '@/hooks/useSaveStatus.ts';
 import { useCacheEvents } from '@/lib/cacheEvents.ts';
 import { LABEL_COLORS } from '@/utils/colorUtils.ts';
 import { Box, Popover, TextField, Typography } from '@mui/material';
@@ -32,13 +34,18 @@ const LabelEditorContent = ({
   const cache = useCacheEvents();
   const mutationErrorHandler = useMutationErrorHandler();
   const [labelText, setLabelText] = useState(currentLabel || '');
+  const saveStatus = useSaveStatus();
 
   const updateMutation = useUpdateHighlightLabel({
     mutation: {
       onSuccess: () => {
+        saveStatus.saved();
         cache.highlightLabelsChanged(bookId);
       },
-      onError: mutationErrorHandler('update label'),
+      onError: (error: unknown) => {
+        saveStatus.reset();
+        mutationErrorHandler('update label')(error);
+      },
     },
   });
 
@@ -46,6 +53,7 @@ const LabelEditorContent = ({
     if (updateMutation.isPending) return;
     const trimmed = labelText.trim();
     if (trimmed !== (currentLabel || '')) {
+      saveStatus.saving();
       updateMutation.mutate({
         styleId,
         data: { label: trimmed },
@@ -59,6 +67,7 @@ const LabelEditorContent = ({
   });
 
   const handleColorChange = (color: string) => {
+    saveStatus.saving();
     updateMutation.mutate({
       styleId,
       data: { ui_color: color },
@@ -73,6 +82,7 @@ const LabelEditorContent = ({
       <TextField
         value={labelText}
         onChange={(e) => setLabelText(e.target.value)}
+        onBlur={handleLabelSubmit}
         onKeyDown={(e) => {
           if (e.key === 'Enter') {
             e.preventDefault();
@@ -95,6 +105,7 @@ const LabelEditorContent = ({
         value={currentColor}
         onChange={handleColorChange}
       />
+      <SavedIndicator status={saveStatus.status} sx={{ mt: 1 }} />
     </Box>
   );
 };
