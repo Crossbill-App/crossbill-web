@@ -206,9 +206,7 @@ export const StructurePage = () => {
       )}
 
       {search.hasQuery && topLevelChapters.length === 0 ? (
-        <Box sx={{ p: 3, textAlign: 'center' }}>
-          <EmptyStateText>No chapters match “{searchText}”.</EmptyStateText>
-        </Box>
+        <EmptyStateText variant="page">No chapters match “{searchText}”.</EmptyStateText>
       ) : (
         topLevelChapters.map((chapter) => (
           <ChapterAccordion

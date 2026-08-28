@@ -1,5 +1,6 @@
 import { useGetBooks } from '@/api/generated/books/books';
 import { Spinner } from '@/components/animations/Spinner.tsx';
+import { EmptyStateText } from '@/components/EmptyStateText.tsx';
 import { SearchBar } from '@/components/inputs/SearchBar.tsx';
 import { PageContainer } from '@/components/layout/Layouts.tsx';
 import { SectionTitle } from '@/components/typography/SectionTitle.tsx';
@@ -94,16 +95,9 @@ export const LandingPage = () => {
       )}
 
       {data?.items && data.items.length === 0 && (
-        <Box sx={{ py: 4, textAlign: 'center' }}>
-          <Typography
-            variant="body1"
-            sx={{
-              color: 'text.secondary',
-            }}
-          >
-            No books found. Upload some highlights to get started!
-          </Typography>
-        </Box>
+        <EmptyStateText variant="page">
+          No books found. Upload some highlights to get started!
+        </EmptyStateText>
       )}
 
       {data?.items && data.items.length > 0 && (

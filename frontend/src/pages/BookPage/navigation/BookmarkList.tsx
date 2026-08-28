@@ -1,5 +1,6 @@
 import type { Bookmark, Highlight } from '@/api/generated/model';
 import { Collapsable } from '@/components/animations/Collapsable.tsx';
+import { EmptyStateText } from '@/components/EmptyStateText.tsx';
 import { CollapseChevron } from '@/components/CollapseChevron.tsx';
 import { BookmarkFilledIcon } from '@/theme/Icons.tsx';
 import { Box, Button, IconButton, Typography } from '@mui/material';
@@ -177,15 +178,9 @@ export const BookmarkList = ({
             })}
           </Box>
         ) : (
-          <Typography
-            variant="body2"
-            sx={{
-              color: 'text.secondary',
-              fontSize: '0.813rem',
-            }}
-          >
+          <EmptyStateText>
             {filterActive ? 'No bookmarks match the active filters.' : 'No bookmarks yet.'}
-          </Typography>
+          </EmptyStateText>
         )}
       </Collapsable>
     </Box>

@@ -1,7 +1,8 @@
 import type { Bookmark, ReadingSession } from '@/api/generated/model';
 import { FadeInOut } from '@/components/animations/FadeInOut';
+import { EmptyStateText } from '@/components/EmptyStateText.tsx';
 import { useSettings } from '@/context/SettingsContext';
-import { Box, Typography } from '@mui/material';
+import { Box } from '@mui/material';
 import { ReadingSessionCard } from './ReadingSessionCard';
 
 interface ReadingSessionListProps {
@@ -23,16 +24,7 @@ export const ReadingSessionList = ({
   return (
     <FadeInOut ekey={animationKey}>
       {sessions.length === 0 ? (
-        <Typography
-          variant="body1"
-          sx={{
-            color: 'text.secondary',
-            py: 4,
-            textAlign: 'center',
-          }}
-        >
-          {emptyMessage}
-        </Typography>
+        <EmptyStateText variant="page">{emptyMessage}</EmptyStateText>
       ) : (
         <Box
           component="ul"

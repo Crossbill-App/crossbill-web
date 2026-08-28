@@ -1,6 +1,7 @@
 import { TagGroupInBook, TagInBook } from '@/api/generated/model';
+import { EmptyStateText } from '@/components/EmptyStateText.tsx';
 import { AddIcon, TagIcon } from '@/theme/Icons.tsx';
-import { Box, Button, IconButton, Tooltip, Typography } from '@mui/material';
+import { Box, Button, IconButton, Tooltip } from '@mui/material';
 import { sortBy } from 'lodash';
 import { useState } from 'react';
 
@@ -126,15 +127,7 @@ export const TagsList = ({
           )}
         </Box>
       ) : (
-        <Typography
-          variant="body2"
-          sx={{
-            color: 'text.secondary',
-            fontSize: '0.813rem',
-          }}
-        >
-          No tagged highlights yet.
-        </Typography>
+        <EmptyStateText>No tagged highlights yet.</EmptyStateText>
       )}
     </Box>
   );
