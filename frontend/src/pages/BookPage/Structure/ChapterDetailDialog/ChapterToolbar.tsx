@@ -3,6 +3,7 @@ import { AIActionButton } from '@/components/buttons/AIActionButton.tsx';
 import { IconButtonWithTooltip } from '@/components/buttons/IconButtonWithTooltip.tsx';
 import { DialogToolbar } from '@/components/dialogs/DialogToolbar.tsx';
 import { AIFeature } from '@/components/features/AIFeature.tsx';
+import { useMutationErrorHandler } from '@/hooks/useMutationErrorHandler.ts';
 import { useCacheEvents } from '@/lib/cacheEvents.ts';
 import { AIIcon, LinkIcon, RegenerateIcon } from '@/theme/Icons.tsx';
 import { copyUrlWithSearchParam } from '@/utils/clipboard.ts';
@@ -16,9 +17,11 @@ interface ChapterToolbarProps {
 
 export const ChapterToolbar = ({ chapterId, bookId, hasSummary }: ChapterToolbarProps) => {
   const cache = useCacheEvents();
+  const mutationErrorHandler = useMutationErrorHandler();
 
   const { mutate: generate, isPending } = useGenerateChapterDigest({
     mutation: {
+      onError: mutationErrorHandler('generate summary'),
       onSuccess: () => {
         cache.digestChanged(bookId);
       },

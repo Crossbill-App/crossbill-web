@@ -95,6 +95,7 @@ export const ChapterReviewSection = ({
 
   const { mutate: generate, isPending } = useGenerateChapterDigest({
     mutation: {
+      onError: mutationErrorHandler('generate questions'),
       onSuccess: () => {
         cache.digestChanged(bookId);
       },
