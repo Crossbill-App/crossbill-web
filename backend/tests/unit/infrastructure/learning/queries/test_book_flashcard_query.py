@@ -9,7 +9,7 @@ from src.application.reading.services.label_resolution_service import LabelResol
 from src.domain.common.value_objects.ids import BookId, UserId
 from src.infrastructure.learning.queries.book_flashcard_query import BookFlashcardQuery
 from src.models import Book, Flashcard, Highlight, HighlightStyle, Note, Tag, User
-from tests.conftest import create_test_book, create_test_highlight
+from tests.conftest import create_test_book, create_test_highlight, device_datetime
 from tests.unit.infrastructure.conftest import AddChapter
 
 DEFAULT_USER_ID = 1
@@ -159,7 +159,7 @@ async def test_highlight_carries_its_chapter_and_tags(
         highlight.id,
         "Highlighted text",
         42,
-        "2024-01-15 14:30:22",
+        device_datetime("2024-01-15 14:30:22"),
     )
     assert (embedded.chapter_id, embedded.chapter_name, embedded.chapter_number) == (
         chapter.id,

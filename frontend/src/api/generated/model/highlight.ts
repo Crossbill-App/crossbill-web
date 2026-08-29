@@ -23,11 +23,7 @@ export interface Highlight {
   chapter_number?: number | null;
   /** Page number */
   page?: number | null;
-  /**
-   * KOReader datetime format
-   * @minLength 1
-   * @maxLength 50
-   */
+  /** When the highlight was made, on the device's own clock. Sent without a UTC offset because the e-reader does not know one; KOReader's 'YYYY-MM-DD HH:MM:SS' is accepted on the way in. */
   datetime: string;
   id: number;
   book_id: number;

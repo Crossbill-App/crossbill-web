@@ -37,7 +37,7 @@ export const aHighlightHit = (
   chapter_number: 1,
   text: 'The map is not the territory.',
   page: 42,
-  datetime: '2026-01-01 00:00:00',
+  datetime: '2026-01-01T00:00:00',
   cover_file: null,
   cover_blurhash: null,
   ...overrides,

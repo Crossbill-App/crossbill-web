@@ -5,6 +5,7 @@ never be fed back into a command. See ``docs/adr/0001-read-models-and-query-serv
 """
 
 from dataclasses import dataclass
+from datetime import datetime as dt
 from typing import Protocol
 
 from src.domain.common.value_objects.ids import BookId, UserId
@@ -26,8 +27,8 @@ class EreaderHighlightView:
     text: str
     start_xpoint: str | None
     end_xpoint: str | None
-    datetime: str
-    datetime_updated: str | None
+    datetime: dt
+    datetime_updated: dt | None
     page: int | None
     chapter_number: int | None
     chapter_name: str | None

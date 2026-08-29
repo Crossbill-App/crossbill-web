@@ -1,9 +1,10 @@
 """Pydantic schemas for Highlight API request/response validation."""
 
+from datetime import UTC
 from datetime import datetime as dt
 from typing import TYPE_CHECKING, Annotated, Any, Literal
 
-from pydantic import BaseModel, Field, model_validator
+from pydantic import AfterValidator, BaseModel, Field, model_validator
 
 from src.infrastructure.common.schemas.position_schemas import PositionResponse
 from src.infrastructure.reading.schemas.bookmark_schemas import Bookmark
@@ -20,6 +21,21 @@ if TYPE_CHECKING:
 # This will be moved after the class definitions
 
 
+def _drop_offset(value: dt) -> dt:
+    """Reduce a device timestamp to the offsetless wall clock we store.
+
+    KOReader sends device-local time with no offset, so there is nothing to
+    drop for the plugin. A client that does send one is converted to UTC rather
+    than having its offset quietly ignored.
+    """
+    if value.tzinfo is None:
+        return value
+    return value.astimezone(UTC).replace(tzinfo=None)
+
+
+DeviceDatetime = Annotated[dt, AfterValidator(_drop_offset)]
+
+
 class HighlightBase(BaseModel):
     """Base schema for Highlight."""
 
@@ -27,7 +43,14 @@ class HighlightBase(BaseModel):
     chapter: str | None = Field(None, max_length=500, description="Chapter name")
     chapter_number: int | None = Field(None, ge=1, description="Chapter order number from TOC")
     page: int | None = Field(None, ge=0, description="Page number")
-    datetime: str = Field(..., min_length=1, max_length=50, description="KOReader datetime format")
+    datetime: DeviceDatetime = Field(
+        ...,
+        description=(
+            "When the highlight was made, on the device's own clock. Sent without a "
+            "UTC offset because the e-reader does not know one; KOReader's "
+            "'YYYY-MM-DD HH:MM:SS' is accepted on the way in."
+        ),
+    )
 
 
 class HighlightCreate(HighlightBase):
@@ -42,12 +65,12 @@ class HighlightCreate(HighlightBase):
         None, description="Highlight drawer/style from KOReader (e.g. 'lighten', 'strikethrough')"
     )
     note: str | None = Field(None, description="Note attached to the highlight in KOReader")
-    datetime_updated: str | None = Field(
+    datetime_updated: DeviceDatetime | None = Field(
         None,
-        max_length=50,
         description=(
-            "KOReader datetime of the last edit on the device; absent until the "
-            "highlight is first edited. The newest edit wins when devices disagree."
+            "When the highlight was last edited on the device, on that device's own "
+            "clock; absent until the highlight is first edited. The newest edit wins "
+            "when devices disagree."
         ),
     )
     is_new: bool = Field(

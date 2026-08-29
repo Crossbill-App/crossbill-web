@@ -7,6 +7,7 @@ from src.application.semantic.content_type import ContentType
 from src.infrastructure.notes.orm.associations import note_books
 from src.infrastructure.semantic.queries.semantic_search_query import SemanticSearchQuery
 from src.models import Book, Embedding, Highlight, Note, User
+from tests.conftest import device_datetime
 
 USER_ID = 1
 OTHER_USER_ID = 2
@@ -45,7 +46,7 @@ async def _add_source(
                 user_id=user_id,
                 book_id=book.id,
                 text=f"highlight {content_id}",
-                datetime="2024-01-15 14:30:22",
+                datetime=device_datetime("2024-01-15 14:30:22"),
                 content_hash="c" * 64,
             )
         )

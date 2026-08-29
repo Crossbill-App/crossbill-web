@@ -1,5 +1,7 @@
 """Pydantic schemas for semantic-search API responses."""
 
+from datetime import datetime as dt
+
 from pydantic import BaseModel, ConfigDict
 
 from src.infrastructure.jobs.schemas.job_batch_schemas import JobBatchResponse
@@ -54,7 +56,7 @@ class HighlightSearchItem(BaseModel):
     chapter_number: int | None
     text: str
     page: int | None
-    datetime: str
+    datetime: dt
     cover_file: str | None
     cover_blurhash: str | None
 

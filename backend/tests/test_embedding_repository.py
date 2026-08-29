@@ -12,6 +12,7 @@ from src.application.semantic.protocols.embedding_repository import EmbeddingWri
 from src.infrastructure.semantic.orm.embedding_model import Embedding as EmbeddingORM
 from src.infrastructure.semantic.repositories.embedding_repository import EmbeddingRepository
 from src.models import Book, Chapter, ChapterDigest, Highlight, Note
+from tests.conftest import device_datetime
 
 VECTOR = [0.1, 0.2, 0.3]
 OTHER_VECTOR = [0.9, 0.8, 0.7]
@@ -56,7 +57,7 @@ async def _referenced_content(db_session: AsyncSession) -> None:  # pyright: ign
                 user_id=1,
                 book_id=7,
                 text="highlight five",
-                datetime="2024-01-15 14:30:22",
+                datetime=device_datetime("2024-01-15 14:30:22"),
                 content_hash="f" * 64,
             ),
             Chapter(id=3, book_id=7, name="Chapter three"),

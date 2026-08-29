@@ -6,6 +6,7 @@ No Pydantic dependencies - works with domain entities only.
 """
 
 from dataclasses import dataclass
+from datetime import datetime as dt
 
 import structlog
 
@@ -52,8 +53,8 @@ class HighlightUploadData:
     page: int | None = None
     color: str | None = None
     drawer: str | None = None
-    datetime: str | None = None
-    datetime_updated: str | None = None
+    datetime: dt | None = None
+    datetime_updated: dt | None = None
     koreader_note: str | None = None
     # Set by the device for a highlight it created after its last pull; tells a
     # deliberate re-highlight from a stale echo of one already removed or deleted.
@@ -229,7 +230,7 @@ class HighlightUploadUseCase:
                 page=data.page,
                 position=position,
                 highlight_style_id=highlight_style.id,
-                datetime_str=data.datetime,
+                device_datetime=data.datetime,
                 koreader_updated_at=data.datetime_updated,
                 koreader_note=data.koreader_note,
                 origin_device_id=device_id,
@@ -420,8 +421,9 @@ class HighlightUploadUseCase:
         ``datetime_updated`` (its creation ``datetime`` until it is first
         edited) is compared against the one stored, and the incoming edit is
         applied only if it is strictly newer. Equal timestamps keep the
-        server's copy. The strings are KOReader's "%Y-%m-%d %H:%M:%S", which
-        orders correctly as text, so no parsing is needed. A stored highlight
+        server's copy. Both sides are offsetless device wall clocks, so the
+        comparison is only as good as the devices' agreement about the time --
+        the same approximation KOReader itself lives with. A stored highlight
         that has never received a device edit accepts the first one whatever
         its time: there is nothing to protect, and rows uploaded before notes
         were kept carry a server-side ``datetime`` that a device edit made

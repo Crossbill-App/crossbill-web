@@ -12,6 +12,7 @@ from src.infrastructure.semantic.content.content_source import (
     ContentSource,
 )
 from src.models import Book, Chapter, ChapterDigest, Embedding, Highlight, Note
+from tests.conftest import device_datetime
 
 USER_ID = 1
 
@@ -46,7 +47,7 @@ async def _add_highlight(
         user_id=USER_ID,
         book_id=book.id,
         text=text,
-        datetime="2024-01-15 14:30:22",
+        datetime=device_datetime("2024-01-15 14:30:22"),
         content_hash=_expected_hash(text)[:64],
         deleted_at=datetime.now(UTC) if deleted else None,
     )

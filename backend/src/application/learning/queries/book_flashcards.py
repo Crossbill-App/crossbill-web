@@ -24,7 +24,7 @@ class FlashcardHighlightView:
     chapter_number: int | None
     text: str
     page: int | None
-    datetime: str
+    datetime: dt
     label: HighlightLabelView | None
     tags: tuple[TagRef, ...]
     created_at: dt

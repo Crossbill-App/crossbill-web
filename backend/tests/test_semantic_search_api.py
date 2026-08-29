@@ -202,7 +202,7 @@ class TestRenderableFields:
         assert item["chapter_name"] == "Test Chapter"
         assert item["text"] == "the text"
         assert item["page"] == highlight.page
-        assert item["datetime"] == highlight.datetime
+        assert item["datetime"] == highlight.datetime.isoformat()
 
     async def test_note_item_carries_title_body_and_every_book(
         self,

@@ -1,4 +1,5 @@
 from dataclasses import dataclass
+from datetime import datetime as dt
 from typing import Protocol
 
 from src.domain.common.value_objects import ContentHash, XPointRange
@@ -27,7 +28,7 @@ class DeviceEdit:
     highlight_id: HighlightId
     koreader_note: str | None
     highlight_style_id: HighlightStyleId | None
-    koreader_updated_at: str
+    koreader_updated_at: dt
 
 
 class HighlightRepositoryProtocol(Protocol):

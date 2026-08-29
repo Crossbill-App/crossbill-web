@@ -84,7 +84,9 @@ async def sync_highlights(
     Sync highlights from KOReader.
 
     Creates or updates book record and adds highlights with automatic deduplication.
-    Duplicates are identified by the combination of book, text, and datetime.
+    Duplicates are identified by book and highlighted text alone: a highlight's
+    timestamps say when the device made and edited it, and take no part in
+    deciding whether it is the same highlight.
 
     ``removed_ids`` carries the highlights the reader deleted on the device:
     they are withheld from every device's pull and stay whole on the web.
