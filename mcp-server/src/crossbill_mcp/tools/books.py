@@ -43,13 +43,16 @@ def register_book_tools(server: FastMCP, client: CrossbillClient) -> None:
         return json.dumps(result, indent=2, default=str)
 
     @server.tool(annotations=ToolAnnotations(readOnlyHint=True))
-    async def get_recently_viewed_books(limit: int = 10) -> str:
-        """Get recently viewed books.
+    async def get_recent_books(limit: int = 10) -> str:
+        """Get the books the user last opened, or last synced from an e-reader.
+
+        One list ordered by the later of the two timestamps, so a book appears
+        once however it was touched.
 
         Args:
             limit: Maximum number of books to return (default 10)
         """
-        result = await client.get_recently_viewed_books(limit=limit)
+        result = await client.get_recent_books(limit=limit)
         return json.dumps(result, indent=2, default=str)
 
     @server.tool()
