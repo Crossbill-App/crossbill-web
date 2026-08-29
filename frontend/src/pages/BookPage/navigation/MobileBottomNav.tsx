@@ -1,3 +1,4 @@
+import { BOTTOM_NAV_CLEARANCE, BOTTOM_NAV_CLEARANCE_VAR } from '@/components/layout/Layouts.tsx';
 import { MoreIcon } from '@/theme/Icons.tsx';
 import {
   BottomNavigation,
@@ -9,7 +10,7 @@ import {
   Paper,
 } from '@mui/material';
 import { useNavigate, useParams, useRouterState } from '@tanstack/react-router';
-import { useState } from 'react';
+import { useLayoutEffect, useState } from 'react';
 import { BOOK_PAGE_LABELS, BOOK_PAGE_ROUTES } from './bookPageRoutes.ts';
 
 const MORE_VALUE = 'more';
@@ -29,6 +30,17 @@ export const MobileBottomNav = () => {
 
   const [anchorEl, setAnchorEl] = useState<HTMLElement | null>(null);
   const menuOpen = Boolean(anchorEl);
+
+  // The snackbar also anchors to the bottom edge, from a provider above the
+  // router that cannot see this page. Publishing the room this navigation
+  // takes lets it step aside here and sit at the edge everywhere else.
+  useLayoutEffect(() => {
+    const root = document.documentElement;
+    root.style.setProperty(BOTTOM_NAV_CLEARANCE_VAR, BOTTOM_NAV_CLEARANCE);
+    return () => {
+      root.style.removeProperty(BOTTOM_NAV_CLEARANCE_VAR);
+    };
+  }, []);
 
   const activePage = getActivePage(location.pathname);
   const isOverflowActive = OVERFLOW_ROUTES.some((route) => route.segment === activePage);

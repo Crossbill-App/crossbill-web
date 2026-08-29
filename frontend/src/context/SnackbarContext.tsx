@@ -1,5 +1,5 @@
 /* eslint-disable react-refresh/only-export-components */
-import { BOTTOM_NAV_CLEARANCE } from '@/components/layout/Layouts.tsx';
+import { BOTTOM_NAV_CLEARANCE_VAR } from '@/components/layout/Layouts.tsx';
 import { Portal } from '@mui/material';
 import Alert, { AlertColor } from '@mui/material/Alert';
 import Snackbar from '@mui/material/Snackbar';
@@ -48,10 +48,11 @@ export function SnackbarProvider({ children }: { children: ReactNode }) {
           autoHideDuration={6000}
           onClose={handleClose}
           anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
-          // Clears the book page's bottom navigation, which is fixed to the
-          // bottom edge below `lg`. An error is exactly when a reader wants to
-          // navigate away, so the message must not sit on the way out.
-          sx={{ bottom: { xs: BOTTOM_NAV_CLEARANCE, lg: 24 } }}
+          // Steps above the bottom navigation wherever it is mounted, and
+          // keeps MUI's own place at the edge where it is not. An error is
+          // exactly when a reader wants to navigate away, so the message must
+          // not sit on the way out.
+          sx={{ marginBottom: `var(${BOTTOM_NAV_CLEARANCE_VAR}, 0px)` }}
         >
           <Alert
             onClose={handleClose}
