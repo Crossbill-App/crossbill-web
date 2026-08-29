@@ -17,7 +17,6 @@ interface ChapterListProps {
   noteCountByHighlightId: Record<number, number>;
   isLoading?: boolean;
   emptyState?: ReactNode;
-  animationKey?: string;
   onOpenHighlight?: (highlightId: number) => void;
 }
 
@@ -27,7 +26,6 @@ export const HighlightsList = ({
   noteCountByHighlightId,
   isLoading,
   emptyState,
-  animationKey = 'chapters',
   onOpenHighlight,
 }: ChapterListProps) => (
   <ChapterGroupedList
@@ -39,7 +37,6 @@ export const HighlightsList = ({
     ariaLabel={(chapter) => `Highlights in ${chapter.name}`}
     isLoading={isLoading}
     emptyState={emptyState}
-    animationKey={animationKey}
     cardListSx={{ gap: 2.5 }}
     renderItem={(highlight) => (
       <HighlightCard

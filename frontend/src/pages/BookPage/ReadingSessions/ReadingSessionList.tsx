@@ -20,7 +20,9 @@ export const ReadingSessionList = ({
   onOpenHighlight,
 }: ReadingSessionListProps) => {
   return (
-    <FadeInOut ekey={animationKey}>
+    // The tab-level fade in `BookPage` covers the first paint; this one only
+    // replays the list when the page changes.
+    <FadeInOut ekey={animationKey} animateOnMount={false}>
       {sessions.length === 0 ? (
         <EmptyStateText variant="page">{emptyMessage}</EmptyStateText>
       ) : (

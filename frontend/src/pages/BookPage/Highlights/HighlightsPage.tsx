@@ -246,7 +246,6 @@ export const HighlightsPage = () => {
               noteCountByHighlightId={noteCountByHighlightId}
               isLoading={bookSearch.isSearching}
               emptyState={emptyState}
-              animationKey="chapters-highlights"
               onOpenHighlight={highlightDialog.open}
             />
           </Box>
@@ -281,7 +280,6 @@ export const HighlightsPage = () => {
             noteCountByHighlightId={noteCountByHighlightId}
             isLoading={bookSearch.isSearching}
             emptyState={emptyState}
-            animationKey="chapters-highlights"
             onOpenHighlight={highlightDialog.open}
           />
 

@@ -25,7 +25,6 @@ interface FlashcardChapterListProps {
   bookId: number;
   isLoading?: boolean;
   emptyState?: ReactNode;
-  animationKey?: string;
   onEditFlashcard: (flashcard: FlashcardWithContext) => void;
 }
 
@@ -34,7 +33,6 @@ export const FlashcardChapterList = ({
   bookId,
   isLoading,
   emptyState = <EmptyStateText>No flashcards found.</EmptyStateText>,
-  animationKey = 'flashcard-chapters',
   onEditFlashcard,
 }: FlashcardChapterListProps) => (
   <ChapterGroupedList
@@ -46,7 +44,6 @@ export const FlashcardChapterList = ({
     ariaLabel={(chapter) => chapter.listLabel ?? `Flashcards in ${chapter.name}`}
     isLoading={isLoading}
     emptyState={emptyState}
-    animationKey={animationKey}
     renderItem={(flashcard) => (
       <FlashcardListCard
         flashcard={flashcard}
