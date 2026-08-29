@@ -1,6 +1,7 @@
 import type { Bookmark, Highlight } from '@/api/generated/model';
 import { HoverableCardActionArea } from '@/components/cards/HoverableCardActionArea';
 import { MetadataRow } from '@/components/cards/MetadataRow.tsx';
+import { CountWithIcon } from '@/components/CountWithIcon.tsx';
 import { TagChipList } from '@/components/TagChipList.tsx';
 import { LabelIndicator } from '@/pages/BookPage/common/LabelIndicator.tsx';
 import { NotOnDeviceChip } from '@/pages/BookPage/common/NotOnDeviceChip.tsx';
@@ -12,9 +13,7 @@ import {
   NotesIcon,
 } from '@/theme/Icons.tsx';
 import { ICON_SIZE } from '@/theme/iconSizes.ts';
-import { countLabel } from '@/utils/counts.ts';
 import { formatDate } from '@/utils/date.ts';
-import type { SvgIconComponent } from '@mui/icons-material';
 import { Box, Typography } from '@mui/material';
 
 export interface HighlightCardProps {
@@ -30,22 +29,6 @@ interface FooterProps {
   bookmark?: Bookmark;
   noteCount: number;
 }
-
-/** An icon and a number. `role="img"` carries the unit the glyph alone implies. */
-const CountBadge = ({
-  icon: Icon,
-  count,
-  noun,
-}: {
-  icon: SvgIconComponent;
-  count: number;
-  noun: string;
-}) => (
-  <Box component="span" role="img" aria-label={countLabel(count, noun)}>
-    <Icon sx={{ fontSize: ICON_SIZE.inline, verticalAlign: 'middle', ml: 1, mt: -0.5 }} />
-    <span>&nbsp;&nbsp;{count}</span>
-  </Box>
-);
 
 const Footer = ({ highlight, bookmark, noteCount }: FooterProps) => {
   const hasBookmark = !!bookmark;
@@ -80,9 +63,9 @@ const Footer = ({ highlight, bookmark, noteCount }: FooterProps) => {
                 sx={{ fontSize: ICON_SIZE.inline, verticalAlign: 'middle', ml: 1, mt: -0.5 }}
               />
             ),
-            !!noteCount && <CountBadge icon={NotesIcon} count={noteCount} noun="note" />,
+            !!noteCount && <CountWithIcon icon={NotesIcon} count={noteCount} noun="note" />,
             !!highlight.flashcards.length && (
-              <CountBadge
+              <CountWithIcon
                 icon={FlashcardsIcon}
                 count={highlight.flashcards.length}
                 noun="flashcard"

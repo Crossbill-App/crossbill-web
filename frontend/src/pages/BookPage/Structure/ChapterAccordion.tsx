@@ -1,9 +1,7 @@
 import type { ChapterWithHighlights, PositionResponse } from '@/api/generated/model';
 import { CollapseChevron } from '@/components/CollapseChevron.tsx';
+import { CountWithIcon } from '@/components/CountWithIcon.tsx';
 import { FlashcardsIcon, HighlightsIcon, NotesIcon } from '@/theme/Icons.tsx';
-import { ICON_SIZE } from '@/theme/iconSizes.ts';
-import { countLabel } from '@/utils/counts.ts';
-import type { SvgIconComponent } from '@mui/icons-material';
 import { Box, ButtonBase, Collapse, IconButton, Typography, type Theme } from '@mui/material';
 import { sumBy } from 'lodash';
 import { useId, useState } from 'react';
@@ -79,30 +77,6 @@ const ChapterLabel = ({
   </Box>
 );
 
-/**
- * A count as an icon and a number. `role="img"` carries the unit, which the
- * pair otherwise leaves to the glyph — a screen reader would read "2".
- */
-const CountWithIcon = ({
-  icon: Icon,
-  count,
-  noun,
-}: {
-  icon: SvgIconComponent;
-  count: number;
-  noun: string;
-}) =>
-  count > 0 ? (
-    <Box
-      role="img"
-      aria-label={countLabel(count, noun)}
-      sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}
-    >
-      <Icon sx={{ fontSize: ICON_SIZE.inline }} />
-      <Typography variant="caption">{count}</Typography>
-    </Box>
-  ) : null;
-
 const ChapterCounts = ({
   chapter,
   noteCount,
@@ -110,7 +84,15 @@ const ChapterCounts = ({
   chapter: ChapterWithHighlights;
   noteCount: number;
 }) => (
-  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, color: 'text.secondary' }}>
+  <Box
+    sx={{
+      display: 'flex',
+      alignItems: 'center',
+      gap: 1.5,
+      color: 'text.secondary',
+      typography: 'caption',
+    }}
+  >
     <CountWithIcon icon={HighlightsIcon} count={chapter.highlights.length} noun="highlight" />
     <CountWithIcon icon={NotesIcon} count={noteCount} noun="note" />
     <CountWithIcon

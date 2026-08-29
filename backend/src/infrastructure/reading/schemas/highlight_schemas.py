@@ -256,6 +256,11 @@ class BookDetails(BaseModel):
     chapters: list[ChapterWithHighlights] = Field(
         ..., description="List of chapters with highlights"
     )
+    highlight_count: int = Field(
+        0,
+        ge=0,
+        description="Live highlights on the book, including any that sit in no chapter",
+    )
     reading_position: PositionResponse | None = Field(
         None, description="User's current reading position from latest session"
     )

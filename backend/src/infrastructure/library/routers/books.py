@@ -83,6 +83,7 @@ def _build_book_with_counts_schema(view: BookWithCountsView) -> BookWithHighligh
         page_count=view.page_count,
         highlight_count=view.highlight_count,
         flashcard_count=view.flashcard_count,
+        note_count=view.note_count,
         reading_stage=view.reading_stage.value if view.reading_stage else None,
         end_position=PositionResponse(
             index=view.end_position.index,
@@ -157,6 +158,7 @@ def _build_book_details_schema(view: BookDetailsView) -> BookDetails:
             for f in view.book_flashcards
         ],
         chapters=[_build_chapter_schema(chapter) for chapter in view.chapters],
+        highlight_count=view.highlight_count,
         reading_position=PositionResponse(
             index=view.reading_position.index,
             char_index=view.reading_position.char_index,

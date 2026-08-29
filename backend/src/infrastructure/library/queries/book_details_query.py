@@ -58,6 +58,7 @@ class BookDetailsQuery:
         book, reading_position = book_row
 
         labels = await self.label_resolution_service.resolve_for_book(user_id, book_id)
+        highlights = await self._fetch_highlight_rows(book_id, user_id)
 
         return BookDetailsView(
             id=book.id,
@@ -75,7 +76,8 @@ class BookDetailsQuery:
             tag_groups=await self._fetch_tag_groups(book_id),
             bookmarks=await self._fetch_bookmarks(book_id),
             book_flashcards=await self._fetch_book_flashcards(book_id, user_id),
-            chapters=await self._fetch_chapters(book_id, user_id, labels),
+            chapters=await self._fetch_chapters(book_id, user_id, highlights, labels),
+            highlight_count=len(highlights),
             reading_position=reading_position,
             end_position=_position(book.end_position),
             created_at=book.created_at,
@@ -185,15 +187,17 @@ class BookDetailsQuery:
         self,
         book_id: BookId,
         user_id: UserId,
+        highlights: Sequence[HighlightORM],
         labels: dict[int, ResolvedLabel],
     ) -> tuple[ChapterWithHighlightsView, ...]:
         """Load every chapter of the book with the highlights that sit in it.
 
         Chapters without highlights are kept, and highlight groups whose chapter
-        is not among the book's chapters are appended at the end.
+        is not among the book's chapters are appended at the end. A highlight with
+        no chapter at all belongs to no group, so the tree holds fewer highlights
+        than the book has -- hence ``BookDetailsView.highlight_count``.
         """
         chapters = await self._fetch_chapter_rows(book_id, user_id)
-        highlights = await self._fetch_highlight_rows(book_id, user_id)
 
         grouped: dict[int, list[HighlightORM]] = defaultdict(list)
         orphan_chapters: dict[int, ChapterORM] = {}
