@@ -14,7 +14,6 @@ export const NotOnDeviceChip = ({ removed, size = 'small' }: NotOnDeviceChipProp
   return (
     <Tooltip title="Deleted on the e-reader.">
       <Chip
-        size="small"
         variant="outlined"
         icon={<NotOnDeviceIcon />}
         sx={{

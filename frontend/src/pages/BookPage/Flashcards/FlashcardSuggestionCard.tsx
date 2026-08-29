@@ -33,14 +33,12 @@ export const FlashcardSuggestionCard = ({
       renderActions={() => (
         <>
           <IconButtonWithTooltip
-            title="Accept"
-            ariaLabel="Accept suggestion"
+            label="Accept suggestion"
             onClick={handleAccept}
             icon={<AcceptIcon fontSize="small" />}
           />
           <IconButtonWithTooltip
-            title="Reject"
-            ariaLabel="Reject suggestion"
+            label="Reject suggestion"
             onClick={handleReject}
             icon={<RejectIcon fontSize="small" />}
           />

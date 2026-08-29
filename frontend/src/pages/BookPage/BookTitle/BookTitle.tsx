@@ -93,10 +93,10 @@ export const BookTitle = ({ book }: BookTitleProps) => {
           <Typography variant="h1" component="h1" aria-label={book.title} sx={{ mb: 1 }}>
             {book.title}
             <IconButtonWithTooltip
-              title="Manage book"
-              ariaLabel="Manage book"
+              label="Manage book"
               onClick={handleEdit}
               icon={<ManageIcon />}
+              size="small"
               sx={{
                 color: 'text.primary',
                 ml: 0.5,

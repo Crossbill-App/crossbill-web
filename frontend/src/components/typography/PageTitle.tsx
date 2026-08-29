@@ -12,12 +12,7 @@ interface PageTitleProps {
 
 /** The heading every page leads with. Inherits `text-align` from its parent. */
 export const PageTitle = ({ text, component = 'h2' }: PageTitleProps) => (
-  <Typography
-    variant="h2"
-    component={component}
-    gutterBottom
-    sx={{ color: 'primary.main', mb: 2, fontWeight: 900 }}
-  >
+  <Typography variant="pageTitle" component={component} gutterBottom sx={{ mb: 2 }}>
     {text}
   </Typography>
 );

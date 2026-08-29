@@ -81,9 +81,8 @@ export const BatchDigestToolbar = ({ bookId }: BatchDigestToolbarProps) => {
             Generating summaries{total > 0 ? ` (${completed}/${total})` : '...'}
           </Typography>
           <IconButtonWithTooltip
-            title="Cancel generation"
+            label="Cancel batch generation"
             onClick={cancel}
-            ariaLabel="Cancel batch generation"
             icon={<CloseIcon />}
           />
         </Box>

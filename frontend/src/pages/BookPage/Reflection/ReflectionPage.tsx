@@ -45,8 +45,7 @@ interface AnswerEditState {
 const EditNoteButton = ({ onClick }: { onClick: () => void }) => (
   <Box sx={{ position: 'absolute', top: 8, right: 8 }}>
     <IconButtonWithTooltip
-      title="Edit answer"
-      ariaLabel="Edit answer"
+      label="Edit answer"
       icon={<EditIcon fontSize="small" />}
       onClick={onClick}
     />

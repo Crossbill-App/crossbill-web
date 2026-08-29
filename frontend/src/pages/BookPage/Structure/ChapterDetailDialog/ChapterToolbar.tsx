@@ -50,8 +50,7 @@ export const ChapterToolbar = ({ chapterId, bookId, hasSummary }: ChapterToolbar
   return (
     <DialogToolbar>
       <IconButtonWithTooltip
-        title="Copy link"
-        ariaLabel="Copy link to chapter"
+        label="Copy link to chapter"
         onClick={() => void handleCopyLink()}
         icon={<LinkIcon />}
       />

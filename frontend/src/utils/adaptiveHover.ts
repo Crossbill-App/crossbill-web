@@ -66,33 +66,3 @@ export const createAdaptiveHoverStyles = (
     },
   };
 };
-
-/**
- * Generates adaptive touch target styles for IconButton components.
- *
- * Ensures minimum 44px touch target on mobile devices while keeping
- * visual appearance compact on desktop.
- *
- * Follows Material Design (48px) and iOS (44px) touch target guidelines.
- *
- * @returns SxProps for IconButton
- *
- * @example
- * ```tsx
- * const touchTarget = createAdaptiveTouchTarget();
- * <IconButton sx={touchTarget}>
- *   <EditIcon />
- * </IconButton>
- * ```
- */
-export const createAdaptiveTouchTarget = (): SxProps<Theme> => ({
-  // Base styles - compact for desktop
-  padding: 0.25,
-
-  // Increase touch target on touch devices
-  [TOUCH_POINTER_QUERY]: {
-    padding: 0.5,
-    minHeight: 24,
-    minWidth: 24,
-  },
-});

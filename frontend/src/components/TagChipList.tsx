@@ -21,7 +21,7 @@ export const TagChipList: React.FC<{ tags?: { id: number; name: string }[] }> = 
     >
       {tags.map((tag) => (
         <Box component="li" key={tag.id}>
-          <Chip label={tag.name} size="small" variant="outlined" sx={{ fontWeight: 500 }} />
+          <Chip label={tag.name} variant="outlined" sx={{ fontWeight: 500 }} />
         </Box>
       ))}
     </Box>

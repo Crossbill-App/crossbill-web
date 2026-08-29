@@ -224,11 +224,7 @@ export const CommonDialog = ({
                 flexDirection: 'column',
                 gap: 3,
                 minWidth: 0,
-                // A pair of arrows used to flank the content here. They are in
-                // the footer now, but the room they took stays: 40px of button
-                // and a 16px gap on each side, so a paging dialog keeps the
-                // measure it had.
-                px: fullScreen ? 0 : 7,
+                px: fullScreen ? 0 : 2,
               }}
             >
               {children}

@@ -2,31 +2,31 @@ import { IconButton, Tooltip, type IconButtonProps } from '@mui/material';
 import type { ReactNode } from 'react';
 
 interface IconButtonWithTooltipProps {
-  title: string;
+  label: string;
   onClick: (e: React.MouseEvent) => void;
   disabled?: boolean;
-  ariaLabel?: string;
   icon: ReactNode;
   edge?: IconButtonProps['edge'];
+  size?: IconButtonProps['size'];
   sx?: IconButtonProps['sx'];
 }
 
 export const IconButtonWithTooltip = ({
-  title,
+  label,
   onClick,
   disabled,
-  ariaLabel,
   icon,
   edge,
+  size = 'medium',
   sx,
 }: IconButtonWithTooltipProps) => {
   return (
-    <Tooltip title={title}>
+    <Tooltip title={label}>
       <IconButton
         onClick={onClick}
         disabled={disabled}
-        aria-label={ariaLabel}
-        size="small"
+        aria-label={label}
+        size={size}
         edge={edge}
         sx={sx}
       >

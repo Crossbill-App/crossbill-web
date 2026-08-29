@@ -92,11 +92,6 @@ export const ChapterNav = ({ chapters, onChapterClick, hideTitle }: ChapterNavPr
                       bgcolor: 'action.hover',
                     },
                   },
-                  '&:focus-visible': {
-                    outline: '2px solid',
-                    outlineOffset: '-2px',
-                    outlineColor: 'primary.main',
-                  },
                 }}
               >
                 <Box sx={{ flex: 1, minWidth: 0 }}>

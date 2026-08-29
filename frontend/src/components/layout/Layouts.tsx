@@ -8,6 +8,14 @@ import { Container, styled } from '@mui/material';
  */
 export const PAGE_GUTTER = { xs: 2, sm: 3 };
 
+/** The bottom navigation's own height, plus air, plus the device's safe area. */
+export const BOTTOM_NAV_CLEARANCE = 'calc(56px + 24px + env(safe-area-inset-bottom))';
+
+export const BOTTOM_NAV_CLEARANCE_VAR = '--bottom-nav-clearance';
+
+/** MUI's snackbar offset below `lg`, plus a one-line `Alert`, plus air. */
+export const SNACKBAR_CLEARANCE = 'calc(24px + 48px + 8px)';
+
 export const PageContainer = styled(Container)(({ theme }) => ({
   paddingLeft: theme.spacing(PAGE_GUTTER.xs),
   paddingRight: theme.spacing(PAGE_GUTTER.xs),

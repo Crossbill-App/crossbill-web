@@ -76,23 +76,20 @@ export const FlashcardListCard = ({
           <>
             {linkedNoteId != null && (
               <IconButtonWithTooltip
-                title="View note"
-                ariaLabel="View linked note"
+                label="View linked note"
                 onClick={handleViewNoteClick}
                 disabled={isDeleting}
                 icon={<NotesIcon fontSize="small" />}
               />
             )}
             <IconButtonWithTooltip
-              title="Edit"
-              ariaLabel="Edit flashcard"
+              label="Edit flashcard"
               onClick={onEdit}
               disabled={isDeleting}
               icon={<EditIcon fontSize="small" />}
             />
             <IconButtonWithTooltip
-              title="Delete"
-              ariaLabel="Delete flashcard"
+              label="Delete flashcard"
               onClick={handleDeleteClick}
               disabled={isDeleting}
               icon={<DeleteIcon fontSize="small" />}
@@ -105,8 +102,7 @@ export const FlashcardListCard = ({
         open={deleteConfirmOpen}
         onClose={() => setDeleteConfirmOpen(false)}
         onConfirm={handleConfirmDelete}
-        title="Delete flashcard"
-        message="Are you sure you want to delete this flashcard?"
+        message="Delete this flashcard?"
         confirmText="Delete"
         confirmColor="error"
         isLoading={isDeleting}

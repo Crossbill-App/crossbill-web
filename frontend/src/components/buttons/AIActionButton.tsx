@@ -29,8 +29,7 @@ export const AIActionButton = ({
   if (iconOnly) {
     return (
       <IconButtonWithTooltip
-        title={text}
-        ariaLabel={text}
+        label={text}
         onClick={onClick}
         disabled={disabled}
         icon={icon ?? <AIIcon />}

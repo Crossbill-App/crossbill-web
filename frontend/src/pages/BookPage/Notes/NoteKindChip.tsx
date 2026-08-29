@@ -9,4 +9,4 @@ interface NoteKindChipProps {
 
 /** A note's type, wherever it is shown. Renders nothing for an untyped note. */
 export const NoteKindChip = ({ kind, sx }: NoteKindChipProps) =>
-  kind ? <Chip size="small" label={NOTE_KIND_LABELS[noteKindOf(kind)]} sx={sx} /> : null;
+  kind ? <Chip label={NOTE_KIND_LABELS[noteKindOf(kind)]} sx={sx} /> : null;

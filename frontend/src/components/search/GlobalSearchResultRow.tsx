@@ -60,7 +60,7 @@ export const GlobalSearchResultRow = ({ row, isActive, onSelect }: GlobalSearchR
         </Typography>
       )}
       <Box sx={{ gap: 1, display: 'flex', alignItems: 'center' }}>
-        <Chip label={SEARCH_ROW_TYPE_LABELS[row.type]} size="small" variant="outlined" />
+        <Chip label={SEARCH_ROW_TYPE_LABELS[row.type]} variant="outlined" />
         <MetadataRow variant="caption" noWrap items={[row.bookTitle, row.chapterLabel]} />
       </Box>
       <Typography variant="body1" sx={clampToTwoLines}>

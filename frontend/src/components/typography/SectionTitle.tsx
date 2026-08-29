@@ -23,10 +23,9 @@ export const SectionTitle = ({
 }: SectionTitleProps) => {
   const heading = (
     <Typography
-      variant="h3"
+      variant="sectionTitle"
       component={component}
       gutterBottom={gutterBottom && !showDivider}
-      sx={{ color: 'primary.main' }}
     >
       {children}
     </Typography>

@@ -5,7 +5,7 @@ import { useCommitOnBlur } from '@/hooks/useCommitOnBlur.ts';
 import type { SaveStatus } from '@/hooks/useSaveStatus.ts';
 import { DeleteIcon, EditIcon, EditTagsIcon } from '@/theme/Icons.tsx';
 import { ICON_SIZE } from '@/theme/iconSizes.ts';
-import { createAdaptiveHoverStyles, createAdaptiveTouchTarget } from '@/utils/adaptiveHover.ts';
+import { createAdaptiveHoverStyles } from '@/utils/adaptiveHover.ts';
 import { Box, ButtonBase, IconButton, TextField, Tooltip, Typography } from '@mui/material';
 import { useState } from 'react';
 
@@ -43,11 +43,6 @@ export const TagGroupTitle = ({
         gap: 0.5,
         flex: 1,
         borderRadius: 0.5,
-        '&:focus-visible': {
-          outline: '2px solid',
-          outlineOffset: '-2px',
-          outlineColor: 'primary.main',
-        },
       }}
     >
       <CollapseChevron
@@ -149,7 +144,6 @@ export const TagGroupHeader = ({
     actionsClassName: 'group-actions',
     transitionDuration: 0.15,
   });
-  const touchTarget = createAdaptiveTouchTarget();
 
   const handleEditSubmit = (value: string) => {
     onEditSubmit(value);
@@ -189,7 +183,7 @@ export const TagGroupHeader = ({
             className="group-actions"
             sx={{
               ...adaptiveStyles.actions,
-              gap: 0.25,
+              gap: 0.5,
             }}
           >
             <Tooltip title="Edit tags">
@@ -201,7 +195,7 @@ export const TagGroupHeader = ({
                     e.stopPropagation();
                     onEditTags();
                   }}
-                  sx={{ ...touchTarget, color: 'text.secondary' }}
+                  sx={{ color: 'text.secondary' }}
                 >
                   <EditTagsIcon sx={{ fontSize: ICON_SIZE.ui }} />
                 </IconButton>
@@ -216,7 +210,7 @@ export const TagGroupHeader = ({
                     e.stopPropagation();
                     setIsEditing(true);
                   }}
-                  sx={{ ...touchTarget, color: 'text.secondary' }}
+                  sx={{ color: 'text.secondary' }}
                 >
                   <EditIcon sx={{ fontSize: ICON_SIZE.ui }} />
                 </IconButton>
@@ -232,7 +226,7 @@ export const TagGroupHeader = ({
                     onDelete();
                   }}
                   disabled={isProcessing}
-                  sx={{ ...touchTarget, color: 'text.secondary' }}
+                  sx={{ color: 'text.secondary' }}
                 >
                   <DeleteIcon sx={{ fontSize: ICON_SIZE.ui }} />
                 </IconButton>
