@@ -279,6 +279,21 @@ export const theme = createTheme({
         },
       },
     },
+    MuiButtonBase: {
+      styleOverrides: {
+        // One focus ring for everything clickable. MUI's own focus feedback
+        // is a ripple and a background tint, which a keyboard reader loses
+        // against a busy row. Drawn inside the control's own edge: a ring
+        // outside it escapes a menu's rounded corner and is clipped outright
+        // by a scrolling list or a narrow sidebar.
+        root: ({ theme: t }) => ({
+          '&:focus-visible': {
+            outline: `2px solid ${t.palette.primary.main}`,
+            outlineOffset: -2,
+          },
+        }),
+      },
+    },
     MuiButton: {
       styleOverrides: {
         root: {
@@ -286,6 +301,10 @@ export const theme = createTheme({
           borderRadius: 24,
           fontWeight: 500,
         },
+        // An amber ring inside an amber button is no ring at all.
+        contained: ({ theme: t }) => ({
+          '&:focus-visible': { outlineColor: t.palette.primary.contrastText },
+        }),
       },
     },
     MuiIconButton: {
@@ -356,6 +375,9 @@ export const theme = createTheme({
                   backgroundColor: t.palette.primary.dark,
                   transform: 'translateY(-1px)',
                 },
+                // Same reason as a contained button: the ring needs to differ
+                // from what it is drawn on.
+                '&:focus-visible': { outlineColor: t.palette.primary.contrastText },
               },
             },
           ],

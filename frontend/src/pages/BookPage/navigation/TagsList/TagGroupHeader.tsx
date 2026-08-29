@@ -43,11 +43,6 @@ export const TagGroupTitle = ({
         gap: 0.5,
         flex: 1,
         borderRadius: 0.5,
-        '&:focus-visible': {
-          outline: '2px solid',
-          outlineOffset: '-2px',
-          outlineColor: 'primary.main',
-        },
       }}
     >
       <CollapseChevron
