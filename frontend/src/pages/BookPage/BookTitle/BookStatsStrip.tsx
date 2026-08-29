@@ -14,10 +14,6 @@ export const BookStatsStrip = ({ book }: BookStatsStripProps) => {
   const { data: sessionsData } = useGetBookReadingSessions(book.id, { limit: 1 });
   const { data: notesData } = useGetNotesForBook(book.id);
 
-  // Count highlights across all chapters
-  const highlightCount = book.chapters.reduce((sum, chapter) => sum + chapter.highlights.length, 0);
-
-  // Count flashcards
   const flashcardCount = book.book_flashcards?.length ?? 0;
 
   // Gists are excluded so this matches what the Notes tab lists by default.
@@ -25,13 +21,12 @@ export const BookStatsStrip = ({ book }: BookStatsStripProps) => {
     DEFAULT_NOTE_KINDS.includes(noteKindOf(note.kind))
   ).length;
 
-  // Last read date from latest session
   const latestSession = sessionsData?.items[0];
   const lastReadDate = latestSession ? formatDate(latestSession.start_time) : null;
 
   const items = [
     book.page_count ? countLabel(book.page_count, 'page') : null,
-    countLabel(highlightCount, 'highlight'),
+    countLabel(book.highlight_count ?? 0, 'highlight'),
     countLabel(noteCount, 'note'),
     countLabel(flashcardCount, 'flashcard'),
     countLabel(book.bookmarks.length, 'bookmark'),

@@ -4635,6 +4635,13 @@
             "title": "Chapters",
             "description": "List of chapters with highlights"
           },
+          "highlight_count": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Highlight Count",
+            "description": "Live highlights on the book, including any that sit in no chapter",
+            "default": 0
+          },
           "reading_position": {
             "anyOf": [
               {
@@ -5010,6 +5017,13 @@
             "description": "Number of flashcards for this book",
             "default": 0
           },
+          "note_count": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Note Count",
+            "description": "Number of notes for this book, gists aside",
+            "default": 0
+          },
           "reading_stage": {
             "anyOf": [
               {
@@ -5088,7 +5102,7 @@
           "updated_at"
         ],
         "title": "BookWithHighlightCount",
-        "description": "Schema for Book with highlight and flashcard counts."
+        "description": "Schema for Book with highlight, flashcard and note counts."
       },
       "Bookmark": {
         "properties": {

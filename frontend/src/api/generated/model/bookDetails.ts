@@ -40,6 +40,11 @@ export interface BookDetails {
   book_flashcards?: Flashcard[];
   /** List of chapters with highlights */
   chapters: ChapterWithHighlights[];
+  /**
+   * Live highlights on the book, including any that sit in no chapter
+   * @minimum 0
+   */
+  highlight_count?: number;
   /** User's current reading position from latest session */
   reading_position?: PositionResponse | null;
   /** End position of the book (total document length) */

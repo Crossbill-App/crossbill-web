@@ -8,7 +8,7 @@ import type { BookWithHighlightCountReadingStage } from './bookWithHighlightCoun
 import type { PositionResponse } from './positionResponse.ts';
 
 /**
- * Schema for Book with highlight and flashcard counts.
+ * Schema for Book with highlight, flashcard and note counts.
  */
 export interface BookWithHighlightCount {
   id: number;
@@ -33,6 +33,11 @@ export interface BookWithHighlightCount {
    * @minimum 0
    */
   flashcard_count?: number;
+  /**
+   * Number of notes for this book, gists aside
+   * @minimum 0
+   */
+  note_count?: number;
   /** Where the reader is with this book, or null if unset */
   reading_stage?: BookWithHighlightCountReadingStage;
   /** End position of the book (total document length) */
