@@ -215,7 +215,6 @@ export const FlashcardsPage = () => {
               chapters={flashcardChapters}
               bookId={book.id}
               emptyState={emptyState}
-              animationKey="flashcards"
               onEditFlashcard={setEditingFlashcard}
             />
           </Box>
@@ -239,7 +238,6 @@ export const FlashcardsPage = () => {
             chapters={flashcardChapters}
             bookId={book.id}
             emptyState={emptyState}
-            animationKey="flashcards"
             onEditFlashcard={setEditingFlashcard}
           />
           {fabContainerEl &&

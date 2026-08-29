@@ -1,4 +1,3 @@
-import { FadeInOut } from '@/components/animations/FadeInOut.tsx';
 import { CardList } from '@/components/CardList.tsx';
 import { EmptyStateText } from '@/components/EmptyStateText.tsx';
 import { SectionTitle } from '@/components/typography/SectionTitle.tsx';
@@ -18,7 +17,6 @@ interface ChapterGroupedListProps<TChapter, TItem> {
   isLoading?: boolean;
   /** Shown in place of the list when there is no chapter to show. */
   emptyState?: ReactNode;
-  animationKey?: string;
   /** Extra styles merged onto each chapter's CardList. */
   cardListSx?: SxProps<Theme>;
   /** Rendered in place of the card list when a chapter has no items. */
@@ -26,10 +24,10 @@ interface ChapterGroupedListProps<TChapter, TItem> {
 }
 
 /**
- * Generic chapter-grouped list: an optional "Searching..." loading state, a
- * fade-in wrapper, an empty-state branch, then a `SectionTitle` + `CardList`
- * per chapter. Shared by the highlights and flashcards tabs, which differ only
- * in the item card and a couple of presentational knobs.
+ * Generic chapter-grouped list: an optional "Searching..." loading state, an
+ * empty-state branch, then a `SectionTitle` + `CardList` per chapter. Shared by
+ * the highlights and flashcards tabs, which differ only in the item card and a
+ * couple of presentational knobs.
  */
 export const ChapterGroupedList = <TChapter, TItem>({
   chapters,
@@ -41,7 +39,6 @@ export const ChapterGroupedList = <TChapter, TItem>({
   ariaLabel,
   isLoading,
   emptyState = <EmptyStateText>No chapters found.</EmptyStateText>,
-  animationKey = 'chapters',
   cardListSx,
   renderEmptyChapter,
 }: ChapterGroupedListProps<TChapter, TItem>) => {
@@ -61,32 +58,30 @@ export const ChapterGroupedList = <TChapter, TItem>({
   }
 
   return (
-    <FadeInOut ekey={animationKey}>
-      <Box sx={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-        {chapters.length === 0
-          ? emptyState
-          : chapters.map((chapter) => {
-              const chapterId = getChapterId(chapter);
-              const chapterName = getChapterName(chapter);
-              const items = getItems(chapter);
+    <Box sx={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+      {chapters.length === 0
+        ? emptyState
+        : chapters.map((chapter) => {
+            const chapterId = getChapterId(chapter);
+            const chapterName = getChapterName(chapter);
+            const items = getItems(chapter);
 
-              return (
-                <Box key={chapterId} id={`chapter-${chapterId}`}>
-                  <SectionTitle showDivider>{chapterName}</SectionTitle>
+            return (
+              <Box key={chapterId} id={`chapter-${chapterId}`}>
+                <SectionTitle showDivider>{chapterName}</SectionTitle>
 
-                  {items.length === 0 && renderEmptyChapter ? (
-                    renderEmptyChapter()
-                  ) : (
-                    <CardList sx={cardListSx} aria-label={ariaLabel(chapter)}>
-                      {items.map((item) => (
-                        <li key={getItemKey(item)}>{renderItem(item)}</li>
-                      ))}
-                    </CardList>
-                  )}
-                </Box>
-              );
-            })}
-      </Box>
-    </FadeInOut>
+                {items.length === 0 && renderEmptyChapter ? (
+                  renderEmptyChapter()
+                ) : (
+                  <CardList sx={cardListSx} aria-label={ariaLabel(chapter)}>
+                    {items.map((item) => (
+                      <li key={getItemKey(item)}>{renderItem(item)}</li>
+                    ))}
+                  </CardList>
+                )}
+              </Box>
+            );
+          })}
+    </Box>
   );
 };

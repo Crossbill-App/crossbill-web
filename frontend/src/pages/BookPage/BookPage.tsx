@@ -14,11 +14,14 @@ import { BookTitle } from '@/pages/BookPage/BookTitle/BookTitle.tsx';
 import { DesktopNavLinks } from '@/pages/BookPage/navigation/DesktopNavLinks.tsx';
 import { MobileBottomNav } from '@/pages/BookPage/navigation/MobileBottomNav.tsx';
 import { Alert, Box, useMediaQuery, useTheme } from '@mui/material';
-import { Outlet, useParams } from '@tanstack/react-router';
+import { Outlet, useLocation, useParams } from '@tanstack/react-router';
 import { useEffect, useState } from 'react';
 
 export const BookPage = () => {
   const { bookId } = useParams({ strict: false });
+  // Keys the tab fade below. Search params are excluded on purpose: filtering
+  // or searching within a tab must not replay the animation.
+  const pathname = useLocation({ select: (location) => location.pathname });
   const { data: book, isLoading, isError } = useGetBookDetails(Number(bookId));
 
   const theme = useTheme();
@@ -111,7 +114,9 @@ export const BookPage = () => {
                   <div ref={setLeftSidebarEl} />
                 </Box>
                 <Box component="main" sx={{ minWidth: 0 }}>
-                  <Outlet />
+                  <FadeInOut ekey={pathname} animateOnMount={false}>
+                    <Outlet />
+                  </FadeInOut>
                 </Box>
                 <Box ref={setRightSidebarEl} />
               </Box>
@@ -120,7 +125,9 @@ export const BookPage = () => {
             <Box sx={{ maxWidth: '800px', mx: 'auto' }}>
               <BookTitle book={book} />
               <Box component="main">
-                <Outlet />
+                <FadeInOut ekey={pathname} animateOnMount={false}>
+                  <Outlet />
+                </FadeInOut>
               </Box>
             </Box>
           )}
