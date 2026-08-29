@@ -58,7 +58,7 @@ export const NoteTabs = ({
                 />
                 {onUnlinkHighlight && (
                   <UnlinkButton
-                    title="Remove link to this highlight"
+                    label="Remove link to this highlight"
                     disabled={disabled}
                     onClick={() => onUnlinkHighlight(highlight.id)}
                     sx={{ position: 'absolute', top: 8, right: 8 }}
@@ -86,7 +86,7 @@ export const NoteTabs = ({
                   onUnlinkChapter && (
                     <UnlinkButton
                       edge="end"
-                      title="Remove link to this chapter"
+                      label="Remove link to this chapter"
                       disabled={disabled}
                       onClick={() => onUnlinkChapter(chapter.id)}
                     />

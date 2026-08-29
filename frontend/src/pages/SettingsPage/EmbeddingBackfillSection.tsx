@@ -101,12 +101,7 @@ export const EmbeddingBackfillSection = () => {
             <Typography variant="body2" sx={{ color: 'text.secondary' }}>
               {batch ? `Indexing (${done}/${batch.total_jobs})` : 'Starting...'}
             </Typography>
-            <IconButtonWithTooltip
-              title="Cancel indexing"
-              onClick={cancel}
-              ariaLabel="Cancel indexing"
-              icon={<CloseIcon />}
-            />
+            <IconButtonWithTooltip label="Cancel indexing" onClick={cancel} icon={<CloseIcon />} />
           </Box>
         )}
       </Box>

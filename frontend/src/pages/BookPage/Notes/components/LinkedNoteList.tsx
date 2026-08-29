@@ -24,7 +24,7 @@ export const LinkedNoteList = ({ notes, onOpen, onUnlink, disabled }: LinkedNote
           onClick={() => onOpen(note)}
           action={
             <UnlinkButton
-              title="Remove link to this note"
+              label="Remove link to this note"
               disabled={disabled}
               onClick={() => onUnlink(note)}
             />

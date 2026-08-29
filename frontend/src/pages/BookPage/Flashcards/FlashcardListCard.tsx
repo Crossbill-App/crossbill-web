@@ -76,23 +76,20 @@ export const FlashcardListCard = ({
           <>
             {linkedNoteId != null && (
               <IconButtonWithTooltip
-                title="View note"
-                ariaLabel="View linked note"
+                label="View linked note"
                 onClick={handleViewNoteClick}
                 disabled={isDeleting}
                 icon={<NotesIcon fontSize="small" />}
               />
             )}
             <IconButtonWithTooltip
-              title="Edit"
-              ariaLabel="Edit flashcard"
+              label="Edit flashcard"
               onClick={onEdit}
               disabled={isDeleting}
               icon={<EditIcon fontSize="small" />}
             />
             <IconButtonWithTooltip
-              title="Delete"
-              ariaLabel="Delete flashcard"
+              label="Delete flashcard"
               onClick={handleDeleteClick}
               disabled={isDeleting}
               icon={<DeleteIcon fontSize="small" />}

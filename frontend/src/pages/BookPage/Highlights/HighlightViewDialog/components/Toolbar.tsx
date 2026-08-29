@@ -57,31 +57,27 @@ export const Toolbar = ({
   return (
     <DialogToolbar>
       <IconButtonWithTooltip
-        title="Copy link"
+        label="Copy link to highlight"
         onClick={handleCopyLink}
         disabled={isDisabled}
-        ariaLabel="Copy link to highlight"
         icon={<LinkIcon />}
       />
       <IconButtonWithTooltip
-        title="Copy highlight content"
+        label="Copy highlight content"
         onClick={handleCopyContent}
         disabled={isDisabled}
-        ariaLabel="Copy highlight text"
         icon={<CopyIcon />}
       />
       <IconButtonWithTooltip
-        title={bookmark ? 'Remove bookmark' : 'Add bookmark'}
+        label={bookmark ? 'Remove bookmark' : 'Add bookmark'}
         onClick={handleBookmarkToggle}
         disabled={isDisabled}
-        ariaLabel={bookmark ? 'Remove bookmark' : 'Add bookmark'}
         icon={bookmark ? <BookmarkFilledIcon /> : <BookmarkIcon />}
       />
       <IconButtonWithTooltip
-        title="Delete highlight"
+        label="Delete highlight"
         onClick={onDelete}
         disabled={isDisabled}
-        ariaLabel="Delete highlight"
         icon={<DeleteIcon />}
       />
     </DialogToolbar>

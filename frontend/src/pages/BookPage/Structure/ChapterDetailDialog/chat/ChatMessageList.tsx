@@ -61,8 +61,7 @@ export const ChatMessageList = ({
               {onSaveNote && (
                 <Box sx={{ display: 'flex', justifyContent: 'flex-end', mt: 0.5 }}>
                   <IconButtonWithTooltip
-                    title="Save as note"
-                    ariaLabel="Save as note"
+                    label="Save as note"
                     onClick={() => onSaveNote(msg.content)}
                     icon={<NoteAddIcon fontSize="small" />}
                   />

@@ -19,29 +19,25 @@ export const NoteToolbar = ({
 }: NoteToolbarProps) => (
   <DialogToolbar>
     <IconButtonWithTooltip
-      title="Copy link"
-      ariaLabel="Copy link to note"
+      label="Copy link to note"
       onClick={onCopyLink}
       disabled={disabled}
       icon={<LinkIcon />}
     />
     <IconButtonWithTooltip
-      title="Edit note"
-      ariaLabel="Edit note"
+      label="Edit note"
       onClick={onEdit}
       disabled={disabled}
       icon={<EditIcon />}
     />
     <IconButtonWithTooltip
-      title="Copy note content"
-      ariaLabel="Copy note content"
+      label="Copy note content"
       onClick={onCopy}
       disabled={disabled}
       icon={<CopyIcon />}
     />
     <IconButtonWithTooltip
-      title="Delete note"
-      ariaLabel="Delete note"
+      label="Delete note"
       onClick={onDelete}
       disabled={disabled}
       icon={<DeleteIcon />}
