@@ -20,9 +20,11 @@ export const ReadingSessionList = ({
   onOpenHighlight,
 }: ReadingSessionListProps) => {
   return (
-    // The tab-level fade in `BookPage` covers the first paint; this one only
-    // replays the list when the page changes.
-    <FadeInOut ekey={animationKey} animateOnMount={false}>
+    // Paging refetches, and the page unmounts this list while it loads, so
+    // `animateOnMount={false}` would suppress the very fade it is meant to
+    // preserve. Animating on mount costs a slightly deeper fade on the one tab
+    // whose data is already cached.
+    <FadeInOut ekey={animationKey}>
       {sessions.length === 0 ? (
         <EmptyStateText variant="page">{emptyMessage}</EmptyStateText>
       ) : (
