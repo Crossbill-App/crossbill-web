@@ -25,7 +25,7 @@ class SessionHighlightView:
     chapter_id: int | None
     text: str
     page: int | None
-    datetime: str
+    datetime: dt
     label: HighlightLabelView | None
     removed_from_devices: bool
     created_at: dt

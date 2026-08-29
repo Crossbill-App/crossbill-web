@@ -19,6 +19,7 @@ never be fed back into a command. See ``docs/adr/0001-read-models-and-query-serv
 
 from collections.abc import Awaitable, Callable, Sequence
 from dataclasses import dataclass
+from datetime import datetime as dt
 from typing import Protocol
 
 from src.application.semantic.content_type import ContentType
@@ -48,7 +49,7 @@ class HighlightSearchView:
     chapter_number: int | None
     text: str
     page: int | None
-    datetime: str
+    datetime: dt
     cover_file: str | None
     cover_blurhash: str | None
 

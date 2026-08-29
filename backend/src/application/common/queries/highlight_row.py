@@ -34,7 +34,7 @@ class HighlightRow:
     chapter_number: int | None
     text: str
     page: int | None
-    datetime: str
+    datetime: dt
     label: HighlightLabelView | None
     removed_from_devices: bool
     tags: tuple[TagRef, ...]

@@ -16,6 +16,7 @@ from tests.conftest import (
     create_test_book,
     create_test_chapter,
     create_test_highlight,
+    device_datetime,
 )
 
 
@@ -251,11 +252,66 @@ class TestHighlightsUpload:
             select(models.Highlight).order_by(models.Highlight.datetime)
         )
         highlights = result.scalars().all()
-        assert [h.datetime for h in highlights] == ["2019-06-01 08:15:30", "2019-06-01 08:16:00"]
+        assert [h.datetime for h in highlights] == [
+            device_datetime("2019-06-01 08:15:30"),
+            device_datetime("2019-06-01 08:16:00"),
+        ]
         assert highlights[0].koreader_note == "Read this again before chapter 3"
         assert highlights[1].koreader_note is None
         # The device id is per batch, so every highlight in it carries the same one.
         assert [h.origin_device_id for h in highlights] == ["Kobo Clara", "Kobo Clara"]
+
+    async def test_the_web_gets_iso_while_the_device_gets_its_own_format(
+        self,
+        client: AsyncClient,
+        plugin_client: AsyncClient,
+        db_session: AsyncSession,
+        test_user: models.User,
+    ) -> None:
+        """One stored instant, rendered for each reader of it.
+
+        The web API serves highlight timestamps in the same ISO shape as every
+        other timestamp it sends, so the client needs no bespoke parser. The
+        plugin pull keeps KOReader's own format, because the plugin writes what
+        it receives straight into a device annotation.
+        """
+        client_book_id = "test-client-book-timestamp-shapes"
+        book = await create_test_book(
+            db_session=db_session,
+            user_id=test_user.id,
+            title="Timestamp Shapes",
+            client_book_id=client_book_id,
+        )
+        await create_test_chapter(
+            db_session=db_session, book=book, name="Chapter One", chapter_number=1
+        )
+
+        pushed = await plugin_client.post(
+            "/api/v1/highlights/sync",
+            json={
+                "client_book_id": client_book_id,
+                "highlights": [
+                    {
+                        "text": "Read on a device that knows no offset",
+                        "chapter_number": 1,
+                        "datetime": "2019-06-01 08:15:30",
+                        "start_xpoint": "/body/DocFragment[1]/body/p[1]/text().0",
+                        "end_xpoint": "/body/DocFragment[1]/body/p[1]/text().20",
+                    }
+                ],
+            },
+        )
+        assert pushed.status_code == status.HTTP_200_OK
+        assert pushed.json()["highlights_created"] == 1
+
+        web = await client.get(f"/api/v1/books/{book.id}")
+        assert web.status_code == status.HTTP_200_OK
+        on_the_web = [h for c in web.json()["chapters"] for h in c["highlights"]]
+        assert [h["datetime"] for h in on_the_web] == ["2019-06-01T08:15:30"]
+
+        pull = await plugin_client.get(f"/api/v1/ereader/books/{client_book_id}/highlights")
+        assert pull.status_code == status.HTTP_200_OK
+        assert [item["datetime"] for item in pull.json()["items"]] == ["2019-06-01 08:15:30"]
 
     async def test_upload_without_device_id_stores_none(
         self,
@@ -308,7 +364,7 @@ class TestHighlightsUpload:
         )
 
         assert stored.koreader_note == "edited note"
-        assert stored.koreader_updated_at == "2019-06-02 09:00:00"
+        assert stored.koreader_updated_at == device_datetime("2019-06-02 09:00:00")
 
     async def test_reupload_ignores_an_older_note_edit(
         self,
@@ -329,7 +385,7 @@ class TestHighlightsUpload:
         )
 
         assert stored.koreader_note == "newer note"
-        assert stored.koreader_updated_at == "2019-06-05 10:00:00"
+        assert stored.koreader_updated_at == device_datetime("2019-06-05 10:00:00")
 
     async def test_first_edit_is_accepted_even_when_older_than_the_stored_datetime(
         self,
@@ -357,7 +413,7 @@ class TestHighlightsUpload:
         )
 
         assert stored.koreader_note == "written in June"
-        assert stored.koreader_updated_at == "2025-06-01 09:00:00"
+        assert stored.koreader_updated_at == device_datetime("2025-06-01 09:00:00")
 
     async def test_reupload_with_the_same_edit_time_keeps_the_stored_note(
         self,
@@ -408,7 +464,7 @@ class TestHighlightsUpload:
         )
 
         assert stored.koreader_note == "note from the newer copy"
-        assert stored.koreader_updated_at == "2019-06-02 08:15:30"
+        assert stored.koreader_updated_at == device_datetime("2019-06-02 08:15:30")
 
     async def test_reupload_applies_a_newer_style_change(
         self,
@@ -1325,7 +1381,7 @@ class TestHighlightUploadRemovals:
 
         await db_session.refresh(stored)
         assert stored.koreader_note == "keep this"
-        assert stored.koreader_updated_at == "2025-01-01 00:00:00"
+        assert stored.koreader_updated_at == device_datetime("2025-01-01 00:00:00")
 
     async def test_a_negative_removed_id_is_rejected(
         self, plugin_client: AsyncClient, synced_book: tuple[models.Book, dict[str, int]]

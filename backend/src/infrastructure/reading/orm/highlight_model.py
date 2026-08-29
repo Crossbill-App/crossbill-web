@@ -48,10 +48,11 @@ class Highlight(Base):
     highlight_style_id: Mapped[int | None] = mapped_column(
         ForeignKey("highlight_styles.id", ondelete="SET NULL"), index=True, nullable=True
     )
-    datetime: Mapped[str] = mapped_column(String(50), nullable=False)  # KOReader datetime string
-    koreader_updated_at: Mapped[str | None] = mapped_column(
-        String(50), nullable=True
-    )  # KOReader datetime string of the last edit on the device
+    # The e-reader's own wall clock, with no offset to attach it to an instant.
+    datetime: Mapped[dt] = mapped_column(DateTime(timezone=False), nullable=False)
+    koreader_updated_at: Mapped[dt | None] = mapped_column(
+        DateTime(timezone=False), nullable=True
+    )  # Device-side time of the last edit on the device
     koreader_note: Mapped[str | None] = mapped_column(Text, nullable=True)
     origin_device_id: Mapped[str | None] = mapped_column(String(100), nullable=True)
     content_hash: Mapped[str] = mapped_column(

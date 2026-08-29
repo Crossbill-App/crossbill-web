@@ -48,7 +48,7 @@ class HighlightMapper:
             user_id=UserId(orm_model.user_id),
             book_id=BookId(orm_model.book_id),
             text=orm_model.text,
-            datetime_str=orm_model.datetime,
+            device_datetime=orm_model.datetime,
             created_at=orm_model.created_at,
             updated_at=orm_model.updated_at,
             chapter_id=ChapterId(orm_model.chapter_id) if orm_model.chapter_id else None,
@@ -87,14 +87,11 @@ class HighlightMapper:
             start_xpoint = domain_entity.xpoints.start.to_string()
             end_xpoint = domain_entity.xpoints.end.to_string()
 
-        # Use datetime string from entity (already formatted)
-        datetime_str = domain_entity.datetime
-
         # Update existing ORM model or create new one
         if orm_model is None:
             orm_model = HighlightORM(
                 id=orm_id(domain_entity.id),
-                datetime=datetime_str,
+                datetime=domain_entity.datetime,
                 created_at=domain_entity.created_at,
             )
         orm_model.user_id = domain_entity.user_id.value

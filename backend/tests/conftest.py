@@ -47,6 +47,9 @@ from src.infrastructure.common.client_version import (
 from src.infrastructure.identity.dependencies import get_current_user
 from src.infrastructure.library.repositories import file_repository
 from src.infrastructure.library.schemas import EreaderBookMetadata
+from src.infrastructure.reading.schemas.ereader_highlight_schemas import (
+    KOREADER_DATETIME_FORMAT,
+)
 from src.main import app
 from src.models import (
     Book,
@@ -150,6 +153,17 @@ async def create_test_chapter(
     return chapter
 
 
+def device_datetime(value: str) -> dt:
+    """Parse a KOReader timestamp, the way the sync boundary does.
+
+    Tests read better writing the device's own format, but the column and every
+    layer above it now hold a real datetime.
+
+    Naive on purpose: the device sends no offset, so there is none to parse.
+    """
+    return dt.strptime(value, KOREADER_DATETIME_FORMAT)  # noqa: DTZ007
+
+
 async def create_test_highlight(
     db_session: AsyncSession,
     book: Book,
@@ -180,7 +194,7 @@ async def create_test_highlight(
         page=page,
         start_xpoint=start_xpoint,
         end_xpoint=end_xpoint,
-        datetime=datetime_str,
+        datetime=device_datetime(datetime_str),
         content_hash=content_hash,
         deleted_at=deleted_at,
         removed_from_devices_at=removed_from_devices_at,

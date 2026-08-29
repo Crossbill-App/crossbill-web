@@ -847,7 +847,7 @@
           "highlights"
         ],
         "summary": "Sync Highlights",
-        "description": "Sync highlights from KOReader.\n\nCreates or updates book record and adds highlights with automatic deduplication.\nDuplicates are identified by the combination of book, text, and datetime.\n\n``removed_ids`` carries the highlights the reader deleted on the device:\nthey are withheld from every device's pull and stay whole on the web.\n\nA highlight flagged ``is_new`` was created on the device after its last\npull, so a duplicate of a removed or deleted highlight is a deliberate\nre-highlight and brings that highlight back.\n\nArgs:\n    request: Highlight sync request containing book metadata and highlights\n\nReturns:\n    HighlightSyncResponse with sync statistics\n\nRaises:\n    HTTPException: If the sync fails due to server error",
+        "description": "Sync highlights from KOReader.\n\nCreates or updates book record and adds highlights with automatic deduplication.\nDuplicates are identified by book and highlighted text alone: a highlight's\ntimestamps say when the device made and edited it, and take no part in\ndeciding whether it is the same highlight.\n\n``removed_ids`` carries the highlights the reader deleted on the device:\nthey are withheld from every device's pull and stay whole on the web.\n\nA highlight flagged ``is_new`` was created on the device after its last\npull, so a duplicate of a removed or deleted highlight is a deliberate\nre-highlight and brings that highlight back.\n\nArgs:\n    request: Highlight sync request containing book metadata and highlights\n\nReturns:\n    HighlightSyncResponse with sync statistics\n\nRaises:\n    HTTPException: If the sync fails due to server error",
         "operationId": "upload_highlights",
         "deprecated": true,
         "security": [
@@ -929,7 +929,7 @@
           "highlights"
         ],
         "summary": "Sync Highlights",
-        "description": "Sync highlights from KOReader.\n\nCreates or updates book record and adds highlights with automatic deduplication.\nDuplicates are identified by the combination of book, text, and datetime.\n\n``removed_ids`` carries the highlights the reader deleted on the device:\nthey are withheld from every device's pull and stay whole on the web.\n\nA highlight flagged ``is_new`` was created on the device after its last\npull, so a duplicate of a removed or deleted highlight is a deliberate\nre-highlight and brings that highlight back.\n\nArgs:\n    request: Highlight sync request containing book metadata and highlights\n\nReturns:\n    HighlightSyncResponse with sync statistics\n\nRaises:\n    HTTPException: If the sync fails due to server error",
+        "description": "Sync highlights from KOReader.\n\nCreates or updates book record and adds highlights with automatic deduplication.\nDuplicates are identified by book and highlighted text alone: a highlight's\ntimestamps say when the device made and edited it, and take no part in\ndeciding whether it is the same highlight.\n\n``removed_ids`` carries the highlights the reader deleted on the device:\nthey are withheld from every device's pull and stay whole on the web.\n\nA highlight flagged ``is_new`` was created on the device after its last\npull, so a duplicate of a removed or deleted highlight is a deliberate\nre-highlight and brings that highlight back.\n\nArgs:\n    request: Highlight sync request containing book metadata and highlights\n\nReturns:\n    HighlightSyncResponse with sync statistics\n\nRaises:\n    HTTPException: If the sync fails due to server error",
         "operationId": "sync_highlights",
         "security": [
           {
@@ -6329,10 +6329,9 @@
           },
           "datetime": {
             "type": "string",
-            "maxLength": 50,
-            "minLength": 1,
+            "format": "date-time",
             "title": "Datetime",
-            "description": "KOReader datetime format"
+            "description": "When the highlight was made, on the device's own clock. Sent without a UTC offset because the e-reader does not know one; KOReader's 'YYYY-MM-DD HH:MM:SS' is accepted on the way in."
           },
           "id": {
             "type": "integer",
@@ -6461,10 +6460,9 @@
           },
           "datetime": {
             "type": "string",
-            "maxLength": 50,
-            "minLength": 1,
+            "format": "date-time",
             "title": "Datetime",
-            "description": "KOReader datetime format"
+            "description": "When the highlight was made, on the device's own clock. Sent without a UTC offset because the e-reader does not know one; KOReader's 'YYYY-MM-DD HH:MM:SS' is accepted on the way in."
           },
           "start_xpoint": {
             "anyOf": [
@@ -6530,14 +6528,14 @@
             "anyOf": [
               {
                 "type": "string",
-                "maxLength": 50
+                "format": "date-time"
               },
               {
                 "type": "null"
               }
             ],
             "title": "Datetime Updated",
-            "description": "KOReader datetime of the last edit on the device; absent until the highlight is first edited. The newest edit wins when devices disagree."
+            "description": "When the highlight was last edited on the device, on that device's own clock; absent until the highlight is first edited. The newest edit wins when devices disagree."
           },
           "is_new": {
             "type": "boolean",
@@ -6853,10 +6851,9 @@
           },
           "datetime": {
             "type": "string",
-            "maxLength": 50,
-            "minLength": 1,
+            "format": "date-time",
             "title": "Datetime",
-            "description": "KOReader datetime format"
+            "description": "When the highlight was made, on the device's own clock. Sent without a UTC offset because the e-reader does not know one; KOReader's 'YYYY-MM-DD HH:MM:SS' is accepted on the way in."
           },
           "id": {
             "type": "integer",
@@ -6995,6 +6992,7 @@
           },
           "datetime": {
             "type": "string",
+            "format": "date-time",
             "title": "Datetime"
           },
           "cover_file": {
