@@ -227,12 +227,7 @@ export const NoteViewDialog = ({
                 {tags.length > 0 && (
                   <Stack direction="row" spacing={1} sx={{ mt: 2, flexWrap: 'wrap', gap: 0.5 }}>
                     {tags.map((tag) => (
-                      <Chip
-                        key={`tag-${tag.id}`}
-                        size="small"
-                        variant="outlined"
-                        label={`#${tag.name}`}
-                      />
+                      <Chip key={`tag-${tag.id}`} variant="outlined" label={`#${tag.name}`} />
                     ))}
                   </Stack>
                 )}

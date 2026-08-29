@@ -13,7 +13,8 @@ export interface SectionTitleProps {
  * The app's one section heading, in two variants: with the gradient rule and
  * without. Every heading at this rank goes through it — book content, the
  * sidebar, the chapter dialog, Settings — so they cannot drift into four
- * weights and two colours again.
+ * weights and two colours again. The type itself is the theme's
+ * `sectionTitle` variant; what this adds is the rule and the heading level.
  */
 export const SectionTitle = ({
   children,
@@ -23,10 +24,9 @@ export const SectionTitle = ({
 }: SectionTitleProps) => {
   const heading = (
     <Typography
-      variant="h3"
+      variant="sectionTitle"
       component={component}
       gutterBottom={gutterBottom && !showDivider}
-      sx={{ color: 'primary.main' }}
     >
       {children}
     </Typography>

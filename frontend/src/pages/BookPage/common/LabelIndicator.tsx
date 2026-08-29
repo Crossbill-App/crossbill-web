@@ -20,7 +20,6 @@ export const LabelIndicator = ({ label, onClick, size = 'small' }: LabelIndicato
     return (
       <Chip
         label={label.text}
-        size="small"
         onClick={onClick}
         sx={{
           backgroundColor: label.ui_color,

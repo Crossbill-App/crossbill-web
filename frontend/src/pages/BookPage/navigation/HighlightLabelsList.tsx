@@ -4,7 +4,6 @@ import { PaletteIcon } from '@/theme/Icons.tsx';
 import { getContrastColor } from '@/utils/colorUtils.ts';
 import { Box, Chip } from '@mui/material';
 
-import { filterChipSx } from './filterChipStyles.ts';
 import { SidebarSectionHeader } from './SidebarSectionHeader.tsx';
 
 interface HighlightLabelsListProps {
@@ -55,23 +54,24 @@ const LabelChip = ({
           <span>{chipLabel}</span>
         </Box>
       }
-      size="small"
       variant={isSelected ? 'filled' : 'outlined'}
       onClick={onClick}
-      sx={{
-        ...filterChipSx(isSelected),
-        // The one chip that keeps its own colour when selected: it is the
-        // colour the highlight was made in on the device.
-        ...(isSelected && {
-          backgroundColor: color,
-          color: getContrastColor(color),
-          '&:hover': {
-            backgroundColor: color,
-            opacity: 0.85,
-            transform: 'translateY(-1px)',
-          },
-        }),
-      }}
+      // The one chip that keeps its own colour when selected: it is the
+      // colour the highlight was made in on the device. Everything else about
+      // how it sits and moves comes from the theme's clickable-chip rule.
+      sx={
+        isSelected
+          ? {
+              backgroundColor: color,
+              color: getContrastColor(color),
+              '&:hover': {
+                backgroundColor: color,
+                opacity: 0.85,
+                transform: 'translateY(-1px)',
+              },
+            }
+          : undefined
+      }
     />
   );
 };

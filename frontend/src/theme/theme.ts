@@ -1,4 +1,4 @@
-import { createTheme, type Theme } from '@mui/material/styles';
+import { createTheme, type CSSProperties, type Theme } from '@mui/material/styles';
 
 const colors = {
   amber: {
@@ -137,6 +137,21 @@ declare module '@mui/material/styles' {
   interface ThemeOptions {
     customColors?: typeof customColors;
   }
+  interface TypographyVariants {
+    pageTitle: CSSProperties;
+    sectionTitle: CSSProperties;
+  }
+  interface TypographyVariantsOptions {
+    pageTitle?: CSSProperties;
+    sectionTitle?: CSSProperties;
+  }
+}
+
+declare module '@mui/material/Typography' {
+  interface TypographyPropsVariantOverrides {
+    pageTitle: true;
+    sectionTitle: true;
+  }
 }
 
 export const theme = createTheme({
@@ -203,6 +218,25 @@ export const theme = createTheme({
     body2: {
       fontWeight: 200, // Very light
       lineHeight: 1.6,
+    },
+    /**
+     * The heading a page leads with. Its own variant rather than `h2` with
+     * three corrections at the call site, which is how the weight drifted:
+     * `h2` is the light subtitle weight a book's author line uses, and a page
+     * title is the heavy one.
+     */
+    pageTitle: {
+      fontSize: '1.4rem',
+      fontWeight: 900,
+      lineHeight: 1.3,
+      color: colors.amber[700],
+    },
+    /** The heading of every section sitting under a page title. */
+    sectionTitle: {
+      fontSize: '1.1rem',
+      fontWeight: 800,
+      letterSpacing: '0.01em',
+      color: colors.amber[700],
     },
   },
   shape: {
@@ -271,6 +305,61 @@ export const theme = createTheme({
             },
           },
         },
+      },
+    },
+    MuiTypography: {
+      defaultProps: {
+        // Custom variants have no element of their own without this, so a page
+        // title written as `<Typography variant="pageTitle">` would render a
+        // paragraph.
+        variantMapping: {
+          pageTitle: 'h2',
+          sectionTitle: 'h2',
+        },
+      },
+    },
+    MuiChip: {
+      // Every chip in the app is a small one, from a tag to a filter to the
+      // "not on device" marker.
+      defaultProps: { size: 'small' },
+      styleOverrides: {
+        root: ({ theme: t }) => ({
+          variants: [
+            {
+              // A chip you can click selects something — a tag, a label, a
+              // note type, a reading stage. One geometry and one motion for
+              // all of them, so chips sitting in the same drawer cannot
+              // behave differently.
+              props: ({ ownerState }) => Boolean(ownerState.clickable),
+              style: {
+                padding: '2px 4px',
+                transition: 'all 0.2s ease',
+              },
+            },
+            {
+              props: ({ ownerState }) =>
+                Boolean(ownerState.clickable) && ownerState.variant === 'outlined',
+              style: {
+                borderColor: t.palette.divider,
+                '&:hover': {
+                  backgroundColor: t.palette.action.hover,
+                  borderColor: t.palette.secondary.light,
+                  transform: 'translateY(-1px)',
+                },
+              },
+            },
+            {
+              props: ({ ownerState }) =>
+                Boolean(ownerState.clickable) && ownerState.variant === 'filled',
+              style: {
+                '&:hover': {
+                  backgroundColor: t.palette.primary.dark,
+                  transform: 'translateY(-1px)',
+                },
+              },
+            },
+          ],
+        }),
       },
     },
     MuiCard: {

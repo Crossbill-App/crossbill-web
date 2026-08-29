@@ -46,7 +46,7 @@ export const RelatedContentCard = ({ row }: RelatedContentCardProps) => (
   >
     <Stack spacing={1} sx={{ width: '100%', minWidth: 0 }}>
       <Box>
-        <Chip label={SEARCH_ROW_TYPE_LABELS[row.type]} size="small" variant="outlined" />
+        <Chip label={SEARCH_ROW_TYPE_LABELS[row.type]} variant="outlined" />
       </Box>
 
       {row.title && (

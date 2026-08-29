@@ -8,7 +8,6 @@ import { SavedIndicator } from '@/components/SavedIndicator.tsx';
 import { useMutationErrorHandler } from '@/hooks/useMutationErrorHandler.ts';
 import { useSaveStatus } from '@/hooks/useSaveStatus.ts';
 import { useCacheEvents } from '@/lib/cacheEvents.ts';
-import { filterChipSx } from '@/pages/BookPage/navigation/filterChipStyles.ts';
 import { Box, Chip, Divider, Menu, MenuItem } from '@mui/material';
 import { useState } from 'react';
 
@@ -51,12 +50,10 @@ export const ReadingStageChip = ({ bookId, readingStage }: ReadingStageChipProps
       <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mt: 1.5 }}>
         <Chip
           label={readingStage ? READING_STAGE_LABELS[readingStage] : 'Set stage'}
-          size="small"
           color={readingStage && !abandoned ? 'primary' : 'default'}
           variant={readingStage ? 'filled' : 'outlined'}
           onClick={(event) => setAnchorEl(event.currentTarget)}
           disabled={isPending}
-          sx={filterChipSx(!!readingStage)}
         />
         <SavedIndicator status={saveStatus.status} sx={{ minHeight: 0 }} />
       </Box>
