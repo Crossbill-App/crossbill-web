@@ -57,7 +57,19 @@ const ChapterLabel = ({
   readStatus?: ReadStatus;
 }) => (
   <Box sx={{ display: 'flex', alignItems: 'flex-start', gap: 1, minWidth: 0 }}>
-    {readStatus && <ChapterReadIndicator status={readStatus} chapterName={chapter.name} />}
+    {readStatus && (
+      <Box
+        sx={{
+          typography: 'body1',
+          height: '1lh',
+          display: 'flex',
+          alignItems: 'center',
+          flexShrink: 0,
+        }}
+      >
+        <ChapterReadIndicator status={readStatus} chapterName={chapter.name} />
+      </Box>
+    )}
     <Box sx={{ minWidth: 0, textAlign: 'left' }}>
       <Typography variant="body1" sx={{ fontWeight: 600 }}>
         {chapter.name}
