@@ -65,6 +65,12 @@ const customColors = {
   },
 };
 
+/** Devices pointed at with a finger or a stylus, rather than a mouse. */
+const COARSE_POINTER_QUERY = '@media (pointer: coarse)';
+
+/** Material Design's minimum touch target, in px. */
+const TOUCH_TARGET_MIN = 48;
+
 /**
  * Shared markdown styles for consistent rendering across the application.
  * Used in components that render markdown content (e.g., AI summaries).
@@ -245,6 +251,25 @@ export const theme = createTheme({
           textTransform: 'none',
           borderRadius: 24,
           fontWeight: 500,
+        },
+      },
+    },
+    MuiIconButton: {
+      styleOverrides: {
+        // A fingertip has no pixel precision, so every icon button clears the
+        // 48dp touch target wherever the pointer is coarse, whatever `size`
+        // its call site asked for. A mouse keeps the compact button.
+        root: {
+          [COARSE_POINTER_QUERY]: {
+            minWidth: TOUCH_TARGET_MIN,
+            minHeight: TOUCH_TARGET_MIN,
+            // Except inside a text field: an Autocomplete's clear and dropdown
+            // marks, or a date picker's calendar, would stretch the field.
+            '.MuiInputBase-root &': {
+              minWidth: 'unset',
+              minHeight: 'unset',
+            },
+          },
         },
       },
     },

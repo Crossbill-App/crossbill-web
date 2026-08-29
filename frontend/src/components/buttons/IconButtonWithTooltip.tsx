@@ -8,6 +8,8 @@ interface IconButtonWithTooltipProps {
   ariaLabel?: string;
   icon: ReactNode;
   edge?: IconButtonProps['edge'];
+  /** MUI's own default; drop to `small` only where a row is genuinely tight. */
+  size?: IconButtonProps['size'];
   sx?: IconButtonProps['sx'];
 }
 
@@ -18,6 +20,7 @@ export const IconButtonWithTooltip = ({
   ariaLabel,
   icon,
   edge,
+  size = 'medium',
   sx,
 }: IconButtonWithTooltipProps) => {
   return (
@@ -26,7 +29,7 @@ export const IconButtonWithTooltip = ({
         onClick={onClick}
         disabled={disabled}
         aria-label={ariaLabel}
-        size="small"
+        size={size}
         edge={edge}
         sx={sx}
       >
