@@ -36,8 +36,7 @@ function booksApi(title: string) {
         limit: 32,
       });
     }),
-    http.get('/api/v1/books/recently-synced', () => HttpResponse.json({ items: [] })),
-    http.get('/api/v1/books/recently-viewed', () => HttpResponse.json({ items: [] })),
+    http.get('/api/v1/books/recent', () => HttpResponse.json({ items: [] })),
   ];
 
   return { handlers, state };

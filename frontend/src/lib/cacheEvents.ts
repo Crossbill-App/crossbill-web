@@ -1,7 +1,7 @@
 import {
   getGetBookDetailsQueryKey,
   getGetBooksQueryKey,
-  getGetRecentlyViewedBooksQueryKey,
+  getGetRecentBooksQueryKey,
 } from '@/api/generated/books/books.ts';
 import { getGetBookDigestQueryKey } from '@/api/generated/digest/digest.ts';
 import { getGetBookHighlightLabelsQueryKey } from '@/api/generated/highlight-labels/highlight-labels.ts';
@@ -51,12 +51,11 @@ export const useCacheEvents = () => {
       /** A book's own record changed — title, reading stage, cover, highlights. */
       bookChanged: (bookId: number) => invalidate(getGetBookDetailsQueryKey(bookId)),
 
-      /** A book was opened, which reorders the recently-viewed list. */
-      bookViewed: () => invalidate(getGetRecentlyViewedBooksQueryKey()),
+      /** A book was opened, which reorders the recent-books list. */
+      bookViewed: () => invalidate(getGetRecentBooksQueryKey()),
 
       /** A book was added or removed, so every listing of books is affected. */
-      booksListChanged: () =>
-        invalidate(getGetBooksQueryKey(), getGetRecentlyViewedBooksQueryKey()),
+      booksListChanged: () => invalidate(getGetBooksQueryKey(), getGetRecentBooksQueryKey()),
 
       /** A tag or tag group changed. Book details carries the book's tag list too. */
       tagsChanged: (bookId: number) =>

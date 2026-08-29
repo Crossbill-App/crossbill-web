@@ -29,9 +29,15 @@ async def add_flashcard(db_session: AsyncSession, book: Book, user_id: int) -> F
     return card
 
 
-async def mark_viewed(db_session: AsyncSession, book: Book, when: datetime) -> None:
-    """Stamp a book's last_viewed so it shows up in the recently-viewed list."""
-    book.last_viewed = when
+async def stamp(
+    db_session: AsyncSession,
+    book: Book,
+    viewed: datetime | None = None,
+    synced: datetime | None = None,
+) -> None:
+    """Set a book's activity stamps, which is what puts it on the recent list."""
+    book.last_viewed = viewed
+    book.last_synced = synced
     await db_session.commit()
 
 
@@ -190,51 +196,91 @@ async def test_flashcard_filter_keeps_only_books_with_cards(
     assert page.total == 1
 
 
-async def test_recently_viewed_skips_books_never_opened(
+async def test_recent_skips_books_never_opened_or_synced(
     query: BookListQuery, db_session: AsyncSession
 ) -> None:
     older = await create_test_book(db_session=db_session, user_id=DEFAULT_USER_ID, title="Older")
     newer = await create_test_book(db_session=db_session, user_id=DEFAULT_USER_ID, title="Newer")
-    await create_test_book(db_session=db_session, user_id=DEFAULT_USER_ID, title="Never opened")
-    await mark_viewed(db_session, older, datetime(2024, 1, 1, tzinfo=UTC))
-    await mark_viewed(db_session, newer, datetime(2024, 6, 1, tzinfo=UTC))
+    await create_test_book(db_session=db_session, user_id=DEFAULT_USER_ID, title="Untouched")
+    await stamp(db_session, older, viewed=datetime(2024, 1, 1, tzinfo=UTC))
+    await stamp(db_session, newer, viewed=datetime(2024, 6, 1, tzinfo=UTC))
 
-    books = await query.list_recently_viewed(user_id=UserId(DEFAULT_USER_ID), limit=10)
+    books = await query.list_recent(user_id=UserId(DEFAULT_USER_ID), limit=10)
 
     assert [b.title for b in books] == ["Newer", "Older"]
 
 
-async def test_recently_viewed_excludes_another_users_books(
+async def test_recent_ranks_viewed_and_synced_books_against_each_other(
+    query: BookListQuery, db_session: AsyncSession
+) -> None:
+    """One list, two kinds of stamp: whichever moment is later ranks higher."""
+    viewed = await create_test_book(db_session=db_session, user_id=DEFAULT_USER_ID, title="Viewed")
+    synced = await create_test_book(db_session=db_session, user_id=DEFAULT_USER_ID, title="Synced")
+    await stamp(db_session, viewed, viewed=datetime(2024, 3, 1, tzinfo=UTC))
+    await stamp(db_session, synced, synced=datetime(2024, 6, 1, tzinfo=UTC))
+
+    books = await query.list_recent(user_id=UserId(DEFAULT_USER_ID), limit=10)
+
+    assert [b.title for b in books] == ["Synced", "Viewed"]
+
+
+@pytest.mark.parametrize(
+    ("viewed", "synced"),
+    [
+        (datetime(2024, 1, 1, tzinfo=UTC), datetime(2024, 9, 1, tzinfo=UTC)),
+        (datetime(2024, 9, 1, tzinfo=UTC), datetime(2024, 1, 1, tzinfo=UTC)),
+    ],
+    ids=["synced last", "viewed last"],
+)
+async def test_recent_ranks_a_book_by_the_later_of_its_two_stamps(
+    query: BookListQuery,
+    db_session: AsyncSession,
+    viewed: datetime,
+    synced: datetime,
+) -> None:
+    """A book carrying both stamps is placed by the newer one, and listed once.
+
+    Run from both sides so an inverted comparison cannot pass.
+    """
+    both = await create_test_book(db_session=db_session, user_id=DEFAULT_USER_ID, title="Both")
+    other = await create_test_book(db_session=db_session, user_id=DEFAULT_USER_ID, title="Other")
+    await stamp(db_session, both, viewed=viewed, synced=synced)
+    await stamp(db_session, other, viewed=datetime(2024, 6, 1, tzinfo=UTC))
+
+    books = await query.list_recent(user_id=UserId(DEFAULT_USER_ID), limit=10)
+
+    assert [b.title for b in books] == ["Both", "Other"]
+
+
+async def test_recent_excludes_another_users_books(
     query: BookListQuery, db_session: AsyncSession, test_book: Book, other_user: User
 ) -> None:
     theirs = await create_test_book(db_session=db_session, user_id=OTHER_USER_ID, title="Not Mine")
-    await mark_viewed(db_session, test_book, datetime(2024, 1, 1, tzinfo=UTC))
-    await mark_viewed(db_session, theirs, datetime(2024, 6, 1, tzinfo=UTC))
+    await stamp(db_session, test_book, viewed=datetime(2024, 1, 1, tzinfo=UTC))
+    await stamp(db_session, theirs, viewed=datetime(2024, 6, 1, tzinfo=UTC))
 
-    books = await query.list_recently_viewed(user_id=UserId(DEFAULT_USER_ID), limit=10)
+    books = await query.list_recent(user_id=UserId(DEFAULT_USER_ID), limit=10)
 
     assert [b.title for b in books] == [test_book.title]
 
 
-async def test_recently_viewed_honours_the_limit(
-    query: BookListQuery, db_session: AsyncSession
-) -> None:
+async def test_recent_honours_the_limit(query: BookListQuery, db_session: AsyncSession) -> None:
     for index, title in enumerate(("A", "B", "C")):
         book = await create_test_book(db_session=db_session, user_id=DEFAULT_USER_ID, title=title)
-        await mark_viewed(db_session, book, datetime(2024, 1, index + 1, tzinfo=UTC))
+        await stamp(db_session, book, viewed=datetime(2024, 1, index + 1, tzinfo=UTC))
 
-    books = await query.list_recently_viewed(user_id=UserId(DEFAULT_USER_ID), limit=2)
+    books = await query.list_recent(user_id=UserId(DEFAULT_USER_ID), limit=2)
 
     assert [b.title for b in books] == ["C", "B"]
 
 
-async def test_recently_viewed_carries_the_same_counts_as_the_library_list(
+async def test_recent_carries_the_same_counts_as_the_library_list(
     query: BookListQuery, db_session: AsyncSession, test_book: Book
 ) -> None:
     await add_one_of_each_countable(db_session, test_book)
-    await mark_viewed(db_session, test_book, datetime(2024, 6, 1, tzinfo=UTC))
+    await stamp(db_session, test_book, viewed=datetime(2024, 6, 1, tzinfo=UTC))
 
-    books = await query.list_recently_viewed(user_id=UserId(DEFAULT_USER_ID), limit=10)
+    books = await query.list_recent(user_id=UserId(DEFAULT_USER_ID), limit=10)
 
     assert [(b.highlight_count, b.flashcard_count) for b in books] == [(1, 1)]
 

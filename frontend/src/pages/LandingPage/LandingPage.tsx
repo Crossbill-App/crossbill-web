@@ -8,8 +8,7 @@ import { SectionTitle } from '@/components/typography/SectionTitle.tsx';
 import { Alert, Box, Pagination, Typography } from '@mui/material';
 import { useNavigate, useSearch } from '@tanstack/react-router';
 import { BookList } from './components/BookList';
-import { RecentlySyncedBooks } from './components/RecentlySyncedBooks';
-import { RecentlyViewedBooks } from './components/RecentlyViewedBooks';
+import { RecentBooks } from './components/RecentBooks';
 
 const BOOKS_PER_PAGE = 32;
 
@@ -67,13 +66,8 @@ export const LandingPage = () => {
         </Typography>
       </Box>
 
-      {/* Only show the recent rows when not searching */}
-      {!searchText && (
-        <>
-          <RecentlySyncedBooks />
-          <RecentlyViewedBooks />
-        </>
-      )}
+      {/* Only show the recent row when not searching */}
+      {!searchText && <RecentBooks />}
 
       <SectionTitle showDivider>All books</SectionTitle>
 

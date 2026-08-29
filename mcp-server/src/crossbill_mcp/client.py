@@ -103,10 +103,10 @@ class CrossbillClient:
         response = await self._request("GET", f"/api/v1/books/{book_id}")
         return response.json()
 
-    async def get_recently_viewed_books(self, limit: int = 10) -> dict:
-        """Get recently viewed books."""
+    async def get_recent_books(self, limit: int = 10) -> dict:
+        """Get the books last opened or synced."""
         response = await self._request(
-            "GET", "/api/v1/books/recently-viewed", params={"limit": limit}
+            "GET", "/api/v1/books/recent", params={"limit": limit}
         )
         return response.json()
 

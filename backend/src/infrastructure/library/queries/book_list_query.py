@@ -7,7 +7,9 @@ render a dozen columns. Queries select, join, filter, order and group; they
 never decide anything.
 """
 
-from sqlalchemy import ColumnElement, Select, func, select
+from datetime import datetime
+
+from sqlalchemy import ColumnElement, Select, case, func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import noload
 
@@ -76,32 +78,15 @@ class BookListQuery:
         stmt = _book_rows().where(*filters).order_by(BookORM.title).offset(offset).limit(limit)
         return BookListPageView(books=await self._fetch(stmt), total=total)
 
-    async def list_recently_viewed(
-        self, user_id: UserId, limit: int
-    ) -> tuple[BookWithCountsView, ...]:
-        """Return the books the user has opened, most recently viewed first."""
+    async def list_recent(self, user_id: UserId, limit: int) -> tuple[BookWithCountsView, ...]:
+        """Return the books last opened or synced, most recent of the two first."""
         stmt = (
             _book_rows()
             .where(
                 BookORM.user_id == user_id.value,
-                BookORM.last_viewed.isnot(None),
+                or_(BookORM.last_viewed.isnot(None), BookORM.last_synced.isnot(None)),
             )
-            .order_by(BookORM.last_viewed.desc())
-            .limit(limit)
-        )
-        return await self._fetch(stmt)
-
-    async def list_recently_synced(
-        self, user_id: UserId, limit: int
-    ) -> tuple[BookWithCountsView, ...]:
-        """Return the books a device has sent data for, most recently synced first."""
-        stmt = (
-            _book_rows()
-            .where(
-                BookORM.user_id == user_id.value,
-                BookORM.last_synced.isnot(None),
-            )
-            .order_by(BookORM.last_synced.desc())
+            .order_by(_recency().desc())
             .limit(limit)
         )
         return await self._fetch(stmt)
@@ -115,6 +100,20 @@ class BookListQuery:
             _book_view(book, highlight_count, flashcard_count)
             for book, highlight_count, flashcard_count in rows
         )
+
+
+def _recency() -> ColumnElement[datetime | None]:
+    """The later of a book's two activity stamps, which the recent list orders by.
+
+    Spelled as a ``CASE`` rather than ``GREATEST``: that function is Postgres-only,
+    and the tests run on SQLite, where two-argument ``MAX`` means something else.
+    """
+    return case(
+        (BookORM.last_viewed.is_(None), BookORM.last_synced),
+        (BookORM.last_synced.is_(None), BookORM.last_viewed),
+        (BookORM.last_viewed > BookORM.last_synced, BookORM.last_viewed),
+        else_=BookORM.last_synced,
+    )
 
 
 def _filters(

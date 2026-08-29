@@ -165,7 +165,7 @@ The server registers 50 tools. Full descriptions and arguments are in
 
 ### Books
 
-`list_books`, `get_book`, `get_recently_viewed_books`, `set_reading_stage`,
+`list_books`, `get_book`, `get_recent_books`, `set_reading_stage`,
 `delete_book`
 
 ### Highlights
