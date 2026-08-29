@@ -17,14 +17,17 @@ from src.application.library.queries.book_list import BookListPageView, BookWith
 from src.domain.common.value_objects.ids import UserId
 from src.domain.common.value_objects.position import Position
 from src.domain.library.entities.book import ReadingStage
+from src.domain.notes.entities.note import UNCOUNTED_NOTE_KINDS
 from src.infrastructure.common.sql import LIKE_ESCAPE_CHAR, escape_like_pattern
 from src.infrastructure.learning.orm.flashcard_model import Flashcard as FlashcardORM
 from src.infrastructure.library.orm.book_model import Book as BookORM
+from src.infrastructure.notes.orm.associations import note_books
+from src.infrastructure.notes.orm.note_model import Note as NoteORM
 from src.infrastructure.reading.orm.highlight_model import Highlight as HighlightORM
 
 
-def _book_rows() -> Select[tuple[BookORM, int, int]]:
-    """Select a book row with its highlight and flashcard counts.
+def _book_rows() -> Select[tuple[BookORM, int, int, int]]:
+    """Select a book row with its highlight, flashcard and note counts.
 
     Built per call rather than held as a module constant: ``noload`` resolves
     the relationship eagerly, which would configure the ORM mappers while this
@@ -52,7 +55,31 @@ def _book_rows() -> Select[tuple[BookORM, int, int]]:
         .scalar_subquery()
         .label("flashcard_count")
     )
-    return select(BookORM, highlight_count, flashcard_count).options(noload(BookORM.tag_groups))
+    note_count = (
+        select(func.count(NoteORM.id))
+        .join(note_books, note_books.c.note_id == NoteORM.id)
+        .where(
+            note_books.c.book_id == BookORM.id,
+            NoteORM.user_id == BookORM.user_id,
+            _note_counts(),
+        )
+        .correlate(BookORM)
+        .scalar_subquery()
+        .label("note_count")
+    )
+    return select(BookORM, highlight_count, flashcard_count, note_count).options(
+        noload(BookORM.tag_groups)
+    )
+
+
+def _note_counts() -> ColumnElement[bool]:
+    """Whether a note kind is one the counts include.
+
+    Spelled as an explicit null check because ``NOT IN`` yields null, not true,
+    for a note whose kind was never set.
+    """
+    excluded = [kind.value for kind in UNCOUNTED_NOTE_KINDS]
+    return or_(NoteORM.kind.is_(None), NoteORM.kind.not_in(excluded))
 
 
 class BookListQuery:
@@ -92,13 +119,13 @@ class BookListQuery:
         return await self._fetch(stmt)
 
     async def _fetch(
-        self, stmt: Select[tuple[BookORM, int, int]]
+        self, stmt: Select[tuple[BookORM, int, int, int]]
     ) -> tuple[BookWithCountsView, ...]:
         """Run a book-row select and map every row to its view DTO."""
         rows = (await self.db.execute(stmt)).all()
         return tuple(
-            _book_view(book, highlight_count, flashcard_count)
-            for book, highlight_count, flashcard_count in rows
+            _book_view(book, highlight_count, flashcard_count, note_count)
+            for book, highlight_count, flashcard_count, note_count in rows
         )
 
 
@@ -135,7 +162,9 @@ def _filters(
     return filters
 
 
-def _book_view(row: BookORM, highlight_count: int, flashcard_count: int) -> BookWithCountsView:
+def _book_view(
+    row: BookORM, highlight_count: int, flashcard_count: int, note_count: int
+) -> BookWithCountsView:
     """Map a book row and its counts to the view DTO."""
     return BookWithCountsView(
         id=row.id,
@@ -150,6 +179,7 @@ def _book_view(row: BookORM, highlight_count: int, flashcard_count: int) -> Book
         page_count=row.page_count,
         highlight_count=highlight_count,
         flashcard_count=flashcard_count,
+        note_count=note_count,
         reading_stage=ReadingStage(row.reading_stage) if row.reading_stage else None,
         end_position=Position.from_json(row.end_position) if row.end_position else None,
         created_at=row.created_at,

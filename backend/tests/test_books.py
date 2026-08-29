@@ -1250,3 +1250,106 @@ class TestRecentBooks:
         item = response.json()["items"][0]
         assert parse_stamp(item["last_viewed"]) == STAMPS[0]
         assert parse_stamp(item["last_synced"]) == STAMPS[1]
+
+
+class TestBookCounts:
+    """The counts the library cards render, on the list and on the details view."""
+
+    async def _add_note(
+        self, client: AsyncClient, book_id: int, title: str, kind: str | None = None
+    ) -> None:
+        payload: dict[str, object] = {"title": title, "book_id": book_id}
+        if kind is not None:
+            payload["kind"] = kind
+        response = await client.post("/api/v1/notes", json=payload)
+        assert response.status_code == status.HTTP_201_CREATED
+
+    async def test_note_count_skips_gists_and_keeps_untyped_notes(
+        self, client: AsyncClient, test_book: models.Book
+    ) -> None:
+        await self._add_note(client, test_book.id, "Raskolnikov", kind="character")
+        await self._add_note(client, test_book.id, "Untyped")
+        await self._add_note(client, test_book.id, "Chapter 1 in brief", kind="gist")
+
+        response = await client.get("/api/v1/books/")
+
+        assert response.status_code == status.HTTP_200_OK
+        assert response.json()["items"][0]["note_count"] == 2
+
+    async def test_note_count_is_zero_without_notes(
+        self, client: AsyncClient, test_book: models.Book
+    ) -> None:
+        response = await client.get("/api/v1/books/")
+
+        assert response.json()["items"][0]["note_count"] == 0
+
+    async def test_note_count_ignores_another_users_notes(
+        self,
+        client: AsyncClient,
+        db_session: AsyncSession,
+        test_book: models.Book,
+        test_user: models.User,
+    ) -> None:
+        stranger = models.User(email="stranger@example.com", hashed_password="x")
+        db_session.add(stranger)
+        await db_session.commit()
+        note = models.Note(user_id=stranger.id, title="Not mine", kind="concept")
+        note.books.append(test_book)
+        db_session.add(note)
+        await db_session.commit()
+
+        response = await client.get("/api/v1/books/")
+
+        assert response.json()["items"][0]["note_count"] == 0
+
+    async def test_details_highlight_count_includes_chapterless_highlights(
+        self,
+        client: AsyncClient,
+        db_session: AsyncSession,
+        test_book: models.Book,
+        test_chapter: models.Chapter,
+        test_user: models.User,
+    ) -> None:
+        """The chapter tree drops highlights with no chapter; the count must not."""
+        await create_test_highlight(
+            db_session,
+            test_book,
+            test_user.id,
+            "In a chapter",
+            "2024-01-01 10:00:00",
+            chapter_id=test_chapter.id,
+        )
+        await create_test_highlight(
+            db_session, test_book, test_user.id, "No chapter", "2024-01-01 11:00:00"
+        )
+
+        response = await client.get(f"/api/v1/books/{test_book.id}")
+
+        assert response.status_code == status.HTTP_200_OK
+        data = response.json()
+        assert data["highlight_count"] == 2
+        in_tree = sum(len(chapter["highlights"]) for chapter in data["chapters"])
+        assert in_tree == 1
+
+    async def test_details_highlight_count_skips_deleted_highlights(
+        self,
+        client: AsyncClient,
+        db_session: AsyncSession,
+        test_book: models.Book,
+        test_user: models.User,
+    ) -> None:
+        await create_test_highlight(
+            db_session, test_book, test_user.id, "Live", "2024-01-01 10:00:00"
+        )
+        await create_test_highlight(
+            db_session,
+            test_book,
+            test_user.id,
+            "Gone",
+            "2024-01-01 11:00:00",
+            deleted_at=datetime(2024, 2, 1, tzinfo=UTC),
+        )
+
+        response = await client.get(f"/api/v1/books/{test_book.id}")
+
+        assert response.json()["highlight_count"] == 1

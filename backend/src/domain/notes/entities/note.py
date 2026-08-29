@@ -22,6 +22,13 @@ class NoteKind(StrEnum):
     OTHER = "other"
 
 
+UNCOUNTED_NOTE_KINDS: frozenset[NoteKind] = frozenset({NoteKind.GIST})
+"""Kinds left out when notes are counted, matching the Notes tab's default filter.
+
+A note with no kind counts: untyped notes read as "other".
+"""
+
+
 @dataclass
 class Note(AggregateRoot[NoteId]):
     """

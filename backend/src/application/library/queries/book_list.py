@@ -18,7 +18,7 @@ from src.domain.library.entities.book import ReadingStage
 
 @dataclass(frozen=True)
 class BookWithCountsView:
-    """A book as the library lists render it, with its highlight and card counts."""
+    """A book as the library lists render it, with its highlight, card and note counts."""
 
     id: int
     client_book_id: str | None
@@ -32,6 +32,7 @@ class BookWithCountsView:
     page_count: int | None
     highlight_count: int
     flashcard_count: int
+    note_count: int
     reading_stage: ReadingStage | None
     end_position: Position | None
     created_at: datetime

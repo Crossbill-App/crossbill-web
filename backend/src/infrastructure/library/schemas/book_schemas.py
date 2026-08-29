@@ -77,7 +77,7 @@ class Book(BookBase):
 
 
 class BookWithHighlightCount(BaseModel):
-    """Schema for Book with highlight and flashcard counts."""
+    """Schema for Book with highlight, flashcard and note counts."""
 
     id: int
     client_book_id: str | None = None
@@ -91,6 +91,7 @@ class BookWithHighlightCount(BaseModel):
     page_count: int | None = None
     highlight_count: int = Field(..., ge=0, description="Number of highlights for this book")
     flashcard_count: int = Field(0, ge=0, description="Number of flashcards for this book")
+    note_count: int = Field(0, ge=0, description="Number of notes for this book, gists aside")
     reading_stage: ReadingStageLiteral | None = Field(
         None, description="Where the reader is with this book, or null if unset"
     )
