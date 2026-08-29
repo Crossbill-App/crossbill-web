@@ -1,4 +1,5 @@
 /* eslint-disable react-refresh/only-export-components */
+import { BOTTOM_NAV_CLEARANCE } from '@/components/layout/Layouts.tsx';
 import { Portal } from '@mui/material';
 import Alert, { AlertColor } from '@mui/material/Alert';
 import Snackbar from '@mui/material/Snackbar';
@@ -6,6 +7,8 @@ import { createContext, ReactNode, useCallback, useContext, useState } from 'rea
 
 interface SnackbarContextType {
   showSnackbar: (message: string, severity?: AlertColor) => void;
+  /** A message is on screen, so chrome anchored low should step above it. */
+  isSnackbarOpen: boolean;
 }
 
 const SnackbarContext = createContext<SnackbarContextType | undefined>(undefined);
@@ -35,7 +38,7 @@ export function SnackbarProvider({ children }: { children: ReactNode }) {
   }, []);
 
   return (
-    <SnackbarContext.Provider value={{ showSnackbar }}>
+    <SnackbarContext.Provider value={{ showSnackbar, isSnackbarOpen: snackbar.open }}>
       {children}
       {/* Portalled to the body so an open dialog does not bury the message
           under its `aria-hidden`, which would hide errors from assistive tech. */}
@@ -45,6 +48,10 @@ export function SnackbarProvider({ children }: { children: ReactNode }) {
           autoHideDuration={6000}
           onClose={handleClose}
           anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
+          // Clears the book page's bottom navigation, which is fixed to the
+          // bottom edge below `lg`. An error is exactly when a reader wants to
+          // navigate away, so the message must not sit on the way out.
+          sx={{ bottom: { xs: BOTTOM_NAV_CLEARANCE, lg: 24 } }}
         >
           <Alert
             onClose={handleClose}

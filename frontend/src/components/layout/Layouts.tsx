@@ -8,6 +8,20 @@ import { Container, styled } from '@mui/material';
  */
 export const PAGE_GUTTER = { xs: 2, sm: 3 };
 
+/**
+ * How far above the bottom edge floating chrome sits below `lg`, where the
+ * book page's bottom navigation is fixed to it: the navigation's own height
+ * plus the device's safe area, and 24px of air. The FAB column and the
+ * snackbar both clear it, so neither lands on the navigation.
+ */
+export const BOTTOM_NAV_CLEARANCE = 'calc(80px + env(safe-area-inset-bottom))';
+
+/**
+ * Room for one line of snackbar, so chrome anchored to the same corner can
+ * step above an open one rather than sit under it for six seconds.
+ */
+export const SNACKBAR_CLEARANCE = '56px';
+
 export const PageContainer = styled(Container)(({ theme }) => ({
   paddingLeft: theme.spacing(PAGE_GUTTER.xs),
   paddingRight: theme.spacing(PAGE_GUTTER.xs),

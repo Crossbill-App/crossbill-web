@@ -2,7 +2,12 @@ import { useGetBookDetails } from '@/api/generated/books/books';
 import { FadeInOut } from '@/components/animations/FadeInOut.tsx';
 import { Spinner } from '@/components/animations/Spinner.tsx';
 import { ScrollToTopButton } from '@/components/buttons/ScrollToTopButton.tsx';
-import { PageContainer } from '@/components/layout/Layouts.tsx';
+import {
+  BOTTOM_NAV_CLEARANCE,
+  PageContainer,
+  SNACKBAR_CLEARANCE,
+} from '@/components/layout/Layouts.tsx';
+import { useSnackbar } from '@/context/SnackbarContext.tsx';
 import { useCacheEvents } from '@/lib/cacheEvents.ts';
 import { BookPageProvider } from '@/pages/BookPage/BookPageContext.tsx';
 import { BookTitle } from '@/pages/BookPage/BookTitle/BookTitle.tsx';
@@ -19,6 +24,7 @@ export const BookPage = () => {
   const theme = useTheme();
   const isDesktop = useMediaQuery(theme.breakpoints.up('lg'));
   const cache = useCacheEvents();
+  const { isSnackbarOpen } = useSnackbar();
 
   const [leftSidebarEl, setLeftSidebarEl] = useState<HTMLDivElement | null>(null);
   const [rightSidebarEl, setRightSidebarEl] = useState<HTMLDivElement | null>(null);
@@ -62,7 +68,16 @@ export const BookPage = () => {
         <Box
           sx={{
             position: 'fixed',
-            bottom: { xs: 'calc(80px + env(safe-area-inset-bottom))', lg: 24 },
+            // Below `lg` the snackbar shares this corner and spans the
+            // width, so the column rides above an open one. On `lg` the
+            // snackbar is centred and narrow, and never reaches this far right.
+            bottom: {
+              xs: isSnackbarOpen
+                ? `calc(${BOTTOM_NAV_CLEARANCE} + ${SNACKBAR_CLEARANCE})`
+                : BOTTOM_NAV_CLEARANCE,
+              lg: 24,
+            },
+            transition: theme.transitions.create('bottom'),
             right: 24,
             zIndex: 1000,
             display: 'flex',
