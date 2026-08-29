@@ -20,12 +20,6 @@ const colors = {
  * Custom colors used throughout the application.
  * These are consolidated from various rgba() calls in components.
  */
-/**
- * The app's face. Named here because a custom typography variant has to state
- * it: MUI puts `fontFamily` on the variants it builds itself, and merges
- * custom ones through untouched — so one without it inherits, and inside a
- * `<button>` (an `AccordionSummary`, say) that means the browser's own font.
- */
 const FONT_FAMILY = ['"Lora"', 'Georgia', 'serif'].join(',');
 
 const customColors = {
@@ -305,9 +299,6 @@ export const theme = createTheme({
       },
     },
     MuiButton: {
-      // The ring above is the focus indicator; MUI's pulsating focus ripple is
-      // a second one for the same state, from before `:focus-visible` existed.
-      // The click ripple stays.
       defaultProps: { disableFocusRipple: true },
       styleOverrides: {
         root: {
@@ -343,9 +334,6 @@ export const theme = createTheme({
     },
     MuiTypography: {
       defaultProps: {
-        // Custom variants have no element of their own without this, so a page
-        // title written as `<Typography variant="pageTitle">` would render a
-        // paragraph.
         variantMapping: {
           pageTitle: 'h2',
           sectionTitle: 'h2',
@@ -353,17 +341,11 @@ export const theme = createTheme({
       },
     },
     MuiChip: {
-      // Every chip in the app is a small one, from a tag to a filter to the
-      // "not on device" marker.
       defaultProps: { size: 'small' },
       styleOverrides: {
         root: ({ theme: t }) => ({
           variants: [
             {
-              // A chip you can click selects something — a tag, a label, a
-              // note type, a reading stage. One geometry and one motion for
-              // all of them, so chips sitting in the same drawer cannot
-              // behave differently.
               props: ({ ownerState }) => Boolean(ownerState.clickable),
               style: {
                 padding: '2px 4px',

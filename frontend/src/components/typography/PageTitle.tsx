@@ -10,11 +10,7 @@ interface PageTitleProps {
   component?: 'h1' | 'h2';
 }
 
-/**
- * The heading every page leads with. Size, weight and colour are the theme's
- * `pageTitle` variant; this holds the heading level and the spacing below.
- * Inherits `text-align` from its parent.
- */
+/** The heading every page leads with. Inherits `text-align` from its parent. */
 export const PageTitle = ({ text, component = 'h2' }: PageTitleProps) => (
   <Typography variant="pageTitle" component={component} gutterBottom sx={{ mb: 2 }}>
     {text}

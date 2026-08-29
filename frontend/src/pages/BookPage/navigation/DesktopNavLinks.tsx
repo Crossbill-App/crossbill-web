@@ -2,16 +2,6 @@ import { Box, List, ListItemButton, ListItemIcon, ListItemText } from '@mui/mate
 import { createLink, useMatchRoute } from '@tanstack/react-router';
 import { BOOK_PAGE_LABELS, BOOK_PAGE_ROUTES } from './bookPageRoutes.ts';
 
-/**
- * The row *is* the link. Wrapping a `ListItemButton` in a `Link` gives every
- * nav item two nested tab stops — the anchor and the button inside it — so a
- * keyboard reader crosses each destination twice.
- *
- * `createLink` rather than `component={Link}`: `ListItemButton` copies `to`
- * into an `href` for anchor semantics, and TanStack Router's `Link` then
- * treats that injected `href` as authoritative and re-parses `search` off its
- * empty query string, dropping the real search params.
- */
 const NavListItemButton = createLink(ListItemButton);
 
 interface DesktopNavLinksProps {
