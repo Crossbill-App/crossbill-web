@@ -83,8 +83,8 @@ class Book(Entity[BookId]):
         """Record that a device has just sent this book's data.
 
         Stamped by the server rather than the device: e-reader clocks drift,
-        and a wrong one would pin the book to an end of the recently-synced
-        list with no way to correct it.
+        and a wrong one would pin the book to an end of the recent-books list
+        with no way to correct it.
         """
         self.last_synced = datetime.now(UTC)
 

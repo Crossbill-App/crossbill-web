@@ -21,11 +21,8 @@ from src.application.library.queries.get_book_details_use_case import GetBookDet
 from src.application.library.queries.get_books_with_counts_use_case import (
     GetBooksWithCountsUseCase,
 )
-from src.application.library.queries.get_recently_synced_books_use_case import (
-    GetRecentlySyncedBooksUseCase,
-)
-from src.application.library.queries.get_recently_viewed_books_use_case import (
-    GetRecentlyViewedBooksUseCase,
+from src.application.library.queries.get_recent_books_use_case import (
+    GetRecentBooksUseCase,
 )
 from src.core import container
 from src.domain.identity import User
@@ -72,7 +69,7 @@ def _build_chapter_schema(chapter: ChapterWithHighlightsView) -> ChapterWithHigh
 
 
 def _build_book_with_counts_schema(view: BookWithCountsView) -> BookWithHighlightCount:
-    """Build the list-row schema shared by the library and recently-viewed lists."""
+    """Build the list-row schema shared by the library and recent-books lists."""
     return BookWithHighlightCount(
         id=view.id,
         client_book_id=view.client_book_id,
@@ -219,66 +216,36 @@ async def get_books(
     )
 
 
+# Declared before "/{book_id}" so the literal path wins the match.
 @router.get(
-    "/recently-viewed",
+    "/recent",
     response_model=CollectionResponse[BookWithHighlightCount],
     status_code=status.HTTP_200_OK,
 )
-async def get_recently_viewed_books(
+async def get_recent_books(
     current_user: Annotated[User, Depends(get_current_user)],
-    use_case: GetRecentlyViewedBooksUseCase = Depends(
-        inject_use_case(container.library.get_recently_viewed_books_use_case)
+    use_case: GetRecentBooksUseCase = Depends(
+        inject_use_case(container.library.get_recent_books_use_case)
     ),
     limit: int = Query(10, ge=1, le=50, description="Maximum number of books to return"),
 ) -> CollectionResponse[BookWithHighlightCount]:
     """
-    Get recently viewed books with their highlight counts.
+    Get the user's most recently touched books, with their counts.
 
-    Returns books that have been viewed at least once, ordered by most recently viewed.
+    Returns books the user has opened or an e-reader has sent highlights or
+    reading sessions for, ordered by the later of those two timestamps. A book
+    that has been neither opened nor synced is left out.
 
     Args:
         limit: Maximum number of books to return (default: 10, max: 50)
 
     Returns:
-        CollectionResponse with list of recently viewed books
+        CollectionResponse with list of recent books
 
     Raises:
         HTTPException: If fetching books fails due to server error
     """
-    books = await use_case.get_recently_viewed(current_user.id.value, limit)
-
-    return CollectionResponse[BookWithHighlightCount](
-        items=[_build_book_with_counts_schema(book) for book in books]
-    )
-
-
-# Declared before "/{book_id}" so the literal path wins the match.
-@router.get(
-    "/recently-synced",
-    response_model=CollectionResponse[BookWithHighlightCount],
-    status_code=status.HTTP_200_OK,
-)
-async def get_recently_synced_books(
-    current_user: Annotated[User, Depends(get_current_user)],
-    use_case: GetRecentlySyncedBooksUseCase = Depends(
-        inject_use_case(container.library.get_recently_synced_books_use_case)
-    ),
-    limit: int = Query(10, ge=1, le=50, description="Maximum number of books to return"),
-) -> CollectionResponse[BookWithHighlightCount]:
-    """
-    Get the books a device has most recently synced, with their counts.
-
-    Returns books an e-reader has successfully sent highlights or reading
-    sessions for, most recently synced first. A book nothing has ever synced is
-    left out.
-
-    Args:
-        limit: Maximum number of books to return (default: 10, max: 50)
-
-    Returns:
-        CollectionResponse with list of recently synced books
-    """
-    books = await use_case.get_recently_synced(current_user.id.value, limit)
+    books = await use_case.get_recent(current_user.id.value, limit)
 
     return CollectionResponse[BookWithHighlightCount](
         items=[_build_book_with_counts_schema(book) for book in books]

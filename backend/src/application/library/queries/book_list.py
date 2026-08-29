@@ -3,7 +3,7 @@
 These are view DTOs, not domain entities: they exist to be rendered and must
 never be fed back into a command. See ``docs/adr/0001-read-models-and-query-services.md``.
 
-The library list and the recently-viewed list render the same response schema,
+The library list and the recent-books list render the same response schema,
 so they share one DTO and one port with a method each.
 """
 
@@ -62,14 +62,6 @@ class BookListQueryProtocol(Protocol):
         """Return a page of the user's books ordered by title, plus the total."""
         ...
 
-    async def list_recently_viewed(
-        self, user_id: UserId, limit: int
-    ) -> tuple[BookWithCountsView, ...]:
-        """Return the books the user has opened, most recently viewed first."""
-        ...
-
-    async def list_recently_synced(
-        self, user_id: UserId, limit: int
-    ) -> tuple[BookWithCountsView, ...]:
-        """Return the books a device has sent data for, most recently synced first."""
+    async def list_recent(self, user_id: UserId, limit: int) -> tuple[BookWithCountsView, ...]:
+        """Return the books last opened or synced, most recent of the two first."""
         ...
