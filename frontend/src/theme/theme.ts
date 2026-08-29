@@ -20,6 +20,14 @@ const colors = {
  * Custom colors used throughout the application.
  * These are consolidated from various rgba() calls in components.
  */
+/**
+ * The app's face. Named here because a custom typography variant has to state
+ * it: MUI puts `fontFamily` on the variants it builds itself, and merges
+ * custom ones through untouched — so one without it inherits, and inside a
+ * `<button>` (an `AccordionSummary`, say) that means the browser's own font.
+ */
+const FONT_FAMILY = ['"Lora"', 'Georgia', 'serif'].join(',');
+
 const customColors = {
   // Highlight colors for scroll-to-highlight effects
   highlightBlue: {
@@ -180,7 +188,7 @@ export const theme = createTheme({
     },
   },
   typography: {
-    fontFamily: ['"Lora"', 'Georgia', 'serif'].join(','),
+    fontFamily: FONT_FAMILY,
     h1: {
       fontSize: '2rem',
       fontWeight: 900,
@@ -226,6 +234,7 @@ export const theme = createTheme({
      * title is the heavy one.
      */
     pageTitle: {
+      fontFamily: FONT_FAMILY,
       fontSize: '1.4rem',
       fontWeight: 900,
       lineHeight: 1.3,
@@ -233,6 +242,7 @@ export const theme = createTheme({
     },
     /** The heading of every section sitting under a page title. */
     sectionTitle: {
+      fontFamily: FONT_FAMILY,
       fontSize: '1.1rem',
       fontWeight: 800,
       letterSpacing: '0.01em',
@@ -295,6 +305,10 @@ export const theme = createTheme({
       },
     },
     MuiButton: {
+      // The ring above is the focus indicator; MUI's pulsating focus ripple is
+      // a second one for the same state, from before `:focus-visible` existed.
+      // The click ripple stays.
+      defaultProps: { disableFocusRipple: true },
       styleOverrides: {
         root: {
           textTransform: 'none',
@@ -308,6 +322,7 @@ export const theme = createTheme({
       },
     },
     MuiIconButton: {
+      defaultProps: { disableFocusRipple: true },
       styleOverrides: {
         // A fingertip has no pixel precision, so every icon button clears the
         // 48dp touch target wherever the pointer is coarse, whatever `size`
