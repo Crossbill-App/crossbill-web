@@ -20,11 +20,7 @@ export interface HighlightCreate {
   chapter_number?: number | null;
   /** Page number */
   page?: number | null;
-  /**
-   * KOReader datetime format
-   * @minLength 1
-   * @maxLength 50
-   */
+  /** When the highlight was made, on the device's own clock. Sent without a UTC offset because the e-reader does not know one; KOReader's 'YYYY-MM-DD HH:MM:SS' is accepted on the way in. */
   datetime: string;
   /** Highlight start position in XML document */
   start_xpoint?: string | null;
@@ -36,7 +32,7 @@ export interface HighlightCreate {
   drawer?: string | null;
   /** Note attached to the highlight in KOReader */
   note?: string | null;
-  /** KOReader datetime of the last edit on the device; absent until the highlight is first edited. The newest edit wins when devices disagree. */
+  /** When the highlight was last edited on the device, on that device's own clock; absent until the highlight is first edited. The newest edit wins when devices disagree. */
   datetime_updated?: string | null;
   /** True when the device created this highlight after its last pull, so the server can tell a deliberate re-highlight from a stale echo. A flagged push of a text removed from devices or deleted on the web brings that highlight back; an unflagged one is skipped, as it always was. */
   is_new?: boolean;

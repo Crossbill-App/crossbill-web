@@ -8,7 +8,7 @@ export const aHighlight = (overrides: Partial<Highlight> = {}): Highlight => ({
   chapter_number: 1,
   page: 42,
   text: 'The map is not the territory.',
-  datetime: '2026-01-01 00:00:00',
+  datetime: '2026-01-01T00:00:00',
   tags: [],
   flashcards: [],
   created_at: '2026-01-01T00:00:00Z',

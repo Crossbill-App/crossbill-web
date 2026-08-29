@@ -1,14 +1,11 @@
-import { formatDate } from '@/utils/date.ts';
 import { aChapter, aHighlight } from '@tests/fixtures/book';
 import { DateTime } from 'luxon';
 import { describe, expect, test } from 'vitest';
 import {
   filterChaptersByHighlightDate,
-  formatHighlightDate,
   getLastSevenDaysFrom,
   isHighlightDateRangeReversed,
   parseDateSearchParam,
-  parseHighlightDate,
   type HighlightDateRange,
 } from './highlightDates.ts';
 
@@ -16,16 +13,16 @@ const chapters = [
   aChapter({
     id: 10,
     highlights: [
-      aHighlight({ id: 1, datetime: '2026-07-04 23:59:59' }),
-      aHighlight({ id: 2, datetime: '2026-07-05 00:00:00' }),
-      aHighlight({ id: 3, datetime: '2026-07-05 23:59:59' }),
-      aHighlight({ id: 4, datetime: '2026-07-06 00:00:00' }),
+      aHighlight({ id: 1, datetime: '2026-07-04T23:59:59' }),
+      aHighlight({ id: 2, datetime: '2026-07-05T00:00:00' }),
+      aHighlight({ id: 3, datetime: '2026-07-05T23:59:59' }),
+      aHighlight({ id: 4, datetime: '2026-07-06T00:00:00' }),
       aHighlight({ id: 5, datetime: 'legacy timestamp' }),
     ],
   }),
   aChapter({
     id: 20,
-    highlights: [aHighlight({ id: 6, chapter_id: 20, datetime: '2026-07-01 12:00:00' })],
+    highlights: [aHighlight({ id: 6, chapter_id: 20, datetime: '2026-07-01T12:00:00' })],
   }),
 ];
 
@@ -76,15 +73,12 @@ describe('filterChaptersByHighlightDate', () => {
   });
 });
 
-test('parses only canonical search dates and KOReader timestamps', () => {
+test('parses only canonical search dates', () => {
   expect(parseDateSearchParam('2026-07-05')).toBe('2026-07-05');
   expect(parseDateSearchParam('2026-7-5')).toBeUndefined();
   expect(parseDateSearchParam('2026-02-30')).toBeUndefined();
+  expect(parseDateSearchParam('2026-07-05T23:59:59')).toBeUndefined();
   expect(parseDateSearchParam(['2026-07-05'])).toBeUndefined();
-
-  expect(parseHighlightDate('2026-07-05 23:59:59')).toBe('2026-07-05');
-  expect(parseHighlightDate('2026-07-05T23:59:59')).toBeUndefined();
-  expect(parseHighlightDate('legacy timestamp')).toBeUndefined();
 });
 
 test('identifies reversed ranges only when both valid values are present', () => {
@@ -95,11 +89,4 @@ test('identifies reversed ranges only when both valid values are present', () =>
 
 test('calculates a snapshot lower bound covering today and the preceding six dates', () => {
   expect(getLastSevenDaysFrom(DateTime.fromISO('2026-08-26T15:00:00'))).toBe('2026-08-20');
-});
-
-test('renders a highlight timestamp exactly as every other date, and preserves malformed values', () => {
-  // The rule, not one locale's spelling of it: a highlight's date and a
-  // session's date are the same string for the same day.
-  expect(formatHighlightDate('2026-07-05 23:00:00')).toBe(formatDate('2026-07-05T23:00:00'));
-  expect(formatHighlightDate('legacy timestamp')).toBe('legacy timestamp');
 });

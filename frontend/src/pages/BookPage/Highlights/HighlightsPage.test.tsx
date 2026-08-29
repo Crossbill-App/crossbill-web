@@ -31,9 +31,9 @@ const aDateRangeBook = () =>
         id: 10,
         name: 'Boundary chapter',
         highlights: [
-          aHighlight({ id: 301, text: 'At midnight', datetime: '2026-07-05 00:00:00' }),
-          aHighlight({ id: 302, text: 'Late that night', datetime: '2026-07-05 23:59:59' }),
-          aHighlight({ id: 303, text: 'The next day', datetime: '2026-07-06 00:00:00' }),
+          aHighlight({ id: 301, text: 'At midnight', datetime: '2026-07-05T00:00:00' }),
+          aHighlight({ id: 302, text: 'Late that night', datetime: '2026-07-05T23:59:59' }),
+          aHighlight({ id: 303, text: 'The next day', datetime: '2026-07-06T00:00:00' }),
         ],
       }),
       aChapter({
@@ -44,7 +44,7 @@ const aDateRangeBook = () =>
             id: 304,
             chapter_id: 20,
             text: 'Before the range',
-            datetime: '2026-07-04 23:59:59',
+            datetime: '2026-07-04T23:59:59',
           }),
         ],
       }),
@@ -110,7 +110,7 @@ test('composes date, search, tag, and label filters and shows the generic empty 
   const matching = aHighlight({
     id: 401,
     text: 'All filters match',
-    datetime: '2026-07-05 12:00:00',
+    datetime: '2026-07-05T12:00:00',
     tags: [{ id: 1, name: 'Keep', tag_group_id: null }],
     label: { highlight_style_id: 10, text: 'Important', ui_color: '#ff0000' },
   });
@@ -122,21 +122,21 @@ test('composes date, search, tag, and label filters and shows the generic empty 
         aHighlight({
           id: 402,
           text: 'Wrong tag',
-          datetime: '2026-07-05 12:00:00',
+          datetime: '2026-07-05T12:00:00',
           tags: [{ id: 2, name: 'Other', tag_group_id: null }],
           label: { highlight_style_id: 10 },
         }),
         aHighlight({
           id: 403,
           text: 'Wrong label',
-          datetime: '2026-07-05 12:00:00',
+          datetime: '2026-07-05T12:00:00',
           tags: [{ id: 1, name: 'Keep', tag_group_id: null }],
           label: { highlight_style_id: 11 },
         }),
         aHighlight({
           id: 404,
           text: 'Wrong date',
-          datetime: '2026-07-06 12:00:00',
+          datetime: '2026-07-06T12:00:00',
           tags: [{ id: 1, name: 'Keep', tag_group_id: null }],
           label: { highlight_style_id: 10 },
         }),

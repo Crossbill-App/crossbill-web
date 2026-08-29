@@ -2,8 +2,7 @@ import { DateTime } from 'luxon';
 
 /**
  * The browser's own locale — the one source for every date the app renders,
- * including the date pickers. Backend timestamps are *parsed* against a fixed
- * `en-US` format, which is a separate concern from how they are shown.
+ * including the date pickers.
  */
 export const browserLocale = (): string => Intl.DateTimeFormat().resolvedOptions().locale;
 
@@ -11,7 +10,7 @@ export const browserLocale = (): string => Intl.DateTimeFormat().resolvedOptions
  * The app's one rendered date format: `DATE_MED` in the browser's locale, so a
  * session header and the highlights beneath it never disagree.
  */
-export const formatDateTime = (dateTime: DateTime): string =>
+const formatDateTime = (dateTime: DateTime): string =>
   dateTime.setLocale(browserLocale()).toLocaleString(DateTime.DATE_MED);
 
 /**
