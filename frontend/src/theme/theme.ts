@@ -35,6 +35,12 @@ const customColors = {
     hover: 'rgba(255, 255, 255, 0.18)', // Search field surface on hover (AppBar)
   },
 
+  // A scrim for text laid over cover art. Unlike the whites above, what sits
+  // behind this is unknown -- darkening it is the whole point.
+  coverScrim: {
+    strip: 'rgba(0, 0, 0, 0.70)',
+  },
+
   // Opaque panel fills. A white veil reads only against a darker page — these
   // are the same on the stone page background and on a paper-white drawer.
   surfaces: {

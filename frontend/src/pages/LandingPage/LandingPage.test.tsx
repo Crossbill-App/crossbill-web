@@ -45,3 +45,16 @@ test('a single count reads in the singular', async () => {
   await expect.element(screen.getByRole('img', { name: '1 highlight' })).toBeVisible();
   await expect.element(screen.getByRole('img', { name: '1 note' })).toBeVisible();
 });
+
+test('a book nobody has marked up carries no strip', async () => {
+  worker.use(
+    ...libraryApi([
+      aBookCard({ title: 'Untouched', highlight_count: 0, note_count: 0, flashcard_count: 0 }),
+    ])
+  );
+
+  const screen = await renderApp({ path: '/' });
+
+  await expect.element(screen.getByText('Untouched')).toBeVisible();
+  expect(screen.getByTestId('book-counts').query()).toBeNull();
+});
