@@ -7,7 +7,6 @@ import { createContext, ReactNode, useCallback, useContext, useState } from 'rea
 
 interface SnackbarContextType {
   showSnackbar: (message: string, severity?: AlertColor) => void;
-  /** A message is on screen, so chrome anchored low should step above it. */
   isSnackbarOpen: boolean;
 }
 
@@ -48,10 +47,6 @@ export function SnackbarProvider({ children }: { children: ReactNode }) {
           autoHideDuration={6000}
           onClose={handleClose}
           anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
-          // Steps above the bottom navigation wherever it is mounted, and
-          // keeps MUI's own place at the edge where it is not. An error is
-          // exactly when a reader wants to navigate away, so the message must
-          // not sit on the way out.
           sx={{ marginBottom: `var(${BOTTOM_NAV_CLEARANCE_VAR}, 0px)` }}
         >
           <Alert

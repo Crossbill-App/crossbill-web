@@ -3,7 +3,7 @@ import { LinkOffIcon } from '@/theme/Icons.tsx';
 import type { IconButtonProps } from '@mui/material';
 
 interface UnlinkButtonProps {
-  /** The button's name, in the tooltip and for assistive technology. */
+  /** Tooltip text; also used as the accessible name. */
   label: string;
   onClick: () => void;
   disabled?: boolean;

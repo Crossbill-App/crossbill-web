@@ -67,10 +67,8 @@ const customColors = {
   },
 };
 
-/** Devices pointed at with a finger or a stylus, rather than a mouse. */
 const COARSE_POINTER_QUERY = '@media (pointer: coarse)';
 
-/** Material Design's minimum touch target, in px. */
 const TOUCH_TARGET_MIN = 48;
 
 /**
@@ -221,12 +219,6 @@ export const theme = createTheme({
       fontWeight: 200, // Very light
       lineHeight: 1.6,
     },
-    /**
-     * The heading a page leads with. Its own variant rather than `h2` with
-     * three corrections at the call site, which is how the weight drifted:
-     * `h2` is the light subtitle weight a book's author line uses, and a page
-     * title is the heavy one.
-     */
     pageTitle: {
       fontFamily: FONT_FAMILY,
       fontSize: '1.4rem',
@@ -234,7 +226,6 @@ export const theme = createTheme({
       lineHeight: 1.3,
       color: colors.amber[700],
     },
-    /** The heading of every section sitting under a page title. */
     sectionTitle: {
       fontFamily: FONT_FAMILY,
       fontSize: '1.1rem',
@@ -285,11 +276,6 @@ export const theme = createTheme({
     },
     MuiButtonBase: {
       styleOverrides: {
-        // One focus ring for everything clickable. MUI's own focus feedback
-        // is a ripple and a background tint, which a keyboard reader loses
-        // against a busy row. Drawn inside the control's own edge: a ring
-        // outside it escapes a menu's rounded corner and is clipped outright
-        // by a scrolling list or a narrow sidebar.
         root: ({ theme: t }) => ({
           '&:focus-visible': {
             outline: `2px solid ${t.palette.primary.main}`,
@@ -306,7 +292,6 @@ export const theme = createTheme({
           borderRadius: 24,
           fontWeight: 500,
         },
-        // An amber ring inside an amber button is no ring at all.
         contained: ({ theme: t }) => ({
           '&:focus-visible': { outlineColor: t.palette.primary.contrastText },
         }),
@@ -315,15 +300,10 @@ export const theme = createTheme({
     MuiIconButton: {
       defaultProps: { disableFocusRipple: true },
       styleOverrides: {
-        // A fingertip has no pixel precision, so every icon button clears the
-        // 48dp touch target wherever the pointer is coarse, whatever `size`
-        // its call site asked for. A mouse keeps the compact button.
         root: {
           [COARSE_POINTER_QUERY]: {
             minWidth: TOUCH_TARGET_MIN,
             minHeight: TOUCH_TARGET_MIN,
-            // Except inside a text field: an Autocomplete's clear and dropdown
-            // marks, or a date picker's calendar, would stretch the field.
             '.MuiInputBase-root &': {
               minWidth: 'unset',
               minHeight: 'unset',
@@ -372,8 +352,6 @@ export const theme = createTheme({
                   backgroundColor: t.palette.primary.dark,
                   transform: 'translateY(-1px)',
                 },
-                // Same reason as a contained button: the ring needs to differ
-                // from what it is drawn on.
                 '&:focus-visible': { outlineColor: t.palette.primary.contrastText },
               },
             },

@@ -8,27 +8,10 @@ import { Container, styled } from '@mui/material';
  */
 export const PAGE_GUTTER = { xs: 2, sm: 3 };
 
-/**
- * How far above the bottom edge floating chrome sits below `lg`, where the
- * book page's bottom navigation is fixed to it: the navigation's own height
- * plus the device's safe area, and 24px of air.
- */
 export const BOTTOM_NAV_CLEARANCE = 'calc(80px + env(safe-area-inset-bottom))';
 
-/**
- * The custom property the bottom navigation publishes while it is mounted,
- * holding `BOTTOM_NAV_CLEARANCE`. The snackbar reads it because its provider
- * sits above the router and cannot see which page is on screen; where the
- * property is unset — every page but the book page, and the book page on `lg`
- * — the snackbar keeps its own place at the bottom edge.
- */
 export const BOTTOM_NAV_CLEARANCE_VAR = '--bottom-nav-clearance';
 
-/**
- * How far chrome anchored to the bottom-right steps up to clear an open
- * snackbar: MUI puts the snackbar 24px off the bottom below `lg`, an `Alert`
- * is 48px tall on one line, and 8px keeps them apart.
- */
 export const SNACKBAR_CLEARANCE = '80px';
 
 export const PageContainer = styled(Container)(({ theme }) => ({

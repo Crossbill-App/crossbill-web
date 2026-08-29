@@ -96,8 +96,6 @@ export const BookTitle = ({ book }: BookTitleProps) => {
               label="Manage book"
               onClick={handleEdit}
               icon={<ManageIcon />}
-              // Inline in the title's line box, so it keeps the compact
-              // padding; a coarse pointer still gets the full target.
               size="small"
               sx={{
                 color: 'text.primary',

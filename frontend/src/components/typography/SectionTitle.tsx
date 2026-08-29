@@ -13,8 +13,7 @@ export interface SectionTitleProps {
  * The app's one section heading, in two variants: with the gradient rule and
  * without. Every heading at this rank goes through it — book content, the
  * sidebar, the chapter dialog, Settings — so they cannot drift into four
- * weights and two colours again. The type itself is the theme's
- * `sectionTitle` variant; what this adds is the rule and the heading level.
+ * weights and two colours again.
  */
 export const SectionTitle = ({
   children,

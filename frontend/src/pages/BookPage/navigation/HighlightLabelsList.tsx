@@ -57,8 +57,7 @@ const LabelChip = ({
       variant={isSelected ? 'filled' : 'outlined'}
       onClick={onClick}
       // The one chip that keeps its own colour when selected: it is the
-      // colour the highlight was made in on the device. Everything else about
-      // how it sits and moves comes from the theme's clickable-chip rule.
+      // colour the highlight was made in on the device.
       sx={
         isSelected
           ? {

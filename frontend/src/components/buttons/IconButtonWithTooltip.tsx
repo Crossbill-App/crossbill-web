@@ -7,7 +7,6 @@ interface IconButtonWithTooltipProps {
   disabled?: boolean;
   icon: ReactNode;
   edge?: IconButtonProps['edge'];
-  /** MUI's own default; drop to `small` only where a row is genuinely tight. */
   size?: IconButtonProps['size'];
   sx?: IconButtonProps['sx'];
 }

@@ -31,9 +31,6 @@ export const MobileBottomNav = () => {
   const [anchorEl, setAnchorEl] = useState<HTMLElement | null>(null);
   const menuOpen = Boolean(anchorEl);
 
-  // The snackbar also anchors to the bottom edge, from a provider above the
-  // router that cannot see this page. Publishing the room this navigation
-  // takes lets it step aside here and sit at the edge everywhere else.
   useLayoutEffect(() => {
     const root = document.documentElement;
     root.style.setProperty(BOTTOM_NAV_CLEARANCE_VAR, BOTTOM_NAV_CLEARANCE);

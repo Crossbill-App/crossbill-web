@@ -68,9 +68,6 @@ export const BookPage = () => {
         <Box
           sx={{
             position: 'fixed',
-            // Below `lg` the snackbar shares this corner and spans the
-            // width, so the column rides above an open one. On `lg` the
-            // snackbar is centred and narrow, and never reaches this far right.
             bottom: {
               xs: isSnackbarOpen
                 ? `calc(${BOTTOM_NAV_CLEARANCE} + ${SNACKBAR_CLEARANCE})`
