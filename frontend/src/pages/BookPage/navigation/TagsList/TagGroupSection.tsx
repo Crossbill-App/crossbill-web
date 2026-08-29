@@ -153,7 +153,6 @@ export const TagGroupSection = ({
         open={isDeleteConfirmOpen}
         onClose={() => setIsDeleteConfirmOpen(false)}
         onConfirm={handleConfirmDelete}
-        title="Delete tag group"
         message={
           tags.length > 0
             ? `Delete the group "${group.name}"? Its ${tags.length} ${

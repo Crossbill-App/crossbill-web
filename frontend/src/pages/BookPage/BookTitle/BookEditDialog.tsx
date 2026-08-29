@@ -196,8 +196,7 @@ export const BookEditDialog = ({ book, open, onClose }: BookEditDialogProps) => 
         open={deleteConfirmOpen}
         onClose={() => setDeleteConfirmOpen(false)}
         onConfirm={handleConfirmDelete}
-        title="Delete book"
-        message={`Are you sure you want to delete "${book.title}"? This will permanently delete the book and all its highlights.`}
+        message={`Delete the book "${book.title}"? Its highlights go too.`}
         confirmText="Delete"
         confirmColor="error"
         isLoading={isDeleting}

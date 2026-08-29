@@ -38,7 +38,7 @@ test('deleting a tag group asks first, naming the group and what happens to its 
 
   await userEvent.click(screen.getByRole('button', { name: 'Delete group' }));
 
-  const dialog = screen.getByRole('dialog');
+  const dialog = screen.getByRole('alertdialog');
   await expect.element(dialog.getByText(/Delete the group "Themes"\?.*2 tags stay/)).toBeVisible();
 
   await userEvent.click(dialog.getByRole('button', { name: 'Cancel' }));
@@ -51,7 +51,7 @@ test('confirming removes the group', async () => {
   const { screen, deleted } = await renderTagsSidebar();
 
   await userEvent.click(screen.getByRole('button', { name: 'Delete group' }));
-  await userEvent.click(screen.getByRole('dialog').getByRole('button', { name: 'Delete' }));
+  await userEvent.click(screen.getByRole('alertdialog').getByRole('button', { name: 'Delete' }));
 
   await expect.element(screen.getByText('No tagged highlights yet.')).toBeVisible();
   expect(deleted).toEqual([5]);

@@ -147,8 +147,7 @@ export const HighlightViewDialog = ({
         open={deleteConfirmOpen}
         onClose={() => setDeleteConfirmOpen(false)}
         onConfirm={handleConfirmDelete}
-        title="Delete highlight"
-        message="Are you sure you want to delete this highlight?"
+        message="Delete this highlight?"
         confirmText="Delete"
         confirmColor="error"
         isLoading={isLoading}

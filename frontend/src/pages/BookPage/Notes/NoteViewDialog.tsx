@@ -274,8 +274,7 @@ export const NoteViewDialog = ({
 
       <ConfirmationDialog
         open={deleteConfirmOpen}
-        title="Delete note"
-        message={`Delete note "${activeNote?.title ?? ''}"? This cannot be undone.`}
+        message={`Delete the note "${activeNote?.title ?? ''}"?`}
         confirmText="Delete"
         confirmColor="error"
         onConfirm={handleConfirmDelete}
