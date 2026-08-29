@@ -5,7 +5,7 @@
  * OpenAPI spec version: 0.0.0
  */
 
-export type GetRecentlySyncedBooksParams = {
+export type GetRecentBooksParams = {
   /**
    * Maximum number of books to return
    * @minimum 1
