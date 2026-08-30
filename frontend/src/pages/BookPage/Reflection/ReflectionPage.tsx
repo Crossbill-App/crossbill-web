@@ -16,10 +16,10 @@ import {
   READING_STAGE_HINTS,
   type ReadingStageValue,
 } from '@/components/readingStage/readingStages.ts';
-import { PageTitle } from '@/components/typography/PageTitle.tsx';
 import { SectionTitle } from '@/components/typography/SectionTitle.tsx';
 import { useMutationErrorHandler } from '@/hooks/useMutationErrorHandler.ts';
 import { useBookPage } from '@/pages/BookPage/BookPageContext';
+import { PageHeader } from '@/pages/BookPage/common/PageHeader.tsx';
 import { BOOK_PAGE_LABELS } from '@/pages/BookPage/navigation/bookPageRoutes.ts';
 import { NoteEditorDialog } from '@/pages/BookPage/Notes/NoteEditorDialog.tsx';
 import { NoteViewDialog } from '@/pages/BookPage/Notes/NoteViewDialog.tsx';
@@ -119,15 +119,13 @@ export const ReflectionPage = () => {
     persist({ note_ids: noteIds });
   };
 
-  if (isLoading) return <Spinner />;
-
   const stageHint = book.reading_stage
     ? READING_STAGE_HINTS[book.reading_stage as ReadingStageValue]
     : undefined;
 
   return (
     <>
-      <PageTitle text={BOOK_PAGE_LABELS.reflection} />
+      <PageHeader title={BOOK_PAGE_LABELS.reflection} />
       {stageHint && (
         <Typography
           variant="body2"
@@ -141,53 +139,57 @@ export const ReflectionPage = () => {
         </Typography>
       )}
 
-      <Stack
-        sx={{
-          gap: 4,
-        }}
-      >
-        {REFLECTION_QUESTIONS.map((question) => {
-          const noteId = server[question.noteIdField];
-          const answerNote = noteId != null ? notesById.get(noteId) : undefined;
+      {isLoading && <Spinner />}
 
-          return (
-            <Box key={question.noteIdField}>
-              <SectionTitle>{question.title}</SectionTitle>
-              <Typography
-                variant="body2"
-                sx={{
-                  color: 'text.secondary',
-                  mb: 1.5,
-                }}
-              >
-                {question.guide}
-              </Typography>
+      {!isLoading && (
+        <Stack
+          sx={{
+            gap: 4,
+          }}
+        >
+          {REFLECTION_QUESTIONS.map((question) => {
+            const noteId = server[question.noteIdField];
+            const answerNote = noteId != null ? notesById.get(noteId) : undefined;
 
-              {noteId != null && !answerNote && <Spinner size={24} />}
+            return (
+              <Box key={question.noteIdField}>
+                <SectionTitle>{question.title}</SectionTitle>
+                <Typography
+                  variant="body2"
+                  sx={{
+                    color: 'text.secondary',
+                    mb: 1.5,
+                  }}
+                >
+                  {question.guide}
+                </Typography>
 
-              {answerNote && (
-                <AnswerNote
-                  note={answerNote}
-                  onEdit={() => setAnswerEdit({ question, noteId: answerNote.id })}
-                />
-              )}
+                {noteId != null && !answerNote && <Spinner size={24} />}
 
-              {noteId == null && <AnswerButton onClick={() => setNewAnswer(question)} />}
-
-              {question.noteIdField === 'what_does_it_say_note_id' && (
-                <Box sx={{ mt: 2 }}>
-                  <ReflectionNotesSection
-                    bookId={bookId}
-                    noteIds={server.note_ids ?? []}
-                    allNotes={allNotes}
-                    onChange={handleNoteIdsChange}
+                {answerNote && (
+                  <AnswerNote
+                    note={answerNote}
+                    onEdit={() => setAnswerEdit({ question, noteId: answerNote.id })}
                   />
-                </Box>
-              )}
-            </Box>
-          );
-        })}
-      </Stack>
+                )}
+
+                {noteId == null && <AnswerButton onClick={() => setNewAnswer(question)} />}
+
+                {question.noteIdField === 'what_does_it_say_note_id' && (
+                  <Box sx={{ mt: 2 }}>
+                    <ReflectionNotesSection
+                      bookId={bookId}
+                      noteIds={server.note_ids ?? []}
+                      allNotes={allNotes}
+                      onChange={handleNoteIdsChange}
+                    />
+                  </Box>
+                )}
+              </Box>
+            );
+          })}
+        </Stack>
+      )}
 
       {newAnswer && (
         <NoteEditorDialog

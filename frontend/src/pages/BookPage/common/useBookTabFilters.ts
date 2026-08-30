@@ -3,12 +3,19 @@ import { useResetOnChange } from '@/hooks/useResetOnChange.ts';
 import { useNavigate, useSearch } from '@tanstack/react-router';
 import { useCallback, useState } from 'react';
 
-/** Book tab routes that share the tag (and optionally search) URL filters. */
+/**
+ * Book tab routes that share the tag (and optionally search) URL filters.
+ *
+ * Reflection and sessions carry none of these filters today, but they are
+ * listed so the ordering param they gain in #684 has somewhere to live.
+ */
 type BookTabFilterRoute =
   | '/book/$bookId/highlights'
   | '/book/$bookId/flashcards'
   | '/book/$bookId/notes'
-  | '/book/$bookId/structure';
+  | '/book/$bookId/structure'
+  | '/book/$bookId/reflection'
+  | '/book/$bookId/sessions';
 
 /** The URL filters read/written by these tabs. */
 interface BookTabSearch {

@@ -9,7 +9,7 @@ import type {
 import { useGetTags } from '@/api/generated/tags/tags.ts';
 import { scrollToElementWithHighlight } from '@/components/animations/scrollUtils';
 import { EmptyStateText } from '@/components/EmptyStateText.tsx';
-import { PageTitle } from '@/components/typography/PageTitle.tsx';
+import { SearchBar } from '@/components/inputs/SearchBar.tsx';
 import { useResetOnChange } from '@/hooks/useResetOnChange.ts';
 import { useBookPage } from '@/pages/BookPage/BookPageContext';
 import { FilteredEmptyState } from '@/pages/BookPage/common/FilteredEmptyState.tsx';
@@ -18,7 +18,8 @@ import {
   parseDateSearchParam,
   type HighlightDateRange,
 } from '@/pages/BookPage/common/highlightDates.ts';
-import { ListSearchSortHeader } from '@/pages/BookPage/common/ListSearchSortHeader.tsx';
+import { PageHeader } from '@/pages/BookPage/common/PageHeader.tsx';
+import { SortToggle } from '@/pages/BookPage/common/SortToggle.tsx';
 import { useBookTabFilters } from '@/pages/BookPage/common/useBookTabFilters.ts';
 import { useHighlightDialog } from '@/pages/BookPage/Highlights/hooks/useHighlightDialog.ts';
 import { BOOK_PAGE_LABELS } from '@/pages/BookPage/navigation/bookPageRoutes.ts';
@@ -228,61 +229,47 @@ export const HighlightsPage = () => {
           leftSidebarEl
         )}
 
-      {/* Content */}
-      {isDesktop ? (
-        <>
-          <Box>
-            <PageTitle text={BOOK_PAGE_LABELS.highlights} />
-            <ListSearchSortHeader
-              onSearch={handleSearch}
-              searchPlaceholder="Search highlights..."
-              searchInitialValue={searchText}
-              isReversed={isReversed}
-              onToggleReversed={() => setIsReversed(!isReversed)}
-            />
-            <HighlightsList
-              chapters={chapters}
-              bookmarksByHighlightId={bookmarksByHighlightId}
-              noteCountByHighlightId={noteCountByHighlightId}
-              isLoading={bookSearch.isSearching}
-              emptyState={emptyState}
-              onOpenHighlight={highlightDialog.open}
-            />
-          </Box>
-          {rightSidebarEl &&
-            createPortal(
-              <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
-                <BookmarkList
-                  bookmarks={book.bookmarks}
-                  allHighlights={allHighlights}
-                  onBookmarkClick={handleBookmarkClick}
-                  filterActive={listFilterActive}
-                />
-                <Divider />
-                <ChapterNav chapters={navData.chapters} onChapterClick={handleChapterClick} />
-              </Box>,
-              rightSidebarEl
-            )}
-        </>
-      ) : (
-        <>
-          <PageTitle text={BOOK_PAGE_LABELS.highlights} />
-          <ListSearchSortHeader
+      <PageHeader
+        title={BOOK_PAGE_LABELS.highlights}
+        search={
+          <SearchBar
             onSearch={handleSearch}
-            searchPlaceholder="Search highlights..."
-            searchInitialValue={searchText}
-            isReversed={isReversed}
-            onToggleReversed={() => setIsReversed(!isReversed)}
+            placeholder="Search highlights..."
+            initialValue={searchText}
           />
-          <HighlightsList
-            chapters={chapters}
-            bookmarksByHighlightId={bookmarksByHighlightId}
-            noteCountByHighlightId={noteCountByHighlightId}
-            isLoading={bookSearch.isSearching}
-            emptyState={emptyState}
-            onOpenHighlight={highlightDialog.open}
-          />
+        }
+        sort={<SortToggle isReversed={isReversed} onToggle={() => setIsReversed(!isReversed)} />}
+      />
 
+      {/* Content */}
+      <HighlightsList
+        chapters={chapters}
+        bookmarksByHighlightId={bookmarksByHighlightId}
+        noteCountByHighlightId={noteCountByHighlightId}
+        isLoading={bookSearch.isSearching}
+        emptyState={emptyState}
+        onOpenHighlight={highlightDialog.open}
+      />
+
+      {isDesktop
+        ? rightSidebarEl &&
+          createPortal(
+            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+              <BookmarkList
+                bookmarks={book.bookmarks}
+                allHighlights={allHighlights}
+                onBookmarkClick={handleBookmarkClick}
+                filterActive={listFilterActive}
+              />
+              <Divider />
+              <ChapterNav chapters={navData.chapters} onChapterClick={handleChapterClick} />
+            </Box>,
+            rightSidebarEl
+          )
+        : null}
+
+      {!isDesktop && (
+        <>
           {fabContainerEl &&
             createPortal(
               <FilterFab

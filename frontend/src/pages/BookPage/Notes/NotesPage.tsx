@@ -7,14 +7,14 @@ import { SemanticSearchField } from '@/components/search/SemanticSearchField.tsx
 import { useSemanticSearch } from '@/components/search/useSemanticSearch.ts';
 import { useBookPage } from '@/pages/BookPage/BookPageContext';
 import { FilteredEmptyState } from '@/pages/BookPage/common/FilteredEmptyState.tsx';
+import { PageHeader } from '@/pages/BookPage/common/PageHeader.tsx';
 import { useBookTabFilters } from '@/pages/BookPage/common/useBookTabFilters.ts';
 import { AddIcon } from '@/theme/Icons.tsx';
-import { Alert, Box, Divider, IconButton } from '@mui/material';
+import { Alert, Divider, IconButton } from '@mui/material';
 import { useNavigate, useSearch } from '@tanstack/react-router';
 import { useState } from 'react';
 import { createPortal } from 'react-dom';
 
-import { PageTitle } from '@/components/typography/PageTitle.tsx';
 import { BOOK_PAGE_LABELS } from '@/pages/BookPage/navigation/bookPageRoutes.ts';
 import { FilterFab } from '../common/FilterFab.tsx';
 import { FilterDrawer, type FilterTab } from '../navigation/FilterDrawer.tsx';
@@ -123,29 +123,21 @@ export const NotesPage = () => {
           leftSidebarEl
         )}
 
-      <Box
-        sx={{
-          display: 'flex',
-          gap: 1,
-          alignItems: 'flex-start',
-          justifyContent: 'space-between',
-        }}
-      >
-        <PageTitle text={BOOK_PAGE_LABELS.notes} />
-        <IconButton aria-label="Add note" color="primary" onClick={noteDialogs.openCreate}>
-          <AddIcon />
-        </IconButton>
-      </Box>
-
-      <Box sx={{ display: 'flex', gap: 1, alignItems: 'flex-start', mb: 2 }}>
-        <Box sx={{ flexGrow: 1 }}>
+      <PageHeader
+        title={BOOK_PAGE_LABELS.notes}
+        search={
           <SemanticSearchField
             value={searchText}
             onChange={handleSearch}
             placeholder="Search notes by meaning..."
           />
-        </Box>
-      </Box>
+        }
+        action={
+          <IconButton aria-label="Add note" color="primary" onClick={noteDialogs.openCreate}>
+            <AddIcon />
+          </IconButton>
+        }
+      />
 
       {search.isError && (
         <Alert severity="warning" sx={{ mb: 2 }}>
