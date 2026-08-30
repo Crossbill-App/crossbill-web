@@ -13,7 +13,12 @@ export const FilterFab = ({ activeFilterCount, onClick }: FilterFabProps) => {
 
   return (
     <Zoom in={true} mountOnEnter unmountOnExit>
-      <Badge badgeContent={activeFilterCount} color="secondary" overlap="circular">
+      <Badge
+        badgeContent={activeFilterCount}
+        color="secondary"
+        overlap="circular"
+        slotProps={{ badge: { sx: { zIndex: (theme) => theme.zIndex.fab + 1 } } }}
+      >
         <Fab
           size="small"
           color={isFiltered ? 'primary' : 'default'}
