@@ -9,11 +9,11 @@ import { EmptyStateText } from '@/components/EmptyStateText.tsx';
 import { useUrlEntityDialog } from '@/components/dialogs/useUrlEntityDialog.ts';
 import { SemanticSearchField } from '@/components/search/SemanticSearchField.tsx';
 import { useSemanticSearch } from '@/components/search/useSemanticSearch.ts';
-import { PageTitle } from '@/components/typography/PageTitle.tsx';
 import { useBookPage } from '@/pages/BookPage/BookPageContext';
+import { PageHeader } from '@/pages/BookPage/common/PageHeader.tsx';
 import { useBookTabFilters } from '@/pages/BookPage/common/useBookTabFilters.ts';
 import { BOOK_PAGE_LABELS } from '@/pages/BookPage/navigation/bookPageRoutes.ts';
-import { Alert, Box, Typography } from '@mui/material';
+import { Alert } from '@mui/material';
 import { keyBy } from 'lodash';
 import { useMemo } from 'react';
 import { BatchDigestToolbar } from './BatchDigestToolbar';
@@ -175,53 +175,33 @@ export const StructurePage = () => {
     [childrenByParentId, readingPosition]
   );
 
-  if (book.chapters.length === 0) {
-    return (
-      <Box sx={{ p: 3, textAlign: 'center' }}>
-        <Typography
-          variant="body1"
-          sx={{
-            color: 'text.secondary',
-          }}
-        >
-          No chapter structure available for this book.
-        </Typography>
-      </Box>
-    );
-  }
-
   const topLevelChapters = visibleChildrenByParentId.get(null) ?? [];
 
   return (
     <>
-      <Box
-        sx={{
-          display: 'flex',
-          gap: 1,
-          alignItems: 'flex-start',
-          justifyContent: 'space-between',
-        }}
-      >
-        <PageTitle text={BOOK_PAGE_LABELS.structure} />
-        <BatchDigestToolbar bookId={book.id} />
-      </Box>
-      <Box sx={{ display: 'flex', alignItems: 'flex-start', gap: 1 }}>
-        <Box sx={{ flexGrow: 1 }}>
+      <PageHeader
+        title={BOOK_PAGE_LABELS.structure}
+        search={
           <SemanticSearchField
             value={searchText}
             onChange={handleSearch}
             placeholder="Search chapters by meaning..."
           />
-        </Box>
-      </Box>
+        }
+        action={<BatchDigestToolbar bookId={book.id} />}
+      />
 
       {search.isError && (
-        <Alert severity="warning" sx={{ mx: 1, mb: 1 }}>
+        <Alert severity="warning" sx={{ mb: 2 }}>
           Search failed. Showing all chapters.
         </Alert>
       )}
 
-      {search.hasQuery && topLevelChapters.length === 0 ? (
+      {book.chapters.length === 0 ? (
+        <EmptyStateText variant="page">
+          No chapter structure available for this book.
+        </EmptyStateText>
+      ) : search.hasQuery && topLevelChapters.length === 0 ? (
         <EmptyStateText variant="page">No chapters match “{searchText}”.</EmptyStateText>
       ) : (
         topLevelChapters.map((chapter) => (

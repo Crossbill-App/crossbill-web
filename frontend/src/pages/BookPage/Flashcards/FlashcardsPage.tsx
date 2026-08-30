@@ -11,14 +11,15 @@ import {
   type FlashcardChapterData,
   type FlashcardWithContext,
 } from '@/components/features/flashcards/FlashcardChapterList.tsx';
-import { PageTitle } from '@/components/typography/PageTitle.tsx';
+import { SearchBar } from '@/components/inputs/SearchBar.tsx';
 import { useBookPage } from '@/pages/BookPage/BookPageContext';
 import { FilteredEmptyState } from '@/pages/BookPage/common/FilteredEmptyState.tsx';
-import { ListSearchSortHeader } from '@/pages/BookPage/common/ListSearchSortHeader.tsx';
+import { PageHeader } from '@/pages/BookPage/common/PageHeader.tsx';
+import { SortToggle } from '@/pages/BookPage/common/SortToggle.tsx';
 import { useBookTabFilters } from '@/pages/BookPage/common/useBookTabFilters.ts';
 import { BOOK_PAGE_LABELS } from '@/pages/BookPage/navigation/bookPageRoutes.ts';
 import { ChapterNav, type ChapterNavigationData } from '@/pages/BookPage/navigation/ChapterNav.tsx';
-import { Box, Divider } from '@mui/material';
+import { Divider } from '@mui/material';
 import { flatMap } from 'lodash';
 import { useMemo, useState } from 'react';
 import { createPortal } from 'react-dom';
@@ -199,47 +200,36 @@ export const FlashcardsPage = () => {
           leftSidebarEl
         )}
 
-      {/* Content */}
-      {isDesktop ? (
-        <>
-          <Box>
-            <PageTitle text={BOOK_PAGE_LABELS.flashcards} />
-            <ListSearchSortHeader
-              onSearch={handleSearch}
-              searchPlaceholder="Search flashcards..."
-              searchInitialValue={searchText}
-              isReversed={isReversed}
-              onToggleReversed={() => setIsReversed(!isReversed)}
-            />
-            <FlashcardChapterList
-              chapters={flashcardChapters}
-              bookId={book.id}
-              emptyState={emptyState}
-              onEditFlashcard={setEditingFlashcard}
-            />
-          </Box>
-          {rightSidebarEl &&
-            createPortal(
-              <ChapterNav chapters={navData.chapters} onChapterClick={handleChapterClick} />,
-              rightSidebarEl
-            )}
-        </>
-      ) : (
-        <>
-          <PageTitle text={BOOK_PAGE_LABELS.flashcards} />
-          <ListSearchSortHeader
+      <PageHeader
+        title={BOOK_PAGE_LABELS.flashcards}
+        search={
+          <SearchBar
             onSearch={handleSearch}
-            searchPlaceholder="Search flashcards..."
-            searchInitialValue={searchText}
-            isReversed={isReversed}
-            onToggleReversed={() => setIsReversed(!isReversed)}
+            placeholder="Search flashcards..."
+            initialValue={searchText}
           />
-          <FlashcardChapterList
-            chapters={flashcardChapters}
-            bookId={book.id}
-            emptyState={emptyState}
-            onEditFlashcard={setEditingFlashcard}
-          />
+        }
+        sort={<SortToggle isReversed={isReversed} onToggle={() => setIsReversed(!isReversed)} />}
+      />
+
+      {/* Content */}
+      <FlashcardChapterList
+        chapters={flashcardChapters}
+        bookId={book.id}
+        emptyState={emptyState}
+        onEditFlashcard={setEditingFlashcard}
+      />
+
+      {isDesktop
+        ? rightSidebarEl &&
+          createPortal(
+            <ChapterNav chapters={navData.chapters} onChapterClick={handleChapterClick} />,
+            rightSidebarEl
+          )
+        : null}
+
+      {!isDesktop && (
+        <>
           {fabContainerEl &&
             createPortal(
               <FilterFab

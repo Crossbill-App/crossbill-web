@@ -351,3 +351,19 @@ test('the chapter dialog offers a copy-link, with or without AI', async () => {
   // The generate button is the AI feature, not the toolbar it sits in.
   expect(dialog.getByRole('button', { name: /Generate summary/ }).elements()).toHaveLength(0);
 });
+
+/**
+ * The tab used to return its empty message *instead of* the header, so a book
+ * with no chapter structure lost its title, its search field and the digest
+ * toolbar all at once.
+ */
+test('a book with no chapters keeps the structure header', async () => {
+  worker.use(...bookApi({ book: aBookDetails({ chapters: [] }) }).handlers);
+
+  const screen = await renderApp({ path: '/book/1/structure' });
+
+  await expect
+    .element(screen.getByText('No chapter structure available for this book.'))
+    .toBeVisible();
+  await expect.element(screen.getByRole('heading', { name: 'Structure' })).toBeVisible();
+});
