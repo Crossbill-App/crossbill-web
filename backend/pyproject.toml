@@ -1,6 +1,6 @@
 [project]
 name = "crossbill-backend"
-version = "0.28.0"
+version = "0.28.1"
 description = "crossbill backend - KOReader highlights sync server"
 authors = [{ name = "User", email = "user@example.com" }]
 readme = "README.md"
