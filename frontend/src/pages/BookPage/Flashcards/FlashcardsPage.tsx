@@ -209,6 +209,7 @@ export const FlashcardsPage = () => {
             initialValue={searchText}
           />
         }
+        count={{ value: filteredFlashcards.length, noun: 'flashcard' }}
         sort={<SortToggle isReversed={isReversed} onToggle={() => setIsReversed(!isReversed)} />}
       />
 

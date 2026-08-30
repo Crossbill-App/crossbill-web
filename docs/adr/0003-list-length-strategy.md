@@ -102,9 +102,10 @@ above the tab bar on every tab, so a tab's own header carries **only the count
 of rows it is currently rendering** — not a `shown of total` pair, which would
 duplicate the strip.
 
-The count lives in `common/PageHeader.tsx`'s control row, beside the sort
-toggle, and goes through `utils/counts.ts`'s `countLabel` so plurals stay in
-one place.
+The count sits on the tab title's baseline in `common/PageHeader.tsx`, and
+goes through `utils/counts.ts`'s `countLabel` so plurals stay in one place. It
+was first placed in the control row beside the sort toggle; next to the search
+field it read as part of that widget rather than as a fact about the tab.
 
 ## Alternatives considered
 
