@@ -15,6 +15,7 @@ import {
 import { ICON_SIZE } from '@/theme/iconSizes.ts';
 import { formatDate } from '@/utils/date.ts';
 import { Box, Typography } from '@mui/material';
+import { memo, useMemo } from 'react';
 
 export interface HighlightCardProps {
   highlight: Highlight;
@@ -84,24 +85,35 @@ const Footer = ({ highlight, bookmark, noteCount }: FooterProps) => {
 
 const previewWordCount = 40;
 
-export const HighlightCard = ({
+/** The card's visible text: leading ellipsis for a mid-sentence start, then a word cap. */
+const buildPreviewText = (text: string): string => {
+  const startsWithLowercase =
+    text.length > 0 && text[0] === text[0].toLowerCase() && text[0] !== text[0].toUpperCase();
+  const formattedText = startsWithLowercase ? `...${text}` : text;
+
+  const words = formattedText.split(/\s+/);
+
+  return words.length > previewWordCount
+    ? words.slice(0, previewWordCount).join(' ') + '...'
+    : formattedText;
+};
+
+/**
+ * One highlight in a list, opening the highlight dialog when clicked.
+ *
+ * Memoised because the highlights tab renders its whole set at once
+ * (ADR-0003), so a book's worth of these re-render on every filter keystroke,
+ * sort toggle and dialog open. That only pays off while all four props stay
+ * referentially stable — `onOpenModal` in particular must be a `useCallback`,
+ * never an inline arrow, or the memo silently does nothing.
+ */
+export const HighlightCard = memo(function HighlightCard({
   highlight,
   bookmark,
   noteCount = 0,
   onOpenModal,
-}: HighlightCardProps) => {
-  const startsWithLowercase =
-    highlight.text.length > 0 &&
-    highlight.text[0] === highlight.text[0].toLowerCase() &&
-    highlight.text[0] !== highlight.text[0].toUpperCase();
-  const formattedText = startsWithLowercase ? `...${highlight.text}` : highlight.text;
-
-  const words = formattedText.split(/\s+/);
-  const shouldTruncate = words.length > previewWordCount;
-
-  const previewText = shouldTruncate
-    ? words.slice(0, previewWordCount).join(' ') + '...'
-    : formattedText;
+}: HighlightCardProps) {
+  const previewText = useMemo(() => buildPreviewText(highlight.text), [highlight.text]);
 
   const handleOpenModal = () => {
     onOpenModal?.(highlight.id);
@@ -141,4 +153,4 @@ export const HighlightCard = ({
       </Box>
     </HoverableCardActionArea>
   );
-};
+});

@@ -386,3 +386,47 @@ test('a tag group collapses from the keyboard', async () => {
   await expect.element(toggle).toHaveAttribute('aria-expanded', 'false');
   await expect.element(screen.getByText('Keep')).not.toBeInTheDocument();
 });
+
+const CLOSE_READING = { id: 5, book_id: 1, name: 'close reading' };
+
+// Counts land in three places on this screen — the stats strip above the tabs,
+// the tab header, and the chapter sidebar — so the header's is only
+// unambiguous scoped to `main`.
+const aBookWithOneTaggedHighlight = () =>
+  aBookDetails({
+    tags: [CLOSE_READING],
+    highlight_count: 3,
+    chapters: [
+      aChapter({
+        highlights: [
+          aHighlight({ id: 301, text: 'The map is not the territory.' }),
+          aHighlight({ id: 302, text: 'A second passage.', tags: [CLOSE_READING] }),
+          aHighlight({ id: 303, text: 'A third passage.' }),
+        ],
+      }),
+    ],
+  });
+
+test('the header says how many highlights the tab is rendering', async () => {
+  worker.use(...bookApi({ book: aBookWithOneTaggedHighlight() }).handlers);
+
+  const screen = await renderApp({ path: '/book/1/highlights' });
+
+  await expect
+    .element(screen.getByRole('main').getByText('3 highlights', { exact: true }))
+    .toBeVisible();
+});
+
+test('the header count follows the filter while the stats strip keeps the total', async () => {
+  worker.use(...bookApi({ book: aBookWithOneTaggedHighlight() }).handlers);
+
+  const screen = await renderApp({ path: '/book/1/highlights?tagId=5' });
+
+  await expect
+    .element(screen.getByRole('main').getByText('1 highlight', { exact: true }))
+    .toBeVisible();
+  await expect.element(screen.getByText('A second passage.')).toBeVisible();
+
+  // The pair the reader compares: 1 shown here, 3 in the book (ADR-0003).
+  await expect.element(screen.getByText('3 highlights', { exact: true })).toBeVisible();
+});

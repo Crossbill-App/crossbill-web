@@ -238,6 +238,7 @@ export const HighlightsPage = () => {
             initialValue={searchText}
           />
         }
+        count={{ value: allHighlights.length, noun: 'highlight' }}
         sort={<SortToggle isReversed={isReversed} onToggle={() => setIsReversed(!isReversed)} />}
       />
 

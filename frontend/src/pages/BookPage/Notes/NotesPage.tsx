@@ -132,6 +132,7 @@ export const NotesPage = () => {
             placeholder="Search notes by meaning..."
           />
         }
+        count={{ value: notesToShow.length, noun: 'note' }}
         action={
           <IconButton aria-label="Add note" color="primary" onClick={noteDialogs.openCreate}>
             <AddIcon />
