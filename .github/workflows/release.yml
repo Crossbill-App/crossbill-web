@@ -172,9 +172,25 @@ jobs:
           # Update the backend version; anchored so dependency pins stay untouched
           sed -i -E "s|^version = \".*\"|version = \"$NEW_VERSION\"|" backend/pyproject.toml
 
+          # uv.lock records the workspace package's own version too, and sed on
+          # pyproject.toml does not reach it. Scoped to the crossbill-backend
+          # entry so no dependency's version line is touched.
+          node -e '
+            const fs = require("fs");
+            const path = "backend/uv.lock";
+            const entry = /(\[\[package\]\]\nname = "crossbill-backend"\nversion = )"[^"]*"/g;
+            const lock = fs.readFileSync(path, "utf8");
+            const found = lock.match(entry) ?? [];
+            if (found.length !== 1) {
+              throw new Error("expected one crossbill-backend version entry, found " + found.length);
+            }
+            fs.writeFileSync(path, lock.replace(entry, `$1"${process.argv[1]}"`));
+          ' "$NEW_VERSION"
+
           # Commit version bump
           git add package.json package-lock.json frontend/package.json \
-            site/package.json site/package-lock.json backend/pyproject.toml
+            site/package.json site/package-lock.json backend/pyproject.toml \
+            backend/uv.lock
           git commit -m "chore: bump version to $NEW_VERSION"
           git push origin main
 
