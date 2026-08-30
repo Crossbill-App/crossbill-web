@@ -26,7 +26,7 @@ export const FilterDrawer = ({ open, onClose, tabs, header }: FilterDrawerProps)
   };
 
   return (
-    <Drawer anchor="bottom" open={open} onClose={handleClose}>
+    <Drawer anchor="bottom" open={open} onClose={handleClose} disableScrollLock>
       {/* Capped against the *dynamic* viewport, so the drawer stays clear of
           mobile browser chrome however much of it is showing. It scrolls its
           own content; `contain` keeps a pull that runs past either end from
