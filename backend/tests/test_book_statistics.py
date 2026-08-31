@@ -23,6 +23,21 @@ async def get_statistics(
     return response.json()
 
 
+async def assert_not_found(client: AsyncClient, book_id: int) -> None:
+    """Read a book's statistics, asserting the app's stable 404 answered instead.
+
+    The payload matters as much as the status: it is what the client branches
+    on, and it must name no book the caller cannot see.
+    """
+    response = await client.get(f"/api/v1/books/{book_id}/statistics")
+
+    assert response.status_code == status.HTTP_404_NOT_FOUND
+    assert response.json() == {
+        "error": "not_found",
+        "message": "The requested resource was not found.",
+    }
+
+
 async def add_sessions_either_side_of_utc_midnight(db_session: AsyncSession, book: Book) -> None:
     """Two sessions at 00:15 and 07:00 on 16 March in Helsinki -- 15 and 16 March in UTC."""
     await create_test_reading_session(
@@ -88,14 +103,10 @@ class TestGetBookStatistics:
             db_session, their_book, OTHER_USER_ID, datetime(2024, 3, 1, 20, tzinfo=UTC)
         )
 
-        response = await client.get(f"/api/v1/books/{their_book.id}/statistics")
-
-        assert response.status_code == status.HTTP_404_NOT_FOUND
+        await assert_not_found(client, their_book.id)
 
     async def test_a_missing_book_is_not_found(self, client: AsyncClient, test_book: Book) -> None:
-        response = await client.get(f"/api/v1/books/{test_book.id + 999}/statistics")
-
-        assert response.status_code == status.HTTP_404_NOT_FOUND
+        await assert_not_found(client, test_book.id + 999)
 
     async def test_the_span_is_counted_in_the_requested_timezone(
         self, client: AsyncClient, db_session: AsyncSession, test_book: Book
