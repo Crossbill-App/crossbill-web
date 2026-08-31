@@ -42,3 +42,21 @@ test('the sessions tab reports having no sessions', async () => {
 
   await expect.element(screen.getByText('No reading sessions recorded yet.')).toBeVisible();
 });
+
+test('the tab pages five sessions at a time', async () => {
+  const { handlers } = bookApi({
+    book: aBookDetails(),
+    sessions: Array.from({ length: 5 }, (_, index) => aReadingSession({ id: 200 + index })),
+    sessionTotal: 7,
+  });
+  worker.use(...handlers);
+
+  const screen = await renderApp({ path: '/book/1/sessions' });
+
+  await expect.element(screen.getByRole('heading', { name: /^Session / }).first()).toBeVisible();
+  expect(screen.getByRole('heading', { name: /^Session / }).elements()).toHaveLength(5);
+
+  // 7 sessions over a page of 5: a second page, and no third.
+  await expect.element(screen.getByRole('button', { name: 'Go to page 2' })).toBeVisible();
+  expect(screen.getByRole('button', { name: 'Go to page 3' }).elements()).toHaveLength(0);
+});

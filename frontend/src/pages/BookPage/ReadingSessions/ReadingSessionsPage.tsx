@@ -11,7 +11,7 @@ import { Alert, Box } from '@mui/material';
 import { useNavigate, useSearch } from '@tanstack/react-router';
 import { SessionCard } from './SessionCard';
 
-const SESSIONS_PER_PAGE = 30;
+const SESSIONS_PER_PAGE = 5;
 
 export const ReadingSessionsPage = () => {
   const { book } = useBookPage();

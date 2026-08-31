@@ -68,14 +68,17 @@ export function bookApi(initial: Partial<BookApiState> = {}) {
 
       return HttpResponse.json(updated);
     }),
-    http.get('/api/v1/books/:bookId/reading_sessions', () =>
-      HttpResponse.json({
+    // Paging is the page's own arithmetic over `total`; the handler serves
+    // whatever `sessions` holds and only echoes back the window it was asked for.
+    http.get('/api/v1/books/:bookId/reading_sessions', ({ request }) => {
+      const params = new URL(request.url).searchParams;
+      return HttpResponse.json({
         items: state.sessions,
         total: state.sessionTotal,
-        offset: 0,
-        limit: 30,
-      })
-    ),
+        offset: Number(params.get('offset') ?? 0),
+        limit: Number(params.get('limit') ?? state.sessions.length),
+      });
+    }),
     http.get('/api/v1/jobs/books/:bookId/digest', () => HttpResponse.json(null)),
     http.get('/api/v1/books/:bookId/tags', () => HttpResponse.json({ items: [] })),
     http.get('/api/v1/books/:bookId/highlight-labels', () => HttpResponse.json({ items: [] })),
