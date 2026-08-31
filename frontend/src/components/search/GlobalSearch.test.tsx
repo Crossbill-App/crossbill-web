@@ -2,6 +2,7 @@ import { aBookDetails, aChapter, aHighlight } from '@tests/fixtures/book';
 import { aNote } from '@tests/fixtures/notes';
 import { aDigestHit, aHighlightHit, aNoteHit } from '@tests/fixtures/semantic';
 import { renderApp } from '@tests/harness/renderApp';
+import { atCompactViewport } from '@tests/harness/viewport';
 import { settingsWithEmbeddings } from '@tests/msw/auth';
 import { bookApi } from '@tests/msw/bookApi';
 import { coversApi } from '@tests/msw/covers';
@@ -9,7 +10,7 @@ import { semanticSearchApi } from '@tests/msw/semanticSearchApi';
 import { worker } from '@tests/msw/worker';
 import { delay, http, HttpResponse } from 'msw';
 import { expect, test } from 'vitest';
-import { page, userEvent } from 'vitest/browser';
+import { userEvent } from 'vitest/browser';
 
 const PLACEHOLDER = 'Search...';
 
@@ -295,20 +296,6 @@ test('a failing search reports the failure', async () => {
 
   await expect.element(screen.getByText('Search failed. Try again.')).toBeVisible();
 });
-
-/**
- * Runs `fn` with the browser resized below `md`, always restoring the
- * config's 1440×900 default afterward — even if `fn` throws — so a resize
- * from one test can never leak into the next.
- */
-const atCompactViewport = async (fn: () => Promise<void>) => {
-  await page.viewport(400, 800);
-  try {
-    await fn();
-  } finally {
-    await page.viewport(1440, 900);
-  }
-};
 
 /**
  * Renders a book page below `md` with embeddings on, where only the search
