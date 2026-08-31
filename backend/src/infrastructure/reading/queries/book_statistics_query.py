@@ -10,7 +10,7 @@ from collections.abc import Sequence
 from datetime import datetime as dt
 from datetime import tzinfo
 
-from sqlalchemy import Row, select
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.domain.common.value_objects.ids import BookId, UserId
@@ -23,7 +23,8 @@ from src.domain.reading.services.reading_statistics_calculator import (
 from src.infrastructure.library.orm.book_model import Book as BookORM
 from src.infrastructure.reading.orm.reading_session_model import ReadingSession as ReadingSessionORM
 
-SessionRow = Row[tuple[dt, dt, list[int] | None]]
+SessionRow = tuple[dt, dt, list[int] | None]
+BookRow = tuple[int, list[int] | None]
 
 
 def _position(raw: list[int] | None) -> Position | None:
@@ -47,19 +48,27 @@ class BookStatisticsQuery:
         book = await self._fetch_book(book_id, user_id)
         if book is None:
             return None
+        _, book_end_position = book
 
         sessions = await self._fetch_sessions(book_id, user_id)
+        stretches = [
+            ReadingStretch(start_time=start_time, end_time=end_time)
+            for start_time, end_time, _ in sessions
+        ]
+
+        reading_position = None
+        if sessions:
+            _, _, latest_end_position = sessions[-1]
+            reading_position = _position(latest_end_position)
 
         return self.statistics_calculator.calculate(
-            stretches=[ReadingStretch(start_time=row[0], end_time=row[1]) for row in sessions],
-            reading_position=_position(sessions[-1][2]) if sessions else None,
-            book_end_position=_position(book[1]),
+            stretches=stretches,
+            reading_position=reading_position,
+            book_end_position=_position(book_end_position),
             zone=zone,
         )
 
-    async def _fetch_book(
-        self, book_id: BookId, user_id: UserId
-    ) -> Row[tuple[int, list[int] | None]] | None:
+    async def _fetch_book(self, book_id: BookId, user_id: UserId) -> BookRow | None:
         """Load the book's end position, and with it the proof that the user has the book.
 
         A book whose ``end_position`` is null is not a missing book: the first
@@ -69,7 +78,7 @@ class BookStatisticsQuery:
             BookORM.id == book_id.value,
             BookORM.user_id == user_id.value,
         )
-        return (await self.db.execute(stmt)).first()
+        return (await self.db.execute(stmt)).tuples().first()
 
     async def _fetch_sessions(self, book_id: BookId, user_id: UserId) -> Sequence[SessionRow]:
         """Load every session's timespan and end position, oldest first.
@@ -89,4 +98,4 @@ class BookStatisticsQuery:
             )
             .order_by(ReadingSessionORM.start_time)
         )
-        return (await self.db.execute(stmt)).all()
+        return (await self.db.execute(stmt)).tuples().all()
