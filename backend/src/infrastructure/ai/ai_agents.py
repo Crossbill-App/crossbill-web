@@ -24,13 +24,6 @@ class GeneratedDigest(BaseModel):
     questions_and_answers: list[QuestionAnswer]
 
 
-SUMMARY_INSTRUCTIONS = """
-Create a short summary of the given text. Focus on key ideas,
-topics, characters and events in the text. The summary should help user to remember text they have read earlier. Keep summary short with 2-3 sentences and bullet points of important events and themes.
-Output only the summary text with no heading in the start of the response. DO NOT PRINT SUMMARY HEADING IN THE BEGINNING!
-"""
-
-
 DIGEST_INSTRUCTIONS = """
 1. SUMMARY (2-3 sentences)
 
@@ -200,10 +193,6 @@ FORMAT:
 - Keep responses concise and conversational.
 - Use markdown formatting when helpful (bold for emphasis, lists for summaries).
 """
-
-
-def get_summary_agent() -> Agent[None, str]:
-    return _build_agent(str, SUMMARY_INSTRUCTIONS)
 
 
 def get_digest_agent() -> Agent[None, GeneratedDigest]:

@@ -21,10 +21,6 @@ export interface ReadingSession {
   start_page?: number | null;
   /** End page number */
   end_page?: number | null;
-  /** Extracted text content of the session */
-  content?: string | null;
-  /** AI generated summary of the read content */
-  ai_summary?: string | null;
   id: number;
   created_at: string;
   /** Highlights that appear within this reading session */

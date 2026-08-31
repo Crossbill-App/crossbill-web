@@ -4,9 +4,6 @@ from typing import Annotated
 
 from fastapi import APIRouter, Depends, Query, status
 
-from src.application.reading.commands.reading_sessions.reading_session_ai_summary_use_case import (
-    ReadingSessionAISummaryUseCase,
-)
 from src.application.reading.commands.reading_sessions.reading_session_upload_use_case import (
     ReadingSessionUploadData,
     ReadingSessionUploadUseCase,
@@ -21,7 +18,6 @@ from src.infrastructure.common.client_version import (
     UPGRADE_REQUIRED_RESPONSES,
     require_koreader_plugin,
 )
-from src.infrastructure.common.dependencies import require_ai_enabled
 from src.infrastructure.common.di import inject_use_case
 from src.infrastructure.common.schemas import PaginatedResponse
 from src.infrastructure.identity.dependencies import get_current_user
@@ -29,7 +25,6 @@ from src.infrastructure.reading.schemas import (
     Highlight,
     HighlightLabel,
     ReadingSession,
-    ReadingSessionAISummaryResponse,
     ReadingSessionSyncRequest,
     ReadingSessionSyncResponse,
 )
@@ -52,8 +47,6 @@ def _build_session_schema(view: ReadingSessionView) -> ReadingSession:
         end_time=view.end_time,
         start_page=view.start_page,
         end_page=view.end_page,
-        content=view.content,
-        ai_summary=view.ai_summary,
         created_at=view.created_at,
         highlights=[
             Highlight(
@@ -200,39 +193,3 @@ async def get_book_reading_sessions(
         offset=offset,
         limit=limit,
     )
-
-
-@router.get(
-    "/{reading_session_id}/ai_summary",
-    response_model=ReadingSessionAISummaryResponse,
-    status_code=status.HTTP_200_OK,
-)
-@require_ai_enabled
-async def get_reading_session_ai_summary(
-    reading_session_id: int,
-    current_user: Annotated[User, Depends(get_current_user)],
-    use_case: ReadingSessionAISummaryUseCase = Depends(
-        inject_use_case(container.reading.reading_session_ai_summary_use_case)
-    ),
-) -> ReadingSessionAISummaryResponse:
-    """
-    Get AI-generated summary for a reading session.
-
-    Returns cached summary if available, otherwise generates new summary
-    from the read content and caches it.
-
-    Args:
-        reading_session_id: ID of the reading session
-        current_user: Authenticated user
-
-    Returns:
-        ReadingSessionAISummaryResponse with the AI summary
-
-    Raises:
-        HTTPException 404: If reading session not found or not owned by user
-        HTTPException 400: If session has no position data
-        HTTPException 500: For unexpected errors
-    """
-
-    summary = await use_case.get_or_generate_summary(reading_session_id, current_user.id.value)
-    return ReadingSessionAISummaryResponse(summary=summary)

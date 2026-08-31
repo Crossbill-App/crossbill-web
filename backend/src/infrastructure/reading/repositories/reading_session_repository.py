@@ -171,54 +171,6 @@ class ReadingSessionRepository:
         orms = result.scalars().all()
         return [self.mapper.to_domain(orm) for orm in orms]
 
-    async def find_by_id(
-        self, session_id: ReadingSessionId, user_id: UserId
-    ) -> ReadingSession | None:
-        """
-        Load reading session by ID.
-
-        Args:
-            session_id: Session ID value object
-            user_id: User ID for authorization check
-
-        Returns:
-            ReadingSession domain entity if found, None otherwise
-        """
-        stmt = select(ReadingSessionORM).where(
-            ReadingSessionORM.id == session_id.value,
-            ReadingSessionORM.user_id == user_id.value,
-        )
-        result = await self.db.execute(stmt)
-        orm_model = result.scalar_one_or_none()
-
-        if not orm_model:
-            return None
-
-        return self.mapper.to_domain(orm_model)
-
-    async def save(self, session: ReadingSession) -> ReadingSession:
-        """
-        Update existing reading session.
-
-        Primarily used for updating ai_summary field.
-
-        Args:
-            session: ReadingSession domain entity to save
-
-        Returns:
-            ReadingSession with any updated values from database
-        """
-        stmt = select(ReadingSessionORM).where(ReadingSessionORM.id == session.id.value)
-        result = await self.db.execute(stmt)
-        existing_orm = result.scalar_one()
-
-        # Update ORM model using mapper
-        self.mapper.to_orm(session, existing_orm)
-        await self.db.commit()
-        await self.db.refresh(existing_orm)
-
-        return self.mapper.to_domain(existing_orm)
-
     async def bulk_update_positions(
         self,
         position_updates: list[tuple[ReadingSessionId, Position, Position]],

@@ -351,15 +351,6 @@ class CrossbillClient:
         )
         return response.json()
 
-    async def get_reading_session_summary(self, reading_session_id: int) -> dict:
-        """Get a reading session's AI summary, generating it when not cached."""
-        response = await self._request(
-            "GET",
-            f"/api/v1/{reading_session_id}/ai_summary",
-            timeout=300.0,
-        )
-        return response.json()
-
     # --- Chapter content endpoint ---
 
     async def get_chapter_content(self, chapter_id: int) -> dict:

@@ -29,24 +29,17 @@ from src.application.library.protocols.book_repository import (
     BookRepositoryProtocol as LibraryBookRepositoryProtocol,
 )
 from src.application.library.protocols.chapter_repository import ChapterRepositoryProtocol
-from src.application.library.protocols.file_repository import FileRepositoryProtocol
 from src.application.library.queries.book_details import BookDetailsQueryProtocol
 from src.application.library.queries.book_list import BookListQueryProtocol
 from src.application.notes.protocols.note_repository import NoteRepositoryProtocol
 from src.application.notes.queries.note_with_links import NoteQueryProtocol
 from src.application.reading.protocols.ai_digest_service import AIDigestServiceProtocol
-from src.application.reading.protocols.ai_text_summary_service import (
-    AITextSummaryServiceProtocol,
-)
 from src.application.reading.protocols.book_repository import (
     BookRepositoryProtocol as ReadingBookRepositoryProtocol,
 )
 from src.application.reading.protocols.bookmark_repository import BookmarkRepositoryProtocol
 from src.application.reading.protocols.chapter_digest_repository import (
     ChapterDigestRepositoryProtocol,
-)
-from src.application.reading.protocols.ebook_text_extraction_service import (
-    EbookTextExtractionServiceProtocol,
 )
 from src.application.reading.protocols.highlight_repository import HighlightRepositoryProtocol
 from src.application.reading.protocols.highlight_style_repository import (
@@ -110,8 +103,6 @@ from src.infrastructure.tagging.repositories import TagRepository
 def repositories_satisfy_their_protocols(
     db: AsyncSession,
     label_resolution_service: LabelResolutionService,
-    file_repository: FileRepositoryProtocol,
-    text_extraction_service: EbookTextExtractionServiceProtocol,
 ) -> None:
     _user: UserRepositoryProtocol = UserRepository(db)
     _refresh_token: RefreshTokenRepositoryProtocol = RefreshTokenRepository(db)
@@ -146,16 +137,15 @@ def repositories_satisfy_their_protocols(
         db, label_resolution_service
     )
     _reading_sessions_view: ReadingSessionQueryProtocol = ReadingSessionQuery(
-        db, label_resolution_service, file_repository, text_extraction_service
+        db, label_resolution_service
     )
 
 
 def ai_service_satisfies_its_protocols(db: AsyncSession) -> None:
-    """``AIService`` implements five protocols and is wired through none of them."""
+    """``AIService`` implements four protocols and is wired through none of them."""
     _usage: AIUsageRepositoryProtocol = AIUsageRepository(db=db)
     service = AIService(usage_repository=AIUsageRepository(db=db))
     _digest: AIDigestServiceProtocol = service
     _quiz: AIQuizServiceProtocol = service
     _chat: AIChatServiceProtocol = service
     _flashcards: AIFlashcardServiceProtocol = service
-    _summary: AITextSummaryServiceProtocol = service

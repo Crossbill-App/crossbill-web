@@ -190,7 +190,6 @@ class ReadingSessionUploadUseCase:
                     start_position=start_position,
                     end_position=end_position,
                     device_id=session.device_id,
-                    ai_summary=None,
                 )
             except DomainError:
                 logger.warning(

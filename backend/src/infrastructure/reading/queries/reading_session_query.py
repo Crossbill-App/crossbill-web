@@ -1,33 +1,24 @@
 """Query adapter for a book's reading-session list.
 
-Assembling this view means reading two stores, not one: the session and
-highlight rows come from Postgres, and each session's text comes from the
-book's EPUB. Both are fetches, not decisions, so the adapter owns both -- the
-same way ``BookDetailsQuery`` reaches for ``LabelResolutionService`` rather
-than re-deriving a label. The EPUB is fetched once per page, not once per
-session.
+Every column the view renders comes from Postgres, so the adapter reaches for
+``LabelResolutionService`` -- to reuse the label rule rather than re-encode it
+in SQL -- and nothing else.
 """
 
 from collections import defaultdict
 from collections.abc import Sequence
 
-import structlog
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import noload
 
 from src.application.common.queries.highlight_row import HighlightLabelView
-from src.application.library.protocols.file_repository import FileRepositoryProtocol
-from src.application.reading.protocols.ebook_text_extraction_service import (
-    EbookTextExtractionServiceProtocol,
-)
 from src.application.reading.queries.reading_sessions import (
     ReadingSessionPageView,
     ReadingSessionView,
     SessionHighlightView,
 )
 from src.application.reading.services.label_resolution_service import LabelResolutionService
-from src.domain.common.value_objects import XPointRange
 from src.domain.common.value_objects.ids import BookId, UserId
 from src.domain.common.value_objects.position import Position
 from src.domain.reading.services.highlight_style_resolver import ResolvedLabel
@@ -36,30 +27,23 @@ from src.infrastructure.reading.orm.associations import reading_session_highligh
 from src.infrastructure.reading.orm.highlight_model import Highlight as HighlightORM
 from src.infrastructure.reading.orm.reading_session_model import ReadingSession as ReadingSessionORM
 
-logger = structlog.get_logger(__name__)
-
 
 class ReadingSessionQuery:
-    """Serves the reading-session list from targeted selects plus EPUB extraction."""
+    """Serves the reading-session list from targeted selects."""
 
     def __init__(
         self,
         db: AsyncSession,
         label_resolution_service: LabelResolutionService,
-        file_repository: FileRepositoryProtocol,
-        text_extraction_service: EbookTextExtractionServiceProtocol,
     ) -> None:
         self.db = db
         self.label_resolution_service = label_resolution_service
-        self.file_repository = file_repository
-        self.text_extraction_service = text_extraction_service
 
     async def list_for_book(
         self, book_id: BookId, user_id: UserId, limit: int, offset: int
     ) -> ReadingSessionPageView | None:
         """Return a page of sessions newest first, or ``None`` if the user has no such book."""
-        book = await self._fetch_book(book_id, user_id)
-        if book is None:
+        if not await self._book_exists(book_id, user_id):
             return None
 
         sessions = await self._fetch_sessions(book_id, user_id, limit, offset)
@@ -68,7 +52,6 @@ class ReadingSessionQuery:
         highlights = await self._fetch_highlights_by_session(
             [row.id for row in sessions], user_id, labels
         )
-        epub_content = await self._fetch_epub(book)
 
         return ReadingSessionPageView(
             sessions=tuple(
@@ -81,8 +64,6 @@ class ReadingSessionQuery:
                     end_time=row.end_time,
                     start_page=row.start_page,
                     end_page=row.end_page,
-                    content=self._extract_content(row, epub_content),
-                    ai_summary=row.ai_summary,
                     created_at=row.created_at,
                     highlights=highlights.get(row.id, ()),
                 )
@@ -91,23 +72,13 @@ class ReadingSessionQuery:
             total=total,
         )
 
-    async def _fetch_book(
-        self, book_id: BookId, user_id: UserId
-    ) -> tuple[str | None, str | None] | None:
-        """Load just the columns that say whether there is an EPUB to read from."""
-        stmt = select(BookORM.ebook_file, BookORM.file_type).where(
+    async def _book_exists(self, book_id: BookId, user_id: UserId) -> bool:
+        """Say whether the user has this book at all; the list is empty either way."""
+        stmt = select(BookORM.id).where(
             BookORM.id == book_id.value,
             BookORM.user_id == user_id.value,
         )
-        row = (await self.db.execute(stmt)).first()
-        return (row.ebook_file, row.file_type) if row is not None else None
-
-    async def _fetch_epub(self, book: tuple[str | None, str | None]) -> bytes | None:
-        """Fetch the book's EPUB once for the whole page, if it has one."""
-        ebook_file, file_type = book
-        if not ebook_file or file_type != "epub":
-            return None
-        return await self.file_repository.get_epub(ebook_file)
+        return (await self.db.execute(stmt)).first() is not None
 
     async def _fetch_sessions(
         self, book_id: BookId, user_id: UserId, limit: int, offset: int
@@ -172,26 +143,6 @@ class ReadingSessionQuery:
             )
             for session_id, highlights in grouped.items()
         }
-
-    def _extract_content(self, row: ReadingSessionORM, epub_content: bytes | None) -> str | None:
-        """Read the session's text back out of the EPUB.
-
-        A session that cannot be re-read -- no EPUB, no recorded range, or an
-        extraction that blows up on malformed markup -- is still listed, with
-        no content.
-        """
-        if epub_content is None or not row.start_xpoint or not row.end_xpoint:
-            return None
-        try:
-            xpoints = XPointRange.parse(row.start_xpoint, row.end_xpoint)
-            return self.text_extraction_service.extract_text(
-                epub_content=epub_content,
-                start_xpoint=xpoints.start.to_string(),
-                end_xpoint=xpoints.end.to_string(),
-            )
-        except Exception as e:
-            logger.warning("failed_to_extract_content", session_id=row.id, error=str(e))
-            return None
 
 
 def _document_order(row: HighlightORM) -> tuple[bool, Position]:
