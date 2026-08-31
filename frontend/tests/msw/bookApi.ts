@@ -6,6 +6,7 @@ import type {
   NoteCreateRequest,
   NoteUpdateRequest,
   NoteWithLinks,
+  ReadingSession,
   UpdateDigestAnswersRequest,
 } from '@/api/generated/model';
 import { http, HttpResponse } from 'msw';
@@ -16,6 +17,8 @@ interface BookApiState {
   book: BookDetails;
   notes: NoteWithLinks[];
   digests: ChapterDigestResponse[];
+  sessions: ReadingSession[];
+  /** Defaults to the number of `sessions`; override to fake a paged total. */
   sessionTotal: number;
 }
 
@@ -29,7 +32,8 @@ export function bookApi(initial: Partial<BookApiState> = {}) {
     book: initial.book ?? aBookDetails(),
     notes: initial.notes ?? [],
     digests: initial.digests ?? [],
-    sessionTotal: initial.sessionTotal ?? 0,
+    sessions: initial.sessions ?? [],
+    sessionTotal: initial.sessionTotal ?? initial.sessions?.length ?? 0,
   };
 
   const findNote = (noteId: string | readonly string[] | undefined) =>
@@ -65,7 +69,12 @@ export function bookApi(initial: Partial<BookApiState> = {}) {
       return HttpResponse.json(updated);
     }),
     http.get('/api/v1/books/:bookId/reading_sessions', () =>
-      HttpResponse.json({ items: [], total: state.sessionTotal, offset: 0, limit: 1 })
+      HttpResponse.json({
+        items: state.sessions,
+        total: state.sessionTotal,
+        offset: 0,
+        limit: 30,
+      })
     ),
     http.get('/api/v1/jobs/books/:bookId/digest', () => HttpResponse.json(null)),
     http.get('/api/v1/books/:bookId/tags', () => HttpResponse.json({ items: [] })),
