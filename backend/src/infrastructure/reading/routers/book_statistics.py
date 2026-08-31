@@ -1,6 +1,6 @@
 """API route for a book's aggregated reading statistics."""
 
-from datetime import UTC, tzinfo
+from datetime import UTC, date, datetime, tzinfo
 from typing import Annotated
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
@@ -12,9 +12,14 @@ from src.application.reading.queries.get_book_statistics_use_case import (
 )
 from src.core import container
 from src.domain.identity import User
+from src.domain.reading.services.reading_activity_calculator import ReadingActivity
 from src.infrastructure.common.di import inject_use_case
 from src.infrastructure.identity import get_current_user
-from src.infrastructure.reading.schemas import BookReadingStatistics
+from src.infrastructure.reading.schemas import (
+    BookActivity,
+    BookActivityDay,
+    BookReadingStatistics,
+)
 
 router = APIRouter(prefix="/books", tags=["statistics"])
 
@@ -38,6 +43,29 @@ def reader_timezone(
         return UTC
 
 
+def reader_today(zone: Annotated[tzinfo, Depends(reader_timezone)]) -> date:
+    """The date it is right now where the reader is.
+
+    The activity grid's window ends here, so it is resolved once at the edge
+    and handed down; nothing below this line reads the clock.
+    """
+    return datetime.now(zone).date()
+
+
+def _activity_schema(activity: ReadingActivity | None) -> BookActivity | None:
+    """Convert the domain's activity grid into its response shape."""
+    if activity is None:
+        return None
+    return BookActivity(
+        unit=activity.unit.value,
+        range_start=activity.range_start,
+        range_end=activity.range_end,
+        days=[
+            BookActivityDay(date=day.day, value=day.value, level=day.level) for day in activity.days
+        ],
+    )
+
+
 @router.get(
     "/{book_id}/statistics",
     response_model=BookReadingStatistics,
@@ -47,6 +75,7 @@ async def get_book_statistics(
     book_id: int,
     current_user: Annotated[User, Depends(get_current_user)],
     zone: Annotated[tzinfo, Depends(reader_timezone)],
+    today: Annotated[date, Depends(reader_today)],
     use_case: GetBookStatisticsUseCase = Depends(
         inject_use_case(container.reading.get_book_statistics_use_case)
     ),
@@ -67,6 +96,7 @@ async def get_book_statistics(
     statistics = await use_case.get_statistics_for_book(
         book_id=book_id,
         user_id=current_user.id.value,
+        today=today,
         zone=zone,
     )
 
@@ -78,4 +108,5 @@ async def get_book_statistics(
         last_session_end=statistics.last_session_end,
         span_days=statistics.span_days,
         progress_percent=statistics.progress_percent,
+        activity=_activity_schema(statistics.activity),
     )

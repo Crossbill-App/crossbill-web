@@ -59,6 +59,9 @@ from src.application.reflection.protocols.book_reflection_repository import (
     BookReflectionRepositoryProtocol,
 )
 from src.application.tagging.protocols.tag_repository import TagRepositoryProtocol
+from src.domain.reading.services.reading_activity_calculator import (
+    ReadingActivityCalculator,
+)
 from src.domain.reading.services.reading_statistics_calculator import (
     ReadingStatisticsCalculator,
 )
@@ -145,7 +148,7 @@ def repositories_satisfy_their_protocols(
         db, label_resolution_service
     )
     _book_statistics_view: BookStatisticsQueryProtocol = BookStatisticsQuery(
-        db, ReadingStatisticsCalculator()
+        db, ReadingStatisticsCalculator(activity_calculator=ReadingActivityCalculator())
     )
 
 
