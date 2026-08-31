@@ -6,7 +6,7 @@ import { useCallback, useState } from 'react';
 /**
  * Book tab routes that share the tag (and optionally search) URL filters.
  *
- * Reflection and sessions carry none of these filters today, but they are
+ * Reflection and statistics carry none of these filters today, but they are
  * listed so the ordering param they gain in #684 has somewhere to live.
  */
 type BookTabFilterRoute =
@@ -15,7 +15,7 @@ type BookTabFilterRoute =
   | '/book/$bookId/notes'
   | '/book/$bookId/structure'
   | '/book/$bookId/reflection'
-  | '/book/$bookId/sessions';
+  | '/book/$bookId/statistics';
 
 /** The URL filters read/written by these tabs. */
 interface BookTabSearch {

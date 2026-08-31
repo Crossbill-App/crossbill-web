@@ -15,11 +15,11 @@ import { SessionCard } from './SessionCard';
 
 const SESSIONS_PER_PAGE = 5;
 
-export const ReadingSessionsPage = () => {
+export const ReadingStatisticsPage = () => {
   const { book } = useBookPage();
 
-  const { sessionPage } = useSearch({ from: '/book/$bookId/sessions' });
-  const navigate = useNavigate({ from: '/book/$bookId/sessions' });
+  const { sessionPage } = useSearch({ from: '/book/$bookId/statistics' });
+  const navigate = useNavigate({ from: '/book/$bookId/statistics' });
 
   const currentPage = sessionPage || 1;
   const offset = (currentPage - 1) * SESSIONS_PER_PAGE;
@@ -43,7 +43,7 @@ export const ReadingSessionsPage = () => {
 
   return (
     <Box>
-      <PageHeader title={BOOK_PAGE_LABELS.sessions} />
+      <PageHeader title={BOOK_PAGE_LABELS.statistics} />
 
       <ReadingStatsSection bookId={book.id} />
 

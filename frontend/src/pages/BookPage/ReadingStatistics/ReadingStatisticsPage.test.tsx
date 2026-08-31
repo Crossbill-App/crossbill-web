@@ -13,7 +13,7 @@ test('a session card headlines the session and lists its pages and duration', as
   });
   worker.use(...handlers);
 
-  const screen = await renderApp({ path: '/book/1/sessions' });
+  const screen = await renderApp({ path: '/book/1/statistics' });
 
   // The headline's date and time are rendered in the browser's own locale, so
   // only its shape is asserted here; the two facts below are locale-free.
@@ -29,7 +29,7 @@ test('a session without a page range still shows its duration', async () => {
   });
   worker.use(...handlers);
 
-  const screen = await renderApp({ path: '/book/1/sessions' });
+  const screen = await renderApp({ path: '/book/1/statistics' });
 
   await expect.element(screen.getByText('Duration 1h 11m')).toBeVisible();
   expect(screen.getByText(/^Pages /).elements()).toHaveLength(0);
@@ -39,7 +39,7 @@ test('the sessions tab reports having no sessions', async () => {
   const { handlers } = bookApi({ book: aBookDetails(), sessions: [] });
   worker.use(...handlers);
 
-  const screen = await renderApp({ path: '/book/1/sessions' });
+  const screen = await renderApp({ path: '/book/1/statistics' });
 
   await expect.element(screen.getByText('No reading sessions recorded yet.')).toBeVisible();
 });
@@ -52,7 +52,7 @@ test('the tab pages five sessions at a time', async () => {
   });
   worker.use(...handlers);
 
-  const screen = await renderApp({ path: '/book/1/sessions' });
+  const screen = await renderApp({ path: '/book/1/statistics' });
 
   await expect.element(screen.getByRole('heading', { name: /^Session / }).first()).toBeVisible();
   expect(screen.getByRole('heading', { name: /^Session / }).elements()).toHaveLength(5);
@@ -70,7 +70,7 @@ test('the tab summarises the reading above the list', async () => {
   });
   worker.use(...handlers);
 
-  const screen = await renderApp({ path: '/book/1/sessions' });
+  const screen = await renderApp({ path: '/book/1/statistics' });
 
   await expect.element(screen.getByText('63%')).toBeVisible();
   await expect
@@ -88,7 +88,7 @@ test('the summary stays away until the book has been read', async () => {
   const { handlers } = bookApi({ book: aBookDetails(), sessions: [] });
   worker.use(...handlers);
 
-  const screen = await renderApp({ path: '/book/1/sessions' });
+  const screen = await renderApp({ path: '/book/1/statistics' });
 
   await expect.element(screen.getByText('No reading sessions recorded yet.')).toBeVisible();
   // The list keeps its own heading; only the summary above it stands down.
@@ -104,7 +104,7 @@ test('a book with no recorded position summarises the sessions without a progres
   });
   worker.use(...handlers);
 
-  const screen = await renderApp({ path: '/book/1/sessions' });
+  const screen = await renderApp({ path: '/book/1/statistics' });
 
   await expect.element(screen.getByText('8h 25m')).toBeVisible();
   expect(screen.getByRole('progressbar', { name: 'Reading progress' }).elements()).toHaveLength(0);
@@ -122,7 +122,7 @@ test('a failed summary reports itself and leaves the sessions listed', async () 
     http.get('/api/v1/books/:bookId/statistics', () => new HttpResponse(null, { status: 500 }))
   );
 
-  const screen = await renderApp({ path: '/book/1/sessions' });
+  const screen = await renderApp({ path: '/book/1/statistics' });
 
   await expect
     .element(screen.getByRole('alert').filter({ hasText: 'Failed to load reading statistics.' }))
