@@ -22,6 +22,14 @@ interface ActivityGridProps {
   activity: BookActivity;
 }
 
+/**
+ * The calendar's own horizontally scrolling element, by its BEM class.
+ *
+ * The component forwards a ref to its outer `<article>` alone, so this is the
+ * only handle on the element that actually scrolls.
+ */
+const SCROLL_CONTAINER = 'react-activity-calendar__scroll-container';
+
 /** What one square's number counts, as a noun a tooltip can pluralise. */
 const UNIT_NOUN = { pages: 'page', minutes: 'minute' } as const;
 
@@ -50,22 +58,20 @@ const withWindowBounds = (activity: BookActivity): Activity[] => {
 };
 
 /**
- * Month names, weekday names and the first day of the week, as the reader's
- * own locale has them.
+ * Month names and the first day of the week, as the reader's own locale has
+ * them.
  *
- * Luxon counts weekdays from Monday and the calendar indexes them from Sunday,
- * so the list is rotated rather than passed straight through; `getStartOfWeek`
- * likewise returns 1-7 from Monday against the calendar's 0-6 from Sunday.
+ * `getStartOfWeek` returns 1-7 counted from Monday against the calendar's 0-6
+ * counted from Sunday, so it is taken modulo 7 rather than passed straight
+ * through.
  */
 const useCalendarLocale = () =>
   useMemo(() => {
     const locale = browserLocale();
-    const fromMonday = Info.weekdays('short', { locale });
 
     return {
       locale,
       months: Info.months('short', { locale }),
-      weekdays: [fromMonday[6], ...fromMonday.slice(0, 6)],
       weekStart: (Info.getStartOfWeek({ locale }) % 7) as DayIndex,
     };
   }, []);
@@ -91,35 +97,55 @@ const RangeCaption = ({ activity }: ActivityGridProps) => {
  * work: a month label is as wide as its longest name, not as wide as the four
  * or five columns beneath it, so at phone widths the months collide into an
  * unreadable row. The squares also fall well under the app's 48px touch
- * minimum long before a year fits. At a fixed size the grid stays legible and
- * tappable, and the overflow is contained here rather than left to nudge the
- * whole page sideways.
+ * minimum long before a year fits.
+ *
+ * The scrolling itself is the calendar's own — it ships a scroll container
+ * around its SVG. Wrapping that in a second one only nests two scrollers and
+ * clips the right edge, so this box sizes and pads rather than scrolls.
+ *
+ * The weekday rail stays off, because it cannot survive that scrolling: the
+ * calendar draws those labels at negative x inside the SVG and pushes the SVG
+ * clear with a left margin, so they are not pinned — scroll the grid and they
+ * slide under the container's edge, half a letter at a time. Dropping them
+ * also takes 30px off the grid, which is what keeps a full year inside the
+ * column on a desktop instead of a hair over it.
  */
 const ActivityGrid = ({ activity }: ActivityGridProps) => {
   const theme = useTheme();
-  const { months, weekdays, weekStart } = useCalendarLocale();
+  const { months, weekStart } = useCalendarLocale();
   const data = useMemo(() => withWindowBounds(activity), [activity]);
   const noun = UNIT_NOUN[activity.unit];
-  const scroller = useRef<HTMLDivElement>(null);
+  const section = useRef<HTMLDivElement>(null);
 
   // Opened on the most recent weeks, which is what a reader came to see. The
-  // frame is waited out because the calendar measures its weekday rail in an
-  // effect of its own, so the grid is still growing on the first pass.
+  // calendar's own scroll container is the one to move, and it is reached by
+  // its class because the component forwards a ref to its outer element only.
+  // The frame is waited out because the calendar measures its weekday rail in
+  // an effect of its own, so the grid is still growing on the first pass.
   useEffect(() => {
     const frame = requestAnimationFrame(() => {
-      const element = scroller.current;
-      if (element) {
-        element.scrollLeft = element.scrollWidth;
+      const scroller = section.current?.querySelector(`.${SCROLL_CONTAINER}`);
+      if (scroller) {
+        scroller.scrollLeft = scroller.scrollWidth;
       }
     });
     return () => cancelAnimationFrame(frame);
   }, [data]);
 
   return (
-    // `minWidth: 0` so the box may actually be narrower than the grid inside
-    // it: a flex or grid child sized `auto` refuses to, and the overflow would
-    // widen the page instead of scrolling here.
-    <Box ref={scroller} sx={{ overflowX: 'auto', maxWidth: '100%', minWidth: 0, pb: 1 }}>
+    <Box
+      ref={section}
+      sx={{
+        // `minWidth: 0` so the calendar's own `max-width: 100%` has a real
+        // width to measure against: a flex or grid child sized `auto` refuses
+        // to shrink, and the grid would widen the page instead of scrolling.
+        minWidth: 0,
+        // The squares carry a 1px stroke that paints half a pixel past the
+        // SVG's declared width, and the scroll container's overflow clips it.
+        // The gap gives that edge somewhere to land.
+        [`& .${SCROLL_CONTAINER}`]: { paddingRight: '2px', paddingBottom: 1 },
+      }}
+    >
       <ActivityCalendar
         data={data}
         // The app has one colour scheme; left to itself the calendar would read
@@ -128,11 +154,9 @@ const ActivityGrid = ({ activity }: ActivityGridProps) => {
         theme={{
           light: [theme.customColors.activityGrid.empty, theme.customColors.activityGrid.full],
         }}
-        showWeekdayLabels
         showTotalCount={false}
         labels={{
           months,
-          weekdays,
           legend: { less: 'Less', more: 'More' },
         }}
         tooltips={{
