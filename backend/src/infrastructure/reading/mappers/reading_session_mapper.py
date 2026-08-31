@@ -46,7 +46,6 @@ class ReadingSessionMapper:
             start_position=start_position,
             end_position=end_position,
             device_id=orm_model.device_id,
-            ai_summary=orm_model.ai_summary,
             created_at=orm_model.created_at,
         )
 
@@ -86,5 +85,4 @@ class ReadingSessionMapper:
             domain_entity.end_position.to_json() if domain_entity.end_position else None
         )
         orm_model.device_id = domain_entity.device_id
-        orm_model.ai_summary = domain_entity.ai_summary
         return orm_model

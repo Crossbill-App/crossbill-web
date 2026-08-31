@@ -196,29 +196,6 @@ class ReadingSessionRepository:
 
         return self.mapper.to_domain(orm_model)
 
-    async def save(self, session: ReadingSession) -> ReadingSession:
-        """
-        Update existing reading session.
-
-        Primarily used for updating ai_summary field.
-
-        Args:
-            session: ReadingSession domain entity to save
-
-        Returns:
-            ReadingSession with any updated values from database
-        """
-        stmt = select(ReadingSessionORM).where(ReadingSessionORM.id == session.id.value)
-        result = await self.db.execute(stmt)
-        existing_orm = result.scalar_one()
-
-        # Update ORM model using mapper
-        self.mapper.to_orm(session, existing_orm)
-        await self.db.commit()
-        await self.db.refresh(existing_orm)
-
-        return self.mapper.to_domain(existing_orm)
-
     async def bulk_update_positions(
         self,
         position_updates: list[tuple[ReadingSessionId, Position, Position]],

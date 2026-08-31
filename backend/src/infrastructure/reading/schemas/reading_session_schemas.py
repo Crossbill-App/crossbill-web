@@ -21,7 +21,6 @@ class ReadingSessionBase(BaseModel):
     start_page: int | None = Field(None, ge=0, description="Start page number")
     end_page: int | None = Field(None, ge=0, description="End page number")
     content: str | None = Field(None, description="Extracted text content of the session")
-    ai_summary: str | None = Field(None, description="AI generated summary of the read content")
 
 
 # Import Highlight after ReadingSessionBase is defined to avoid circular import issues
@@ -91,9 +90,3 @@ class ReadingSessionSyncResponse(BaseModel):
     book_id: int = Field(..., description="ID of the book for these sessions")
     created_count: int = Field(0, description="Number of sessions created")
     skipped_duplicate_count: int = Field(0, description="Sessions skipped because already synced")
-
-
-class ReadingSessionAISummaryResponse(BaseModel):
-    """Schema for AI summary response."""
-
-    summary: str = Field(..., description="AI-generated summary of the reading session")

@@ -24,9 +24,6 @@ from src.application.reading.commands.highlights.highlight_delete_use_case impor
 from src.application.reading.commands.highlights.highlight_upload_use_case import (
     HighlightUploadUseCase,
 )
-from src.application.reading.commands.reading_sessions.reading_session_ai_summary_use_case import (
-    ReadingSessionAISummaryUseCase,
-)
 from src.application.reading.commands.reading_sessions.reading_session_upload_use_case import (
     ReadingSessionUploadUseCase,
 )
@@ -189,14 +186,6 @@ class ReadingContainer(containers.DeclarativeContainer):
     reading_session_query_use_case = providers.Factory(
         ReadingSessionQueryUseCase,
         reading_session_query=reading_session_query,
-    )
-    reading_session_ai_summary_use_case = providers.Factory(
-        ReadingSessionAISummaryUseCase,
-        session_repository=reading_session_repository,
-        text_extraction_service=ebook_text_extraction_service,
-        book_repo=book_repository,
-        file_repo=file_repository,
-        ai_summary_service=ai_service,
     )
 
     # Chapter digest

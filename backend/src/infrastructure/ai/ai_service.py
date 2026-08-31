@@ -20,7 +20,6 @@ from src.infrastructure.ai.ai_agents import (
     get_digest_agent,
     get_flashcard_agent,
     get_quiz_agent,
-    get_summary_agent,
 )
 
 logger = structlog.get_logger(__name__)
@@ -83,15 +82,6 @@ class AIService:
             output_tokens=output_tokens,
             model_name=model_name,
         )
-
-    async def generate_summary(self, content: str, usage_context: AIUsageContext) -> str:
-        agent = get_summary_agent()
-        result = await agent.run(content)
-        usage = result.usage()
-        await self._save_usage(
-            usage_context, result.response.model_name, usage.input_tokens, usage.output_tokens
-        )
-        return result.output
 
     async def generate_digest(self, content: str, usage_context: AIUsageContext) -> DigestResult:
         agent = get_digest_agent()

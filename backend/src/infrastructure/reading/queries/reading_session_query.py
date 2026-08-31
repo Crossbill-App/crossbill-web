@@ -82,7 +82,6 @@ class ReadingSessionQuery:
                     start_page=row.start_page,
                     end_page=row.end_page,
                     content=self._extract_content(row, epub_content),
-                    ai_summary=row.ai_summary,
                     created_at=row.created_at,
                     highlights=highlights.get(row.id, ()),
                 )

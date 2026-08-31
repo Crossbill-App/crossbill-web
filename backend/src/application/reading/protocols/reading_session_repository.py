@@ -26,8 +26,6 @@ class ReadingSessionRepositoryProtocol(Protocol):
         self, session_id: ReadingSessionId, user_id: UserId
     ) -> ReadingSession | None: ...
 
-    async def save(self, session: ReadingSession) -> ReadingSession: ...
-
     async def bulk_update_positions(
         self,
         position_updates: list[tuple[ReadingSessionId, Position, Position]],

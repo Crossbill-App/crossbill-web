@@ -51,7 +51,6 @@ class ReadingSessionView:
     start_page: int | None
     end_page: int | None
     content: str | None
-    ai_summary: str | None
     created_at: dt
     highlights: tuple[SessionHighlightView, ...]
 

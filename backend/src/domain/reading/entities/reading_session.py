@@ -51,7 +51,6 @@ class ReadingSession(AggregateRoot[ReadingSessionId]):
 
     # Metadata
     device_id: str | None = None
-    ai_summary: str | None = None
     created_at: datetime | None = None
 
     # Related highlights (IDs only - don't load full entities)
@@ -70,10 +69,6 @@ class ReadingSession(AggregateRoot[ReadingSessionId]):
 
         hash_input = f"{self.book_id}|{self.user_id}|{self.start_time}|{self.device_id or ''}"
         self.content_hash = ContentHash.compute(hash_input)
-
-    def set_ai_summary(self, summary: str) -> None:
-        """Set AI-generated summary for this session."""
-        self.ai_summary = summary.strip() if summary else None
 
     @classmethod
     def create(
@@ -120,6 +115,5 @@ class ReadingSession(AggregateRoot[ReadingSessionId]):
             start_position=start_position,
             end_position=end_position,
             device_id=device_id,
-            ai_summary=None,
             _highlight_ids=[],
         )

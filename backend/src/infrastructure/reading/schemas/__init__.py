@@ -25,7 +25,6 @@ from src.infrastructure.reading.schemas.highlight_schemas import (
 )
 from src.infrastructure.reading.schemas.reading_session_schemas import (
     ReadingSession,
-    ReadingSessionAISummaryResponse,
     ReadingSessionSyncItem,
     ReadingSessionSyncRequest,
     ReadingSessionSyncResponse,
@@ -52,7 +51,6 @@ __all__ = [
     "HighlightSyncResponse",
     "PositionResponse",
     "ReadingSession",
-    "ReadingSessionAISummaryResponse",
     "ReadingSessionSyncItem",
     "ReadingSessionSyncRequest",
     "ReadingSessionSyncResponse",

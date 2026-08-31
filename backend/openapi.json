@@ -1749,54 +1749,6 @@
         }
       }
     },
-    "/api/v1/{reading_session_id}/ai_summary": {
-      "get": {
-        "tags": [
-          "reading_sessions"
-        ],
-        "summary": "Get Reading Session Ai Summary",
-        "description": "Get AI-generated summary for a reading session.\n\nReturns cached summary if available, otherwise generates new summary\nfrom the read content and caches it.\n\nArgs:\n    reading_session_id: ID of the reading session\n    current_user: Authenticated user\n\nReturns:\n    ReadingSessionAISummaryResponse with the AI summary\n\nRaises:\n    HTTPException 404: If reading session not found or not owned by user\n    HTTPException 400: If session has no position data\n    HTTPException 500: For unexpected errors",
-        "operationId": "get_reading_session_ai_summary",
-        "security": [
-          {
-            "OAuth2PasswordBearer": []
-          }
-        ],
-        "parameters": [
-          {
-            "name": "reading_session_id",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "integer",
-              "title": "Reading Session Id"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Successful Response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ReadingSessionAISummaryResponse"
-                }
-              }
-            }
-          },
-          "422": {
-            "description": "Validation Error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
     "/api/v1/books/{book_id}/bookmarks": {
       "post": {
         "tags": [
@@ -7825,18 +7777,6 @@
             "title": "Content",
             "description": "Extracted text content of the session"
           },
-          "ai_summary": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Ai Summary",
-            "description": "AI generated summary of the read content"
-          },
           "id": {
             "type": "integer",
             "title": "Id"
@@ -7868,21 +7808,6 @@
         ],
         "title": "ReadingSession",
         "description": "Schema for ReadingSession response."
-      },
-      "ReadingSessionAISummaryResponse": {
-        "properties": {
-          "summary": {
-            "type": "string",
-            "title": "Summary",
-            "description": "AI-generated summary of the reading session"
-          }
-        },
-        "type": "object",
-        "required": [
-          "summary"
-        ],
-        "title": "ReadingSessionAISummaryResponse",
-        "description": "Schema for AI summary response."
       },
       "ReadingSessionSyncItem": {
         "properties": {
