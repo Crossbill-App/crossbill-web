@@ -38,8 +38,11 @@ export const formatTime = (date: string | Date): string => {
  * it ran under the hour.
  */
 export const formatSeconds = (seconds: number): string => {
-  const hours = Math.floor(seconds / 3600);
-  const minutes = Math.round((seconds % 3600) / 60);
+  // Rounded to whole minutes before the hours are split off. Rounding the
+  // remainder instead lets it reach 60, which reads as "1h 60m".
+  const totalMinutes = Math.round(seconds / 60);
+  const hours = Math.floor(totalMinutes / 60);
+  const minutes = totalMinutes % 60;
 
   if (hours > 0) {
     return `${hours}h ${minutes}m`;
