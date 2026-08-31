@@ -3,8 +3,8 @@ import {
   FlashcardsIcon,
   HighlightsIcon,
   NotesIcon,
-  ReadingSessionIcon,
   ReflectionIcon,
+  StatisticsIcon,
 } from '@/theme/Icons.tsx';
 import type { SvgIconComponent } from '@mui/icons-material';
 
@@ -14,7 +14,7 @@ type BookPageRoute =
   | '/book/$bookId/flashcards'
   | '/book/$bookId/notes'
   | '/book/$bookId/reflection'
-  | '/book/$bookId/sessions';
+  | '/book/$bookId/statistics';
 
 /**
  * What each of the book's tabs is called. The desktop nav, the mobile nav and
@@ -27,7 +27,7 @@ export const BOOK_PAGE_LABELS = {
   flashcards: 'Flashcards',
   notes: 'Notes',
   reflection: 'Reflection',
-  sessions: 'Sessions',
+  statistics: 'Statistics',
 } as const;
 
 type BookPageSegment = keyof typeof BOOK_PAGE_LABELS;
@@ -73,9 +73,9 @@ export const BOOK_PAGE_ROUTES: BookPageRouteConfig[] = [
     overflow: true,
   },
   {
-    to: '/book/$bookId/sessions',
-    segment: 'sessions',
-    icon: ReadingSessionIcon,
+    to: '/book/$bookId/statistics',
+    segment: 'statistics',
+    icon: StatisticsIcon,
     overflow: true,
   },
 ];

@@ -1749,6 +1749,66 @@
         }
       }
     },
+    "/api/v1/books/{book_id}/statistics": {
+      "get": {
+        "tags": [
+          "statistics"
+        ],
+        "summary": "Get Book Statistics",
+        "description": "Get aggregated reading statistics for a specific book.\n\nTotals every reading session recorded for the book and reports how far\nthrough it the reader has got.\n\nArgs:\n    book_id: ID of the book\n    tz: IANA timezone deciding which calendar day a session falls on\n\nReturns:\n    BookReadingStatistics for the book",
+        "operationId": "get_book_statistics",
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "book_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Book Id"
+            }
+          },
+          {
+            "name": "tz",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "description": "IANA timezone the reader's calendar days are counted in",
+              "default": "UTC",
+              "title": "Tz"
+            },
+            "description": "IANA timezone the reader's calendar days are counted in"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BookReadingStatistics"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/books/{book_id}/bookmarks": {
       "post": {
         "tags": [
@@ -4706,6 +4766,89 @@
         "type": "object",
         "title": "BookReadingStageUpdateRequest",
         "description": "Schema for updating a book's manual reading stage."
+      },
+      "BookReadingStatistics": {
+        "properties": {
+          "session_count": {
+            "type": "integer",
+            "title": "Session Count",
+            "description": "Reading sessions recorded for the book"
+          },
+          "total_reading_seconds": {
+            "type": "integer",
+            "title": "Total Reading Seconds",
+            "description": "Time spent reading the book, in seconds"
+          },
+          "average_session_seconds": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Average Session Seconds",
+            "description": "Mean length of a session, in seconds"
+          },
+          "first_session_start": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "First Session Start",
+            "description": "When the first session began"
+          },
+          "last_session_end": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Session End",
+            "description": "When the last session ended"
+          },
+          "span_days": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Span Days",
+            "description": "Calendar days from the first session to the last, counted inclusively in the requested timezone"
+          },
+          "progress_percent": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Progress Percent",
+            "description": "How far through the book the reader has got, 0-100"
+          }
+        },
+        "type": "object",
+        "required": [
+          "session_count",
+          "total_reading_seconds"
+        ],
+        "title": "BookReadingStatistics",
+        "description": "Schema for what a book's reading sessions add up to.\n\nA field is null when there is nothing to compute it from, rather than zero:\na book nobody has opened has no average session, and one with no recorded\nposition is not at 0% -- it is unknown."
       },
       "BookReflectionResponse": {
         "properties": {

@@ -4,20 +4,22 @@ import { Spinner } from '@/components/animations/Spinner.tsx';
 import { CardList } from '@/components/CardList.tsx';
 import { EmptyStateText } from '@/components/EmptyStateText.tsx';
 import { PaginationControls } from '@/components/PaginationControls.tsx';
+import { SectionTitle } from '@/components/typography/SectionTitle.tsx';
 import { useBookPage } from '@/pages/BookPage/BookPageContext';
 import { PageHeader } from '@/pages/BookPage/common/PageHeader.tsx';
 import { BOOK_PAGE_LABELS } from '@/pages/BookPage/navigation/bookPageRoutes.ts';
 import { Alert, Box } from '@mui/material';
 import { useNavigate, useSearch } from '@tanstack/react-router';
+import { ReadingStatsSection } from './ReadingStatsSection.tsx';
 import { SessionCard } from './SessionCard';
 
 const SESSIONS_PER_PAGE = 5;
 
-export const ReadingSessionsPage = () => {
+export const ReadingStatisticsPage = () => {
   const { book } = useBookPage();
 
-  const { sessionPage } = useSearch({ from: '/book/$bookId/sessions' });
-  const navigate = useNavigate({ from: '/book/$bookId/sessions' });
+  const { sessionPage } = useSearch({ from: '/book/$bookId/statistics' });
+  const navigate = useNavigate({ from: '/book/$bookId/statistics' });
 
   const currentPage = sessionPage || 1;
   const offset = (currentPage - 1) * SESSIONS_PER_PAGE;
@@ -41,7 +43,12 @@ export const ReadingSessionsPage = () => {
 
   return (
     <Box>
-      <PageHeader title={BOOK_PAGE_LABELS.sessions} />
+      <PageHeader title={BOOK_PAGE_LABELS.statistics} />
+
+      <ReadingStatsSection bookId={book.id} />
+
+      <SectionTitle showDivider>Sessions</SectionTitle>
+
       {isLoading && <Spinner />}
 
       {isError && (

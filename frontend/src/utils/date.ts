@@ -7,6 +7,13 @@ import { DateTime } from 'luxon';
 export const browserLocale = (): string => Intl.DateTimeFormat().resolvedOptions().locale;
 
 /**
+ * The browser's own IANA timezone. The server counts a reader's calendar days
+ * in it, so a session at half past midnight belongs to the day the reader had
+ * rather than the day UTC had.
+ */
+export const browserTimeZone = (): string => Intl.DateTimeFormat().resolvedOptions().timeZone;
+
+/**
  * The app's one rendered date format: `DATE_MED` in the browser's locale, so a
  * session header and the highlights beneath it never disagree.
  */
@@ -27,18 +34,25 @@ export const formatTime = (date: string | Date): string => {
 };
 
 /**
- * Calculate duration between two ISO timestamps
- * Returns formatted string like "1h 23m" or "45m"
+ * The app's one way of saying how long something took: "1h 23m", or "45m" when
+ * it ran under the hour.
  */
-export const formatDuration = (startTime: string, endTime: string): string => {
-  const start = DateTime.fromISO(startTime);
-  const end = DateTime.fromISO(endTime);
-  const diff = end.diff(start, ['hours', 'minutes']);
-  const hours = Math.floor(diff.hours);
-  const minutes = Math.round(diff.minutes);
+export const formatSeconds = (seconds: number): string => {
+  // Rounded to whole minutes before the hours are split off. Rounding the
+  // remainder instead lets it reach 60, which reads as "1h 60m".
+  const totalMinutes = Math.round(seconds / 60);
+  const hours = Math.floor(totalMinutes / 60);
+  const minutes = totalMinutes % 60;
 
   if (hours > 0) {
     return `${hours}h ${minutes}m`;
   }
   return `${minutes}m`;
 };
+
+/**
+ * Calculate duration between two ISO timestamps
+ * Returns formatted string like "1h 23m" or "45m"
+ */
+export const formatDuration = (startTime: string, endTime: string): string =>
+  formatSeconds(DateTime.fromISO(endTime).diff(DateTime.fromISO(startTime)).as('seconds'));

@@ -64,6 +64,7 @@ class RootContainer(containers.DeclarativeContainer):
         epub_position_index_service=shared.epub_position_index_service,
         ebook_text_extraction_service=shared.ebook_text_extraction_service,
         ai_service=shared.ai_service,
+        book_statistics_query=shared.book_statistics_query,
         bookmark_query=shared.bookmark_query,
         highlight_label_query=shared.highlight_label_query,
         highlight_search_query=shared.highlight_search_query,

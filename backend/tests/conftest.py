@@ -18,6 +18,7 @@ import inspect
 import itertools
 from collections.abc import AsyncGenerator, Awaitable, Callable, Iterator
 from datetime import datetime as dt
+from datetime import timedelta
 from pathlib import Path
 from types import SimpleNamespace
 from typing import Any
@@ -56,6 +57,7 @@ from src.models import (
     Chapter,
     Flashcard,
     Highlight,
+    ReadingSession,
     Tag,
     TagGroup,
     User,
@@ -204,6 +206,33 @@ async def create_test_highlight(
     await db_session.commit()
     await db_session.refresh(highlight)
     return highlight
+
+
+async def create_test_reading_session(
+    db_session: AsyncSession,
+    book: Book,
+    user_id: int,
+    start_time: dt,
+    minutes: int = 20,
+    end_position: list[int] | None = None,
+) -> ReadingSession:
+    """Record a reading session that ran ``minutes`` from ``start_time``.
+
+    The content hash only has to be unique per user, so it is derived from what
+    already distinguishes one test session from another.
+    """
+    session = ReadingSession(
+        user_id=user_id,
+        book_id=book.id,
+        start_time=start_time,
+        end_time=start_time + timedelta(minutes=minutes),
+        end_position=end_position,
+        content_hash=f"hash-{start_time.isoformat()}-{book.id}-{user_id}",
+    )
+    db_session.add(session)
+    await db_session.commit()
+    await db_session.refresh(session)
+    return session
 
 
 async def create_test_highlight_style(

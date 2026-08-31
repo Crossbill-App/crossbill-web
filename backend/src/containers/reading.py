@@ -48,6 +48,9 @@ from src.application.reading.queries.get_book_highlight_labels_use_case import (
 from src.application.reading.queries.get_book_reading_sessions_use_case import (
     ReadingSessionQueryUseCase,
 )
+from src.application.reading.queries.get_book_statistics_use_case import (
+    GetBookStatisticsUseCase,
+)
 from src.application.reading.queries.get_bookmarks_use_case import (
     GetBookmarksUseCase,
 )
@@ -90,6 +93,7 @@ class ReadingContainer(containers.DeclarativeContainer):
     embedding_repository = providers.Dependency()
 
     # Query services (read models)
+    book_statistics_query = providers.Dependency()
     bookmark_query = providers.Dependency()
     highlight_label_query = providers.Dependency()
     highlight_search_query = providers.Dependency()
@@ -186,6 +190,10 @@ class ReadingContainer(containers.DeclarativeContainer):
     reading_session_query_use_case = providers.Factory(
         ReadingSessionQueryUseCase,
         reading_session_query=reading_session_query,
+    )
+    get_book_statistics_use_case = providers.Factory(
+        GetBookStatisticsUseCase,
+        book_statistics_query=book_statistics_query,
     )
 
     # Chapter digest

@@ -29,6 +29,10 @@ dependencies = [
   "pgvector>=0.5.0",
   "sentry-sdk>=2.67.1",
   "structlog-sentry>=2.2.1",
+  # The reader's IANA timezone decides which calendar day a reading session
+  # falls on. Carried explicitly so the zone database ships with the app
+  # rather than depending on what the runtime image happens to install.
+  "tzdata>=2025.3",
 ]
 
 [dependency-groups]
