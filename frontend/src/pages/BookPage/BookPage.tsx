@@ -3,6 +3,7 @@ import { FadeInOut } from '@/components/animations/FadeInOut.tsx';
 import { Spinner } from '@/components/animations/Spinner.tsx';
 import { ScrollToTopButton } from '@/components/buttons/ScrollToTopButton.tsx';
 import {
+  APP_BAR_HEIGHT,
   BOTTOM_NAV_CLEARANCE,
   PageContainer,
   SNACKBAR_CLEARANCE,
@@ -13,6 +14,7 @@ import { BookPageProvider } from '@/pages/BookPage/BookPageContext.tsx';
 import { BookTitle } from '@/pages/BookPage/BookTitle/BookTitle.tsx';
 import { DesktopNavLinks } from '@/pages/BookPage/navigation/DesktopNavLinks.tsx';
 import { MobileBottomNav } from '@/pages/BookPage/navigation/MobileBottomNav.tsx';
+import { useTabContentSnap } from '@/pages/BookPage/navigation/useTabContentSnap.ts';
 import { Alert, Box, useMediaQuery, useTheme } from '@mui/material';
 import { Outlet, useLocation, useParams } from '@tanstack/react-router';
 import { useEffect, useState } from 'react';
@@ -32,6 +34,8 @@ export const BookPage = () => {
   const [leftSidebarEl, setLeftSidebarEl] = useState<HTMLDivElement | null>(null);
   const [rightSidebarEl, setRightSidebarEl] = useState<HTMLDivElement | null>(null);
   const [fabContainerEl, setFabContainerEl] = useState<HTMLDivElement | null>(null);
+
+  const tabContentRef = useTabContentSnap({ enabled: !isDesktop, bookId, pathname });
 
   // Update recently viewed on mount. `cache` is memoised on the query client, so
   // listing it as a dependency does not make this run more than once.
@@ -124,7 +128,26 @@ export const BookPage = () => {
           ) : (
             <Box sx={{ maxWidth: '800px', mx: 'auto' }}>
               <BookTitle book={book} />
-              <Box component="main">
+              {/* Tall enough to fill the viewport on its own, so switching to a
+                  tab with little in it still has somewhere to snap to: without
+                  the minimum, a short tab cannot scroll past the book header
+                  and the reader is back to seeing the cover they tapped from.
+                  The scroll margin keeps the tab's heading clear of the sticky
+                  app bar it would otherwise land under. */}
+              <Box
+                component="main"
+                ref={tabContentRef}
+                sx={{
+                  minHeight: {
+                    xs: `calc(100dvh - ${APP_BAR_HEIGHT.xs} - ${BOTTOM_NAV_CLEARANCE})`,
+                    sm: `calc(100dvh - ${APP_BAR_HEIGHT.sm} - ${BOTTOM_NAV_CLEARANCE})`,
+                  },
+                  scrollMarginTop: {
+                    xs: `calc(${APP_BAR_HEIGHT.xs} + 8px)`,
+                    sm: `calc(${APP_BAR_HEIGHT.sm} + 8px)`,
+                  },
+                }}
+              >
                 <FadeInOut ekey={pathname} animateOnMount={false}>
                   <Outlet />
                 </FadeInOut>

@@ -2,10 +2,11 @@ import { getGetBookDetailsQueryKey } from '@/api/generated/books/books.ts';
 import { aBookDetails, aChapter, aHighlight } from '@tests/fixtures/book';
 import { aNote } from '@tests/fixtures/notes';
 import { renderApp } from '@tests/harness/renderApp';
+import { atCompactViewport } from '@tests/harness/viewport';
 import { bookApi } from '@tests/msw/bookApi';
 import { worker } from '@tests/msw/worker';
 import { http, HttpResponse } from 'msw';
-import { expect, test } from 'vitest';
+import { expect, test, vi } from 'vitest';
 
 test('renders the book and its chapters', async () => {
   const { handlers } = bookApi({
@@ -296,4 +297,56 @@ test('a tab renders its right rail into the shell, not inside its own content', 
   expect(screen.getByRole('main').getByRole('list', { name: 'Chapters' }).elements()).toHaveLength(
     0
   );
+});
+
+/**
+ * On a phone every tab hangs below the same cover, title and stats strip, so
+ * a tab change used to leave the screen looking untouched — the new tab's
+ * heading rendered below the fold, and only the bottom nav's selected icon
+ * moved. The page now snaps past the book header instead.
+ */
+test('switching tabs on mobile brings the tab heading into view', async () => {
+  worker.use(
+    ...bookApi({
+      book: aBookDetails({
+        chapters: [aChapter({ id: 10, highlights: [aHighlight({ id: 300 })] })],
+      }),
+    }).handlers
+  );
+
+  await atCompactViewport(async () => {
+    const screen = await renderApp({ path: '/book/1/structure' });
+    await expect.element(screen.getByRole('heading', { name: 'Structure' })).toBeVisible();
+    expect(window.scrollY).toBe(0);
+
+    await screen.getByRole('button', { name: 'Highlights' }).click();
+
+    const heading = screen.getByRole('heading', { name: 'Highlights' });
+    await expect.element(heading).toBeVisible();
+    // Polled rather than awaited on a timer: the snap is a smooth scroll, so
+    // the heading travels to the top over several frames.
+    await vi.waitFor(() => {
+      // Clear of the sticky app bar, and near enough to it that the book
+      // header above is off screen.
+      expect(heading.element().getBoundingClientRect().top).toBeGreaterThan(56);
+      expect(heading.element().getBoundingClientRect().top).toBeLessThan(120);
+    });
+  });
+});
+
+/** A book opens at its own top, header and all, rather than at its first tab. */
+test('opening a book on mobile leaves the page at the top', async () => {
+  worker.use(...bookApi({ book: aBookDetails({ title: 'The Pragmatic Reader' }) }).handlers);
+
+  await atCompactViewport(async () => {
+    const screen = await renderApp({ path: '/book/1/structure' });
+    await expect
+      .element(screen.getByRole('heading', { name: 'The Pragmatic Reader' }))
+      .toBeVisible();
+
+    // Settled rather than polled: a snap that fires when it should not would
+    // scroll a frame or two after the page first paints.
+    await new Promise((resolve) => setTimeout(resolve, 400));
+    expect(window.scrollY).toBe(0);
+  });
 });
