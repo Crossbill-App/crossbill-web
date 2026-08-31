@@ -90,7 +90,6 @@ export * from './paginatedResponseBookWithHighlightCount.ts';
 export * from './paginatedResponseReadingSession.ts';
 export * from './positionResponse.ts';
 export * from './readingSession.ts';
-export * from './readingSessionAISummaryResponse.ts';
 export * from './readingSessionSyncItem.ts';
 export * from './readingSessionSyncRequest.ts';
 export * from './readingSessionSyncResponse.ts';
