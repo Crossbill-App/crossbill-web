@@ -24,8 +24,8 @@ MAX_LEVEL = 4
 class ActivityUnit(StrEnum):
     """What a day's number counts.
 
-    A book is measured in pages when every one of its sessions recorded them,
-    and in minutes otherwise -- see ``ReadingActivityCalculator._unit``.
+    A book is measured in pages when every session the grid draws recorded
+    them, and in minutes otherwise -- see ``ReadingActivityCalculator._unit``.
     """
 
     PAGES = "pages"
@@ -74,20 +74,28 @@ class ReadingActivityCalculator:
         it asked for.
 
         Returns ``None`` when there is no square to colour: a book with no
-        sessions, or one whose every day in the window nets zero.
+        sessions, none inside the window, or none there that nets a positive
+        day.
         """
         if not stretches:
             return None
 
-        unit = self._unit(stretches)
         range_end = self._anchor(stretches, today, zone)
         range_start = range_end - timedelta(days=WINDOW_DAYS - 1)
 
-        totals = self._daily_totals(stretches, unit, zone)
+        # Narrowed before anything is measured, so that both the unit and the
+        # shades are decided by the days the reader will actually see.
+        drawn = [
+            stretch
+            for stretch in stretches
+            if range_start <= day_in(stretch.start_time, zone) <= range_end
+        ]
+        if not drawn:
+            return None
+
+        unit = self._unit(drawn)
         active = {
-            day: value
-            for day, value in totals.items()
-            if value > 0 and range_start <= day <= range_end
+            day: value for day, value in self._daily_totals(drawn, unit, zone).items() if value > 0
         }
         if not active:
             return None
@@ -104,31 +112,39 @@ class ReadingActivityCalculator:
             days=days,
         )
 
-    def _unit(self, stretches: Sequence[ReadingStretch]) -> ActivityUnit:
-        """Pages when every session recorded them, minutes otherwise.
+    def _unit(self, drawn: Sequence[ReadingStretch]) -> ActivityUnit:
+        """Pages when every session on the grid recorded them, minutes otherwise.
 
         All-or-nothing on purpose. A book synced partly from a device that
         reported pages and partly from one that did not would, under any softer
         rule, render its page-less days as blank -- a grid that undercounts the
         reading is worse than one measured in a coarser unit.
+
+        Only the sessions the grid draws get a say. Reading from before the
+        window is not on it, so letting a page-less session from two years ago
+        put this year in minutes would label the grid by something nobody can
+        see on it.
         """
-        if all(stretch.has_pages for stretch in stretches):
+        if all(stretch.has_pages for stretch in drawn):
             return ActivityUnit.PAGES
         return ActivityUnit.MINUTES
 
     def _anchor(self, stretches: Sequence[ReadingStretch], today: date, zone: tzinfo) -> date:
         """The last day of the window.
 
-        Today, for a book read within the past year -- so the grid ends on the
-        reader's own today and an unread fortnight shows as the gap it is.
-        For a book last read before that, the window ends on its final reading
-        day instead, rather than showing a year of nothing. A session dated in
-        the future falls outside the range ending today, and so anchors the
-        window on itself.
+        Today, unless the book was last read longer ago than the window is
+        wide -- so an active book's grid ends on the reader's own today and an
+        unread fortnight shows as the gap it is, while a book left two years
+        ago still ends on its final reading day rather than showing a year of
+        nothing.
+
+        A session dated in the future never moves the window. A device with a
+        reset clock can date one years ahead, and anchoring on it would carry
+        the window off with it and leave every real reading day outside; such
+        a session is simply not drawn.
         """
         last_day = max(day_in(stretch.start_time, zone) for stretch in stretches)
-        window_start = today - timedelta(days=WINDOW_DAYS - 1)
-        return today if window_start <= last_day <= today else last_day
+        return last_day if last_day < today - timedelta(days=WINDOW_DAYS - 1) else today
 
     def _daily_totals(
         self, stretches: Sequence[ReadingStretch], unit: ActivityUnit, zone: tzinfo

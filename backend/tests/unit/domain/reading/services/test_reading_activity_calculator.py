@@ -235,15 +235,44 @@ def test_the_window_ends_on_the_last_session_for_a_book_left_long_ago(
     assert activity.range_start == date(2023, 3, 3)
 
 
-def test_a_session_dated_in_the_future_anchors_the_window_on_itself(
+def test_a_session_dated_in_the_future_does_not_move_the_window(
     calculator: ReadingActivityCalculator,
 ) -> None:
-    """A skewed device clock must not push the reading off the end of the grid."""
-    activity = calculator.calculate([paged(date(2024, 8, 1), pages=20)], RECENTLY, UTC)
+    """A device with a reset clock must not carry the grid off after it.
+
+    Anchoring on the future day would put the window years ahead and leave
+    every real reading day outside it -- the reader would lose the whole grid
+    to one bad timestamp.
+    """
+    real = [paged(date(2024, 5, d), pages=20, at_page=d * 20) for d in range(1, 6)]
+    skewed = paged(date(2027, 1, 1), pages=5, at_page=900)
+
+    activity = calculator.calculate([*real, skewed], RECENTLY, UTC)
 
     assert activity is not None
-    assert activity.range_end == date(2024, 8, 1)
-    assert [day.day for day in activity.days] == [date(2024, 8, 1)]
+    assert activity.range_end == RECENTLY
+    assert [day.day for day in activity.days] == [date(2024, 5, d) for d in range(1, 6)]
+
+
+def test_a_book_read_only_in_the_future_has_no_grid(
+    calculator: ReadingActivityCalculator,
+) -> None:
+    """Nothing to draw: the one session is not reading that has happened."""
+    assert calculator.calculate([paged(date(2027, 1, 1), pages=20)], RECENTLY, UTC) is None
+
+
+def test_the_unit_follows_the_sessions_the_grid_actually_draws(
+    calculator: ReadingActivityCalculator,
+) -> None:
+    """A page-less session from before the window must not label this year in minutes."""
+    long_ago = timed(datetime(2022, 3, 1, 20, 0, tzinfo=UTC), seconds=60 * 60)
+    this_year = [paged(date(2024, 5, d), pages=20, at_page=d * 20) for d in range(1, 4)]
+
+    activity = calculator.calculate([long_ago, *this_year], RECENTLY, UTC)
+
+    assert activity is not None
+    assert activity.unit is ActivityUnit.PAGES
+    assert [day.value for day in activity.days] == [20, 20, 20]
 
 
 def test_reading_older_than_the_window_is_left_off_the_grid(
