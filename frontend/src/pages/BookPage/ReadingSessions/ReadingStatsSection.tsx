@@ -27,20 +27,6 @@ const Stat = ({ value, label }: StatProps) => (
   </Box>
 );
 
-/**
- * What the book's reading sessions add up to: the tab's opening section, above
- * the list of the sessions themselves — the one place the reading-behaviour
- * data pays off.
- *
- * It leads the page, so it carries no heading of its own; the page title says
- * what these numbers are.
- *
- * The section renders nothing until the book has been read at least once: with
- * no sessions every number is unknown, and the list's own empty state already
- * says so. It also stays quiet while the request is in flight or if it fails,
- * rather than pushing the sessions down the page behind a spinner for numbers
- * nobody came here for.
- */
 export const ReadingStatsSection = ({ bookId }: ReadingStatsSectionProps) => {
   const { data } = useGetBookStatistics(bookId, { tz: browserTimeZone() });
 

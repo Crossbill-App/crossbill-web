@@ -52,8 +52,6 @@ class BookStatisticsQuery:
 
         return self.statistics_calculator.calculate(
             stretches=[ReadingStretch(start_time=row[0], end_time=row[1]) for row in sessions],
-            # Where the reader got to, which the book-details view reads the
-            # same way: the end position of the session that started last.
             reading_position=_position(sessions[-1][2]) if sessions else None,
             book_end_position=_position(book[1]),
             zone=zone,
