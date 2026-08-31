@@ -1,6 +1,7 @@
 import type {
   BookDetails,
   BookReadingStageUpdateRequest,
+  BookReadingStatistics,
   BookUpdateRequest,
   ChapterDigestResponse,
   NoteCreateRequest,
@@ -12,6 +13,7 @@ import type {
 import { http, HttpResponse } from 'msw';
 import { aBookDetails } from '../fixtures/book';
 import { aNote } from '../fixtures/notes';
+import { aBookStatistics } from '../fixtures/sessions';
 
 interface BookApiState {
   book: BookDetails;
@@ -20,6 +22,7 @@ interface BookApiState {
   sessions: ReadingSession[];
   /** Defaults to the number of `sessions`; override to fake a paged total. */
   sessionTotal: number;
+  statistics: BookReadingStatistics;
 }
 
 /**
@@ -34,6 +37,10 @@ export function bookApi(initial: Partial<BookApiState> = {}) {
     digests: initial.digests ?? [],
     sessions: initial.sessions ?? [],
     sessionTotal: initial.sessionTotal ?? initial.sessions?.length ?? 0,
+    // Counted off the sessions the handler was given, so a tab with no
+    // sessions does not come with statistics summarising them anyway.
+    statistics:
+      initial.statistics ?? aBookStatistics({ session_count: initial.sessions?.length ?? 0 }),
   };
 
   const findNote = (noteId: string | readonly string[] | undefined) =>
@@ -79,6 +86,7 @@ export function bookApi(initial: Partial<BookApiState> = {}) {
         limit: Number(params.get('limit') ?? state.sessions.length),
       });
     }),
+    http.get('/api/v1/books/:bookId/statistics', () => HttpResponse.json(state.statistics)),
     http.get('/api/v1/jobs/books/:bookId/digest', () => HttpResponse.json(null)),
     http.get('/api/v1/books/:bookId/tags', () => HttpResponse.json({ items: [] })),
     http.get('/api/v1/books/:bookId/highlight-labels', () => HttpResponse.json({ items: [] })),

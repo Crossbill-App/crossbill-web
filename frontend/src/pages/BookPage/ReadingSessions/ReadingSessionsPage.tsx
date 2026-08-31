@@ -9,6 +9,7 @@ import { PageHeader } from '@/pages/BookPage/common/PageHeader.tsx';
 import { BOOK_PAGE_LABELS } from '@/pages/BookPage/navigation/bookPageRoutes.ts';
 import { Alert, Box } from '@mui/material';
 import { useNavigate, useSearch } from '@tanstack/react-router';
+import { ReadingStatsSection } from './ReadingStatsSection.tsx';
 import { SessionCard } from './SessionCard';
 
 const SESSIONS_PER_PAGE = 5;
@@ -42,6 +43,9 @@ export const ReadingSessionsPage = () => {
   return (
     <Box>
       <PageHeader title={BOOK_PAGE_LABELS.sessions} />
+
+      <ReadingStatsSection bookId={book.id} />
+
       {isLoading && <Spinner />}
 
       {isError && (
