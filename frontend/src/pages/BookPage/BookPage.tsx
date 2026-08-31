@@ -19,6 +19,13 @@ import { Alert, Box, useMediaQuery, useTheme } from '@mui/material';
 import { Outlet, useLocation, useParams } from '@tanstack/react-router';
 import { useEffect, useState } from 'react';
 
+/**
+ * The air a snapped-to tab heading keeps between itself and the app bar above
+ * it. Three spacing units: at less than that the heading reads as pinned to
+ * the edge of the screen rather than as the top of the page.
+ */
+const SNAP_AIR = '24px';
+
 export const BookPage = () => {
   const { bookId } = useParams({ strict: false });
   // Keys the tab fade below. Search params are excluded on purpose: filtering
@@ -133,7 +140,7 @@ export const BookPage = () => {
                   the minimum, a short tab cannot scroll past the book header
                   and the reader is back to seeing the cover they tapped from.
                   The scroll margin keeps the tab's heading clear of the sticky
-                  app bar it would otherwise land under. */}
+                  app bar it would otherwise land under, with air to spare. */}
               <Box
                 component="main"
                 ref={tabContentRef}
@@ -143,8 +150,8 @@ export const BookPage = () => {
                     sm: `calc(100dvh - ${APP_BAR_HEIGHT.sm} - ${BOTTOM_NAV_CLEARANCE})`,
                   },
                   scrollMarginTop: {
-                    xs: `calc(${APP_BAR_HEIGHT.xs} + 8px)`,
-                    sm: `calc(${APP_BAR_HEIGHT.sm} + 8px)`,
+                    xs: `calc(${APP_BAR_HEIGHT.xs} + ${SNAP_AIR})`,
+                    sm: `calc(${APP_BAR_HEIGHT.sm} + ${SNAP_AIR})`,
                   },
                 }}
               >

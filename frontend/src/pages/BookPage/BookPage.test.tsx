@@ -326,9 +326,9 @@ test('switching tabs on mobile brings the tab heading into view', async () => {
     // Polled rather than awaited on a timer: the snap is a smooth scroll, so
     // the heading travels to the top over several frames.
     await vi.waitFor(() => {
-      // Clear of the sticky app bar, and near enough to it that the book
-      // header above is off screen.
-      expect(heading.element().getBoundingClientRect().top).toBeGreaterThan(56);
+      // Clear of the sticky 56px app bar with air to spare, and near enough
+      // to it that the book header above is off screen.
+      expect(heading.element().getBoundingClientRect().top).toBeGreaterThan(72);
       expect(heading.element().getBoundingClientRect().top).toBeLessThan(120);
     });
   });
