@@ -3,9 +3,10 @@ import { Spinner } from '@/components/animations/Spinner.tsx';
 import { EmptyStateText } from '@/components/EmptyStateText.tsx';
 import { SearchBar } from '@/components/inputs/SearchBar.tsx';
 import { PageContainer } from '@/components/layout/Layouts.tsx';
+import { PaginationControls } from '@/components/PaginationControls.tsx';
 import { PageTitle } from '@/components/typography/PageTitle.tsx';
 import { SectionTitle } from '@/components/typography/SectionTitle.tsx';
-import { Alert, Box, Pagination, Typography } from '@mui/material';
+import { Alert, Box, Typography } from '@mui/material';
 import { useNavigate, useSearch } from '@tanstack/react-router';
 import { BookList } from './components/BookList';
 import { RecentBooks } from './components/RecentBooks';
@@ -38,7 +39,7 @@ export const LandingPage = () => {
     });
   };
 
-  const handlePageChange = (_event: React.ChangeEvent<unknown>, value: number) => {
+  const handlePageChange = (value: number) => {
     navigate({
       search: (prev) => ({
         ...prev,
@@ -98,19 +99,7 @@ export const LandingPage = () => {
       {data?.items && data.items.length > 0 && (
         <>
           <BookList books={data.items} pageKey={`${currentPage}-${searchText}`} />
-          {totalPages > 1 && (
-            <Box sx={{ display: 'flex', justifyContent: 'center', mt: 4 }}>
-              <Pagination
-                count={totalPages}
-                page={currentPage}
-                onChange={handlePageChange}
-                color="primary"
-                size="large"
-                showFirstButton
-                showLastButton
-              />
-            </Box>
-          )}
+          <PaginationControls count={totalPages} page={currentPage} onChange={handlePageChange} />
         </>
       )}
     </PageContainer>
