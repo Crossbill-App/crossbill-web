@@ -299,12 +299,7 @@ test('a tab renders its right rail into the shell, not inside its own content', 
   );
 });
 
-/**
- * On a phone every tab hangs below the same cover, title and stats strip, so
- * a tab change used to leave the screen looking untouched — the new tab's
- * heading rendered below the fold, and only the bottom nav's selected icon
- * moved. The page now snaps past the book header instead.
- */
+/** On a phone the book header alone used to fill the screen after a tab change. */
 test('switching tabs on mobile brings the tab heading into view', async () => {
   worker.use(
     ...bookApi({
@@ -323,11 +318,11 @@ test('switching tabs on mobile brings the tab heading into view', async () => {
 
     const heading = screen.getByRole('heading', { name: 'Highlights' });
     await expect.element(heading).toBeVisible();
-    // Polled rather than awaited on a timer: the snap is a smooth scroll, so
-    // the heading travels to the top over several frames.
+    // Polled: the snap is a smooth scroll, so the heading arrives over several
+    // frames.
     await vi.waitFor(() => {
-      // Clear of the sticky 56px app bar with air to spare, and near enough
-      // to it that the book header above is off screen.
+      // Clear of the sticky 56px app bar with air to spare, and high enough
+      // that the book header is off screen.
       expect(heading.element().getBoundingClientRect().top).toBeGreaterThan(72);
       expect(heading.element().getBoundingClientRect().top).toBeLessThan(120);
     });
@@ -344,8 +339,7 @@ test('opening a book on mobile leaves the page at the top', async () => {
       .element(screen.getByRole('heading', { name: 'The Pragmatic Reader' }))
       .toBeVisible();
 
-    // Settled rather than polled: a snap that fires when it should not would
-    // scroll a frame or two after the page first paints.
+    // Settled rather than polled: an unwanted snap lands a frame or two in.
     await new Promise((resolve) => setTimeout(resolve, 400));
     expect(window.scrollY).toBe(0);
   });

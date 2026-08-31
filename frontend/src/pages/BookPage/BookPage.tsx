@@ -19,11 +19,7 @@ import { Alert, Box, useMediaQuery, useTheme } from '@mui/material';
 import { Outlet, useLocation, useParams } from '@tanstack/react-router';
 import { useEffect, useState } from 'react';
 
-/**
- * The air a snapped-to tab heading keeps between itself and the app bar above
- * it. Three spacing units: at less than that the heading reads as pinned to
- * the edge of the screen rather than as the top of the page.
- */
+/** Air between a snapped-to tab heading and the app bar above it. */
 const SNAP_AIR = '24px';
 
 export const BookPage = () => {
@@ -135,12 +131,8 @@ export const BookPage = () => {
           ) : (
             <Box sx={{ maxWidth: '800px', mx: 'auto' }}>
               <BookTitle book={book} />
-              {/* Tall enough to fill the viewport on its own, so switching to a
-                  tab with little in it still has somewhere to snap to: without
-                  the minimum, a short tab cannot scroll past the book header
-                  and the reader is back to seeing the cover they tapped from.
-                  The scroll margin keeps the tab's heading clear of the sticky
-                  app bar it would otherwise land under, with air to spare. */}
+              {/* Tall enough to fill the viewport, so a tab with little in it
+                  still has somewhere to snap to. */}
               <Box
                 component="main"
                 ref={tabContentRef}

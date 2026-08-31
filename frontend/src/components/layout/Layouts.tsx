@@ -8,12 +8,7 @@ import { Container, styled } from '@mui/material';
  */
 export const PAGE_GUTTER = { xs: 2, sm: 3 };
 
-/**
- * What the sticky `AppBar` covers at the top of the viewport — MUI's `Toolbar`,
- * 56px below `sm` and 64px from there up. Anything scrolling a target to the
- * top of the page has to stop this far short of it, or the app bar lands on
- * top of what it just scrolled to.
- */
+/** What the sticky `AppBar` covers at the top of the viewport — MUI's `Toolbar`. */
 export const APP_BAR_HEIGHT = { xs: '56px', sm: '64px' };
 
 /** The bottom navigation's own height, plus air, plus the device's safe area. */
