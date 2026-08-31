@@ -71,7 +71,6 @@ test('the tab summarises the reading above the list', async () => {
 
   const screen = await renderApp({ path: '/book/1/sessions' });
 
-  await expect.element(screen.getByRole('heading', { name: 'Reading progress' })).toBeVisible();
   await expect.element(screen.getByText('63%')).toBeVisible();
   await expect
     .element(screen.getByRole('progressbar', { name: 'Reading progress' }))
@@ -91,7 +90,9 @@ test('the summary stays away until the book has been read', async () => {
   const screen = await renderApp({ path: '/book/1/sessions' });
 
   await expect.element(screen.getByText('No reading sessions recorded yet.')).toBeVisible();
-  expect(screen.getByRole('heading', { name: 'Reading progress' }).elements()).toHaveLength(0);
+  // The list keeps its own heading; only the summary above it stands down.
+  await expect.element(screen.getByRole('heading', { name: 'Sessions' })).toBeVisible();
+  expect(screen.getByText('Time read').elements()).toHaveLength(0);
 });
 
 test('a book with no recorded position summarises the sessions without a progress bar', async () => {

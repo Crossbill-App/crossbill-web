@@ -4,6 +4,7 @@ import { Spinner } from '@/components/animations/Spinner.tsx';
 import { CardList } from '@/components/CardList.tsx';
 import { EmptyStateText } from '@/components/EmptyStateText.tsx';
 import { PaginationControls } from '@/components/PaginationControls.tsx';
+import { SectionTitle } from '@/components/typography/SectionTitle.tsx';
 import { useBookPage } from '@/pages/BookPage/BookPageContext';
 import { PageHeader } from '@/pages/BookPage/common/PageHeader.tsx';
 import { BOOK_PAGE_LABELS } from '@/pages/BookPage/navigation/bookPageRoutes.ts';
@@ -45,6 +46,8 @@ export const ReadingSessionsPage = () => {
       <PageHeader title={BOOK_PAGE_LABELS.sessions} />
 
       <ReadingStatsSection bookId={book.id} />
+
+      <SectionTitle showDivider>Sessions</SectionTitle>
 
       {isLoading && <Spinner />}
 

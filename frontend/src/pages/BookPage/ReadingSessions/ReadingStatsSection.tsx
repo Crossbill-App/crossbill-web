@@ -1,5 +1,4 @@
 import { useGetBookStatistics } from '@/api/generated/statistics/statistics';
-import { SectionTitle } from '@/components/typography/SectionTitle.tsx';
 import { countLabel } from '@/utils/counts.ts';
 import { browserTimeZone, formatDate, formatSeconds } from '@/utils/date.ts';
 import { Box, LinearProgress, Typography } from '@mui/material';
@@ -15,7 +14,7 @@ interface StatProps {
 
 /**
  * One number and what it counts. A paragraph rather than a heading: these are
- * facts about the section above them, not sections of their own.
+ * facts about the book's reading, not sections of their own.
  */
 const Stat = ({ value, label }: StatProps) => (
   <Box>
@@ -29,8 +28,12 @@ const Stat = ({ value, label }: StatProps) => (
 );
 
 /**
- * What the book's reading sessions add up to, above the list of the sessions
- * themselves — the one place the reading-behaviour data pays off.
+ * What the book's reading sessions add up to: the tab's opening section, above
+ * the list of the sessions themselves — the one place the reading-behaviour
+ * data pays off.
+ *
+ * It leads the page, so it carries no heading of its own; the page title says
+ * what these numbers are.
  *
  * The section renders nothing until the book has been read at least once: with
  * no sessions every number is unknown, and the list's own empty state already
@@ -63,8 +66,6 @@ export const ReadingStatsSection = ({ bookId }: ReadingStatsSectionProps) => {
 
   return (
     <Box sx={{ mb: 4 }}>
-      <SectionTitle showDivider>Reading progress</SectionTitle>
-
       {progress != null && (
         <Box sx={{ mb: 3 }}>
           <Box sx={{ display: 'flex', alignItems: 'baseline', gap: 1 }}>

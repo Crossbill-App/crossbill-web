@@ -20,6 +20,9 @@ type BookPageRoute =
  * What each of the book's tabs is called. The desktop nav, the mobile nav and
  * the page's own title all read this, so a tab cannot be named one thing in the
  * nav and another on the page it opens.
+ *
+ * A key is the route segment, not the name: the statistics tab still lives at
+ * `/sessions`, where the sessions list was all it held.
  */
 export const BOOK_PAGE_LABELS = {
   structure: 'Structure',
@@ -27,7 +30,7 @@ export const BOOK_PAGE_LABELS = {
   flashcards: 'Flashcards',
   notes: 'Notes',
   reflection: 'Reflection',
-  sessions: 'Sessions',
+  sessions: 'Statistics',
 } as const;
 
 type BookPageSegment = keyof typeof BOOK_PAGE_LABELS;
