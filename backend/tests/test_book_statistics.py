@@ -114,3 +114,13 @@ class TestGetBookStatistics:
         body = await get_statistics(client, test_book.id, {"tz": "Mars/Olympus_Mons"})
 
         assert body["span_days"] == 2
+
+    async def test_a_timezone_no_filesystem_could_hold_falls_back_to_utc_too(
+        self, client: AsyncClient, db_session: AsyncSession, test_book: Book
+    ) -> None:
+        """A name too long to be a path fails the lookup differently, and must not 500."""
+        await add_sessions_either_side_of_utc_midnight(db_session, test_book)
+
+        body = await get_statistics(client, test_book.id, {"tz": "a" * 10_000})
+
+        assert body["span_days"] == 2

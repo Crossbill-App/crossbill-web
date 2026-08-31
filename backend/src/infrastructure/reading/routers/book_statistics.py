@@ -28,11 +28,13 @@ def reader_timezone(
     """Read the caller's timezone, falling back to UTC when this server cannot resolve it.
 
     An unknown zone name shifts a day boundary at worst -- it is not worth
-    failing the page over, and the reader would have got UTC anyway.
+    failing the page over, and the reader would have got UTC anyway. ``ZoneInfo``
+    resolves a key against the filesystem, so a malformed one surfaces as an
+    ``OSError`` as readily as a lookup failure.
     """
     try:
         return ZoneInfo(tz)
-    except (ZoneInfoNotFoundError, ValueError):
+    except (ZoneInfoNotFoundError, ValueError, OSError):
         return UTC
 
 
