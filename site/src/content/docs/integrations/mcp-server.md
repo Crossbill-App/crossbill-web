@@ -149,9 +149,9 @@ keep the deletions behind a prompt:
 Some tools depend on what your Crossbill server has configured, and say so
 rather than failing obscurely:
 
-- **AI provider** (`AI_PROVIDER`): chapter digest generation, reading-session
-  summaries and the three flashcard-suggestion tools. Without one, they answer
-  that AI features are not enabled.
+- **AI provider** (`AI_PROVIDER`): chapter digest generation and the three
+  flashcard-suggestion tools. Without one, they answer that AI features are not
+  enabled.
 - **Embedding provider** (`EMBEDDING_PROVIDER`): `semantic_search` and
   `find_related`. Without one, they answer that semantic search is not enabled.
 
@@ -216,7 +216,7 @@ poll.
 
 ### Reading
 
-`get_reading_sessions`, `get_chapter_content`, `get_reading_session_summary`
+`get_reading_sessions`, `get_chapter_content`
 
 ### Semantic search
 

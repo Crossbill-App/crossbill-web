@@ -10,7 +10,7 @@ Model Context Protocol (MCP) server that exposes the Crossbill reading companion
 - Tag highlights, and manage a book's tags and tag groups
 - Create, update, and delete flashcards
 - Manage bookmarks
-- View reading sessions and their AI summaries
+- View reading sessions
 - Track a book's reading stage and its four-question reflection
 - Semantic search over highlights, notes, and chapter digests
 - Create, read, update, and delete markdown notes
@@ -152,7 +152,6 @@ The three suggestion tools below require an AI provider configured on the Crossb
 
 - **get_reading_sessions** - Get reading sessions for a book, with `limit` and `offset` for paging
 - **get_chapter_content** - Get full text content of a chapter from the EPUB
-- **get_reading_session_summary** - Get an AI summary of what was read in one session, cached after the first call. Requires an AI provider configured on the Crossbill server
 
 ### Chapter Digests
 
