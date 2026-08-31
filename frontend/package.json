@@ -34,6 +34,7 @@
     "luxon": "^3.7.2",
     "motion": "^13.1.1",
     "react": "^19.2.3",
+    "react-activity-calendar": "^3.2.1",
     "react-blurhash": "^0.3.0",
     "react-dom": "^19.2.8",
     "react-hook-form": "^7.83.0",

@@ -4,6 +4,7 @@
  * crossbill API
  * OpenAPI spec version: 0.0.0
  */
+import type { BookActivity } from './bookActivity.ts';
 
 /**
  * Schema for what a book's reading sessions add up to.
@@ -27,4 +28,6 @@ export interface BookReadingStatistics {
   span_days?: number | null;
   /** How far through the book the reader has got, 0-100 */
   progress_percent?: number | null;
+  /** Daily reading activity for the grid, or null when there is no day worth colouring */
+  activity?: BookActivity | null;
 }
