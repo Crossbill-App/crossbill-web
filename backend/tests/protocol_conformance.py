@@ -48,6 +48,7 @@ from src.application.reading.protocols.highlight_style_repository import (
 from src.application.reading.protocols.reading_session_repository import (
     ReadingSessionRepositoryProtocol,
 )
+from src.application.reading.queries.book_statistics import BookStatisticsQueryProtocol
 from src.application.reading.queries.bookmarks import BookmarkQueryProtocol
 from src.application.reading.queries.ereader_digest import EreaderDigestQueryProtocol
 from src.application.reading.queries.highlight_labels import HighlightLabelQueryProtocol
@@ -58,6 +59,9 @@ from src.application.reflection.protocols.book_reflection_repository import (
     BookReflectionRepositoryProtocol,
 )
 from src.application.tagging.protocols.tag_repository import TagRepositoryProtocol
+from src.domain.reading.services.reading_statistics_calculator import (
+    ReadingStatisticsCalculator,
+)
 from src.infrastructure.ai.ai_service import AIService
 from src.infrastructure.ai.repositories.ai_usage_repository import AIUsageRepository
 from src.infrastructure.identity.repositories.refresh_token_repository import (
@@ -78,6 +82,7 @@ from src.infrastructure.library.repositories import BookRepository
 from src.infrastructure.library.repositories.chapter_repository import ChapterRepository
 from src.infrastructure.notes.queries.note_query import NoteQuery
 from src.infrastructure.notes.repositories.note_repository import NoteRepository
+from src.infrastructure.reading.queries.book_statistics_query import BookStatisticsQuery
 from src.infrastructure.reading.queries.bookmark_query import BookmarkQuery
 from src.infrastructure.reading.queries.ereader_digest_query import EreaderDigestQuery
 from src.infrastructure.reading.queries.highlight_label_query import HighlightLabelQuery
@@ -138,6 +143,9 @@ def repositories_satisfy_their_protocols(
     )
     _reading_sessions_view: ReadingSessionQueryProtocol = ReadingSessionQuery(
         db, label_resolution_service
+    )
+    _book_statistics_view: BookStatisticsQueryProtocol = BookStatisticsQuery(
+        db, ReadingStatisticsCalculator()
     )
 
 
