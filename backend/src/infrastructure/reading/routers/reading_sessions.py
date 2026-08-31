@@ -47,7 +47,6 @@ def _build_session_schema(view: ReadingSessionView) -> ReadingSession:
         end_time=view.end_time,
         start_page=view.start_page,
         end_page=view.end_page,
-        content=view.content,
         created_at=view.created_at,
         highlights=[
             Highlight(

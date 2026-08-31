@@ -7765,18 +7765,6 @@
             "title": "End Page",
             "description": "End page number"
           },
-          "content": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Content",
-            "description": "Extracted text content of the session"
-          },
           "id": {
             "type": "integer",
             "title": "Id"

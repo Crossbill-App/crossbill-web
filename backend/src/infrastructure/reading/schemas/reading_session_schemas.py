@@ -20,7 +20,6 @@ class ReadingSessionBase(BaseModel):
     end_time: dt = Field(..., description="Session end timestamp")
     start_page: int | None = Field(None, ge=0, description="Start page number")
     end_page: int | None = Field(None, ge=0, description="End page number")
-    content: str | None = Field(None, description="Extracted text content of the session")
 
 
 # Import Highlight after ReadingSessionBase is defined to avoid circular import issues

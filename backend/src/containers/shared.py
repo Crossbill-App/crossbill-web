@@ -162,8 +162,6 @@ class SharedContainer(containers.DeclarativeContainer):
         ReadingSessionQuery,
         db=db,
         label_resolution_service=label_resolution_service,
-        file_repository=file_repository,
-        text_extraction_service=ebook_text_extraction_service,
     )
 
     # Learning repositories
