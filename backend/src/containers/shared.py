@@ -7,6 +7,9 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from src.application.reading.services.label_resolution_service import LabelResolutionService
 from src.domain.reading.services.deduplication_service import HighlightDeduplicationService
 from src.domain.reading.services.highlight_style_resolver import HighlightStyleResolver
+from src.domain.reading.services.reading_activity_calculator import (
+    ReadingActivityCalculator,
+)
 from src.domain.reading.services.reading_statistics_calculator import (
     ReadingStatisticsCalculator,
 )
@@ -128,7 +131,11 @@ class SharedContainer(containers.DeclarativeContainer):
     # Domain services
     highlight_deduplication_service = providers.Factory(HighlightDeduplicationService)
     highlight_style_resolver = providers.Factory(HighlightStyleResolver)
-    reading_statistics_calculator = providers.Factory(ReadingStatisticsCalculator)
+    reading_activity_calculator = providers.Factory(ReadingActivityCalculator)
+    reading_statistics_calculator = providers.Factory(
+        ReadingStatisticsCalculator,
+        activity_calculator=reading_activity_calculator,
+    )
 
     # Application services (with deps)
     label_resolution_service = providers.Factory(

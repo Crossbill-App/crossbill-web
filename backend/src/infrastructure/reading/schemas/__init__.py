@@ -2,6 +2,8 @@
 
 from src.infrastructure.common.schemas.position_schemas import PositionResponse
 from src.infrastructure.reading.schemas.book_statistics_schemas import (
+    BookActivity,
+    BookActivityDay,
     BookReadingStatistics,
 )
 from src.infrastructure.reading.schemas.bookmark_schemas import (
@@ -34,6 +36,8 @@ from src.infrastructure.reading.schemas.reading_session_schemas import (
 )
 
 __all__ = [
+    "BookActivity",
+    "BookActivityDay",
     "BookDetails",
     "BookHighlightSearchResponse",
     "BookReadingStatistics",

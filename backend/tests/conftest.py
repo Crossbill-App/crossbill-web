@@ -215,11 +215,14 @@ async def create_test_reading_session(
     start_time: dt,
     minutes: int = 20,
     end_position: list[int] | None = None,
+    start_page: int | None = None,
+    end_page: int | None = None,
 ) -> ReadingSession:
     """Record a reading session that ran ``minutes`` from ``start_time``.
 
     The content hash only has to be unique per user, so it is derived from what
-    already distinguishes one test session from another.
+    already distinguishes one test session from another. Pages default to none,
+    as they are for a book KOReader syncs by xpoint alone.
     """
     session = ReadingSession(
         user_id=user_id,
@@ -227,6 +230,8 @@ async def create_test_reading_session(
         start_time=start_time,
         end_time=start_time + timedelta(minutes=minutes),
         end_position=end_position,
+        start_page=start_page,
+        end_page=end_page,
         content_hash=f"hash-{start_time.isoformat()}-{book.id}-{user_id}",
     )
     db_session.add(session)

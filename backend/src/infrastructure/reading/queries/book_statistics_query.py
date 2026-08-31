@@ -7,8 +7,8 @@ how far through a book a position is, or how a span of days is counted.
 """
 
 from collections.abc import Sequence
+from datetime import date, tzinfo
 from datetime import datetime as dt
-from datetime import tzinfo
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -18,12 +18,12 @@ from src.domain.common.value_objects.position import Position
 from src.domain.reading.services.reading_statistics_calculator import (
     ReadingStatistics,
     ReadingStatisticsCalculator,
-    ReadingStretch,
 )
+from src.domain.reading.services.reading_stretch import ReadingStretch
 from src.infrastructure.library.orm.book_model import Book as BookORM
 from src.infrastructure.reading.orm.reading_session_model import ReadingSession as ReadingSessionORM
 
-SessionRow = tuple[dt, dt, list[int] | None]
+SessionRow = tuple[dt, dt, list[int] | None, int | None, int | None]
 BookRow = tuple[int, list[int] | None]
 
 
@@ -42,7 +42,7 @@ class BookStatisticsQuery:
         self.statistics_calculator = statistics_calculator
 
     async def get_statistics(
-        self, book_id: BookId, user_id: UserId, zone: tzinfo
+        self, book_id: BookId, user_id: UserId, today: date, zone: tzinfo
     ) -> ReadingStatistics | None:
         """Return the book's statistics, or ``None`` if the user has no such book."""
         book = await self._fetch_book(book_id, user_id)
@@ -52,19 +52,25 @@ class BookStatisticsQuery:
 
         sessions = await self._fetch_sessions(book_id, user_id)
         stretches = [
-            ReadingStretch(start_time=start_time, end_time=end_time)
-            for start_time, end_time, _ in sessions
+            ReadingStretch(
+                start_time=start_time,
+                end_time=end_time,
+                start_page=start_page,
+                end_page=end_page,
+            )
+            for start_time, end_time, _, start_page, end_page in sessions
         ]
 
         reading_position = None
         if sessions:
-            _, _, latest_end_position = sessions[-1]
+            latest_end_position = sessions[-1][2]
             reading_position = _position(latest_end_position)
 
         return self.statistics_calculator.calculate(
             stretches=stretches,
             reading_position=reading_position,
             book_end_position=_position(book_end_position),
+            today=today,
             zone=zone,
         )
 
@@ -81,7 +87,7 @@ class BookStatisticsQuery:
         return (await self.db.execute(stmt)).tuples().first()
 
     async def _fetch_sessions(self, book_id: BookId, user_id: UserId) -> Sequence[SessionRow]:
-        """Load every session's timespan and end position, oldest first.
+        """Load every session's timespan, end position and page range, oldest first.
 
         A column list rather than the ORM entity: ``ReadingSession.highlights``
         is ``lazy="selectin"`` and the statistics render none of them.
@@ -91,6 +97,8 @@ class BookStatisticsQuery:
                 ReadingSessionORM.start_time,
                 ReadingSessionORM.end_time,
                 ReadingSessionORM.end_position,
+                ReadingSessionORM.start_page,
+                ReadingSessionORM.end_page,
             )
             .where(
                 ReadingSessionORM.book_id == book_id.value,

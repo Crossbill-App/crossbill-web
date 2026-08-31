@@ -1,4 +1,4 @@
-import type { BookReadingStatistics, ReadingSession } from '@/api/generated/model';
+import type { BookActivity, BookReadingStatistics, ReadingSession } from '@/api/generated/model';
 
 export const aReadingSession = (overrides: Partial<ReadingSession> = {}): ReadingSession => ({
   id: 200,
@@ -14,6 +14,24 @@ export const aReadingSession = (overrides: Partial<ReadingSession> = {}): Readin
   ...overrides,
 });
 
+/**
+ * A year of reading ending on the last session, with three days coloured.
+ *
+ * Sparse, as the API sends it: the window is a full 365 days and only the days
+ * with reading are listed.
+ */
+export const aBookActivity = (overrides: Partial<BookActivity> = {}): BookActivity => ({
+  unit: 'pages',
+  range_start: '2025-10-13',
+  range_end: '2026-10-12',
+  days: [
+    { date: '2026-09-01', value: 10, level: 1 },
+    { date: '2026-09-02', value: 30, level: 2 },
+    { date: '2026-10-12', value: 60, level: 4 },
+  ],
+  ...overrides,
+});
+
 export const aBookStatistics = (
   overrides: Partial<BookReadingStatistics> = {}
 ): BookReadingStatistics => ({
@@ -24,5 +42,6 @@ export const aBookStatistics = (
   last_session_end: '2026-10-12T20:41:00Z',
   span_days: 42,
   progress_percent: 63,
+  activity: aBookActivity(),
   ...overrides,
 });

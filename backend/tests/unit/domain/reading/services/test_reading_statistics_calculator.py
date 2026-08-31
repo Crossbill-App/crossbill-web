@@ -1,22 +1,27 @@
 """Tests for the reading-statistics domain service."""
 
-from datetime import UTC, datetime, timedelta
+from datetime import UTC, date, datetime, timedelta
 from zoneinfo import ZoneInfo
 
 import pytest
 
 from src.domain.common.value_objects.position import Position
+from src.domain.reading.services.reading_activity_calculator import ReadingActivityCalculator
 from src.domain.reading.services.reading_statistics_calculator import (
     ReadingStatisticsCalculator,
-    ReadingStretch,
 )
+from src.domain.reading.services.reading_stretch import ReadingStretch
 
 HELSINKI = ZoneInfo("Europe/Helsinki")
+
+# Well after every fixture's reading, so the activity grid these tests ignore
+# never changes what the numbers they do assert on come out as.
+TODAY = date(2024, 6, 1)
 
 
 @pytest.fixture
 def calculator() -> ReadingStatisticsCalculator:
-    return ReadingStatisticsCalculator()
+    return ReadingStatisticsCalculator(activity_calculator=ReadingActivityCalculator())
 
 
 def stretch(start: datetime, minutes: int) -> ReadingStretch:
@@ -27,7 +32,7 @@ def stretch(start: datetime, minutes: int) -> ReadingStretch:
 def test_a_book_with_no_sessions_reports_nothing_rather_than_zero(
     calculator: ReadingStatisticsCalculator,
 ) -> None:
-    statistics = calculator.calculate([], None, Position(index=100), UTC)
+    statistics = calculator.calculate([], None, Position(index=100), TODAY, UTC)
 
     assert statistics.session_count == 0
     assert statistics.total_reading_seconds == 0
@@ -44,7 +49,7 @@ def test_sessions_are_totalled_and_averaged(calculator: ReadingStatisticsCalcula
         stretch(datetime(2024, 1, 3, 20, 0, tzinfo=UTC), minutes=15),
     ]
 
-    statistics = calculator.calculate(stretches, None, None, UTC)
+    statistics = calculator.calculate(stretches, None, None, TODAY, UTC)
 
     assert statistics.session_count == 3
     assert statistics.total_reading_seconds == 90 * 60
@@ -58,7 +63,7 @@ def test_the_reading_ends_when_the_last_session_ends_not_when_the_last_one_start
     long_one = stretch(datetime(2024, 1, 1, 20, 0, tzinfo=UTC), minutes=120)
     short_one = stretch(datetime(2024, 1, 1, 21, 0, tzinfo=UTC), minutes=10)
 
-    statistics = calculator.calculate([long_one, short_one], None, None, UTC)
+    statistics = calculator.calculate([long_one, short_one], None, None, TODAY, UTC)
 
     assert statistics.first_session_start == datetime(2024, 1, 1, 20, 0, tzinfo=UTC)
     assert statistics.last_session_end == datetime(2024, 1, 1, 22, 0, tzinfo=UTC)
@@ -68,7 +73,7 @@ def test_a_book_read_in_one_sitting_spans_a_single_day(
     calculator: ReadingStatisticsCalculator,
 ) -> None:
     statistics = calculator.calculate(
-        [stretch(datetime(2024, 1, 1, 20, 0, tzinfo=UTC), minutes=30)], None, None, UTC
+        [stretch(datetime(2024, 1, 1, 20, 0, tzinfo=UTC), minutes=30)], None, None, TODAY, UTC
     )
 
     assert statistics.span_days == 1
@@ -84,14 +89,14 @@ def test_the_span_is_counted_in_the_readers_own_timezone(
         stretch(datetime(2024, 1, 16, 5, 0, tzinfo=UTC), minutes=30),
     ]
 
-    assert calculator.calculate(stretches, None, None, UTC).span_days == 2
-    assert calculator.calculate(stretches, None, None, HELSINKI).span_days == 1
+    assert calculator.calculate(stretches, None, None, TODAY, UTC).span_days == 2
+    assert calculator.calculate(stretches, None, None, TODAY, HELSINKI).span_days == 1
 
 
 def test_a_zoneless_timestamp_is_read_as_utc(calculator: ReadingStatisticsCalculator) -> None:
     naive = stretch(datetime(2024, 1, 15, 23, 30, tzinfo=UTC).replace(tzinfo=None), minutes=60)
 
-    statistics = calculator.calculate([naive], None, None, HELSINKI)
+    statistics = calculator.calculate([naive], None, None, TODAY, HELSINKI)
 
     assert statistics.total_reading_seconds == 60 * 60
     # 23:30 UTC is 01:30 the next morning in Helsinki, so the reading spans one
@@ -109,7 +114,11 @@ def test_a_session_ending_before_it_started_contributes_no_time(
     )
 
     statistics = calculator.calculate(
-        [stretch(datetime(2024, 1, 1, 8, 0, tzinfo=UTC), minutes=20), backwards], None, None, UTC
+        [stretch(datetime(2024, 1, 1, 8, 0, tzinfo=UTC), minutes=20), backwards],
+        None,
+        None,
+        TODAY,
+        UTC,
     )
 
     assert statistics.total_reading_seconds == 20 * 60
@@ -128,7 +137,7 @@ def test_progress_is_the_share_of_the_book_in_document_order(
     calculator: ReadingStatisticsCalculator, reading_index: int, end_index: int, expected: int
 ) -> None:
     statistics = calculator.calculate(
-        [], Position(index=reading_index), Position(index=end_index), UTC
+        [], Position(index=reading_index), Position(index=end_index), TODAY, UTC
     )
 
     assert statistics.progress_percent == expected
@@ -147,6 +156,6 @@ def test_progress_is_unknown_without_both_ends_of_the_measurement(
     reading_position: Position | None,
     book_end_position: Position | None,
 ) -> None:
-    statistics = calculator.calculate([], reading_position, book_end_position, UTC)
+    statistics = calculator.calculate([], reading_position, book_end_position, TODAY, UTC)
 
     assert statistics.progress_percent is None

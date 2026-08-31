@@ -71,6 +71,14 @@ const customColors = {
   backgrounds: {
     subtle: 'rgba(0, 0, 0, 0.05)', // Very subtle background (dialog ProgressBar track, markdown code blocks, chat bubbles)
   },
+
+  // The reading-activity grid's two ends. Every shade between them is
+  // interpolated, so a day the book was not opened and the reader's best day
+  // are the only two colours stated here.
+  activityGrid: {
+    empty: colors.stone[100], // A day with no reading
+    full: colors.amber[700], // The book's heaviest reading days, as primary.main
+  },
 };
 
 const COARSE_POINTER_QUERY = '@media (pointer: coarse)';

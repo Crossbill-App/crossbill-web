@@ -6,7 +6,7 @@ comes back exists to be rendered and must never be fed back into a command. See
 ``docs/adr/0001-read-models-and-query-services.md``.
 """
 
-from datetime import tzinfo
+from datetime import date, tzinfo
 from typing import Protocol
 
 from src.domain.common.value_objects.ids import BookId, UserId
@@ -17,11 +17,14 @@ class BookStatisticsQueryProtocol(Protocol):
     """Port for reading what a book's reading sessions add up to."""
 
     async def get_statistics(
-        self, book_id: BookId, user_id: UserId, zone: tzinfo
+        self, book_id: BookId, user_id: UserId, today: date, zone: tzinfo
     ) -> ReadingStatistics | None:
         """Return the book's statistics, or ``None`` if the user has no such book.
 
         ``zone`` is the reader's timezone: it decides which calendar day each
-        session falls on, and so how many days the reading spanned.
+        session falls on, and so how many days the reading spanned. ``today``
+        is that reader's own today, which the activity grid's window ends on;
+        it is passed in rather than read from the clock so that what the grid
+        covers is decided at the edge, not deep inside the domain.
         """
         ...

@@ -1,17 +1,44 @@
 """Tests for the book reading-statistics API endpoint."""
 
-from datetime import UTC, datetime
+from collections.abc import Iterator
+from contextlib import contextmanager
+from datetime import UTC, date, datetime
 from typing import Any
 
 from httpx import AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession
 from starlette import status
 
+from src.infrastructure.reading.routers.book_statistics import reader_today
+from src.main import app
 from src.models import Book, User
 from tests.conftest import create_test_book, create_test_reading_session
 
 DEFAULT_USER_ID = 1
 OTHER_USER_ID = 2
+
+
+@contextmanager
+def readers_today(day: date) -> Iterator[None]:
+    """Pin the day the activity window ends on, so a test asserts on a fixed grid."""
+    app.dependency_overrides[reader_today] = lambda: day
+    try:
+        yield
+    finally:
+        del app.dependency_overrides[reader_today]
+
+
+async def add_three_days_of_paged_reading(db_session: AsyncSession, book: Book) -> None:
+    """10, 30 and 60 pages on consecutive days -- a median of 30, so cuts at 15 and 45."""
+    for day, (start_page, end_page) in enumerate([(0, 10), (10, 40), (40, 100)], start=1):
+        await create_test_reading_session(
+            db_session,
+            book,
+            DEFAULT_USER_ID,
+            datetime(2024, 3, day, 20, tzinfo=UTC),
+            start_page=start_page,
+            end_page=end_page,
+        )
 
 
 async def get_statistics(
@@ -135,3 +162,81 @@ class TestGetBookStatistics:
         body = await get_statistics(client, test_book.id, {"tz": "a" * 10_000})
 
         assert body["span_days"] == 2
+
+
+class TestBookActivityGrid:
+    """The daily activity grid carried by GET /api/v1/books/{book_id}/statistics."""
+
+    async def test_days_are_coloured_against_this_books_typical_day(
+        self, client: AsyncClient, db_session: AsyncSession, test_book: Book
+    ) -> None:
+        await add_three_days_of_paged_reading(db_session, test_book)
+
+        activity = (await get_statistics(client, test_book.id))["activity"]
+
+        assert activity["unit"] == "pages"
+        assert activity["days"] == [
+            {"date": "2024-03-01", "value": 10, "level": 1},
+            {"date": "2024-03-02", "value": 30, "level": 2},
+            {"date": "2024-03-03", "value": 60, "level": 4},
+        ]
+
+    async def test_the_grid_spans_a_year_ending_on_the_last_day_read(
+        self, client: AsyncClient, db_session: AsyncSession, test_book: Book
+    ) -> None:
+        """This book was last read long before today, so today would be a year of nothing."""
+        await add_three_days_of_paged_reading(db_session, test_book)
+
+        activity = (await get_statistics(client, test_book.id))["activity"]
+
+        assert activity["range_end"] == "2024-03-03"
+        assert activity["range_start"] == "2023-03-05"
+
+    async def test_the_grid_ends_on_the_readers_today_for_a_book_still_being_read(
+        self, client: AsyncClient, db_session: AsyncSession, test_book: Book
+    ) -> None:
+        """So the fortnight since the last session shows as the gap it is."""
+        await add_three_days_of_paged_reading(db_session, test_book)
+
+        with readers_today(date(2024, 3, 17)):
+            activity = (await get_statistics(client, test_book.id))["activity"]
+
+        assert activity["range_end"] == "2024-03-17"
+        assert activity["range_start"] == "2023-03-19"
+        assert [day["date"] for day in activity["days"]] == [
+            "2024-03-01",
+            "2024-03-02",
+            "2024-03-03",
+        ]
+
+    async def test_a_book_without_page_numbers_is_measured_in_minutes(
+        self, client: AsyncClient, db_session: AsyncSession, test_book: Book
+    ) -> None:
+        """One session synced by xpoint alone puts the whole book on minutes."""
+        await add_three_days_of_paged_reading(db_session, test_book)
+        await create_test_reading_session(
+            db_session, test_book, DEFAULT_USER_ID, datetime(2024, 3, 4, 20, tzinfo=UTC), minutes=45
+        )
+
+        activity = (await get_statistics(client, test_book.id))["activity"]
+
+        assert activity["unit"] == "minutes"
+        assert [day["value"] for day in activity["days"]] == [20, 20, 20, 45]
+
+    async def test_days_are_bucketed_in_the_requested_timezone(
+        self, client: AsyncClient, db_session: AsyncSession, test_book: Book
+    ) -> None:
+        await add_sessions_either_side_of_utc_midnight(db_session, test_book)
+
+        in_utc = (await get_statistics(client, test_book.id))["activity"]
+        in_helsinki = (await get_statistics(client, test_book.id, {"tz": "Europe/Helsinki"}))[
+            "activity"
+        ]
+
+        assert [day["date"] for day in in_utc["days"]] == ["2024-03-15", "2024-03-16"]
+        assert in_helsinki["days"] == [{"date": "2024-03-16", "value": 40, "level": 2}]
+
+    async def test_a_book_nobody_has_opened_has_no_grid(
+        self, client: AsyncClient, test_book: Book
+    ) -> None:
+        assert (await get_statistics(client, test_book.id))["activity"] is None

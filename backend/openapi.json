@@ -4398,6 +4398,76 @@
         ],
         "title": "Body_upload_book_epub"
       },
+      "BookActivity": {
+        "properties": {
+          "unit": {
+            "type": "string",
+            "enum": [
+              "pages",
+              "minutes"
+            ],
+            "title": "Unit",
+            "description": "What each day's value counts. Pages when every session of the book recorded them, minutes otherwise"
+          },
+          "range_start": {
+            "type": "string",
+            "format": "date",
+            "title": "Range Start",
+            "description": "First day of the window the grid spans"
+          },
+          "range_end": {
+            "type": "string",
+            "format": "date",
+            "title": "Range End",
+            "description": "Last day of the window the grid spans"
+          },
+          "days": {
+            "items": {
+              "$ref": "#/components/schemas/BookActivityDay"
+            },
+            "type": "array",
+            "title": "Days",
+            "description": "Days with reading, oldest first"
+          }
+        },
+        "type": "object",
+        "required": [
+          "unit",
+          "range_start",
+          "range_end",
+          "days"
+        ],
+        "title": "BookActivity",
+        "description": "A book's reading laid out day by day, for the activity grid.\n\nSparse on purpose: ``days`` carries only the days with something to show,\noldest first, and the window the grid spans is ``range_start`` to\n``range_end`` regardless. The client fills the gaps."
+      },
+      "BookActivityDay": {
+        "properties": {
+          "date": {
+            "type": "string",
+            "format": "date",
+            "title": "Date",
+            "description": "The calendar day, in the requested timezone"
+          },
+          "value": {
+            "type": "integer",
+            "title": "Value",
+            "description": "Pages read, or minutes read, per the grid's unit"
+          },
+          "level": {
+            "type": "integer",
+            "title": "Level",
+            "description": "Shade of the square, 1-4; days with nothing are omitted"
+          }
+        },
+        "type": "object",
+        "required": [
+          "date",
+          "value",
+          "level"
+        ],
+        "title": "BookActivityDay",
+        "description": "One coloured square of the reading-activity grid."
+      },
       "BookCreate": {
         "properties": {
           "title": {
@@ -4840,6 +4910,17 @@
             ],
             "title": "Progress Percent",
             "description": "How far through the book the reader has got, 0-100"
+          },
+          "activity": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/BookActivity"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Daily reading activity for the grid, or null when there is no day worth colouring"
           }
         },
         "type": "object",

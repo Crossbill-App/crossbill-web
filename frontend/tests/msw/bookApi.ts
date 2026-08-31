@@ -13,7 +13,7 @@ import type {
 import { http, HttpResponse } from 'msw';
 import { aBookDetails } from '../fixtures/book';
 import { aNote } from '../fixtures/notes';
-import { aBookStatistics } from '../fixtures/sessions';
+import { aBookActivity, aBookStatistics } from '../fixtures/sessions';
 
 interface BookApiState {
   book: BookDetails;
@@ -40,7 +40,13 @@ export function bookApi(initial: Partial<BookApiState> = {}) {
     // Counted off the sessions the handler was given, so a tab with no
     // sessions does not come with statistics summarising them anyway.
     statistics:
-      initial.statistics ?? aBookStatistics({ session_count: initial.sessions?.length ?? 0 }),
+      initial.statistics ??
+      aBookStatistics({
+        session_count: initial.sessions?.length ?? 0,
+        // A tab with no sessions gets no grid, for the same reason it gets no
+        // summary: there is nothing for either to be about.
+        activity: initial.sessions?.length ? aBookActivity() : null,
+      }),
   };
 
   const findNote = (noteId: string | readonly string[] | undefined) =>
