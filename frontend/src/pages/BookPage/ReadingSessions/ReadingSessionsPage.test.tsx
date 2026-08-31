@@ -3,6 +3,7 @@ import { aBookStatistics, aReadingSession } from '@tests/fixtures/sessions';
 import { renderApp } from '@tests/harness/renderApp';
 import { bookApi } from '@tests/msw/bookApi';
 import { worker } from '@tests/msw/worker';
+import { http, HttpResponse } from 'msw';
 import { expect, test } from 'vitest';
 
 test('a session card headlines the session and lists its pages and duration', async () => {
@@ -107,4 +108,25 @@ test('a book with no recorded position summarises the sessions without a progres
 
   await expect.element(screen.getByText('8h 25m')).toBeVisible();
   expect(screen.getByRole('progressbar', { name: 'Reading progress' }).elements()).toHaveLength(0);
+});
+
+test('a failed summary reports itself and leaves the sessions listed', async () => {
+  const { handlers } = bookApi({
+    book: aBookDetails(),
+    sessions: [aReadingSession({ id: 200 })],
+    statistics: aBookStatistics(),
+  });
+  worker.use(...handlers);
+  // Registered last, so it takes precedence over the happy-path GET above.
+  worker.use(
+    http.get('/api/v1/books/:bookId/statistics', () => new HttpResponse(null, { status: 500 }))
+  );
+
+  const screen = await renderApp({ path: '/book/1/sessions' });
+
+  await expect
+    .element(screen.getByRole('alert').filter({ hasText: 'Failed to load reading statistics.' }))
+    .toBeVisible();
+  await expect.element(screen.getByText('Pages 102 – 115')).toBeVisible();
+  expect(screen.getByText('Time read').elements()).toHaveLength(0);
 });

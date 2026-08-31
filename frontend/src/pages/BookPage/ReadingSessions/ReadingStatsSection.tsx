@@ -1,7 +1,9 @@
 import { useGetBookStatistics } from '@/api/generated/statistics/statistics';
+import { useSnackbar } from '@/context/SnackbarContext.tsx';
 import { countLabel } from '@/utils/counts.ts';
 import { browserTimeZone, formatDate, formatSeconds } from '@/utils/date.ts';
 import { Box, LinearProgress, Typography } from '@mui/material';
+import { useEffect } from 'react';
 
 interface ReadingStatsSectionProps {
   bookId: number;
@@ -73,7 +75,16 @@ const StatsGrid = ({ stats }: StatsGridProps) => (
 );
 
 export const ReadingStatsSection = ({ bookId }: ReadingStatsSectionProps) => {
-  const { data } = useGetBookStatistics(bookId, { tz: browserTimeZone() });
+  const { data, isError } = useGetBookStatistics(bookId, { tz: browserTimeZone() });
+  const { showSnackbar } = useSnackbar();
+
+  // The summary is the smaller half of the tab, so a failure is reported
+  // beside the sessions rather than in place of them.
+  useEffect(() => {
+    if (isError) {
+      showSnackbar('Failed to load reading statistics.', 'error');
+    }
+  }, [isError, showSnackbar]);
 
   if (!data || data.session_count === 0) {
     return null;
