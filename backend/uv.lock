@@ -653,6 +653,7 @@ dependencies = [
     { name = "sqlalchemy", extra = ["asyncio"] },
     { name = "structlog" },
     { name = "structlog-sentry" },
+    { name = "tzdata" },
     { name = "uvicorn", extra = ["standard"] },
 ]
 
@@ -693,6 +694,7 @@ requires-dist = [
     { name = "sqlalchemy", extras = ["asyncio"], specifier = ">=2.0.44,<3.0.0" },
     { name = "structlog", specifier = ">=25.5.0,<27.0.0" },
     { name = "structlog-sentry", specifier = ">=2.2.1" },
+    { name = "tzdata", specifier = ">=2025.3" },
     { name = "uvicorn", extras = ["standard"], specifier = ">=0.44.0,<0.53.0" },
 ]
 

@@ -1,6 +1,9 @@
 """Reading context schemas."""
 
 from src.infrastructure.common.schemas.position_schemas import PositionResponse
+from src.infrastructure.reading.schemas.book_statistics_schemas import (
+    BookReadingStatistics,
+)
 from src.infrastructure.reading.schemas.bookmark_schemas import (
     Bookmark,
     BookmarkBase,
@@ -33,6 +36,7 @@ from src.infrastructure.reading.schemas.reading_session_schemas import (
 __all__ = [
     "BookDetails",
     "BookHighlightSearchResponse",
+    "BookReadingStatistics",
     "Bookmark",
     "BookmarkBase",
     "BookmarkCreateRequest",

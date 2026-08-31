@@ -56,6 +56,7 @@ from src.infrastructure.library.routers import covers as library_covers
 from src.infrastructure.library.routers import ereader as library_ereader
 from src.infrastructure.notes.routers import notes as notes_router
 from src.infrastructure.reading.routers import (
+    book_statistics,
     bookmarks,
     chapter_content,
     chapter_digest,
@@ -423,6 +424,7 @@ app.include_router(library_covers.router, prefix=settings.API_V1_PREFIX)
 app.include_router(highlights.router, prefix=settings.API_V1_PREFIX)
 app.include_router(tagging_tags.router, prefix=settings.API_V1_PREFIX)
 app.include_router(reading_sessions.router, prefix=settings.API_V1_PREFIX)
+app.include_router(book_statistics.router, prefix=settings.API_V1_PREFIX)
 app.include_router(bookmarks.router, prefix=settings.API_V1_PREFIX)
 app.include_router(chapter_digest.router, prefix=settings.API_V1_PREFIX)
 app.include_router(chapter_digest.book_digest_router, prefix=settings.API_V1_PREFIX)
