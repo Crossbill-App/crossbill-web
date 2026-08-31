@@ -2,11 +2,12 @@ import type { JobBatchResponse } from '@/api/generated/model';
 import { useBackfillEmbeddings, useGetActiveBackfill } from '@/api/generated/semantic/semantic';
 import { AIActionButton } from '@/components/buttons/AIActionButton';
 import { IconButtonWithTooltip } from '@/components/buttons/IconButtonWithTooltip';
+import { SectionTitle } from '@/components/typography/SectionTitle.tsx';
 import { useSnackbar } from '@/context/SnackbarContext';
 import { useJobBatchProgress } from '@/hooks/useJobBatchProgress';
 import { useCacheEvents } from '@/lib/cacheEvents.ts';
 import { CloseIcon } from '@/theme/Icons';
-import { Box, CircularProgress, Divider, Typography } from '@mui/material';
+import { Box, CircularProgress, Typography } from '@mui/material';
 import type { AxiosError } from 'axios';
 
 type ShowSnackbar = ReturnType<typeof useSnackbar>['showSnackbar'];
@@ -75,15 +76,11 @@ export const EmbeddingBackfillSection = () => {
 
   return (
     <Box sx={{ mt: 6 }}>
-      <Typography variant="h3" sx={{ mb: 1, color: 'text.primary' }}>
-        Search by meaning
-      </Typography>
+      <SectionTitle showDivider>Semantic search</SectionTitle>
       <Typography variant="body2" sx={{ mb: 3, color: 'text.secondary' }}>
         Index your library for semantic search. Only content that has not been embedded yet is
-        processed, so running this again is cheap.
+        processed.
       </Typography>
-
-      <Divider sx={{ mb: 3 }} />
 
       <Box sx={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: 2 }}>
         <AIActionButton

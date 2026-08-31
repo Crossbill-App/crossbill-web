@@ -1,6 +1,7 @@
+import { SectionTitle } from '@/components/typography/SectionTitle.tsx';
 import { useSettings } from '@/context/SettingsContext';
 import { ExternalLinkIcon } from '@/theme/Icons.tsx';
-import { Box, Divider, Link, Typography } from '@mui/material';
+import { Box, Link, Typography } from '@mui/material';
 
 const REPOSITORY_URL = 'https://github.com/Crossbill-App/crossbill-web';
 const DOCUMENTATION_URL = 'https://crossbill-app.github.io/crossbill-web/';
@@ -34,11 +35,7 @@ export const AboutSection = () => {
 
   return (
     <Box sx={{ mt: 6 }}>
-      <Typography variant="h3" sx={{ mb: 3, color: 'text.primary' }}>
-        About
-      </Typography>
-
-      <Divider sx={{ mb: 3 }} />
+      <SectionTitle showDivider>About</SectionTitle>
 
       <Box
         sx={{
