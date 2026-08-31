@@ -120,24 +120,23 @@ test('a failed summary reports itself and leaves the sessions listed', async () 
 test('the activity grid draws the whole window, not only the days that were read', async () => {
   const screen = await renderStatisticsTab({ ...oneSession, statistics: aBookStatistics() });
 
-  await expect.element(screen.getByRole('heading', { name: 'Reading activity' })).toBeVisible();
+  await expect.element(screen.getByRole('img', { name: /pages on / }).first()).toBeVisible();
 
   // The API sends three days and the window's two ends; every day between them
   // is the client's to fill, so a 365-day window must draw 365 squares.
-  expect(screen.container.querySelectorAll('[data-date]')).toHaveLength(365);
-  expect(screen.container.querySelector('[data-date="2026-10-12"]')).toHaveAttribute(
-    'data-level',
-    '4'
-  );
-  expect(screen.container.querySelector('[data-date="2026-09-01"]')).toHaveAttribute(
-    'data-level',
-    '1'
-  );
-  // A day nobody read is a square all the same, just an uncoloured one.
-  expect(screen.container.querySelector('[data-date="2026-09-03"]')).toHaveAttribute(
-    'data-level',
-    '0'
-  );
+  expect(screen.getByRole('img', { name: /pages on / }).elements()).toHaveLength(365);
+});
+
+test('every square says what its day came to, tooltip or not', async () => {
+  const screen = await renderStatisticsTab({ ...oneSession, statistics: aBookStatistics() });
+
+  // The dates are rendered in the browser's own locale, so each label is
+  // matched by the count that opens it. A phone cannot hover a tooltip, so
+  // this label is the only way to the number there.
+  await expect.element(screen.getByRole('img', { name: /^60 pages on / })).toBeVisible();
+  await expect.element(screen.getByRole('img', { name: /^10 pages on / })).toBeVisible();
+  // A day nobody read is a square all the same, and says so.
+  expect(screen.getByRole('img', { name: /^0 pages on / }).elements()).toHaveLength(362);
 });
 
 test('the grid says what its squares count and what darker means', async () => {
@@ -159,22 +158,22 @@ test('a book synced without page numbers has its grid measured in minutes', asyn
   await expect.element(screen.getByText(/· minutes read$/)).toBeVisible();
 });
 
-test('a book with nothing to plot keeps the heading and says so', async () => {
+test('a book with nothing to plot draws no grid', async () => {
   const screen = await renderStatisticsTab({ sessions: [] });
 
-  await expect.element(screen.getByRole('heading', { name: 'Reading activity' })).toBeVisible();
-  await expect.element(screen.getByText('No reading activity recorded yet.')).toBeVisible();
-  expect(screen.container.querySelectorAll('[data-date]')).toHaveLength(0);
+  // The grid stands down with the rest of the summary rather than reporting
+  // an absence of its own.
+  await expect.element(screen.getByText('No reading sessions recorded yet.')).toBeVisible();
+  expect(screen.getByRole('img', { name: / on / }).elements()).toHaveLength(0);
 });
 
-test('a failed statistics request leaves the activity section off the page entirely', async () => {
+test('a failed statistics request leaves the grid off the page entirely', async () => {
   const screen = await renderStatisticsTab(oneSession, statisticsFails);
 
-  // The snackbar reports the failure once; claiming "no activity recorded"
+  // The snackbar reports the failure once; a grid claiming an empty year
   // would be a second, and a false, account of the same thing.
   await expect
     .element(screen.getByRole('alert').filter({ hasText: 'Failed to load reading statistics.' }))
     .toBeVisible();
-  expect(screen.getByRole('heading', { name: 'Reading activity' }).elements()).toHaveLength(0);
-  expect(screen.getByText('No reading activity recorded yet.').elements()).toHaveLength(0);
+  expect(screen.getByRole('img', { name: / on / }).elements()).toHaveLength(0);
 });
