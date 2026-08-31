@@ -171,31 +171,6 @@ class ReadingSessionRepository:
         orms = result.scalars().all()
         return [self.mapper.to_domain(orm) for orm in orms]
 
-    async def find_by_id(
-        self, session_id: ReadingSessionId, user_id: UserId
-    ) -> ReadingSession | None:
-        """
-        Load reading session by ID.
-
-        Args:
-            session_id: Session ID value object
-            user_id: User ID for authorization check
-
-        Returns:
-            ReadingSession domain entity if found, None otherwise
-        """
-        stmt = select(ReadingSessionORM).where(
-            ReadingSessionORM.id == session_id.value,
-            ReadingSessionORM.user_id == user_id.value,
-        )
-        result = await self.db.execute(stmt)
-        orm_model = result.scalar_one_or_none()
-
-        if not orm_model:
-            return None
-
-        return self.mapper.to_domain(orm_model)
-
     async def bulk_update_positions(
         self,
         position_updates: list[tuple[ReadingSessionId, Position, Position]],

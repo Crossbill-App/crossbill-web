@@ -22,10 +22,6 @@ class ReadingSessionRepositoryProtocol(Protocol):
         self, book_id: BookId, user_id: UserId, limit: int, offset: int
     ) -> list[ReadingSession]: ...
 
-    async def find_by_id(
-        self, session_id: ReadingSessionId, user_id: UserId
-    ) -> ReadingSession | None: ...
-
     async def bulk_update_positions(
         self,
         position_updates: list[tuple[ReadingSessionId, Position, Position]],
