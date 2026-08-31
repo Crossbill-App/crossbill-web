@@ -31,6 +31,7 @@ export {
   PaletteOutlined as PaletteIcon,
   AutoStories as ReadingSessionIcon,
   Psychology as ReflectionIcon,
+  Equalizer as StatisticsIcon,
   LocalOffer as TagIcon,
 } from '@mui/icons-material';
 

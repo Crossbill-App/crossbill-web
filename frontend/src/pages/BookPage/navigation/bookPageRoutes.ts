@@ -3,8 +3,8 @@ import {
   FlashcardsIcon,
   HighlightsIcon,
   NotesIcon,
-  ReadingSessionIcon,
   ReflectionIcon,
+  StatisticsIcon,
 } from '@/theme/Icons.tsx';
 import type { SvgIconComponent } from '@mui/icons-material';
 
@@ -75,7 +75,7 @@ export const BOOK_PAGE_ROUTES: BookPageRouteConfig[] = [
   {
     to: '/book/$bookId/statistics',
     segment: 'statistics',
-    icon: ReadingSessionIcon,
+    icon: StatisticsIcon,
     overflow: true,
   },
 ];
