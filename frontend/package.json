@@ -43,7 +43,7 @@
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
-    "@tanstack/router-cli": "^1.167.21",
+    "@tanstack/router-cli": "^1.167.33",
     "@types/lodash": "^4.17.25",
     "@types/luxon": "^3.7.3",
     "@types/react": "^19.2.18",
