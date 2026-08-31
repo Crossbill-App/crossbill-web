@@ -2,10 +2,11 @@ import { getGetBookDetailsQueryKey } from '@/api/generated/books/books.ts';
 import { aBookDetails, aChapter, aHighlight } from '@tests/fixtures/book';
 import { aNote } from '@tests/fixtures/notes';
 import { renderApp } from '@tests/harness/renderApp';
+import { atCompactViewport } from '@tests/harness/viewport';
 import { bookApi } from '@tests/msw/bookApi';
 import { worker } from '@tests/msw/worker';
 import { http, HttpResponse } from 'msw';
-import { expect, test } from 'vitest';
+import { expect, test, vi } from 'vitest';
 
 test('renders the book and its chapters', async () => {
   const { handlers } = bookApi({
@@ -296,4 +297,50 @@ test('a tab renders its right rail into the shell, not inside its own content', 
   expect(screen.getByRole('main').getByRole('list', { name: 'Chapters' }).elements()).toHaveLength(
     0
   );
+});
+
+/** On a phone the book header alone used to fill the screen after a tab change. */
+test('switching tabs on mobile brings the tab heading into view', async () => {
+  worker.use(
+    ...bookApi({
+      book: aBookDetails({
+        chapters: [aChapter({ id: 10, highlights: [aHighlight({ id: 300 })] })],
+      }),
+    }).handlers
+  );
+
+  await atCompactViewport(async () => {
+    const screen = await renderApp({ path: '/book/1/structure' });
+    await expect.element(screen.getByRole('heading', { name: 'Structure' })).toBeVisible();
+    expect(window.scrollY).toBe(0);
+
+    await screen.getByRole('button', { name: 'Highlights' }).click();
+
+    const heading = screen.getByRole('heading', { name: 'Highlights' });
+    await expect.element(heading).toBeVisible();
+    // Polled: the snap is a smooth scroll, so the heading arrives over several
+    // frames.
+    await vi.waitFor(() => {
+      // Clear of the sticky 56px app bar with air to spare, and high enough
+      // that the book header is off screen.
+      expect(heading.element().getBoundingClientRect().top).toBeGreaterThan(72);
+      expect(heading.element().getBoundingClientRect().top).toBeLessThan(120);
+    });
+  });
+});
+
+/** A book opens at its own top, header and all, rather than at its first tab. */
+test('opening a book on mobile leaves the page at the top', async () => {
+  worker.use(...bookApi({ book: aBookDetails({ title: 'The Pragmatic Reader' }) }).handlers);
+
+  await atCompactViewport(async () => {
+    const screen = await renderApp({ path: '/book/1/structure' });
+    await expect
+      .element(screen.getByRole('heading', { name: 'The Pragmatic Reader' }))
+      .toBeVisible();
+
+    // Settled rather than polled: an unwanted snap lands a frame or two in.
+    await new Promise((resolve) => setTimeout(resolve, 400));
+    expect(window.scrollY).toBe(0);
+  });
 });

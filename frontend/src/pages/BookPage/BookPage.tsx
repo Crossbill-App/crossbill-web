@@ -3,6 +3,7 @@ import { FadeInOut } from '@/components/animations/FadeInOut.tsx';
 import { Spinner } from '@/components/animations/Spinner.tsx';
 import { ScrollToTopButton } from '@/components/buttons/ScrollToTopButton.tsx';
 import {
+  APP_BAR_HEIGHT,
   BOTTOM_NAV_CLEARANCE,
   PageContainer,
   SNACKBAR_CLEARANCE,
@@ -13,9 +14,13 @@ import { BookPageProvider } from '@/pages/BookPage/BookPageContext.tsx';
 import { BookTitle } from '@/pages/BookPage/BookTitle/BookTitle.tsx';
 import { DesktopNavLinks } from '@/pages/BookPage/navigation/DesktopNavLinks.tsx';
 import { MobileBottomNav } from '@/pages/BookPage/navigation/MobileBottomNav.tsx';
+import { useTabContentSnap } from '@/pages/BookPage/navigation/useTabContentSnap.ts';
 import { Alert, Box, useMediaQuery, useTheme } from '@mui/material';
 import { Outlet, useLocation, useParams } from '@tanstack/react-router';
 import { useEffect, useState } from 'react';
+
+/** Air between a snapped-to tab heading and the app bar above it. */
+const SNAP_AIR = '24px';
 
 export const BookPage = () => {
   const { bookId } = useParams({ strict: false });
@@ -32,6 +37,8 @@ export const BookPage = () => {
   const [leftSidebarEl, setLeftSidebarEl] = useState<HTMLDivElement | null>(null);
   const [rightSidebarEl, setRightSidebarEl] = useState<HTMLDivElement | null>(null);
   const [fabContainerEl, setFabContainerEl] = useState<HTMLDivElement | null>(null);
+
+  const tabContentRef = useTabContentSnap({ enabled: !isDesktop, bookId, pathname });
 
   // Update recently viewed on mount. `cache` is memoised on the query client, so
   // listing it as a dependency does not make this run more than once.
@@ -124,7 +131,22 @@ export const BookPage = () => {
           ) : (
             <Box sx={{ maxWidth: '800px', mx: 'auto' }}>
               <BookTitle book={book} />
-              <Box component="main">
+              {/* Tall enough to fill the viewport, so a tab with little in it
+                  still has somewhere to snap to. */}
+              <Box
+                component="main"
+                ref={tabContentRef}
+                sx={{
+                  minHeight: {
+                    xs: `calc(100dvh - ${APP_BAR_HEIGHT.xs} - ${BOTTOM_NAV_CLEARANCE})`,
+                    sm: `calc(100dvh - ${APP_BAR_HEIGHT.sm} - ${BOTTOM_NAV_CLEARANCE})`,
+                  },
+                  scrollMarginTop: {
+                    xs: `calc(${APP_BAR_HEIGHT.xs} + ${SNAP_AIR})`,
+                    sm: `calc(${APP_BAR_HEIGHT.sm} + ${SNAP_AIR})`,
+                  },
+                }}
+              >
                 <FadeInOut ekey={pathname} animateOnMount={false}>
                   <Outlet />
                 </FadeInOut>

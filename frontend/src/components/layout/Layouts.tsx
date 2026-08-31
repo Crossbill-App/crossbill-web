@@ -8,6 +8,9 @@ import { Container, styled } from '@mui/material';
  */
 export const PAGE_GUTTER = { xs: 2, sm: 3 };
 
+/** What the sticky `AppBar` covers at the top of the viewport — MUI's `Toolbar`. */
+export const APP_BAR_HEIGHT = { xs: '56px', sm: '64px' };
+
 /** The bottom navigation's own height, plus air, plus the device's safe area. */
 export const BOTTOM_NAV_CLEARANCE = 'calc(56px + 24px + env(safe-area-inset-bottom))';
 
