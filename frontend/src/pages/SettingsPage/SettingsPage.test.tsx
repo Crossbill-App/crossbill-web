@@ -29,7 +29,7 @@ test('starting a backfill shows its progress and reports completion', async () =
   const { handlers, advance } = semanticApi({ pendingJobs: 4 });
 
   const screen = await renderSettings(handlers);
-  await expect.element(screen.getByRole('heading', { name: 'Search by meaning' })).toBeVisible();
+  await expect.element(screen.getByRole('heading', { name: 'Semantic search' })).toBeVisible();
 
   await clickRun(screen);
 
