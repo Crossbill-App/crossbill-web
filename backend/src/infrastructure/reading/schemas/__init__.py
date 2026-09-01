@@ -28,6 +28,12 @@ from src.infrastructure.reading.schemas.highlight_schemas import (
     HighlightSyncRequest,
     HighlightSyncResponse,
 )
+from src.infrastructure.reading.schemas.library_reading_activity_schemas import (
+    ActivityBook,
+    LibraryActivity,
+    LibraryActivityDay,
+    LibraryReadingActivityResponse,
+)
 from src.infrastructure.reading.schemas.reading_session_schemas import (
     ReadingSession,
     ReadingSessionSyncItem,
@@ -36,6 +42,7 @@ from src.infrastructure.reading.schemas.reading_session_schemas import (
 )
 
 __all__ = [
+    "ActivityBook",
     "BookActivity",
     "BookActivityDay",
     "BookDetails",
@@ -57,6 +64,9 @@ __all__ = [
     "HighlightResponseBase",
     "HighlightSyncRequest",
     "HighlightSyncResponse",
+    "LibraryActivity",
+    "LibraryActivityDay",
+    "LibraryReadingActivityResponse",
     "PositionResponse",
     "ReadingSession",
     "ReadingSessionSyncItem",

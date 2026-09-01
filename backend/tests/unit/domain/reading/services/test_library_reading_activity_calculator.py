@@ -47,6 +47,14 @@ def timed(start: datetime, minutes: int = 30) -> ReadingStretch:
     return ReadingStretch(start_time=start, end_time=start + timedelta(minutes=minutes))
 
 
+def two_days_of_dune() -> list[ReadingStretch]:
+    """10 pages on 1 March and 30 on the 2nd -- reading for another book to sit beside."""
+    return [
+        paged(date(2024, 3, 1), pages=10),
+        paged(date(2024, 3, 2), pages=30, at_page=10),
+    ]
+
+
 def books_by_day(activity: LibraryReadingActivity) -> dict[date, tuple[BookId, ...]]:
     return {day.day: day.book_ids for day in activity.days}
 
@@ -115,13 +123,7 @@ def test_one_book_without_pages_does_not_put_the_library_on_minutes(
 ) -> None:
     """The page-less book costs its own days, not every other book's unit."""
     activity = calculator.calculate(
-        {
-            DUNE: [
-                paged(date(2024, 3, 1), pages=10),
-                paged(date(2024, 3, 2), pages=30, at_page=10),
-            ],
-            EMMA: [timed(datetime(2024, 3, 3, 20, 0, tzinfo=UTC))],
-        },
+        {DUNE: two_days_of_dune(), EMMA: [timed(datetime(2024, 3, 3, 20, 0, tzinfo=UTC))]},
         RECENTLY,
         UTC,
     )
@@ -185,13 +187,7 @@ def test_a_book_read_only_outside_the_window_names_no_day(
     calculator: LibraryReadingActivityCalculator,
 ) -> None:
     activity = calculator.calculate(
-        {
-            DUNE: [
-                paged(date(2024, 3, 1), pages=10),
-                paged(date(2024, 3, 2), pages=30, at_page=10),
-            ],
-            EMMA: [paged(date(2022, 3, 1), pages=500)],
-        },
+        {DUNE: two_days_of_dune(), EMMA: [paged(date(2022, 3, 1), pages=500)]},
         RECENTLY,
         UTC,
     )

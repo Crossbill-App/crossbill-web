@@ -1,0 +1,60 @@
+"""Pydantic schemas for the library-wide reading-activity API response."""
+
+from datetime import date as calendar_date
+from typing import Literal
+
+from pydantic import BaseModel, Field
+
+from src.infrastructure.reading.schemas.book_statistics_schemas import BookActivityDay
+
+
+class ActivityBook(BaseModel):
+    """A book the grid names, as the client needs it: a label and a link."""
+
+    id: int = Field(..., description="ID of the book")
+    title: str = Field(..., description="Title of the book")
+
+
+class LibraryActivityDay(BookActivityDay):
+    """One coloured square, and which books the reader spent it on."""
+
+    book_ids: list[int] = Field(
+        ...,
+        description=(
+            "Books read that day, in the order the reader opened them. A book that got "
+            "through nothing that day is listed all the same"
+        ),
+    )
+
+
+class LibraryActivity(BaseModel):
+    """Every book's reading laid out day by day, for the activity grid.
+
+    Sparse in the same two ways the client must already handle: ``days`` carries
+    only the days with something to show, oldest first, with the window running
+    ``range_start`` to ``range_end`` regardless; and each title is sent once in
+    ``books``, which every day then references by id.
+    """
+
+    unit: Literal["pages", "minutes"] = Field(
+        ...,
+        description=(
+            "What each day's value counts. Pages as long as any session on the grid "
+            "recorded them, minutes only when none did"
+        ),
+    )
+    range_start: calendar_date = Field(..., description="First day of the window the grid spans")
+    range_end: calendar_date = Field(..., description="Last day of the window the grid spans")
+    days: list[LibraryActivityDay] = Field(..., description="Days with reading, oldest first")
+    books: list[ActivityBook] = Field(
+        ..., description="Every book the days name, alphabetically by title"
+    )
+
+
+class LibraryReadingActivityResponse(BaseModel):
+    """Schema for what every book of a reader's adds up to, day by day."""
+
+    activity: LibraryActivity | None = Field(
+        None,
+        description=("The reader's daily activity, or null when there is no day worth colouring"),
+    )
