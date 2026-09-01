@@ -1,6 +1,6 @@
 import { useGetRecentBooks } from '@/api/generated/books/books';
 import { Spinner } from '@/components/animations/Spinner.tsx';
-import { BookCard } from '@/components/books/BookCard.tsx';
+import { BOOK_CARD_WIDTH, BookCard } from '@/components/books/BookCard.tsx';
 import { Carousel } from '@/components/carousel/Carousel.tsx';
 import { CarouselItem } from '@/components/carousel/CarouselItem.tsx';
 import { PAGE_GUTTER } from '@/components/layout/Layouts.tsx';
@@ -14,6 +14,20 @@ const RECENT_BOOKS_LIMIT = 8;
  * would cost the row its second cover.
  */
 const CAROUSEL_GAP = { xs: 2, sm: 4 };
+
+/** `CAROUSEL_GAP.sm` in pixels, at MUI's 8px spacing unit. */
+const CAROUSEL_GAP_PX = CAROUSEL_GAP.sm * 8;
+
+/**
+ * How wide the row of covers runs once every cover of it is on screen.
+ *
+ * The row is a fixed count of fixed-width cards, so on a desktop it stops well
+ * short of the page's own right edge. The activity band below is capped at the
+ * same width rather than running on to that edge, which is what keeps the two
+ * rows ending together instead of one overhanging the other.
+ */
+export const RECENT_ROW_WIDTH =
+  RECENT_BOOKS_LIMIT * BOOK_CARD_WIDTH + (RECENT_BOOKS_LIMIT - 1) * CAROUSEL_GAP_PX;
 
 /**
  * The landing page's row of covers for books the user last opened, or last

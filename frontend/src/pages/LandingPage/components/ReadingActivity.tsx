@@ -8,6 +8,7 @@ import { countLabel } from '@/utils/counts.ts';
 import { browserTimeZone, formatDay, formatSeconds } from '@/utils/date.ts';
 import { Alert, Box, useMediaQuery } from '@mui/material';
 import { useMemo } from 'react';
+import { RECENT_ROW_WIDTH } from './RecentBooks.tsx';
 
 /**
  * Books a day is named by before the rest are counted instead. Three fits the
@@ -16,7 +17,7 @@ import { useMemo } from 'react';
  */
 const NAMED_PER_DAY = 3;
 
-/** How wide the column of numbers is, where it sits beside the grid. */
+/** The narrowest the column of numbers may be squeezed to beside the grid. */
 const STATS_COLUMN = 280;
 
 /** The gap between that column and the grid, in pixels. */
@@ -109,7 +110,12 @@ export const ReadingActivity = () => {
             // that has to be scrolled to be read at all; on a desktop they
             // take the empty half of the row beside it.
             gridTemplateAreas: { xs: '"stats" "grid"', lg: '"stats grid"' },
-            gridTemplateColumns: { xs: '1fr', lg: `minmax(1fr, 0) ${STATS_COLUMN}px` },
+            // The grid takes the width a year of squares needs and the numbers
+            // take what is left, down to a floor. Sizing the numbers instead
+            // would leave the grid's right edge wherever the squares happened
+            // to end, which is the edge that has to meet the row of covers.
+            gridTemplateColumns: { xs: '1fr', lg: `minmax(${STATS_COLUMN}px, 1fr) auto` },
+            maxWidth: { lg: `${RECENT_ROW_WIDTH}px` },
             columnGap: `${STATS_GAP}px`,
             rowGap: 3,
           }}
