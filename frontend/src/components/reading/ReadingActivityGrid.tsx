@@ -27,7 +27,18 @@ interface ReadingActivityGridProps {
   activity: ActivityGridData;
   /** What else there is to say about a day, appended to its label. */
   dayNote?: (isoDate: string) => string | undefined;
+  /**
+   * How wide one day's square is, in pixels. The default matches the library's
+   * own; a page with a year's worth of room to spare passes a larger one.
+   */
+  blockSize?: number;
 }
+
+/** The square size the calendar draws at when a page asks for none. */
+const DEFAULT_BLOCK_SIZE = 12;
+
+/** The gap between two squares, as a share of the square itself. */
+const MARGIN_RATIO = 1 / 3;
 
 /** The calendar's own horizontally scrolling element, by its BEM class. */
 const SCROLL_CONTAINER = 'react-activity-calendar__scroll-container';
@@ -108,7 +119,11 @@ const dayLabel = (activity: ActivityGridData, day: Activity, note?: string) => {
  * along with the grid rather than being pinned beside it: scroll right and
  * they slide under the container's edge half a letter at a time.
  */
-export const ReadingActivityGrid = ({ activity, dayNote }: ReadingActivityGridProps) => {
+export const ReadingActivityGrid = ({
+  activity,
+  dayNote,
+  blockSize = DEFAULT_BLOCK_SIZE,
+}: ReadingActivityGridProps) => {
   const theme = useTheme();
   const { locale, months, weekStart } = useCalendarLocale();
   const data = useMemo(() => withWindowBounds(activity), [activity]);
@@ -157,6 +172,8 @@ export const ReadingActivityGrid = ({ activity, dayNote }: ReadingActivityGridPr
         theme={{
           light: [theme.customColors.activityGrid.empty, theme.customColors.activityGrid.full],
         }}
+        blockSize={blockSize}
+        blockMargin={Math.round(blockSize * MARGIN_RATIO)}
         showTotalCount={false}
         labels={{ months, legend: { less: 'Less', more: 'More' } }}
         renderBlock={(block, day) =>
