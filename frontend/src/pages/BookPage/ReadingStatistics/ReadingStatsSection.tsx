@@ -1,10 +1,10 @@
 import { useGetBookStatistics } from '@/api/generated/statistics/statistics';
+import { ReadingActivityGrid } from '@/components/reading/ReadingActivityGrid.tsx';
 import { useSnackbar } from '@/context/SnackbarContext.tsx';
 import { countLabel } from '@/utils/counts.ts';
 import { browserTimeZone, formatDate, formatSeconds } from '@/utils/date.ts';
 import { Box, LinearProgress, Typography } from '@mui/material';
 import { useEffect } from 'react';
-import { ReadingActivityGrid } from './ReadingActivityGrid.tsx';
 
 interface ReadingStatsSectionProps {
   bookId: number;
@@ -113,7 +113,11 @@ export const ReadingStatsSection = ({ bookId }: ReadingStatsSectionProps) => {
       <StatsGrid stats={stats} />
       {/* The grid is more of the same summary, not a section of its own, so it
           sits under the numbers rather than beside them with a heading. */}
-      {data.activity && <ReadingActivityGrid activity={data.activity} />}
+      {data.activity && (
+        <Box sx={{ mt: 4 }}>
+          <ReadingActivityGrid activity={data.activity} />
+        </Box>
+      )}
     </Box>
   );
 };

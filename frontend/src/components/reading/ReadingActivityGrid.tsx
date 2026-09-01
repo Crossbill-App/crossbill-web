@@ -1,4 +1,4 @@
-import type { BookActivity } from '@/api/generated/model';
+import type { BookActivityUnit } from '@/api/generated/model';
 import { countLabel } from '@/utils/counts.ts';
 import { browserLocale, formatDate } from '@/utils/date.ts';
 import { Box, Typography, useTheme } from '@mui/material';
@@ -9,8 +9,24 @@ import { cloneElement, useEffect, useMemo, useRef } from 'react';
 import { ActivityCalendar, type Activity, type DayIndex } from 'react-activity-calendar';
 import 'react-activity-calendar/tooltips.css';
 
+/**
+ * What the grid needs of an activity response, and no more.
+ *
+ * Both the book's grid and the library's satisfy it: the library's days carry
+ * the books they were spent on as well, which reach the squares through
+ * `dayNote` rather than through a second grid.
+ */
+export interface ActivityGridData {
+  unit: BookActivityUnit;
+  range_start: string;
+  range_end: string;
+  days: { date: string; value: number; level: number }[];
+}
+
 interface ReadingActivityGridProps {
-  activity: BookActivity;
+  activity: ActivityGridData;
+  /** What else there is to say about a day, appended to its label. */
+  dayNote?: (isoDate: string) => string | undefined;
 }
 
 /** The calendar's own horizontally scrolling element, by its BEM class. */
@@ -29,7 +45,7 @@ const UNIT_NOUN = { pages: 'page', minutes: 'minute' } as const;
  * and fills every gap between them itself, so the two bounds are all it needs
  * back.
  */
-const withWindowBounds = (activity: BookActivity): Activity[] => {
+const withWindowBounds = (activity: ActivityGridData): Activity[] => {
   const byDate = new Map<string, Activity>(
     activity.days.map((day) => [day.date, { date: day.date, count: day.value, level: day.level }])
   );
@@ -64,18 +80,24 @@ const useCalendarLocale = () =>
   }, []);
 
 /**
- * The reading a book got on one day, as a sentence.
+ * The reading one day got, as a sentence.
  *
  * The same words label the square for a screen reader and fill its tooltip.
  * On a phone the label is the only way to the number at all, since a tooltip
- * needs a pointer to hover.
+ * needs a pointer to hover -- which is why the books of a day are said here
+ * rather than drawn somewhere only a mouse can reach.
  */
-const dayLabel = (activity: BookActivity, day: Activity) =>
-  `${countLabel(day.count, UNIT_NOUN[activity.unit])} on ${formatDate(day.date)}`;
+const dayLabel = (activity: ActivityGridData, day: Activity, note?: string) => {
+  const reading = `${countLabel(day.count, UNIT_NOUN[activity.unit])} on ${formatDate(day.date)}`;
+  return note ? `${reading} — ${note}` : reading;
+};
 
 /**
  * A year of squares, one per day, darker the more of the book that day got
  * through, scrolling sideways in a column too narrow for it.
+ *
+ * Carries no outer spacing: the page that shows it -- under a book's numbers,
+ * or under a section heading on the dashboard -- owns where it sits.
  *
  * The scrolling is the calendar's own — it ships a scroll container around its
  * SVG — so this box sizes and pads rather than scrolls; a second scroller
@@ -86,7 +108,7 @@ const dayLabel = (activity: BookActivity, day: Activity) =>
  * along with the grid rather than being pinned beside it: scroll right and
  * they slide under the container's edge half a letter at a time.
  */
-export const ReadingActivityGrid = ({ activity }: ReadingActivityGridProps) => {
+export const ReadingActivityGrid = ({ activity, dayNote }: ReadingActivityGridProps) => {
   const theme = useTheme();
   const { locale, months, weekStart } = useCalendarLocale();
   const data = useMemo(() => withWindowBounds(activity), [activity]);
@@ -114,7 +136,6 @@ export const ReadingActivityGrid = ({ activity }: ReadingActivityGridProps) => {
     <Box
       ref={section}
       sx={{
-        mt: 4,
         // `minWidth: 0` so the calendar's own `max-width: 100%` has a real
         // width to measure against: a flex or grid child sized `auto` refuses
         // to shrink, and the grid would widen the page instead of scrolling.
@@ -139,9 +160,12 @@ export const ReadingActivityGrid = ({ activity }: ReadingActivityGridProps) => {
         showTotalCount={false}
         labels={{ months, legend: { less: 'Less', more: 'More' } }}
         renderBlock={(block, day) =>
-          cloneElement(block, { role: 'img', 'aria-label': dayLabel(activity, day) })
+          cloneElement(block, {
+            role: 'img',
+            'aria-label': dayLabel(activity, day, dayNote?.(day.date)),
+          })
         }
-        tooltips={{ activity: { text: (day) => dayLabel(activity, day) } }}
+        tooltips={{ activity: { text: (day) => dayLabel(activity, day, dayNote?.(day.date)) } }}
         weekStart={weekStart}
       />
     </Box>
