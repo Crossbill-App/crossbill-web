@@ -1,5 +1,6 @@
 import { useGetBookStatistics } from '@/api/generated/statistics/statistics';
 import { ReadingActivityGrid } from '@/components/reading/ReadingActivityGrid.tsx';
+import { Stat, type StatProps } from '@/components/reading/Stat.tsx';
 import { useSnackbar } from '@/context/SnackbarContext.tsx';
 import { countLabel } from '@/utils/counts.ts';
 import { browserTimeZone, formatDate, formatSeconds } from '@/utils/date.ts';
@@ -10,11 +11,6 @@ interface ReadingStatsSectionProps {
   bookId: number;
 }
 
-interface StatProps {
-  value: string;
-  label: string;
-}
-
 interface ReadingProgressProps {
   percent: number;
 }
@@ -22,21 +18,6 @@ interface ReadingProgressProps {
 interface StatsGridProps {
   stats: StatProps[];
 }
-
-/**
- * One number and what it counts. A paragraph rather than a heading: these are
- * facts about the book's reading, not sections of their own.
- */
-const Stat = ({ value, label }: StatProps) => (
-  <Box>
-    <Typography variant="h3" component="p">
-      {value}
-    </Typography>
-    <Typography variant="body2" sx={{ color: 'text.secondary' }}>
-      {label}
-    </Typography>
-  </Box>
-);
 
 const ReadingProgress = ({ percent }: ReadingProgressProps) => (
   <Box sx={{ mb: 3 }}>
