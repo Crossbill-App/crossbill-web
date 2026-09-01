@@ -41,6 +41,7 @@ from src.infrastructure.reading.schemas.reading_session_schemas import (
     ReadingSessionSyncRequest,
     ReadingSessionSyncResponse,
 )
+from src.infrastructure.reading.schemas.recent_capture_schemas import RecentCapture
 
 __all__ = [
     "ActivityBook",
@@ -74,4 +75,5 @@ __all__ = [
     "ReadingSessionSyncItem",
     "ReadingSessionSyncRequest",
     "ReadingSessionSyncResponse",
+    "RecentCapture",
 ]

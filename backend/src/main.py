@@ -64,6 +64,7 @@ from src.infrastructure.reading.routers import (
     highlights,
     library_reading_activity,
     reading_sessions,
+    recent_captures,
 )
 from src.infrastructure.reflection.routers import book_reflections as reflection_router
 from src.infrastructure.semantic.routers import semantic as semantic_router
@@ -427,6 +428,7 @@ app.include_router(tagging_tags.router, prefix=settings.API_V1_PREFIX)
 app.include_router(reading_sessions.router, prefix=settings.API_V1_PREFIX)
 app.include_router(book_statistics.router, prefix=settings.API_V1_PREFIX)
 app.include_router(library_reading_activity.router, prefix=settings.API_V1_PREFIX)
+app.include_router(recent_captures.router, prefix=settings.API_V1_PREFIX)
 app.include_router(bookmarks.router, prefix=settings.API_V1_PREFIX)
 app.include_router(chapter_digest.router, prefix=settings.API_V1_PREFIX)
 app.include_router(chapter_digest.book_digest_router, prefix=settings.API_V1_PREFIX)
