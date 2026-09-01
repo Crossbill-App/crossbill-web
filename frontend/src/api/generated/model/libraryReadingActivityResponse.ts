@@ -5,6 +5,7 @@
  * OpenAPI spec version: 0.0.0
  */
 import type { LibraryActivity } from './libraryActivity.ts';
+import type { LibraryStats } from './libraryStats.ts';
 
 /**
  * Schema for what every book of a reader's adds up to, day by day.
@@ -12,4 +13,6 @@ import type { LibraryActivity } from './libraryActivity.ts';
 export interface LibraryReadingActivityResponse {
   /** The reader's daily activity, or null when there is no day worth colouring */
   activity?: LibraryActivity | null;
+  /** What that activity adds up to, or null whenever there is no activity */
+  stats?: LibraryStats | null;
 }

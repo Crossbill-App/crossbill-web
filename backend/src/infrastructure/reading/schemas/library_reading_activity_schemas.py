@@ -51,10 +51,37 @@ class LibraryActivity(BaseModel):
     )
 
 
+class LibraryStats(BaseModel):
+    """The year on the grid, said in numbers rather than squares.
+
+    Counted over the same window and the same drawn days as ``LibraryActivity``,
+    so a reader who counts the squares gets the figure given here.
+    """
+
+    last_read: calendar_date = Field(..., description="Most recent day with reading on the grid")
+    seconds_today: int = Field(
+        ..., description="Seconds read today, zero on a day nothing has been opened yet"
+    )
+    total_seconds: int = Field(..., description="Seconds read over the whole window")
+    streak_days: int = Field(
+        ...,
+        description=(
+            "Days read in a row, counting back from today; a today with no reading yet "
+            "does not end a streak"
+        ),
+    )
+    days_read: int = Field(..., description="Days in the window with reading on them")
+    books_read: int = Field(..., description="Books the window's reading covered")
+
+
 class LibraryReadingActivityResponse(BaseModel):
     """Schema for what every book of a reader's adds up to, day by day."""
 
     activity: LibraryActivity | None = Field(
         None,
         description=("The reader's daily activity, or null when there is no day worth colouring"),
+    )
+    stats: LibraryStats | None = Field(
+        None,
+        description=("What that activity adds up to, or null whenever there is no activity"),
     )

@@ -22,6 +22,7 @@ from src.infrastructure.reading.schemas import (
     LibraryActivity,
     LibraryActivityDay,
     LibraryReadingActivityResponse,
+    LibraryStats,
 )
 
 router = APIRouter(prefix="/statistics", tags=["statistics"])
@@ -52,6 +53,22 @@ def _activity_schema(view: LibraryReadingActivityView | None) -> LibraryActivity
     )
 
 
+def _stats_schema(view: LibraryReadingActivityView | None) -> LibraryStats | None:
+    """Convert the read model's numbers into their response shape."""
+    if view is None:
+        return None
+
+    stats = view.stats
+    return LibraryStats(
+        last_read=stats.last_read_day,
+        seconds_today=stats.seconds_today,
+        total_seconds=stats.total_seconds,
+        streak_days=stats.streak_days,
+        days_read=stats.days_read,
+        books_read=stats.books_read,
+    )
+
+
 @router.get(
     "/reading-activity",
     response_model=LibraryReadingActivityResponse,
@@ -69,7 +86,7 @@ async def get_library_reading_activity(
     Get the reader's daily reading activity across every book.
 
     Colours one square per day by how much of the library was read that day,
-    and names the books each day was spent on.
+    names the books each day was spent on, and sums the year up beside it.
 
     Args:
         tz: IANA timezone deciding which calendar day a session falls on
@@ -83,4 +100,6 @@ async def get_library_reading_activity(
         zone=zone,
     )
 
-    return LibraryReadingActivityResponse(activity=_activity_schema(view))
+    return LibraryReadingActivityResponse(
+        activity=_activity_schema(view), stats=_stats_schema(view)
+    )

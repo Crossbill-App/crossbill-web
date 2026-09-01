@@ -83,6 +83,7 @@ export * from './libraryActivity.ts';
 export * from './libraryActivityDay.ts';
 export * from './libraryActivityUnit.ts';
 export * from './libraryReadingActivityResponse.ts';
+export * from './libraryStats.ts';
 export * from './logout200.ts';
 export * from './note.ts';
 export * from './noteCreateRequest.ts';

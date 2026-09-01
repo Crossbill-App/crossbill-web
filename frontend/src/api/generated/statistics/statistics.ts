@@ -182,7 +182,7 @@ export function useGetBookStatistics<
  * Get the reader's daily reading activity across every book.
  *
  * Colours one square per day by how much of the library was read that day,
- * and names the books each day was spent on.
+ * names the books each day was spent on, and sums the year up beside it.
  *
  * Args:
  *     tz: IANA timezone deciding which calendar day a session falls on

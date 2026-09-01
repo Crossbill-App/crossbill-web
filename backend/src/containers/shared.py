@@ -10,6 +10,9 @@ from src.domain.reading.services.highlight_style_resolver import HighlightStyleR
 from src.domain.reading.services.library_reading_activity_calculator import (
     LibraryReadingActivityCalculator,
 )
+from src.domain.reading.services.library_reading_stats_calculator import (
+    LibraryReadingStatsCalculator,
+)
 from src.domain.reading.services.reading_activity_calculator import (
     ReadingActivityCalculator,
 )
@@ -146,6 +149,7 @@ class SharedContainer(containers.DeclarativeContainer):
         LibraryReadingActivityCalculator,
         activity_calculator=reading_activity_calculator,
     )
+    library_reading_stats_calculator = providers.Factory(LibraryReadingStatsCalculator)
 
     # Application services (with deps)
     label_resolution_service = providers.Factory(
@@ -176,6 +180,7 @@ class SharedContainer(containers.DeclarativeContainer):
         LibraryReadingActivityQuery,
         db=db,
         activity_calculator=library_reading_activity_calculator,
+        stats_calculator=library_reading_stats_calculator,
     )
     bookmark_query = providers.Factory(BookmarkQuery, db=db)
     ereader_digest_query = providers.Factory(EreaderDigestQuery, db=db)

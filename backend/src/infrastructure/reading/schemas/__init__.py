@@ -33,6 +33,7 @@ from src.infrastructure.reading.schemas.library_reading_activity_schemas import 
     LibraryActivity,
     LibraryActivityDay,
     LibraryReadingActivityResponse,
+    LibraryStats,
 )
 from src.infrastructure.reading.schemas.reading_session_schemas import (
     ReadingSession,
@@ -67,6 +68,7 @@ __all__ = [
     "LibraryActivity",
     "LibraryActivityDay",
     "LibraryReadingActivityResponse",
+    "LibraryStats",
     "PositionResponse",
     "ReadingSession",
     "ReadingSessionSyncItem",

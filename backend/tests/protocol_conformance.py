@@ -65,6 +65,9 @@ from src.application.tagging.protocols.tag_repository import TagRepositoryProtoc
 from src.domain.reading.services.library_reading_activity_calculator import (
     LibraryReadingActivityCalculator,
 )
+from src.domain.reading.services.library_reading_stats_calculator import (
+    LibraryReadingStatsCalculator,
+)
 from src.domain.reading.services.reading_activity_calculator import (
     ReadingActivityCalculator,
 )
@@ -160,7 +163,9 @@ def repositories_satisfy_their_protocols(
         db, ReadingStatisticsCalculator(activity_calculator=ReadingActivityCalculator())
     )
     _library_activity_view: LibraryReadingActivityQueryProtocol = LibraryReadingActivityQuery(
-        db, LibraryReadingActivityCalculator(activity_calculator=ReadingActivityCalculator())
+        db,
+        LibraryReadingActivityCalculator(activity_calculator=ReadingActivityCalculator()),
+        LibraryReadingStatsCalculator(),
     )
 
 

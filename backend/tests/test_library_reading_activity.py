@@ -91,7 +91,7 @@ class TestGetLibraryReadingActivity:
         with readers_today(RECENTLY):
             body = await get_activity(client)
 
-        assert body == {"activity": None}
+        assert body == {"activity": None, "stats": None}
 
     async def test_another_readers_books_are_not_on_the_grid(
         self, client: AsyncClient, db_session: AsyncSession, test_book: Book
@@ -113,6 +113,45 @@ class TestGetLibraryReadingActivity:
 
         assert titles_by_day(body) == {"2024-03-02": ["Test Book"]}
         assert [book["id"] for book in body["activity"]["books"]] == [test_book.id]
+        assert body["stats"]["books_read"] == 1
+        assert body["stats"]["total_seconds"] == 20 * 60
+
+    async def test_the_numbers_sum_the_year_the_grid_draws(
+        self, client: AsyncClient, db_session: AsyncSession, test_book: Book
+    ) -> None:
+        """The stats beside the grid count the same days, in the same window."""
+        other_book = await emma(db_session)
+        # Yesterday and the day before, so that a streak the reader has not yet
+        # added to today is still a streak.
+        await read(db_session, test_book, datetime(2024, 5, 31, 20, tzinfo=UTC), pages=10)
+        await read(db_session, other_book, datetime(2024, 5, 30, 20, tzinfo=UTC), pages=30)
+        # A session from before the window opened, on neither square nor total.
+        await read(db_session, test_book, datetime(2022, 1, 1, 20, tzinfo=UTC), pages=50)
+
+        with readers_today(RECENTLY):
+            body = await get_activity(client)
+
+        assert body["stats"] == {
+            "last_read": "2024-05-31",
+            "seconds_today": 0,
+            "total_seconds": 2 * 20 * 60,
+            "streak_days": 2,
+            "days_read": 2,
+            "books_read": 2,
+        }
+
+    async def test_todays_reading_is_counted_in_the_readers_own_timezone(
+        self, client: AsyncClient, db_session: AsyncSession, test_book: Book
+    ) -> None:
+        """22:15 UTC on 31 May is already 1 June in Helsinki -- the reader's today."""
+        await read(db_session, test_book, datetime(2024, 5, 31, 22, 15, tzinfo=UTC), pages=10)
+
+        with readers_today(RECENTLY):
+            in_utc = await get_activity(client)
+            in_helsinki = await get_activity(client, {"tz": "Europe/Helsinki"})
+
+        assert in_utc["stats"]["seconds_today"] == 0
+        assert in_helsinki["stats"]["seconds_today"] == 20 * 60
 
     async def test_the_days_are_counted_in_the_requested_timezone(
         self, client: AsyncClient, db_session: AsyncSession, test_book: Book

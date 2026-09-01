@@ -1815,7 +1815,7 @@
           "statistics"
         ],
         "summary": "Get Library Reading Activity",
-        "description": "Get the reader's daily reading activity across every book.\n\nColours one square per day by how much of the library was read that day,\nand names the books each day was spent on.\n\nArgs:\n    tz: IANA timezone deciding which calendar day a session falls on\n\nReturns:\n    LibraryReadingActivityResponse for the whole library",
+        "description": "Get the reader's daily reading activity across every book.\n\nColours one square per day by how much of the library was read that day,\nnames the books each day was spent on, and sums the year up beside it.\n\nArgs:\n    tz: IANA timezone deciding which calendar day a session falls on\n\nReturns:\n    LibraryReadingActivityResponse for the whole library",
         "operationId": "get_library_reading_activity",
         "security": [
           {
@@ -7496,11 +7496,68 @@
               }
             ],
             "description": "The reader's daily activity, or null when there is no day worth colouring"
+          },
+          "stats": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/LibraryStats"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "What that activity adds up to, or null whenever there is no activity"
           }
         },
         "type": "object",
         "title": "LibraryReadingActivityResponse",
         "description": "Schema for what every book of a reader's adds up to, day by day."
+      },
+      "LibraryStats": {
+        "properties": {
+          "last_read": {
+            "type": "string",
+            "format": "date",
+            "title": "Last Read",
+            "description": "Most recent day with reading on the grid"
+          },
+          "seconds_today": {
+            "type": "integer",
+            "title": "Seconds Today",
+            "description": "Seconds read today, zero on a day nothing has been opened yet"
+          },
+          "total_seconds": {
+            "type": "integer",
+            "title": "Total Seconds",
+            "description": "Seconds read over the whole window"
+          },
+          "streak_days": {
+            "type": "integer",
+            "title": "Streak Days",
+            "description": "Days read in a row, counting back from today; a today with no reading yet does not end a streak"
+          },
+          "days_read": {
+            "type": "integer",
+            "title": "Days Read",
+            "description": "Days in the window with reading on them"
+          },
+          "books_read": {
+            "type": "integer",
+            "title": "Books Read",
+            "description": "Books the window's reading covered"
+          }
+        },
+        "type": "object",
+        "required": [
+          "last_read",
+          "seconds_today",
+          "total_seconds",
+          "streak_days",
+          "days_read",
+          "books_read"
+        ],
+        "title": "LibraryStats",
+        "description": "The year on the grid, said in numbers rather than squares.\n\nCounted over the same window and the same drawn days as ``LibraryActivity``,\nso a reader who counts the squares gets the figure given here."
       },
       "Note": {
         "properties": {
