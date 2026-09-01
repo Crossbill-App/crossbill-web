@@ -178,7 +178,8 @@ def test_the_books_of_a_day_follow_the_readers_own_midnight(
     in_utc = calculator.calculate(reading, RECENTLY, UTC)
     in_helsinki = calculator.calculate(reading, RECENTLY, HELSINKI)
 
-    assert in_utc is not None and in_helsinki is not None
+    assert in_utc is not None
+    assert in_helsinki is not None
     assert books_by_day(in_utc) == {date(2024, 3, 15): (DUNE,), date(2024, 3, 16): (EMMA,)}
     assert books_by_day(in_helsinki) == {date(2024, 3, 16): (DUNE, EMMA)}
 
