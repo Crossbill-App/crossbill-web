@@ -1,7 +1,7 @@
 import type { BookActivityUnit } from '@/api/generated/model';
 import { countLabel } from '@/utils/counts.ts';
 import { browserLocale, formatDate } from '@/utils/date.ts';
-import { Box, Typography, useTheme } from '@mui/material';
+import { Box, useTheme } from '@mui/material';
 import { DateTime, Info } from 'luxon';
 import { cloneElement, useEffect, useMemo, useRef } from 'react';
 // The library ships its tooltip styling as a separate stylesheet and imports
@@ -42,6 +42,9 @@ const MARGIN_RATIO = 1 / 3;
 
 /** The calendar's own horizontally scrolling element, by its BEM class. */
 const SCROLL_CONTAINER = 'react-activity-calendar__scroll-container';
+
+/** The footer slot the calendar keeps for a total, by its BEM class. */
+const FOOTER_CAPTION = 'react-activity-calendar__count';
 
 /** What one square's number counts, as a noun that can be pluralised. */
 const UNIT_NOUN = { pages: 'page', minutes: 'minute' } as const;
@@ -114,6 +117,11 @@ const dayLabel = (activity: ActivityGridData, day: Activity, note?: string) => {
  * SVG — so this box sizes and pads rather than scrolls; a second scroller
  * nested inside the first only clips the right edge.
  *
+ * What the grid spans and counts is said in the calendar's own footer, in the
+ * slot it keeps for a total: that puts the caption opposite the legend on one
+ * row under the squares, and leaves the squares themselves at the top of the
+ * box — which is what lets a column of numbers beside it line up.
+ *
  * The weekday rail stays off. The calendar draws those labels at negative x
  * inside the SVG and pushes the SVG clear with a left margin, so they ride
  * along with the grid rather than being pinned beside it: scroll right and
@@ -158,12 +166,9 @@ export const ReadingActivityGrid = ({
         // The squares carry a 1px stroke that paints half a pixel past the
         // SVG's declared width, and the scroll container's overflow clips it.
         [`& .${SCROLL_CONTAINER}`]: { paddingRight: '2px', paddingBottom: 1 },
+        [`& .${FOOTER_CAPTION}`]: { color: 'text.secondary' },
       }}
     >
-      <Typography variant="body2" sx={{ color: 'text.secondary', mb: 1.5 }}>
-        {asMonth(activity.range_start)} – {asMonth(activity.range_end)} · {activity.unit} read
-      </Typography>
-
       <ActivityCalendar
         data={data}
         // The app has one colour scheme; left to itself the calendar would read
@@ -174,8 +179,11 @@ export const ReadingActivityGrid = ({
         }}
         blockSize={blockSize}
         blockMargin={Math.round(blockSize * MARGIN_RATIO)}
-        showTotalCount={false}
-        labels={{ months, legend: { less: 'Less', more: 'More' } }}
+        labels={{
+          months,
+          legend: { less: 'Less', more: 'More' },
+          totalCount: `${asMonth(activity.range_start)} – ${asMonth(activity.range_end)} · ${activity.unit} read`,
+        }}
         renderBlock={(block, day) =>
           cloneElement(block, {
             role: 'img',
