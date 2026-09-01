@@ -1,15 +1,14 @@
 import { PageContainer } from '@/components/layout/Layouts.tsx';
 import { PageTitle } from '@/components/typography/PageTitle.tsx';
-import { LibraryIcon } from '@/theme/Icons.tsx';
-import { Box, Button, Typography } from '@mui/material';
-import { Link } from '@tanstack/react-router';
+import { Box, Typography } from '@mui/material';
 import { ReadingActivity } from './components/ReadingActivity';
 import { RecentBooks } from './components/RecentBooks';
+import { RecentCaptures } from './components/RecentCaptures';
 
 /**
- * The reader's dashboard: what they were last reading, and a way into the rest
- * of the library. Browsing every book lives on the library page — this one is
- * for what the reader is in the middle of.
+ * The reader's dashboard: what they were last reading, how the year has gone,
+ * and what they last marked in a book. Browsing every book lives on the
+ * library page, which the app bar reaches from here as from anywhere.
  */
 export const LandingPage = () => {
   return (
@@ -31,17 +30,7 @@ export const LandingPage = () => {
 
       <ReadingActivity />
 
-      <Box sx={{ display: 'flex', justifyContent: 'center', mt: 6 }}>
-        <Button
-          component={Link}
-          to="/library"
-          variant="outlined"
-          size="large"
-          startIcon={<LibraryIcon />}
-        >
-          Browse the library
-        </Button>
-      </Box>
+      <RecentCaptures />
     </PageContainer>
   );
 };

@@ -5,19 +5,13 @@ import {
   SEARCH_ROW_TYPE_LABELS,
   type GlobalSearchRow,
 } from '@/components/search/globalSearchRows.ts';
+import { clampToLines } from '@/utils/clampToLines.ts';
 import { Box, Chip, Stack, Typography } from '@mui/material';
 import { createLink } from '@tanstack/react-router';
 
 const LinkCardActionArea = createLink(HoverableCardActionArea);
 
 const CARD_WIDTH = { xs: 232, sm: 268 };
-
-const clampToLines = (lines: number) => ({
-  display: '-webkit-box',
-  WebkitLineClamp: lines,
-  WebkitBoxOrient: 'vertical' as const,
-  overflow: 'hidden',
-});
 
 interface RelatedContentCardProps {
   row: GlobalSearchRow;

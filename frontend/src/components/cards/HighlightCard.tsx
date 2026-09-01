@@ -14,6 +14,7 @@ import {
 } from '@/theme/Icons.tsx';
 import { ICON_SIZE } from '@/theme/iconSizes.ts';
 import { formatDate } from '@/utils/date.ts';
+import { buildPreviewText } from '@/utils/highlightPreview.ts';
 import { Box, Typography } from '@mui/material';
 import { memo, useMemo } from 'react';
 
@@ -81,21 +82,6 @@ const Footer = ({ highlight, bookmark, noteCount }: FooterProps) => {
       </Box>
     </Box>
   );
-};
-
-const previewWordCount = 40;
-
-/** The card's visible text: leading ellipsis for a mid-sentence start, then a word cap. */
-const buildPreviewText = (text: string): string => {
-  const startsWithLowercase =
-    text.length > 0 && text[0] === text[0].toLowerCase() && text[0] !== text[0].toUpperCase();
-  const formattedText = startsWithLowercase ? `...${text}` : text;
-
-  const words = formattedText.split(/\s+/);
-
-  return words.length > previewWordCount
-    ? words.slice(0, previewWordCount).join(' ') + '...'
-    : formattedText;
 };
 
 /**
