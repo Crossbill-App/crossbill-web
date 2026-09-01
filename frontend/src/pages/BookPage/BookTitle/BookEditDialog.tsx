@@ -34,7 +34,7 @@ export const BookEditDialog = ({ book, open, onClose }: BookEditDialogProps) => 
       onSuccess: () => {
         cache.booksListChanged();
         onClose();
-        navigate({ to: '/' });
+        navigate({ to: '/library' });
       },
       onError: mutationErrorHandler('delete book'),
     },
