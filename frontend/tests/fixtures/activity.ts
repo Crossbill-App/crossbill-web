@@ -1,4 +1,4 @@
-import type { LibraryActivity } from '@/api/generated/model';
+import type { LibraryActivity, LibraryStats } from '@/api/generated/model';
 
 /**
  * A library's activity grid, empty unless a test fills it in. The window is a
@@ -10,5 +10,19 @@ export const aReadingActivity = (overrides: Partial<LibraryActivity> = {}): Libr
   range_end: '2026-09-01',
   days: [],
   books: [],
+  ...overrides,
+});
+
+/**
+ * The numbers beside a library's grid. A quiet reader by default: nothing read
+ * today, so a test that cares about a figure names the one it cares about.
+ */
+export const aReadingSummary = (overrides: Partial<LibraryStats> = {}): LibraryStats => ({
+  last_read: '2026-09-01',
+  seconds_today: 0,
+  total_seconds: 0,
+  streak_days: 0,
+  days_read: 0,
+  books_read: 0,
   ...overrides,
 });

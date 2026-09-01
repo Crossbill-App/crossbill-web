@@ -1,8 +1,9 @@
-import { aReadingActivity } from '@tests/fixtures/activity';
+import { aReadingActivity, aReadingSummary } from '@tests/fixtures/activity';
 import { aBookCard } from '@tests/fixtures/book';
 import { renderApp } from '@tests/harness/renderApp';
 import { libraryApi } from '@tests/msw/libraryApi';
 import { worker } from '@tests/msw/worker';
+import { DateTime } from 'luxon';
 import { expect, test } from 'vitest';
 
 const EMMA = { id: 1, title: 'Emma' };
@@ -41,6 +42,35 @@ test('a day spent grazing counts the books it does not name', async () => {
   await expect
     .element(screen.getByRole('img', { name: /Emma, Dune, Ulysses and 1 more$/ }))
     .toBeVisible();
+});
+
+test('the numbers beside the grid say what the year adds up to', async () => {
+  worker.use(
+    ...libraryApi(
+      [],
+      [aBookCard({ title: 'Emma' })],
+      aReadingActivity({
+        days: [{ date: '2026-03-01', value: 40, level: 3, book_ids: [EMMA.id] }],
+      }),
+      aReadingSummary({
+        // Named against the browser's clock, because that is the clock the
+        // reader's "today" is decided on.
+        last_read: DateTime.now().toFormat('yyyy-MM-dd'),
+        seconds_today: 25 * 60,
+        streak_days: 4,
+        days_read: 137,
+        books_read: 42,
+      })
+    )
+  );
+
+  const screen = await renderApp({ path: '/' });
+
+  await expect.element(screen.getByText('25m')).toBeVisible();
+  await expect.element(screen.getByText('Today', { exact: true })).toBeVisible();
+  await expect.element(screen.getByText('4 days')).toBeVisible();
+  await expect.element(screen.getByText('137')).toBeVisible();
+  await expect.element(screen.getByText('42')).toBeVisible();
 });
 
 test('a reader with nothing on the grid is shown no grid', async () => {

@@ -1,4 +1,4 @@
-import type { BookWithHighlightCount, LibraryActivity } from '@/api/generated/model';
+import type { BookWithHighlightCount, LibraryActivity, LibraryStats } from '@/api/generated/model';
 import { http, HttpResponse } from 'msw';
 
 /**
@@ -9,13 +9,14 @@ import { http, HttpResponse } from 'msw';
 export function libraryApi(
   books: BookWithHighlightCount[],
   recent: BookWithHighlightCount[] = [],
-  activity: LibraryActivity | null = null
+  activity: LibraryActivity | null = null,
+  stats: LibraryStats | null = null
 ) {
   return [
     http.get('/api/v1/books/', () =>
       HttpResponse.json({ items: books, total: books.length, offset: 0, limit: 32 })
     ),
     http.get('/api/v1/books/recent', () => HttpResponse.json({ items: recent })),
-    http.get('/api/v1/statistics/reading-activity', () => HttpResponse.json({ activity })),
+    http.get('/api/v1/statistics/reading-activity', () => HttpResponse.json({ activity, stats })),
   ];
 }
