@@ -17,8 +17,9 @@ os.environ.setdefault("RATE_LIMIT_ENABLED", "false")
 import inspect
 import itertools
 from collections.abc import AsyncGenerator, Awaitable, Callable, Iterator
+from contextlib import contextmanager
+from datetime import date, timedelta
 from datetime import datetime as dt
-from datetime import timedelta
 from pathlib import Path
 from types import SimpleNamespace
 from typing import Any
@@ -48,6 +49,7 @@ from src.infrastructure.common.client_version import (
 from src.infrastructure.identity.dependencies import get_current_user
 from src.infrastructure.library.repositories import file_repository
 from src.infrastructure.library.schemas import EreaderBookMetadata
+from src.infrastructure.reading.routers.reader_clock import reader_today
 from src.infrastructure.reading.schemas.ereader_highlight_schemas import (
     KOREADER_DATETIME_FORMAT,
 )
@@ -238,6 +240,16 @@ async def create_test_reading_session(
     await db_session.commit()
     await db_session.refresh(session)
     return session
+
+
+@contextmanager
+def readers_today(day: date) -> Iterator[None]:
+    """Pin the day an activity window ends on, so a test asserts on a fixed grid."""
+    app.dependency_overrides[reader_today] = lambda: day
+    try:
+        yield
+    finally:
+        del app.dependency_overrides[reader_today]
 
 
 async def create_test_highlight_style(

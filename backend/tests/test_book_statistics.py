@@ -1,7 +1,5 @@
 """Tests for the book reading-statistics API endpoint."""
 
-from collections.abc import Iterator
-from contextlib import contextmanager
 from datetime import UTC, date, datetime
 from typing import Any
 
@@ -9,23 +7,11 @@ from httpx import AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession
 from starlette import status
 
-from src.infrastructure.reading.routers.book_statistics import reader_today
-from src.main import app
 from src.models import Book, User
-from tests.conftest import create_test_book, create_test_reading_session
+from tests.conftest import create_test_book, create_test_reading_session, readers_today
 
 DEFAULT_USER_ID = 1
 OTHER_USER_ID = 2
-
-
-@contextmanager
-def readers_today(day: date) -> Iterator[None]:
-    """Pin the day the activity window ends on, so a test asserts on a fixed grid."""
-    app.dependency_overrides[reader_today] = lambda: day
-    try:
-        yield
-    finally:
-        del app.dependency_overrides[reader_today]
 
 
 async def add_three_days_of_paged_reading(db_session: AsyncSession, book: Book) -> None:

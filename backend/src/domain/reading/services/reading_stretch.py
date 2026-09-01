@@ -15,9 +15,18 @@ def _as_aware(moment: datetime) -> datetime:
     return moment if moment.tzinfo is not None else moment.replace(tzinfo=UTC)
 
 
+def moment_in(moment: datetime, zone: tzinfo) -> datetime:
+    """A moment as the clock on the reader's wall showed it.
+
+    Two timestamps are only comparable once both have been read this way: the
+    stores we load sessions from record UTC, but not all of them say so.
+    """
+    return _as_aware(moment).astimezone(zone)
+
+
 def day_in(moment: datetime, zone: tzinfo) -> date:
     """The calendar day a moment falls on for a reader in ``zone``."""
-    return _as_aware(moment).astimezone(zone).date()
+    return moment_in(moment, zone).date()
 
 
 @dataclass(frozen=True)

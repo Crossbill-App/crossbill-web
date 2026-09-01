@@ -1,10 +1,9 @@
 """API route for a book's aggregated reading statistics."""
 
-from datetime import UTC, date, datetime, tzinfo
+from datetime import date, tzinfo
 from typing import Annotated
-from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Depends
 from starlette import status
 
 from src.application.reading.queries.get_book_statistics_use_case import (
@@ -15,6 +14,7 @@ from src.domain.identity import User
 from src.domain.reading.services.reading_activity_calculator import ReadingActivity
 from src.infrastructure.common.di import inject_use_case
 from src.infrastructure.identity import get_current_user
+from src.infrastructure.reading.routers.reader_clock import reader_timezone, reader_today
 from src.infrastructure.reading.schemas import (
     BookActivity,
     BookActivityDay,
@@ -22,34 +22,6 @@ from src.infrastructure.reading.schemas import (
 )
 
 router = APIRouter(prefix="/books", tags=["statistics"])
-
-
-def reader_timezone(
-    tz: Annotated[
-        str,
-        Query(description="IANA timezone the reader's calendar days are counted in"),
-    ] = "UTC",
-) -> tzinfo:
-    """Read the caller's timezone, falling back to UTC when this server cannot resolve it.
-
-    An unknown zone name shifts a day boundary at worst -- it is not worth
-    failing the page over, and the reader would have got UTC anyway. ``ZoneInfo``
-    resolves a key against the filesystem, so a malformed one surfaces as an
-    ``OSError`` as readily as a lookup failure.
-    """
-    try:
-        return ZoneInfo(tz)
-    except (ZoneInfoNotFoundError, ValueError, OSError):
-        return UTC
-
-
-def reader_today(zone: Annotated[tzinfo, Depends(reader_timezone)]) -> date:
-    """The date it is right now where the reader is.
-
-    The activity grid's window ends here, so it is resolved once at the edge
-    and handed down; nothing below this line reads the clock.
-    """
-    return datetime.now(zone).date()
 
 
 def _activity_schema(activity: ReadingActivity | None) -> BookActivity | None:

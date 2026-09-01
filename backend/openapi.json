@@ -1809,6 +1809,57 @@
         }
       }
     },
+    "/api/v1/statistics/reading-activity": {
+      "get": {
+        "tags": [
+          "statistics"
+        ],
+        "summary": "Get Library Reading Activity",
+        "description": "Get the reader's daily reading activity across every book.\n\nColours one square per day by how much of the library was read that day,\nnames the books each day was spent on, and sums the year up beside it.\n\nArgs:\n    tz: IANA timezone deciding which calendar day a session falls on\n\nReturns:\n    LibraryReadingActivityResponse for the whole library",
+        "operationId": "get_library_reading_activity",
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "tz",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "description": "IANA timezone the reader's calendar days are counted in",
+              "default": "UTC",
+              "title": "Tz"
+            },
+            "description": "IANA timezone the reader's calendar days are counted in"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LibraryReadingActivityResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/books/{book_id}/bookmarks": {
       "post": {
         "tags": [
@@ -4280,6 +4331,27 @@
   },
   "components": {
     "schemas": {
+      "ActivityBook": {
+        "properties": {
+          "id": {
+            "type": "integer",
+            "title": "Id",
+            "description": "ID of the book"
+          },
+          "title": {
+            "type": "string",
+            "title": "Title",
+            "description": "Title of the book"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "title"
+        ],
+        "title": "ActivityBook",
+        "description": "A book the grid names, as the client needs it: a label and a link."
+      },
       "AppSettingsResponse": {
         "properties": {
           "feature_flags": {
@@ -7323,6 +7395,169 @@
           "updated_at"
         ],
         "title": "JobBatchResponse"
+      },
+      "LibraryActivity": {
+        "properties": {
+          "unit": {
+            "type": "string",
+            "enum": [
+              "pages",
+              "minutes"
+            ],
+            "title": "Unit",
+            "description": "What each day's value counts. Pages as long as any session on the grid recorded them, minutes only when none did"
+          },
+          "range_start": {
+            "type": "string",
+            "format": "date",
+            "title": "Range Start",
+            "description": "First day of the window the grid spans"
+          },
+          "range_end": {
+            "type": "string",
+            "format": "date",
+            "title": "Range End",
+            "description": "Last day of the window the grid spans"
+          },
+          "days": {
+            "items": {
+              "$ref": "#/components/schemas/LibraryActivityDay"
+            },
+            "type": "array",
+            "title": "Days",
+            "description": "Days with reading, oldest first"
+          },
+          "books": {
+            "items": {
+              "$ref": "#/components/schemas/ActivityBook"
+            },
+            "type": "array",
+            "title": "Books",
+            "description": "Every book the days name, alphabetically by title"
+          }
+        },
+        "type": "object",
+        "required": [
+          "unit",
+          "range_start",
+          "range_end",
+          "days",
+          "books"
+        ],
+        "title": "LibraryActivity",
+        "description": "Every book's reading laid out day by day, for the activity grid.\n\nSparse twice over: ``days`` carries only the days worth drawing, and each\ntitle is sent once in ``books`` for the days to reference by id."
+      },
+      "LibraryActivityDay": {
+        "properties": {
+          "date": {
+            "type": "string",
+            "format": "date",
+            "title": "Date",
+            "description": "The calendar day, in the requested timezone"
+          },
+          "value": {
+            "type": "integer",
+            "title": "Value",
+            "description": "Pages read, or minutes read, per the grid's unit"
+          },
+          "level": {
+            "type": "integer",
+            "title": "Level",
+            "description": "Shade of the square, 1-4; days with nothing are omitted"
+          },
+          "book_ids": {
+            "items": {
+              "type": "integer"
+            },
+            "type": "array",
+            "title": "Book Ids",
+            "description": "Books read that day, in the order the reader opened them. A book that got through nothing that day is listed all the same"
+          }
+        },
+        "type": "object",
+        "required": [
+          "date",
+          "value",
+          "level",
+          "book_ids"
+        ],
+        "title": "LibraryActivityDay",
+        "description": "One coloured square, and which books the reader spent it on."
+      },
+      "LibraryReadingActivityResponse": {
+        "properties": {
+          "activity": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/LibraryActivity"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The reader's daily activity, or null when there is no day worth colouring"
+          },
+          "stats": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/LibraryStats"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "What that activity adds up to, or null whenever there is no activity"
+          }
+        },
+        "type": "object",
+        "title": "LibraryReadingActivityResponse",
+        "description": "Schema for what every book of a reader's adds up to, day by day."
+      },
+      "LibraryStats": {
+        "properties": {
+          "last_read": {
+            "type": "string",
+            "format": "date",
+            "title": "Last Read",
+            "description": "Most recent day with reading on the grid"
+          },
+          "seconds_today": {
+            "type": "integer",
+            "title": "Seconds Today",
+            "description": "Seconds read today, zero on a day nothing has been opened yet"
+          },
+          "total_seconds": {
+            "type": "integer",
+            "title": "Total Seconds",
+            "description": "Seconds read over the whole window"
+          },
+          "streak_days": {
+            "type": "integer",
+            "title": "Streak Days",
+            "description": "Days read in a row, counting back from today; a today with no reading yet does not end a streak"
+          },
+          "days_read": {
+            "type": "integer",
+            "title": "Days Read",
+            "description": "Days in the window with reading on them"
+          },
+          "books_read": {
+            "type": "integer",
+            "title": "Books Read",
+            "description": "Books the window's reading covered"
+          }
+        },
+        "type": "object",
+        "required": [
+          "last_read",
+          "seconds_today",
+          "total_seconds",
+          "streak_days",
+          "days_read",
+          "books_read"
+        ],
+        "title": "LibraryStats",
+        "description": "The year on the grid, said in numbers rather than squares.\n\nCounted over the same window as ``LibraryActivity``, but from the sessions:\na day that got through no pages is a day read with no square to show for it."
       },
       "Note": {
         "properties": {

@@ -5,6 +5,7 @@
  * OpenAPI spec version: 0.0.0
  */
 
+export * from './activityBook.ts';
 export * from './apiRoot200.ts';
 export * from './appSettingsResponse.ts';
 export * from './backfillEmbeddingsParams.ts';
@@ -60,6 +61,7 @@ export * from './flashcardWithHighlight.ts';
 export * from './getBookReadingSessionsParams.ts';
 export * from './getBooksParams.ts';
 export * from './getBookStatisticsParams.ts';
+export * from './getLibraryReadingActivityParams.ts';
 export * from './getNotesForBookKind.ts';
 export * from './getNotesForBookParams.ts';
 export * from './getRecentBooksParams.ts';
@@ -77,6 +79,11 @@ export * from './highlightSyncRequest.ts';
 export * from './highlightSyncResponse.ts';
 export * from './hTTPValidationError.ts';
 export * from './jobBatchResponse.ts';
+export * from './libraryActivity.ts';
+export * from './libraryActivityDay.ts';
+export * from './libraryActivityUnit.ts';
+export * from './libraryReadingActivityResponse.ts';
+export * from './libraryStats.ts';
 export * from './logout200.ts';
 export * from './note.ts';
 export * from './noteCreateRequest.ts';

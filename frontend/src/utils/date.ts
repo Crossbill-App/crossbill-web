@@ -27,6 +27,25 @@ export const formatDate = (date: string | Date): string =>
   formatDateTime(DateTime.fromISO(date.toString()));
 
 /**
+ * A calendar day as a reader would name it: "Today", "Yesterday", or the app's
+ * usual format. Named against the browser's clock, which is the one the server
+ * counted the reader's days on.
+ */
+export const formatDay = (date: string): string => {
+  const days = Math.round(
+    DateTime.fromISO(date).startOf('day').diff(DateTime.now().startOf('day'), 'days').days
+  );
+
+  if (days === 0) {
+    return 'Today';
+  }
+  if (days === -1) {
+    return 'Yesterday';
+  }
+  return formatDate(date);
+};
+
+/**
  * Format time from ISO string (e.g., "2:30 PM")
  */
 export const formatTime = (date: string | Date): string => {

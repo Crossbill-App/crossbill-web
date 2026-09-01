@@ -3,6 +3,7 @@ import { PageTitle } from '@/components/typography/PageTitle.tsx';
 import { LibraryIcon } from '@/theme/Icons.tsx';
 import { Box, Button, Typography } from '@mui/material';
 import { Link } from '@tanstack/react-router';
+import { ReadingActivity } from './components/ReadingActivity';
 import { RecentBooks } from './components/RecentBooks';
 
 /**
@@ -27,6 +28,8 @@ export const LandingPage = () => {
       </Box>
 
       <RecentBooks />
+
+      <ReadingActivity />
 
       <Box sx={{ display: 'flex', justifyContent: 'center', mt: 6 }}>
         <Button

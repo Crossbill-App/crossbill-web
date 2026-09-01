@@ -53,12 +53,21 @@ from src.application.reading.queries.bookmarks import BookmarkQueryProtocol
 from src.application.reading.queries.ereader_digest import EreaderDigestQueryProtocol
 from src.application.reading.queries.highlight_labels import HighlightLabelQueryProtocol
 from src.application.reading.queries.highlight_search import HighlightSearchQueryProtocol
+from src.application.reading.queries.library_reading_activity import (
+    LibraryReadingActivityQueryProtocol,
+)
 from src.application.reading.queries.reading_sessions import ReadingSessionQueryProtocol
 from src.application.reading.services.label_resolution_service import LabelResolutionService
 from src.application.reflection.protocols.book_reflection_repository import (
     BookReflectionRepositoryProtocol,
 )
 from src.application.tagging.protocols.tag_repository import TagRepositoryProtocol
+from src.domain.reading.services.library_reading_activity_calculator import (
+    LibraryReadingActivityCalculator,
+)
+from src.domain.reading.services.library_reading_stats_calculator import (
+    LibraryReadingStatsCalculator,
+)
 from src.domain.reading.services.reading_activity_calculator import (
     ReadingActivityCalculator,
 )
@@ -90,6 +99,9 @@ from src.infrastructure.reading.queries.bookmark_query import BookmarkQuery
 from src.infrastructure.reading.queries.ereader_digest_query import EreaderDigestQuery
 from src.infrastructure.reading.queries.highlight_label_query import HighlightLabelQuery
 from src.infrastructure.reading.queries.highlight_search_query import HighlightSearchQuery
+from src.infrastructure.reading.queries.library_reading_activity_query import (
+    LibraryReadingActivityQuery,
+)
 from src.infrastructure.reading.queries.reading_session_query import ReadingSessionQuery
 from src.infrastructure.reading.repositories import (
     BookmarkRepository,
@@ -149,6 +161,11 @@ def repositories_satisfy_their_protocols(
     )
     _book_statistics_view: BookStatisticsQueryProtocol = BookStatisticsQuery(
         db, ReadingStatisticsCalculator(activity_calculator=ReadingActivityCalculator())
+    )
+    _library_activity_view: LibraryReadingActivityQueryProtocol = LibraryReadingActivityQuery(
+        db,
+        LibraryReadingActivityCalculator(activity_calculator=ReadingActivityCalculator()),
+        LibraryReadingStatsCalculator(),
     )
 
 

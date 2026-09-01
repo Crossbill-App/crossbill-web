@@ -17,7 +17,13 @@ import type {
 } from '@tanstack/react-query';
 import { useQuery } from '@tanstack/react-query';
 
-import type { BookReadingStatistics, GetBookStatisticsParams, HTTPValidationError } from '../model';
+import type {
+  BookReadingStatistics,
+  GetBookStatisticsParams,
+  GetLibraryReadingActivityParams,
+  HTTPValidationError,
+  LibraryReadingActivityResponse,
+} from '../model';
 
 import { axiosInstance } from '../../axios-instance.ts';
 
@@ -164,6 +170,143 @@ export function useGetBookStatistics<
   queryClient?: QueryClient
 ): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
   const queryOptions = getGetBookStatisticsQueryOptions(bookId, params, options);
+
+  const query = useQuery(queryOptions, queryClient) as UseQueryResult<TData, TError> & {
+    queryKey: DataTag<QueryKey, TData, TError>;
+  };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+/**
+ * Get the reader's daily reading activity across every book.
+ *
+ * Colours one square per day by how much of the library was read that day,
+ * names the books each day was spent on, and sums the year up beside it.
+ *
+ * Args:
+ *     tz: IANA timezone deciding which calendar day a session falls on
+ *
+ * Returns:
+ *     LibraryReadingActivityResponse for the whole library
+ * @summary Get Library Reading Activity
+ */
+export const getLibraryReadingActivity = (
+  params?: GetLibraryReadingActivityParams,
+  signal?: AbortSignal
+) => {
+  return axiosInstance<LibraryReadingActivityResponse>({
+    url: `/api/v1/statistics/reading-activity`,
+    method: 'GET',
+    params,
+    signal,
+  });
+};
+
+export const getGetLibraryReadingActivityQueryKey = (params?: GetLibraryReadingActivityParams) => {
+  return [`/api/v1/statistics/reading-activity`, ...(params ? [params] : [])] as const;
+};
+
+export const getGetLibraryReadingActivityQueryOptions = <
+  TData = Awaited<ReturnType<typeof getLibraryReadingActivity>>,
+  TError = HTTPValidationError,
+>(
+  params?: GetLibraryReadingActivityParams,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<Awaited<ReturnType<typeof getLibraryReadingActivity>>, TError, TData>
+    >;
+  }
+) => {
+  const { query: queryOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getGetLibraryReadingActivityQueryKey(params);
+
+  const queryFn: QueryFunction<Awaited<ReturnType<typeof getLibraryReadingActivity>>> = ({
+    signal,
+  }) => getLibraryReadingActivity(params, signal);
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof getLibraryReadingActivity>>,
+    TError,
+    TData
+  > & { queryKey: DataTag<QueryKey, TData, TError> };
+};
+
+export type GetLibraryReadingActivityQueryResult = NonNullable<
+  Awaited<ReturnType<typeof getLibraryReadingActivity>>
+>;
+export type GetLibraryReadingActivityQueryError = HTTPValidationError;
+
+export function useGetLibraryReadingActivity<
+  TData = Awaited<ReturnType<typeof getLibraryReadingActivity>>,
+  TError = HTTPValidationError,
+>(
+  params: undefined | GetLibraryReadingActivityParams,
+  options: {
+    query: Partial<
+      UseQueryOptions<Awaited<ReturnType<typeof getLibraryReadingActivity>>, TError, TData>
+    > &
+      Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getLibraryReadingActivity>>,
+          TError,
+          Awaited<ReturnType<typeof getLibraryReadingActivity>>
+        >,
+        'initialData'
+      >;
+  },
+  queryClient?: QueryClient
+): DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+export function useGetLibraryReadingActivity<
+  TData = Awaited<ReturnType<typeof getLibraryReadingActivity>>,
+  TError = HTTPValidationError,
+>(
+  params?: GetLibraryReadingActivityParams,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<Awaited<ReturnType<typeof getLibraryReadingActivity>>, TError, TData>
+    > &
+      Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getLibraryReadingActivity>>,
+          TError,
+          Awaited<ReturnType<typeof getLibraryReadingActivity>>
+        >,
+        'initialData'
+      >;
+  },
+  queryClient?: QueryClient
+): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+export function useGetLibraryReadingActivity<
+  TData = Awaited<ReturnType<typeof getLibraryReadingActivity>>,
+  TError = HTTPValidationError,
+>(
+  params?: GetLibraryReadingActivityParams,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<Awaited<ReturnType<typeof getLibraryReadingActivity>>, TError, TData>
+    >;
+  },
+  queryClient?: QueryClient
+): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+/**
+ * @summary Get Library Reading Activity
+ */
+
+export function useGetLibraryReadingActivity<
+  TData = Awaited<ReturnType<typeof getLibraryReadingActivity>>,
+  TError = HTTPValidationError,
+>(
+  params?: GetLibraryReadingActivityParams,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<Awaited<ReturnType<typeof getLibraryReadingActivity>>, TError, TData>
+    >;
+  },
+  queryClient?: QueryClient
+): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+  const queryOptions = getGetLibraryReadingActivityQueryOptions(params, options);
 
   const query = useQuery(queryOptions, queryClient) as UseQueryResult<TData, TError> & {
     queryKey: DataTag<QueryKey, TData, TError>;

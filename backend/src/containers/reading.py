@@ -66,6 +66,9 @@ from src.application.reading.queries.get_ereader_book_highlights_use_case import
 from src.application.reading.queries.get_global_highlight_labels_use_case import (
     GetGlobalHighlightLabelsUseCase,
 )
+from src.application.reading.queries.get_library_reading_activity_use_case import (
+    GetLibraryReadingActivityUseCase,
+)
 from src.application.reading.queries.highlight_search_use_case import (
     HighlightSearchUseCase,
 )
@@ -94,6 +97,7 @@ class ReadingContainer(containers.DeclarativeContainer):
 
     # Query services (read models)
     book_statistics_query = providers.Dependency()
+    library_reading_activity_query = providers.Dependency()
     bookmark_query = providers.Dependency()
     highlight_label_query = providers.Dependency()
     highlight_search_query = providers.Dependency()
@@ -194,6 +198,10 @@ class ReadingContainer(containers.DeclarativeContainer):
     get_book_statistics_use_case = providers.Factory(
         GetBookStatisticsUseCase,
         book_statistics_query=book_statistics_query,
+    )
+    get_library_reading_activity_use_case = providers.Factory(
+        GetLibraryReadingActivityUseCase,
+        library_reading_activity_query=library_reading_activity_query,
     )
 
     # Chapter digest
