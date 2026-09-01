@@ -141,7 +141,8 @@ export const ReadingActivityGrid = ({
   // calendar's own scroll container is the one to move, and it is reached by
   // its class because the component forwards a ref to its outer element only.
   // The frame is waited out because the grid is still being laid out on the
-  // first pass.
+  // first pass. A change of square size redraws the year at a new width, which
+  // leaves the old scroll position pointing somewhere else -- hence the dep.
   useEffect(() => {
     const frame = requestAnimationFrame(() => {
       const scroller = section.current?.querySelector(`.${SCROLL_CONTAINER}`);
@@ -150,7 +151,7 @@ export const ReadingActivityGrid = ({
       }
     });
     return () => cancelAnimationFrame(frame);
-  }, [data]);
+  }, [data, blockSize]);
 
   const asMonth = (date: string) =>
     DateTime.fromISO(date).setLocale(locale).toLocaleString({ month: 'short', year: 'numeric' });

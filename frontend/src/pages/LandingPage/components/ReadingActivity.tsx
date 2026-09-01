@@ -17,8 +17,14 @@ import { RECENT_ROW_WIDTH } from './RecentBooks.tsx';
  */
 const NAMED_PER_DAY = 3;
 
-/** The narrowest the column of numbers may be squeezed to beside the grid. */
-const STATS_COLUMN = 280;
+/**
+ * The narrowest the column of numbers may be squeezed to beside the grid.
+ *
+ * Low enough that the floor, the gap and a year of default squares still fit
+ * the content column at the `lg` breakpoint the two-column layout starts on --
+ * a floor the row cannot honour is an overflowing row.
+ */
+const STATS_COLUMN = 260;
 
 /** The gap between that column and the grid, in pixels. */
 const STATS_GAP = 32;
@@ -27,12 +33,22 @@ const STATS_GAP = 32;
 const ROOMY_BLOCK_SIZE = 15;
 
 /**
+ * Room to spare over the width the layout strictly needs.
+ *
+ * A media query measures the viewport with the scrollbar counted in, so a
+ * `min-width` met exactly is met with some 15px less to lay out in than it
+ * says. Without the slack the larger squares switch on just before the row can
+ * hold them.
+ */
+const ROOMY_SLACK = 40;
+
+/**
  * The narrowest viewport that fits a whole year of `ROOMY_BLOCK_SIZE` squares
  * beside the numbers: 53 columns of a square plus its third of a gap, then the
  * stats column, the gap and the page's own 48px of gutter. Below it the grid
  * keeps the size the book page draws it at rather than scrolling wider squares.
  */
-const ROOMY_VIEWPORT = 53 * (ROOMY_BLOCK_SIZE + 5) + STATS_COLUMN + STATS_GAP + 48;
+const ROOMY_VIEWPORT = 53 * (ROOMY_BLOCK_SIZE + 5) + STATS_COLUMN + STATS_GAP + 48 + ROOMY_SLACK;
 
 /** The books of one day, as the reader would say them. */
 const booksLabel = (titles: string[]) => {
