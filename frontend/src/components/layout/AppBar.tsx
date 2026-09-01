@@ -1,5 +1,7 @@
+import { AppBarDrawer } from '@/components/layout/AppBarDrawer.tsx';
+import { AppBarNavLinks } from '@/components/layout/AppBarNavLinks.tsx';
 import { GlobalSearch } from '@/components/search/GlobalSearch.tsx';
-import { AccountIcon, LogoutIcon, SettingsIcon } from '@/theme/Icons.tsx';
+import { AccountIcon, LogoutIcon, MenuIcon, SettingsIcon } from '@/theme/Icons.tsx';
 import {
   Box,
   Container,
@@ -19,6 +21,7 @@ import { useAuth } from '../../context/AuthContext.tsx';
 export function AppBar() {
   const { logout } = useAuth();
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
+  const [isDrawerOpen, setIsDrawerOpen] = useState(false);
 
   const handleMenuOpen = (event: React.MouseEvent<HTMLElement>) => {
     setAnchorEl(event.currentTarget);
@@ -43,6 +46,21 @@ export function AppBar() {
     >
       <Container maxWidth="xl" disableGutters>
         <Toolbar>
+          {/* The same destinations the nav links carry, for a viewport with no
+              room for them. */}
+          <IconButton
+            edge="start"
+            aria-label="Open navigation"
+            onClick={() => setIsDrawerOpen(true)}
+            sx={{
+              display: { xs: 'inline-flex', md: 'none' },
+              mr: 1,
+              color: 'primary.contrastText',
+            }}
+          >
+            <MenuIcon />
+          </IconButton>
+
           {/* Crossbill Icon and Title - Clickable */}
           <Box
             component={Link}
@@ -80,6 +98,8 @@ export function AppBar() {
             </Typography>
           </Box>
 
+          <AppBarNavLinks />
+
           {/* Spacer */}
           <Box sx={{ flexGrow: 1 }} />
 
@@ -87,12 +107,14 @@ export function AppBar() {
 
           <Box sx={{ flexGrow: { xs: 0, md: 1 } }} />
 
-          {/* Hamburger menu */}
+          {/* Account menu. Below `md` these entries are in the drawer, so the
+              toolbar keeps to one row of controls. */}
           <IconButton
             color="inherit"
             aria-label="Account"
             onClick={handleMenuOpen}
             sx={{
+              display: { xs: 'none', md: 'inline-flex' },
               color: 'primary.contrastText',
             }}
           >
@@ -127,6 +149,8 @@ export function AppBar() {
           </Menu>
         </Toolbar>
       </Container>
+
+      <AppBarDrawer open={isDrawerOpen} onClose={() => setIsDrawerOpen(false)} />
     </MuiAppBar>
   );
 }
