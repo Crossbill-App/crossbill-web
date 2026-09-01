@@ -41,37 +41,39 @@ export const AppBarDrawer = ({ open, onClose }: AppBarDrawerProps) => {
   return (
     <Drawer anchor="left" open={open} onClose={onClose}>
       <Box sx={{ width: DRAWER_WIDTH }} role="presentation">
-        <List>
-          {APP_ROUTES.map((route) => {
-            const isActive = isAppRouteActive(route, pathname);
-            const Icon = route.icon;
+        <Box component="nav" aria-label="Global navigation">
+          <List>
+            {APP_ROUTES.map((route) => {
+              const isActive = isAppRouteActive(route, pathname);
+              const Icon = route.icon;
 
-            return (
-              <NavListItemButton
-                key={route.to}
-                to={route.to}
-                data-status={isActive ? 'active' : undefined}
-                selected={isActive}
-                onClick={onClose}
-              >
-                <ListItemIcon sx={{ color: isActive ? 'primary.main' : 'text.secondary' }}>
-                  <Icon />
-                </ListItemIcon>
-                <ListItemText
-                  primary={route.label}
-                  slotProps={{
-                    primary: {
-                      sx: {
-                        fontWeight: isActive ? 600 : 400,
-                        color: isActive ? 'primary.main' : 'text.primary',
+              return (
+                <NavListItemButton
+                  key={route.to}
+                  to={route.to}
+                  data-status={isActive ? 'active' : undefined}
+                  selected={isActive}
+                  onClick={onClose}
+                >
+                  <ListItemIcon sx={{ color: isActive ? 'primary.main' : 'text.secondary' }}>
+                    <Icon />
+                  </ListItemIcon>
+                  <ListItemText
+                    primary={route.label}
+                    slotProps={{
+                      primary: {
+                        sx: {
+                          fontWeight: isActive ? 600 : 400,
+                          color: isActive ? 'primary.main' : 'text.primary',
+                        },
                       },
-                    },
-                  }}
-                />
-              </NavListItemButton>
-            );
-          })}
-        </List>
+                    }}
+                  />
+                </NavListItemButton>
+              );
+            })}
+          </List>
+        </Box>
 
         <Divider />
 

@@ -12,7 +12,11 @@ export const AppBarNavLinks = () => {
   const pathname = useLocation({ select: (location) => location.pathname });
 
   return (
-    <Box sx={{ display: { xs: 'none', md: 'flex' }, alignItems: 'center', gap: 0.5, ml: 3 }}>
+    <Box
+      component="nav"
+      aria-label="Global navigation"
+      sx={{ display: { xs: 'none', md: 'flex' }, alignItems: 'center', gap: 0.5, ml: 3 }}
+    >
       {APP_ROUTES.map((route) => {
         const isActive = isAppRouteActive(route, pathname);
 

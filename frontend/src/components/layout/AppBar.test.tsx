@@ -52,6 +52,7 @@ test('the bar marks which destination you are on', async () => {
 
   const screen = await renderApp({ path: '/library' });
 
+  await expect.element(screen.getByRole('navigation', { name: 'Global navigation' })).toBeVisible();
   await expect
     .element(screen.getByRole('link', { name: 'Library', exact: true }))
     .toHaveAttribute('data-status', 'active');
@@ -82,6 +83,9 @@ test('below md the destinations move into the drawer', async () => {
       .not.toBeInTheDocument();
 
     await userEvent.click(screen.getByRole('button', { name: 'Open navigation' }));
+    await expect
+      .element(screen.getByRole('navigation', { name: 'Global navigation' }))
+      .toBeVisible();
     await userEvent.click(screen.getByRole('link', { name: 'Library', exact: true }));
 
     await expect.element(screen.getByText(BOOK_TITLE)).toBeVisible();
