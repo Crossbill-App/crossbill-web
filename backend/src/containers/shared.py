@@ -7,6 +7,9 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from src.application.reading.services.label_resolution_service import LabelResolutionService
 from src.domain.reading.services.deduplication_service import HighlightDeduplicationService
 from src.domain.reading.services.highlight_style_resolver import HighlightStyleResolver
+from src.domain.reading.services.library_reading_activity_calculator import (
+    LibraryReadingActivityCalculator,
+)
 from src.domain.reading.services.reading_activity_calculator import (
     ReadingActivityCalculator,
 )
@@ -48,6 +51,9 @@ from src.infrastructure.reading.queries.ereader_digest_query import EreaderDiges
 from src.infrastructure.reading.queries.ereader_highlights_query import EreaderHighlightsQuery
 from src.infrastructure.reading.queries.highlight_label_query import HighlightLabelQuery
 from src.infrastructure.reading.queries.highlight_search_query import HighlightSearchQuery
+from src.infrastructure.reading.queries.library_reading_activity_query import (
+    LibraryReadingActivityQuery,
+)
 from src.infrastructure.reading.queries.reading_session_query import ReadingSessionQuery
 from src.infrastructure.reading.repositories import (
     BookmarkRepository,
@@ -136,6 +142,10 @@ class SharedContainer(containers.DeclarativeContainer):
         ReadingStatisticsCalculator,
         activity_calculator=reading_activity_calculator,
     )
+    library_reading_activity_calculator = providers.Factory(
+        LibraryReadingActivityCalculator,
+        activity_calculator=reading_activity_calculator,
+    )
 
     # Application services (with deps)
     label_resolution_service = providers.Factory(
@@ -161,6 +171,11 @@ class SharedContainer(containers.DeclarativeContainer):
         BookStatisticsQuery,
         db=db,
         statistics_calculator=reading_statistics_calculator,
+    )
+    library_reading_activity_query = providers.Factory(
+        LibraryReadingActivityQuery,
+        db=db,
+        activity_calculator=library_reading_activity_calculator,
     )
     bookmark_query = providers.Factory(BookmarkQuery, db=db)
     ereader_digest_query = providers.Factory(EreaderDigestQuery, db=db)
