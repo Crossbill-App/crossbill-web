@@ -13,6 +13,7 @@ import { useSnackbar } from '@/context/SnackbarContext.tsx';
 import { useCacheEvents } from '@/lib/cacheEvents.ts';
 import { BookPageProvider } from '@/pages/BookPage/BookPageContext.tsx';
 import { BookTitle } from '@/pages/BookPage/BookTitle/BookTitle.tsx';
+import { BackToLibraryLink } from '@/pages/BookPage/navigation/BackToLibraryLink.tsx';
 import { DesktopNavLinks } from '@/pages/BookPage/navigation/DesktopNavLinks.tsx';
 import { MobileBottomNav } from '@/pages/BookPage/navigation/MobileBottomNav.tsx';
 import { useTabContentSnap } from '@/pages/BookPage/navigation/useTabContentSnap.ts';
@@ -124,6 +125,7 @@ export const BookPage = () => {
             </>
           ) : (
             <Box sx={{ maxWidth: '800px', mx: 'auto' }}>
+              <BackToLibraryLink />
               <BookTitle book={book} />
               {/* Tall enough to fill the viewport, so a tab with little in it
                   still has somewhere to snap to. */}
