@@ -1,9 +1,9 @@
-"""Domain service turning a book's reading sessions into a year of daily activity.
+"""Domain service turning reading sessions into a year of daily activity.
 
-The calendar grid the reader sees is coloured by how much of the book was read
-each day. Every rule that decides a square's colour lives here: what "how much"
-means when a book has no page numbers, which 365 days the grid covers, and
-where the four shades divide.
+The calendar grid the reader sees is coloured by how much was read each day.
+Every rule that decides a square's colour lives here: what "how much" means
+when a session has no page numbers, which 365 days the grid covers, and where
+the four shades divide.
 """
 
 from collections.abc import Callable, Sequence
@@ -24,12 +24,30 @@ MAX_LEVEL = 4
 class ActivityUnit(StrEnum):
     """What a day's number counts.
 
-    A book is measured in pages when every session the grid draws recorded
-    them, and in minutes otherwise -- see ``ReadingActivityCalculator._unit``.
+    A grid is measured in pages when the sessions it draws recorded them, and
+    in minutes otherwise -- see ``ReadingActivityCalculator._unit``.
     """
 
     PAGES = "pages"
     MINUTES = "minutes"
+
+
+class ActivityUnitRule(StrEnum):
+    """How much of the reading must have page numbers for the grid to count pages.
+
+    One book is all-or-nothing: a book synced partly from a device that
+    reported pages and partly from one that did not would, under any softer
+    rule, render its page-less days as blank, and a grid that undercounts the
+    reading is worse than one measured in a coarser unit.
+
+    A grid spanning a whole library cannot afford that, because one page-less
+    book would demote every other book's year to minutes. There the page-less
+    days are the ones that go pale, which costs the book that has no pages
+    rather than the library that mostly does.
+    """
+
+    EVERY_SESSION_PAGED = "every_session_paged"
+    ANY_SESSION_PAGED = "any_session_paged"
 
 
 @dataclass(frozen=True)
@@ -43,11 +61,11 @@ class ActivityDay:
 
 @dataclass(frozen=True)
 class ReadingActivity:
-    """A book's reading, day by day, over the window the grid shows.
+    """The reading, day by day, over the window the grid shows.
 
     ``days`` carries only the days with something to show, oldest first. The
     window is ``range_start``..``range_end`` regardless, so the grid spans a
-    full year whether the book was read on three days or three hundred.
+    full year whether there was reading on three days or three hundred.
     """
 
     unit: ActivityUnit
@@ -57,21 +75,28 @@ class ReadingActivity:
 
 
 class ReadingActivityCalculator:
-    """Computes the daily activity grid for one book.
+    """Computes the daily activity grid for whatever reading it is handed.
 
-    Deliberately per-book: the shades divide at multiples of *this* book's
-    typical day, so a dense book nobody gets through quickly still shows its
-    good days as good days.
+    The shades divide at multiples of the typical day of *that* reading, so a
+    dense book nobody gets through quickly still shows its good days as good
+    days. Which reading a grid covers is the caller's to decide -- one book's
+    sessions, or a whole library's.
     """
 
     def calculate(
-        self, stretches: Sequence[ReadingStretch], today: date, zone: tzinfo
+        self,
+        stretches: Sequence[ReadingStretch],
+        today: date,
+        zone: tzinfo,
+        unit_rule: ActivityUnitRule = ActivityUnitRule.EVERY_SESSION_PAGED,
     ) -> ReadingActivity | None:
-        """Lay the book's reading out over the window ending at the anchor day.
+        """Lay the reading out over the window ending at the anchor day.
 
         ``today`` is the reader's own today, in ``zone`` -- passed in rather
         than read from the clock, so the window a test asserts on is the window
-        it asked for.
+        it asked for. ``unit_rule`` is how much of the drawn reading must carry
+        page numbers for the grid to count pages; it defaults to the rule one
+        book is held to.
 
         Returns ``None`` when there is no square to colour: a book with no
         sessions, none inside the window, or none there that nets a positive
@@ -93,7 +118,7 @@ class ReadingActivityCalculator:
         if not drawn:
             return None
 
-        unit = self._unit(drawn)
+        unit = self._unit(drawn, unit_rule)
         active = {
             day: value for day, value in self._daily_totals(drawn, unit, zone).items() if value > 0
         }
@@ -112,22 +137,20 @@ class ReadingActivityCalculator:
             days=days,
         )
 
-    def _unit(self, drawn: Sequence[ReadingStretch]) -> ActivityUnit:
-        """Pages when every session on the grid recorded them, minutes otherwise.
-
-        All-or-nothing on purpose. A book synced partly from a device that
-        reported pages and partly from one that did not would, under any softer
-        rule, render its page-less days as blank -- a grid that undercounts the
-        reading is worse than one measured in a coarser unit.
+    def _unit(self, drawn: Sequence[ReadingStretch], rule: ActivityUnitRule) -> ActivityUnit:
+        """Pages when the drawn sessions recorded them, per ``rule``; minutes otherwise.
 
         Only the sessions the grid draws get a say. Reading from before the
         window is not on it, so letting a page-less session from two years ago
         put this year in minutes would label the grid by something nobody can
         see on it.
         """
-        if all(stretch.has_pages for stretch in drawn):
-            return ActivityUnit.PAGES
-        return ActivityUnit.MINUTES
+        paged = (
+            all(stretch.has_pages for stretch in drawn)
+            if rule is ActivityUnitRule.EVERY_SESSION_PAGED
+            else any(stretch.has_pages for stretch in drawn)
+        )
+        return ActivityUnit.PAGES if paged else ActivityUnit.MINUTES
 
     def _anchor(self, stretches: Sequence[ReadingStretch], today: date, zone: tzinfo) -> date:
         """The last day of the window.

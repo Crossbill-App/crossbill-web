@@ -7,6 +7,7 @@ import pytest
 
 from src.domain.reading.services.reading_activity_calculator import (
     ActivityUnit,
+    ActivityUnitRule,
     ReadingActivityCalculator,
 )
 from src.domain.reading.services.reading_stretch import ReadingStretch
@@ -77,6 +78,42 @@ def test_one_session_without_pages_puts_the_whole_book_on_minutes(
     ]
 
     activity = calculator.calculate(stretches, RECENTLY, UTC)
+
+    assert activity is not None
+    assert activity.unit is ActivityUnit.MINUTES
+    assert [day.value for day in activity.days] == [30, 45]
+
+
+def test_one_paged_session_is_enough_to_count_pages_under_the_looser_rule(
+    calculator: ReadingActivityCalculator,
+) -> None:
+    """A library grid counts pages so that one page-less book cannot demote the rest.
+
+    The page-less day pays for it by netting nothing, which leaves it off the
+    grid entirely -- the cost the all-or-nothing rule exists to spare one book.
+    """
+    stretches = [
+        paged(date(2024, 3, 1), pages=10, minutes=30),
+        timed(datetime(2024, 3, 2, 20, 0, tzinfo=UTC), seconds=45 * 60),
+    ]
+
+    activity = calculator.calculate(stretches, RECENTLY, UTC, ActivityUnitRule.ANY_SESSION_PAGED)
+
+    assert activity is not None
+    assert activity.unit is ActivityUnit.PAGES
+    assert [(day.day, day.value) for day in activity.days] == [(date(2024, 3, 1), 10)]
+
+
+def test_reading_that_recorded_no_pages_at_all_is_measured_in_minutes(
+    calculator: ReadingActivityCalculator,
+) -> None:
+    """The looser rule still falls back: a library with no page numbers is not a blank year."""
+    stretches = [
+        timed(datetime(2024, 3, 1, 20, 0, tzinfo=UTC), seconds=30 * 60),
+        timed(datetime(2024, 3, 2, 20, 0, tzinfo=UTC), seconds=45 * 60),
+    ]
+
+    activity = calculator.calculate(stretches, RECENTLY, UTC, ActivityUnitRule.ANY_SESSION_PAGED)
 
     assert activity is not None
     assert activity.unit is ActivityUnit.MINUTES
