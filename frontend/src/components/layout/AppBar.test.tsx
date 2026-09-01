@@ -5,7 +5,7 @@ import { bookApi } from '@tests/msw/bookApi';
 import { libraryApi } from '@tests/msw/libraryApi';
 import { worker } from '@tests/msw/worker';
 import { expect, test } from 'vitest';
-import { userEvent } from 'vitest/browser';
+import { page, userEvent } from 'vitest/browser';
 
 const BOOK_TITLE = 'The Pragmatic Reader';
 
@@ -99,6 +99,19 @@ test('the drawer carries the account entries the account icon hides on a phone',
 
     await expect.element(screen.getByRole('link', { name: 'Settings' })).toBeVisible();
     await expect.element(screen.getByRole('button', { name: 'Log out' })).toBeVisible();
+  });
+});
+
+test('widening past md closes the phone drawer', async () => {
+  await atCompactViewport(async () => {
+    const screen = await aDashboard();
+
+    await userEvent.click(screen.getByRole('button', { name: 'Open navigation' }));
+    await expect.element(screen.getByRole('link', { name: 'Settings' })).toBeVisible();
+
+    await page.viewport(1440, 900);
+
+    await expect.element(screen.getByRole('link', { name: 'Settings' })).not.toBeInTheDocument();
   });
 });
 

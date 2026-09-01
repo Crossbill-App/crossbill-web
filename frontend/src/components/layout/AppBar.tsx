@@ -13,15 +13,23 @@ import {
   AppBar as MuiAppBar,
   Toolbar,
   Typography,
+  useMediaQuery,
+  useTheme,
 } from '@mui/material';
 import { Link } from '@tanstack/react-router';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useAuth } from '../../context/AuthContext.tsx';
 
 export function AppBar() {
   const { logout } = useAuth();
+  const theme = useTheme();
+  const isWide = useMediaQuery(theme.breakpoints.up('md'));
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
+
+  useEffect(() => {
+    if (isWide) setIsDrawerOpen(false);
+  }, [isWide]);
 
   const handleMenuOpen = (event: React.MouseEvent<HTMLElement>) => {
     setAnchorEl(event.currentTarget);
