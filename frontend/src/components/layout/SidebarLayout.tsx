@@ -3,7 +3,7 @@ import type { ReactNode } from 'react';
 
 /** Width of either rail. Fixed, so the content column is the same measure on
  *  every page that uses this layout. */
-export const SIDEBAR_WIDTH = '280px';
+const SIDEBAR_WIDTH = '280px';
 
 interface SidebarLayoutProps {
   /** The navigation or filter rail. Its column is reserved whether or not the
