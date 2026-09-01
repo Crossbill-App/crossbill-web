@@ -1,5 +1,6 @@
 import { useGetBooks } from '@/api/generated/books/books';
 import { Spinner } from '@/components/animations/Spinner.tsx';
+import { BookList } from '@/components/books/BookList.tsx';
 import { EmptyStateText } from '@/components/EmptyStateText.tsx';
 import { SearchBar } from '@/components/inputs/SearchBar.tsx';
 import { PageContainer } from '@/components/layout/Layouts.tsx';
@@ -8,7 +9,6 @@ import { PageTitle } from '@/components/typography/PageTitle.tsx';
 import { SectionTitle } from '@/components/typography/SectionTitle.tsx';
 import { Alert, Box, Typography } from '@mui/material';
 import { useNavigate, useSearch } from '@tanstack/react-router';
-import { BookList } from './components/BookList';
 import { RecentBooks } from './components/RecentBooks';
 
 const BOOKS_PER_PAGE = 32;
