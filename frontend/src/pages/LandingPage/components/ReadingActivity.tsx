@@ -133,7 +133,9 @@ export const ReadingActivity = () => {
                   lg: 'repeat(2, 1fr)',
                 },
                 gap: 2,
-                alignContent: 'start',
+                // Centred against the grid rather than pinned to the top of
+                // the row, so the two columns read as one band.
+                alignContent: 'center',
               }}
             >
               {summary(stats).map((stat) => (
