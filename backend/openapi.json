@@ -1860,6 +1860,71 @@
         }
       }
     },
+    "/api/v1/captures/recent": {
+      "get": {
+        "tags": [
+          "captures"
+        ],
+        "summary": "Get Recent Captures",
+        "description": "Get the reader's most recent highlights and notes, newest first.\n\nA highlight is filed under the moment the e-reader recorded it; a note\nunder its latest edit. One book contributes at most three captures to any\none day, and the last of those says how many more that day holds.\n\nArgs:\n    tz: IANA timezone deciding which calendar day a note falls on\n    limit: Maximum number of captures to return (default: 8, max: 50)\n\nReturns:\n    CollectionResponse with the captures, newest first",
+        "operationId": "get_recent_captures",
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 50,
+              "minimum": 1,
+              "description": "Maximum number of captures to return",
+              "default": 8,
+              "title": "Limit"
+            },
+            "description": "Maximum number of captures to return"
+          },
+          {
+            "name": "tz",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "description": "IANA timezone the reader's calendar days are counted in",
+              "default": "UTC",
+              "title": "Tz"
+            },
+            "description": "IANA timezone the reader's calendar days are counted in"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CollectionResponse_RecentCapture_"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/books/{book_id}/bookmarks": {
       "post": {
         "tags": [
@@ -5696,6 +5761,22 @@
         ],
         "title": "CollectionResponse[NoteWithLinks]"
       },
+      "CollectionResponse_RecentCapture_": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/RecentCapture"
+            },
+            "type": "array",
+            "title": "Items"
+          }
+        },
+        "type": "object",
+        "required": [
+          "items"
+        ],
+        "title": "CollectionResponse[RecentCapture]"
+      },
       "CollectionResponse_Tag_": {
         "properties": {
           "items": {
@@ -8407,6 +8488,128 @@
         ],
         "title": "ReadingSessionSyncResponse",
         "description": "Schema for reading session sync response.\n\nNote: If any session is invalid,\nthe entire request fails with 422 and this response is never returned."
+      },
+      "RecentCapture": {
+        "properties": {
+          "kind": {
+            "type": "string",
+            "enum": [
+              "highlight",
+              "note"
+            ],
+            "title": "Kind",
+            "description": "What this capture is"
+          },
+          "id": {
+            "type": "integer",
+            "title": "Id",
+            "description": "ID of the highlight or the note"
+          },
+          "book_id": {
+            "type": "integer",
+            "title": "Book Id",
+            "description": "Book the capture belongs to"
+          },
+          "book_title": {
+            "type": "string",
+            "title": "Book Title",
+            "description": "Title of that book"
+          },
+          "chapter_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Chapter Name",
+            "description": "Chapter the highlight sits in; null for a note"
+          },
+          "title": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Title",
+            "description": "Title of the note; null for a highlight"
+          },
+          "text": {
+            "type": "string",
+            "title": "Text",
+            "description": "The highlighted passage, or the note's body"
+          },
+          "note_kind": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Note Kind",
+            "description": "Kind of the note; null for a highlight"
+          },
+          "page": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Page",
+            "description": "Page the highlight was made on, where known"
+          },
+          "label": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/HighlightLabel"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The highlight's resolved label; null for a note"
+          },
+          "captured_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Captured At",
+            "description": "When the capture was made, as a local wall clock with no offset: the e-reader's own for a highlight, the reader's zone for a note"
+          },
+          "day": {
+            "type": "string",
+            "format": "date",
+            "title": "Day",
+            "description": "Calendar day the capture is filed under"
+          },
+          "more_in_book": {
+            "type": "integer",
+            "title": "More In Book",
+            "description": "Captures of the same book, day and kind the feed does not show. Non-zero on the last capture of that book, day and kind, zero everywhere else"
+          }
+        },
+        "type": "object",
+        "required": [
+          "kind",
+          "id",
+          "book_id",
+          "book_title",
+          "text",
+          "captured_at",
+          "day",
+          "more_in_book"
+        ],
+        "title": "RecentCapture",
+        "description": "One highlight or note in the feed of what the reader last captured."
       },
       "RefreshTokenRequest": {
         "properties": {
