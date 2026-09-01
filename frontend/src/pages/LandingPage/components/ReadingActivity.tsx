@@ -108,8 +108,8 @@ export const ReadingActivity = () => {
             // The numbers read first on a phone, where they sit above a grid
             // that has to be scrolled to be read at all; on a desktop they
             // take the empty half of the row beside it.
-            gridTemplateAreas: { xs: '"stats" "grid"', lg: '"grid stats"' },
-            gridTemplateColumns: { xs: '1fr', lg: `minmax(0, 1fr) ${STATS_COLUMN}px` },
+            gridTemplateAreas: { xs: '"stats" "grid"', lg: '"stats grid"' },
+            gridTemplateColumns: { xs: '1fr', lg: `minmax(1fr, 0) ${STATS_COLUMN}px` },
             columnGap: `${STATS_GAP}px`,
             rowGap: 3,
           }}
