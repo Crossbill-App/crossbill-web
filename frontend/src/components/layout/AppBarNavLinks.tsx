@@ -1,5 +1,5 @@
 import { APP_ROUTES, isAppRouteActive } from '@/components/layout/appRoutes.ts';
-import { Box, Button } from '@mui/material';
+import { alpha, Box, Button } from '@mui/material';
 import { createLink, useLocation } from '@tanstack/react-router';
 
 const NavButton = createLink(Button);
@@ -31,11 +31,13 @@ export const AppBarNavLinks = () => {
               borderColor: 'transparent',
               borderRadius: 0,
               px: 1.5,
-              '&[data-status="active"]': {
+              '&:hover': {
+                borderColor: (theme) => alpha(theme.palette.primary.contrastText, 0.4),
+              },
+              '&[data-status="active"], &[data-status="active"]:hover': {
                 fontWeight: 600,
                 borderColor: 'primary.contrastText',
               },
-              '&:hover': { borderColor: isActive ? 'primary.contrastText' : 'currentColor' },
             }}
           >
             {route.label}
