@@ -113,6 +113,8 @@ export function bookApi(initial: Partial<BookApiState> = {}) {
       return new HttpResponse(null, { status: 204 });
     }),
 
+    http.delete('/api/v1/books/:bookId', () => new HttpResponse(null, { status: 204 })),
+
     http.post('/api/v1/notes', async ({ request }) => {
       const body = (await request.json()) as NoteCreateRequest;
       const note = aNote({

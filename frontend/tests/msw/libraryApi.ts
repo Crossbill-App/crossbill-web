@@ -1,7 +1,7 @@
 import type { BookWithHighlightCount } from '@/api/generated/model';
 import { http, HttpResponse } from 'msw';
 
-/** The landing page's two lists, served from one set of books. */
+/** The library's list and the dashboard's recent row, from one set of books. */
 export function libraryApi(books: BookWithHighlightCount[], recent: BookWithHighlightCount[] = []) {
   return [
     http.get('/api/v1/books/', () =>

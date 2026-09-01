@@ -1,9 +1,10 @@
 import { getGetBookDetailsQueryKey } from '@/api/generated/books/books.ts';
-import { aBookDetails, aChapter, aHighlight } from '@tests/fixtures/book';
+import { aBookCard, aBookDetails, aChapter, aHighlight } from '@tests/fixtures/book';
 import { aNote } from '@tests/fixtures/notes';
 import { renderApp } from '@tests/harness/renderApp';
 import { atCompactViewport } from '@tests/harness/viewport';
 import { bookApi } from '@tests/msw/bookApi';
+import { libraryApi } from '@tests/msw/libraryApi';
 import { worker } from '@tests/msw/worker';
 import { http, HttpResponse } from 'msw';
 import { expect, test, vi } from 'vitest';
@@ -257,6 +258,22 @@ test('clearing the blurb removes it from the header', async () => {
   await expect.element(screen.getByRole('dialog')).not.toBeInTheDocument();
   await expect.element(screen.getByText('A blurb worth deleting.')).not.toBeInTheDocument();
   expect(state.book.description).toBeNull();
+});
+
+test('deleting a book returns to the library', async () => {
+  worker.use(...bookApi({ book: aBookDetails() }).handlers, ...libraryApi([aBookCard()]));
+
+  const screen = await renderApp({ path: '/book/1' });
+
+  await screen.getByRole('button', { name: 'Manage book' }).click();
+  await screen.getByRole('button', { name: 'Delete', exact: true }).click();
+  await screen
+    .getByRole('alertdialog')
+    .getByRole('button', { name: 'Delete', exact: true })
+    .click();
+
+  await expect.element(screen.getByRole('heading', { name: 'Library', exact: true })).toBeVisible();
+  expect(window.location.pathname).toBe('/library');
 });
 
 /** The width of the column the current tab's content is laid out in. */

@@ -77,15 +77,17 @@ const ORIGINAL_TITLE = 'The Pragmatic Reader';
 const REFRESHED_TITLE = 'The Refreshed Reader';
 
 /**
- * The front page on screen showing the original title, with the API primed to
+ * The library on screen showing the original title, with the API primed to
  * answer the next request with the refreshed one — so a refetch shows up as a
- * changed title rather than only as a request count.
+ * changed title rather than only as a request count. Pull-to-refresh is wired
+ * into the root layout and works on any page; the library is simply the one
+ * with a list that makes a refetch visible.
  */
-async function aFrontPageReadyToRefresh() {
+async function aBookListReadyToRefresh() {
   const { handlers, state } = booksApi(ORIGINAL_TITLE);
   worker.use(...handlers);
 
-  const screen = await renderApp({ path: '/' });
+  const screen = await renderApp({ path: '/library' });
   await expect.element(screen.getByText(ORIGINAL_TITLE)).toBeVisible();
 
   state.title = REFRESHED_TITLE;
@@ -93,14 +95,14 @@ async function aFrontPageReadyToRefresh() {
   return { screen, state };
 }
 
-type FrontPage = Awaited<ReturnType<typeof aFrontPageReadyToRefresh>>;
+type BookListPage = Awaited<ReturnType<typeof aBookListReadyToRefresh>>;
 
 /**
  * Nothing refetched: still the one request, still the original title. A
  * refresh fires its request off the touchend handler, so whatever the drag was
  * going to do has reached the handler well inside this window.
  */
-async function expectNoRefresh({ screen, state }: FrontPage) {
+async function expectNoRefresh({ screen, state }: BookListPage) {
   await new Promise((resolve) => setTimeout(resolve, 300));
 
   expect(state.requests).toBe(1);
@@ -108,7 +110,7 @@ async function expectNoRefresh({ screen, state }: FrontPage) {
 }
 
 test('pulling the page down past the threshold refetches the data on screen', async () => {
-  const { screen } = await aFrontPageReadyToRefresh();
+  const { screen } = await aBookListReadyToRefresh();
 
   dragDown(300);
 
@@ -116,7 +118,7 @@ test('pulling the page down past the threshold refetches the data on screen', as
 });
 
 test('a pull that stops short of the threshold refetches nothing', async () => {
-  const page = await aFrontPageReadyToRefresh();
+  const page = await aBookListReadyToRefresh();
 
   // 30px of pull once resistance is applied: under the 70px threshold.
   dragDown(60);
@@ -125,7 +127,7 @@ test('a pull that stops short of the threshold refetches nothing', async () => {
 });
 
 test('a sideways swipe is left to the horizontal scroller under it', async () => {
-  const page = await aFrontPageReadyToRefresh();
+  const page = await aBookListReadyToRefresh();
 
   // A carousel drag: far enough sideways to be horizontal, with the vertical
   // drift a finger leaves behind — and past the refresh threshold on its own.

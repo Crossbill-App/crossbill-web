@@ -7,21 +7,23 @@ import type { ReactNode } from 'react';
 interface PageHeaderProps {
   title: string;
   /**
-   * This tab's search field, if it has one. Which engine sits behind it and
-   * when it commits stay the tab's business.
+   * This page's search field, if it has one. Which engine sits behind it and
+   * when it commits stay the page's business.
    */
   search?: ReactNode;
-  /** This tab's ordering control, if it has one. Usually a `SortToggle`. */
+  /** This page's ordering control, if it has one. Usually a `SortToggle`. */
   sort?: ReactNode;
   /**
-   * Rows this tab is currently rendering, and what to call them — `{ value: 42,
-   * noun: 'highlight' }`. It is the shown count alone, never a `shown of total`
-   * pair: the book's unfiltered totals already sit in `BookStatsStrip` above
-   * the tab bar, so a pair would print the same number twice (ADR-0003).
+   * What this page is showing, and what to call it — `{ value: 42, noun:
+   * 'highlight' }`. One number, never a `shown of total` pair: on a book tab
+   * the book's unfiltered totals already sit in `BookStatsStrip` above the tab
+   * bar, so a pair would print the same number twice (ADR-0003). A page that
+   * paginates counts the whole result set rather than the rows on screen —
+   * "32 books" on every page of a library of 400 says nothing.
    */
   count?: { value: number; noun: string };
   /**
-   * This tab's primary action. Width is deliberately unconstrained: the
+   * This page's primary action. Width is deliberately unconstrained: the
    * structure tab swaps an icon button for a running-progress row while a
    * batch digest is in flight.
    */
@@ -29,16 +31,16 @@ interface PageHeaderProps {
 }
 
 /**
- * The header every book tab leads with — a title row that may carry a result
+ * The header a content page leads with — a title row that may carry a result
  * count and a primary action, then a control row holding the search field and
- * the ordering toggle.
+ * the ordering toggle. Every book tab uses it, and so does the library.
  *
  * The count sits on the title's baseline rather than in the control row: next
  * to the search field it reads as part of that widget, and it describes the
- * whole tab rather than the search.
+ * whole page rather than the search.
  *
  * Render it unconditionally, above any spinner or empty state, so the title
- * never disappears from under the reader while a tab loads.
+ * never disappears from under the reader while a page loads.
  */
 export const PageHeader = ({ title, search, sort, count, action }: PageHeaderProps) => (
   <>

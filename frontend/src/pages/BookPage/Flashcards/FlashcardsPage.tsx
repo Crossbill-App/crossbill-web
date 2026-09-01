@@ -12,9 +12,9 @@ import {
   type FlashcardWithContext,
 } from '@/components/features/flashcards/FlashcardChapterList.tsx';
 import { SearchBar } from '@/components/inputs/SearchBar.tsx';
+import { PageHeader } from '@/components/layout/PageHeader.tsx';
 import { useBookPage } from '@/pages/BookPage/BookPageContext';
 import { FilteredEmptyState } from '@/pages/BookPage/common/FilteredEmptyState.tsx';
-import { PageHeader } from '@/pages/BookPage/common/PageHeader.tsx';
 import { SortToggle } from '@/pages/BookPage/common/SortToggle.tsx';
 import { useBookTabFilters } from '@/pages/BookPage/common/useBookTabFilters.ts';
 import { BOOK_PAGE_LABELS } from '@/pages/BookPage/navigation/bookPageRoutes.ts';

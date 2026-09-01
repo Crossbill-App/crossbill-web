@@ -8,10 +8,12 @@ import {
   PageContainer,
   SNACKBAR_CLEARANCE,
 } from '@/components/layout/Layouts.tsx';
+import { SidebarLayout } from '@/components/layout/SidebarLayout.tsx';
 import { useSnackbar } from '@/context/SnackbarContext.tsx';
 import { useCacheEvents } from '@/lib/cacheEvents.ts';
 import { BookPageProvider } from '@/pages/BookPage/BookPageContext.tsx';
 import { BookTitle } from '@/pages/BookPage/BookTitle/BookTitle.tsx';
+import { BackToLibraryLink } from '@/pages/BookPage/navigation/BackToLibraryLink.tsx';
 import { DesktopNavLinks } from '@/pages/BookPage/navigation/DesktopNavLinks.tsx';
 import { MobileBottomNav } from '@/pages/BookPage/navigation/MobileBottomNav.tsx';
 import { useTabContentSnap } from '@/pages/BookPage/navigation/useTabContentSnap.ts';
@@ -101,35 +103,29 @@ export const BookPage = () => {
           {isDesktop ? (
             <>
               <BookTitle book={book} />
-              {/* One grid for every tab: fixed nav, a fixed content measure,
-                  and a right rail whose column is reserved whether or not the
-                  tab fills it. Tabs used to own their own layout, so the
-                  content column was one of three widths depending on which one
-                  you were looking at, and the page reflowed as you moved
-                  between them. */}
-              <Box
-                sx={{
-                  display: 'grid',
-                  gridTemplateColumns: '280px 1fr 280px',
-                  gap: 4,
-                  alignItems: 'start',
-                  mt: 5,
-                }}
-              >
-                <Box>
-                  <DesktopNavLinks bookId={String(bookId)} />
-                  <div ref={setLeftSidebarEl} />
-                </Box>
-                <Box component="main" sx={{ minWidth: 0 }}>
+              {/* One layout for every tab, so the content column keeps its
+                  measure and the page does not reflow as you move between
+                  them. The right rail's column is reserved whether or not the
+                  tab fills it. */}
+              <Box sx={{ mt: 5 }}>
+                <SidebarLayout
+                  left={
+                    <>
+                      <DesktopNavLinks bookId={String(bookId)} />
+                      <div ref={setLeftSidebarEl} />
+                    </>
+                  }
+                  right={<div ref={setRightSidebarEl} />}
+                >
                   <FadeInOut ekey={pathname} animateOnMount={false}>
                     <Outlet />
                   </FadeInOut>
-                </Box>
-                <Box ref={setRightSidebarEl} />
+                </SidebarLayout>
               </Box>
             </>
           ) : (
             <Box sx={{ maxWidth: '800px', mx: 'auto' }}>
+              <BackToLibraryLink />
               <BookTitle book={book} />
               {/* Tall enough to fill the viewport, so a tab with little in it
                   still has somewhere to snap to. */}

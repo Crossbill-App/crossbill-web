@@ -10,6 +10,7 @@ import { useGetTags } from '@/api/generated/tags/tags.ts';
 import { scrollToElementWithHighlight } from '@/components/animations/scrollUtils';
 import { EmptyStateText } from '@/components/EmptyStateText.tsx';
 import { SearchBar } from '@/components/inputs/SearchBar.tsx';
+import { PageHeader } from '@/components/layout/PageHeader.tsx';
 import { useResetOnChange } from '@/hooks/useResetOnChange.ts';
 import { useBookPage } from '@/pages/BookPage/BookPageContext';
 import { FilteredEmptyState } from '@/pages/BookPage/common/FilteredEmptyState.tsx';
@@ -18,7 +19,6 @@ import {
   parseDateSearchParam,
   type HighlightDateRange,
 } from '@/pages/BookPage/common/highlightDates.ts';
-import { PageHeader } from '@/pages/BookPage/common/PageHeader.tsx';
 import { SortToggle } from '@/pages/BookPage/common/SortToggle.tsx';
 import { useBookTabFilters } from '@/pages/BookPage/common/useBookTabFilters.ts';
 import { useHighlightDialog } from '@/pages/BookPage/Highlights/hooks/useHighlightDialog.ts';

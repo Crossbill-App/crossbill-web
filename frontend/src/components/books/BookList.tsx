@@ -1,7 +1,7 @@
+import type { BookWithHighlightCount } from '@/api/generated/model';
 import { Box } from '@mui/material';
 import { AnimatePresence, motion } from 'motion/react';
-import type { BookWithHighlightCount } from '../../../api/generated/model';
-import { BOOK_CARD_WIDTH, BookCard } from './BookCard';
+import { BOOK_CARD_WIDTH, BookCard } from './BookCard.tsx';
 
 export interface BookListProps {
   books: BookWithHighlightCount[];
