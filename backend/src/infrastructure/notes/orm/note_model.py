@@ -3,7 +3,7 @@
 from datetime import datetime as dt
 from typing import TYPE_CHECKING
 
-from sqlalchemy import DateTime, ForeignKey, String, Text, func
+from sqlalchemy import DateTime, ForeignKey, Index, String, Text, func
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from src.database import Base
@@ -41,6 +41,15 @@ class Note(Base):
         server_default=func.now(),
         onupdate=func.now(),
         nullable=False,
+    )
+
+    __table_args__ = (
+        Index(
+            "ix_notes_user_id_created_at",
+            "user_id",
+            "created_at",
+            postgresql_ops={"created_at": "DESC"},
+        ),
     )
 
     # Relationships (one-directional; notes are always queried from the note side)
