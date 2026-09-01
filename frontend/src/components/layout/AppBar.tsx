@@ -17,7 +17,7 @@ import {
   useTheme,
 } from '@mui/material';
 import { Link } from '@tanstack/react-router';
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { useAuth } from '../../context/AuthContext.tsx';
 
 export function AppBar() {
@@ -26,10 +26,11 @@ export function AppBar() {
   const isWide = useMediaQuery(theme.breakpoints.up('md'));
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
-
-  useEffect(() => {
+  const [wasWide, setWasWide] = useState(isWide);
+  if (isWide !== wasWide) {
+    setWasWide(isWide);
     if (isWide) setIsDrawerOpen(false);
-  }, [isWide]);
+  }
 
   const handleMenuOpen = (event: React.MouseEvent<HTMLElement>) => {
     setAnchorEl(event.currentTarget);
