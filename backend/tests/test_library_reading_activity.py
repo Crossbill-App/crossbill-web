@@ -140,6 +140,45 @@ class TestGetLibraryReadingActivity:
             "books_read": 2,
         }
 
+    async def test_a_page_less_day_counts_even_where_no_square_is_drawn(
+        self, client: AsyncClient, db_session: AsyncSession, test_book: Book
+    ) -> None:
+        """The grid can colour no square for a day that got through no pages.
+
+        The numbers still count it: reporting time read today beside a last-read
+        of yesterday would have the dashboard contradict itself.
+        """
+        other_book = await emma(db_session)
+        await read(db_session, test_book, datetime(2024, 5, 31, 20, tzinfo=UTC), pages=10)
+        await read(db_session, other_book, datetime(2024, 6, 1, 9, tzinfo=UTC))
+
+        with readers_today(RECENTLY):
+            body = await get_activity(client)
+
+        assert titles_by_day(body) == {"2024-05-31": ["Test Book"]}
+        assert body["stats"] == {
+            "last_read": "2024-06-01",
+            "seconds_today": 20 * 60,
+            "total_seconds": 2 * 20 * 60,
+            "streak_days": 2,
+            "days_read": 2,
+            "books_read": 2,
+        }
+
+    async def test_a_reader_who_stopped_years_ago_still_gets_that_year(
+        self, client: AsyncClient, db_session: AsyncSession, test_book: Book
+    ) -> None:
+        """The window ends on the last day read, so its sessions must still be loaded."""
+        await read(db_session, test_book, datetime(2021, 3, 1, 20, tzinfo=UTC), pages=10)
+
+        with readers_today(RECENTLY):
+            body = await get_activity(client)
+
+        assert body["activity"]["range_end"] == "2021-03-01"
+        assert titles_by_day(body) == {"2021-03-01": ["Test Book"]}
+        assert body["stats"]["last_read"] == "2021-03-01"
+        assert body["stats"]["seconds_today"] == 0
+
     async def test_todays_reading_is_counted_in_the_readers_own_timezone(
         self, client: AsyncClient, db_session: AsyncSession, test_book: Book
     ) -> None:

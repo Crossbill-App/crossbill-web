@@ -47,9 +47,7 @@ def _activity_schema(view: LibraryReadingActivityView | None) -> LibraryActivity
             )
             for day in activity.days
         ],
-        books=[
-            ActivityBook(id=book_id.value, title=title) for book_id, title in view.titles.items()
-        ],
+        books=[ActivityBook(id=book.id.value, title=book.title) for book in view.books],
     )
 
 

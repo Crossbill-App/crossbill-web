@@ -8,7 +8,6 @@ the books the grid names.
 See ``docs/adr/0001-read-models-and-query-services.md``.
 """
 
-from collections.abc import Mapping
 from dataclasses import dataclass
 from datetime import date, tzinfo
 from typing import Protocol
@@ -21,16 +20,24 @@ from src.domain.reading.services.library_reading_stats_calculator import Library
 
 
 @dataclass(frozen=True)
+class ActivityBookView:
+    """A book the grid names: the id its days reference, and what to call it."""
+
+    id: BookId
+    title: str
+
+
+@dataclass(frozen=True)
 class LibraryReadingActivityView:
     """A library's activity grid, the numbers beside it, and the titles it takes to label it.
 
-    ``titles`` covers exactly the books the grid names, so the client can send
+    ``books`` covers exactly the books the grid names, so the client can send
     each title once and reference it by id from every day it appears on.
     """
 
     activity: LibraryReadingActivity
     stats: LibraryReadingStats
-    titles: Mapping[BookId, str]
+    books: tuple[ActivityBookView, ...]
 
 
 class LibraryReadingActivityQueryProtocol(Protocol):

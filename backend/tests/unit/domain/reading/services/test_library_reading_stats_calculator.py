@@ -30,13 +30,17 @@ def calculator() -> LibraryReadingStatsCalculator:
     return LibraryReadingStatsCalculator()
 
 
-def session(day: date, minutes: int = 30, pages: int = 10, hour: int = 20) -> ReadingStretch:
-    """A session on ``day`` that ran ``minutes`` and got through ``pages``."""
+def session(day: date, minutes: int = 30, pages: int | None = 10, hour: int = 20) -> ReadingStretch:
+    """A session on ``day`` that ran ``minutes`` and got through ``pages``.
+
+    ``pages=None`` is a session KOReader synced by xpoint alone, which the grid
+    can colour no square for.
+    """
     start = datetime(day.year, day.month, day.day, hour, 0, tzinfo=UTC)
     return ReadingStretch(
         start_time=start,
         end_time=start + timedelta(minutes=minutes),
-        start_page=0,
+        start_page=None if pages is None else 0,
         end_page=pages,
     )
 
@@ -61,10 +65,7 @@ def stats_for(
     zone: tzinfo = UTC,
 ) -> LibraryReadingStats:
     return calculator.calculate(
-        [stretch for stretches in stretches_by_book.values() for stretch in stretches],
-        grid(stretches_by_book, today, zone),
-        today,
-        zone,
+        stretches_by_book, grid(stretches_by_book, today, zone), today, zone
     )
 
 
@@ -107,9 +108,10 @@ def test_reading_from_before_the_window_is_not_in_the_total(
     outside = session(date(2022, 1, 1), minutes=120)
     inside = session(date(2024, 5, 20), minutes=30)
 
-    stats = calculator.calculate([outside, inside], grid({DUNE: [inside]}), TODAY, UTC)
+    stats = calculator.calculate({DUNE: [outside, inside]}, grid({DUNE: [inside]}), TODAY, UTC)
 
     assert stats.total_seconds == 30 * 60
+    assert stats.days_read == 1
 
 
 def test_a_streak_runs_back_from_today(calculator: LibraryReadingStatsCalculator) -> None:
@@ -173,3 +175,28 @@ def test_the_readers_own_midnight_decides_which_day_is_today(
     assert stats.last_read_day == TODAY
     assert stats.seconds_today == 30 * 60
     assert stats.streak_days == 1
+
+
+def test_reading_the_grid_could_not_colour_still_counts(
+    calculator: LibraryReadingStatsCalculator,
+) -> None:
+    """A page-less day is a day read, even though no square can be drawn for it.
+
+    The grid colours a day by how much of it was read, so a session synced by
+    xpoint alone leaves today blank on a paged grid. Counting the numbers from
+    the squares would have the dashboard say the reader read for 25 minutes
+    today and last read yesterday, in the same breath.
+    """
+    stats = stats_for(
+        calculator,
+        {
+            DUNE: [session(date(2024, 5, 30)), session(date(2024, 5, 31))],
+            EMMA: [session(TODAY, minutes=25, pages=None, hour=9)],
+        },
+    )
+
+    assert stats.last_read_day == TODAY
+    assert stats.seconds_today == 25 * 60
+    assert stats.streak_days == 3
+    assert stats.days_read == 3
+    assert stats.books_read == 2
