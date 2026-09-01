@@ -14,11 +14,12 @@ interface PageHeaderProps {
   /** This page's ordering control, if it has one. Usually a `SortToggle`. */
   sort?: ReactNode;
   /**
-   * Rows this page is currently rendering, and what to call them — `{ value:
-   * 42, noun: 'highlight' }`. It is the shown count alone, never a `shown of
-   * total` pair: on a book tab the book's unfiltered totals already sit in
-   * `BookStatsStrip` above the tab bar, so a pair would print the same number
-   * twice (ADR-0003).
+   * What this page is showing, and what to call it — `{ value: 42, noun:
+   * 'highlight' }`. One number, never a `shown of total` pair: on a book tab
+   * the book's unfiltered totals already sit in `BookStatsStrip` above the tab
+   * bar, so a pair would print the same number twice (ADR-0003). A page that
+   * paginates counts the whole result set rather than the rows on screen —
+   * "32 books" on every page of a library of 400 says nothing.
    */
   count?: { value: number; noun: string };
   /**

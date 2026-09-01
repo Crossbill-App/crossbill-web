@@ -16,7 +16,7 @@ test('a book card shows what the reader has made of the book', async () => {
     ])
   );
 
-  const screen = await renderApp({ path: '/' });
+  const screen = await renderApp({ path: '/library' });
 
   await expect.element(screen.getByRole('img', { name: '412 highlights' })).toBeVisible();
   await expect.element(screen.getByRole('img', { name: '6 notes' })).toBeVisible();
@@ -30,7 +30,7 @@ test('a count the book has none of is left off the card', async () => {
     ])
   );
 
-  const screen = await renderApp({ path: '/' });
+  const screen = await renderApp({ path: '/library' });
 
   await expect.element(screen.getByRole('img', { name: '3 highlights' })).toBeVisible();
   expect(screen.getByRole('img', { name: /notes?$/ }).query()).toBeNull();
@@ -40,7 +40,7 @@ test('a count the book has none of is left off the card', async () => {
 test('a single count reads in the singular', async () => {
   worker.use(...libraryApi([aBookCard({ highlight_count: 1, note_count: 1 })]));
 
-  const screen = await renderApp({ path: '/' });
+  const screen = await renderApp({ path: '/library' });
 
   await expect.element(screen.getByRole('img', { name: '1 highlight' })).toBeVisible();
   await expect.element(screen.getByRole('img', { name: '1 note' })).toBeVisible();
@@ -53,8 +53,18 @@ test('a book nobody has marked up carries no strip', async () => {
     ])
   );
 
-  const screen = await renderApp({ path: '/' });
+  const screen = await renderApp({ path: '/library' });
 
   await expect.element(screen.getByText('Untouched')).toBeVisible();
   expect(screen.getByTestId('book-counts').query()).toBeNull();
+});
+
+test('a link to the old all-books page still finds the books it searched for', async () => {
+  worker.use(...libraryApi([aBookCard({ title: 'The Pragmatic Reader' })]));
+
+  const screen = await renderApp({ path: '/?search=pragmatic&page=1' });
+
+  await expect.element(screen.getByText('The Pragmatic Reader')).toBeVisible();
+  expect(window.location.pathname).toBe('/library');
+  expect(window.location.search).toContain('search=pragmatic');
 });
