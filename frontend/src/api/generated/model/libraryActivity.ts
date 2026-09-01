@@ -11,10 +11,8 @@ import type { LibraryActivityUnit } from './libraryActivityUnit.ts';
 /**
  * Every book's reading laid out day by day, for the activity grid.
  *
- * Sparse in the same two ways the client must already handle: ``days`` carries
- * only the days with something to show, oldest first, with the window running
- * ``range_start`` to ``range_end`` regardless; and each title is sent once in
- * ``books``, which every day then references by id.
+ * Sparse twice over: ``days`` carries only the days worth drawing, and each
+ * title is sent once in ``books`` for the days to reference by id.
  */
 export interface LibraryActivity {
   /** What each day's value counts. Pages as long as any session on the grid recorded them, minutes only when none did */

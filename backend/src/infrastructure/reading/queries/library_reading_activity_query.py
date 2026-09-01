@@ -1,10 +1,8 @@
 """Query adapter for the reader's whole library on one activity grid.
 
-The adapter gathers the timespan of the sessions a grid could be drawn from,
-hands them to the two calculators -- which own the grid and the numbers beside
-it -- and then looks up the titles of the books that ended up on the grid.
-Nothing here decides which day a session belongs to, how dark a square is, or
-what a streak means.
+Gathers the sessions a grid could be drawn from, hands them to the two
+calculators, and names the books that ended up on it. Nothing here decides which
+day a session belongs to, how dark a square is, or what a streak means.
 """
 
 from collections.abc import Collection, Sequence
@@ -83,20 +81,16 @@ class LibraryReadingActivityQuery:
     def _earliest_of_interest(self, last_read: date, today: date) -> date:
         """The first day a session could still land on the grid.
 
-        The window ends on today, or on the last day read when that was longer
-        ago than the window is wide -- so it can never open earlier than a
-        window's width before the earlier of the two. This is a bound, not the
-        window: which of the two the grid actually ends on stays the
-        calculator's to decide, from the sessions this bound lets through.
+        A bound, not the window: which day the grid ends on stays the
+        calculator's to decide, from the sessions this lets through.
         """
         return min(last_read, today) - timedelta(days=WINDOW_DAYS - 1) - DATE_LINE_SLACK
 
     async def _fetch_last_session_start(self, user_id: UserId) -> dt | None:
         """When the reader last sat down, or ``None`` if they never have.
 
-        Asked for on its own because it is the only thing the window's own end
-        depends on, and answering it costs one row rather than a decade of
-        them.
+        Asked on its own because it is all the window's end depends on, and it
+        costs one row rather than a decade of them.
         """
         stmt = select(func.max(ReadingSessionORM.start_time)).where(
             ReadingSessionORM.user_id == user_id.value
@@ -105,11 +99,6 @@ class LibraryReadingActivityQuery:
 
     async def _fetch_sessions(self, user_id: UserId, since: date) -> Sequence[SessionRow]:
         """Load the reader's sessions from ``since`` on, with the book each belongs to.
-
-        Bounded rather than unbounded: a reader of ten years' standing would
-        otherwise load ten years of sessions to draw one of them. ``since`` is
-        a day no window could open before, so the calculator still sees every
-        session that could reach the grid and still decides the window itself.
 
         A column list rather than the ORM entity: ``ReadingSession.highlights``
         is ``lazy="selectin"`` and the grid renders none of them.
@@ -135,9 +124,8 @@ class LibraryReadingActivityQuery:
     ) -> tuple[ActivityBookView, ...]:
         """Name the books the grid drew, and only those, alphabetically.
 
-        Scoped by user as well as by id: the ids come from the reader's own
-        sessions, and reading titles through the same filter keeps that true of
-        every select here rather than only of the first.
+        Scoped by user as well as by id, so every select here is filtered the
+        same way rather than only the first.
         """
         if not book_ids:
             return ()

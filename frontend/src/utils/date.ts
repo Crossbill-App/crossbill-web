@@ -27,12 +27,9 @@ export const formatDate = (date: string | Date): string =>
   formatDateTime(DateTime.fromISO(date.toString()));
 
 /**
- * A calendar day as a reader would name it: "Today" and "Yesterday" for the two
- * days they can place without reading a date, and the app's usual format for
- * every day before that.
- *
- * The two named days are decided against the browser's own clock, which is the
- * clock the server counted the reader's days on.
+ * A calendar day as a reader would name it: "Today", "Yesterday", or the app's
+ * usual format. Named against the browser's clock, which is the one the server
+ * counted the reader's days on.
  */
 export const formatDay = (date: string): string => {
   const days = Math.round(

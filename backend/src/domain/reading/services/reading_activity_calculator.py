@@ -35,15 +35,9 @@ class ActivityUnit(StrEnum):
 class ActivityUnitRule(StrEnum):
     """How much of the reading must have page numbers for the grid to count pages.
 
-    One book is all-or-nothing: a book synced partly from a device that
-    reported pages and partly from one that did not would, under any softer
-    rule, render its page-less days as blank, and a grid that undercounts the
-    reading is worse than one measured in a coarser unit.
-
-    A grid spanning a whole library cannot afford that, because one page-less
-    book would demote every other book's year to minutes. There the page-less
-    days are the ones that go pale, which costs the book that has no pages
-    rather than the library that mostly does.
+    One book is all-or-nothing: a softer rule would blank the page-less days of
+    a part-paged book. A library cannot afford that rule, where one page-less
+    book would demote every other book's year to minutes.
     """
 
     EVERY_SESSION_PAGED = "every_session_paged"
@@ -140,10 +134,8 @@ class ReadingActivityCalculator:
     def _unit(self, drawn: Sequence[ReadingStretch], rule: ActivityUnitRule) -> ActivityUnit:
         """Pages when the drawn sessions recorded them, per ``rule``; minutes otherwise.
 
-        Only the sessions the grid draws get a say. Reading from before the
-        window is not on it, so letting a page-less session from two years ago
-        put this year in minutes would label the grid by something nobody can
-        see on it.
+        Only the drawn sessions get a say: a page-less session from two years
+        ago would otherwise label a grid by something nobody can see on it.
         """
         paged = (
             all(stretch.has_pages for stretch in drawn)

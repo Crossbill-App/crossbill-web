@@ -119,7 +119,7 @@ class TestGetLibraryReadingActivity:
     async def test_the_numbers_sum_the_year_the_grid_draws(
         self, client: AsyncClient, db_session: AsyncSession, test_book: Book
     ) -> None:
-        """The stats beside the grid count the same days, in the same window."""
+        """The stats beside the grid cover the window it spans."""
         other_book = await emma(db_session)
         # Yesterday and the day before, so that a streak the reader has not yet
         # added to today is still a streak.
@@ -143,11 +143,7 @@ class TestGetLibraryReadingActivity:
     async def test_a_page_less_day_counts_even_where_no_square_is_drawn(
         self, client: AsyncClient, db_session: AsyncSession, test_book: Book
     ) -> None:
-        """The grid can colour no square for a day that got through no pages.
-
-        The numbers still count it: reporting time read today beside a last-read
-        of yesterday would have the dashboard contradict itself.
-        """
+        """The numbers count a day the grid can draw no square for."""
         other_book = await emma(db_session)
         await read(db_session, test_book, datetime(2024, 5, 31, 20, tzinfo=UTC), pages=10)
         await read(db_session, other_book, datetime(2024, 6, 1, 9, tzinfo=UTC))

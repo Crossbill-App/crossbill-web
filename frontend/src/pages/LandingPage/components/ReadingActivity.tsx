@@ -10,43 +10,26 @@ import { Alert, Box, useMediaQuery } from '@mui/material';
 import { useMemo } from 'react';
 import { RECENT_ROW_WIDTH } from './RecentBooks.tsx';
 
-/**
- * Books a day is named by before the rest are counted instead. Three fits the
- * width of a tooltip; a day spent grazing over eight books would otherwise
- * make a paragraph of it.
- */
+/** Books a day is named by before the rest are counted instead. */
 const NAMED_PER_DAY = 3;
 
 /**
- * The narrowest the column of numbers may be squeezed to beside the grid.
- *
- * Low enough that the floor, the gap and a year of default squares still fit
- * the content column at the `lg` breakpoint the two-column layout starts on --
- * a floor the row cannot honour is an overflowing row.
+ * The narrowest the numbers may be squeezed to. Any wider and the floor, the
+ * gap and a year of default squares outgrow the content column at `lg`.
  */
 const STATS_COLUMN = 260;
 
-/** The gap between that column and the grid, in pixels. */
 const STATS_GAP = 32;
 
-/** The square size the grid is drawn at once the row is wide enough for it. */
 const ROOMY_BLOCK_SIZE = 15;
 
-/**
- * Room to spare over the width the layout strictly needs.
- *
- * A media query measures the viewport with the scrollbar counted in, so a
- * `min-width` met exactly is met with some 15px less to lay out in than it
- * says. Without the slack the larger squares switch on just before the row can
- * hold them.
- */
+/** A media query counts the scrollbar in, leaving some 15px less to lay out in. */
 const ROOMY_SLACK = 40;
 
 /**
  * The narrowest viewport that fits a whole year of `ROOMY_BLOCK_SIZE` squares
  * beside the numbers: 53 columns of a square plus its third of a gap, then the
- * stats column, the gap and the page's own 48px of gutter. Below it the grid
- * keeps the size the book page draws it at rather than scrolling wider squares.
+ * stats column, the gap and the page's own 48px of gutter.
  */
 const ROOMY_VIEWPORT = 53 * (ROOMY_BLOCK_SIZE + 5) + STATS_COLUMN + STATS_GAP + 48 + ROOMY_SLACK;
 
@@ -60,11 +43,8 @@ const booksLabel = (titles: string[]) => {
 };
 
 /**
- * What was read on each day, by date.
- *
- * The response names each book once and references it by id from every day it
- * appears on, so the titles are joined back up here. An id with no title is
- * skipped rather than shown as a gap.
+ * What was read on each day. The response names each book once and references
+ * it by id, so the titles are joined back up here.
  */
 const booksByDay = (activity: LibraryActivity | null | undefined): Map<string, string> => {
   const titles = new Map((activity?.books ?? []).map((book) => [book.id, book.title]));
@@ -88,12 +68,8 @@ const summary = (stats: LibraryStats): StatProps[] => [
 ];
 
 /**
- * The dashboard's year of reading: one square per day across the whole library,
- * darker the more of it that day got through, and the books each day was spent
- * on in the square's own label.
- *
- * The section is not drawn at all for a reader with nothing on the grid — a
- * blank year is worse than no year, and a new reader would meet it first.
+ * The dashboard's year of reading. Not drawn at all for a reader with nothing
+ * on the grid: a blank year is worse than no year, and they would meet it first.
  */
 export const ReadingActivity = () => {
   const { data, isLoading, isError } = useGetLibraryReadingActivity({ tz: browserTimeZone() });
@@ -122,14 +98,11 @@ export const ReadingActivity = () => {
         <Box
           sx={{
             display: 'grid',
-            // The numbers read first on a phone, where they sit above a grid
-            // that has to be scrolled to be read at all; on a desktop they
-            // take the empty half of the row beside it.
+            // The numbers read first on a phone, where the grid has to be
+            // scrolled to be read at all.
             gridTemplateAreas: { xs: '"stats" "grid"', lg: '"stats grid"' },
-            // The grid takes the width a year of squares needs and the numbers
-            // take what is left, down to a floor. Sizing the numbers instead
-            // would leave the grid's right edge wherever the squares happened
-            // to end, which is the edge that has to meet the row of covers.
+            // The grid takes the width a year needs and the numbers take what
+            // is left: it is the grid's right edge that has to meet the covers.
             gridTemplateColumns: { xs: '1fr', lg: `minmax(${STATS_COLUMN}px, 1fr) auto` },
             maxWidth: { lg: `${RECENT_ROW_WIDTH}px` },
             columnGap: `${STATS_GAP}px`,
@@ -155,8 +128,7 @@ export const ReadingActivity = () => {
                   lg: 'repeat(2, 1fr)',
                 },
                 gap: 2,
-                // Centred against the grid rather than pinned to the top of
-                // the row, so the two columns read as one band.
+                // So the two columns read as one band.
                 alignContent: 'center',
               }}
             >

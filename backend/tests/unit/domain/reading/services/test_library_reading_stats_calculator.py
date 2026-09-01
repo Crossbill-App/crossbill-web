@@ -31,11 +31,7 @@ def calculator() -> LibraryReadingStatsCalculator:
 
 
 def session(day: date, minutes: int = 30, pages: int | None = 10, hour: int = 20) -> ReadingStretch:
-    """A session on ``day`` that ran ``minutes`` and got through ``pages``.
-
-    ``pages=None`` is a session KOReader synced by xpoint alone, which the grid
-    can colour no square for.
-    """
+    """A session on ``day``; ``pages=None`` is one KOReader synced by xpoint alone."""
     start = datetime(day.year, day.month, day.day, hour, 0, tzinfo=UTC)
     return ReadingStretch(
         start_time=start,
@@ -180,13 +176,7 @@ def test_the_readers_own_midnight_decides_which_day_is_today(
 def test_reading_the_grid_could_not_colour_still_counts(
     calculator: LibraryReadingStatsCalculator,
 ) -> None:
-    """A page-less day is a day read, even though no square can be drawn for it.
-
-    The grid colours a day by how much of it was read, so a session synced by
-    xpoint alone leaves today blank on a paged grid. Counting the numbers from
-    the squares would have the dashboard say the reader read for 25 minutes
-    today and last read yesterday, in the same breath.
-    """
+    """A page-less day is a day read, even though no square can be drawn for it."""
     stats = stats_for(
         calculator,
         {

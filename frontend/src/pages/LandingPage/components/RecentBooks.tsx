@@ -19,12 +19,8 @@ const CAROUSEL_GAP = { xs: 2, sm: 4 };
 const CAROUSEL_GAP_PX = CAROUSEL_GAP.sm * 8;
 
 /**
- * How wide the row of covers runs once every cover of it is on screen.
- *
- * The row is a fixed count of fixed-width cards, so on a desktop it stops well
- * short of the page's own right edge. The activity band below is capped at the
- * same width rather than running on to that edge, which is what keeps the two
- * rows ending together instead of one overhanging the other.
+ * How wide the row of covers runs once every cover of it is on screen. The
+ * activity band below is capped at the same width so the two rows end together.
  */
 export const RECENT_ROW_WIDTH =
   RECENT_BOOKS_LIMIT * BOOK_CARD_WIDTH + (RECENT_BOOKS_LIMIT - 1) * CAROUSEL_GAP_PX;

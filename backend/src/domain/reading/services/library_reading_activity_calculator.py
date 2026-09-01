@@ -1,12 +1,7 @@
 """Domain service laying a whole library's reading out on one activity grid.
 
-The grid itself is ``ReadingActivityCalculator``'s -- the same squares, window
-and shades a single book's page draws. What this service adds is which books
-each square is made of, and the looser unit rule a many-book grid needs.
-
-Books are named by id alone. The titles a reader sees belong to the ``library``
-module's aggregate, so they are resolved outside the domain, where a read model
-is free to span modules.
+Books are named by id alone: the titles belong to the ``library`` module's
+aggregate, which the domain may not reach into.
 """
 
 from collections.abc import Mapping, Sequence
@@ -34,12 +29,7 @@ class LibraryActivityDay:
 
 @dataclass(frozen=True)
 class LibraryReadingActivity:
-    """Every book's reading, day by day, over the window the grid shows.
-
-    Shaped like ``ReadingActivity`` and read the same way: ``days`` carries
-    only the days with something to show, oldest first, and the window is
-    ``range_start``..``range_end`` regardless.
-    """
+    """Every book's reading, day by day, over the window the grid shows."""
 
     unit: ActivityUnit
     range_start: date
@@ -61,15 +51,8 @@ class LibraryReadingActivityCalculator:
     ) -> LibraryReadingActivity | None:
         """Lay every book's reading on one grid, as a reader in ``zone`` counts it.
 
-        The numbers, the window and the four shades are the shared calculator's
-        answer over the reading of every book at once, so a day's square is as
-        dark as that day was across the library. Only the unit rule differs:
-        pages as long as any drawn session recorded them, so that one page-less
+        Pages as long as any drawn session recorded them, so that one page-less
         book cannot put a whole library's year in minutes.
-
-        Returns ``None`` whenever the shared calculator has no square to
-        colour -- a reader with no sessions, none inside the window, or none
-        there that nets a positive day.
         """
         activity = self.activity_calculator.calculate(
             [stretch for stretches in stretches_by_book.values() for stretch in stretches],
@@ -90,8 +73,6 @@ class LibraryReadingActivityCalculator:
                     day=day.day,
                     value=day.value,
                     level=day.level,
-                    # Every drawn day was drawn from some session, so the day
-                    # is always one this mapping has.
                     book_ids=read_on[day.day],
                 )
                 for day in activity.days
@@ -101,18 +82,9 @@ class LibraryReadingActivityCalculator:
     def _books_by_day(
         self, stretches_by_book: Mapping[BookId, Sequence[ReadingStretch]], zone: tzinfo
     ) -> dict[date, tuple[BookId, ...]]:
-        """The books read on each day, in the order the reader opened them.
-
-        Reading order rather than most-read-first: it needs nothing but the
-        times already used to bucket the days, whereas ranking by how much of
-        each book was read would re-derive, out here, what a page or a minute
-        is worth -- a rule the shared calculator owns.
-
-        A book read twice in a day is named once, at the earlier sitting. A
-        book whose session got through nothing is named all the same: the
-        reader did read it that day, and only the day's total decides whether
-        the square is drawn at all.
-        """
+        # Reading order rather than most-read-first: ranking by how much of
+        # each book was read would re-derive what a page or a minute is worth,
+        # which is the shared calculator's rule.
         opened: dict[date, dict[BookId, datetime]] = {}
         for book_id, stretches in stretches_by_book.items():
             for stretch in stretches:

@@ -30,10 +30,8 @@ class LibraryActivityDay(BookActivityDay):
 class LibraryActivity(BaseModel):
     """Every book's reading laid out day by day, for the activity grid.
 
-    Sparse in the same two ways the client must already handle: ``days`` carries
-    only the days with something to show, oldest first, with the window running
-    ``range_start`` to ``range_end`` regardless; and each title is sent once in
-    ``books``, which every day then references by id.
+    Sparse twice over: ``days`` carries only the days worth drawing, and each
+    title is sent once in ``books`` for the days to reference by id.
     """
 
     unit: Literal["pages", "minutes"] = Field(
@@ -54,8 +52,8 @@ class LibraryActivity(BaseModel):
 class LibraryStats(BaseModel):
     """The year on the grid, said in numbers rather than squares.
 
-    Counted over the same window and the same drawn days as ``LibraryActivity``,
-    so a reader who counts the squares gets the figure given here.
+    Counted over the same window as ``LibraryActivity``, but from the sessions:
+    a day that got through no pages is a day read with no square to show for it.
     """
 
     last_read: calendar_date = Field(..., description="Most recent day with reading on the grid")

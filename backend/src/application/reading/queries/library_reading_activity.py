@@ -1,11 +1,8 @@
 """Read model for the reader's whole library on one activity grid.
 
-The grid itself is a domain value -- ``LibraryReadingActivity``, computed by
-``LibraryReadingActivityCalculator`` -- which names its books by id, because
-the ``reading`` module may not reach into ``library``'s aggregate. This read
-model is where the two meet: the grid and its numbers, plus the titles of
-the books the grid names.
-See ``docs/adr/0001-read-models-and-query-services.md``.
+The grid names its books by id, because the ``reading`` module may not reach
+into ``library``'s aggregate; this is where the two meet. See
+``docs/adr/0001-read-models-and-query-services.md``.
 """
 
 from dataclasses import dataclass
@@ -29,11 +26,7 @@ class ActivityBookView:
 
 @dataclass(frozen=True)
 class LibraryReadingActivityView:
-    """A library's activity grid, the numbers beside it, and the titles it takes to label it.
-
-    ``books`` covers exactly the books the grid names, so the client can send
-    each title once and reference it by id from every day it appears on.
-    """
+    """A library's activity grid, the numbers beside it, and the books it names."""
 
     activity: LibraryReadingActivity
     stats: LibraryReadingStats
@@ -48,13 +41,8 @@ class LibraryReadingActivityQueryProtocol(Protocol):
     ) -> LibraryReadingActivityView | None:
         """Return the reader's activity grid, or ``None`` when there is none to draw.
 
-        ``zone`` is the reader's timezone: it decides which calendar day each
-        session falls on. ``today`` is that reader's own today, which the
-        grid's window ends on; it is passed in rather than read from the clock
-        so that what the grid covers is decided at the edge, not deep inside
-        the domain.
-
-        A reader with nothing to show is not an error: unlike a book that does
-        not exist, a library nobody has read yet is a perfectly good answer.
+        ``today`` is the reader's own, passed in rather than read from the clock
+        so the window is decided at the edge. A library nobody has read yet is an
+        answer, not an error.
         """
         ...

@@ -8,8 +8,8 @@
 /**
  * The year on the grid, said in numbers rather than squares.
  *
- * Counted over the same window and the same drawn days as ``LibraryActivity``,
- * so a reader who counts the squares gets the figure given here.
+ * Counted over the same window as ``LibraryActivity``, but from the sessions:
+ * a day that got through no pages is a day read with no square to show for it.
  */
 export interface LibraryStats {
   /** Most recent day with reading on the grid */

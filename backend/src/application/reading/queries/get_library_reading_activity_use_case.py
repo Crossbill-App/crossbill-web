@@ -18,9 +18,5 @@ class GetLibraryReadingActivityUseCase:
     async def get_activity(
         self, user_id: int, today: date, zone: tzinfo
     ) -> LibraryReadingActivityView | None:
-        """Return the reader's activity grid, counted in their own timezone.
-
-        ``None`` when there is no day worth colouring, which is an answer
-        rather than a failure -- a reader who has synced nothing yet.
-        """
+        """Return the reader's activity grid, or ``None`` when there is none to draw."""
         return await self.library_reading_activity_query.get_activity(UserId(user_id), today, zone)

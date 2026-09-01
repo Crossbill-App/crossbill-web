@@ -7445,7 +7445,7 @@
           "books"
         ],
         "title": "LibraryActivity",
-        "description": "Every book's reading laid out day by day, for the activity grid.\n\nSparse in the same two ways the client must already handle: ``days`` carries\nonly the days with something to show, oldest first, with the window running\n``range_start`` to ``range_end`` regardless; and each title is sent once in\n``books``, which every day then references by id."
+        "description": "Every book's reading laid out day by day, for the activity grid.\n\nSparse twice over: ``days`` carries only the days worth drawing, and each\ntitle is sent once in ``books`` for the days to reference by id."
       },
       "LibraryActivityDay": {
         "properties": {
@@ -7557,7 +7557,7 @@
           "books_read"
         ],
         "title": "LibraryStats",
-        "description": "The year on the grid, said in numbers rather than squares.\n\nCounted over the same window and the same drawn days as ``LibraryActivity``,\nso a reader who counts the squares gets the figure given here."
+        "description": "The year on the grid, said in numbers rather than squares.\n\nCounted over the same window as ``LibraryActivity``, but from the sessions:\na day that got through no pages is a day read with no square to show for it."
       },
       "Note": {
         "properties": {
