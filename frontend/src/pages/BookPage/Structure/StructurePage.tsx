@@ -7,10 +7,10 @@ import type {
 import { useGetNotesForBook } from '@/api/generated/notes/notes.ts';
 import { EmptyStateText } from '@/components/EmptyStateText.tsx';
 import { useUrlEntityDialog } from '@/components/dialogs/useUrlEntityDialog.ts';
+import { PageHeader } from '@/components/layout/PageHeader.tsx';
 import { SemanticSearchField } from '@/components/search/SemanticSearchField.tsx';
 import { useSemanticSearch } from '@/components/search/useSemanticSearch.ts';
 import { useBookPage } from '@/pages/BookPage/BookPageContext';
-import { PageHeader } from '@/pages/BookPage/common/PageHeader.tsx';
 import { useBookTabFilters } from '@/pages/BookPage/common/useBookTabFilters.ts';
 import { BOOK_PAGE_LABELS } from '@/pages/BookPage/navigation/bookPageRoutes.ts';
 import { Alert } from '@mui/material';

@@ -12,6 +12,7 @@ import {
 } from '@/api/generated/reflections/reflections.ts';
 import { Spinner } from '@/components/animations/Spinner.tsx';
 import { IconButtonWithTooltip } from '@/components/buttons/IconButtonWithTooltip.tsx';
+import { PageHeader } from '@/components/layout/PageHeader.tsx';
 import {
   READING_STAGE_HINTS,
   type ReadingStageValue,
@@ -19,7 +20,6 @@ import {
 import { SectionTitle } from '@/components/typography/SectionTitle.tsx';
 import { useMutationErrorHandler } from '@/hooks/useMutationErrorHandler.ts';
 import { useBookPage } from '@/pages/BookPage/BookPageContext';
-import { PageHeader } from '@/pages/BookPage/common/PageHeader.tsx';
 import { BOOK_PAGE_LABELS } from '@/pages/BookPage/navigation/bookPageRoutes.ts';
 import { NoteEditorDialog } from '@/pages/BookPage/Notes/NoteEditorDialog.tsx';
 import { NoteViewDialog } from '@/pages/BookPage/Notes/NoteViewDialog.tsx';
