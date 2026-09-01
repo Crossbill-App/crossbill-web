@@ -1,6 +1,6 @@
-import { APP_ROUTES } from '@/components/layout/appRoutes.ts';
+import { APP_ROUTES, isAppRouteActive } from '@/components/layout/appRoutes.ts';
 import { Box, Button } from '@mui/material';
-import { createLink, useMatchRoute } from '@tanstack/react-router';
+import { createLink, useLocation } from '@tanstack/react-router';
 
 const NavButton = createLink(Button);
 
@@ -9,27 +9,32 @@ const NavButton = createLink(Button);
  * viewports with room for them. Below `md` the same list is in the drawer.
  */
 export const AppBarNavLinks = () => {
-  const matchRoute = useMatchRoute();
+  const pathname = useLocation({ select: (location) => location.pathname });
 
   return (
     <Box sx={{ display: { xs: 'none', md: 'flex' }, alignItems: 'center', gap: 0.5, ml: 3 }}>
       {APP_ROUTES.map((route) => {
-        const isActive = !!matchRoute({ to: route.to, fuzzy: route.fuzzy });
+        const isActive = isAppRouteActive(route, pathname);
 
         return (
           <NavButton
             key={route.to}
             to={route.to}
+            data-status={isActive ? 'active' : undefined}
             sx={{
               color: 'primary.contrastText',
-              fontWeight: isActive ? 600 : 400,
+              fontWeight: 400,
               // An underline rather than a filled pill: the bar is already a
               // solid colour, and a second block of colour on it reads as a
               // button to press rather than as where you are.
               borderBottom: 2,
-              borderColor: isActive ? 'primary.contrastText' : 'transparent',
+              borderColor: 'transparent',
               borderRadius: 0,
               px: 1.5,
+              '&[data-status="active"]': {
+                fontWeight: 600,
+                borderColor: 'primary.contrastText',
+              },
               '&:hover': { borderColor: isActive ? 'primary.contrastText' : 'currentColor' },
             }}
           >

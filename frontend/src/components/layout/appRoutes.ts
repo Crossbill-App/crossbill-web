@@ -7,11 +7,9 @@ export interface AppRouteConfig {
   to: AppRoute;
   label: string;
   icon: SvgIconComponent;
-  /**
-   * Whether a deeper path under `to` counts as being here. Off for the
-   * dashboard, whose `/` would otherwise match every page in the app.
-   */
-  fuzzy: boolean;
+  /** Paths that belong to this destination, including detail pages whose URL
+   * is not nested below the destination itself. */
+  activePathPrefixes: readonly string[];
 }
 
 /**
@@ -27,6 +25,16 @@ export interface AppRouteConfig {
  * destination cannot exist on one and not the other.
  */
 export const APP_ROUTES: AppRouteConfig[] = [
-  { to: '/', label: 'Home', icon: HomeIcon, fuzzy: false },
-  { to: '/library', label: 'Library', icon: LibraryIcon, fuzzy: true },
+  { to: '/', label: 'Home', icon: HomeIcon, activePathPrefixes: ['/'] },
+  {
+    to: '/library',
+    label: 'Library',
+    icon: LibraryIcon,
+    activePathPrefixes: ['/library', '/book'],
+  },
 ];
+
+export const isAppRouteActive = (route: AppRouteConfig, pathname: string) =>
+  route.activePathPrefixes.some((prefix) =>
+    prefix === '/' ? pathname === prefix : pathname === prefix || pathname.startsWith(`${prefix}/`)
+  );

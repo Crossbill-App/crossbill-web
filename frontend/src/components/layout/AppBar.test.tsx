@@ -60,6 +60,17 @@ test('the bar marks which destination you are on', async () => {
     .not.toHaveAttribute('data-status', 'active');
 });
 
+test('the bar treats a book as part of the library', async () => {
+  const screen = await aBookPage();
+
+  await expect
+    .element(screen.getByRole('link', { name: 'Library', exact: true }))
+    .toHaveAttribute('data-status', 'active');
+  await expect
+    .element(screen.getByRole('link', { name: 'Home', exact: true }))
+    .not.toHaveAttribute('data-status', 'active');
+});
+
 test('below md the destinations move into the drawer', async () => {
   await atCompactViewport(async () => {
     const screen = await aDashboard();

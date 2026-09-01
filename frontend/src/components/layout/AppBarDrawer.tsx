@@ -1,4 +1,4 @@
-import { APP_ROUTES } from '@/components/layout/appRoutes.ts';
+import { APP_ROUTES, isAppRouteActive } from '@/components/layout/appRoutes.ts';
 import { useAuth } from '@/context/AuthContext.tsx';
 import { LogoutIcon, SettingsIcon } from '@/theme/Icons.tsx';
 import {
@@ -10,7 +10,7 @@ import {
   ListItemIcon,
   ListItemText,
 } from '@mui/material';
-import { createLink, useMatchRoute } from '@tanstack/react-router';
+import { createLink, useLocation } from '@tanstack/react-router';
 
 const NavListItemButton = createLink(ListItemButton);
 
@@ -31,7 +31,7 @@ interface AppBarDrawerProps {
  */
 export const AppBarDrawer = ({ open, onClose }: AppBarDrawerProps) => {
   const { logout } = useAuth();
-  const matchRoute = useMatchRoute();
+  const pathname = useLocation({ select: (location) => location.pathname });
 
   const handleLogout = () => {
     onClose();
@@ -43,11 +43,17 @@ export const AppBarDrawer = ({ open, onClose }: AppBarDrawerProps) => {
       <Box sx={{ width: DRAWER_WIDTH }} role="presentation">
         <List>
           {APP_ROUTES.map((route) => {
-            const isActive = !!matchRoute({ to: route.to, fuzzy: route.fuzzy });
+            const isActive = isAppRouteActive(route, pathname);
             const Icon = route.icon;
 
             return (
-              <NavListItemButton key={route.to} to={route.to} selected={isActive} onClick={onClose}>
+              <NavListItemButton
+                key={route.to}
+                to={route.to}
+                data-status={isActive ? 'active' : undefined}
+                selected={isActive}
+                onClick={onClose}
+              >
                 <ListItemIcon sx={{ color: isActive ? 'primary.main' : 'text.secondary' }}>
                   <Icon />
                 </ListItemIcon>
