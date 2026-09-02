@@ -58,6 +58,7 @@ from src.infrastructure.reading.queries.library_reading_activity_query import (
     LibraryReadingActivityQuery,
 )
 from src.infrastructure.reading.queries.reading_session_query import ReadingSessionQuery
+from src.infrastructure.reading.queries.recent_captures_query import RecentCapturesQuery
 from src.infrastructure.reading.repositories import (
     BookmarkRepository,
     HighlightRepository,
@@ -181,6 +182,11 @@ class SharedContainer(containers.DeclarativeContainer):
         db=db,
         activity_calculator=library_reading_activity_calculator,
         stats_calculator=library_reading_stats_calculator,
+    )
+    recent_captures_query = providers.Factory(
+        RecentCapturesQuery,
+        db=db,
+        label_resolution_service=label_resolution_service,
     )
     bookmark_query = providers.Factory(BookmarkQuery, db=db)
     ereader_digest_query = providers.Factory(EreaderDigestQuery, db=db)

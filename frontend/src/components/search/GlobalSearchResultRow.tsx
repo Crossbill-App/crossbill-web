@@ -6,6 +6,7 @@ import {
   SEARCH_ROW_TYPE_LABELS,
   type GlobalSearchRow,
 } from '@/components/search/globalSearchRows.ts';
+import { clampToLines } from '@/utils/clampToLines.ts';
 import { Box, Chip, ListItemButton, Stack, Typography } from '@mui/material';
 import { createLink } from '@tanstack/react-router';
 
@@ -18,14 +19,6 @@ import { createLink } from '@tanstack/react-router';
  * without that collision.
  */
 const LinkListItemButton = createLink(ListItemButton);
-
-/** Two lines of matched text, clamped rather than truncated in JS. */
-const clampToTwoLines = {
-  display: '-webkit-box',
-  WebkitLineClamp: 2,
-  WebkitBoxOrient: 'vertical' as const,
-  overflow: 'hidden',
-};
 
 interface GlobalSearchResultRowProps {
   row: GlobalSearchRow;
@@ -63,7 +56,7 @@ export const GlobalSearchResultRow = ({ row, isActive, onSelect }: GlobalSearchR
         <Chip label={SEARCH_ROW_TYPE_LABELS[row.type]} variant="outlined" />
         <MetadataRow variant="caption" noWrap items={[row.bookTitle, row.chapterLabel]} />
       </Box>
-      <Typography variant="body1" sx={clampToTwoLines}>
+      <Typography variant="body1" sx={clampToLines(2)}>
         {row.text}
       </Typography>
     </Stack>

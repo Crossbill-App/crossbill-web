@@ -66,6 +66,7 @@ class RootContainer(containers.DeclarativeContainer):
         ai_service=shared.ai_service,
         book_statistics_query=shared.book_statistics_query,
         library_reading_activity_query=shared.library_reading_activity_query,
+        recent_captures_query=shared.recent_captures_query,
         bookmark_query=shared.bookmark_query,
         highlight_label_query=shared.highlight_label_query,
         highlight_search_query=shared.highlight_search_query,

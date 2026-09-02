@@ -3,7 +3,7 @@
 from datetime import datetime as dt
 from typing import TYPE_CHECKING
 
-from sqlalchemy import DateTime, ForeignKey, String, Text, UniqueConstraint, func
+from sqlalchemy import DateTime, ForeignKey, Index, String, Text, UniqueConstraint, func
 from sqlalchemy.dialects.postgresql import TSVECTOR
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from sqlalchemy.types import JSON
@@ -98,6 +98,12 @@ class Highlight(Base):
     # Unique constraint for deduplication: same content hash within same book
     __table_args__ = (
         UniqueConstraint("user_id", "book_id", "content_hash", name="uq_highlight_content_hash"),
+        Index(
+            "ix_highlights_user_id_datetime",
+            "user_id",
+            "datetime",
+            postgresql_ops={"datetime": "DESC"},
+        ),
     )
 
     def __repr__(self) -> str:

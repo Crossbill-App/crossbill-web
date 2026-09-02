@@ -76,7 +76,6 @@ test('below md the destinations move into the drawer', async () => {
   await atCompactViewport(async () => {
     const screen = await aDashboard();
 
-    // Exact, or the dashboard's own "Browse the library" button answers to it.
     // Hidden by `display: none`, so the role query does not reach it at all.
     await expect
       .element(screen.getByRole('link', { name: 'Library', exact: true }))
