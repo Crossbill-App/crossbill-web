@@ -82,7 +82,7 @@ class TestSearchEndpoint:
         test_highlight: Highlight,
     ) -> None:
         near = await plant_indexed_highlight(db_session, test_book, "near text", vector=[1.0, 0.0])
-        far = await plant_indexed_highlight(db_session, test_book, "far text", vector=[0.0, 1.0])
+        far = await plant_indexed_highlight(db_session, test_book, "far text", vector=[0.8, 0.6])
 
         response = await get_search(client)
 
@@ -126,7 +126,7 @@ class TestGrouping:
                 db_session, test_book, f"highlight {index}", vector=[1.0, 0.0]
             )
         _, digest = await plant_indexed_digest(
-            db_session, test_book, "Chapter One", vector=[0.1, 0.9]
+            db_session, test_book, "Chapter One", vector=[0.8, 0.6]
         )
 
         groups = await search_groups(client, limit=2)
@@ -159,7 +159,7 @@ class TestGrouping:
         _, near = await plant_indexed_digest(
             db_session, test_book, "Near Chapter", vector=[1.0, 0.0]
         )
-        _, far = await plant_indexed_digest(db_session, test_book, "Far Chapter", vector=[0.0, 1.0])
+        _, far = await plant_indexed_digest(db_session, test_book, "Far Chapter", vector=[0.8, 0.6])
 
         groups = await search_groups(client)
 
@@ -573,6 +573,143 @@ class TestResultPaging:
 
         assert mine.id in ids
         assert theirs.id not in ids
+
+
+class TestScoreFloors:
+    """Weak matches are dropped, not shown -- and /related is stricter than /search."""
+
+    async def test_search_drops_a_match_below_the_floor(
+        self,
+        client: AsyncClient,
+        override_embedding_client: AsyncMock,
+        db_session: AsyncSession,
+        test_book: Book,
+    ) -> None:
+        strong = await plant_indexed_highlight(db_session, test_book, "on topic", vector=[1.0, 0.0])
+        await plant_indexed_highlight(db_session, test_book, "unrelated", vector=[0.2, 1.0])
+
+        assert await search_highlight_ids(client) == [strong.id]
+
+    async def test_search_answers_empty_rather_than_with_the_least_bad_rows(
+        self,
+        client: AsyncClient,
+        override_embedding_client: AsyncMock,
+        db_session: AsyncSession,
+        test_book: Book,
+    ) -> None:
+        """What a nonsense query gets: nearest-neighbour search always has an answer."""
+        await plant_indexed_highlight(db_session, test_book, "unrelated", vector=[0.2, 1.0])
+        await plant_indexed_note(
+            db_session, test_book.user_id, "Unrelated", books=(test_book,), vector=[0.1, 1.0]
+        )
+
+        assert await search_groups(client) == {"highlights": [], "notes": [], "digests": []}
+
+    async def test_related_holds_a_higher_floor_than_search(
+        self,
+        client: AsyncClient,
+        override_embedding_client: AsyncMock,
+        db_session: AsyncSession,
+        test_book: Book,
+    ) -> None:
+        """One match, scoring ~0.49: good enough to answer a question, not to volunteer.
+
+        Both floors read the same score off the same row, so this pins the two
+        apart rather than pinning either number -- collapsing them to one value
+        would fail here whichever value won.
+        """
+        anchor = await plant_indexed_highlight(db_session, test_book, "anchor", vector=[1.0, 0.0])
+        middling = await plant_indexed_highlight(
+            db_session, test_book, "middling", vector=[0.5, 0.9]
+        )
+
+        assert middling.id in await search_highlight_ids(client)
+
+        groups = await related_groups(client, content_type="highlight", content_id=anchor.id)
+        assert groups["highlights"] == []
+
+
+async def _plant_two_book_neighbourhood(
+    db_session: AsyncSession,
+    anchor_book: Book,
+    *,
+    same_book: int,
+    cross_book: int,
+) -> tuple[Highlight, Book]:
+    """Plant an anchor and equally-scoring neighbours split over two books.
+
+    Every vector is identical, so the ranking is decided by insertion order
+    alone: the anchor's own book fills the head of the list and the other book
+    follows. That is the arrangement the cap exists to break up, and leaving
+    scores out of it keeps the cap the only thing under test.
+    """
+    anchor = await plant_indexed_highlight(db_session, anchor_book, "anchor", vector=[1.0, 0.0])
+    for index in range(same_book):
+        await plant_indexed_highlight(db_session, anchor_book, f"same {index}", vector=[1.0, 0.0])
+
+    other_book = Book(user_id=anchor_book.user_id, title="The Other Book")
+    db_session.add(other_book)
+    await db_session.commit()
+    await db_session.refresh(other_book)
+    for index in range(cross_book):
+        await plant_indexed_highlight(db_session, other_book, f"cross {index}", vector=[1.0, 0.0])
+
+    return anchor, other_book
+
+
+class TestPerBookCap:
+    """Whether one book may fill a related page depends on the anchor's neighbourhood."""
+
+    async def test_spreads_the_page_when_the_neighbourhood_spans_the_library(
+        self,
+        client: AsyncClient,
+        db_session: AsyncSession,
+        test_book: Book,
+    ) -> None:
+        """Ten strong cross-book neighbours: the anchor is not an isolated topic.
+
+        The third row proves the page is chosen from more candidates than it
+        returns -- it sits at rank six of the raw ranking, which a plain top-five
+        could never reach. The page then stops at four of the five asked for,
+        because two books can offer no more: a short page is the honest answer,
+        and backfilling it is exactly what the cap is refusing to do.
+        """
+        anchor, other_book = await _plant_two_book_neighbourhood(
+            db_session, test_book, same_book=5, cross_book=10
+        )
+
+        groups = await related_groups(
+            client, content_type="highlight", content_id=anchor.id, limit=5
+        )
+
+        assert [item["book_id"] for item in groups["highlights"]] == [
+            test_book.id,
+            test_book.id,
+            other_book.id,
+            other_book.id,
+        ]
+
+    async def test_leaves_an_isolated_anchor_its_own_books_neighbours(
+        self,
+        client: AsyncClient,
+        db_session: AsyncSession,
+        test_book: Book,
+    ) -> None:
+        """One cross-book neighbour fewer, and the cap must not fire.
+
+        A technical book or a novel looks like this: the only passages that
+        genuinely relate to a chapter are in the same book, and capping them
+        would fill the page with the noise underneath instead.
+        """
+        anchor, _ = await _plant_two_book_neighbourhood(
+            db_session, test_book, same_book=5, cross_book=9
+        )
+
+        groups = await related_groups(
+            client, content_type="highlight", content_id=anchor.id, limit=5
+        )
+
+        assert [item["book_id"] for item in groups["highlights"]] == [test_book.id] * 5
 
 
 class TestQueryValidation:

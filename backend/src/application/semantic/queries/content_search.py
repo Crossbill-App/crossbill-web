@@ -17,7 +17,7 @@ These are view DTOs, not domain entities: they exist to be rendered and must
 never be fed back into a command. See ``docs/adr/0001-read-models-and-query-services.md``.
 """
 
-from collections.abc import Awaitable, Callable, Sequence
+from collections.abc import Awaitable, Callable, Mapping, Sequence
 from dataclasses import dataclass
 from datetime import datetime as dt
 from typing import Protocol
@@ -124,6 +124,24 @@ class SearchHydrationQueryProtocol(Protocol):
         ...
 
 
+async def hydrate_by_content_type(
+    page: Mapping[ContentType, Sequence[SemanticSearchHit]],
+    hydration: SearchHydrationQueryProtocol,
+    user_id: int,
+) -> SemanticSearchResultsView:
+    """Resolve an already-chosen page, one hydration query per content type.
+
+    Both ranked reads end here. ``/related`` calls it directly because it cannot
+    hydrate a type until every type has been ranked -- its per-book cap is gated
+    on the whole neighbourhood, not on one group at a time.
+    """
+    return SemanticSearchResultsView(
+        highlights=await hydration.highlights(page[ContentType.HIGHLIGHT], user_id),
+        notes=await hydration.notes(page[ContentType.NOTE], user_id),
+        digests=await hydration.digests(page[ContentType.DIGEST], user_id),
+    )
+
+
 async def group_by_content_type(
     scan: Callable[[ContentType], Awaitable[Sequence[SemanticSearchHit]]],
     hydration: SearchHydrationQueryProtocol,
@@ -131,13 +149,16 @@ async def group_by_content_type(
 ) -> SemanticSearchResultsView:
     """Scan the index once per content type and hydrate each group on its own.
 
-    Both ranked reads end this way -- what differs is only how ``scan`` builds
-    its query. One scan per type rather than one combined scan: a book with
-    thousands of highlights would otherwise fill a single ranked page and the
-    digests would never appear.
+    One scan per type rather than one combined scan: a book with thousands of
+    highlights would otherwise fill a single ranked page and the digests would
+    never appear.
     """
-    return SemanticSearchResultsView(
-        highlights=await hydration.highlights(await scan(ContentType.HIGHLIGHT), user_id),
-        notes=await hydration.notes(await scan(ContentType.NOTE), user_id),
-        digests=await hydration.digests(await scan(ContentType.DIGEST), user_id),
+    return await hydrate_by_content_type(
+        {
+            ContentType.HIGHLIGHT: await scan(ContentType.HIGHLIGHT),
+            ContentType.NOTE: await scan(ContentType.NOTE),
+            ContentType.DIGEST: await scan(ContentType.DIGEST),
+        },
+        hydration,
+        user_id,
     )

@@ -127,6 +127,11 @@ async def search_content(
     ``limit`` applies per group, so no content type can crowd out another. Every
     item carries its similarity score on one scale, and enough identifiers to
     open the highlight, note or chapter it came from.
+
+    Matches below a similarity floor are dropped rather than replaced, so a
+    group is short -- or empty -- when the library has nothing to say about the
+    query. Nearest-neighbour search would otherwise always answer with its top
+    ``limit``, however unrelated.
     """
     results = await use_case.execute(
         query_text=q,
@@ -153,6 +158,13 @@ async def related_content(
     Same body as ``/search``, grouped by content type with ``limit`` applied per
     group, so one view can render either. The anchor is never among its own
     results, and every group is empty when the anchor is not indexed.
+
+    Held to a higher similarity floor than ``/search``: nobody asked for this
+    list, so a weak row costs more than a missing one. When the anchor's
+    neighbourhood genuinely spans the library, no single book may take more than
+    two places in a group, which spreads the page instead of returning one
+    book's chapter-by-chapter neighbours. An anchor whose only real neighbours
+    are in its own book keeps them.
     """
     results = await use_case.execute(
         content_type=content_type,

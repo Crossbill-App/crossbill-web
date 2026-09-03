@@ -14,7 +14,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.sql.elements import ColumnElement
 
 from src.application.semantic.content_type import ContentType
-from src.application.semantic.queries.semantic_search import SemanticSearchHit
+from src.application.semantic.queries.semantic_search import AnchorEmbedding, SemanticSearchHit
 from src.infrastructure.common.sql import is_postgres
 from src.infrastructure.notes.orm.associations import note_books
 from src.infrastructure.semantic.orm.embedding_model import Embedding as EmbeddingORM
@@ -79,18 +79,20 @@ class SemanticSearchQuery:
             return await self._nearest_postgres(embedding, filters, limit)
         return await self._nearest_python(embedding, filters, limit)
 
-    async def get_vector(
+    async def get_anchor(
         self, *, content_type: ContentType, content_id: int, user_id: int
-    ) -> list[float] | None:
-        stmt = select(EmbeddingORM.embedding).where(
+    ) -> AnchorEmbedding | None:
+        stmt = select(EmbeddingORM.embedding, EmbeddingORM.book_id).where(
             EmbeddingORM.content_type == content_type.value,
             EmbeddingORM.content_id == content_id,
             EmbeddingORM.user_id == user_id,
         )
-        row = (await self.db.execute(stmt)).scalar_one_or_none()
+        row = (await self.db.execute(stmt)).one_or_none()
         if row is None:
             return None
-        return [float(value) for value in row]
+        return AnchorEmbedding(
+            vector=[float(value) for value in row.embedding], book_id=row.book_id
+        )
 
     def _filters(
         self,
