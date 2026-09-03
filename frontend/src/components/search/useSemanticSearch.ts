@@ -1,4 +1,4 @@
-import type { SemanticSearchResults } from '@/api/generated/model';
+import type { GlobalSearchResults } from '@/api/generated/model';
 import { useSearchContent } from '@/api/generated/semantic/semantic.ts';
 import { useSettings } from '@/context/SettingsContext.tsx';
 import { keepPreviousData } from '@tanstack/react-query';
@@ -16,8 +16,11 @@ interface UseSemanticSearchOptions {
 }
 
 interface SemanticSearchState {
-  /** Groups as the endpoint ranked them, each ordered best first. */
-  results: SemanticSearchResults | undefined;
+  /**
+   * Groups as the endpoint ranked them, each ordered best first, plus the
+   * unranked `books` matched by name.
+   */
+  results: GlobalSearchResults | undefined;
   isFetching: boolean;
   isError: boolean;
   /**
