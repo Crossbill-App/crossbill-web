@@ -1,14 +1,15 @@
-import type { SemanticSearchResults } from '@/api/generated/model';
+import type { GlobalSearchResults, SemanticSearchResults } from '@/api/generated/model';
 import { http, HttpResponse } from 'msw';
 
-const EMPTY: SemanticSearchResults = { highlights: [], notes: [], digests: [] };
+const EMPTY_GROUPS: SemanticSearchResults = { highlights: [], notes: [], digests: [] };
+const EMPTY: GlobalSearchResults = { ...EMPTY_GROUPS, books: [] };
 
 /**
  * `GET /semantic/search` answering from a query-text lookup table, so a test
  * says what "attention" matches and nothing else. An unlisted query answers
- * with all three groups empty, which is what "nothing matched" looks like.
+ * with every group empty, which is what "nothing matched" looks like.
  */
-export const semanticSearchApi = (byQuery: Record<string, Partial<SemanticSearchResults>>) => [
+export const semanticSearchApi = (byQuery: Record<string, Partial<GlobalSearchResults>>) => [
   http.get('/api/v1/semantic/search', ({ request }) => {
     const q = new URL(request.url).searchParams.get('q') ?? '';
     return HttpResponse.json({ ...EMPTY, ...(byQuery[q] ?? {}) });
@@ -23,5 +24,5 @@ export const semanticSearchApi = (byQuery: Record<string, Partial<SemanticSearch
  * how a test proves the client no longer filters on its own.
  */
 export const relatedContentApi = (results: Partial<SemanticSearchResults>) => [
-  http.get('/api/v1/semantic/related', () => HttpResponse.json({ ...EMPTY, ...results })),
+  http.get('/api/v1/semantic/related', () => HttpResponse.json({ ...EMPTY_GROUPS, ...results })),
 ];

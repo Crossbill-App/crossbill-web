@@ -1,6 +1,6 @@
 import { aBookDetails, aChapter, aHighlight } from '@tests/fixtures/book';
 import { aNote } from '@tests/fixtures/notes';
-import { aDigestHit, aHighlightHit, aNoteHit } from '@tests/fixtures/semantic';
+import { aBookHit, aDigestHit, aHighlightHit, aNoteHit } from '@tests/fixtures/semantic';
 import { renderApp } from '@tests/harness/renderApp';
 import { atCompactViewport } from '@tests/harness/viewport';
 import { settingsWithEmbeddings } from '@tests/msw/auth';
@@ -112,6 +112,57 @@ test('the list is capped at ten rows after merging, not per type', async () => {
   await expect.element(screen.getByText('Showing top 10')).toBeVisible();
 });
 
+test('a book matched by name leads the list, whatever the ranked hits scored', async () => {
+  const screen = await renderWithResults({
+    attention: {
+      books: [aBookHit({ id: 7, title: 'Deep Work', author: 'Cal Newport' })],
+      highlights: [aHighlightHit({ id: 300, score: 0.99, text: 'A near-perfect highlight' })],
+    },
+  });
+
+  await search(screen, 'attention');
+
+  const rows = screen.getByRole('option');
+  await expect.element(rows.nth(0)).toHaveTextContent('Deep Work');
+  await expect.element(rows.nth(0)).toHaveTextContent('Cal Newport');
+  await expect.element(rows.nth(0).getByText('Book')).toBeVisible();
+  await expect.element(rows.nth(1)).toHaveTextContent('A near-perfect highlight');
+});
+
+test('books sit above the ten-row cap, which the ranked rows alone fill', async () => {
+  const screen = await renderWithResults({
+    attention: {
+      books: [aBookHit({ id: 7, title: 'Deep Work' }), aBookHit({ id: 8, title: 'Shallow Work' })],
+      highlights: Array.from({ length: 12 }, (_, index) =>
+        aHighlightHit({ id: 300 + index, score: 0.95 - index * 0.01, text: `Highlight ${index}` })
+      ),
+    },
+  });
+
+  await search(screen, 'attention');
+
+  const rows = screen.getByRole('option');
+  await expect.element(rows.nth(11)).toBeVisible();
+  expect(rows.elements()).toHaveLength(12);
+  await expect.element(screen.getByText('Showing top 10')).toBeVisible();
+});
+
+test('a list the books lengthen but the cap never touched claims no truncation', async () => {
+  const screen = await renderWithResults({
+    attention: {
+      books: [aBookHit({ id: 7, title: 'Deep Work' }), aBookHit({ id: 8, title: 'Shallow Work' })],
+      highlights: Array.from({ length: 3 }, (_, index) =>
+        aHighlightHit({ id: 300 + index, score: 0.9 - index * 0.01, text: `Highlight ${index}` })
+      ),
+    },
+  });
+
+  await search(screen, 'attention');
+
+  await expect.element(screen.getByRole('option').nth(4)).toBeVisible();
+  await expect.element(screen.getByText('Showing top 10')).not.toBeInTheDocument();
+});
+
 test('a note with no linked book is left out, having no page to open', async () => {
   const screen = await renderWithResults({
     attention: {
@@ -219,6 +270,32 @@ test('clicking a chapter row opens the chapter dialog on the book page', async (
   await expect.element(screen.getByRole('dialog').getByText('On Attention')).toBeVisible();
   expect(window.location.pathname).toBe('/book/1/structure');
   expect(window.location.search).toContain('chapterId=10');
+});
+
+test('clicking a book row opens that book and closes the dropdown', async () => {
+  const screen = await renderWithResults({
+    attention: { books: [aBookHit({ id: 7, title: 'Deep Work' })] },
+  });
+
+  await search(screen, 'attention');
+  await userEvent.click(screen.getByRole('option').first());
+
+  expect(window.location.pathname).toBe('/book/7/structure');
+  await expect.element(screen.getByRole('listbox')).not.toBeInTheDocument();
+});
+
+test('Enter opens the row the arrow keys landed on', async () => {
+  const screen = await renderWithResults({
+    attention: { books: [aBookHit({ id: 7, title: 'Deep Work' })] },
+  });
+
+  await search(screen, 'attention');
+  await expect.element(screen.getByRole('option').first()).toBeVisible();
+
+  await userEvent.keyboard('{ArrowDown}');
+  await userEvent.keyboard('{Enter}');
+
+  expect(window.location.pathname).toBe('/book/7/structure');
 });
 
 test('Escape closes the dropdown and keeps the query, a second Escape clears it', async () => {
