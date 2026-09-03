@@ -19,6 +19,7 @@ class SemanticContainer(containers.DeclarativeContainer):
     book_repository = providers.Dependency()
     semantic_search_query = providers.Dependency()
     search_hydration_query = providers.Dependency()
+    book_list_query = providers.Dependency()
 
     enqueue_content_embeddings_use_case = providers.Factory(
         EnqueueContentEmbeddingsUseCase,
@@ -33,6 +34,7 @@ class SemanticContainer(containers.DeclarativeContainer):
         query=semantic_search_query,
         client=embedding_client,
         hydration=search_hydration_query,
+        books=book_list_query,
     )
 
     related_content_use_case = providers.Factory(

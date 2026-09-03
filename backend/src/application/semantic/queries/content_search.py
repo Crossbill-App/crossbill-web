@@ -37,6 +37,17 @@ class BookRef:
 
 
 @dataclass(frozen=True)
+class BookSearchView:
+    """A book matched by its own title or author, so it carries no similarity score."""
+
+    id: int
+    title: str
+    author: str | None
+    cover_file: str | None
+    cover_blurhash: str | None
+
+
+@dataclass(frozen=True)
 class HighlightSearchView:
     """A matched highlight, with what a highlight list row shows."""
 
@@ -94,6 +105,16 @@ class SemanticSearchResultsView:
     highlights: tuple[HighlightSearchView, ...]
     notes: tuple[NoteSearchView, ...]
     digests: tuple[DigestSearchView, ...]
+
+
+@dataclass(frozen=True)
+class GlobalSearchResultsView:
+    """A free-text search's answer: the ranked groups plus books matched by name."""
+
+    highlights: tuple[HighlightSearchView, ...]
+    notes: tuple[NoteSearchView, ...]
+    digests: tuple[DigestSearchView, ...]
+    books: tuple[BookSearchView, ...]
 
 
 class SearchHydrationQueryProtocol(Protocol):

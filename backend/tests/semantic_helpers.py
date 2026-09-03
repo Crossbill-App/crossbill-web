@@ -283,6 +283,11 @@ async def search_groups(client: AsyncClient, **params: PrimitiveData) -> dict[st
     return response.json()
 
 
+async def search_books(client: AsyncClient, **params: PrimitiveData) -> list[dict[str, Any]]:
+    """Search and return the books matched by title or author, in title order."""
+    return (await search_groups(client, **params))["books"]
+
+
 async def search_highlight_ids(client: AsyncClient, **params: PrimitiveData) -> list[int]:
     """Search and return the matched highlight ids, in ranking order."""
     return [item["id"] for item in (await search_groups(client, **params))["highlights"]]

@@ -55,11 +55,18 @@ export const GlobalSearchResultRow = ({ row, isActive, onSelect }: GlobalSearchR
       )}
       <Box sx={{ gap: 1, display: 'flex', alignItems: 'center' }}>
         <Chip label={SEARCH_ROW_TYPE_LABELS[row.type]} variant="outlined" />
-        <MetadataRow variant="caption" noWrap items={[row.bookTitle, row.chapterLabel]} />
+        {/* A book row's title line is already the book title. */}
+        <MetadataRow
+          variant="caption"
+          noWrap
+          items={row.type === 'book' ? [row.chapterLabel] : [row.bookTitle, row.chapterLabel]}
+        />
       </Box>
-      <Typography variant="body1" sx={clampToLines(2)}>
-        {row.text}
-      </Typography>
+      {row.text && (
+        <Typography variant="body1" sx={clampToLines(2)}>
+          {row.text}
+        </Typography>
+      )}
     </Stack>
   </LinkListItemButton>
 );

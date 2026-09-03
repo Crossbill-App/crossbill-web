@@ -23,6 +23,7 @@ import { useMutation, useQuery } from '@tanstack/react-query';
 import type {
   BackfillEmbeddingsParams,
   BackfillResponse,
+  GlobalSearchResults,
   HTTPValidationError,
   JobBatchResponse,
   RelatedContentParams,
@@ -247,10 +248,13 @@ export function useGetActiveBackfill<
  * group is short -- or empty -- when the library has nothing to say about the
  * query. Nearest-neighbour search would otherwise always answer with its top
  * ``limit``, however unrelated.
+ *
+ * Books whose title or author contains the query ride on top of those groups,
+ * unranked and capped at five. A ``book_id``-scoped search returns none.
  * @summary Search Content
  */
 export const searchContent = (params: SearchContentParams, signal?: AbortSignal) => {
-  return axiosInstance<SemanticSearchResults>({
+  return axiosInstance<GlobalSearchResults>({
     url: `/api/v1/semantic/search`,
     method: 'GET',
     params,

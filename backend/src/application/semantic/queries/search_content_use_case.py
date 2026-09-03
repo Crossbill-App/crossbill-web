@@ -1,10 +1,12 @@
 """Read use case for free-text semantic search over content embeddings."""
 
+from src.application.library.queries.book_list import BookListQueryProtocol
 from src.application.semantic.content_type import ContentType
 from src.application.semantic.protocols.embedding_client import EmbeddingClientProtocol
 from src.application.semantic.queries.content_search import (
+    BookSearchView,
+    GlobalSearchResultsView,
     SearchHydrationQueryProtocol,
-    SemanticSearchResultsView,
     group_by_content_type,
 )
 from src.application.semantic.queries.ranking import SEARCH_SCORE_FLOOR, above_floor
@@ -12,6 +14,10 @@ from src.application.semantic.queries.semantic_search import (
     SemanticSearchHit,
     SemanticSearchQueryProtocol,
 )
+from src.domain.common.value_objects.ids import UserId
+
+#: Fixed, not the caller's per-type ``limit``: books sit above the ranked groups.
+MAX_BOOK_MATCHES = 5
 
 
 class SearchContentUseCase:
@@ -22,14 +28,16 @@ class SearchContentUseCase:
         query: SemanticSearchQueryProtocol,
         client: EmbeddingClientProtocol,
         hydration: SearchHydrationQueryProtocol,
+        books: BookListQueryProtocol,
     ) -> None:
         self.query = query
         self.client = client
         self.hydration = hydration
+        self.books = books
 
     async def execute(
         self, *, query_text: str, user_id: int, book_id: int | None, limit: int
-    ) -> SemanticSearchResultsView:
+    ) -> GlobalSearchResultsView:
         """Return the most similar units of each type, most similar first within each group.
 
         ``limit`` applies per content type, and a group can come back shorter:
@@ -49,4 +57,35 @@ class SearchContentUseCase:
             )
             return above_floor(hits, SEARCH_SCORE_FLOOR)
 
-        return await group_by_content_type(scan, self.hydration, user_id)
+        ranked = await group_by_content_type(scan, self.hydration, user_id)
+        return GlobalSearchResultsView(
+            highlights=ranked.highlights,
+            notes=ranked.notes,
+            digests=ranked.digests,
+            books=await self._matching_books(query_text, user_id, book_id),
+        )
+
+    async def _matching_books(
+        self, query_text: str, user_id: int, book_id: int | None
+    ) -> tuple[BookSearchView, ...]:
+        """Books matched by title or author; none for a search already scoped to one book."""
+        if book_id is not None:
+            return ()
+
+        page = await self.books.list_books(
+            user_id=UserId(user_id),
+            offset=0,
+            limit=MAX_BOOK_MATCHES,
+            include_only_with_flashcards=False,
+            search_text=query_text,
+        )
+        return tuple(
+            BookSearchView(
+                id=book.id,
+                title=book.title,
+                author=book.author,
+                cover_file=book.cover_file,
+                cover_blurhash=book.cover_blurhash,
+            )
+            for book in page.books
+        )

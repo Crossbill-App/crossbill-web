@@ -1,4 +1,18 @@
-import type { DigestSearchItem, HighlightSearchItem, NoteSearchItem } from '@/api/generated/model';
+import type {
+  BookSearchItem,
+  DigestSearchItem,
+  HighlightSearchItem,
+  NoteSearchItem,
+} from '@/api/generated/model';
+
+export const aBookHit = (overrides: Partial<BookSearchItem> = {}): BookSearchItem => ({
+  id: 1,
+  title: 'The Pragmatic Reader',
+  author: 'Ada Lovelace',
+  cover_file: null,
+  cover_blurhash: null,
+  ...overrides,
+});
 
 export const aDigestHit = (overrides: Partial<DigestSearchItem> = {}): DigestSearchItem => ({
   score: 0.7,
