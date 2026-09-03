@@ -58,6 +58,10 @@ export const GlobalSearchResults = ({
     );
   }
 
+  // Only the scored rows are capped — book rows ride above them — so the whole
+  // list reaching the cap is neither necessary nor sufficient for truncation.
+  const rankedRowCount = rows.filter((row) => row.type !== 'book').length;
+
   return (
     <Box>
       {/* Old rows stay put while the next query runs; this is the only hint. */}
@@ -72,7 +76,7 @@ export const GlobalSearchResults = ({
           />
         ))}
       </List>
-      {rows.length === MAX_GLOBAL_SEARCH_ROWS && (
+      {rankedRowCount === MAX_GLOBAL_SEARCH_ROWS && (
         <Typography
           variant="caption"
           color="text.secondary"
