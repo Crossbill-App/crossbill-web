@@ -1,11 +1,11 @@
 import { aBookDetails, aChapter } from '@tests/fixtures/book';
 import { aChapterDigest, aDigestQuestion } from '@tests/fixtures/digest';
 import { aNote } from '@tests/fixtures/notes';
-import { aDigestHit } from '@tests/fixtures/semantic';
+import { aDigestHit, aHighlightHit, aNoteHit } from '@tests/fixtures/semantic';
 import { renderApp } from '@tests/harness/renderApp';
 import { settingsWithAi, settingsWithEmbeddings } from '@tests/msw/auth';
 import { bookApi } from '@tests/msw/bookApi';
-import { semanticSearchApi } from '@tests/msw/semanticSearchApi';
+import { relatedContentApi, semanticSearchApi } from '@tests/msw/semanticSearchApi';
 import { worker } from '@tests/msw/worker';
 import { expect, test } from 'vitest';
 import { userEvent } from 'vitest/browser';
@@ -210,25 +210,37 @@ test('a link straight to a parent chapter opens its dialog', async () => {
     .toBeVisible();
 });
 
-test('a match below the score cutoff counts as no match', async () => {
+/**
+ * One strip for the whole chapter, not one per tab.
+ *
+ * Cosine similarity is a single scale across the three content types, so the
+ * best matches for a chapter are simply the best matches; the scores here are
+ * deliberately interleaved across types, which three per-type strips could not
+ * show. The body also carries a score the old client-side floor would have
+ * dropped — the floor is the endpoint's now, and nothing filters here.
+ */
+test('related content renders as one ranking across every content type', async () => {
   worker.use(
     settingsWithEmbeddings(true),
-    ...semanticSearchApi({
-      quantum: {
-        digests: [
-          aDigestHit({ chapter_id: 11, chapter_name: 'Attention and memory', score: 0.12 }),
-        ],
-      },
+    ...relatedContentApi({
+      highlights: [aHighlightHit({ score: 0.71, text: 'A related highlight' })],
+      notes: [aNoteHit({ score: 0.83, title: 'A related note' })],
+      digests: [aDigestHit({ score: 0.5, chapter_id: 11, summary: 'A related chapter' })],
     }),
-    ...bookApi({ book: aStructuredBook() }).handlers
+    ...bookApi({ book: aStructuredBook(), digests: [aChapterDigest({ chapter_id: 10 })] }).handlers
   );
 
-  const screen = await renderApp({ path: '/book/1/structure' });
-  await userEvent.fill(screen.getByPlaceholder(SEARCH_PLACEHOLDER), 'quantum');
-  await userEvent.keyboard('{Enter}');
+  const screen = await renderApp({ path: '/book/1/structure?chapterId=10' });
 
-  await expect.element(screen.getByText(/No chapters match/)).toBeVisible();
-  expect(screen.getByText('Attention and memory').elements()).toHaveLength(0);
+  const strip = screen.getByRole('group', { name: 'Related' });
+  await expect.element(strip).toBeVisible();
+
+  const cards = strip.getByRole('listitem').elements();
+  expect(cards.map((card) => card.textContent)).toEqual([
+    expect.stringContaining('A related note'),
+    expect.stringContaining('A related highlight'),
+    expect.stringContaining('A related chapter'),
+  ]);
 });
 
 /**

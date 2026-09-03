@@ -1,9 +1,7 @@
-import type { NoteSearchItem, NoteWithLinks } from '@/api/generated/model';
+import type { NoteWithLinks } from '@/api/generated/model';
 import { EmptyStateText } from '@/components/EmptyStateText.tsx';
 import { Spinner } from '@/components/animations/Spinner.tsx';
 import { DialogToolbar } from '@/components/dialogs/DialogToolbar.tsx';
-import { RelatedContentSection } from '@/components/search/RelatedContentSection.tsx';
-import { noteRows } from '@/components/search/globalSearchRows.ts';
 import { NoteDialogs } from '@/pages/BookPage/Notes/NoteDialogs';
 import { LinkedNoteList } from '@/pages/BookPage/Notes/components/LinkedNoteList.tsx';
 import { NotePickerDialog } from '@/pages/BookPage/Notes/components/NotePickerDialog.tsx';
@@ -22,8 +20,6 @@ interface LinkedNotesSectionProps {
   target: NoteLinkTarget;
   /** Notes linked to the target; the query lives in the caller for the tab count. */
   notes: NoteWithLinks[];
-  /** Semantic matches for the target, shown after its own notes. */
-  relatedContent?: NoteSearchItem[];
   isLoading: boolean;
   disabled?: boolean;
 }
@@ -38,7 +34,6 @@ export const LinkedNotesSection = ({
   bookId,
   target,
   notes,
-  relatedContent = [],
   isLoading,
   disabled = false,
 }: LinkedNotesSectionProps) => {
@@ -111,8 +106,6 @@ export const LinkedNotesSection = ({
         target={target.kind}
         onSelect={handleLink}
       />
-
-      <RelatedContentSection title="Related notes" rows={noteRows(relatedContent)} />
     </Box>
   );
 };

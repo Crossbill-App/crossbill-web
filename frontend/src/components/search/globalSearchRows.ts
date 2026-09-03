@@ -31,7 +31,7 @@ export const SEARCH_ROW_TYPE_LABELS: Record<GlobalSearchRowType, string> = {
   chapter: 'Chapter',
 };
 
-export const highlightRows = (hits: HighlightSearchItem[]): GlobalSearchRow[] =>
+const highlightRows = (hits: HighlightSearchItem[]): GlobalSearchRow[] =>
   hits.map((hit) => ({
     key: `highlight-${hit.id}`,
     type: 'highlight',
@@ -51,7 +51,7 @@ export const highlightRows = (hits: HighlightSearchItem[]): GlobalSearchRow[] =>
  * page to open, since a note view only exists inside a book. They stay
  * invisible until a global note view exists.
  */
-export const noteRows = (hits: NoteSearchItem[]): GlobalSearchRow[] =>
+const noteRows = (hits: NoteSearchItem[]): GlobalSearchRow[] =>
   hits.flatMap((hit) => {
     // `books[0]` is untyped as optional (noUncheckedIndexedAccess is off), so
     // the emptiness check is on `.length`, not on `book` itself.
@@ -75,7 +75,7 @@ export const noteRows = (hits: NoteSearchItem[]): GlobalSearchRow[] =>
   });
 
 /** A digest's row opens the chapter it summarises, not the digest itself. */
-export const digestRows = (hits: DigestSearchItem[]): GlobalSearchRow[] =>
+const digestRows = (hits: DigestSearchItem[]): GlobalSearchRow[] =>
   hits.map((hit) => ({
     key: `digest-${hit.id}`,
     type: 'chapter',
@@ -94,21 +94,23 @@ export const digestRows = (hits: DigestSearchItem[]): GlobalSearchRow[] =>
  * Flattens the endpoint's three groups into one list ranked by score.
  *
  * Scores are cosine similarity on one scale for all three types, which is what
- * makes a merged ranking meaningful rather than a presentation trick.
+ * makes a merged ranking meaningful rather than a presentation trick. Both
+ * readers of the endpoint show one list: three lists side by side make the
+ * reader compare scores the ranking has already compared.
  */
-export const toGlobalSearchRows = (
-  results: SemanticSearchResults | undefined
-): GlobalSearchRow[] => {
+export const mergeSearchRows = (results: SemanticSearchResults | undefined): GlobalSearchRow[] => {
   if (!results) return [];
 
   return [
     ...highlightRows(results.highlights),
     ...noteRows(results.notes),
     ...digestRows(results.digests),
-  ]
-    .sort((a, b) => b.score - a.score)
-    .slice(0, MAX_GLOBAL_SEARCH_ROWS);
+  ].sort((a, b) => b.score - a.score);
 };
+
+/** The merged ranking, cut to what the search dropdown has room for. */
+export const toGlobalSearchRows = (results: SemanticSearchResults | undefined): GlobalSearchRow[] =>
+  mergeSearchRows(results).slice(0, MAX_GLOBAL_SEARCH_ROWS);
 
 /**
  * The DOM id a row's element carries. Shared by the row itself and by

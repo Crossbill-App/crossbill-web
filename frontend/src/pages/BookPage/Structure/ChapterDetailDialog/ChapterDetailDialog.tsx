@@ -13,6 +13,7 @@ import { DialogTabs, type DialogTabItem } from '@/components/dialogs/DialogTabs.
 import { ProgressBar } from '@/components/dialogs/ProgressBar.tsx';
 import { useDialogHorizontalNavigation } from '@/components/dialogs/useDialogHorizontalNavigation.ts';
 import type { UrlEntityDialogController } from '@/components/dialogs/useUrlEntityDialog.ts';
+import { RelatedContentSection } from '@/components/search/RelatedContentSection.tsx';
 import { useRelatedItems } from '@/components/search/useRelatedItems.ts';
 import { LinkedNotesSection } from '@/pages/BookPage/Notes/components/LinkedNotesSection.tsx';
 import { NoteEditorDialog } from '@/pages/BookPage/Notes/NoteEditorDialog';
@@ -68,7 +69,10 @@ export const ChapterDetailDialog = ({
     chapter_id: chapter.id,
   });
 
-  const relatedContent = useRelatedItems({
+  // Anchored on the chapter's digest, which is what the whole chapter was
+  // embedded as; the strip below sits outside the tabs because one merged
+  // ranking belongs to the chapter, not to any one of its tabs.
+  const related = useRelatedItems({
     contentId: digestSummary?.id,
     contentType: 'digest',
   });
@@ -95,7 +99,6 @@ export const ChapterDetailDialog = ({
           chapterId={chapter.id}
           bookId={bookId}
           digestSummary={digestSummary}
-          relatedContent={relatedContent.related?.digests ?? []}
           onStartQuiz={() => setQuizOpen(true)}
           onStartChat={() => setChatOpen(true)}
         />
@@ -109,7 +112,6 @@ export const ChapterDetailDialog = ({
         <LinkedNotesSection
           bookId={bookId}
           target={{ kind: 'chapter', id: chapter.id }}
-          relatedContent={relatedContent.related?.notes ?? []}
           notes={notes}
           isLoading={notesLoading}
         />
@@ -123,7 +125,6 @@ export const ChapterDetailDialog = ({
         <HighlightsSection
           chapter={chapter}
           bookId={bookId}
-          relatedContent={relatedContent.related?.highlights ?? []}
           bookmarksByHighlightId={bookmarksByHighlightId}
           availableTags={availableTags}
         />
@@ -153,6 +154,8 @@ export const ChapterDetailDialog = ({
       <ChapterToolbar chapterId={chapter.id} bookId={bookId} hasSummary={!!digestSummary} />
 
       <DialogTabs tabs={tabs} activeTab={activeTab} onTabChange={setActiveTab} />
+
+      <RelatedContentSection title="Related" rows={related.rows} />
     </Box>
   );
 

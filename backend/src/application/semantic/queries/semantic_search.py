@@ -24,6 +24,21 @@ class SemanticSearchHit:
     score: float
 
 
+@dataclass(frozen=True)
+class AnchorEmbedding:
+    """The stored vector of the unit a related search ranks against, and its book.
+
+    ``book_id`` rides along because the ranking rules need it to tell a
+    neighbour in the same book from one elsewhere in the library, and asking for
+    it separately would be a second round trip for a column the same row
+    already holds. It is NULL under the same rule as any other embedding row: a
+    note linked to zero or several books has no single book.
+    """
+
+    vector: list[float]
+    book_id: int | None
+
+
 class SemanticSearchQueryProtocol(Protocol):
     """Port for the nearest-neighbour scan over the embeddings index."""
 
@@ -45,8 +60,8 @@ class SemanticSearchQueryProtocol(Protocol):
         """
         ...
 
-    async def get_vector(
+    async def get_anchor(
         self, *, content_type: ContentType, content_id: int, user_id: int
-    ) -> list[float] | None:
-        """Return the stored vector for a content unit, or ``None`` if it is not indexed."""
+    ) -> AnchorEmbedding | None:
+        """Return a content unit's stored vector and book, or ``None`` if it is not indexed."""
         ...

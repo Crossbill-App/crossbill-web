@@ -6,13 +6,10 @@ import {
 import type {
   ChapterDigestResponse,
   CollectionResponseChapterDigestResponse,
-  DigestSearchItem,
 } from '@/api/generated/model';
 import { AIActionButton } from '@/components/buttons/AIActionButton.tsx';
 import { AIFeature } from '@/components/features/AIFeature.tsx';
 import { SavedIndicator } from '@/components/SavedIndicator.tsx';
-import { digestRows } from '@/components/search/globalSearchRows.ts';
-import { RelatedContentSection } from '@/components/search/RelatedContentSection.tsx';
 import { useCommitOnBlur } from '@/hooks/useCommitOnBlur.ts';
 import { useMutationErrorHandler } from '@/hooks/useMutationErrorHandler.ts';
 import { useSaveStatus } from '@/hooks/useSaveStatus.ts';
@@ -71,7 +68,6 @@ interface ChapterReviewSectionProps {
   chapterId: number;
   bookId: number;
   digestSummary?: ChapterDigestResponse;
-  relatedContent: DigestSearchItem[];
   onStartQuiz: () => void;
   onStartChat: () => void;
 }
@@ -80,7 +76,6 @@ export const ChapterReviewSection = ({
   chapterId,
   bookId,
   digestSummary,
-  relatedContent,
   onStartQuiz,
   onStartChat,
 }: ChapterReviewSectionProps) => {
@@ -188,10 +183,6 @@ export const ChapterReviewSection = ({
           <AIActionButton text="Chat about the chapter" onClick={onStartChat} />
         </Box>
       </AIFeature>
-
-      {/* Outside `AIFeature`: related chapters come from the embedding index,
-          which is a separate flag from the AI features above it. */}
-      <RelatedContentSection title="Related chapters" rows={digestRows(relatedContent)} />
     </>
   );
 };

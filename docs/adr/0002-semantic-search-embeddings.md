@@ -562,3 +562,47 @@ as the anchor indexes already in `Embedding.__table_args__`
 (`infrastructure/semantic/orm/embedding_model.py`): a partial HNSW index per
 content type, so each type's scan never has to cross another's tuples to fill
 its page.
+
+## Amendment 2026-09-03 — score floors and a gated per-book cap
+
+Both ranked reads now discard weak matches instead of showing them. A
+nearest-neighbour scan always answers with its top `k`, so until now a query
+with no real match came back with the least-bad rows and looked as confident as
+one with a good answer. `/search` holds a cosine floor of **0.45**, `/related`
+one of **0.60**, and a group that clears neither comes back empty. `/related`
+additionally caps a page at **two results per book** per content type, but only
+when at least **ten** pooled candidates scoring **0.62** or better come from
+outside the anchor's book.
+
+The numbers come from the semantic-lab research repo (experiments 003 to 006):
+the owner's library, two judges' relevance labels, and frozen evalsets. They are
+recorded next to the constants they justify in
+`application/semantic/queries/ranking.py`, which is the file to read before
+changing any of them. Three things are worth repeating here:
+
+- **The floors sit on plateaus, not edges.** No search floor between 0.35 and
+  0.55 changes precision — the best nonsense query scores 0.435 and the worst
+  real query's top hit 0.529 — so 0.45 is a wide target, not a tuned one.
+- **The cap had to be gated.** Applied unconditionally it drops related
+  precision@10 from 0.73 to 0.29 on the seven anchors whose only genuine
+  neighbours are in their own book: a technical book or a novel. Gated, it
+  leaves those at baseline and lifts distinct books per page from 2.5 to 4.0
+  everywhere else.
+- **They are tuned to one model and one corpus.** `bge-m3`, one library.
+  Swapping the embedding model invalidates all four numbers, and the honest
+  response is to re-run the lab rather than nudge a constant.
+
+The rules are pure functions over the scan's hits, above the adapter, so the
+pgvector and SQLite paths choose the same page from the same candidates.
+`/related` over-fetches four times its `limit` per type to give the cap room to
+reach past a book that has already filled its share — which also bounds what
+the gate can see, since it counts within that pool.
+
+This is also what settled the shape of the related UI. The 0.60 floor is
+harmless on a merged page but guts a per-type note list — it drops 85 of 146
+judged-relevant notes and empties 16 of 40 lists — so the frontend renders one
+merged ranking rather than a strip per content type. Scores are one scale across
+all three types, which is what makes the merge meaningful; the alternative,
+giving notes a lower floor of their own, would have needed a measurement nobody
+had and would have left three lists asking the reader to compare scores the
+ranking had already compared.

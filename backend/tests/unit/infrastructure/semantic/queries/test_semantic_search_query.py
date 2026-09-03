@@ -239,22 +239,50 @@ class TestNearest:
         assert [hit.content_id for hit in hits] == [1]
 
 
-class TestGetVector:
-    async def test_round_trips_the_stored_vector(
+class TestGetAnchor:
+    async def test_round_trips_the_stored_vector_and_book(
         self, query: SemanticSearchQuery, db_session: AsyncSession
     ) -> None:
+        book = Book(user_id=USER_ID, title="Anchor's book")
+        db_session.add(book)
+        await db_session.flush()
         await _add_embedding(
-            db_session, content_type=ContentType.NOTE, content_id=7, vector=[0.1, 0.2, 0.3]
+            db_session,
+            content_type=ContentType.NOTE,
+            content_id=7,
+            vector=[0.1, 0.2, 0.3],
+            book_id=book.id,
         )
 
-        vector = await query.get_vector(
+        anchor = await query.get_anchor(
             content_type=ContentType.NOTE, content_id=7, user_id=USER_ID
         )
 
-        assert vector == [0.1, 0.2, 0.3]
+        assert anchor is not None
+        assert anchor.vector == [0.1, 0.2, 0.3]
+        assert anchor.book_id == book.id
+
+    async def test_carries_a_null_book(
+        self, query: SemanticSearchQuery, db_session: AsyncSession
+    ) -> None:
+        """A note linked to zero or several books anchors with no book at all.
+
+        The ranking rules read this to decide what counts as cross-book, so a
+        NULL that arrived as a 0 would quietly make every neighbour same-book.
+        """
+        await _add_embedding(
+            db_session, content_type=ContentType.NOTE, content_id=7, vector=[0.1, 0.2]
+        )
+
+        anchor = await query.get_anchor(
+            content_type=ContentType.NOTE, content_id=7, user_id=USER_ID
+        )
+
+        assert anchor is not None
+        assert anchor.book_id is None
 
     async def test_returns_none_when_absent(self, query: SemanticSearchQuery) -> None:
         assert (
-            await query.get_vector(content_type=ContentType.NOTE, content_id=99, user_id=USER_ID)
+            await query.get_anchor(content_type=ContentType.NOTE, content_id=99, user_id=USER_ID)
             is None
         )
