@@ -14,3 +14,14 @@ export const semanticSearchApi = (byQuery: Record<string, Partial<SemanticSearch
     return HttpResponse.json({ ...EMPTY, ...(byQuery[q] ?? {}) });
   }),
 ];
+
+/**
+ * `GET /semantic/related` answering with one grouped body whatever the anchor.
+ *
+ * The score floor and the per-book cap are the endpoint's, so a test states
+ * what came back rather than what was indexed — and a body that skips them is
+ * how a test proves the client no longer filters on its own.
+ */
+export const relatedContentApi = (results: Partial<SemanticSearchResults>) => [
+  http.get('/api/v1/semantic/related', () => HttpResponse.json({ ...EMPTY, ...results })),
+];

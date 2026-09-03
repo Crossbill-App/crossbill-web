@@ -1,9 +1,7 @@
 import type { SemanticSearchResults } from '@/api/generated/model';
 import { useSearchContent } from '@/api/generated/semantic/semantic.ts';
-import { strongEnough } from '@/components/search/semanticScore.ts';
 import { useSettings } from '@/context/SettingsContext.tsx';
 import { keepPreviousData } from '@tanstack/react-query';
-import { useMemo } from 'react';
 
 /** Default results per content type. The endpoint's maximum is 100. */
 const DEFAULT_LIMIT = 25;
@@ -18,7 +16,7 @@ interface UseSemanticSearchOptions {
 }
 
 interface SemanticSearchState {
-  /** Groups with weak matches dropped, each still ordered best first. */
+  /** Groups as the endpoint ranked them, each ordered best first. */
   results: SemanticSearchResults | undefined;
   isFetching: boolean;
   isError: boolean;
@@ -55,14 +53,7 @@ export const useSemanticSearch = ({
     { query: { enabled: hasQuery, placeholderData: keepPreviousData } }
   );
 
-  const results = useMemo(() => {
-    if (!hasQuery || !data) return undefined;
-    return {
-      highlights: strongEnough(data.highlights),
-      notes: strongEnough(data.notes),
-      digests: strongEnough(data.digests),
-    };
-  }, [data, hasQuery]);
-
-  return { results, isFetching, isError, hasQuery };
+  // Weak matches are already gone: the endpoint holds a measured similarity
+  // floor, so a group that comes back short is short on purpose.
+  return { results: hasQuery ? data : undefined, isFetching, isError, hasQuery };
 };

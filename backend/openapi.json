@@ -4193,7 +4193,7 @@
           "semantic"
         ],
         "summary": "Search Content",
-        "description": "Rank the user's embedded content by semantic similarity, grouped by content type.\n\n``limit`` applies per group, so no content type can crowd out another. Every\nitem carries its similarity score on one scale, and enough identifiers to\nopen the highlight, note or chapter it came from.",
+        "description": "Rank the user's embedded content by semantic similarity, grouped by content type.\n\n``limit`` applies per group, so no content type can crowd out another. Every\nitem carries its similarity score on one scale, and enough identifiers to\nopen the highlight, note or chapter it came from.\n\nMatches below a similarity floor are dropped rather than replaced, so a\ngroup is short -- or empty -- when the library has nothing to say about the\nquery. Nearest-neighbour search would otherwise always answer with its top\n``limit``, however unrelated.",
         "operationId": "search_content",
         "security": [
           {
@@ -4271,7 +4271,7 @@
           "semantic"
         ],
         "summary": "Related Content",
-        "description": "Rank the user's embedded content by similarity to one already-indexed unit.\n\nSame body as ``/search``, grouped by content type with ``limit`` applied per\ngroup, so one view can render either. The anchor is never among its own\nresults, and every group is empty when the anchor is not indexed.",
+        "description": "Rank the user's embedded content by similarity to one already-indexed unit.\n\nSame body as ``/search``, grouped by content type with ``limit`` applied per\ngroup, so one view can render either. The anchor is never among its own\nresults, and every group is empty when the anchor is not indexed.\n\nHeld to a higher similarity floor than ``/search``: nobody asked for this\nlist, so a weak row costs more than a missing one. When the anchor's\nneighbourhood genuinely spans the library, no single book may take more than\ntwo places in a group, which spreads the page instead of returning one\nbook's chapter-by-chapter neighbours. An anchor whose only real neighbours\nare in its own book keeps them.",
         "operationId": "related_content",
         "security": [
           {

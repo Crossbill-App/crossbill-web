@@ -11,12 +11,12 @@ interface RelatedContentSectionProps {
 }
 
 /**
- * Trailing strip of semantically related content for a tab.
+ * Trailing strip of semantically related content: one ranking, every type.
  *
  * Renders nothing when there is nothing to relate — the feature being off, the
- * anchor not being embedded yet and every match scoring below the floor all
- * arrive here as an empty list, and none of them is worth a heading over an
- * empty row.
+ * anchor not being embedded yet and every match scoring below the endpoint's
+ * floor all arrive here as an empty list, and none of them is worth a heading
+ * over an empty row.
  */
 export const RelatedContentSection = ({ title, rows }: RelatedContentSectionProps) => {
   if (rows.length === 0) return null;
