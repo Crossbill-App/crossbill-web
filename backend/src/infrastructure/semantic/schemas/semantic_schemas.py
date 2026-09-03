@@ -38,6 +38,18 @@ class SearchBookRef(BaseModel):
     cover_blurhash: str | None
 
 
+class BookSearchItem(BaseModel):
+    """A book matched by its own title or author, so it carries no score."""
+
+    model_config = _FROM_VIEW
+
+    id: int
+    title: str
+    author: str | None
+    cover_file: str | None
+    cover_blurhash: str | None
+
+
 class HighlightSearchItem(BaseModel):
     """A matched highlight, shaped for a highlight list row.
 
@@ -109,3 +121,13 @@ class SemanticSearchResults(BaseModel):
     highlights: list[HighlightSearchItem]
     notes: list[NoteSearchItem]
     digests: list[DigestSearchItem]
+
+
+class GlobalSearchResults(SemanticSearchResults):
+    """What ``/search`` answers: the ranked groups plus books matched by name.
+
+    ``books`` is unranked and carries no score, so a client cannot merge it into
+    the ranked list the other groups make up.
+    """
+
+    books: list[BookSearchItem]

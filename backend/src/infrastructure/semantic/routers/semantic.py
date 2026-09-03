@@ -28,6 +28,7 @@ from src.infrastructure.jobs.schemas.job_batch_schemas import (
 )
 from src.infrastructure.semantic.schemas.semantic_schemas import (
     BackfillResponse,
+    GlobalSearchResults,
     SemanticSearchResults,
 )
 
@@ -111,7 +112,7 @@ async def get_active_backfill(
     return view_to_response(view) if view else None
 
 
-@router.get("/search", response_model=SemanticSearchResults)
+@router.get("/search", response_model=GlobalSearchResults)
 @require_embeddings_enabled
 async def search_content(
     current_user: Annotated[User, Depends(get_current_user)],
@@ -121,7 +122,7 @@ async def search_content(
     use_case: SearchContentUseCase = Depends(
         inject_use_case(container.semantic.search_content_use_case)
     ),
-) -> SemanticSearchResults:
+) -> GlobalSearchResults:
     """Rank the user's embedded content by semantic similarity, grouped by content type.
 
     ``limit`` applies per group, so no content type can crowd out another. Every
@@ -132,6 +133,9 @@ async def search_content(
     group is short -- or empty -- when the library has nothing to say about the
     query. Nearest-neighbour search would otherwise always answer with its top
     ``limit``, however unrelated.
+
+    Books whose title or author contains the query ride on top of those groups,
+    unranked and capped at five. A ``book_id``-scoped search returns none.
     """
     results = await use_case.execute(
         query_text=q,
@@ -139,7 +143,7 @@ async def search_content(
         book_id=book_id,
         limit=limit,
     )
-    return SemanticSearchResults.model_validate(results)
+    return GlobalSearchResults.model_validate(results)
 
 
 @router.get("/related", response_model=SemanticSearchResults)
