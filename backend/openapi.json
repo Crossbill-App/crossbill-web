@@ -6661,7 +6661,7 @@
           "books"
         ],
         "title": "GlobalSearchResults",
-        "description": "What ``/search`` answers: the ranked groups plus books matched by name.\n\n``books`` is unranked and carries no score, so a client cannot merge it into\nthe ranked list the other groups make up."
+        "description": "What ``/search`` answers: the ranked groups plus unranked books matched by name."
       },
       "HTTPValidationError": {
         "properties": {
