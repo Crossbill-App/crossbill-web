@@ -38,14 +38,16 @@ router = APIRouter(prefix="/jobs", tags=["jobs"])
 async def enqueue_book_digest(
     book_id: int,
     current_user: Annotated[User, Depends(get_current_user)],
+    overwrite_existing: bool = False,
     use_case: EnqueueBookDigestsUseCase = Depends(
         inject_use_case(container.jobs.enqueue_book_digests_use_case)
     ),
 ) -> JobBatchResponse:
-    """Enqueue digest generation for all chapters of a book."""
+    """Enqueue digest generation for a book, optionally replacing existing digests."""
     batch = await use_case.execute(
         BookId(book_id),
         UserId(current_user.id.value),
+        overwrite_existing=overwrite_existing,
     )
     return batch_to_response(batch)
 

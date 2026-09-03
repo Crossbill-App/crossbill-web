@@ -45,6 +45,7 @@ export {
   Add as AddIcon,
   ContentCopy as CopyIcon,
   Delete as DeleteIcon,
+  ArrowDropDown as DropdownIcon,
   Edit as EditIcon,
   PlaylistAdd as EditTagsIcon,
   Link as LinkIcon,
