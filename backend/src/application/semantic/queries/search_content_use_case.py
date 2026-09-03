@@ -16,8 +16,7 @@ from src.application.semantic.queries.semantic_search import (
 )
 from src.domain.common.value_objects.ids import UserId
 
-#: Books ride alongside three ranked groups, so they get a short fixed cap rather
-#: than the caller's per-type ``limit``.
+#: Fixed, not the caller's per-type ``limit``: books sit above the ranked groups.
 MAX_BOOK_MATCHES = 5
 
 
@@ -44,9 +43,6 @@ class SearchContentUseCase:
         ``limit`` applies per content type, and a group can come back shorter:
         weak matches are dropped rather than replaced, so a query with nothing
         to match answers with empty groups instead of the least-bad rows.
-
-        Books matching the query by name ride on top, unranked and capped at
-        ``MAX_BOOK_MATCHES``.
         """
         vectors = await self.client.embed([query_text])
         embedding = vectors[0]
@@ -72,11 +68,7 @@ class SearchContentUseCase:
     async def _matching_books(
         self, query_text: str, user_id: int, book_id: int | None
     ) -> tuple[BookSearchView, ...]:
-        """Books whose title or author contains the query, in title order.
-
-        A search already scoped to one book gets none: the reader is inside that
-        book and offering it back as a result says nothing.
-        """
+        """Books matched by title or author; none for a search already scoped to one book."""
         if book_id is not None:
             return ()
 

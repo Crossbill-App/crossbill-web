@@ -124,10 +124,6 @@ class SemanticSearchResults(BaseModel):
 
 
 class GlobalSearchResults(SemanticSearchResults):
-    """What ``/search`` answers: the ranked groups plus books matched by name.
-
-    ``books`` is unranked and carries no score, so a client cannot merge it into
-    the ranked list the other groups make up.
-    """
+    """What ``/search`` answers: the ranked groups plus unranked books matched by name."""
 
     books: list[BookSearchItem]

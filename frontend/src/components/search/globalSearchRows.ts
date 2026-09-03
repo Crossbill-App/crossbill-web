@@ -97,11 +97,7 @@ const digestRows = (hits: DigestSearchItem[]): RankedSearchRow[] =>
     coverBlurhash: hit.cover_blurhash,
   }));
 
-/**
- * Books matched by their own title or author. The author rides on
- * `chapterLabel` because that is the field the metadata line renders, and a
- * book has no chapter to put there.
- */
+/** The author rides on `chapterLabel`, the field the metadata line renders. */
 const bookRows = (hits: BookSearchItem[]): GlobalSearchRow[] =>
   hits.map((hit) => ({
     key: `book-${hit.id}`,
@@ -135,13 +131,7 @@ export const mergeSearchRows = (results: SemanticSearchResults | undefined): Glo
   ].sort((a, b) => b.score - a.score);
 };
 
-/**
- * Books on top, then the merged ranking cut to what the dropdown has room for.
- *
- * A book carries no score, so it cannot be ranked against the rest; it also
- * needs no defending, since a reader who types a title wants the book itself.
- * The endpoint caps the books, so the list stays short without a cap here.
- */
+/** Books on top, capped by the endpoint rather than here; then the ranking cut to fit. */
 export const toGlobalSearchRows = (results: GlobalSearchResults | undefined): GlobalSearchRow[] =>
   results
     ? [...bookRows(results.books), ...mergeSearchRows(results).slice(0, MAX_GLOBAL_SEARCH_ROWS)]

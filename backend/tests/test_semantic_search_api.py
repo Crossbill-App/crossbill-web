@@ -334,11 +334,7 @@ class TestRenderableFields:
 
 
 class TestBookMatches:
-    """Books matched by name, which no amount of embedding similarity would find.
-
-    Nothing here is indexed: the point is that a title or author match stands on
-    its own, and the three ranked groups stay empty throughout.
-    """
+    """Books matched by name; nothing is indexed, so the match stands on its own."""
 
     async def test_matches_a_title_substring_and_carries_what_a_row_renders(
         self,

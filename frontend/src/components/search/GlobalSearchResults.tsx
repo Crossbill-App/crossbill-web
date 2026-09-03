@@ -58,8 +58,7 @@ export const GlobalSearchResults = ({
     );
   }
 
-  // Only the scored rows are capped — book rows ride above them — so the whole
-  // list reaching the cap is neither necessary nor sufficient for truncation.
+  // Only the ranked rows are capped; book rows ride above them.
   const rankedRowCount = rows.filter((row) => row.type !== 'book').length;
 
   return (

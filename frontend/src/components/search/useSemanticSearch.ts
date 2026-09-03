@@ -16,10 +16,7 @@ interface UseSemanticSearchOptions {
 }
 
 interface SemanticSearchState {
-  /**
-   * Groups as the endpoint ranked them, each ordered best first, plus the
-   * unranked `books` matched by name.
-   */
+  /** Groups as the endpoint ranked them, best first, plus the unranked `books`. */
   results: GlobalSearchResults | undefined;
   isFetching: boolean;
   isError: boolean;

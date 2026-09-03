@@ -55,8 +55,7 @@ export const GlobalSearchResultRow = ({ row, isActive, onSelect }: GlobalSearchR
       )}
       <Box sx={{ gap: 1, display: 'flex', alignItems: 'center' }}>
         <Chip label={SEARCH_ROW_TYPE_LABELS[row.type]} variant="outlined" />
-        {/* A book row's title line is already the book title; repeating it
-            below would leave only the author saying anything new. */}
+        {/* A book row's title line is already the book title. */}
         <MetadataRow
           variant="caption"
           noWrap

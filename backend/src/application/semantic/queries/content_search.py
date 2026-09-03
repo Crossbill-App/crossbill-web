@@ -109,11 +109,7 @@ class SemanticSearchResultsView:
 
 @dataclass(frozen=True)
 class GlobalSearchResultsView:
-    """A free-text search's answer: the ranked groups plus books matched by name.
-
-    ``books`` is not ranked by similarity -- a reader typing a title wants that
-    book, not the passages that sound like it.
-    """
+    """A free-text search's answer: the ranked groups plus books matched by name."""
 
     highlights: tuple[HighlightSearchView, ...]
     notes: tuple[NoteSearchView, ...]
