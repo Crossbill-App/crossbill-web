@@ -4203,7 +4203,7 @@
           "semantic"
         ],
         "summary": "Search Content",
-        "description": "Rank the user's embedded content by semantic similarity, grouped by content type.\n\n``limit`` applies per group, so no content type can crowd out another. Every\nitem carries its similarity score on one scale, and enough identifiers to\nopen the highlight, note or chapter it came from.\n\nMatches below a similarity floor are dropped rather than replaced, so a\ngroup is short -- or empty -- when the library has nothing to say about the\nquery. Nearest-neighbour search would otherwise always answer with its top\n``limit``, however unrelated.",
+        "description": "Rank the user's embedded content by semantic similarity, grouped by content type.\n\n``limit`` applies per group, so no content type can crowd out another. Every\nitem carries its similarity score on one scale, and enough identifiers to\nopen the highlight, note or chapter it came from.\n\nMatches below a similarity floor are dropped rather than replaced, so a\ngroup is short -- or empty -- when the library has nothing to say about the\nquery. Nearest-neighbour search would otherwise always answer with its top\n``limit``, however unrelated.\n\nBooks whose title or author contains the query ride on top of those groups,\nunranked and capped at five. A ``book_id``-scoped search returns none.",
         "operationId": "search_content",
         "security": [
           {
@@ -4257,7 +4257,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/SemanticSearchResults"
+                  "$ref": "#/components/schemas/GlobalSearchResults"
                 }
               }
             }
@@ -5205,6 +5205,61 @@
         "type": "object",
         "title": "BookReflectionUpdateRequest",
         "description": "Schema for upserting a book reflection (full replace)."
+      },
+      "BookSearchItem": {
+        "properties": {
+          "id": {
+            "type": "integer",
+            "title": "Id"
+          },
+          "title": {
+            "type": "string",
+            "title": "Title"
+          },
+          "author": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Author"
+          },
+          "cover_file": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cover File"
+          },
+          "cover_blurhash": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cover Blurhash"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "title",
+          "author",
+          "cover_file",
+          "cover_blurhash"
+        ],
+        "title": "BookSearchItem",
+        "description": "A book matched by its own title or author, so it carries no score."
       },
       "BookUpdateRequest": {
         "properties": {
@@ -6566,6 +6621,47 @@
         ],
         "title": "FlashcardWithHighlight",
         "description": "Flashcard response schema with embedded highlight data."
+      },
+      "GlobalSearchResults": {
+        "properties": {
+          "highlights": {
+            "items": {
+              "$ref": "#/components/schemas/HighlightSearchItem"
+            },
+            "type": "array",
+            "title": "Highlights"
+          },
+          "notes": {
+            "items": {
+              "$ref": "#/components/schemas/NoteSearchItem"
+            },
+            "type": "array",
+            "title": "Notes"
+          },
+          "digests": {
+            "items": {
+              "$ref": "#/components/schemas/DigestSearchItem"
+            },
+            "type": "array",
+            "title": "Digests"
+          },
+          "books": {
+            "items": {
+              "$ref": "#/components/schemas/BookSearchItem"
+            },
+            "type": "array",
+            "title": "Books"
+          }
+        },
+        "type": "object",
+        "required": [
+          "highlights",
+          "notes",
+          "digests",
+          "books"
+        ],
+        "title": "GlobalSearchResults",
+        "description": "What ``/search`` answers: the ranked groups plus books matched by name.\n\n``books`` is unranked and carries no score, so a client cannot merge it into\nthe ranked list the other groups make up."
       },
       "HTTPValidationError": {
         "properties": {
