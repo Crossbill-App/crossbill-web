@@ -1,5 +1,6 @@
 import { BookCover } from '@/components/BookCover.tsx';
 import { MetadataRow } from '@/components/cards/MetadataRow.tsx';
+import { GLOBAL_SEARCH_INSET_X } from '@/components/search/globalSearchLayout.ts';
 import {
   globalSearchRowDomId,
   rowLinkProps,
@@ -35,7 +36,7 @@ export const GlobalSearchResultRow = ({ row, isActive, onSelect }: GlobalSearchR
     aria-selected={isActive}
     selected={isActive}
     onClick={onSelect}
-    sx={{ alignItems: 'center', gap: 1.5, py: 1.5, display: 'flex' }}
+    sx={{ alignItems: 'center', gap: 2, px: GLOBAL_SEARCH_INSET_X, py: 2, display: 'flex' }}
   >
     <BookCover
       coverFile={row.coverFile}
@@ -46,7 +47,7 @@ export const GlobalSearchResultRow = ({ row, isActive, onSelect }: GlobalSearchR
       objectFit="cover"
       sx={{ borderRadius: 0.5, flexShrink: 0 }}
     />
-    <Stack sx={{ minWidth: 0 }} spacing={0.25}>
+    <Stack sx={{ minWidth: 0 }} spacing={0.75}>
       {row.title && (
         <Typography variant="subtitle2" noWrap>
           {row.title}
