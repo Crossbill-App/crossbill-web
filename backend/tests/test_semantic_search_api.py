@@ -15,7 +15,7 @@ from src.infrastructure.semantic.routers.semantic import (
     MAX_SEARCH_ITEMS_PER_TYPE,
 )
 from src.models import Book, Chapter, Highlight, User
-from tests.conftest import create_test_highlight
+from tests.conftest import create_test_book, create_test_highlight
 from tests.semantic_helpers import (
     embeddings_disabled,
     get_related,
@@ -25,6 +25,7 @@ from tests.semantic_helpers import (
     plant_indexed_note,
     plant_one_of_each_type,
     related_groups,
+    search_books,
     search_groups,
     search_highlight_ids,
 )
@@ -332,6 +333,109 @@ class TestRenderableFields:
         assert covers == {"Test Book": None, "Second Book": "cover-two.jpg"}
 
 
+class TestBookMatches:
+    """Books matched by name, which no amount of embedding similarity would find.
+
+    Nothing here is indexed: the point is that a title or author match stands on
+    its own, and the three ranked groups stay empty throughout.
+    """
+
+    async def test_matches_a_title_substring_and_carries_what_a_row_renders(
+        self,
+        client: AsyncClient,
+        override_embedding_client: AsyncMock,
+        db_session: AsyncSession,
+        test_book: Book,
+    ) -> None:
+        test_book.cover_file = "cover-one.jpg"
+        test_book.cover_blurhash = "L6PZfSi_.AyE_3t7t7R**0o#DgR4"
+        await db_session.commit()
+
+        assert await search_books(client, q="est Boo") == [
+            {
+                "id": test_book.id,
+                "title": "Test Book",
+                "author": "Test Author",
+                "cover_file": "cover-one.jpg",
+                "cover_blurhash": "L6PZfSi_.AyE_3t7t7R**0o#DgR4",
+            }
+        ]
+
+    async def test_matches_an_author_the_title_does_not_contain(
+        self,
+        client: AsyncClient,
+        override_embedding_client: AsyncMock,
+        test_book: Book,
+    ) -> None:
+        """The query appears only in ``Test Author``, so the title predicate cannot serve it."""
+        books = await search_books(client, q="Author")
+
+        assert [book["id"] for book in books] == [test_book.id]
+
+    async def test_matches_regardless_of_case(
+        self,
+        client: AsyncClient,
+        override_embedding_client: AsyncMock,
+        test_book: Book,
+    ) -> None:
+        books = await search_books(client, q="test book")
+
+        assert [book["id"] for book in books] == [test_book.id]
+
+    async def test_group_is_present_but_empty_when_nothing_matches(
+        self,
+        client: AsyncClient,
+        override_embedding_client: AsyncMock,
+        test_book: Book,
+    ) -> None:
+        groups = await search_groups(client, q="nothing like a title")
+
+        assert groups["books"] == []
+
+    async def test_a_book_scoped_search_returns_no_books(
+        self,
+        client: AsyncClient,
+        override_embedding_client: AsyncMock,
+        test_book: Book,
+    ) -> None:
+        """The reader is already inside that book; offering it back says nothing."""
+        groups = await search_groups(client, q="Test Book", book_id=test_book.id)
+
+        assert groups["books"] == []
+
+    async def test_does_not_return_another_users_book(
+        self,
+        client: AsyncClient,
+        override_embedding_client: AsyncMock,
+        db_session: AsyncSession,
+        test_book: Book,
+    ) -> None:
+        other_user = User(email="other-library@test.com")
+        db_session.add(other_user)
+        await db_session.commit()
+        await db_session.refresh(other_user)
+        await create_test_book(db_session, other_user.id, title="Test Bible")
+
+        books = await search_books(client, q="Test")
+
+        assert [book["id"] for book in books] == [test_book.id]
+
+    async def test_caps_the_matches_and_takes_them_in_title_order(
+        self,
+        client: AsyncClient,
+        override_embedding_client: AsyncMock,
+        db_session: AsyncSession,
+        test_book: Book,
+    ) -> None:
+        """Created back to front, so insertion order cannot pass for title order."""
+        for suffix in reversed("ABCDEF"):
+            await create_test_book(db_session, test_book.user_id, title=f"Matcher {suffix}")
+
+        books = await search_books(client, q="Matcher")
+
+        assert [book["title"] for book in books] == [f"Matcher {s}" for s in "ABCDE"]
+
+
 class TestBookScoping:
     async def test_finds_a_note_linked_to_two_books(
         self,
@@ -603,7 +707,12 @@ class TestScoreFloors:
             db_session, test_book.user_id, "Unrelated", books=(test_book,), vector=[0.1, 1.0]
         )
 
-        assert await search_groups(client) == {"highlights": [], "notes": [], "digests": []}
+        assert await search_groups(client) == {
+            "highlights": [],
+            "notes": [],
+            "digests": [],
+            "books": [],
+        }
 
     async def test_related_holds_a_higher_floor_than_search(
         self,
