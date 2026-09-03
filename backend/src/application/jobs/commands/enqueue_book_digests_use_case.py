@@ -11,7 +11,7 @@ from src.application.reading.protocols.chapter_digest_repository import (
     ChapterDigestRepositoryProtocol,
 )
 from src.domain.common.exceptions import DomainError
-from src.domain.common.value_objects.ids import BookId, UserId
+from src.domain.common.value_objects.ids import BookId, ChapterId, UserId
 from src.domain.jobs.entities.job_batch import JobBatch, JobBatchType
 
 logger = structlog.get_logger(__name__)
@@ -32,13 +32,21 @@ class EnqueueBookDigestsUseCase:
         self._queue_service = queue_service
         self._digest_repo = digest_repo
 
-    async def execute(self, book_id: BookId, user_id: UserId) -> JobBatch:
+    async def execute(
+        self,
+        book_id: BookId,
+        user_id: UserId,
+        *,
+        overwrite_existing: bool = False,
+    ) -> JobBatch:
         await require_book(self._book_repo, book_id, user_id)
 
         chapters = await self._chapter_repo.find_all_by_book(book_id, user_id)
 
-        existing = await self._digest_repo.find_all_by_book_id(book_id)
-        already_generated = {p.chapter_id for p in existing}
+        already_generated: set[ChapterId] = set()
+        if not overwrite_existing:
+            existing = await self._digest_repo.find_all_by_book_id(book_id)
+            already_generated = {digest.chapter_id for digest in existing}
 
         eligible = [ch for ch in chapters if ch.start_xpoint and ch.id not in already_generated]
 
@@ -87,5 +95,6 @@ class EnqueueBookDigestsUseCase:
             batch_id=batch.id.value,
             book_id=book_id.value,
             total_jobs=batch.total_jobs,
+            overwrite_existing=overwrite_existing,
         )
         return batch

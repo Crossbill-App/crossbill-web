@@ -20,7 +20,7 @@ import type {
 } from '@tanstack/react-query';
 import { useMutation, useQuery } from '@tanstack/react-query';
 
-import type { HTTPValidationError, JobBatchResponse } from '../model';
+import type { EnqueueBookDigestParams, HTTPValidationError, JobBatchResponse } from '../model';
 
 import { axiosInstance } from '../../axios-instance.ts';
 
@@ -40,13 +40,18 @@ const withQueryKey = <T extends object, K>(query: T, queryKey: K): T & { queryKe
 };
 
 /**
- * Enqueue digest generation for all chapters of a book.
+ * Enqueue digest generation for a book, optionally replacing existing digests.
  * @summary Enqueue Book Digest
  */
-export const enqueueBookDigest = (bookId: number, signal?: AbortSignal) => {
+export const enqueueBookDigest = (
+  bookId: number,
+  params?: EnqueueBookDigestParams,
+  signal?: AbortSignal
+) => {
   return axiosInstance<JobBatchResponse>({
     url: `/api/v1/jobs/books/${bookId}/digest`,
     method: 'POST',
+    params,
     signal,
   });
 };
@@ -58,13 +63,13 @@ export const getEnqueueBookDigestMutationOptions = <
   mutation?: UseMutationOptions<
     Awaited<ReturnType<typeof enqueueBookDigest>>,
     TError,
-    { bookId: number },
+    { bookId: number; params?: EnqueueBookDigestParams },
     TContext
   >;
 }): UseMutationOptions<
   Awaited<ReturnType<typeof enqueueBookDigest>>,
   TError,
-  { bookId: number },
+  { bookId: number; params?: EnqueueBookDigestParams },
   TContext
 > => {
   const mutationKey = ['enqueueBookDigest'];
@@ -76,11 +81,11 @@ export const getEnqueueBookDigestMutationOptions = <
 
   const mutationFn: MutationFunction<
     Awaited<ReturnType<typeof enqueueBookDigest>>,
-    { bookId: number }
+    { bookId: number; params?: EnqueueBookDigestParams }
   > = (props) => {
-    const { bookId } = props ?? {};
+    const { bookId, params } = props ?? {};
 
-    return enqueueBookDigest(bookId);
+    return enqueueBookDigest(bookId, params);
   };
 
   return { mutationFn, ...mutationOptions };
@@ -100,7 +105,7 @@ export const useEnqueueBookDigest = <TError = HTTPValidationError, TContext = un
     mutation?: UseMutationOptions<
       Awaited<ReturnType<typeof enqueueBookDigest>>,
       TError,
-      { bookId: number },
+      { bookId: number; params?: EnqueueBookDigestParams },
       TContext
     >;
   },
@@ -108,7 +113,7 @@ export const useEnqueueBookDigest = <TError = HTTPValidationError, TContext = un
 ): UseMutationResult<
   Awaited<ReturnType<typeof enqueueBookDigest>>,
   TError,
-  { bookId: number },
+  { bookId: number; params?: EnqueueBookDigestParams },
   TContext
 > => {
   return useMutation(getEnqueueBookDigestMutationOptions(options), queryClient);

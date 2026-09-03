@@ -7,6 +7,7 @@ import { settingsWithAi, settingsWithEmbeddings } from '@tests/msw/auth';
 import { bookApi } from '@tests/msw/bookApi';
 import { semanticSearchApi } from '@tests/msw/semanticSearchApi';
 import { worker } from '@tests/msw/worker';
+import { http, HttpResponse } from 'msw';
 import { expect, test } from 'vitest';
 import { userEvent } from 'vitest/browser';
 
@@ -366,4 +367,144 @@ test('a book with no chapters keeps the structure header', async () => {
     .element(screen.getByText('No chapter structure available for this book.'))
     .toBeVisible();
   await expect.element(screen.getByRole('heading', { name: 'Structure' })).toBeVisible();
+});
+
+test('the structure toolbar confirms and requests replacing every summary', async () => {
+  const book = aBookDetails({
+    chapters: [
+      aChapter({ id: 10, name: 'Existing', start_position: { index: 0, char_index: 0 } }),
+      aChapter({ id: 20, name: 'Missing', start_position: { index: 1, char_index: 0 } }),
+    ],
+  });
+  let overwriteExisting: string | null | undefined;
+
+  worker.use(
+    settingsWithAi(true),
+    ...bookApi({
+      book,
+      digests: [
+        aChapterDigest({
+          chapter_id: 10,
+          questions: [aDigestQuestion({ user_answer: 'My saved answer' })],
+        }),
+      ],
+    }).handlers,
+    http.post('/api/v1/jobs/books/:bookId/digest', ({ request }) => {
+      overwriteExisting = new URL(request.url).searchParams.get('overwrite_existing');
+      return HttpResponse.json(
+        {
+          id: 70,
+          batch_type: 'chapter_digest',
+          reference_id: '1',
+          total_jobs: 2,
+          completed_jobs: 0,
+          failed_jobs: 0,
+          status: 'pending',
+          created_at: '2026-01-01T00:00:00Z',
+          updated_at: '2026-01-01T00:00:00Z',
+        },
+        { status: 202 }
+      );
+    }),
+    http.get('/api/v1/jobs/batches/:batchId', () =>
+      HttpResponse.json({
+        id: 70,
+        batch_type: 'chapter_digest',
+        reference_id: '1',
+        total_jobs: 2,
+        completed_jobs: 2,
+        failed_jobs: 0,
+        status: 'completed',
+        created_at: '2026-01-01T00:00:00Z',
+        updated_at: '2026-01-01T00:01:00Z',
+      })
+    )
+  );
+
+  const screen = await renderApp({ path: '/book/1/structure' });
+  const generateMissing = screen.getByRole('button', { name: 'Generate missing summaries' });
+  const moreActions = screen.getByRole('button', { name: 'More summary actions' });
+  await expect.element(generateMissing).toBeEnabled();
+  await expect.element(moreActions).toBeEnabled();
+
+  await userEvent.click(moreActions);
+  await userEvent.click(screen.getByRole('menuitem', { name: 'Regenerate all summaries' }));
+
+  const confirmation = screen.getByRole('alertdialog');
+  await expect
+    .element(confirmation.getByText(/replace 1 existing.*generate 1 missing/i))
+    .toBeVisible();
+  await expect.element(confirmation.getByText(/saved answers.*deleted/i)).toBeVisible();
+  await expect.element(confirmation.getByText(/2 AI requests/i)).toBeVisible();
+  expect(overwriteExisting).toBeUndefined();
+
+  await userEvent.click(confirmation.getByRole('button', { name: 'Regenerate all' }));
+  await expect.poll(() => overwriteExisting).toBe('true');
+});
+
+test('summary actions are disabled when they have nothing to do', async () => {
+  worker.use(
+    settingsWithAi(true),
+    ...bookApi({
+      book: aBookDetails({
+        chapters: [
+          aChapter({ id: 10, start_position: { index: 0, char_index: 0 } }),
+          aChapter({ id: 20, start_position: null }),
+        ],
+      }),
+      digests: [aChapterDigest({ chapter_id: 10 })],
+    }).handlers
+  );
+
+  const screen = await renderApp({ path: '/book/1/structure' });
+  await expect
+    .element(screen.getByRole('button', { name: 'Generate missing summaries' }))
+    .toBeDisabled();
+  await expect.element(screen.getByRole('button', { name: 'More summary actions' })).toBeEnabled();
+});
+
+test('regenerate is unavailable before the book has a summary', async () => {
+  worker.use(
+    settingsWithAi(true),
+    ...bookApi({
+      book: aBookDetails({
+        chapters: [aChapter({ id: 10, start_position: { index: 0, char_index: 0 } })],
+      }),
+    }).handlers
+  );
+
+  const screen = await renderApp({ path: '/book/1/structure' });
+  await expect
+    .element(screen.getByRole('button', { name: 'Generate missing summaries' }))
+    .toBeEnabled();
+  await expect.element(screen.getByRole('button', { name: 'More summary actions' })).toBeDisabled();
+});
+
+test('regenerating one chapter warns before replacing its questions and answers', async () => {
+  let requested = false;
+  const digest = aChapterDigest({
+    chapter_id: 11,
+    questions: [aDigestQuestion({ user_answer: 'My saved answer' })],
+  });
+  worker.use(
+    settingsWithAi(true),
+    ...bookApi({ book: aStructuredBook(), digests: [digest] }).handlers,
+    http.post('/api/v1/chapters/:chapterId/digest/generate', () => {
+      requested = true;
+      return HttpResponse.json(digest);
+    })
+  );
+
+  const screen = await renderApp({ path: '/book/1/structure?chapterId=11' });
+  await userEvent.click(
+    screen.getByRole('dialog').getByRole('button', { name: 'Regenerate summary and questions' })
+  );
+
+  const confirmation = screen.getByRole('alertdialog');
+  await expect.element(confirmation.getByText(/summary, key points, and questions/i)).toBeVisible();
+  await expect.element(confirmation.getByText(/saved answers.*deleted/i)).toBeVisible();
+  expect(requested).toBe(false);
+
+  await userEvent.click(confirmation.getByRole('button', { name: 'Regenerate' }));
+  await expect.poll(() => requested).toBe(true);
 });

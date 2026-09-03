@@ -3480,7 +3480,7 @@
           "jobs"
         ],
         "summary": "Enqueue Book Digest",
-        "description": "Enqueue digest generation for all chapters of a book.",
+        "description": "Enqueue digest generation for a book, optionally replacing existing digests.",
         "operationId": "enqueue_book_digest",
         "security": [
           {
@@ -3495,6 +3495,16 @@
             "schema": {
               "type": "integer",
               "title": "Book Id"
+            }
+          },
+          {
+            "name": "overwrite_existing",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean",
+              "default": false,
+              "title": "Overwrite Existing"
             }
           }
         ],

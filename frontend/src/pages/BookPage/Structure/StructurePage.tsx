@@ -68,6 +68,18 @@ export const StructurePage = () => {
     return map;
   }, [bookDigest]);
 
+  const eligibleChapterIds = useMemo(
+    () =>
+      new Set(
+        book.chapters.filter((chapter) => chapter.start_position != null).map(({ id }) => id)
+      ),
+    [book.chapters]
+  );
+
+  const existingSummaryCount = bookDigest
+    ? bookDigest.items.filter((digest) => eligibleChapterIds.has(digest.chapter_id)).length
+    : undefined;
+
   const { data: gistNotes } = useGetNotesForBook(book.id, {
     kind: 'gist',
   });
@@ -188,7 +200,13 @@ export const StructurePage = () => {
             placeholder="Search chapters by meaning..."
           />
         }
-        action={<BatchDigestToolbar bookId={book.id} />}
+        action={
+          <BatchDigestToolbar
+            bookId={book.id}
+            eligibleChapterCount={eligibleChapterIds.size}
+            existingSummaryCount={existingSummaryCount}
+          />
+        }
       />
 
       {search.isError && (

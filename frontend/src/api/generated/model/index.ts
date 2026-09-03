@@ -48,6 +48,7 @@ export * from './createChatSessionResponse.ts';
 export * from './digestAnswerUpdate.ts';
 export * from './digestQuestionResponse.ts';
 export * from './digestSearchItem.ts';
+export * from './enqueueBookDigestParams.ts';
 export * from './ereaderBookMetadata.ts';
 export * from './ereaderChapterDigestItem.ts';
 export * from './ereaderHighlightItem.ts';
