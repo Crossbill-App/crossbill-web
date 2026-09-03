@@ -1,4 +1,5 @@
 import { EmbeddingFeature } from '@/components/features/EmbeddingFeature.tsx';
+import { GLOBAL_SEARCH_INSET_X } from '@/components/search/globalSearchLayout.ts';
 import { GlobalSearchResults } from '@/components/search/GlobalSearchResults.tsx';
 import {
   globalSearchRowDomId,
@@ -164,7 +165,7 @@ export const GlobalSearch = () => {
             // Reopens the dropdown when the field regains focus with a query
             // already in it, e.g. tapping the icon again after a prior visit.
             onFocus={() => setIsDismissed(false)}
-            sx={{ p: 2, display: 'flex', alignItems: 'center', gap: 1 }}
+            sx={{ px: GLOBAL_SEARCH_INSET_X, py: 2, display: 'flex', alignItems: 'center', gap: 1 }}
           >
             <Box sx={{ flex: 1 }}>
               <SemanticSearchField
