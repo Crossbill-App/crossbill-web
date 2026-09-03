@@ -201,10 +201,6 @@ export const BatchDigestToolbar = ({
               The current summaries, key points, and questions will be replaced. Any saved answers
               to those questions will be deleted.
             </DialogContentText>
-            <DialogContentText>
-              This will make {eligibleChapterCount} AI{' '}
-              {eligibleChapterCount === 1 ? 'request' : 'requests'}.
-            </DialogContentText>
           </Stack>
         }
       />

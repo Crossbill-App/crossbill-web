@@ -435,7 +435,6 @@ test('the structure toolbar confirms and requests replacing every summary', asyn
     .element(confirmation.getByText(/replace 1 existing.*generate 1 missing/i))
     .toBeVisible();
   await expect.element(confirmation.getByText(/saved answers.*deleted/i)).toBeVisible();
-  await expect.element(confirmation.getByText(/2 AI requests/i)).toBeVisible();
   expect(overwriteExisting).toBeUndefined();
 
   await userEvent.click(confirmation.getByRole('button', { name: 'Regenerate all' }));
