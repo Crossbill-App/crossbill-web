@@ -149,4 +149,5 @@ class RootContainer(containers.DeclarativeContainer):
         book_repository=shared.book_repository,
         semantic_search_query=shared.semantic_search_query,
         search_hydration_query=shared.search_hydration_query,
+        book_list_query=shared.book_list_query,
     )
