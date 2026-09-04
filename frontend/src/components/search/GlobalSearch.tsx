@@ -1,4 +1,5 @@
 import { EmbeddingFeature } from '@/components/features/EmbeddingFeature.tsx';
+import { ContentSearchField } from '@/components/search/ContentSearchField.tsx';
 import { GLOBAL_SEARCH_INSET_X } from '@/components/search/globalSearchLayout.ts';
 import { GlobalSearchResults } from '@/components/search/GlobalSearchResults.tsx';
 import {
@@ -6,8 +7,7 @@ import {
   rowLinkProps,
   toGlobalSearchRows,
 } from '@/components/search/globalSearchRows.ts';
-import { SemanticSearchField } from '@/components/search/SemanticSearchField.tsx';
-import { useSemanticSearch } from '@/components/search/useSemanticSearch.ts';
+import { useContentSearch } from '@/components/search/useContentSearch.ts';
 import { CloseIcon, SearchIcon } from '@/theme/Icons.tsx';
 import {
   Box,
@@ -48,7 +48,7 @@ const appBarFieldSx: SxProps<Theme> = (theme) => ({
 const RESULTS_PER_TYPE = 10;
 
 /**
- * Semantic search over every book, in the app bar.
+ * Global search over every book, in the app bar.
  *
  * The query lives here rather than in the URL: each route validates its own
  * search params, so a global `q` would mean editing every `validateSearch` and
@@ -87,7 +87,7 @@ export const GlobalSearch = () => {
     setActiveIndex(-1);
   }, []);
 
-  const { results, isFetching, isError, hasQuery } = useSemanticSearch({
+  const { results, isFetching, isError, hasQuery } = useContentSearch({
     query,
     limit: RESULTS_PER_TYPE,
   });
@@ -168,7 +168,7 @@ export const GlobalSearch = () => {
             sx={{ px: GLOBAL_SEARCH_INSET_X, py: 2, display: 'flex', alignItems: 'center', gap: 1 }}
           >
             <Box sx={{ flex: 1 }}>
-              <SemanticSearchField
+              <ContentSearchField
                 value={query}
                 onChange={handleSearch}
                 placeholder={GLOBAL_SEARCH_PLACEHOLDER}
@@ -232,7 +232,7 @@ export const GlobalSearch = () => {
             mx: 'auto',
           }}
         >
-          <SemanticSearchField
+          <ContentSearchField
             value={query}
             onChange={handleSearch}
             placeholder={GLOBAL_SEARCH_PLACEHOLDER}

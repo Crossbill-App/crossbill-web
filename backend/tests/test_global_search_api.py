@@ -1,4 +1,4 @@
-"""Tests for the GET /semantic/search and /semantic/related read endpoints."""
+"""Tests for the GET /search and GET /semantic/related read endpoints."""
 
 from collections.abc import AsyncGenerator
 from datetime import UTC, datetime
@@ -10,10 +10,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from starlette import status
 
 from src.application.semantic.content_type import ContentType
-from src.infrastructure.semantic.routers.semantic import (
-    MAX_QUERY_LENGTH,
-    MAX_SEARCH_ITEMS_PER_TYPE,
-)
+from src.infrastructure.semantic.routers.limits import MAX_SEARCH_ITEMS_PER_TYPE
+from src.infrastructure.semantic.routers.search import MAX_QUERY_LENGTH
 from src.models import Book, Chapter, Highlight, User
 from tests.conftest import create_test_book, create_test_highlight
 from tests.semantic_helpers import (
@@ -45,16 +43,16 @@ async def override_embedding_client() -> AsyncGenerator[AsyncMock, None]:
 
 class TestContentTypeCoverage:
     def test_every_content_type_has_a_scan_and_a_response_group(self) -> None:
-        """Guards the link between ``ContentType`` and ``SearchContentUseCase``.
+        """Guards the link between ``ContentType`` and ``GlobalSearchUseCase``.
 
-        ``SearchContentUseCase.execute`` hardcodes ``HIGHLIGHT``/``NOTE``/
+        ``GlobalSearchUseCase.execute`` hardcodes ``HIGHLIGHT``/``NOTE``/
         ``DIGEST`` rather than iterating ``ContentType`` -- the right call, since
         the response has three named fields -- but that decouples the enum from
         the scan. ``ContentSource`` *does* iterate ``ContentType`` for the
         backfill, so a fourth member would get indexed while ``/search`` quietly
         never scanned it. This test is what would fail to say so; adding a
         member means adding both a scan and a field to
-        ``SearchContentUseCase.execute`` and ``SemanticSearchResultsView``.
+        ``GlobalSearchUseCase.execute`` and ``RankedContentGroupsView``.
         """
         assert set(ContentType) == {ContentType.HIGHLIGHT, ContentType.NOTE, ContentType.DIGEST}
 
@@ -70,7 +68,7 @@ class TestSearchEndpoint:
         the endpoint would answer 500 in production while the test passed.
         """
         with embeddings_disabled():
-            response = await client.get("/api/v1/semantic/search", params={"q": "idea"})
+            response = await client.get("/api/v1/search", params={"q": "idea"})
 
         assert response.status_code == status.HTTP_403_FORBIDDEN
 

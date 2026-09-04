@@ -152,8 +152,8 @@ rather than failing obscurely:
 - **AI provider** (`AI_PROVIDER`): chapter digest generation and the three
   flashcard-suggestion tools. Without one, they answer that AI features are not
   enabled.
-- **Embedding provider** (`EMBEDDING_PROVIDER`): `semantic_search` and
-  `find_related`. Without one, they answer that semantic search is not enabled.
+- **Embedding provider** (`EMBEDDING_PROVIDER`): `search_library` and
+  `find_related`. Without one, they answer that search is not enabled.
 
 See [Optional components](../../getting-started/optional-components/) for
 turning either on.
@@ -218,9 +218,9 @@ poll.
 
 `get_reading_sessions`, `get_chapter_content`
 
-### Semantic search
+### Search
 
-`semantic_search`, `find_related`
+`search_library`, `find_related`
 
 ### Reflection
 

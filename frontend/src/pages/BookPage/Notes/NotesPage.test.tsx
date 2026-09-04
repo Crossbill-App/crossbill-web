@@ -1,10 +1,10 @@
 import { aBookDetails } from '@tests/fixtures/book';
 import { aNote } from '@tests/fixtures/notes';
-import { aNoteHit } from '@tests/fixtures/semantic';
+import { aNoteHit } from '@tests/fixtures/search';
 import { renderApp } from '@tests/harness/renderApp';
 import { settingsWithEmbeddings } from '@tests/msw/auth';
 import { bookApi } from '@tests/msw/bookApi';
-import { semanticSearchApi } from '@tests/msw/semanticSearchApi';
+import { globalSearchApi } from '@tests/msw/searchApi';
 import { worker } from '@tests/msw/worker';
 import { http, HttpResponse } from 'msw';
 import { expect, test } from 'vitest';
@@ -86,7 +86,7 @@ test('searching notes lists only the notes on this page that matched', async () 
   const { handlers } = aTwoNoteBook();
   worker.use(
     settingsWithEmbeddings(true),
-    ...semanticSearchApi({
+    ...globalSearchApi({
       engines: {
         notes: [
           aNoteHit({ id: 101, title: 'Difference Engine', score: 0.71 }),
@@ -118,7 +118,7 @@ test('searching notes lists only the notes on this page that matched', async () 
  */
 const renderNotesMatchingNothing = async () => {
   const { handlers } = aTwoNoteBook();
-  worker.use(settingsWithEmbeddings(true), ...semanticSearchApi({ underwater: {} }), ...handlers);
+  worker.use(settingsWithEmbeddings(true), ...globalSearchApi({ underwater: {} }), ...handlers);
   return renderApp({ path: '/book/1/notes' });
 };
 
@@ -144,7 +144,7 @@ test('a failed search reports the error and keeps every note listed', async () =
   });
   worker.use(
     settingsWithEmbeddings(true),
-    http.get('/api/v1/semantic/search', () => new HttpResponse(null, { status: 500 })),
+    http.get('/api/v1/search', () => new HttpResponse(null, { status: 500 })),
     ...handlers
   );
 

@@ -412,16 +412,16 @@ class CrossbillClient:
         response = await self._request("DELETE", f"/api/v1/jobs/batches/{batch_id}")
         return response.json()
 
-    # --- Semantic search endpoints ---
+    # --- Search endpoints ---
 
-    async def semantic_search(
+    async def global_search(
         self, query: str, book_id: int | None = None, limit: int = 10
     ) -> dict:
-        """Search embedded content by semantic similarity, grouped by content type."""
+        """Search the library: content ranked by similarity, plus books matched by name."""
         params: dict[str, str | int] = {"q": query, "limit": limit}
         if book_id is not None:
             params["book_id"] = book_id
-        response = await self._request("GET", "/api/v1/semantic/search", params=params)
+        response = await self._request("GET", "/api/v1/search", params=params)
         return response.json()
 
     async def related_content(

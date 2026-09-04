@@ -23,12 +23,10 @@ import { useMutation, useQuery } from '@tanstack/react-query';
 import type {
   BackfillEmbeddingsParams,
   BackfillResponse,
-  GlobalSearchResults,
   HTTPValidationError,
   JobBatchResponse,
+  RankedContentGroups,
   RelatedContentParams,
-  SearchContentParams,
-  SemanticSearchResults,
 } from '../model';
 
 import { axiosInstance } from '../../axios-instance.ts';
@@ -238,137 +236,14 @@ export function useGetActiveBackfill<
 }
 
 /**
- * Rank the user's embedded content by semantic similarity, grouped by content type.
- *
- * ``limit`` applies per group, so no content type can crowd out another. Every
- * item carries its similarity score on one scale, and enough identifiers to
- * open the highlight, note or chapter it came from.
- *
- * Matches below a similarity floor are dropped rather than replaced, so a
- * group is short -- or empty -- when the library has nothing to say about the
- * query. Nearest-neighbour search would otherwise always answer with its top
- * ``limit``, however unrelated.
- *
- * Books whose title or author contains the query ride on top of those groups,
- * unranked and capped at five. A ``book_id``-scoped search returns none.
- * @summary Search Content
- */
-export const searchContent = (params: SearchContentParams, signal?: AbortSignal) => {
-  return axiosInstance<GlobalSearchResults>({
-    url: `/api/v1/semantic/search`,
-    method: 'GET',
-    params,
-    signal,
-  });
-};
-
-export const getSearchContentQueryKey = (params?: SearchContentParams) => {
-  return [`/api/v1/semantic/search`, ...(params ? [params] : [])] as const;
-};
-
-export const getSearchContentQueryOptions = <
-  TData = Awaited<ReturnType<typeof searchContent>>,
-  TError = HTTPValidationError,
->(
-  params: SearchContentParams,
-  options?: {
-    query?: Partial<UseQueryOptions<Awaited<ReturnType<typeof searchContent>>, TError, TData>>;
-  }
-) => {
-  const { query: queryOptions } = options ?? {};
-
-  const queryKey = queryOptions?.queryKey ?? getSearchContentQueryKey(params);
-
-  const queryFn: QueryFunction<Awaited<ReturnType<typeof searchContent>>> = ({ signal }) =>
-    searchContent(params, signal);
-
-  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
-    Awaited<ReturnType<typeof searchContent>>,
-    TError,
-    TData
-  > & { queryKey: DataTag<QueryKey, TData, TError> };
-};
-
-export type SearchContentQueryResult = NonNullable<Awaited<ReturnType<typeof searchContent>>>;
-export type SearchContentQueryError = HTTPValidationError;
-
-export function useSearchContent<
-  TData = Awaited<ReturnType<typeof searchContent>>,
-  TError = HTTPValidationError,
->(
-  params: SearchContentParams,
-  options: {
-    query: Partial<UseQueryOptions<Awaited<ReturnType<typeof searchContent>>, TError, TData>> &
-      Pick<
-        DefinedInitialDataOptions<
-          Awaited<ReturnType<typeof searchContent>>,
-          TError,
-          Awaited<ReturnType<typeof searchContent>>
-        >,
-        'initialData'
-      >;
-  },
-  queryClient?: QueryClient
-): DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
-export function useSearchContent<
-  TData = Awaited<ReturnType<typeof searchContent>>,
-  TError = HTTPValidationError,
->(
-  params: SearchContentParams,
-  options?: {
-    query?: Partial<UseQueryOptions<Awaited<ReturnType<typeof searchContent>>, TError, TData>> &
-      Pick<
-        UndefinedInitialDataOptions<
-          Awaited<ReturnType<typeof searchContent>>,
-          TError,
-          Awaited<ReturnType<typeof searchContent>>
-        >,
-        'initialData'
-      >;
-  },
-  queryClient?: QueryClient
-): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
-export function useSearchContent<
-  TData = Awaited<ReturnType<typeof searchContent>>,
-  TError = HTTPValidationError,
->(
-  params: SearchContentParams,
-  options?: {
-    query?: Partial<UseQueryOptions<Awaited<ReturnType<typeof searchContent>>, TError, TData>>;
-  },
-  queryClient?: QueryClient
-): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
-/**
- * @summary Search Content
- */
-
-export function useSearchContent<
-  TData = Awaited<ReturnType<typeof searchContent>>,
-  TError = HTTPValidationError,
->(
-  params: SearchContentParams,
-  options?: {
-    query?: Partial<UseQueryOptions<Awaited<ReturnType<typeof searchContent>>, TError, TData>>;
-  },
-  queryClient?: QueryClient
-): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
-  const queryOptions = getSearchContentQueryOptions(params, options);
-
-  const query = useQuery(queryOptions, queryClient) as UseQueryResult<TData, TError> & {
-    queryKey: DataTag<QueryKey, TData, TError>;
-  };
-
-  return withQueryKey(query, queryOptions.queryKey);
-}
-
-/**
  * Rank the user's embedded content by similarity to one already-indexed unit.
  *
- * Same body as ``/search``, grouped by content type with ``limit`` applied per
- * group, so one view can render either. The anchor is never among its own
- * results, and every group is empty when the anchor is not indexed.
+ * The ranked half of ``GET /search``'s body -- the same groups, with ``limit``
+ * applied per group, so one view can render either; only the unranked ``books``
+ * of a global search are missing. The anchor is never among its own results,
+ * and every group is empty when the anchor is not indexed.
  *
- * Held to a higher similarity floor than ``/search``: nobody asked for this
+ * Held to a higher similarity floor than global search: nobody asked for this
  * list, so a weak row costs more than a missing one. When the anchor's
  * neighbourhood genuinely spans the library, no single book may take more than
  * two places in a group, which spreads the page instead of returning one
@@ -377,7 +252,7 @@ export function useSearchContent<
  * @summary Related Content
  */
 export const relatedContent = (params: RelatedContentParams, signal?: AbortSignal) => {
-  return axiosInstance<SemanticSearchResults>({
+  return axiosInstance<RankedContentGroups>({
     url: `/api/v1/semantic/related`,
     method: 'GET',
     params,

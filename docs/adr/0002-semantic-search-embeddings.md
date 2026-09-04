@@ -173,13 +173,13 @@ makes `alembic revision --autogenerate` report a diff forever and gives
 | `application/semantic/idempotency.py` | The staleness rule, defined once |
 | `application/semantic/protocols/` | Ports: embedding client, embedding repository, content source |
 | `application/semantic/commands/` | `GenerateContentEmbeddingUseCase` (task core), `EnqueueContentEmbeddingsUseCase` (backfill) |
-| `application/semantic/queries/` | `SemanticSearchHit` + query port, grouped result views + hydration port; `SearchContentUseCase`, `RelatedContentUseCase` |
+| `application/semantic/queries/` | `SemanticSearchHit` + query port, grouped result views + hydration port; `GlobalSearchUseCase`, `RelatedContentUseCase` |
 | `infrastructure/semantic/orm/` | `embeddings` table ORM |
 | `infrastructure/semantic/repositories/` | Embedding repository (upsert / get_state / delete_for) |
 | `infrastructure/semantic/clients/` | OpenAI-compatible embedding client (Ollama / OpenRouter by base-URL) |
 | `infrastructure/semantic/content/` | Content source: `ContentType` → source ORM; text + hash; reconciliation query |
 | `infrastructure/semantic/queries/` | Nearest-neighbour query adapter |
-| `infrastructure/semantic/routers/` | `GET` search, `GET` related, `POST` backfill |
+| `infrastructure/semantic/routers/` | `GET /search` (own module and tag), `GET` related, `POST` backfill |
 
 Cross-module coupling is concentrated in exactly one accepted place:
 **`content/content_source.py` reads other modules' ORM** to fetch embeddable
@@ -606,3 +606,35 @@ all three types, which is what makes the merge meaningful; the alternative,
 giving notes a lower floor of their own, would have needed a measurement nobody
 had and would have left three lists asking the reader to compare scores the
 ranking had already compared.
+
+## Amendment 2026-09-04 — the search read is no longer a semantic one
+
+`GET /semantic/search` is now `GET /search`, under its own OpenAPI tag and its
+own router module. Books whose title or author contains the query ride on top of
+the ranked groups, matched by name rather than by meaning, so the read as a
+whole stopped being semantic when that group was added — and it is the app bar's
+search box, where finding a book by typing its title is the thing a reader
+expects most.
+
+`/semantic/related` and `/semantic/backfill` keep their path: they are still
+purely about the embeddings index, and the `semantic` module keeps its name for
+the same reason.
+
+The response types are renamed around what is actually ranked.
+`RankedContentGroups` (`RankedContentGroupsView` in the application layer) is
+the three scored groups: the whole of what `/related` answers, and what
+`GlobalSearchResults` extends with its unranked `books`. Previously the global
+result subclassed a type named after the other route, which put the naming
+exactly backwards.
+
+Two things this deliberately did **not** change:
+
+- **The embeddings gate.** `/search` still answers 403 when no embedding
+  provider is configured, so a server without one has no book-name search
+  either, even though that half needs no vectors. Degrading to the books group
+  instead is a behaviour change, not a rename, and belongs in its own decision.
+- **The frontend's shared hook.** It is `useContentSearch`, not
+  `useGlobalSearch`: the Notes and Structure pages call the same endpoint with a
+  `book_id`, and under that scope no books are matched, which makes it a purely
+  semantic read of one book's content. Only the generated client carries the
+  endpoint's own name.

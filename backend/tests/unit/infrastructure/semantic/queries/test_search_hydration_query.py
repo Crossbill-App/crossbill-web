@@ -1,7 +1,7 @@
 """Adapter tests for the two SearchHydrationQuery rules the API tier cannot reach.
 
 Field mapping, ranking order, soft-delete drops and book scoping are all
-asserted through ``/semantic/search`` in ``tests/test_semantic_search_api.py``,
+asserted through ``/search`` in ``tests/test_global_search_api.py``,
 so they are not repeated here. What is left needs shapes the endpoint cannot
 produce: a hit whose source row is gone (the scan's own ``user_id`` filter and
 the embeddings' FK cascade prevent it end to end) and an embedding of mine

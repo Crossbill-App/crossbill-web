@@ -2,7 +2,7 @@ import { EmbeddingFeature } from '@/components/features/EmbeddingFeature.tsx';
 import { SearchBar } from '@/components/inputs/SearchBar.tsx';
 import { Box, type SxProps, type Theme } from '@mui/material';
 
-interface SemanticSearchFieldProps {
+interface ContentSearchFieldProps {
   value: string;
   /** Called with the submitted query text. Must be a stable callback. */
   onChange: (value: string) => void;
@@ -22,17 +22,17 @@ interface SemanticSearchFieldProps {
  * keystroke — which also keeps half-typed queries out of the embedding calls.
  *
  * Deliberately dumb: it renders the input and knows
- * nothing about results. Callers pair it with `useSemanticSearch` and decide
+ * nothing about results. Callers pair it with `useContentSearch` and decide
  * what a match means.
  */
-export const SemanticSearchField = ({
+export const ContentSearchField = ({
   value,
   onChange,
   placeholder,
   sx,
   autoFocus,
   slotProps,
-}: SemanticSearchFieldProps) => (
+}: ContentSearchFieldProps) => (
   <EmbeddingFeature>
     <Box>
       <SearchBar

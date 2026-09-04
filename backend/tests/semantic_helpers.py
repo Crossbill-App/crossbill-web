@@ -1,6 +1,6 @@
-"""Shared setup for the semantic-search API tests.
+"""Shared setup for the API tests over the embeddings index.
 
-The search/related suite and the backfill suite both plant highlights, index
+The global-search/related suite and the backfill suite both plant highlights, index
 them, and drive endpoints gated by the embeddings feature flag. Keeping that
 here stops the two files repeating each other -- and stops them drifting on what
 "an indexed highlight" means.
@@ -24,7 +24,7 @@ from src.infrastructure.notes.orm.associations import note_books
 from src.models import Book, Chapter, ChapterDigest, Embedding, Highlight, Note
 from tests.conftest import create_test_highlight
 
-#: Patch target for the feature flag the semantic routers gate on.
+#: Patch target for the feature flag the search and semantic routers gate on.
 ENABLED = "src.infrastructure.common.dependencies.is_embeddings_enabled"
 
 #: The model an "indexed" fixture is indexed under, and the one the gate below
@@ -271,9 +271,9 @@ async def upload_highlights(
 
 
 async def get_search(client: AsyncClient, **params: PrimitiveData) -> Response:
-    """GET /semantic/search with the feature flag forced on. Status not asserted."""
+    """GET /search with the feature flag forced on. Status not asserted."""
     with embeddings_enabled():
-        return await client.get("/api/v1/semantic/search", params={"q": "idea", **params})
+        return await client.get("/api/v1/search", params={"q": "idea", **params})
 
 
 async def search_groups(client: AsyncClient, **params: PrimitiveData) -> dict[str, Any]:

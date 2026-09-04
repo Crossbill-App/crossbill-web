@@ -5,7 +5,7 @@
  * OpenAPI spec version: 0.0.0
  */
 
-export type SearchContentParams = {
+export type GlobalSearchParams = {
   /**
    * @minLength 1
    * @maxLength 1000

@@ -8,8 +8,8 @@ import { useGetNotesForBook } from '@/api/generated/notes/notes.ts';
 import { EmptyStateText } from '@/components/EmptyStateText.tsx';
 import { useUrlEntityDialog } from '@/components/dialogs/useUrlEntityDialog.ts';
 import { PageHeader } from '@/components/layout/PageHeader.tsx';
-import { SemanticSearchField } from '@/components/search/SemanticSearchField.tsx';
-import { useSemanticSearch } from '@/components/search/useSemanticSearch.ts';
+import { ContentSearchField } from '@/components/search/ContentSearchField.tsx';
+import { useContentSearch } from '@/components/search/useContentSearch.ts';
 import { useBookPage } from '@/pages/BookPage/BookPageContext';
 import { useBookTabFilters } from '@/pages/BookPage/common/useBookTabFilters.ts';
 import { BOOK_PAGE_LABELS } from '@/pages/BookPage/navigation/bookPageRoutes.ts';
@@ -154,7 +154,7 @@ export const StructurePage = () => {
   );
 
   const { searchText, handleSearch } = useBookTabFilters('/book/$bookId/structure');
-  const search = useSemanticSearch({ query: searchText, bookId: book.id });
+  const search = useContentSearch({ query: searchText, bookId: book.id });
 
   const matches = useMemo(
     () =>
@@ -194,7 +194,7 @@ export const StructurePage = () => {
       <PageHeader
         title={BOOK_PAGE_LABELS.structure}
         search={
-          <SemanticSearchField
+          <ContentSearchField
             value={searchText}
             onChange={handleSearch}
             placeholder="Search chapters by meaning..."
