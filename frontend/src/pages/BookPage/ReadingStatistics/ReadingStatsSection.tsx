@@ -56,6 +56,12 @@ const StatsGrid = ({ stats }: StatsGridProps) => (
   </Box>
 );
 
+/**
+ * What a book's reading adds up to: how far through it the reader is, the
+ * numbers, and the year of squares. Drawn for a book nobody has opened too,
+ * with zeroes and an empty grid -- the sessions list below says the same in
+ * words, and a summary that disappears reads as a page that failed to load.
+ */
 export const ReadingStatsSection = ({ bookId }: ReadingStatsSectionProps) => {
   const { data, isError } = useGetBookStatistics(bookId, { tz: browserTimeZone() });
   const { showSnackbar } = useSnackbar();
@@ -68,11 +74,13 @@ export const ReadingStatsSection = ({ bookId }: ReadingStatsSectionProps) => {
     }
   }, [isError, showSnackbar]);
 
-  if (!data || data.session_count === 0) {
+  if (!data) {
     return null;
   }
 
-  const progress = data.progress_percent;
+  // A book with no session behind it is at the start of it rather than at an
+  // unknown place, so the bar reads 0% instead of going missing.
+  const progress = data.progress_percent ?? (data.session_count === 0 ? 0 : null);
 
   const stats: StatProps[] = [
     { value: formatSeconds(data.total_reading_seconds), label: 'Time read' },
@@ -93,12 +101,11 @@ export const ReadingStatsSection = ({ bookId }: ReadingStatsSectionProps) => {
       {progress != null && <ReadingProgress percent={progress} />}
       <StatsGrid stats={stats} />
       {/* The grid is more of the same summary, not a section of its own, so it
-          sits under the numbers rather than beside them with a heading. */}
-      {data.activity && (
-        <Box sx={{ mt: 4 }}>
-          <ReadingActivityGrid activity={data.activity} />
-        </Box>
-      )}
+          sits under the numbers rather than beside them with a heading. A book
+          with nothing read yet gets the year empty rather than not at all. */}
+      <Box sx={{ mt: 4 }}>
+        <ReadingActivityGrid activity={data.activity ?? null} />
+      </Box>
     </Box>
   );
 };

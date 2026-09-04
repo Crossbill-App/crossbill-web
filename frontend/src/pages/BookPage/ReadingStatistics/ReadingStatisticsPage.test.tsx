@@ -88,13 +88,21 @@ test('the tab summarises the reading above the list', async () => {
   await expect.element(screen.getByText('Last read', { exact: true })).toBeVisible();
 });
 
-test('the summary stays away until the book has been read', async () => {
+test('a book nobody has opened summarises itself at zero', async () => {
   const screen = await renderStatisticsTab({ sessions: [] });
 
   await expect.element(screen.getByText('No reading sessions recorded yet.')).toBeVisible();
-  // The list keeps its own heading; only the summary above it stands down.
-  await expect.element(screen.getByRole('heading', { name: 'Sessions' })).toBeVisible();
-  expect(screen.getByText('Time read').elements()).toHaveLength(0);
+  // Zeroes rather than a missing summary: a section that disappears reads as
+  // a page that failed to load.
+  await expect.element(screen.getByText('Time read')).toBeVisible();
+  await expect.element(screen.getByText('0m')).toBeVisible();
+  await expect.element(screen.getByText('Sessions').first()).toBeVisible();
+  await expect
+    .element(screen.getByRole('progressbar', { name: 'Reading progress' }))
+    .toHaveAttribute('aria-valuenow', '0');
+  // Nothing was measured, so nothing is claimed about what a session is like.
+  expect(screen.getByText('Average session').elements()).toHaveLength(0);
+  expect(screen.getByText('Reading span').elements()).toHaveLength(0);
 });
 
 test('a book with no recorded position summarises the sessions without a progress bar', async () => {
@@ -158,13 +166,16 @@ test('a book synced without page numbers has its grid measured in minutes', asyn
   await expect.element(screen.getByText(/· minutes read$/)).toBeVisible();
 });
 
-test('a book with nothing to plot draws no grid', async () => {
+test('a book with nothing to plot draws the year empty', async () => {
   const screen = await renderStatisticsTab({ sessions: [] });
 
-  // The grid stands down with the rest of the summary rather than reporting
-  // an absence of its own.
-  await expect.element(screen.getByText('No reading sessions recorded yet.')).toBeVisible();
-  expect(screen.getByRole('img', { name: / on / }).elements()).toHaveLength(0);
+  await expect
+    .element(screen.getByRole('img', { name: /^Nothing read on / }).first())
+    .toBeVisible();
+  expect(screen.getByRole('img', { name: /^Nothing read on / }).elements()).toHaveLength(365);
+  // Nothing was read, so there is no scale from less to more to explain.
+  await expect.element(screen.getByText(/· nothing read yet$/)).toBeVisible();
+  expect(screen.getByText('Less').elements()).toHaveLength(0);
 });
 
 test('a failed statistics request leaves the grid off the page entirely', async () => {
@@ -176,4 +187,5 @@ test('a failed statistics request leaves the grid off the page entirely', async 
     .element(screen.getByRole('alert').filter({ hasText: 'Failed to load reading statistics.' }))
     .toBeVisible();
   expect(screen.getByRole('img', { name: / on / }).elements()).toHaveLength(0);
+  expect(screen.getByRole('img', { name: /^Nothing read on / }).elements()).toHaveLength(0);
 });
