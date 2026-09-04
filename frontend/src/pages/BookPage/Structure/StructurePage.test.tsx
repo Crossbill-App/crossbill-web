@@ -5,7 +5,7 @@ import { aDigestHit, aHighlightHit, aNoteHit } from '@tests/fixtures/search';
 import { renderApp } from '@tests/harness/renderApp';
 import { settingsWithAi, settingsWithEmbeddings } from '@tests/msw/auth';
 import { bookApi } from '@tests/msw/bookApi';
-import { relatedContentApi, globalSearchApi } from '@tests/msw/searchApi';
+import { globalSearchApi, relatedContentApi } from '@tests/msw/searchApi';
 import { worker } from '@tests/msw/worker';
 import { http, HttpResponse } from 'msw';
 import { expect, test } from 'vitest';
