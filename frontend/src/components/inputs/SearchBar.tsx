@@ -1,19 +1,16 @@
 import { useResetOnChange } from '@/hooks/useResetOnChange.ts';
 import { CloseIcon } from '@/theme/Icons.tsx';
 import { Box, IconButton, TextField, type SxProps, type Theme } from '@mui/material';
-import { debounce } from 'lodash';
-import { useEffect, useMemo, useState } from 'react';
+import { useState } from 'react';
 
 interface SearchBarProps {
+  /**
+   * Called with the committed query — on Enter, on blur, and on a clear.
+   * Never per keystroke, so it may run an expensive search.
+   */
   onSearch: (searchText: string) => void;
   placeholder?: string;
   initialValue?: string;
-  /**
-   * `change` searches while typing, debounced — right for filtering data the
-   * page already has. `submit` waits for Enter or blur, so an expensive search
-   * runs once per finished query rather than once per keystroke.
-   */
-  commitOn?: 'change' | 'submit';
   /** Applied to the TextField, for callers on a non-default background. */
   sx?: SxProps<Theme>;
   /** Off by default: only a caller that owns the field's only focus target (e.g. a just-opened dialog) should set this. */
@@ -23,51 +20,29 @@ interface SearchBarProps {
   slotProps?: { htmlInput?: React.InputHTMLAttributes<HTMLInputElement> };
 }
 
+/**
+ * The one search field in the app. Every search box commits the same way —
+ * Enter or blur — whatever engine sits behind it, so two tabs apart cannot
+ * behave differently. Typing changes nothing until the query is finished.
+ */
 export const SearchBar = ({
   onSearch,
   placeholder = 'Search...',
   initialValue = '',
-  commitOn = 'change',
   sx,
   autoFocus = false,
   slotProps,
 }: SearchBarProps) => {
   const [searchInput, setSearchInput] = useState(initialValue);
 
-  const debouncedSearch = useMemo(
-    () =>
-      debounce((value: string) => {
-        onSearch(value);
-      }, 300),
-    [onSearch]
-  );
-
   // Update search input when initialValue changes (e.g., browser back/forward)
   useResetOnChange([initialValue], () => setSearchInput(initialValue));
 
-  // Cleanup on unmount
-  useEffect(() => {
-    return () => {
-      debouncedSearch.cancel();
-    };
-  }, [debouncedSearch]);
-
-  const handleChange = (event: React.ChangeEvent<HTMLInputElement>) => {
-    const value = event.target.value;
-    setSearchInput(value);
-    if (commitOn === 'change') {
-      debouncedSearch(value);
-    }
-  };
-
   const handleCommit = () => {
-    if (commitOn === 'submit') {
-      onSearch(searchInput);
-    }
+    onSearch(searchInput);
   };
 
   const handleClear = () => {
-    debouncedSearch.cancel();
     setSearchInput('');
     onSearch('');
   };
@@ -79,7 +54,7 @@ export const SearchBar = ({
         autoFocus={autoFocus}
         placeholder={placeholder}
         value={searchInput}
-        onChange={handleChange}
+        onChange={(event) => setSearchInput(event.target.value)}
         sx={sx}
         onBlur={handleCommit}
         onKeyDown={(e) => {
