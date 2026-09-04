@@ -16,7 +16,7 @@ from crossbill_mcp.tools.highlights import register_highlight_tools
 from crossbill_mcp.tools.notes import register_notes_tools
 from crossbill_mcp.tools.reading import register_reading_tools
 from crossbill_mcp.tools.reflection import register_reflection_tools
-from crossbill_mcp.tools.semantic import register_semantic_tools
+from crossbill_mcp.tools.search import register_search_tools
 from crossbill_mcp.tools.tags import register_tag_tools
 
 logger = logging.getLogger(__name__)
@@ -46,7 +46,7 @@ def create_server() -> tuple[FastMCP, CrossbillClient]:
     register_flashcard_tools(server, client)
     register_reading_tools(server, client)
     register_bookmark_tools(server, client)
-    register_semantic_tools(server, client)
+    register_search_tools(server, client)
     register_notes_tools(server, client)
     register_digest_tools(server, client)
     register_tag_tools(server, client)

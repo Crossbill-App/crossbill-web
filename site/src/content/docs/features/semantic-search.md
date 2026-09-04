@@ -17,15 +17,19 @@ The search field in the app bar searches your whole library. Type a query and
 press Enter — the search runs when you submit it, not on every keystroke,
 because each query is a call to the embedding model.
 
-The results are one ranked list, best match first, mixing three kinds of
-content:
+**Books** whose title or author contains what you typed are listed first.
+Those are matched on the name, not on meaning, so typing a title you half
+remember finds the book itself rather than only the passages inside it.
+
+Below them the results are one ranked list, best match first, mixing three kinds
+of content:
 
 - **Highlights**, with the book and chapter they came from.
 - **Notes**, with their title and the start of the body.
 - **Chapters**, matched through their [chapter digest](../chapter-digests/).
 
-Pick a row to open the highlight, note or chapter it came from. The arrow keys
-move through the list, Enter opens the row you are on, and Escape closes it.
+Pick a row to open the book, highlight, note or chapter it came from. The arrow
+keys move through the list, Enter opens the row you are on, and Escape closes it.
 On a narrow screen the app bar shows a search icon instead, which opens the same
 search full-screen.
 
