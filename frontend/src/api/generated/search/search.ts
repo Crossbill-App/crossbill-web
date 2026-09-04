@@ -54,6 +54,10 @@ const withQueryKey = <T extends object, K>(query: T, queryKey: K): T & { queryKe
  * matched by name rather than meaning, unranked and capped at five. A
  * ``book_id``-scoped search returns none, which makes that scope a purely
  * semantic read of one book's content.
+ *
+ * Books need no vectors, so this read is not gated on the embeddings feature:
+ * a server with no embedding provider answers the book matches and three
+ * empty groups.
  * @summary Global Search
  */
 export const globalSearch = (params: GlobalSearchParams, signal?: AbortSignal) => {

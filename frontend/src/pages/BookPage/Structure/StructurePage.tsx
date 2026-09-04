@@ -7,6 +7,7 @@ import type {
 import { useGetNotesForBook } from '@/api/generated/notes/notes.ts';
 import { EmptyStateText } from '@/components/EmptyStateText.tsx';
 import { useUrlEntityDialog } from '@/components/dialogs/useUrlEntityDialog.ts';
+import { EmbeddingFeature } from '@/components/features/EmbeddingFeature.tsx';
 import { PageHeader } from '@/components/layout/PageHeader.tsx';
 import { ContentSearchField } from '@/components/search/ContentSearchField.tsx';
 import { useContentSearch } from '@/components/search/useContentSearch.ts';
@@ -194,11 +195,13 @@ export const StructurePage = () => {
       <PageHeader
         title={BOOK_PAGE_LABELS.structure}
         search={
-          <ContentSearchField
-            value={searchText}
-            onChange={handleSearch}
-            placeholder="Search chapters by meaning..."
-          />
+          <EmbeddingFeature>
+            <ContentSearchField
+              value={searchText}
+              onChange={handleSearch}
+              placeholder="Search chapters by meaning..."
+            />
+          </EmbeddingFeature>
         }
         action={
           <BatchDigestToolbar

@@ -1,4 +1,4 @@
-"""MCP tools for the two reads over the embeddings index: search and related content."""
+"""MCP tools for the two library-wide reads: search and related content."""
 
 import json
 
@@ -9,7 +9,7 @@ from mcp.types import ToolAnnotations
 from crossbill_mcp.client import CrossbillClient
 
 EMBEDDINGS_DISABLED_MESSAGE = (
-    "Search is not enabled on this Crossbill server "
+    "Related content is not enabled on this Crossbill server "
     "(no embedding provider configured)."
 )
 
@@ -34,17 +34,15 @@ def register_search_tools(server: FastMCP, client: CrossbillClient) -> None:
         so they cannot be merged into the ranking. Scoping to one book returns
         none of them, which makes that scope a purely semantic read.
 
+        Books need no embeddings, so on a server with no embedding provider this
+        answers the book matches and three empty groups.
+
         Args:
             query: What to search for, in natural language (1-1000 characters)
             book_id: Optional book ID to restrict the search to a single book
             limit: Maximum items per content type, not overall (1-100, default 10)
         """
-        try:
-            result = await client.global_search(query, book_id=book_id, limit=limit)
-        except httpx.HTTPStatusError as exc:
-            if exc.response.status_code == 403:
-                return EMBEDDINGS_DISABLED_MESSAGE
-            raise
+        result = await client.global_search(query, book_id=book_id, limit=limit)
         return json.dumps(result, indent=2, default=str)
 
     @server.tool(annotations=ToolAnnotations(readOnlyHint=True))

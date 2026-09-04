@@ -1,4 +1,3 @@
-import { EmbeddingFeature } from '@/components/features/EmbeddingFeature.tsx';
 import { ContentSearchField } from '@/components/search/ContentSearchField.tsx';
 import { GLOBAL_SEARCH_INSET_X } from '@/components/search/globalSearchLayout.ts';
 import { GlobalSearchResults } from '@/components/search/GlobalSearchResults.tsx';
@@ -56,6 +55,10 @@ const RESULTS_PER_TYPE = 10;
  *
  * Below the `md` breakpoint the app bar has no room for a field, so a search
  * icon opens the same state in a full-screen dialog instead.
+ *
+ * Always offered, whatever the server has configured: without embeddings the
+ * endpoint still matches books by title and author, and only the ranked groups
+ * come back empty.
  */
 export const GlobalSearch = () => {
   const navigate = useNavigate();
@@ -90,6 +93,7 @@ export const GlobalSearch = () => {
   const { results, isFetching, isError, hasQuery } = useContentSearch({
     query,
     limit: RESULTS_PER_TYPE,
+    requiresEmbeddings: false,
   });
   const rows = useMemo(() => toGlobalSearchRows(results), [results]);
   const isOpen = hasQuery && !isDismissed;
@@ -151,7 +155,7 @@ export const GlobalSearch = () => {
 
   if (isCompact) {
     return (
-      <EmbeddingFeature>
+      <>
         <IconButton
           aria-label="Search"
           onClick={() => setIsMobileOpen(true)}
@@ -191,73 +195,71 @@ export const GlobalSearch = () => {
             />
           )}
         </Dialog>
-      </EmbeddingFeature>
+      </>
     );
   }
 
   return (
-    <EmbeddingFeature>
-      <ClickAwayListener onClickAway={close}>
-        <Box
-          ref={setAnchorEl}
-          onKeyDownCapture={handleKeyDown}
-          // Focus events bubble in React, so this reopens after a dismissal
-          // without SearchBar having to expose an onFocus of its own.
-          onFocus={() => setIsDismissed(false)}
-          // A blur that lands outside both this box and the listbox (Tab to
-          // the next control, or a click elsewhere) is a genuine dismissal —
-          // never a reopen, which is what `SearchBar`'s own onBlur→onSearch
-          // would otherwise cause. The listbox itself needs a separate check:
-          // it renders through a `Popper`, portaled to `document.body`, so a
-          // row is never a DOM descendant of this box even though clicking
-          // one focuses it before the click fires — closing on that blur
-          // would unmount the row out from under its own click.
-          onBlur={(event) => {
-            const nextFocus = event.relatedTarget;
-            const staysInWidget =
-              event.currentTarget.contains(nextFocus) ||
-              document.getElementById(listboxId)?.contains(nextFocus);
-            if (!staysInWidget) close();
-          }}
-          sx={{
-            flexGrow: 1,
-            width: {
-              md: 680,
-              lg: 800,
-            },
-            maxWidth: {
-              md: 680,
-              lg: 800,
-            },
-            mx: 'auto',
-          }}
+    <ClickAwayListener onClickAway={close}>
+      <Box
+        ref={setAnchorEl}
+        onKeyDownCapture={handleKeyDown}
+        // Focus events bubble in React, so this reopens after a dismissal
+        // without SearchBar having to expose an onFocus of its own.
+        onFocus={() => setIsDismissed(false)}
+        // A blur that lands outside both this box and the listbox (Tab to
+        // the next control, or a click elsewhere) is a genuine dismissal —
+        // never a reopen, which is what `SearchBar`'s own onBlur→onSearch
+        // would otherwise cause. The listbox itself needs a separate check:
+        // it renders through a `Popper`, portaled to `document.body`, so a
+        // row is never a DOM descendant of this box even though clicking
+        // one focuses it before the click fires — closing on that blur
+        // would unmount the row out from under its own click.
+        onBlur={(event) => {
+          const nextFocus = event.relatedTarget;
+          const staysInWidget =
+            event.currentTarget.contains(nextFocus) ||
+            document.getElementById(listboxId)?.contains(nextFocus);
+          if (!staysInWidget) close();
+        }}
+        sx={{
+          flexGrow: 1,
+          width: {
+            md: 680,
+            lg: 800,
+          },
+          maxWidth: {
+            md: 680,
+            lg: 800,
+          },
+          mx: 'auto',
+        }}
+      >
+        <ContentSearchField
+          value={query}
+          onChange={handleSearch}
+          placeholder={GLOBAL_SEARCH_PLACEHOLDER}
+          sx={appBarFieldSx}
+          slotProps={{ htmlInput: comboboxHtmlInputProps }}
+        />
+        <Popper
+          open={isOpen}
+          anchorEl={anchorEl}
+          placement="bottom-start"
+          sx={{ zIndex: (theme) => theme.zIndex.appBar + 1, width: anchorEl?.clientWidth }}
         >
-          <ContentSearchField
-            value={query}
-            onChange={handleSearch}
-            placeholder={GLOBAL_SEARCH_PLACEHOLDER}
-            sx={appBarFieldSx}
-            slotProps={{ htmlInput: comboboxHtmlInputProps }}
-          />
-          <Popper
-            open={isOpen}
-            anchorEl={anchorEl}
-            placement="bottom-start"
-            sx={{ zIndex: (theme) => theme.zIndex.appBar + 1, width: anchorEl?.clientWidth }}
-          >
-            <Paper elevation={8} sx={{ mt: 1, maxHeight: 680, overflowY: 'auto' }}>
-              <GlobalSearchResults
-                rows={rows}
-                isFetching={isFetching}
-                isError={isError}
-                activeIndex={activeIndex}
-                onSelect={close}
-                listboxId={listboxId}
-              />
-            </Paper>
-          </Popper>
-        </Box>
-      </ClickAwayListener>
-    </EmbeddingFeature>
+          <Paper elevation={8} sx={{ mt: 1, maxHeight: 680, overflowY: 'auto' }}>
+            <GlobalSearchResults
+              rows={rows}
+              isFetching={isFetching}
+              isError={isError}
+              activeIndex={activeIndex}
+              onSelect={close}
+              listboxId={listboxId}
+            />
+          </Paper>
+        </Popper>
+      </Box>
+    </ClickAwayListener>
   );
 };

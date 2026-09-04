@@ -23,14 +23,20 @@ test('the app bar offers a global search field when embeddings are on', async ()
   await expect.element(screen.getByPlaceholder(PLACEHOLDER)).toBeVisible();
 });
 
-test('the app bar has no search field when embeddings are off', async () => {
+test('with embeddings off, the app bar still finds books by name', async () => {
   const { handlers } = bookApi({ book: aBookDetails() });
-  worker.use(settingsWithEmbeddings(false), ...handlers);
+  worker.use(
+    settingsWithEmbeddings(false),
+    ...handlers,
+    ...globalSearchApi({
+      pragmatic: { books: [aBookHit({ id: 7, title: 'The Pragmatic Reader' })] },
+    })
+  );
 
   const screen = await renderApp({ path: '/book/1' });
+  await search(screen, 'pragmatic');
 
-  await expect.element(screen.getByRole('heading', { name: 'The Pragmatic Reader' })).toBeVisible();
-  await expect.element(screen.getByPlaceholder(PLACEHOLDER)).not.toBeInTheDocument();
+  await expect.element(screen.getByRole('option', { name: /The Pragmatic Reader/ })).toBeVisible();
 });
 
 /** Renders the app at a book page with the app bar's search wired to `results`. */
@@ -455,16 +461,15 @@ test('a search with no results can still be dismissed via the close button', asy
   });
 });
 
-test('with embeddings off, no search icon appears below md', async () => {
+test('with embeddings off, the search icon still opens the dialog below md', async () => {
   const { handlers } = bookApi({ book: aBookDetails() });
-  worker.use(settingsWithEmbeddings(false), ...handlers);
+  worker.use(settingsWithEmbeddings(false), ...handlers, ...globalSearchApi({}));
 
   await atCompactViewport(async () => {
     const screen = await renderApp({ path: '/book/1' });
 
-    await expect
-      .element(screen.getByRole('heading', { name: 'The Pragmatic Reader' }))
-      .toBeVisible();
-    await expect.element(screen.getByRole('button', { name: 'Search' })).not.toBeInTheDocument();
+    await userEvent.click(screen.getByRole('button', { name: 'Search' }));
+
+    await expect.element(screen.getByPlaceholder(PLACEHOLDER)).toBeVisible();
   });
 });

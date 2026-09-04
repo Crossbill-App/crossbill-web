@@ -3,6 +3,7 @@ import { useGetNotesForBook } from '@/api/generated/notes/notes.ts';
 import { CardList } from '@/components/CardList.tsx';
 import { EmptyStateText } from '@/components/EmptyStateText.tsx';
 import { Spinner } from '@/components/animations/Spinner.tsx';
+import { EmbeddingFeature } from '@/components/features/EmbeddingFeature.tsx';
 import { PageHeader } from '@/components/layout/PageHeader.tsx';
 import { ContentSearchField } from '@/components/search/ContentSearchField.tsx';
 import { useContentSearch } from '@/components/search/useContentSearch.ts';
@@ -126,11 +127,13 @@ export const NotesPage = () => {
       <PageHeader
         title={BOOK_PAGE_LABELS.notes}
         search={
-          <ContentSearchField
-            value={searchText}
-            onChange={handleSearch}
-            placeholder="Search notes by meaning..."
-          />
+          <EmbeddingFeature>
+            <ContentSearchField
+              value={searchText}
+              onChange={handleSearch}
+              placeholder="Search notes by meaning..."
+            />
+          </EmbeddingFeature>
         }
         count={{ value: notesToShow.length, noun: 'note' }}
         action={

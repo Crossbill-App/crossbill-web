@@ -174,7 +174,7 @@ A digest is an AI-written study aid for one chapter: a summary, a list of keypoi
 
 ### Search
 
-Requires an embedding provider configured on the Crossbill server; without one, both tools report that search is not enabled.
+`find_related` requires an embedding provider configured on the Crossbill server, and reports that it is not enabled without one. `search_library` still matches books by title and author, and answers with its ranked groups empty.
 
 - **search_library** - Search the whole library from one query: highlights, notes, and chapter digests ranked by semantic similarity, plus a `books` group matched by title or author rather than by meaning. Optionally scoped to one book, which drops the books group. Results are grouped by content type, with `limit` applied per group.
 - **find_related** - Find content similar to an existing item, named by `content_type` (`note`, `highlight`, or `digest`) and `content_id`. The ranked half of `search_library`'s response shape.

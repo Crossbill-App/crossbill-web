@@ -112,6 +112,17 @@ test('searching notes lists only the notes on this page that matched', async () 
   expect(screen.getByRole('heading', { name: 'Analytical Engine' }).elements()).toHaveLength(0);
 });
 
+test('with embeddings off, the notes tab neither offers nor applies a search', async () => {
+  const { handlers } = aTwoNoteBook();
+  worker.use(settingsWithEmbeddings(false), ...handlers);
+
+  const screen = await renderApp({ path: '/book/1/notes?search=engines' });
+
+  await expect.element(screen.getByPlaceholder(NOTES_SEARCH_PLACEHOLDER)).not.toBeInTheDocument();
+  await expect.element(screen.getByRole('heading', { name: 'Ada Lovelace' })).toBeVisible();
+  await expect.element(screen.getByRole('heading', { name: 'Difference Engine' })).toBeVisible();
+});
+
 /**
  * The two-note book with an embedding search that matches nothing: "underwater"
  * is unlisted, so every group comes back empty.

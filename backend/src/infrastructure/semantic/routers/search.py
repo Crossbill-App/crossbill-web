@@ -13,7 +13,6 @@ from fastapi import APIRouter, Depends, Query
 from src.application.semantic.queries.global_search_use_case import GlobalSearchUseCase
 from src.core import container
 from src.domain.identity import User
-from src.infrastructure.common.dependencies import require_embeddings_enabled
 from src.infrastructure.common.di import inject_use_case
 from src.infrastructure.identity import get_current_user
 from src.infrastructure.semantic.routers.limits import MAX_SEARCH_ITEMS_PER_TYPE
@@ -21,14 +20,13 @@ from src.infrastructure.semantic.schemas.semantic_schemas import GlobalSearchRes
 
 router = APIRouter(tags=["search"])
 
-# Bounded because every query costs a model call: an empty string would buy a
-# vector for nothing, and an unbounded one is billed by the token and would
+# Bounded because a query usually costs a model call: an empty string would buy
+# a vector for nothing, and an unbounded one is billed by the token and would
 # eventually exceed bge-m3's 8K context.
 MAX_QUERY_LENGTH = 1000
 
 
 @router.get("/search", response_model=GlobalSearchResults)
-@require_embeddings_enabled
 async def global_search(
     current_user: Annotated[User, Depends(get_current_user)],
     q: Annotated[str, Query(min_length=1, max_length=MAX_QUERY_LENGTH)],
@@ -55,6 +53,10 @@ async def global_search(
     matched by name rather than meaning, unranked and capped at five. A
     ``book_id``-scoped search returns none, which makes that scope a purely
     semantic read of one book's content.
+
+    Books need no vectors, so this read is not gated on the embeddings feature:
+    a server with no embedding provider answers the book matches and three
+    empty groups.
     """
     results = await use_case.execute(
         query_text=q,

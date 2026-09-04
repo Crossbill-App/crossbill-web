@@ -15,6 +15,7 @@ from src.application.semantic.queries.semantic_search import (
     SemanticSearchQueryProtocol,
 )
 from src.domain.common.value_objects.ids import UserId
+from src.feature_flags import is_embeddings_enabled
 
 #: Fixed, not the caller's per-type ``limit``: books sit above the ranked groups.
 MAX_BOOK_MATCHES = 5
@@ -43,7 +44,14 @@ class GlobalSearchUseCase:
         ``limit`` applies per content type, and a group can come back shorter:
         weak matches are dropped rather than replaced, so a query with nothing
         to match answers with empty groups instead of the least-bad rows.
+
+        Matching books needs no vectors, so a server without an embedding
+        provider still answers -- with that group alone.
         """
+        books = await self._matching_books(query_text, user_id, book_id)
+        if not is_embeddings_enabled():
+            return GlobalSearchResultsView(highlights=(), notes=(), digests=(), books=books)
+
         vectors = await self.client.embed([query_text])
         embedding = vectors[0]
 
@@ -62,7 +70,7 @@ class GlobalSearchUseCase:
             highlights=ranked.highlights,
             notes=ranked.notes,
             digests=ranked.digests,
-            books=await self._matching_books(query_text, user_id, book_id),
+            books=books,
         )
 
     async def _matching_books(
