@@ -13,6 +13,13 @@ interface UseContentSearchOptions {
   bookId?: number;
   /** Results per content type. Defaults to 25; the endpoint's maximum is 100. */
   limit?: number;
+  /**
+   * Whether this caller's results are worth asking for without embeddings.
+   * True by default: a book-scoped search ranks content and nothing else, so
+   * with the feature off it can only answer empty. The app bar sets it false —
+   * its books are matched by name, which needs no vectors.
+   */
+  requiresEmbeddings?: boolean;
 }
 
 interface ContentSearchState {
@@ -20,10 +27,7 @@ interface ContentSearchState {
   results: GlobalSearchResults | undefined;
   isFetching: boolean;
   isError: boolean;
-  /**
-   * True when embeddings are enabled and the trimmed query is non-empty —
-   * i.e. the page should filter.
-   */
+  /** True when the trimmed query is non-empty and searchable — i.e. the page should filter. */
   hasQuery: boolean;
 }
 
@@ -33,6 +37,8 @@ interface ContentSearchState {
  * Named for what it does at every call site rather than for the global search
  * it powers in the app bar: scoped to a `bookId` the endpoint matches no books
  * by name, so the read there is purely semantic over that one book's content.
+ * Unscoped it also matches books by title and author, which is why the app bar
+ * searches on a server with no embedding provider and the book tabs do not.
  *
  * `results` is `undefined` until there is a query and an answer, so a page
  * branches on `hasQuery` rather than on emptiness: no search and "nothing
@@ -42,12 +48,15 @@ export const useContentSearch = ({
   query,
   bookId,
   limit = DEFAULT_LIMIT,
+  requiresEmbeddings = true,
 }: UseContentSearchOptions): ContentSearchState => {
   const { featureFlags } = useSettings();
   const q = query.trim();
-  // Gated here, not just in the field: a page must never filter on a query
-  // the user cannot see or clear because the flag hid the input that owns it.
-  const hasQuery = featureFlags?.embeddings === true && q.length > 0;
+  const isSearchable = !requiresEmbeddings || featureFlags?.embeddings === true;
+  // Gated here, not just in the field: the book tabs keep their query in the
+  // URL, so a shared `?search=` link must not filter a list whose input the
+  // flag has hidden.
+  const hasQuery = isSearchable && q.length > 0;
 
   const { data, isFetching, isError } = useGlobalSearch(
     { q, book_id: bookId, limit },

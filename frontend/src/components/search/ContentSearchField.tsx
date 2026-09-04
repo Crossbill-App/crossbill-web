@@ -1,4 +1,3 @@
-import { EmbeddingFeature } from '@/components/features/EmbeddingFeature.tsx';
 import { SearchBar } from '@/components/inputs/SearchBar.tsx';
 import { Box, type SxProps, type Theme } from '@mui/material';
 
@@ -17,13 +16,13 @@ interface ContentSearchFieldProps {
 }
 
 /**
- * Natural-language search box, hidden when embeddings are off. Commit timing is
- * `SearchBar`'s, shared with every other search field: Enter or blur, never per
- * keystroke — which also keeps half-typed queries out of the embedding calls.
+ * Search box for `useContentSearch`. Commit timing is `SearchBar`'s, shared
+ * with every other search field: Enter or blur, never per keystroke — which
+ * also keeps half-typed queries out of the embedding calls.
  *
- * Deliberately dumb: it renders the input and knows
- * nothing about results. Callers pair it with `useContentSearch` and decide
- * what a match means.
+ * Deliberately dumb: it renders the input and knows nothing about results or
+ * about which features the server has. A caller whose search needs embeddings
+ * wraps it in `EmbeddingFeature` itself.
  */
 export const ContentSearchField = ({
   value,
@@ -33,16 +32,14 @@ export const ContentSearchField = ({
   autoFocus,
   slotProps,
 }: ContentSearchFieldProps) => (
-  <EmbeddingFeature>
-    <Box>
-      <SearchBar
-        onSearch={onChange}
-        placeholder={placeholder}
-        initialValue={value}
-        sx={sx}
-        autoFocus={autoFocus}
-        slotProps={slotProps}
-      />
-    </Box>
-  </EmbeddingFeature>
+  <Box>
+    <SearchBar
+      onSearch={onChange}
+      placeholder={placeholder}
+      initialValue={value}
+      sx={sx}
+      autoFocus={autoFocus}
+      slotProps={slotProps}
+    />
+  </Box>
 );
