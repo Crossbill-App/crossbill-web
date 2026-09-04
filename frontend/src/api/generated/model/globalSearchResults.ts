@@ -10,7 +10,11 @@ import type { HighlightSearchItem } from './highlightSearchItem.ts';
 import type { NoteSearchItem } from './noteSearchItem.ts';
 
 /**
- * What ``/search`` answers: the ranked groups plus unranked books matched by name.
+ * What ``GET /search`` answers: the ranked groups plus books matched by name.
+ *
+ * ``books`` is unranked and carries no score: a title or author match is not a
+ * similarity, so it cannot be merged into the ranking -- a client that wants
+ * one list puts the books above it.
  */
 export interface GlobalSearchResults {
   highlights: HighlightSearchItem[];

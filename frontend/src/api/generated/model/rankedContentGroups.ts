@@ -9,12 +9,15 @@ import type { HighlightSearchItem } from './highlightSearchItem.ts';
 import type { NoteSearchItem } from './noteSearchItem.ts';
 
 /**
- * One search's matches, grouped by content type.
+ * Matches ranked against the embeddings index, grouped by content type.
  *
  * Every group is present even when empty, and every item carries its score on
  * one scale, so a client can merge the groups back into a single ranked list.
+ *
+ * The whole of what ``GET /semantic/related`` answers, and the ranked half of
+ * global search.
  */
-export interface SemanticSearchResults {
+export interface RankedContentGroups {
   highlights: HighlightSearchItem[];
   notes: NoteSearchItem[];
   digests: DigestSearchItem[];

@@ -1,11 +1,11 @@
 import { aBookDetails, aChapter } from '@tests/fixtures/book';
 import { aChapterDigest, aDigestQuestion } from '@tests/fixtures/digest';
 import { aNote } from '@tests/fixtures/notes';
-import { aDigestHit, aHighlightHit, aNoteHit } from '@tests/fixtures/semantic';
+import { aDigestHit, aHighlightHit, aNoteHit } from '@tests/fixtures/search';
 import { renderApp } from '@tests/harness/renderApp';
 import { settingsWithAi, settingsWithEmbeddings } from '@tests/msw/auth';
 import { bookApi } from '@tests/msw/bookApi';
-import { relatedContentApi, semanticSearchApi } from '@tests/msw/semanticSearchApi';
+import { relatedContentApi, globalSearchApi } from '@tests/msw/searchApi';
 import { worker } from '@tests/msw/worker';
 import { http, HttpResponse } from 'msw';
 import { expect, test } from 'vitest';
@@ -31,7 +31,7 @@ const aStructuredBook = () =>
 const renderStructureWithAttentionMatch = async () => {
   worker.use(
     settingsWithEmbeddings(true),
-    ...semanticSearchApi({
+    ...globalSearchApi({
       attention: {
         digests: [
           aDigestHit({ chapter_id: 11, chapter_name: 'Attention and memory', score: 0.72 }),
@@ -131,7 +131,7 @@ const aBookWithReadingPosition = () =>
 test('a search reveals a deeply-nested match and leaves the current-chapter indicator on the true current chapter', async () => {
   worker.use(
     settingsWithEmbeddings(true),
-    ...semanticSearchApi({
+    ...globalSearchApi({
       deep: {
         digests: [
           aDigestHit({ chapter_id: 12, chapter_name: 'Deep Topic', score: 0.5 }),

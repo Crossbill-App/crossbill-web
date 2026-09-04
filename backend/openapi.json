@@ -4197,14 +4197,82 @@
         ]
       }
     },
-    "/api/v1/semantic/search": {
+    "/api/v1/semantic/related": {
       "get": {
         "tags": [
           "semantic"
         ],
-        "summary": "Search Content",
-        "description": "Rank the user's embedded content by semantic similarity, grouped by content type.\n\n``limit`` applies per group, so no content type can crowd out another. Every\nitem carries its similarity score on one scale, and enough identifiers to\nopen the highlight, note or chapter it came from.\n\nMatches below a similarity floor are dropped rather than replaced, so a\ngroup is short -- or empty -- when the library has nothing to say about the\nquery. Nearest-neighbour search would otherwise always answer with its top\n``limit``, however unrelated.\n\nBooks whose title or author contains the query ride on top of those groups,\nunranked and capped at five. A ``book_id``-scoped search returns none.",
-        "operationId": "search_content",
+        "summary": "Related Content",
+        "description": "Rank the user's embedded content by similarity to one already-indexed unit.\n\nThe ranked half of ``GET /search``'s body -- the same groups, with ``limit``\napplied per group, so one view can render either; only the unranked ``books``\nof a global search are missing. The anchor is never among its own results,\nand every group is empty when the anchor is not indexed.\n\nHeld to a higher similarity floor than global search: nobody asked for this\nlist, so a weak row costs more than a missing one. When the anchor's\nneighbourhood genuinely spans the library, no single book may take more than\ntwo places in a group, which spreads the page instead of returning one\nbook's chapter-by-chapter neighbours. An anchor whose only real neighbours\nare in its own book keeps them.",
+        "operationId": "related_content",
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "content_type",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/ContentType"
+            }
+          },
+          {
+            "name": "content_id",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Content Id"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 100,
+              "minimum": 1,
+              "default": 10,
+              "title": "Limit"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RankedContentGroups"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/search": {
+      "get": {
+        "tags": [
+          "search"
+        ],
+        "summary": "Global Search",
+        "description": "Search the user's library, grouped by content type.\n\nHighlights, notes and chapter digests are ranked by semantic similarity to\nthe query. ``limit`` applies per group, so no content type can crowd out\nanother. Every item in those groups carries its similarity score on one\nscale, and enough identifiers to open the highlight, note or chapter it came\nfrom.\n\nMatches below a similarity floor are dropped rather than replaced, so a\ngroup is short -- or empty -- when the library has nothing to say about the\nquery. Nearest-neighbour search would otherwise always answer with its top\n``limit``, however unrelated.\n\nBooks whose title or author contains the query ride on top of those groups,\nmatched by name rather than meaning, unranked and capped at five. A\n``book_id``-scoped search returns none, which makes that scope a purely\nsemantic read of one book's content.",
+        "operationId": "global_search",
         "security": [
           {
             "OAuth2PasswordBearer": []
@@ -4258,74 +4326,6 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/GlobalSearchResults"
-                }
-              }
-            }
-          },
-          "422": {
-            "description": "Validation Error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/api/v1/semantic/related": {
-      "get": {
-        "tags": [
-          "semantic"
-        ],
-        "summary": "Related Content",
-        "description": "Rank the user's embedded content by similarity to one already-indexed unit.\n\nSame body as ``/search``, grouped by content type with ``limit`` applied per\ngroup, so one view can render either. The anchor is never among its own\nresults, and every group is empty when the anchor is not indexed.\n\nHeld to a higher similarity floor than ``/search``: nobody asked for this\nlist, so a weak row costs more than a missing one. When the anchor's\nneighbourhood genuinely spans the library, no single book may take more than\ntwo places in a group, which spreads the page instead of returning one\nbook's chapter-by-chapter neighbours. An anchor whose only real neighbours\nare in its own book keeps them.",
-        "operationId": "related_content",
-        "security": [
-          {
-            "OAuth2PasswordBearer": []
-          }
-        ],
-        "parameters": [
-          {
-            "name": "content_type",
-            "in": "query",
-            "required": true,
-            "schema": {
-              "$ref": "#/components/schemas/ContentType"
-            }
-          },
-          {
-            "name": "content_id",
-            "in": "query",
-            "required": true,
-            "schema": {
-              "type": "integer",
-              "title": "Content Id"
-            }
-          },
-          {
-            "name": "limit",
-            "in": "query",
-            "required": false,
-            "schema": {
-              "type": "integer",
-              "maximum": 100,
-              "minimum": 1,
-              "default": 10,
-              "title": "Limit"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Successful Response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/SemanticSearchResults"
                 }
               }
             }
@@ -6661,7 +6661,7 @@
           "books"
         ],
         "title": "GlobalSearchResults",
-        "description": "What ``/search`` answers: the ranked groups plus unranked books matched by name."
+        "description": "What ``GET /search`` answers: the ranked groups plus books matched by name.\n\n``books`` is unranked and carries no score: a title or author match is not a\nsimilarity, so it cannot be merged into the ranking -- a client that wants\none list puts the books above it."
       },
       "HTTPValidationError": {
         "properties": {
@@ -8352,6 +8352,39 @@
         "title": "PositionResponse",
         "description": "Position in a book document."
       },
+      "RankedContentGroups": {
+        "properties": {
+          "highlights": {
+            "items": {
+              "$ref": "#/components/schemas/HighlightSearchItem"
+            },
+            "type": "array",
+            "title": "Highlights"
+          },
+          "notes": {
+            "items": {
+              "$ref": "#/components/schemas/NoteSearchItem"
+            },
+            "type": "array",
+            "title": "Notes"
+          },
+          "digests": {
+            "items": {
+              "$ref": "#/components/schemas/DigestSearchItem"
+            },
+            "type": "array",
+            "title": "Digests"
+          }
+        },
+        "type": "object",
+        "required": [
+          "highlights",
+          "notes",
+          "digests"
+        ],
+        "title": "RankedContentGroups",
+        "description": "Matches ranked against the embeddings index, grouped by content type.\n\nEvery group is present even when empty, and every item carries its score on\none scale, so a client can merge the groups back into a single ranked list.\n\nThe whole of what ``GET /semantic/related`` answers, and the ranked half of\nglobal search."
+      },
       "ReadingSession": {
         "properties": {
           "book_id": {
@@ -8777,39 +8810,6 @@
         ],
         "title": "SearchBookRef",
         "description": "A book a search result belongs to."
-      },
-      "SemanticSearchResults": {
-        "properties": {
-          "highlights": {
-            "items": {
-              "$ref": "#/components/schemas/HighlightSearchItem"
-            },
-            "type": "array",
-            "title": "Highlights"
-          },
-          "notes": {
-            "items": {
-              "$ref": "#/components/schemas/NoteSearchItem"
-            },
-            "type": "array",
-            "title": "Notes"
-          },
-          "digests": {
-            "items": {
-              "$ref": "#/components/schemas/DigestSearchItem"
-            },
-            "type": "array",
-            "title": "Digests"
-          }
-        },
-        "type": "object",
-        "required": [
-          "highlights",
-          "notes",
-          "digests"
-        ],
-        "title": "SemanticSearchResults",
-        "description": "One search's matches, grouped by content type.\n\nEvery group is present even when empty, and every item carries its score on\none scale, so a client can merge the groups back into a single ranked list."
       },
       "SendChatMessageRequest": {
         "properties": {

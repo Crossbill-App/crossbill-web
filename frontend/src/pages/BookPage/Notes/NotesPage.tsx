@@ -4,8 +4,8 @@ import { CardList } from '@/components/CardList.tsx';
 import { EmptyStateText } from '@/components/EmptyStateText.tsx';
 import { Spinner } from '@/components/animations/Spinner.tsx';
 import { PageHeader } from '@/components/layout/PageHeader.tsx';
-import { SemanticSearchField } from '@/components/search/SemanticSearchField.tsx';
-import { useSemanticSearch } from '@/components/search/useSemanticSearch.ts';
+import { ContentSearchField } from '@/components/search/ContentSearchField.tsx';
+import { useContentSearch } from '@/components/search/useContentSearch.ts';
 import { useBookPage } from '@/pages/BookPage/BookPageContext';
 import { FilteredEmptyState } from '@/pages/BookPage/common/FilteredEmptyState.tsx';
 import { useBookTabFilters } from '@/pages/BookPage/common/useBookTabFilters.ts';
@@ -52,7 +52,7 @@ export const NotesPage = () => {
   const notes = data?.items ?? [];
   const visibleNotes = notes.filter((note) => selectedKinds.includes(noteKindOf(note.kind)));
 
-  const search = useSemanticSearch({ query: searchText, bookId: book.id });
+  const search = useContentSearch({ query: searchText, bookId: book.id });
   const scoreByNoteId = new Map(search.results?.notes.map((hit) => [hit.id, hit.score]) ?? []);
 
   // The search intersects with the kind and tag filters rather than replacing
@@ -126,7 +126,7 @@ export const NotesPage = () => {
       <PageHeader
         title={BOOK_PAGE_LABELS.notes}
         search={
-          <SemanticSearchField
+          <ContentSearchField
             value={searchText}
             onChange={handleSearch}
             placeholder="Search notes by meaning..."

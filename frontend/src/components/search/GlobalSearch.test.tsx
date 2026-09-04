@@ -1,12 +1,12 @@
 import { aBookDetails, aChapter, aHighlight } from '@tests/fixtures/book';
 import { aNote } from '@tests/fixtures/notes';
-import { aBookHit, aDigestHit, aHighlightHit, aNoteHit } from '@tests/fixtures/semantic';
+import { aBookHit, aDigestHit, aHighlightHit, aNoteHit } from '@tests/fixtures/search';
 import { renderApp } from '@tests/harness/renderApp';
 import { atCompactViewport } from '@tests/harness/viewport';
 import { settingsWithEmbeddings } from '@tests/msw/auth';
 import { bookApi } from '@tests/msw/bookApi';
 import { coversApi } from '@tests/msw/covers';
-import { semanticSearchApi } from '@tests/msw/semanticSearchApi';
+import { globalSearchApi } from '@tests/msw/searchApi';
 import { worker } from '@tests/msw/worker';
 import { delay, http, HttpResponse } from 'msw';
 import { expect, test } from 'vitest';
@@ -16,7 +16,7 @@ const PLACEHOLDER = 'Search...';
 
 test('the app bar offers a global search field when embeddings are on', async () => {
   const { handlers } = bookApi({ book: aBookDetails() });
-  worker.use(settingsWithEmbeddings(true), ...handlers, ...semanticSearchApi({}));
+  worker.use(settingsWithEmbeddings(true), ...handlers, ...globalSearchApi({}));
 
   const screen = await renderApp({ path: '/book/1' });
 
@@ -35,11 +35,11 @@ test('the app bar has no search field when embeddings are off', async () => {
 
 /** Renders the app at a book page with the app bar's search wired to `results`. */
 const renderWithResults = async (
-  results: Parameters<typeof semanticSearchApi>[0],
+  results: Parameters<typeof globalSearchApi>[0],
   book = aBookDetails()
 ) => {
   const { handlers } = bookApi({ book, notes: [] });
-  worker.use(settingsWithEmbeddings(true), ...handlers, ...semanticSearchApi(results));
+  worker.use(settingsWithEmbeddings(true), ...handlers, ...globalSearchApi(results));
   return renderApp({ path: '/book/1' });
 };
 
@@ -185,7 +185,7 @@ test('a row with a cover renders it as an image from the covers endpoint', async
     settingsWithEmbeddings(true),
     ...handlers,
     ...coversApi(),
-    ...semanticSearchApi({
+    ...globalSearchApi({
       attention: {
         highlights: [aHighlightHit({ id: 300, cover_file: 'cover-one.jpg' })],
       },
@@ -210,7 +210,7 @@ test('the initial fetch shows a spinner before any rows arrive', async () => {
     // Never resolves: `waitForIdle` in the test harness bounds its wait, so
     // this can't hang the run, and it keeps `isFetching` true for the whole
     // test without a fake timer.
-    http.get('/api/v1/semantic/search', async () => {
+    http.get('/api/v1/search', async () => {
       await delay('infinite');
     })
   );
@@ -242,7 +242,7 @@ test('clicking a note row opens the note dialog on the book page', async () => {
   worker.use(
     settingsWithEmbeddings(true),
     ...handlers,
-    ...semanticSearchApi({ attention: { notes: [aNoteHit({ id: 100, title: 'Ada Lovelace' })] } })
+    ...globalSearchApi({ attention: { notes: [aNoteHit({ id: 100, title: 'Ada Lovelace' })] } })
   );
   const screen = await renderApp({ path: '/book/1' });
 
@@ -365,7 +365,7 @@ test('a failing search reports the failure', async () => {
   worker.use(
     settingsWithEmbeddings(true),
     ...handlers,
-    http.get('/api/v1/semantic/search', () => new HttpResponse(null, { status: 500 }))
+    http.get('/api/v1/search', () => new HttpResponse(null, { status: 500 }))
   );
   const screen = await renderApp({ path: '/book/1' });
 

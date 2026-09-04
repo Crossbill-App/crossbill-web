@@ -4,7 +4,7 @@ import type {
   GlobalSearchResults,
   HighlightSearchItem,
   NoteSearchItem,
-  SemanticSearchResults,
+  RankedContentGroups,
 } from '@/api/generated/model';
 import { linkOptions } from '@tanstack/react-router';
 
@@ -121,7 +121,7 @@ const bookRows = (hits: BookSearchItem[]): GlobalSearchRow[] =>
  * readers of the endpoint show one list: three lists side by side make the
  * reader compare scores the ranking has already compared.
  */
-export const mergeSearchRows = (results: SemanticSearchResults | undefined): GlobalSearchRow[] => {
+export const mergeSearchRows = (results: RankedContentGroups | undefined): GlobalSearchRow[] => {
   if (!results) return [];
 
   return [
