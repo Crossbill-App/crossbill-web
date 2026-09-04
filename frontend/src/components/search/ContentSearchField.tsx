@@ -17,9 +17,9 @@ interface ContentSearchFieldProps {
 }
 
 /**
- * Natural-language search box, hidden when embeddings are off. The query is
- * submitted on Enter or blur, never per keystroke: each search is an embedding
- * call, so half-typed queries are not worth running.
+ * Natural-language search box, hidden when embeddings are off. Commit timing is
+ * `SearchBar`'s, shared with every other search field: Enter or blur, never per
+ * keystroke — which also keeps half-typed queries out of the embedding calls.
  *
  * Deliberately dumb: it renders the input and knows
  * nothing about results. Callers pair it with `useContentSearch` and decide
@@ -39,7 +39,6 @@ export const ContentSearchField = ({
         onSearch={onChange}
         placeholder={placeholder}
         initialValue={value}
-        commitOn="submit"
         sx={sx}
         autoFocus={autoFocus}
         slotProps={slotProps}
