@@ -17,13 +17,23 @@ export interface ActivityGridData {
 }
 
 interface ReadingActivityGridProps {
-  activity: ActivityGridData;
+  /**
+   * The reading to draw, or `null` for the blank year a reader with nothing
+   * read yet is shown -- an empty grid says what no grid at all cannot.
+   */
+  activity: ActivityGridData | null;
   /** What else there is to say about a day, appended to its label. */
   dayNote?: (isoDate: string) => string | undefined;
   blockSize?: number;
 }
 
+/** The window a grid spans, and whichever of its days are worth colouring. */
+type ActivityWindow = Pick<ActivityGridData, 'range_start' | 'range_end' | 'days'>;
+
 const DEFAULT_BLOCK_SIZE = 12;
+
+/** Days a grid spans, the last one included -- the window the backend draws. */
+const WINDOW_DAYS = 365;
 
 /** The gap between two squares, as a share of the square itself. */
 const MARGIN_RATIO = 1 / 3;
@@ -39,7 +49,7 @@ const UNIT_NOUN = { pages: 'page', minutes: 'minute' } as const;
  * The backend sends only the days worth drawing, so the window's own bounds go
  * in as empty days; the library fills every gap between its first and last.
  */
-const withWindowBounds = (activity: ActivityGridData): Activity[] => {
+const withWindowBounds = (activity: ActivityWindow): Activity[] => {
   const byDate = new Map<string, Activity>(
     activity.days.map((day) => [day.date, { date: day.date, count: day.value, level: day.level }])
   );
@@ -52,6 +62,15 @@ const withWindowBounds = (activity: ActivityGridData): Activity[] => {
 
   return [...byDate.values()].sort((a, b) => a.date.localeCompare(b.date));
 };
+
+/** The year ending today, with no day coloured on it. */
+const emptyYear = (): ActivityWindow => ({
+  range_start: DateTime.now()
+    .minus({ days: WINDOW_DAYS - 1 })
+    .toFormat('yyyy-MM-dd'),
+  range_end: DateTime.now().toFormat('yyyy-MM-dd'),
+  days: [],
+});
 
 /**
  * `getStartOfWeek` counts 1-7 from Monday against the calendar's 0-6 from
@@ -72,7 +91,11 @@ const useCalendarLocale = () =>
  * Labels the square and fills its tooltip both, since a phone has no pointer to
  * hover with and the label is its only way to the number.
  */
-const dayLabel = (activity: ActivityGridData, day: Activity, note?: string) => {
+const dayLabel = (activity: ActivityGridData | null, day: Activity, note?: string) => {
+  if (!activity) {
+    return `Nothing read on ${formatDate(day.date)}`;
+  }
+
   const reading = `${countLabel(day.count, UNIT_NOUN[activity.unit])} on ${formatDate(day.date)}`;
   return note ? `${reading} — ${note}` : reading;
 };
@@ -92,7 +115,9 @@ export const ReadingActivityGrid = ({
 }: ReadingActivityGridProps) => {
   const theme = useTheme();
   const { locale, months, weekStart } = useCalendarLocale();
-  const data = useMemo(() => withWindowBounds(activity), [activity]);
+  // A reader with nothing read still gets a year of squares, all uncoloured.
+  const span = useMemo(() => activity ?? emptyYear(), [activity]);
+  const data = useMemo(() => withWindowBounds(span), [span]);
   const section = useRef<HTMLDivElement>(null);
 
   // Opened on the most recent weeks. Reached by class because the component
@@ -110,6 +135,8 @@ export const ReadingActivityGrid = ({
 
   const asMonth = (date: string) =>
     DateTime.fromISO(date).setLocale(locale).toLocaleString({ month: 'short', year: 'numeric' });
+
+  const period = `${asMonth(span.range_start)} – ${asMonth(span.range_end)}`;
 
   return (
     <Box
@@ -134,10 +161,14 @@ export const ReadingActivityGrid = ({
         }}
         blockSize={blockSize}
         blockMargin={Math.round(blockSize * MARGIN_RATIO)}
+        // A scale from less to more explains nothing on a grid with neither.
+        showColorLegend={activity !== null}
         labels={{
           months,
           legend: { less: 'Less', more: 'More' },
-          totalCount: `${asMonth(activity.range_start)} – ${asMonth(activity.range_end)} · ${activity.unit} read`,
+          totalCount: activity
+            ? `${period} · ${activity.unit} read`
+            : `${period} · nothing read yet`,
         }}
         renderBlock={(block, day) =>
           cloneElement(block, {

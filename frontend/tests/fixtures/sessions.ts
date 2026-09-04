@@ -45,3 +45,19 @@ export const aBookStatistics = (
   activity: aBookActivity(),
   ...overrides,
 });
+
+/**
+ * What the API sends for a book nobody has opened: a count of zero and nothing
+ * to average, span or plot.
+ */
+export const noBookStatistics = (): BookReadingStatistics =>
+  aBookStatistics({
+    session_count: 0,
+    total_reading_seconds: 0,
+    average_session_seconds: null,
+    first_session_start: null,
+    last_session_end: null,
+    span_days: null,
+    progress_percent: null,
+    activity: null,
+  });

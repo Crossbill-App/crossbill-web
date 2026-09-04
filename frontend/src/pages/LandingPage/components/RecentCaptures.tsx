@@ -1,6 +1,7 @@
 import { useGetRecentCaptures } from '@/api/generated/captures/captures';
 import type { RecentCapture } from '@/api/generated/model';
 import { Spinner } from '@/components/animations/Spinner.tsx';
+import { EmptyStateText } from '@/components/EmptyStateText.tsx';
 import { SectionTitle } from '@/components/typography/SectionTitle.tsx';
 import { browserTimeZone, formatDay } from '@/utils/date.ts';
 import { Alert, Box, Typography } from '@mui/material';
@@ -25,8 +26,8 @@ const byDay = (captures: RecentCapture[]): [string, RecentCapture[]][] => {
  * The dashboard's row of what the reader last marked: highlights on the
  * e-reader's own clock, notes on the reader's, cut into days.
  *
- * Not drawn at all for a reader who has captured nothing, the way the activity
- * grid is not drawn for a reader with no year to show.
+ * A reader who has captured nothing keeps the section and is told what will
+ * fill it, the way the activity grid keeps its squares with nothing on them.
  */
 export const RecentCaptures = () => {
   const { data, isLoading, isError } = useGetRecentCaptures({
@@ -36,9 +37,7 @@ export const RecentCaptures = () => {
   const captures = data?.items;
   const days = useMemo(() => byDay(captures ?? []), [captures]);
 
-  if (!isLoading && !isError && days.length === 0) {
-    return null;
-  }
+  const empty = !isLoading && !isError && days.length === 0;
 
   return (
     <Box sx={{ mb: 6 }}>
@@ -50,6 +49,12 @@ export const RecentCaptures = () => {
         <Box sx={{ py: 3 }}>
           <Alert severity="error">Failed to load recent highlights and notes.</Alert>
         </Box>
+      )}
+
+      {empty && (
+        <EmptyStateText>
+          No highlights or notes yet. They appear here once you sync your e-reader.
+        </EmptyStateText>
       )}
 
       {days.map(([day, dayCaptures]) => (
