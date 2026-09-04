@@ -1,4 +1,4 @@
-"""Pydantic schemas for semantic-search API responses."""
+"""Pydantic schemas for the embeddings API responses: backfill, related and search."""
 
 from datetime import datetime as dt
 
@@ -109,11 +109,14 @@ class DigestSearchItem(BaseModel):
     cover_blurhash: str | None
 
 
-class SemanticSearchResults(BaseModel):
-    """One search's matches, grouped by content type.
+class RankedContentGroups(BaseModel):
+    """Matches ranked against the embeddings index, grouped by content type.
 
     Every group is present even when empty, and every item carries its score on
     one scale, so a client can merge the groups back into a single ranked list.
+
+    The whole of what ``GET /semantic/related`` answers, and the ranked half of
+    global search.
     """
 
     model_config = _FROM_VIEW
@@ -123,7 +126,12 @@ class SemanticSearchResults(BaseModel):
     digests: list[DigestSearchItem]
 
 
-class GlobalSearchResults(SemanticSearchResults):
-    """What ``/search`` answers: the ranked groups plus unranked books matched by name."""
+class GlobalSearchResults(RankedContentGroups):
+    """What ``GET /search`` answers: the ranked groups plus books matched by name.
+
+    ``books`` is unranked and carries no score: a title or author match is not a
+    similarity, so it cannot be merged into the ranking -- a client that wants
+    one list puts the books above it.
+    """
 
     books: list[BookSearchItem]

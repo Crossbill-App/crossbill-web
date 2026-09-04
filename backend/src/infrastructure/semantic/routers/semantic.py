@@ -1,4 +1,8 @@
-"""API router for semantic search: ingestion (backfill) and the read side."""
+"""API router for the semantic slice: embedding ingestion (backfill) and related content.
+
+Free-text search over the same index answers under ``/search`` -- see
+``routers/search.py``, which is no longer a semantic-only read.
+"""
 
 from typing import Annotated
 
@@ -13,7 +17,6 @@ from src.application.semantic.commands.enqueue_content_embeddings_use_case impor
 )
 from src.application.semantic.content_type import ContentType
 from src.application.semantic.queries.related_content_use_case import RelatedContentUseCase
-from src.application.semantic.queries.search_content_use_case import SearchContentUseCase
 from src.core import container
 from src.domain.common.value_objects.ids import BookId, UserId
 from src.domain.identity import User
@@ -26,24 +29,13 @@ from src.infrastructure.jobs.schemas.job_batch_schemas import (
     batch_to_response,
     view_to_response,
 )
+from src.infrastructure.semantic.routers.limits import MAX_SEARCH_ITEMS_PER_TYPE
 from src.infrastructure.semantic.schemas.semantic_schemas import (
     BackfillResponse,
-    GlobalSearchResults,
-    SemanticSearchResults,
+    RankedContentGroups,
 )
 
 router = APIRouter(prefix="/semantic", tags=["semantic"])
-
-#: Per-content-type cap, shared by /search and /related.
-#:
-#: It bounds one group rather than a whole page, so it can afford to be generous:
-#: a caller assembling its own mixed ranking out of the groups wants room to work
-#: with.
-MAX_SEARCH_ITEMS_PER_TYPE = 100
-# Bounded because every query costs a model call: an empty string would buy a
-# vector for nothing, and an unbounded one is billed by the token and would
-# eventually exceed bge-m3's 8K context.
-MAX_QUERY_LENGTH = 1000
 
 
 @router.post(
@@ -112,41 +104,7 @@ async def get_active_backfill(
     return view_to_response(view) if view else None
 
 
-@router.get("/search", response_model=GlobalSearchResults)
-@require_embeddings_enabled
-async def search_content(
-    current_user: Annotated[User, Depends(get_current_user)],
-    q: Annotated[str, Query(min_length=1, max_length=MAX_QUERY_LENGTH)],
-    book_id: int | None = None,
-    limit: Annotated[int, Query(ge=1, le=MAX_SEARCH_ITEMS_PER_TYPE)] = 10,
-    use_case: SearchContentUseCase = Depends(
-        inject_use_case(container.semantic.search_content_use_case)
-    ),
-) -> GlobalSearchResults:
-    """Rank the user's embedded content by semantic similarity, grouped by content type.
-
-    ``limit`` applies per group, so no content type can crowd out another. Every
-    item carries its similarity score on one scale, and enough identifiers to
-    open the highlight, note or chapter it came from.
-
-    Matches below a similarity floor are dropped rather than replaced, so a
-    group is short -- or empty -- when the library has nothing to say about the
-    query. Nearest-neighbour search would otherwise always answer with its top
-    ``limit``, however unrelated.
-
-    Books whose title or author contains the query ride on top of those groups,
-    unranked and capped at five. A ``book_id``-scoped search returns none.
-    """
-    results = await use_case.execute(
-        query_text=q,
-        user_id=current_user.id.value,
-        book_id=book_id,
-        limit=limit,
-    )
-    return GlobalSearchResults.model_validate(results)
-
-
-@router.get("/related", response_model=SemanticSearchResults)
+@router.get("/related", response_model=RankedContentGroups)
 @require_embeddings_enabled
 async def related_content(
     current_user: Annotated[User, Depends(get_current_user)],
@@ -156,14 +114,15 @@ async def related_content(
     use_case: RelatedContentUseCase = Depends(
         inject_use_case(container.semantic.related_content_use_case)
     ),
-) -> SemanticSearchResults:
+) -> RankedContentGroups:
     """Rank the user's embedded content by similarity to one already-indexed unit.
 
-    Same body as ``/search``, grouped by content type with ``limit`` applied per
-    group, so one view can render either. The anchor is never among its own
-    results, and every group is empty when the anchor is not indexed.
+    The ranked half of ``GET /search``'s body -- the same groups, with ``limit``
+    applied per group, so one view can render either; only the unranked ``books``
+    of a global search are missing. The anchor is never among its own results,
+    and every group is empty when the anchor is not indexed.
 
-    Held to a higher similarity floor than ``/search``: nobody asked for this
+    Held to a higher similarity floor than global search: nobody asked for this
     list, so a weak row costs more than a missing one. When the anchor's
     neighbourhood genuinely spans the library, no single book may take more than
     two places in a group, which spreads the page instead of returning one
@@ -176,4 +135,4 @@ async def related_content(
         user_id=current_user.id.value,
         limit=limit,
     )
-    return SemanticSearchResults.model_validate(results)
+    return RankedContentGroups.model_validate(results)

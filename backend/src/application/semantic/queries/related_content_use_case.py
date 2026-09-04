@@ -2,8 +2,8 @@
 
 from src.application.semantic.content_type import ContentType
 from src.application.semantic.queries.content_search import (
+    RankedContentGroupsView,
     SearchHydrationQueryProtocol,
-    SemanticSearchResultsView,
     hydrate_by_content_type,
 )
 from src.application.semantic.queries.ranking import CANDIDATE_FACTOR, related_page
@@ -26,7 +26,7 @@ class RelatedContentUseCase:
 
     async def execute(
         self, *, content_type: ContentType, content_id: int, user_id: int, limit: int
-    ) -> SemanticSearchResultsView:
+    ) -> RankedContentGroupsView:
         """Return the units most similar to this one, grouped by content type.
 
         Ranks ``CANDIDATE_FACTOR`` times more candidates than asked for, because
@@ -39,7 +39,7 @@ class RelatedContentUseCase:
             content_type=content_type, content_id=content_id, user_id=user_id
         )
         if anchor is None:
-            return SemanticSearchResultsView(highlights=(), notes=(), digests=())
+            return RankedContentGroupsView(highlights=(), notes=(), digests=())
 
         # Bound out here so the group being ranked cannot shadow it: the unit to
         # exclude is the anchor, whatever type the scan is currently over.

@@ -67,6 +67,7 @@ from src.infrastructure.reading.routers import (
     recent_captures,
 )
 from src.infrastructure.reflection.routers import book_reflections as reflection_router
+from src.infrastructure.semantic.routers import search as search_router
 from src.infrastructure.semantic.routers import semantic as semantic_router
 from src.infrastructure.tagging.routers import tags as tagging_tags
 
@@ -458,6 +459,7 @@ app.include_router(reflection_router.router, prefix=settings.API_V1_PREFIX)
 
 # Semantic search
 app.include_router(semantic_router.router, prefix=settings.API_V1_PREFIX)
+app.include_router(search_router.router, prefix=settings.API_V1_PREFIX)
 
 # Common
 app.include_router(settings_router.router, prefix=settings.API_V1_PREFIX)

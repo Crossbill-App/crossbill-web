@@ -1,4 +1,4 @@
-"""Read use case for free-text semantic search over content embeddings."""
+"""Read use case for global search: ranked content plus books matched by name."""
 
 from src.application.library.queries.book_list import BookListQueryProtocol
 from src.application.semantic.content_type import ContentType
@@ -20,8 +20,8 @@ from src.domain.common.value_objects.ids import UserId
 MAX_BOOK_MATCHES = 5
 
 
-class SearchContentUseCase:
-    """Embed the query once, rank each content type separately, and hydrate each group."""
+class GlobalSearchUseCase:
+    """Embed the query once, rank each content type separately, and match books by name."""
 
     def __init__(
         self,

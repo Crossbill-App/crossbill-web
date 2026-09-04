@@ -1,6 +1,7 @@
-"""Read model for the grouped semantic-search response.
+"""Read model for the grouped response both ranked reads share.
 
-Both reads that rank the index -- /search and /related -- hydrate through here.
+Both reads that rank the index -- global search and /semantic/related -- hydrate
+through here.
 These views read each source module's own display columns rather than the
 *embedding input*, which is text truncated at ``MAX_EMBEDDABLE_CHARS`` and
 lossily concatenated, and so cannot render a note's title as a title.
@@ -99,8 +100,14 @@ class DigestSearchView:
 
 
 @dataclass(frozen=True)
-class SemanticSearchResultsView:
-    """One search's matches, grouped by content type, each group most similar first."""
+class RankedContentGroupsView:
+    """Ranked matches from the index, grouped by content type, most similar first.
+
+    What hydration produces, and the whole of what ``/semantic/related``
+    answers. Global search extends it rather than the other way round: books
+    matched by name are not ranked against these groups and belong to that read
+    alone.
+    """
 
     highlights: tuple[HighlightSearchView, ...]
     notes: tuple[NoteSearchView, ...]
@@ -108,12 +115,9 @@ class SemanticSearchResultsView:
 
 
 @dataclass(frozen=True)
-class GlobalSearchResultsView:
-    """A free-text search's answer: the ranked groups plus books matched by name."""
+class GlobalSearchResultsView(RankedContentGroupsView):
+    """Global search's answer: the ranked groups plus books matched by name."""
 
-    highlights: tuple[HighlightSearchView, ...]
-    notes: tuple[NoteSearchView, ...]
-    digests: tuple[DigestSearchView, ...]
     books: tuple[BookSearchView, ...]
 
 
@@ -149,14 +153,14 @@ async def hydrate_by_content_type(
     page: Mapping[ContentType, Sequence[SemanticSearchHit]],
     hydration: SearchHydrationQueryProtocol,
     user_id: int,
-) -> SemanticSearchResultsView:
+) -> RankedContentGroupsView:
     """Resolve an already-chosen page, one hydration query per content type.
 
     Both ranked reads end here. ``/related`` calls it directly because it cannot
     hydrate a type until every type has been ranked -- its per-book cap is gated
     on the whole neighbourhood, not on one group at a time.
     """
-    return SemanticSearchResultsView(
+    return RankedContentGroupsView(
         highlights=await hydration.highlights(page[ContentType.HIGHLIGHT], user_id),
         notes=await hydration.notes(page[ContentType.NOTE], user_id),
         digests=await hydration.digests(page[ContentType.DIGEST], user_id),
@@ -167,7 +171,7 @@ async def group_by_content_type(
     scan: Callable[[ContentType], Awaitable[Sequence[SemanticSearchHit]]],
     hydration: SearchHydrationQueryProtocol,
     user_id: int,
-) -> SemanticSearchResultsView:
+) -> RankedContentGroupsView:
     """Scan the index once per content type and hydrate each group on its own.
 
     One scan per type rather than one combined scan: a book with thousands of
