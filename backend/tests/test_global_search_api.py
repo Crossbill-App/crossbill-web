@@ -58,19 +58,45 @@ class TestContentTypeCoverage:
 
 
 class TestSearchEndpoint:
-    async def test_blocked_when_embeddings_disabled(self, client: AsyncClient) -> None:
+    async def test_answers_books_alone_when_embeddings_disabled(
+        self,
+        client: AsyncClient,
+        db_session: AsyncSession,
+        test_book: Book,
+    ) -> None:
         """Deliberately does not override the embedding client.
 
         With no provider configured ``build_embedding_client`` raises, and this
-        endpoint injects a use case that holds a client. So the 403 depends on
-        that construction being deferred past the gate, which is what
-        ``LazyEmbeddingClient`` buys. Overriding the client would mask it, and
-        the endpoint would answer 500 in production while the test passed.
+        endpoint injects a use case that holds a client. Answering 200 therefore
+        proves the disabled path never embeds anything -- and that construction
+        stays deferred, which is what ``LazyEmbeddingClient`` buys.
         """
-        with embeddings_disabled():
-            response = await client.get("/api/v1/search", params={"q": "idea"})
+        await plant_indexed_highlight(db_session, test_book, "an indexed idea")
 
-        assert response.status_code == status.HTTP_403_FORBIDDEN
+        with embeddings_disabled():
+            response = await client.get("/api/v1/search", params={"q": "Test Book"})
+
+        assert response.status_code == status.HTTP_200_OK
+        body = response.json()
+        assert [book["id"] for book in body["books"]] == [test_book.id]
+        assert (body["highlights"], body["notes"], body["digests"]) == ([], [], [])
+
+    async def test_answers_nothing_for_a_book_scope_when_embeddings_disabled(
+        self,
+        client: AsyncClient,
+        db_session: AsyncSession,
+        test_book: Book,
+    ) -> None:
+        """A book scope matches no books by name, and there is no ranked half left."""
+        await plant_indexed_highlight(db_session, test_book, "an indexed idea")
+
+        with embeddings_disabled():
+            response = await client.get(
+                "/api/v1/search", params={"q": "idea", "book_id": test_book.id}
+            )
+
+        assert response.status_code == status.HTTP_200_OK
+        assert response.json() == {"highlights": [], "notes": [], "digests": [], "books": []}
 
     async def test_returns_ranked_results(
         self,
