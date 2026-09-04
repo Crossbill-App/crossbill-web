@@ -632,9 +632,47 @@ Two things this deliberately did **not** change:
 - **The embeddings gate.** `/search` still answers 403 when no embedding
   provider is configured, so a server without one has no book-name search
   either, even though that half needs no vectors. Degrading to the books group
-  instead is a behaviour change, not a rename, and belongs in its own decision.
+  instead is a behaviour change, not a rename, and belongs in its own decision
+  — taken in the amendment below.
 - **The frontend's shared hook.** It is `useContentSearch`, not
   `useGlobalSearch`: the Notes and Structure pages call the same endpoint with a
   `book_id`, and under that scope no books are matched, which makes it a purely
   semantic read of one book's content. Only the generated client carries the
   endpoint's own name.
+
+## Amendment 2026-09-04 — `/search` degrades to books instead of refusing
+
+`GET /search` is no longer gated on the embeddings feature. Without an embedding
+provider it answers 200 with the books matched by title and author and three
+empty ranked groups, so the app bar's search box is offered on every server and
+a reader can always find a book by typing its name. `/semantic/related` and
+`/semantic/backfill` keep the 403 gate: they have no half that works without
+vectors.
+
+The branch lives in `GlobalSearchUseCase`, not in the router. Deciding what a
+read answers is the use case's job, and only it knows that the book matches come
+from a different query than the ranked groups; the router would have had to
+assemble a second response shape to make the same call. The use case reads
+`is_embeddings_enabled()` from `src.feature_flags` directly, as
+`RegisterUserUseCase` reads `is_user_registrations_enabled()` — the application
+layer is deliberately allowed that, and injecting the flag through the container
+would buy testability the flag patch already provides.
+
+The response schema is unchanged: a caller distinguishes the two modes by the
+groups being empty, or by reading `feature_flags.embeddings` from `/settings`,
+which the frontend already does. Nothing new in the body says "embeddings are
+off", because nothing needs to — an empty group means "nothing to say about this
+query" in both modes.
+
+`MAX_BOOK_MATCHES` stays 5 whether or not the ranked half ran. One cap in both
+modes; typing more of the title is what narrows an over-long list.
+
+On the frontend the gate moves from `ContentSearchField` out to its callers.
+`GlobalSearch` renders unconditionally and passes `requiresEmbeddings: false` to
+`useContentSearch`; the Notes and Structure fields wrap themselves in
+`EmbeddingFeature` and keep the hook's default. That default is what stops a
+book tab filtering on a query the reader cannot see: those tabs keep `search` in
+the URL, so a shared `?search=` link would otherwise empty a list whose input
+the flag has hidden.
+
+The MCP `search_library` tool drops its 403 branch; `find_related` keeps one.
