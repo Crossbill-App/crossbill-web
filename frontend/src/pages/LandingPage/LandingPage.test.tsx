@@ -83,16 +83,28 @@ test('the numbers beside the grid say what the year adds up to', async () => {
   await expect.element(screen.getByText('42')).toBeVisible();
 });
 
-test('a reader with nothing on the grid is shown no grid', async () => {
+test('a reader with nothing on the grid is shown the year empty', async () => {
   worker.use(...libraryApi([], [aBookCard({ title: 'Emma' })]));
 
   const screen = await renderApp({ path: '/' });
 
-  // Polled rather than read once: the section is on screen with its spinner
-  // until the request answers, and only then takes itself off.
-  await expect
-    .element(screen.getByRole('heading', { name: 'Reading activity' }))
-    .not.toBeInTheDocument();
+  await expect.element(screen.getByText(/^No reading recorded yet\./)).toBeVisible();
+
+  // A year of uncoloured squares rather than no grid: the section says what
+  // will fill it instead of leaving a heading out of the dashboard.
+  expect(screen.getByRole('img', { name: /^Nothing read on / }).elements()).toHaveLength(365);
+});
+
+test('an empty grid counts nothing beside it', async () => {
+  worker.use(...libraryApi([], [aBookCard({ title: 'Emma' })]));
+
+  const screen = await renderApp({ path: '/' });
+
+  await expect.element(screen.getByRole('heading', { name: 'Reading activity' })).toBeVisible();
+  // The numbers wait until there is something to count; a row of zeroes is
+  // not what a new reader should meet first.
+  expect(screen.getByText('Days read').elements()).toHaveLength(0);
+  expect(screen.getByText('Current streak').elements()).toHaveLength(0);
 });
 
 test('the capture feed cuts the newest highlights and notes into days', async () => {
@@ -169,12 +181,26 @@ test("a note's body is read as the markdown it is", async () => {
   expect(emphasised.element().tagName).toBe('STRONG');
 });
 
-test('a reader who has captured nothing is shown no feed', async () => {
+test('a reader who has captured nothing is told what will fill the feed', async () => {
   worker.use(...aFeedOf([]));
 
   const screen = await renderApp({ path: '/' });
 
   await expect
     .element(screen.getByRole('heading', { name: 'Recent highlights and notes' }))
-    .not.toBeInTheDocument();
+    .toBeVisible();
+  await expect.element(screen.getByText(/^No highlights or notes yet\./)).toBeVisible();
+});
+
+test('a first-time reader gets every section, each saying what will fill it', async () => {
+  worker.use(...libraryApi([], []));
+
+  const screen = await renderApp({ path: '/' });
+
+  await expect.element(screen.getByText(/^No books yet\./)).toBeVisible();
+  await expect.element(screen.getByText(/^No reading recorded yet\./)).toBeVisible();
+  await expect.element(screen.getByText(/^No highlights or notes yet\./)).toBeVisible();
+  for (const section of ['Recent books', 'Reading activity', 'Recent highlights and notes']) {
+    await expect.element(screen.getByRole('heading', { name: section })).toBeVisible();
+  }
 });

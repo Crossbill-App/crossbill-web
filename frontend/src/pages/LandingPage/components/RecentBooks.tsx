@@ -3,6 +3,7 @@ import { Spinner } from '@/components/animations/Spinner.tsx';
 import { BOOK_CARD_WIDTH, BookCard } from '@/components/books/BookCard.tsx';
 import { Carousel } from '@/components/carousel/Carousel.tsx';
 import { CarouselItem } from '@/components/carousel/CarouselItem.tsx';
+import { EmptyStateText } from '@/components/EmptyStateText.tsx';
 import { PAGE_GUTTER } from '@/components/layout/Layouts.tsx';
 import { SectionTitle } from '@/components/typography/SectionTitle.tsx';
 import { Alert, Box } from '@mui/material';
@@ -29,15 +30,14 @@ export const RECENT_ROW_WIDTH =
  * The landing page's row of covers for books the user last opened, or last
  * synced from an e-reader. One row rather than two: the same handful of books
  * tends to be both, and showing them twice said nothing extra.
+ *
+ * A reader with no books keeps the section and is told what fills it, rather
+ * than meeting a dashboard with a heading missing from it.
  */
 export const RecentBooks = () => {
   const { data, isLoading, isError } = useGetRecentBooks({ limit: RECENT_BOOKS_LIMIT });
   const books = data?.items;
-
-  // Don't render the section at all when the query came back with no books
-  if (!isLoading && !isError && (!books || books.length === 0)) {
-    return null;
-  }
+  const empty = !isLoading && !isError && !books?.length;
 
   return (
     <Box sx={{ mb: 6 }}>
@@ -49,6 +49,12 @@ export const RecentBooks = () => {
         <Box sx={{ py: 3 }}>
           <Alert severity="error">Failed to load recent books.</Alert>
         </Box>
+      )}
+
+      {empty && (
+        <EmptyStateText>
+          No books yet. Upload highlights from your e-reader to get started.
+        </EmptyStateText>
       )}
 
       {books && books.length > 0 && (

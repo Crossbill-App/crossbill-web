@@ -1,6 +1,7 @@
 import type { LibraryActivity, LibraryStats } from '@/api/generated/model';
 import { useGetLibraryReadingActivity } from '@/api/generated/statistics/statistics';
 import { Spinner } from '@/components/animations/Spinner.tsx';
+import { EmptyStateText } from '@/components/EmptyStateText.tsx';
 import { ReadingActivityGrid } from '@/components/reading/ReadingActivityGrid.tsx';
 import { Stat, type StatProps } from '@/components/reading/Stat.tsx';
 import { SectionTitle } from '@/components/typography/SectionTitle.tsx';
@@ -68,8 +69,10 @@ const summary = (stats: LibraryStats): StatProps[] => [
 ];
 
 /**
- * The dashboard's year of reading. Not drawn at all for a reader with nothing
- * on the grid: a blank year is worse than no year, and they would meet it first.
+ * The dashboard's year of reading. A reader with nothing on the grid still gets
+ * the grid, empty, with a line saying what will colour it: a blank year reads
+ * as a year yet to be filled, where a missing section reads as a missing page.
+ * The numbers wait until there is something to count.
  */
 export const ReadingActivity = () => {
   const { data, isLoading, isError } = useGetLibraryReadingActivity({ tz: browserTimeZone() });
@@ -78,9 +81,7 @@ export const ReadingActivity = () => {
   const read = useMemo(() => booksByDay(activity), [activity]);
   const roomy = useMediaQuery(`(min-width: ${ROOMY_VIEWPORT}px)`);
 
-  if (!isLoading && !isError && !activity) {
-    return null;
-  }
+  const empty = !isLoading && !isError && !activity;
 
   return (
     <Box sx={{ mb: 6 }}>
@@ -92,6 +93,18 @@ export const ReadingActivity = () => {
         <Box sx={{ py: 3 }}>
           <Alert severity="error">Failed to load reading activity.</Alert>
         </Box>
+      )}
+
+      {empty && (
+        <>
+          <EmptyStateText>
+            No reading recorded yet. Your reading days fill in here once you sync your e-reader.
+          </EmptyStateText>
+
+          <Box sx={{ mt: 3, maxWidth: { lg: `${RECENT_ROW_WIDTH}px` } }}>
+            <ReadingActivityGrid activity={null} blockSize={roomy ? ROOMY_BLOCK_SIZE : undefined} />
+          </Box>
+        </>
       )}
 
       {activity && (
