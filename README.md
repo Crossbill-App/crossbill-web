@@ -21,15 +21,39 @@ Syncs data from e-readers using Koreader.
 - Create AI summaries from epub book chapters for review and skimming. Ollama, OpenAI, Anthropic and Gemini supported.
 - Create notes and link them to the highlights, chapters etc.
 - Semantic search over highlights, notes and chapter summaries - find them by meaning instead of exact words, across books and languages. Optional, requires an embedding provider (Ollama or OpenRouter).
+- Browse a book by its own chapter structure and track what you have read chapter by chapter
+- Reading statistics from the sessions KOReader syncs - streaks, days read and total time read
 - Supporting features to reflect on the books you have read
 - Self-hosted - your data stays on your server
 - Multi-user support
 
 ## Screenshots
 
-<img width="250" alt="image" src="https://github.com/user-attachments/assets/262ba290-ed79-47ff-a8b3-aa6b3f3b59a3" />
-<img width="250" alt="image" src="https://github.com/user-attachments/assets/397be7cd-541d-49be-975b-d5db3caab2c3" />
-<img width="250" alt="image" src="https://github.com/user-attachments/assets/de548aa4-c721-4ff7-b008-3c6aa8de0bdd" />
+<p align="center">
+  <img alt="Crossbill's home page: a row of recent book covers, a year of reading activity drawn as a heat map, and a timeline of the newest highlights and notes." src="site/src/assets/screenshots/landing-page.png" />
+  <br />
+  <em>Home &mdash; what you are reading now, a year of reading activity, and the highlights and notes you added most recently.</em>
+</p>
+
+<table>
+  <tr>
+    <td width="33%" valign="top">
+      <a href="site/src/assets/screenshots/highlights-page.png"><img alt="A book's highlights page: highlights grouped under their chapter headings, each with a date, page number and tag, with tag groups in the left sidebar and a chapter list on the right." src="site/src/assets/screenshots/highlights-page.png" /></a>
+      <br />
+      <em>Every highlight from a book, grouped by chapter and filterable by tag, date or highlight style.</em>
+    </td>
+    <td width="33%" valign="top">
+      <a href="site/src/assets/screenshots/structure-page.png"><img alt="A book's structure page: the table of contents as a nested tree, each chapter marked read, reading or unread, with a one-line gist and counts of its highlights and notes." src="site/src/assets/screenshots/structure-page.png" /></a>
+      <br />
+      <em>The book's structure &mdash; what you have read, a one-line gist per chapter, and what you attached to each.</em>
+    </td>
+    <td width="33%" valign="top">
+      <a href="site/src/assets/screenshots/chapter-details.png"><img alt="A chapter dialog: a gist, a generated chapter summary with key points, and comprehension questions with the reader's own written answers below each." src="site/src/assets/screenshots/chapter-details.png" /></a>
+      <br />
+      <em>A chapter digest &mdash; summary, key points and questions to think about, with room to answer them.</em>
+    </td>
+  </tr>
+</table>
 
 ## Overview of software components
 

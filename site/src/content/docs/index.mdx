@@ -18,6 +18,22 @@ hero:
 ---
 
 import { Card, CardGrid, LinkCard } from '@astrojs/starlight/components';
+import { Image } from 'astro:assets';
+import landingPage from '../../assets/screenshots/landing-page.png';
+import highlightsPage from '../../assets/screenshots/highlights-page.png';
+import structurePage from '../../assets/screenshots/structure-page.png';
+import chapterDetails from '../../assets/screenshots/chapter-details.png';
+
+<figure class="screenshot screenshot--lead">
+	<Image
+		src={landingPage}
+		alt="Crossbill's home page: a row of recent book covers, a year of reading activity drawn as a heat map, and a timeline of the newest highlights and notes."
+	/>
+	<figcaption>
+		Home — what you are reading now, a year of reading activity, and the
+		highlights and notes you added most recently.
+	</figcaption>
+</figure>
 
 ## What it does
 
@@ -56,6 +72,41 @@ import { Card, CardGrid, LinkCard } from '@astrojs/starlight/components';
 
 Crossbill is **self-hosted and multi-user** — every book, highlight and note
 belongs to one account on your own server, and your reading stays there.
+
+## A closer look
+
+<figure class="screenshot">
+	<Image
+		src={highlightsPage}
+		alt="A book's highlights page: highlights grouped under their chapter headings, each with a date, page number and tag, with tag groups in the left sidebar and a chapter list on the right."
+	/>
+	<figcaption>
+		Every highlight from a book, grouped by chapter and filterable by tag, date
+		or highlight style. Search within the book, or jump straight to a chapter.
+	</figcaption>
+</figure>
+
+<figure class="screenshot">
+	<Image
+		src={structurePage}
+		alt="A book's structure page: the table of contents as a nested tree, each chapter marked read, reading or unread, with a one-line gist and counts of its highlights and notes."
+	/>
+	<figcaption>
+		The book's structure — its real table of contents, with what you have read,
+		a one-line gist per chapter and the highlights and notes attached to each.
+	</figcaption>
+</figure>
+
+<figure class="screenshot">
+	<Image
+		src={chapterDetails}
+		alt="A chapter dialog: a gist, a generated chapter summary with key points, and comprehension questions with the reader's own written answers below each."
+	/>
+	<figcaption>
+		Open a chapter for its digest — summary, key points and questions to think
+		about while reading, with room to answer them in your own words.
+	</figcaption>
+</figure>
 
 ## The ecosystem
 

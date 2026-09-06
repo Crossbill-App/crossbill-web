@@ -233,3 +233,32 @@ dialog#starlight__search {
 	font-style: italic;
 	color: var(--sl-color-gray-3);
 }
+
+/* --- Screenshots -------------------------------------------------------- */
+
+.screenshot {
+	margin: 2.5rem auto;
+	text-align: center;
+}
+
+.screenshot img {
+	border: 1px solid var(--crossbill-surface-border);
+	border-radius: var(--crossbill-radius-card);
+	box-shadow: var(--crossbill-shadow-lg);
+	height: auto;
+	width: 100%;
+}
+
+.screenshot figcaption {
+	color: var(--sl-color-gray-3);
+	font-size: var(--sl-text-sm);
+	font-style: italic;
+	line-height: 1.6;
+	margin-inline: auto;
+	margin-top: 0.75rem;
+	max-width: 42rem;
+}
+
+.screenshot--lead {
+	margin-top: 1rem;
+}
