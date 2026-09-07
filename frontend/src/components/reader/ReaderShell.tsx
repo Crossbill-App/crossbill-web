@@ -1,3 +1,4 @@
+import { CHROME_MARKER } from '@/components/reader/chromeMarker.ts';
 import { HIGHLIGHT_DECORATION_GROUP } from '@/components/reader/decorations.ts';
 import { ReaderChrome } from '@/components/reader/ReaderChrome.tsx';
 import {
@@ -29,6 +30,16 @@ const DEFAULT_FONT_SIZE_BOUNDS: { range: [number, number]; step: number } = {
   range: [0.7, 4],
   step: 0.05,
 };
+
+/**
+ * How long a book gets to appear before the wait is called a failure.
+ *
+ * Generous, because it has to cover a large publication over a slow link on a
+ * cold server-side cache: the cost of being wrong here is a reader told to try
+ * again for a book that was about to render, which is worse than the extra
+ * wait.
+ */
+const BOOT_TIMEOUT_MS = 30_000;
 
 interface ReaderShellProps {
   bookId: number;
@@ -87,6 +98,10 @@ export const ReaderShell = ({ bookId, title, onClose }: ReaderShellProps) => {
   const [isPageVisible, setIsPageVisible] = useState(false);
   const [locator, setLocator] = useState<Locator | null>(null);
   const [isTocOpen, setIsTocOpen] = useState(false);
+  const [bootFailed, setBootFailed] = useState(false);
+  // Bumped to ask for the whole navigator again, which is the only meaningful
+  // retry: a half-built one has frames and blobs that have to go first.
+  const [bootAttempt, setBootAttempt] = useState(0);
   const [preferences, setPreferences] = useState<ReaderPreferences>(DEFAULT_READER_PREFERENCES);
   // Copied out of the navigator's own `EpubPreferencesEditor` once it exists,
   // rather than read off the instance while rendering: the editor is a live
@@ -101,8 +116,19 @@ export const ReaderShell = ({ bookId, title, onClose }: ReaderShellProps) => {
   // life without the navigator having to be rebuilt.
   const handleKeyDown = useCallback(
     (event: KeyboardEvent) => {
+      if (event.key !== 'ArrowRight' && event.key !== 'ArrowLeft') return;
+      // An arrow key belongs to whatever control is using it. On the font-size
+      // slider it is a font size, in the contents list it is the next chapter;
+      // it is only a page turn when the book itself has the keyboard. Chrome
+      // marks itself rather than being enumerated here, because the drawer and
+      // the popover are portalled out of this tree and a DOM ancestor check is
+      // the one test that still finds them. Events from inside a publication
+      // frame arrive from another document, where this matches nothing.
+      const target = event.target;
+      if (target instanceof Element && target.closest(`[${CHROME_MARKER}]`)) return;
+
       if (event.key === 'ArrowRight') goForward();
-      if (event.key === 'ArrowLeft') goBackward();
+      else goBackward();
     },
     [goForward, goBackward]
   );
@@ -201,17 +227,35 @@ export const ReaderShell = ({ bookId, title, onClose }: ReaderShellProps) => {
       const fontSize = epubNavigator.preferencesEditor.fontSize;
       setFontSizeBounds({ range: fontSize.supportedRange, step: fontSize.step });
       setLocator(epubNavigator.currentLocator);
+      clearTimeout(watchdog);
+    });
+
+    // A book that never arrives is indistinguishable, on screen, from one still
+    // arriving: the skeleton looks the same either way. The watchdog is what
+    // turns a load that has silently stopped — a hung fetch, a frame that never
+    // fires — into something the reader can see and act on.
+    const watchdog = setTimeout(() => {
+      if (!isStale()) setBootFailed(true);
+    }, BOOT_TIMEOUT_MS);
+
+    boot.catch(() => {
+      if (!isStale()) setBootFailed(true);
     });
 
     bootRef.current = boot.catch(() => undefined);
 
     return () => {
       teardown.abort();
+      clearTimeout(watchdog);
       setIsPageVisible(false);
       navigatorRef.current = null;
       // Chained rather than immediate: destroying a navigator that is still
-      // loading leaves its frames behind in the container.
+      // loading leaves its frames behind in the container. The `catch` comes
+      // first so that teardown runs after a boot that *failed* too — chaining
+      // it off `then` alone leaked a whole navigator, frames and blobs
+      // included, every time a load went wrong and the reader tried again.
       bootRef.current = boot
+        .catch(() => undefined)
         .then(() => epubNavigator?.destroy())
         .then(() => container?.remove())
         .catch(() => undefined);
@@ -220,7 +264,7 @@ export const ReaderShell = ({ bookId, title, onClose }: ReaderShellProps) => {
     // submitted to the live one below. Listing it would rebuild the reader,
     // and the book would jump back to page one on every font-size nudge.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isReady, publication, positions, theme, handleKeyDown]);
+  }, [isReady, publication, positions, theme, handleKeyDown, bootAttempt]);
 
   useEffect(() => {
     if (!isPageVisible) return;
@@ -256,6 +300,20 @@ export const ReaderShell = ({ bookId, title, onClose }: ReaderShellProps) => {
     return (
       <ReaderMessage onClose={onClose}>
         The reader could not start a session for this book. Please try again later.
+      </ReaderMessage>
+    );
+  }
+
+  if (bootFailed) {
+    return (
+      <ReaderMessage
+        onClose={onClose}
+        onRetry={() => {
+          setBootFailed(false);
+          setBootAttempt((attempt) => attempt + 1);
+        }}
+      >
+        This book could not be opened in the reader.
       </ReaderMessage>
     );
   }
@@ -362,10 +420,12 @@ const PageTurnButton = ({ edge, onClick }: PageTurnButtonProps) => (
 interface ReaderMessageProps {
   children: string;
   onClose: () => void;
+  /** Offered only where trying again could plausibly work. */
+  onRetry?: () => void;
 }
 
 /** The whole-viewport stand-in for a book that cannot be read. */
-const ReaderMessage = ({ children, onClose }: ReaderMessageProps) => (
+const ReaderMessage = ({ children, onClose, onRetry }: ReaderMessageProps) => (
   <Box
     sx={{
       position: 'fixed',
@@ -382,9 +442,16 @@ const ReaderMessage = ({ children, onClose }: ReaderMessageProps) => (
       <Typography variant="body1" sx={{ color: 'text.secondary' }}>
         {children}
       </Typography>
-      <Button variant="outlined" onClick={onClose}>
-        Back to book
-      </Button>
+      <Stack direction="row" spacing={2}>
+        <Button variant="outlined" onClick={onClose}>
+          Back to book
+        </Button>
+        {onRetry && (
+          <Button variant="contained" onClick={onRetry}>
+            Try again
+          </Button>
+        )}
+      </Stack>
     </Stack>
   </Box>
 );

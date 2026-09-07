@@ -1,3 +1,4 @@
+import { chromeMarkerProps } from '@/components/reader/chromeMarker.ts';
 import {
   READER_THEMES,
   READER_THEME_LABELS,
@@ -50,7 +51,7 @@ export const ReaderSettings = ({
     transformOrigin={{ vertical: 'top', horizontal: 'right' }}
     slotProps={{ paper: { sx: { p: 2.5, width: 280 } } }}
   >
-    <Stack spacing={3}>
+    <Stack spacing={3} {...chromeMarkerProps}>
       <Box>
         <Typography variant="h6" component="h2" gutterBottom>
           Font size

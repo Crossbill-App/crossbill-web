@@ -1,3 +1,4 @@
+import { chromeMarkerProps } from '@/components/reader/chromeMarker.ts';
 import { CloseIcon } from '@/theme/Icons.tsx';
 import { ICON_SIZE } from '@/theme/iconSizes.ts';
 import {
@@ -69,7 +70,12 @@ const TocEntries = ({ entries, depth, onSelect }: TocEntriesProps) => (
  */
 export const TocDrawer = ({ open, onClose, toc, onSelect }: TocDrawerProps) => (
   <Drawer anchor="left" open={open} onClose={onClose}>
-    <Box sx={{ width: { xs: 280, sm: 340 } }} role="navigation" aria-label="Table of contents">
+    <Box
+      {...chromeMarkerProps}
+      sx={{ width: { xs: 280, sm: 340 } }}
+      role="navigation"
+      aria-label="Table of contents"
+    >
       <Stack
         direction="row"
         sx={{ alignItems: 'center', justifyContent: 'space-between', p: 2, pb: 1 }}

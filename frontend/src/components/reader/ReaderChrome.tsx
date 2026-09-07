@@ -1,3 +1,4 @@
+import { chromeMarkerProps } from '@/components/reader/chromeMarker.ts';
 import type { ReaderPreferences } from '@/components/reader/readerPreferences.ts';
 import { ReaderSettings } from '@/components/reader/ReaderSettings.tsx';
 import { ChapterListIcon, CloseIcon, PaletteIcon } from '@/theme/Icons.tsx';
@@ -40,6 +41,7 @@ export const ReaderChrome = ({
   return (
     <Box
       component="header"
+      {...chromeMarkerProps}
       sx={{
         flex: '0 0 auto',
         borderBottom: 1,
