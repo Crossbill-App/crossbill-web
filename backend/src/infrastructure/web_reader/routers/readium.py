@@ -1,6 +1,7 @@
 """API router serving the Readium Web Publication Manifest and the files it names."""
 
 import re
+from typing import Annotated
 
 from fastapi import APIRouter, Depends, Request, Response
 from fastapi.responses import JSONResponse
@@ -22,8 +23,14 @@ from src.application.web_reader.queries.get_web_publication_use_case import (
 )
 from src.application.web_reader.queries.publication_positions import PublicationPosition
 from src.application.web_reader.queries.publication_resource import ANY_VERSION
+from src.application.web_reader.queries.verify_publication_access_use_case import (
+    VerifyPublicationAccessUseCase,
+)
+from src.config import get_settings
 from src.core import container
+from src.domain.identity.entities.user import User
 from src.infrastructure.common.di import inject_use_case
+from src.infrastructure.identity import get_current_user
 from src.infrastructure.web_reader.dependencies import PublicationReader
 from src.infrastructure.web_reader.schemas.readium_schemas import (
     POSITION_LIST_MEDIA_TYPE,
@@ -37,8 +44,15 @@ from src.infrastructure.web_reader.schemas.readium_schemas import (
     ReadiumProperties,
     WebPublicationManifest,
 )
+from src.infrastructure.web_reader.schemas.session_schemas import PublicationSession
+from src.infrastructure.web_reader.services.publication_token_service import (
+    PUBLICATION_COOKIE_NAME,
+    PUBLICATION_TOKEN_EXPIRE_MINUTES,
+    create_publication_token,
+)
 
 router = APIRouter(prefix="/readium", tags=["readium"])
+settings = get_settings()
 
 # Every href in the manifest is relative to the manifest's own URL, so a reader
 # that has resolved `/readium/books/7/manifest.json` reaches a resource at
@@ -66,6 +80,11 @@ FALLBACK_MEDIA_TYPE = "application/octet-stream"
 _ENTITY_TAG = re.compile(r'(?:W/)?"(?P<version>[\x21\x23-\x7e]*)"')
 
 
+# How long a browser keeps the cookie: exactly as long as the token inside it is
+# good for, so an expired credential is dropped rather than sent and refused.
+PUBLICATION_COOKIE_MAX_AGE = PUBLICATION_TOKEN_EXPIRE_MINUTES * 60
+
+
 class WebpubJSONResponse(JSONResponse):
     """JSON served as ``application/webpub+json``, which is what a navigator looks for."""
 
@@ -76,6 +95,69 @@ class PositionListJSONResponse(JSONResponse):
     """JSON served under the media type Readium registers for a position list."""
 
     media_type = POSITION_LIST_MEDIA_TYPE
+
+
+def publication_cookie_path(book_id: int) -> str:
+    """The path a book's publication cookie is scoped to.
+
+    One book, and the trailing slash matters: a browser sends a cookie to paths
+    under its own, so this one reaches this book's manifest, resources and
+    position list, and reaches neither another book's nor the rest of the API.
+    """
+    return f"{settings.API_V1_PREFIX}/readium/books/{book_id}/"
+
+
+def set_publication_cookie(response: Response, book_id: int, token: str) -> None:
+    """Set a book's publication token as an httpOnly cookie.
+
+    The flags are the refresh cookie's, for the same reasons: ``httpOnly`` so
+    that no script -- ours or an injected one -- can read a credential out of
+    the page; ``Secure`` unless the deployment says otherwise
+    (``COOKIE_SECURE``), which is what lets a plain-http development server
+    work; ``SameSite=Strict`` because the reader and the API are the same site,
+    so the navigator's own iframe loads carry it while nothing off-site can
+    make a browser spend it.
+    """
+    response.set_cookie(
+        key=PUBLICATION_COOKIE_NAME,
+        value=token,
+        httponly=True,
+        secure=settings.COOKIE_SECURE,
+        samesite="strict",
+        path=publication_cookie_path(book_id),
+        max_age=PUBLICATION_COOKIE_MAX_AGE,
+    )
+
+
+@router.post(
+    "/books/{book_id}/session",
+    response_model=PublicationSession,
+    status_code=status.HTTP_200_OK,
+)
+async def start_publication_session(
+    book_id: int,
+    response: Response,
+    current_user: Annotated[User, Depends(get_current_user)],
+    use_case: VerifyPublicationAccessUseCase = Depends(
+        inject_use_case(container.web_reader.verify_publication_access_use_case)
+    ),
+) -> PublicationSession:
+    """Hand the browser a cookie that lets it load this book's resources.
+
+    Bearer-authenticated, deliberately: this is the one route that mints the
+    second credential, so possession of an access token is what buys it, and a
+    publication cookie can never extend itself.
+
+    It answers 200 with a body rather than 204. The cookie is ``httpOnly``, so
+    the page cannot read when it expires, and it has to know: the reader
+    re-posts here before the cookie dies, the way it already refreshes its
+    access token. ``expires_in`` in seconds is what the token endpoints call
+    that same number.
+    """
+    await use_case.verify_publication_access(book_id=book_id, user_id=current_user.id.value)
+    token = create_publication_token(user_id=current_user.id.value, book_id=book_id)
+    set_publication_cookie(response, book_id, token)
+    return PublicationSession(expires_in=PUBLICATION_COOKIE_MAX_AGE)
 
 
 @router.get(
