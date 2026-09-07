@@ -1,0 +1,130 @@
+{
+    "reader": {
+        "app": {
+            "loading": "Ładowanie",
+            "publicationWrapper": "Jesteś teraz w publikacji.",
+            "docking": {
+                "dockingLeft": "Panel zadokowany po lewej",
+                "dockingRight": "Panel zadokowany po prawej",
+                "dockingEmpty": "Aktualnie pusty",
+                "dockingClosed": "Jest zamknięty, zawiera {{ action }}",
+                "dockingCollapsed": "Jest zwinięty, zawiera {{ action }}"
+            },
+            "header": {
+                "label": "Górny pasek",
+                "runningHead": "Bieżący nagłówek",
+                "actions": "Akcje",
+                "backLink": {
+                    "trigger": "Wróć do biblioteki",
+                    "tooltip": "Biblioteka"
+                }
+            },
+            "footer": {
+                "label": "Dolny pasek"
+            },
+            "progression": {
+                "wrapper": "Aktualny postęp",
+                "referenceFallback": "bieżący rozdział",
+                "pubFallback": "publikacja"
+            },
+            "docker": {
+                "wrapper": "Opcje dokowania",
+                "dockToLeft": {
+                    "trigger": "Zadokuj po lewej stronie",
+                    "tooltip": "Dokuj po lewej stronie"
+                },
+                "dockToRight": {
+                    "trigger": "Zadokuj po prawej stronie",
+                    "tooltip": "Dokuj po prawej stronie"
+                },
+                "popover": {
+                    "trigger": "Wyświetl w oknie",
+                    "tooltip": "Wyskakujące okno"
+                },
+                "fullscreen": {
+                    "trigger": "Wyświetlaj zawartość",
+                    "tooltip": "Nakładka"
+                }
+            },
+            "back": {
+                "trigger": "Wróć"
+            },
+            "printingDisabled": "Drukowanie zostało wyłączone",
+            "errors": {
+                "title": "Błąd",
+                "notFound": "Publikacja nie została znaleziona.",
+                "accessDenied": "Odmowa dostępu.",
+                "network": "Serwer niedostępny – spróbuj ponownie później.",
+                "serverError": "Błąd serwera – spróbuj ponownie później.",
+                "clientError": "Nieprawidłowe żądanie.",
+                "generic": "Nie można załadować publikacji."
+            }
+        },
+        "navigation": {
+            "scroll": {
+                "wrapper": "Nawiguj przez publikację"
+            }
+        },
+        "fullscreen": {
+            "tooltip": "Pełny ekran",
+            "trigger": "Przełącz w tryb pełnoekranowy",
+            "close": "Wyjdź z trybu pełnoekranowego"
+        },
+        "toc": {
+            "entries": "Pozycje w spisie treści"
+        },
+        "jumpToPosition": {
+            "go": "Idź",
+            "label": "Wybierz pozycję od {{ positionStart }} do {{ positionEnd }}:",
+            "error": {
+                "notFound": "Pozycja nie została znaleziona."
+            }
+        },
+        "overflowMenu": {
+            "active": {
+                "tooltip": "Więcej akcji",
+                "trigger": "Przełącz menu"
+            },
+            "hint": {
+                "tooltip": "Przełącz akcje",
+                "trigger": "Wyświetl akcje"
+            }
+        },
+        "settings": {
+            "text": {
+                "advanced": {
+                    "tooltip": "Więcej opcji",
+                    "trigger": "Więcej opcji formatowania"
+                }
+            },
+            "spacing": {
+                "advanced": {
+                    "tooltip": "Więcej opcji",
+                    "trigger": "Więcej opcji odstępów"
+                }
+            }
+        }
+    },
+    "audio": {
+        "player": {
+            "progress": "Postęp odtwarzania",
+            "controls": "Sterowanie odtwarzaniem",
+            "mediaControls": "Ustawienia audio",
+            "coverAlt": "Okładka audiobook-a"
+        },
+        "remotePlayback": {
+            "trigger": "Zdalne odtwarzanie",
+            "connected": "Połączono zdalnie"
+        },
+        "settings": {
+            "sleepTimer": {
+                "hours": "g",
+                "minutes": "min",
+                "seconds": "s",
+                "start": "Start",
+                "instruction": "Odtwarzanie zostanie wstrzymane po upływie ustawionego czasu.",
+                "remaining": "Wstrzymanie za {{ remaining }}"
+            }
+        }
+    }
+}

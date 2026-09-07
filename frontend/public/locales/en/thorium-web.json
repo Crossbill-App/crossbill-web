@@ -1,0 +1,129 @@
+{
+  "reader": {
+    "app": {
+      "loading": "Loading",
+      "printingDisabled": "Printing has been disabled",
+      "publicationWrapper": "You're now in the publication.",
+      "errors": {
+        "title": "Error",
+        "notFound": "Publication not found.",
+        "accessDenied": "Access denied.",
+        "network": "Server unavailable - please try again later.",
+        "serverError": "Server error - please try again later.",
+        "clientError": "Invalid request.",
+        "generic": "Unable to load publication."
+      },
+      "docking": {
+        "dockingLeft": "Docked panel left",
+        "dockingRight": "Docked panel right",
+        "dockingEmpty": "Currently empty",
+        "dockingClosed": "Is closed, contains {{ action }}"
+      },
+      "header": {
+        "backLink": {
+          "trigger": "Back to the library",
+          "tooltip": "Library"
+        },
+        "label": "Top bar",
+        "runningHead": "Running head",
+        "actions": "Actions"
+      },
+      "footer": {
+        "label": "Bottom bar"
+      },
+      "progression": {
+        "wrapper": "Current progression",
+        "referenceFallback": "current chapter",
+        "pubFallback": "the publication"
+      },
+      "docker": {
+        "wrapper": "Docking options",
+        "dockToLeft": {
+          "trigger": "Dock to the left",
+          "tooltip": "Dock left"
+        },
+        "dockToRight": {
+          "trigger": "Dock to the right",
+          "tooltip": "Dock Right"
+        },
+        "popover": {
+          "trigger": "Display in a window",
+          "tooltip": "Pop over"
+        },
+        "fullscreen": {
+          "trigger": "Display over contents",
+          "tooltip": "Overlay"
+        }
+      },
+      "back": {
+        "trigger": "Back"
+      }
+    },
+    "navigation": {
+      "scroll": {
+        "wrapper": "Navigate through the publication"
+      }
+    },
+    "fullscreen": {
+      "tooltip": "Fullscreen",
+      "trigger": "Toggle fullscreen mode",
+      "close": "Exit fullscreen mode"
+    },
+    "toc": {
+      "entries": "Entries in the table"
+    },
+    "jumpToPosition": {
+      "go": "Go",
+      "label": "Select a position from {{ positionStart }} to {{ positionEnd }}:",
+      "error": {
+        "notFound": "Position not found."
+      }
+    },
+    "overflowMenu": {
+      "active": {
+        "tooltip": "More actions",
+        "trigger": "Toggle menu"
+      },
+      "hint": {
+        "tooltip": "Toggle actions",
+        "trigger": "Display actions"
+      }
+    },
+    "settings": {
+      "text": {
+        "advanced": {
+          "tooltip": "More options",
+          "trigger": "More formatting options"
+        }
+      },
+      "spacing": {
+        "advanced": {
+          "tooltip": "More options",
+          "trigger": "More spacing options"
+        }
+      }
+    }
+  },
+  "audio": {
+    "player": {
+      "progress": "Playback progress",
+      "controls": "Playback controls",
+      "mediaControls": "Audio settings",
+      "coverAlt": "Audiobook cover"
+    },
+    "remotePlayback": {
+      "trigger": "Remote Playback",
+      "connected": "Remote connected"
+    },
+    "settings": {
+      "sleepTimer": {
+        "hours": "h",
+        "minutes": "min",
+        "seconds": "s",
+        "start": "Start",
+        "instruction": "Playback will pause after the set duration.",
+        "remaining": "Pausing in {{ remaining }}"
+      }
+    }
+  }
+}

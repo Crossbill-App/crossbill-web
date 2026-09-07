@@ -1,0 +1,130 @@
+{
+    "reader": {
+        "app": {
+            "loading": "Laadin andmeid",
+            "publicationWrapper": "Oled nüüd avaldatud sisu juures.",
+            "docking": {
+                "dockingLeft": "Tegevuste ja sisu paan vasakul",
+                "dockingRight": "Tegevuste ja sisu paan paremal",
+                "dockingEmpty": "Hetkel tühi",
+                "dockingClosed": "On suletud, kuid sisaldab tegevust „{{ action }}“",
+                "dockingCollapsed": "On ahendatudud, kuid sisaldab tegevust „{{ action }}“"
+            },
+            "header": {
+                "backLink": {
+                    "trigger": "Tagasi raamatukogusse",
+                    "tooltip": "Raamatukogu"
+                },
+                "label": "Ülemine tööriistariba",
+                "runningHead": "Teose pealkiri",
+                "actions": "Tegevused"
+            },
+            "footer": {
+                "label": "Alumine tööriistariba"
+            },
+            "progression": {
+                "wrapper": "Senine edenemine",
+                "referenceFallback": "praegune peatükk",
+                "pubFallback": "avaldatu"
+            },
+            "docker": {
+                "wrapper": "Kinnitamise valikud",
+                "dockToLeft": {
+                    "trigger": "Kinnita juhtpaan vasakule",
+                    "tooltip": "Kinnita vasakule"
+                },
+                "dockToRight": {
+                    "trigger": "Kinnita juhtpaan paremale",
+                    "tooltip": "Kinnita paremale"
+                },
+                "popover": {
+                    "trigger": "Näita aknas",
+                    "tooltip": "Hüpikaken"
+                },
+                "fullscreen": {
+                    "trigger": "Näita sisu peal",
+                    "tooltip": "Ülekate"
+                }
+            },
+            "back": {
+                "trigger": "Tagasi"
+            },
+            "printingDisabled": "Printimise võimalus on lülitatud välja",
+            "errors": {
+                "title": "Viga",
+                "notFound": "Avaldatud sisu ei leidu.",
+                "accessDenied": "Ligipääs on keelatud.",
+                "network": "Teenus pole saadaval, palun proovi hiljem uuesti.",
+                "serverError": "Serveri viga, palun proovi hiljem uuesti.",
+                "clientError": "Vigane päring.",
+                "generic": "Avaldatud sisu laadimine ei õnnestu."
+            }
+        },
+        "navigation": {
+            "scroll": {
+                "wrapper": "Sirvi teost"
+            }
+        },
+        "fullscreen": {
+            "tooltip": "Täisekraanivaade",
+            "trigger": "Lülita täisekraanivaade sisse/välja",
+            "close": "Välju täisekraanivaatest"
+        },
+        "toc": {
+            "entries": "Sisukorra teave"
+        },
+        "jumpToPosition": {
+            "go": "Suundu",
+            "label": "Vali asukoht vahemikust {{ positionStart }} kuni {{ positionEnd }}:",
+            "error": {
+                "notFound": "Asukohta ei leidu."
+            }
+        },
+        "overflowMenu": {
+            "active": {
+                "tooltip": "Täiendavad tegevused",
+                "trigger": "Lülita menüü sisse/välja"
+            },
+            "hint": {
+                "tooltip": "Lülita tegevused sisse/välja",
+                "trigger": "Näita tegevusi"
+            }
+        },
+        "settings": {
+            "text": {
+                "advanced": {
+                    "tooltip": "Lisavalikud",
+                    "trigger": "Täiendavad vormindamise võimalused"
+                }
+            },
+            "spacing": {
+                "advanced": {
+                    "tooltip": "Lisavalikud",
+                    "trigger": "Täiendavad sõrendamise valikud"
+                }
+            }
+        }
+    },
+    "audio": {
+        "player": {
+            "progress": "Taasesituse edenemine",
+            "controls": "Taasesituse juhtnupud",
+            "mediaControls": "Heliseadistused",
+            "coverAlt": "Heliraamatu kaanepilt"
+        },
+        "remotePlayback": {
+            "trigger": "Taasesitus kaugseadmes",
+            "connected": "Kaugseade on ühendatud"
+        },
+        "settings": {
+            "sleepTimer": {
+                "hours": "t",
+                "minutes": "min",
+                "seconds": "sek",
+                "start": "Käivita",
+                "instruction": "Taasesitus peatub seadistatud aja möödumisel.",
+                "remaining": "Peatumiseni on jäänud {{ remaining }}"
+            }
+        }
+    }
+}

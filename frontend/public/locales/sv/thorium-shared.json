@@ -1,0 +1,360 @@
+{
+    "common": {
+        "actions": {
+            "cancel": "Avbryt",
+            "clear": "Rensa",
+            "close": "Stäng",
+            "collapse": "Minimera",
+            "collapseAll": "Minimera alla",
+            "decrease": "Minska",
+            "disable": "Inaktivera",
+            "enable": "Aktivera",
+            "exit": "Lämna",
+            "expand": "Utöka",
+            "expandAll": "Utöka alla",
+            "filter": "Filter",
+            "hide": "Dölj",
+            "hideAll": "Dölj alla",
+            "increase": "Öka",
+            "open": "Öppna",
+            "reset": "Återställ",
+            "search": "Sök",
+            "show": "Visa",
+            "showAll": "Visa alla",
+            "sortBy": "Sortera efter",
+            "toggle": "Växla"
+        }
+    },
+    "reader": {
+        "actions": {
+            "goBackward": "Gå bakåt",
+            "goForward": "Gå framåt",
+            "goToExtendedDescription": {
+                "compact": "Utökad beskrivning"
+            },
+            "goToNextChapter": {
+                "compact": "Nästa",
+                "descriptive": "Nästa kapitel"
+            },
+            "goToNextPage": {
+                "compact": "Nästa",
+                "descriptive": "Nästa sida"
+            },
+            "goToNextResource": {
+                "compact": "Nästa",
+                "descriptive": "Nästa resurs"
+            },
+            "goToNextSentence": {
+                "compact": "Nästa",
+                "descriptive": "Nästa mening"
+            },
+            "goToPosition": {
+                "compact": "Hoppa till…",
+                "descriptive": "Hoppa till position"
+            },
+            "goToPreviousChapter": {
+                "compact": "Föregående",
+                "descriptive": "Föregående kapitel"
+            },
+            "goToPreviousPage": {
+                "compact": "Föregående",
+                "descriptive": "Föregående sida"
+            },
+            "goToPreviousResource": {
+                "compact": "Föregående",
+                "descriptive": "Föregående resurs"
+            },
+            "goToPreviousSentence": {
+                "compact": "Föregående",
+                "descriptive": "Föregående mening"
+            },
+            "readAloud": {
+                "compact": "Läs högt"
+            }
+        },
+        "annotations": {
+            "actions": {
+                "editNote": {
+                    "compact": "Redigera anteckning"
+                }
+            },
+            "bookmarks": {
+                "actions": {
+                    "add": {
+                        "compact": "Lägg till bokmärke"
+                    },
+                    "delete": {
+                        "compact": "Ta bort bokmärke",
+                        "confirmation": "Är du säker på att du vill ta bort detta bokmärke?"
+                    }
+                },
+                "emptyState": {
+                    "description": "Bokmärken som du lagt till under läsning kommer att visas i den här listan.",
+                    "title": "Inga bokmärken"
+                },
+                "title": "Bokmärken"
+            },
+            "note": {
+                "title": "Anteckning"
+            },
+            "sort": {
+                "lastAdded": {
+                    "compact": "Senast tillagd"
+                },
+                "lastEdited": {
+                    "compact": "Senast redigerad"
+                },
+                "progression": {
+                    "compact": "Läsposition"
+                }
+            }
+        },
+        "playback": {
+            "actions": {
+                "pause": "Paus",
+                "play": "Spela",
+                "skipBackward": {
+                    "compact": "Hoppa tillbaka",
+                    "descriptive": "Hoppa bakåt"
+                },
+                "skipForward": {
+                    "compact": "Framåt",
+                    "descriptive": "Hoppa framåt"
+                }
+            },
+            "preferences": {
+                "audio": {
+                    "skipBackwardInterval": "Hoppa bakåt intervall",
+                    "skipForwardInterval": "Hoppa framåt intervall",
+                    "skipInterval": "Längd på hopp",
+                    "title": "Ljudinställningar",
+                    "volume": "Volym"
+                },
+                "autoPlay": {
+                    "label": "Fortsätt spela vid kapitelslut",
+                    "title": "Fortsätt spela vid kapitelslut"
+                },
+                "playbackRate": {
+                    "compact": "Hastighet",
+                    "descriptive": "Uppspelningshastighet"
+                },
+                "sleepTimer": {
+                    "compact": "Timer",
+                    "descriptive": "Sovtimer",
+                    "presets": {
+                        "endOfChapter": "Kapitlets slut",
+                        "endOfResource": "Slut på resurs"
+                    }
+                }
+            }
+        },
+        "preferences": {
+            "brightness": "Ljusstyrka",
+            "columns": {
+                "auto": "Auto",
+                "dual": {
+                    "compact": "2 kol",
+                    "descriptive": "2 kolumner"
+                },
+                "single": {
+                    "compact": "1 kol",
+                    "descriptive": "1 kolumn"
+                },
+                "title": "Kolumner"
+            },
+            "fit": {
+                "auto": {
+                    "compact": "Automatisk"
+                },
+                "page": {
+                    "compact": "Sida"
+                },
+                "title": "Anpassa",
+                "width": {
+                    "compact": "Bredd"
+                }
+            },
+            "fontFamily": {
+                "humanist": {
+                    "compact": "Humanist",
+                    "descriptive": "Humanist sans-serif"
+                },
+                "modern": {
+                    "compact": "Modern",
+                    "descriptive": "Modern serif"
+                },
+                "monospace": "Monospace",
+                "oldStyle": {
+                    "compact": "Old style",
+                    "descriptive": "Old style serif"
+                },
+                "publisher": "Utgivarens teckensnitt",
+                "sans": "Sans-serif",
+                "title": "Teckensnittsfamilj"
+            },
+            "fontSize": "Teckenstorlek",
+            "fontWeight": {
+                "bold": "Fetare",
+                "normal": "Normal",
+                "title": "Teckenvikt"
+            },
+            "hyphens": {
+                "label": "Aktivera avstavning",
+                "title": "Avstavning"
+            },
+            "layout": {
+                "paginated": "Sidindelad",
+                "scrolled": "Rullningsbar",
+                "title": "Layout"
+            },
+            "letterSpacing": "Teckenavstånd",
+            "ligatures": {
+                "label": "Aktivera ligaturer",
+                "title": "Ligaturer"
+            },
+            "lineHeight": {
+                "default": "Standard",
+                "large": "Luftigt",
+                "medium": "Balanserat",
+                "small": "Tätt",
+                "title": "Radavstånd"
+            },
+            "noRuby": {
+                "label": "Dölj ruby-annoteringar",
+                "title": "Ruby-annoteringar"
+            },
+            "offsetFirstPage": "Visa första sidan på egen hand",
+            "paragraphIndent": "Styckeindrag",
+            "paragraphSpacing": "Styckeavstånd",
+            "publisherStyles": {
+                "label": "Använd originalformat",
+                "title": "Utgivarens stilar"
+            },
+            "readingDirection": {
+                "default": {
+                    "compact": "Standard",
+                    "descriptive": "Använd orginal läsriktning"
+                },
+                "ltr": {
+                    "compact": "Höger",
+                    "descriptive": "Vänster till höger"
+                },
+                "rtl": {
+                    "compact": "Vänster",
+                    "descriptive": "Höger till vänster"
+                },
+                "title": "Läsriktning"
+            },
+            "spacing": {
+                "presets": {
+                    "accessible": "Tillgänglig",
+                    "balanced": "Balanserad",
+                    "custom": "Anpassad",
+                    "default": "Standard",
+                    "loose": "Lös",
+                    "tight": "Tät",
+                    "title": "Förinställningar"
+                },
+                "title": "Avstånd"
+            },
+            "spread": {
+                "always": {
+                    "compact": "Dubbelsidig"
+                },
+                "auto": {
+                    "compact": "Automatisk"
+                },
+                "never": {
+                    "compact": "Ensidig"
+                },
+                "title": "Spridning"
+            },
+            "text": "Text",
+            "textAlign": {
+                "default": "Standard",
+                "justify": "Justera",
+                "left": "Vänster",
+                "right": "Höger",
+                "title": "Justering"
+            },
+            "textNormalization": {
+                "label": "Ta bort all textformatering",
+                "title": "Textformatering"
+            },
+            "themes": {
+                "auto": "Auto",
+                "contrast1": "Kontrast 1",
+                "contrast2": "Kontrast 2",
+                "contrast3": "Kontrast 3",
+                "dark": "Mörkt",
+                "gray": "Grå",
+                "light": "Ljust",
+                "paper": "Papper",
+                "sepia": "Sepia",
+                "title": "Teman"
+            },
+            "title": "Visningsinställningar",
+            "wordSpacing": "Ordavstånd",
+            "zoom": "Zooma"
+        },
+        "progression": {
+            "pagesLeft": {
+                "descriptive_one": "{{ count }} sida kvar",
+                "descriptive_other": "{{ count }} sidor kvar"
+            },
+            "pagesLeftInChapter": {
+                "descriptive_one": "{{ count }} sida kvar i kapitlet",
+                "descriptive_other": "{{ count }} sidor kvar i kapitlet"
+            },
+            "pagesLeftInPublication": {
+                "descriptive_one": "{{ count }} sida kvar i publikationen",
+                "descriptive_other": "{{ count }} sidor kvar i publikationen"
+            },
+            "percentage": "{{ percentage }}%",
+            "positionsLeft": {
+                "compact_one": "{{ count }} vänster",
+                "compact_other": "{{ count }} vänster",
+                "descriptive_one": "{{ count }} position kvar",
+                "descriptive_other": "{{ count }} positioner kvar"
+            },
+            "positionsLeftInChapter": {
+                "compact_one": "{{ count }} kvar i kapitel",
+                "compact_other": "{{ count }} kvar i kapitel",
+                "descriptive_one": "{{ count }} position kvar i kapitlet",
+                "descriptive_other": "{{ count }} positioner kvar i nuvarande kapitel"
+            },
+            "positionsLeftInPublication": {
+                "compact_one": "{{ count }} kvar i publikationen",
+                "compact_other": "{{ count }} kvar i publikationen",
+                "descriptive_one": "{{ count }} position kvar i publikation",
+                "descriptive_other": "{{ count }} positioner kvar i publikationen"
+            },
+            "range": "{{ start }}–{{ end }}",
+            "xOfY": {
+                "compact": "{{ x }} av {{ y }}",
+                "descriptive": "{{ x }} av {{ y }} ({{ z }})"
+            }
+        },
+        "search": {
+            "actions": {
+                "next": {
+                    "compact": "Nästa träff"
+                },
+                "previous": {
+                    "compact": "Föregående träff"
+                }
+            },
+            "placeholder": "Sök efter nyckelord eller fraser",
+            "result_one": "{{ current }} av {{ count }} träff",
+            "result_other": "{{ current }} av {{ count }} träffar",
+            "title": "Sök"
+        },
+        "tableOfContents": {
+            "emptyState": {
+                "description": "En innehållsförteckning lämnades inte av författaren.",
+                "title": "Ingen innehållsförteckning"
+            },
+            "title": "Innehållsförteckning"
+        }
+    }
+}

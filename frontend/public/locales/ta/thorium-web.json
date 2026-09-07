@@ -1,0 +1,95 @@
+{
+    "reader": {
+        "app": {
+            "loading": "ஏற்றுகிறது",
+            "publicationWrapper": "நீங்கள் இப்போது வெளியீட்டில் இருக்கிறீர்கள்.",
+            "docking": {
+                "dockingLeft": "நறுக்கப்பட்ட குழு இடது",
+                "dockingRight": "நறுக்கப்பட்ட குழு சரி",
+                "dockingEmpty": "தற்போது காலியாக உள்ளது",
+                "dockingClosed": "மூடப்பட்டுள்ளது, {{ action }} உள்ளது",
+                "dockingCollapsed": "சரிந்தது, {{ action }} உள்ளது"
+            },
+            "header": {
+                "backLink": {
+                    "trigger": "மீண்டும் நூலகத்திற்குத் திரும்பவும்",
+                    "tooltip": "நூலகம்"
+                },
+                "label": "மேல் பட்டி",
+                "runningHead": "தலை",
+                "actions": "செயல்கள்"
+            },
+            "footer": {
+                "label": "அடிப்பகுதி"
+            },
+            "progression": {
+                "wrapper": "தற்போதைய முன்னேற்றம்",
+                "referenceFallback": "தற்போதைய அத்தியாயம்",
+                "pubFallback": "வெளியீடு"
+            },
+            "docker": {
+                "wrapper": "நறுக்குதல் விருப்பங்கள்",
+                "dockToLeft": {
+                    "trigger": "இடதுபுறத்தில் கப்பல்துறை",
+                    "tooltip": "கப்பல்துறை இடது"
+                },
+                "dockToRight": {
+                    "trigger": "வலதுபுறம் கப்பல்துறை",
+                    "tooltip": "கப்பல்துறை வலது"
+                },
+                "popover": {
+                    "trigger": "ஒரு சாளரத்தில் காண்பி",
+                    "tooltip": "பாப் ஓவர்"
+                },
+                "fullscreen": {
+                    "trigger": "உள்ளடக்கங்களுக்கு மேல் காண்பி",
+                    "tooltip": "மேலடுக்கு"
+                }
+            },
+            "back": {
+                "trigger": "பின்"
+            }
+        },
+        "navigation": {
+            "scroll": {
+                "wrapper": "வெளியீடு மூலம் செல்லவும்"
+            }
+        },
+        "fullscreen": {
+            "tooltip": "முழு திரை",
+            "trigger": "முழுத்திரை பயன்முறையை மாற்றவும்",
+            "close": "முழுத்திரை பயன்முறையிலிருந்து வெளியேறவும்"
+        },
+        "toc": {
+            "entries": "அட்டவணையில் உள்ளீடுகள்"
+        },
+        "jumpToPosition": {
+            "go": "போ",
+            "label": "{{ positionStart }}} முதல் {{ positionEnd }} வரை ஒரு நிலையைத் தேர்ந்தெடுக்கவும்:"
+        },
+        "overflowMenu": {
+            "active": {
+                "tooltip": "மேலும் செயல்கள்",
+                "trigger": "மெனுவை மாற்றவும்"
+            },
+            "hint": {
+                "tooltip": "செயல்களை மாற்றவும்",
+                "trigger": "செயல்களைக் காண்பி"
+            }
+        },
+        "settings": {
+            "text": {
+                "advanced": {
+                    "tooltip": "மேலும் விருப்பங்கள்",
+                    "trigger": "மேலும் வடிவமைப்பு விருப்பங்கள்"
+                }
+            },
+            "spacing": {
+                "advanced": {
+                    "tooltip": "மேலும் விருப்பங்கள்",
+                    "trigger": "மேலும் இடைவெளி விருப்பங்கள்"
+                }
+            }
+        }
+    }
+}

@@ -1,0 +1,130 @@
+{
+    "reader": {
+        "app": {
+            "loading": "Laddar",
+            "publicationWrapper": "Du är nu i boken.",
+            "docking": {
+                "dockingLeft": "Dockad panel till vänster",
+                "dockingRight": "Dockad panel till höger",
+                "dockingEmpty": "För närvarande tom",
+                "dockingClosed": "Är stängd, innehåller {{ action }}",
+                "dockingCollapsed": "Är minimerad, innehåller {{ action }}"
+            },
+            "header": {
+                "backLink": {
+                    "trigger": "Tillbaka till biblioteket",
+                    "tooltip": "Bibliotek"
+                },
+                "label": "Sidhuvud",
+                "runningHead": "Sidtitel",
+                "actions": "Åtgärder"
+            },
+            "footer": {
+                "label": "Sidfot"
+            },
+            "progression": {
+                "wrapper": "Läsposition",
+                "referenceFallback": "nuvarande kapitel",
+                "pubFallback": "boken"
+            },
+            "docker": {
+                "wrapper": "Dockningsalternativ",
+                "dockToLeft": {
+                    "trigger": "Docka till vänster",
+                    "tooltip": "Docka vänster"
+                },
+                "dockToRight": {
+                    "trigger": "Docka till höger",
+                    "tooltip": "Docka höger"
+                },
+                "popover": {
+                    "trigger": "Visa som fönster",
+                    "tooltip": "Visa ovanpå"
+                },
+                "fullscreen": {
+                    "trigger": "Visa ovanpå innehåll",
+                    "tooltip": "Helskärm"
+                }
+            },
+            "back": {
+                "trigger": "Tillbaka"
+            },
+            "printingDisabled": "Utskrift har inaktiverats",
+            "errors": {
+                "title": "Fel",
+                "notFound": "Ingen bok hittades.",
+                "accessDenied": "Tillgång nekas.",
+                "network": "Servern kan inte nås – försök igen senare.",
+                "serverError": "Serverfel – försök igen senare.",
+                "clientError": "Ogiltig begäran.",
+                "generic": "Kan inte ladda boken."
+            }
+        },
+        "navigation": {
+            "scroll": {
+                "wrapper": "Navigera i boken"
+            }
+        },
+        "fullscreen": {
+            "tooltip": "Helskärmsläge",
+            "trigger": "Starta eller avsluta helskärmsläge",
+            "close": "Avsluta helskärmsläge"
+        },
+        "toc": {
+            "entries": "Poster i innehållsförteckningen"
+        },
+        "jumpToPosition": {
+            "go": "Hoppa",
+            "label": "Välj en position mellan {{ positionStart }} till {{ positionEnd }}:",
+            "error": {
+                "notFound": "Positionen hittades inte."
+            }
+        },
+        "overflowMenu": {
+            "active": {
+                "tooltip": "Fler åtgärder",
+                "trigger": "Visa eller dölj meny"
+            },
+            "hint": {
+                "tooltip": "Visa eller dölj åtgärder",
+                "trigger": "Visa åtgärder"
+            }
+        },
+        "settings": {
+            "text": {
+                "advanced": {
+                    "tooltip": "Fler alternativ",
+                    "trigger": "Fler formateringsalternativ"
+                }
+            },
+            "spacing": {
+                "advanced": {
+                    "tooltip": "Fler alternativ",
+                    "trigger": "Fler avståndsalternativ"
+                }
+            }
+        }
+    },
+    "audio": {
+        "player": {
+            "progress": "Läsposition",
+            "controls": "Uppspelningskontroller",
+            "mediaControls": "Ljudinställningar",
+            "coverAlt": "Omslag för ljudbok"
+        },
+        "remotePlayback": {
+            "trigger": "Fjärruppspelning",
+            "connected": "Fjärruppspelning aktiv"
+        },
+        "settings": {
+            "sleepTimer": {
+                "hours": "h",
+                "minutes": "min",
+                "seconds": "s",
+                "instruction": "Uppspelningen stoppas efter den inställda tiden.",
+                "remaining": "Stoppar uppspelning om {{ remaining }}",
+                "start": "Starta sömntimer"
+            }
+        }
+    }
+}

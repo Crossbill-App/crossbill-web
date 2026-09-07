@@ -15,6 +15,8 @@ import { Route as LoginRouteImport } from './routes/login'
 import { Route as RegisterRouteImport } from './routes/register'
 import { Route as SettingsRouteImport } from './routes/settings'
 import { Route as BookBookIdRouteImport } from './routes/book.$bookId'
+import { Route as SpikeBareRouteImport } from './routes/spike.bare'
+import { Route as SpikeReaderRouteImport } from './routes/spike.reader'
 import { Route as BookBookIdIndexRouteImport } from './routes/book.$bookId/index'
 import { Route as BookBookIdFlashcardsRouteImport } from './routes/book.$bookId/flashcards'
 import { Route as BookBookIdHighlightsRouteImport } from './routes/book.$bookId/highlights'
@@ -51,6 +53,16 @@ const SettingsRoute = SettingsRouteImport.update({
 const BookBookIdRoute = BookBookIdRouteImport.update({
   id: '/book/$bookId',
   path: '/book/$bookId',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const SpikeBareRoute = SpikeBareRouteImport.update({
+  id: '/spike/bare',
+  path: '/spike/bare',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const SpikeReaderRoute = SpikeReaderRouteImport.update({
+  id: '/spike/reader',
+  path: '/spike/reader',
   getParentRoute: () => rootRouteImport,
 } as any)
 const BookBookIdIndexRoute = BookBookIdIndexRouteImport.update({
@@ -96,6 +108,8 @@ export interface FileRoutesByFullPath {
   '/register': typeof RegisterRoute
   '/settings': typeof SettingsRoute
   '/book/$bookId': typeof BookBookIdRouteWithChildren
+  '/spike/bare': typeof SpikeBareRoute
+  '/spike/reader': typeof SpikeReaderRoute
   '/book/$bookId/flashcards': typeof BookBookIdFlashcardsRoute
   '/book/$bookId/highlights': typeof BookBookIdHighlightsRoute
   '/book/$bookId/notes': typeof BookBookIdNotesRoute
@@ -110,6 +124,8 @@ export interface FileRoutesByTo {
   '/login': typeof LoginRoute
   '/register': typeof RegisterRoute
   '/settings': typeof SettingsRoute
+  '/spike/bare': typeof SpikeBareRoute
+  '/spike/reader': typeof SpikeReaderRoute
   '/book/$bookId/flashcards': typeof BookBookIdFlashcardsRoute
   '/book/$bookId/highlights': typeof BookBookIdHighlightsRoute
   '/book/$bookId/notes': typeof BookBookIdNotesRoute
@@ -126,6 +142,8 @@ export interface FileRoutesById {
   '/register': typeof RegisterRoute
   '/settings': typeof SettingsRoute
   '/book/$bookId': typeof BookBookIdRouteWithChildren
+  '/spike/bare': typeof SpikeBareRoute
+  '/spike/reader': typeof SpikeReaderRoute
   '/book/$bookId/flashcards': typeof BookBookIdFlashcardsRoute
   '/book/$bookId/highlights': typeof BookBookIdHighlightsRoute
   '/book/$bookId/notes': typeof BookBookIdNotesRoute
@@ -143,6 +161,8 @@ export interface FileRouteTypes {
     | '/register'
     | '/settings'
     | '/book/$bookId'
+    | '/spike/bare'
+    | '/spike/reader'
     | '/book/$bookId/flashcards'
     | '/book/$bookId/highlights'
     | '/book/$bookId/notes'
@@ -157,6 +177,8 @@ export interface FileRouteTypes {
     | '/login'
     | '/register'
     | '/settings'
+    | '/spike/bare'
+    | '/spike/reader'
     | '/book/$bookId/flashcards'
     | '/book/$bookId/highlights'
     | '/book/$bookId/notes'
@@ -172,6 +194,8 @@ export interface FileRouteTypes {
     | '/register'
     | '/settings'
     | '/book/$bookId'
+    | '/spike/bare'
+    | '/spike/reader'
     | '/book/$bookId/flashcards'
     | '/book/$bookId/highlights'
     | '/book/$bookId/notes'
@@ -188,6 +212,8 @@ export interface RootRouteChildren {
   RegisterRoute: typeof RegisterRoute
   SettingsRoute: typeof SettingsRoute
   BookBookIdRoute: typeof BookBookIdRouteWithChildren
+  SpikeBareRoute: typeof SpikeBareRoute
+  SpikeReaderRoute: typeof SpikeReaderRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -232,6 +258,20 @@ declare module '@tanstack/react-router' {
       path: '/book/$bookId'
       fullPath: '/book/$bookId'
       preLoaderRoute: typeof BookBookIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/spike/bare': {
+      id: '/spike/bare'
+      path: '/spike/bare'
+      fullPath: '/spike/bare'
+      preLoaderRoute: typeof SpikeBareRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/spike/reader': {
+      id: '/spike/reader'
+      path: '/spike/reader'
+      fullPath: '/spike/reader'
+      preLoaderRoute: typeof SpikeReaderRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/book/$bookId/': {
@@ -317,6 +357,8 @@ const rootRouteChildren: RootRouteChildren = {
   RegisterRoute: RegisterRoute,
   SettingsRoute: SettingsRoute,
   BookBookIdRoute: BookBookIdRouteWithChildren,
+  SpikeBareRoute: SpikeBareRoute,
+  SpikeReaderRoute: SpikeReaderRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

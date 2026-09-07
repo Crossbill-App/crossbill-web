@@ -13,6 +13,12 @@ function AuthenticatedRoutes() {
 
   const isPublicPage = location.pathname === '/login' || location.pathname === '/register';
 
+  // SPIKE #740 — throwaway. The spike reader route runs outside the auth gate
+  // and outside the AppBar, so it can be driven with an injected token.
+  if (location.pathname.startsWith('/spike')) {
+    return <Outlet />;
+  }
+
   // Show loading spinner while checking auth or loading settings
   if (isAuthLoading || isSettingsLoading) {
     return (

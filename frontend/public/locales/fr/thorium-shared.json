@@ -1,0 +1,367 @@
+{
+    "common": {
+        "actions": {
+            "cancel": "Annuler",
+            "clear": "Effacer",
+            "close": "Fermer",
+            "collapse": "Réduire",
+            "collapseAll": "Tout réduire",
+            "decrease": "Diminuer",
+            "disable": "Désactiver",
+            "enable": "Activer",
+            "exit": "Quitter",
+            "expand": "Développer",
+            "expandAll": "Tout développer",
+            "filter": "Filtrer",
+            "hide": "Masquer",
+            "hideAll": "Tout masquer",
+            "increase": "Augmenter",
+            "open": "Ouvrir",
+            "reset": "Réinitialiser",
+            "search": "Rechercher",
+            "show": "Afficher",
+            "showAll": "Tout afficher",
+            "sortBy": "Trier par",
+            "toggle": "Basculer"
+        }
+    },
+    "reader": {
+        "actions": {
+            "goBackward": "Reculer",
+            "goForward": "Avancer",
+            "goToNextChapter": {
+                "compact": "Suivant",
+                "descriptive": "Chapitre suivant"
+            },
+            "goToNextPage": {
+                "compact": "Suivant",
+                "descriptive": "Page suivante"
+            },
+            "goToNextResource": {
+                "compact": "Suivant",
+                "descriptive": "Ressource suivante"
+            },
+            "goToNextSentence": {
+                "compact": "Suivant",
+                "descriptive": "Phrase suivante"
+            },
+            "goToPosition": {
+                "compact": "Aller à …",
+                "descriptive": "Aller à la position"
+            },
+            "goToPreviousChapter": {
+                "compact": "Précédent",
+                "descriptive": "Chapitre précédent"
+            },
+            "goToPreviousPage": {
+                "compact": "Précédent",
+                "descriptive": "Page précédente"
+            },
+            "goToPreviousResource": {
+                "compact": "Précédent",
+                "descriptive": "Ressource précédente"
+            },
+            "goToPreviousSentence": {
+                "compact": "Précédent",
+                "descriptive": "Phrase précédente"
+            },
+            "readAloud": {
+                "compact": "Lire à voix haute"
+            }
+        },
+        "annotations": {
+            "actions": {
+                "editNote": {
+                    "compact": "Modifier la note"
+                }
+            },
+            "bookmarks": {
+                "actions": {
+                    "add": {
+                        "compact": "Ajouter un marque-page"
+                    },
+                    "delete": {
+                        "compact": "Supprimer un marque-page",
+                        "confirmation": "Êtes-vous certain·e de vouloir supprimer ce marque-page ?"
+                    }
+                },
+                "emptyState": {
+                    "description": "Les nouveaux marque-pages ajoutés pendant la lecture s'afficheront ici.",
+                    "title": "Aucun marque-page"
+                },
+                "title": "Marque-pages"
+            },
+            "note": {
+                "title": "Note"
+            },
+            "sort": {
+                "lastAdded": {
+                    "compact": "Dernier ajouté"
+                },
+                "lastEdited": {
+                    "compact": "Dernier mis à jour"
+                },
+                "progression": {
+                    "compact": "Progression"
+                }
+            }
+        },
+        "playback": {
+            "actions": {
+                "pause": "Pause",
+                "play": "Lecture",
+                "skipBackward": {
+                    "compact": "Retour",
+                    "descriptive": "Retour rapide"
+                },
+                "skipForward": {
+                    "compact": "Avancer",
+                    "descriptive": "Avance rapide"
+                }
+            },
+            "preferences": {
+                "audio": {
+                    "skipBackwardInterval": "Intervalle de retour rapide",
+                    "skipForwardInterval": "Intervalle d'avance rapide",
+                    "skipInterval": "Intervalle de saut",
+                    "title": "Réglages audio",
+                    "volume": "Volume"
+                },
+                "autoPlay": {
+                    "label": "Lecture continue",
+                    "title": "Lecture automatique"
+                },
+                "playbackRate": {
+                    "compact": "Vitesse",
+                    "descriptive": "Vitesse de lecture"
+                },
+                "sleepTimer": {
+                    "compact": "Minuteur",
+                    "descriptive": "Minuteur de sommeil",
+                    "presets": {
+                        "endOfChapter": "Fin du chapitre",
+                        "endOfResource": "Fin de la ressource"
+                    }
+                }
+            }
+        },
+        "preferences": {
+            "brightness": "Luminosité",
+            "columns": {
+                "auto": "Auto",
+                "dual": {
+                    "compact": "2 cols",
+                    "descriptive": "2 colonnes"
+                },
+                "single": {
+                    "compact": "1 col",
+                    "descriptive": "1 colonne"
+                },
+                "title": "Colonnes"
+            },
+            "fit": {
+                "auto": {
+                    "compact": "Auto"
+                },
+                "page": {
+                    "compact": "Page"
+                },
+                "title": "Ajustement",
+                "width": {
+                    "compact": "Largeur"
+                }
+            },
+            "fontFamily": {
+                "humanist": {
+                    "compact": "Humaniste",
+                    "descriptive": "Sans sérif humaniste"
+                },
+                "modern": {
+                    "compact": "Moderne",
+                    "descriptive": "Sérif moderne"
+                },
+                "monospace": "Chasse fixe",
+                "oldStyle": {
+                    "compact": "Classique",
+                    "descriptive": "Sérif classique"
+                },
+                "publisher": "Police par défaut",
+                "sans": "Sans sérif",
+                "title": "Police de caractères"
+            },
+            "fontSize": "Taille de police",
+            "fontWeight": {
+                "bold": "Gras",
+                "normal": "Normal",
+                "title": "Graisse"
+            },
+            "hyphens": {
+                "label": "Activer la césure du texte",
+                "title": "Césures"
+            },
+            "layout": {
+                "paginated": "Paginé",
+                "scrolled": "Scrollé",
+                "title": "Mise en page"
+            },
+            "letterSpacing": "Espacement interlettre",
+            "ligatures": {
+                "label": "Activer les ligatures",
+                "title": "Ligatures"
+            },
+            "lineHeight": {
+                "default": "Par défaut",
+                "large": "Élargi",
+                "medium": "Équilibré",
+                "small": "Resserré",
+                "title": "Interligne"
+            },
+            "noRuby": {
+                "label": "Cacher les annotations ruby",
+                "title": "Annotations ruby"
+            },
+            "offsetFirstPage": "Afficher la première page seule",
+            "paragraphIndent": "Indentation du texte",
+            "paragraphSpacing": "Espacement des paragraphes",
+            "publisherStyles": {
+                "label": "Utiliser le formatage original",
+                "title": "Styles éditeur"
+            },
+            "readingDirection": {
+                "default": {
+                    "compact": "Par défaut",
+                    "descriptive": "Utiliser la direction de lecture originale"
+                },
+                "ltr": {
+                    "compact": "Droite",
+                    "descriptive": "Gauche à droite"
+                },
+                "rtl": {
+                    "compact": "Gauche",
+                    "descriptive": "Droite à gauche"
+                },
+                "title": "Direction de lecture"
+            },
+            "spacing": {
+                "presets": {
+                    "accessible": "Accessible",
+                    "balanced": "Équilibré",
+                    "custom": "Personnalisé",
+                    "default": "Par défaut",
+                    "loose": "Élargi",
+                    "tight": "Resserré",
+                    "title": "Préréglages"
+                },
+                "title": "Espacement"
+            },
+            "spread": {
+                "always": {
+                    "compact": "Double page"
+                },
+                "auto": {
+                    "compact": "Auto"
+                },
+                "never": {
+                    "compact": "Page unique"
+                },
+                "title": "Affichage double page"
+            },
+            "text": "Texte",
+            "textAlign": {
+                "default": "Par défaut",
+                "justify": "Justifié",
+                "left": "Ferré à gauche",
+                "right": "Ferré à droite",
+                "title": "Alignement du texte"
+            },
+            "textNormalization": {
+                "label": "Désactiver le formatage du texte",
+                "title": "Styles du texte"
+            },
+            "themes": {
+                "auto": "Auto",
+                "contrast1": "Contraste 1",
+                "contrast2": "Contraste 2",
+                "contrast3": "Contraste 3",
+                "dark": "Sombre",
+                "gray": "Gris",
+                "light": "Clair",
+                "paper": "Papier",
+                "sepia": "Sépia",
+                "title": "Thèmes"
+            },
+            "title": "Préférences d'affichage",
+            "wordSpacing": "Espacement des mots",
+            "zoom": "Zoom"
+        },
+        "progression": {
+            "pagesLeft": {
+                "descriptive_many": "{{ count }} pages restantes",
+                "descriptive_one": "{{ count }} page restante",
+                "descriptive_other": "{{ count }} pages restantes"
+            },
+            "pagesLeftInChapter": {
+                "descriptive_many": "{{ count }} pages restantes dans le chapitre",
+                "descriptive_one": "{{ count }} page restante dans le chapitre",
+                "descriptive_other": "{{ count }} pages restantes dans le chapitre"
+            },
+            "pagesLeftInPublication": {
+                "descriptive_many": "{{ count }} pages restantes dans la publication",
+                "descriptive_one": "{{ count }} page restante dans la publication",
+                "descriptive_other": "{{ count }} pages restantes dans la publication"
+            },
+            "percentage": "{{ percentage }}%",
+            "positionsLeft": {
+                "compact_many": "{{ count }} restantes",
+                "compact_one": "{{ count }} restante",
+                "compact_other": "{{ count }} restantes",
+                "descriptive_many": "",
+                "descriptive_one": "{{ count }} position restante",
+                "descriptive_other": "{{ count }} positions restantes"
+            },
+            "positionsLeftInChapter": {
+                "compact_many": "{{ count }} restantes dans le chapitre",
+                "compact_one": "{{ count }} restante dans le chapitre",
+                "compact_other": "{{ count }} restantes dans le chapitre",
+                "descriptive_many": "{{ count }} positions restantes dans le chapitre",
+                "descriptive_one": "{{ count }} position restante dans le chapitre",
+                "descriptive_other": "{{ count }} positions restantes dans le chapitre"
+            },
+            "positionsLeftInPublication": {
+                "compact_many": "{{ count }} restantes dans la publication",
+                "compact_one": "{{ count }} restante dans la publication",
+                "compact_other": "{{ count }} restantes dans la publication",
+                "descriptive_many": "",
+                "descriptive_one": "{{ count }} position restante dans la publication",
+                "descriptive_other": "{{ count }} positions restantes dans la publication"
+            },
+            "range": "{{ start }}–{{ end }}",
+            "xOfY": {
+                "compact": "{{ x }} de {{ y }}",
+                "descriptive": "{{ x }} de {{ y }} ({{ z }})"
+            }
+        },
+        "search": {
+            "actions": {
+                "next": {
+                    "compact": "Résultat suivant"
+                },
+                "previous": {
+                    "compact": "Résultat précédent"
+                }
+            },
+            "placeholder": "Rechercher des mots clés ou une phrase",
+            "result_many": "{{ current }} sur {{ count }} résultats",
+            "result_one": "{{ current }} sur {{ count }} résultat",
+            "result_other": "{{ current }} sur {{ count }} résultats",
+            "title": "Rechercher"
+        },
+        "tableOfContents": {
+            "emptyState": {
+                "description": "La table des matières n'a pas été renseignée par l'auteur.",
+                "title": "Aucune table des matières"
+            },
+            "title": "Table des matières"
+        }
+    }
+}

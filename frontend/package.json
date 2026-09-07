@@ -22,6 +22,7 @@
     "duplication-check": "jscpd --no-tips"
   },
   "dependencies": {
+    "@edrlab/thorium-web": "^1.6.0",
     "@emotion/react": "^11.14.0",
     "@emotion/styled": "^11.14.1",
     "@mui/icons-material": "^9.3.1",

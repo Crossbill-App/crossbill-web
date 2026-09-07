@@ -1,0 +1,130 @@
+{
+    "reader": {
+        "app": {
+            "loading": "Indlæser",
+            "publicationWrapper": "Du er nu i bogens indhold.",
+            "docking": {
+                "dockingLeft": "Docket panel til venstre",
+                "dockingRight": "Docket panel til højre",
+                "dockingEmpty": "I øjeblikket tom",
+                "dockingClosed": "Lukket, indeholder {{ action }}",
+                "dockingCollapsed": "Skjult, indeholder {{ action }}"
+            },
+            "header": {
+                "backLink": {
+                    "trigger": "Tilbage til biblioteket",
+                    "tooltip": "Bibliotek"
+                },
+                "label": "Øverste bjælke",
+                "runningHead": "Øverste titel",
+                "actions": "Handlinger"
+            },
+            "footer": {
+                "label": "Nederste bjælke"
+            },
+            "progression": {
+                "wrapper": "Nuværende position",
+                "referenceFallback": "nuværende kapitel",
+                "pubFallback": "bogen"
+            },
+            "docker": {
+                "wrapper": "Dockingmuligheder",
+                "dockToLeft": {
+                    "trigger": "Dock til venstre",
+                    "tooltip": "Dock venstre"
+                },
+                "dockToRight": {
+                    "trigger": "Dock til højre",
+                    "tooltip": "Dock højre"
+                },
+                "popover": {
+                    "trigger": "Vis i et vindue",
+                    "tooltip": "Modal dialog"
+                },
+                "fullscreen": {
+                    "trigger": "Vis over indholdet",
+                    "tooltip": "Overlay"
+                }
+            },
+            "back": {
+                "trigger": "Tilbage"
+            },
+            "printingDisabled": "Udskrivning er deaktiveret",
+            "errors": {
+                "title": "Fejl",
+                "notFound": "Bogen blev ikke fundet.",
+                "accessDenied": "Adgang nægtet.",
+                "network": "Serveren er utilgængelig - forsøg venligst igen senere.",
+                "serverError": "Server fejl - forsøg venligst igen senere.",
+                "clientError": "Ugyldig handling.",
+                "generic": "Kunne ikke åbne bogen."
+            }
+        },
+        "navigation": {
+            "scroll": {
+                "wrapper": "Naviger igennem bogen"
+            }
+        },
+        "fullscreen": {
+            "tooltip": "Fuldskærmstilstand",
+            "trigger": "Slå fuldskærmstilstand til/fra",
+            "close": "Afslut fuldskærmstilstand"
+        },
+        "toc": {
+            "entries": "Punkter i indholdsfortegnelsen"
+        },
+        "jumpToPosition": {
+            "go": "Gå",
+            "label": "Vælg en position fra {{ positionStart }} til {{ positionEnd }}:",
+            "error": {
+                "notFound": "Position i bogen kunne ikke findes."
+            }
+        },
+        "overflowMenu": {
+            "active": {
+                "tooltip": "Flere handlinger",
+                "trigger": "Åben/luk menu"
+            },
+            "hint": {
+                "tooltip": "Vis flere handlinger",
+                "trigger": "Vis handlinger"
+            }
+        },
+        "settings": {
+            "text": {
+                "advanced": {
+                    "tooltip": "Flere indstillinger",
+                    "trigger": "Flere formaterings-indstillinger"
+                }
+            },
+            "spacing": {
+                "advanced": {
+                    "tooltip": "Flere indstillinger",
+                    "trigger": "Flere afstands-indstillinger"
+                }
+            }
+        }
+    },
+    "audio": {
+        "player": {
+            "progress": "Position i bogen",
+            "controls": "Afspilnings-styring",
+            "mediaControls": "Lydindstillinger",
+            "coverAlt": "Lydbogens forside"
+        },
+        "remotePlayback": {
+            "trigger": "Afspilning via andre enheder",
+            "connected": "Forbundet til fjernafspilning"
+        },
+        "settings": {
+            "sleepTimer": {
+                "hours": "timer",
+                "minutes": "min",
+                "seconds": "s",
+                "start": "Start",
+                "instruction": "Afspilning vil blive sat på pause når timeren udløber.",
+                "remaining": "Sætter på pause om {{ remaining }}"
+            }
+        }
+    }
+}

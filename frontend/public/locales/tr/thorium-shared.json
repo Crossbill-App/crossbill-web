@@ -1,0 +1,203 @@
+{
+    "common": {
+        "actions": {
+            "cancel": "İptal",
+            "clear": "Temizle",
+            "close": "Kapat",
+            "collapse": "Daralt",
+            "collapseAll": "Tümünü daralt",
+            "decrease": "Azalt",
+            "disable": "Devredışı bırak",
+            "enable": "Etkinleştir",
+            "exit": "Çık",
+            "expand": "Genişlet",
+            "expandAll": "Tümünü genişlet",
+            "filter": "Filtrele",
+            "hide": "Gizle",
+            "hideAll": "Tümünü gizle",
+            "increase": "Arttır",
+            "open": "Aç",
+            "reset": "Sıfırla",
+            "search": "Ara",
+            "show": "Göster",
+            "showAll": "Tümünü göster",
+            "sortBy": "Sırala:",
+            "toggle": "Değiştir"
+        }
+    },
+    "reader": {
+        "actions": {
+            "goBackward": "Geri git",
+            "goForward": "İleri git",
+            "goToNextChapter": {
+                "compact": "Sonraki",
+                "descriptive": "Sonraki bölüm"
+            },
+            "goToNextPage": {
+                "compact": "Sonraki",
+                "descriptive": "Sonraki sayfa"
+            },
+            "goToNextResource": {
+                "compact": "Sonraki",
+                "descriptive": "Sonraki kaynak"
+            },
+            "goToNextSentence": {
+                "compact": "Sonraki",
+                "descriptive": "Sonraki cümle"
+            },
+            "goToPosition": {
+                "compact": "Şuraya git…",
+                "descriptive": "Konuma git"
+            },
+            "goToPreviousChapter": {
+                "compact": "Önceki",
+                "descriptive": "Önceki bölüm"
+            },
+            "goToPreviousPage": {
+                "compact": "Önceki",
+                "descriptive": "Önceki sayfa"
+            },
+            "goToPreviousResource": {
+                "compact": "Önceki",
+                "descriptive": "Önceki kaynak"
+            },
+            "goToPreviousSentence": {
+                "compact": "Önceki",
+                "descriptive": "Önceki cümle"
+            },
+            "readAloud": {
+                "compact": "Sesli oku"
+            }
+        },
+        "annotations": {
+            "actions": {
+                "editNote": {
+                    "compact": "Notu düzenle"
+                }
+            },
+            "bookmarks": {
+                "actions": {
+                    "add": {
+                        "compact": "Yer imi ekle"
+                    },
+                    "delete": {
+                        "compact": "Yer imini sil",
+                        "confirmation": "Bu yer imini silmek istediğinize emin misiniz?"
+                    }
+                },
+                "emptyState": {
+                    "description": "Okuma sırasında eklenen yeni yer imleri bu listede görünecektir.",
+                    "title": "Yer imi yok"
+                },
+                "title": "Yer İmleri"
+            },
+            "note": {
+                "title": "Not"
+            },
+            "sort": {
+                "lastAdded": {
+                    "compact": "Son eklenen"
+                },
+                "lastEdited": {
+                    "compact": "Son düzenlenen"
+                },
+                "progression": {
+                    "compact": "İlerleme"
+                }
+            }
+        },
+        "playback": {
+            "actions": {
+                "pause": "Duraklat",
+                "play": "Oynat",
+                "skipBackward": {
+                    "compact": "Geri sar",
+                    "descriptive": "Geri sarar"
+                },
+                "skipForward": {
+                    "compact": "İleri sar",
+                    "descriptive": "İleri sarar"
+                }
+            },
+            "preferences": {
+                "audio": {
+                    "skipBackwardInterval": "Geri sarma aralığı",
+                    "skipForwardInterval": "İleri sarma aralığı",
+                    "skipInterval": "Sarma aralığı",
+                    "title": "Ses Ayarları",
+                    "volume": "Ses düzeyi"
+                },
+                "autoPlay": {
+                    "label": "Sürekli oynatım",
+                    "title": "Otomatik oynat"
+                },
+                "playbackRate": {
+                    "compact": "Hız",
+                    "descriptive": "Oynatım hızı"
+                },
+                "sleepTimer": {
+                    "compact": "Zamanlayıcı",
+                    "descriptive": "Uyku zamanlayıcısı",
+                    "presets": {
+                        "endOfChapter": "Bölüm sonu",
+                        "endOfResource": "Kaynak sonu"
+                    }
+                }
+            }
+        },
+        "preferences": {
+            "brightness": "Parlaklık",
+            "columns": {
+                "auto": "Otomatik",
+                "dual": {
+                    "compact": "2 sütun",
+                    "descriptive": "İki sütun"
+                },
+                "single": {
+                    "compact": "1 sütun",
+                    "descriptive": "Tek sütun"
+                },
+                "title": "Sütunlar"
+            },
+            "fontFamily": {
+                "publisher": "Yayımcının yazı biçimi",
+                "sans": "Sans-serif",
+                "title": "Yazı biçimi ailesi"
+            },
+            "fontSize": "Yazı tipi boyutu",
+            "title": "Görüntüleme Ayarları"
+        },
+        "progression": {
+            "pagesLeft": {
+                "descriptive_one": "{{ count }} sayfa kaldı",
+                "descriptive_other": "{{ count }} sayfa kaldı"
+            },
+            "pagesLeftInChapter": {
+                "descriptive_one": "Bölümde, {{ count }} sayfa kaldı",
+                "descriptive_other": "Bölümde, {{ count }} sayfa kaldı"
+            },
+            "pagesLeftInPublication": {
+                "descriptive_one": "Eserde, {{ count }} sayfa kaldı",
+                "descriptive_other": "Eserde, {{ count }} sayfa kaldı"
+            },
+            "percentage": "%{{ percentage }}",
+            "positionsLeft": {
+                "descriptive_one": "Geriye {{ count }} kaldı",
+                "descriptive_other": "Geriye {{ count }} kaldı"
+            },
+            "positionsLeftInChapter": {
+                "descriptive_one": "Bölümde, geriye {{ count }} kaldı",
+                "descriptive_other": "Bölümde, geriye {{ count }} kaldı"
+            },
+            "positionsLeftInPublication": {
+                "descriptive_one": "Eserde, geriye {{ count }} kaldı",
+                "descriptive_other": "Eserde, geriye {{ count }} kaldı"
+            },
+            "range": "{{ start }}–{{ end }}",
+            "xOfY": {
+                "compact": "{{ x }} / {{ y }}",
+                "descriptive": "{{ x }} / {{ y }} ({{ z }})"
+            }
+        }
+    }
+}
