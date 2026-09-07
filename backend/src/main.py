@@ -321,11 +321,12 @@ class SecurityHeadersMiddleware:
                 ):
                     headers["Content-Security-Policy"] = (
                         "default-src 'self'; "
-                        "script-src 'self'; "
-                        "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; "
+                        "script-src 'self' blob: 'sha256-ZswfTY7H35rbv8WC7NXBoiC7WNu86vSzCDChNWwZZDM=' 'sha256-vkotUvpkIPYVpizTziU6038SoZQpXC7BFstfTehf3jU=' 'sha256-XwZ85A6voLmUP8995sA5TSyPQ64ebkQ2WDs4WBrJxCU=';"
+                        "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com blob:;"
                         "img-src 'self' data: blob:; "
                         "font-src 'self' https://fonts.gstatic.com; "
                         "connect-src 'self'; "
+                        "frame-src 'self' blob:; "
                         "frame-ancestors 'none'; "
                         "base-uri 'self'; "
                         "form-action 'self'"
