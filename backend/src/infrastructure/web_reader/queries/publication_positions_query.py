@@ -53,6 +53,10 @@ from urllib.parse import unquote
 from src.application.web_reader.publications import PublicationLayout, PublicationResource
 from src.application.web_reader.queries.publication_positions import PublicationPosition
 from src.domain.common.value_objects.ids import BookId, UserId
+from src.domain.library.exceptions import InvalidEbookError
+from src.infrastructure.web_reader.queries.publication_resource_query import (
+    check_member_is_servable,
+)
 from src.infrastructure.web_reader.queries.stored_epub import PublicationQuery, StoredEpub
 
 # Bytes of a reflowable document per position, which is the length every Readium
@@ -60,6 +64,31 @@ from src.infrastructure.web_reader.queries.stored_epub import PublicationQuery, 
 # agreement is not: a locator saying "position 42" means nothing unless whoever
 # reads it cut the book the same way whoever wrote it did.
 POSITION_LENGTH = 1024
+
+# The most positions one publication may be cut into.
+#
+# This endpoint is the one place in the web reader where a small file can ask
+# for an enormous answer. Everywhere else the response is bounded by bytes that
+# actually exist: a resource is a member that has to be decompressed, so the
+# archive has to carry it. A position list is arithmetic over sizes the central
+# directory *declares*, and a declaration costs four bytes to write -- so a
+# 1.3 KB archive can claim a two-gigabyte chapter and ask for two million
+# positions, each of which becomes a dataclass, a Pydantic model and a JSON
+# object on the way out.
+#
+# `check_member_is_servable` bounds each member at `MAX_RESOURCE_BYTES`, which
+# is 64 MiB and so 65,536 positions. That is not enough on its own: the parser
+# admits a publication declaring `MAX_PUBLICATION_UNCOMPRESSED_BYTES` in total,
+# and thirty-two members just under the per-member cap still add up to two
+# million positions. The per-member cap bounds one member; this bounds the sum.
+#
+# The size is derived from the upload limit rather than picked. An EPUB arrives
+# as at most the 50 MiB `MAX_EBOOK_SIZE` an upload may be, and XHTML deflates at
+# roughly four to one, so four times the upload cap is a generous ceiling on the
+# markup an honest reading order can hold. For scale: the longest novel ever
+# published runs to about 4 MB of text, some four thousand positions, so this
+# leaves roughly fiftyfold headroom over the largest book anyone has written.
+MAX_PUBLICATION_POSITIONS = 4 * 50 * 1024 * 1024 // POSITION_LENGTH
 
 
 class PublicationPositionsQuery(PublicationQuery):
@@ -80,11 +109,40 @@ class PublicationPositionsQuery(PublicationQuery):
         """Parse the publication and cut its reading order into positions."""
         publication = self.publication_parser.parse_publication(stored.content)
         with zipfile.ZipFile(BytesIO(stored.content)) as archive:
-            # `file_size` is the member's uncompressed length as the central
-            # directory declares it, so the whole list is read without touching
-            # a compressed stream.
-            sizes = {entry.filename: entry.file_size for entry in archive.infolist()}
+            sizes = _servable_sizes(publication.reading_order, archive)
         return position_list(publication.reading_order, sizes)
+
+
+def _servable_sizes(
+    reading_order: Sequence[PublicationResource], archive: zipfile.ZipFile
+) -> dict[str, int]:
+    """Each reading-order member's declared length, refusing one that may not be served.
+
+    ``file_size`` is the member's uncompressed length as the central directory
+    states it, so the sizes are read without touching a compressed stream.
+
+    Every member is put through the resource endpoint's own size policy on the
+    way past -- the same :func:`check_member_is_servable`, against the same
+    ``MAX_RESOURCE_BYTES``, rather than a second cap that could drift from it.
+    Refusing the whole request is the honest answer rather than a harsh one: a
+    member over that cap is one the resource endpoint will not serve, so its
+    positions could only ever point somewhere a reader cannot go.
+
+    A member the archive does not hold is left out and counted as empty, which
+    is the backstop the resource endpoint has for the same case: the parser
+    reads every manifest item, so a spine naming a file the container lacks
+    fails the publication long before this.
+    """
+    sizes: dict[str, int] = {}
+    for resource in reading_order:
+        member = unquote(resource.href)
+        try:
+            entry = archive.getinfo(member)
+        except KeyError:
+            continue
+        check_member_is_servable(entry)
+        sizes[member] = entry.file_size
+    return sizes
 
 
 def position_list(
@@ -105,12 +163,26 @@ def position_list(
             own name -- which is a reading-order href decoded exactly once. A
             resource the map does not name is counted as empty, and so still
             gets the one position every resource is worth.
+
+    Raises:
+        InvalidEbookError: If the reading order declares more than
+            :data:`MAX_PUBLICATION_POSITIONS` positions.
     """
     counts = [
         _position_count(resource, sizes.get(unquote(resource.href), 0))
         for resource in reading_order
     ]
     total = sum(counts)
+    # Counted before anything is built, which is the whole difference between a
+    # refusal and an outage: `counts` is one integer per reading-order item, so
+    # the sum is free, while the list it describes is an object per kilobyte of
+    # a book that may not exist. Judging the list after building it would pay
+    # the cost this exists to refuse.
+    if total > MAX_PUBLICATION_POSITIONS:
+        raise InvalidEbookError(
+            f"declares {total} positions, over the {MAX_PUBLICATION_POSITIONS} limit",
+            "epub",
+        )
 
     positions: list[PublicationPosition] = []
     for resource, count in zip(reading_order, counts, strict=True):

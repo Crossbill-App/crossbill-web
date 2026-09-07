@@ -13,6 +13,7 @@ Hand-built EPUBs are what make that observable: their members' bytes are written
 out here, so a count asserted below is a division a reader can do on the page.
 """
 
+import zipfile
 from pathlib import Path
 from urllib.parse import urljoin
 
@@ -21,6 +22,8 @@ from httpx import AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession
 from starlette import status
 
+from src.infrastructure.web_reader.queries import publication_positions_query
+from src.infrastructure.web_reader.queries.publication_resource_query import MAX_RESOURCE_BYTES
 from src.models import Book
 from tests.test_readium_manifest import (
     POSITION_LIST_MEDIA_TYPE,
@@ -29,6 +32,7 @@ from tests.test_readium_manifest import (
     fixture_bytes,
     manifest_url,
     store_epub,
+    with_declared_size,
 )
 
 
@@ -67,6 +71,24 @@ FIXED_LAYOUT_PAGES_EPUB = build_epub(
     bodies={"p1.xhtml": b"a" * 4096, "p2.xhtml": b"b" * 4096},
     extra_metadata='<meta property="rendition:layout">pre-paginated</meta>',
 )
+
+
+# A publication whose one spine document is a few hundred bytes and says it is
+# nearly two gigabytes. Nothing here is decompressed, so the declaration is the
+# only thing the position count can be built on -- and the archive is 1.3 KB, so
+# the cost of answering it has nothing to do with the cost of sending it.
+def overstating_epub(declared: int) -> bytes:
+    """An EPUB whose one spine document claims to hold ``declared`` bytes."""
+    return with_declared_size(
+        build_epub(
+            manifest_items=('<item id="c1" href="c1.xhtml" media-type="application/xhtml+xml"/>'),
+            spine='<itemref idref="c1"/>',
+            nav_links='<li><a href="c1.xhtml">One</a></li>',
+            files=("c1.xhtml",),
+            compression=zipfile.ZIP_DEFLATED,
+        ),
+        declared=declared,
+    )
 
 
 @pytest.fixture
@@ -272,6 +294,95 @@ class TestThePositionList:
             "resources/EPUB/text/chapter%201.xhtml",
             "resources/EPUB/text/luku-%C3%A4%C3%A4ni.xhtml",
         ]
+
+
+class TestAHostileDeclarationIsBounded:
+    """What a publication may claim about itself, and what claiming it costs.
+
+    Positions are counted from sizes the archive *declares*, because counting
+    them from the real ones would mean decompressing the whole book. A
+    declaration is free to write, so this endpoint is the one place where a
+    small file can ask for an enormous answer: every position becomes an object,
+    a model and a JSON object on the way out.
+    """
+
+    async def test_refuses_a_spine_member_declaring_more_than_the_resource_cap(
+        self,
+        client: AsyncClient,
+        db_session: AsyncSession,
+        test_book: Book,
+        storage_dir: Path,
+    ) -> None:
+        """Should refuse a member the resource endpoint would refuse to serve.
+
+        Deliberately one byte over the per-member cap and no further, so the
+        publication-wide ceiling cannot be what refuses it: 64 MiB is 65,536
+        positions, comfortably inside a publication's allowance. Only the
+        member's own size can turn this away, which is the point -- a reader
+        that cannot fetch the member has no use for its positions, so the two
+        endpoints answer alike.
+        """
+        oversized = overstating_epub(MAX_RESOURCE_BYTES + 1)
+        assert len(oversized) < 2048, "the archive is tiny; only its declaration is not"
+        await store_epub(db_session, test_book, storage_dir, oversized)
+
+        response = await client.get(positions_url(test_book))
+
+        assert response.status_code == status.HTTP_400_BAD_REQUEST
+        assert len(response.content) < 1024
+
+    async def test_refuses_a_member_declaring_more_than_the_publication_may_hold(
+        self,
+        client: AsyncClient,
+        db_session: AsyncSession,
+        test_book: Book,
+        storage_dir: Path,
+    ) -> None:
+        """Should refuse the two-gigabyte claim that started this, and cheaply.
+
+        A 1.3 KB archive declaring a two-gigabyte chapter asks to be cut into
+        two million positions. Before the bounds it was answered: 200 OK after
+        thirteen seconds, carrying a response the size of the book it was only
+        pretending to be.
+        """
+        await store_epub(db_session, test_book, storage_dir, overstating_epub(2**31 - 65536))
+
+        response = await client.get(positions_url(test_book))
+
+        assert response.status_code == status.HTTP_400_BAD_REQUEST
+        assert len(response.content) < 1024
+
+    async def test_refuses_a_publication_declaring_too_many_positions(
+        self,
+        client: AsyncClient,
+        long_chapters_book: Book,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        """Should bound the whole list, not only each member of it.
+
+        The per-member cap leaves a publication free to spend it many times
+        over: enough members just under the cap still add up to millions of
+        positions. The ceiling is lowered rather than the fixture inflated,
+        because a fixture big enough to trip the real one would only be slow.
+        """
+        monkeypatch.setattr(publication_positions_query, "MAX_PUBLICATION_POSITIONS", 3)
+
+        response = await client.get(positions_url(long_chapters_book))
+
+        assert response.status_code == status.HTTP_400_BAD_REQUEST
+
+    async def test_an_honest_book_is_unaffected_by_either_bound(
+        self, client: AsyncClient, long_chapters_book: Book
+    ) -> None:
+        """Should still serve a book whose members are what they say they are.
+
+        The bounds are worth nothing if they also turn away real publications,
+        and the fixture's four positions sit far under both.
+        """
+        response = await client.get(positions_url(long_chapters_book))
+
+        assert response.status_code == status.HTTP_200_OK, response.text
+        assert response.json()["total"] == 4
 
 
 class TestThePositionListIsReachedFromTheManifest:

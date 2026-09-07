@@ -142,6 +142,22 @@ def build_epub(
     return out.getvalue()
 
 
+def with_declared_size(epub_content: bytes, declared: int) -> bytes:
+    """Rewrite what the archive's last member claims to decompress to.
+
+    Both the local header and the central directory are rewritten, so nothing
+    short of decompressing the member can tell how big it really is. This is the
+    shape a size lie takes once a cap exists to get past, and it lies in both
+    directions: understating hides a decompression bomb behind a small
+    declaration, while overstating inflates whatever the server derives from the
+    declaration without having to ship the bytes.
+    """
+    epub = bytearray(epub_content)
+    for signature, offset in ((b"PK\x03\x04", 22), (b"PK\x01\x02", 24)):
+        struct.pack_into("<I", epub, epub.rfind(signature) + offset, declared)
+    return bytes(epub)
+
+
 # A publication whose one spine document is really named `chapter%20one.xhtml`
 # -- a literal percent sign in the file name, which the OPF therefore writes as
 # `chapter%2520one.xhtml`.

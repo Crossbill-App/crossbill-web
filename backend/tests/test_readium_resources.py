@@ -13,7 +13,6 @@ Only the files the manifest lists are reachable. The package document,
 publication, and the endpoint must not serve them.
 """
 
-import struct
 import zipfile
 import zlib
 from io import BytesIO
@@ -31,6 +30,7 @@ from tests.test_readium_manifest import (
     build_epub,
     fixture_bytes,
     store_epub,
+    with_declared_size,
 )
 
 CHAPTER_1 = "EPUB/text/chapter%201.xhtml"
@@ -109,11 +109,11 @@ TWIN_EMPTY_MEMBERS_EPUB = build_epub(
 def understating_epub(member: str, real_size: int) -> bytes:
     """An EPUB whose one resource inflates far past the size it declares.
 
-    Both the local header and the central directory are rewritten, so nothing
-    short of decompressing the member can tell how big it really is. This is the
-    shape a decompression bomb takes once a size cap exists to get past.
+    This is the shape a decompression bomb takes once a size cap exists to get
+    past: the declaration is the only cheap description of a member, so a bomb
+    is simply a member that lies in it.
     """
-    epub = bytearray(
+    return with_declared_size(
         build_epub(
             manifest_items=(
                 '<item id="c1" href="c1.xhtml" media-type="application/xhtml+xml"/>'
@@ -124,11 +124,9 @@ def understating_epub(member: str, real_size: int) -> bytes:
             files=("c1.xhtml", member),
             bodies={member: b"A" * real_size},
             compression=zipfile.ZIP_DEFLATED,
-        )
+        ),
+        declared=8,
     )
-    for signature, offset in ((b"PK\x03\x04", 22), (b"PK\x01\x02", 24)):
-        struct.pack_into("<I", epub, epub.rfind(signature) + offset, 8)
-    return bytes(epub)
 
 
 @pytest.fixture
