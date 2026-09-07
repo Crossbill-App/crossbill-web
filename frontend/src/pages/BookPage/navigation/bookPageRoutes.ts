@@ -1,14 +1,17 @@
+import { useHasPublication } from '@/components/reader/useReaderPublication.ts';
 import {
   ChapterListIcon,
   FlashcardsIcon,
   HighlightsIcon,
   NotesIcon,
+  ReaderIcon,
   ReflectionIcon,
   StatisticsIcon,
 } from '@/theme/Icons.tsx';
 import type { SvgIconComponent } from '@mui/icons-material';
 
 type BookPageRoute =
+  | '/book/$bookId/read'
   | '/book/$bookId/structure'
   | '/book/$bookId/highlights'
   | '/book/$bookId/flashcards'
@@ -22,6 +25,7 @@ type BookPageRoute =
  * nav and another on the page it opens.
  */
 export const BOOK_PAGE_LABELS = {
+  read: 'Read',
   structure: 'Structure',
   highlights: 'Highlights',
   flashcards: 'Flashcards',
@@ -42,9 +46,21 @@ export interface BookPageRouteConfig {
    * routes regardless.
    */
   overflow?: boolean;
+  /**
+   * When true, the route is only offered for a book that has an EPUB behind
+   * it. There is nothing to read in the browser without one, and a tab that
+   * can only lead to an empty state is worse than no tab.
+   */
+  needsPublication?: boolean;
 }
 
 export const BOOK_PAGE_ROUTES: BookPageRouteConfig[] = [
+  {
+    to: '/book/$bookId/read',
+    segment: 'read',
+    icon: ReaderIcon,
+    needsPublication: true,
+  },
   {
     to: '/book/$bookId/structure',
     segment: 'structure',
@@ -79,3 +95,16 @@ export const BOOK_PAGE_ROUTES: BookPageRouteConfig[] = [
     overflow: true,
   },
 ];
+
+/**
+ * The tabs this particular book actually has.
+ *
+ * Everything but the reader is offered for every book. The reader needs an
+ * EPUB, and while it is unknown whether there is one the tab stays hidden —
+ * appearing late is a smaller surprise than appearing and then vanishing under
+ * the pointer.
+ */
+export const useBookPageRoutes = (bookId: number): BookPageRouteConfig[] => {
+  const hasPublication = useHasPublication(bookId);
+  return BOOK_PAGE_ROUTES.filter((route) => !route.needsPublication || hasPublication === true);
+};

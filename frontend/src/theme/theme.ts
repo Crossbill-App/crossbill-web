@@ -79,6 +79,17 @@ const customColors = {
     empty: colors.stone[100], // A day with no reading
     full: colors.amber[700], // The book's heaviest reading days, as primary.main
   },
+
+  // The web reader's page colours, stated as pairs because a reading theme is
+  // chosen as a pair. These are the only colours in the app that leave it:
+  // they are handed to the publication's own stylesheet through Readium
+  // preferences, so the book's text is painted with them inside its iframe,
+  // and the reader's chrome is tinted to match.
+  readerPage: {
+    light: { background: '#ffffff', text: colors.stone[900] },
+    sepia: { background: '#f4ecd8', text: colors.amber[800] },
+    dark: { background: colors.stone[900], text: colors.stone[100] },
+  },
 };
 
 const COARSE_POINTER_QUERY = '@media (pointer: coarse)';
