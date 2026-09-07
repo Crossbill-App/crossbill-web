@@ -7,6 +7,14 @@ const POSITIONS_PATH = '/api/v1/readium/books/:bookId/positions.json';
 const SESSION_PATH = '/api/v1/readium/books/:bookId/session';
 const RESOURCE_PATH = '/api/v1/readium/books/:bookId/resources/*';
 
+/**
+ * The file a hostile chapter tries to navigate its own frame to.
+ *
+ * Named by nothing else in the publication, so a request for it is proof the
+ * frame left the document we sanitised.
+ */
+export const ESCAPE_HATCH = 'escape-hatch.xhtml';
+
 /** A chapter as an EPUB actually ships one: XHTML, with its own namespace. */
 const chapterDocument = (title: string) =>
   `<?xml version="1.0" encoding="utf-8"?>
@@ -25,6 +33,17 @@ const chapterDocument = (title: string) =>
  * session. Every vector marks `document.body` so a test can see which one got
  * through: an inline script, an external script from the publication's own
  * origin, an inline event handler, and a `javascript:` URL.
+ *
+ * The meta refresh is the one that walks around the sanitiser rather than
+ * through it: it navigates the frame to a raw publication URL, which Readium's
+ * injected base element resolves straight to the API. That load is a plain
+ * same-origin document — no blob, no CSP, and it never passes through the
+ * fetcher that would have disarmed it.
+ *
+ * Its target is a file nothing else in the publication references, so a request
+ * for `ESCAPE_HATCH` can only mean the frame navigated. That, rather than
+ * whether the document it lands on then manages to run, is what a test can
+ * observe without depending on how the frame pool happens to be timed.
  */
 const hostileChapter = () =>
   `<?xml version="1.0" encoding="utf-8"?>
@@ -34,6 +53,7 @@ const hostileChapter = () =>
     <title>On Attention</title>
     <script>parent.document.body.setAttribute('data-pwned', 'inline-script')</script>
     <script src="evil.js"></script>
+    <meta http-equiv="REFRESH" content="0; url=${ESCAPE_HATCH}" />
   </head>
   <body onload="parent.document.body.setAttribute('data-pwned', 'onload')">
     <h1>On Attention</h1>

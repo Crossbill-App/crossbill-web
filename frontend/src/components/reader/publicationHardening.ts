@@ -74,6 +74,17 @@ const isJavascriptUrl = (value: string) => /^\s*javascript:/i.test(value);
 const disarm = (doc: Document): void => {
   doc.querySelectorAll('script').forEach((script) => script.remove());
 
+  // A declarative refresh is the way out of everything above. The URL is
+  // resolved against the `<base>` Readium injects, so a relative one points
+  // back at the publication API — and the document the frame lands on is a
+  // plain same-origin response: no blob, no CSP, and never passed through this
+  // function. Chromium happens not to honour a refresh inside a sandboxed
+  // frame, but an unset sandbox flag in one browser is not a control.
+  doc.querySelectorAll('meta').forEach((meta) => {
+    const pragma = meta.getAttribute('http-equiv')?.trim().toLowerCase();
+    if (pragma === 'refresh') meta.remove();
+  });
+
   doc.querySelectorAll('*').forEach((element) => {
     for (const attribute of Array.from(element.attributes)) {
       const isUrlAttribute = attribute.name === 'href' || attribute.name === 'src';
