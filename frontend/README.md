@@ -227,9 +227,13 @@ Precedence is simply: `VITE_API_URL` if it is set, otherwise the empty
 relative base. The single place that decides is `src/api/base-url.ts`, which
 both the axios instance and the cover-image URLs read.
 
-Tests deliberately ignore `.env` files (`envDir` in `vitest.config.ts` points
-at `tests/`), so a local `VITE_API_URL` cannot change what the MSW handlers
-have to match.
+The test build sees no environment variables at all: `envPrefix: []` in
+`vitest.config.ts` matches no name, so neither a local `.env` nor a variable
+exported in your shell or set by CI can reach `import.meta.env`. `VITE_API_URL`
+therefore cannot change what the MSW handlers have to match. `tests/setup.ts`
+asserts `API_BASE_URL` is empty before the suite runs, so if that guard ever
+comes off you get a sentence saying so rather than a puzzling
+unmocked-request failure.
 
 ## Troubleshooting
 
