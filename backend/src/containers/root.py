@@ -93,6 +93,7 @@ class RootContainer(containers.DeclarativeContainer):
         epub_parser_service=shared.epub_parser_service,
         epub_position_index_service=shared.epub_position_index_service,
         cover_image_service=shared.cover_image_service,
+        publication_cache=shared.position_anchor_service,
         book_details_query=shared.book_details_query,
         book_list_query=shared.book_list_query,
     )

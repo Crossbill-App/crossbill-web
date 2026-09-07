@@ -67,3 +67,5 @@ Thumbs.db
 book-files/
 *.epub
 *.pdf
+# ...except the hand-built test fixtures, which are part of the suite.
+!tests/fixtures/*.epub

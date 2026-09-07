@@ -29,10 +29,15 @@ FROM python:3.13-slim
 
 WORKDIR /app
 
-# Install system dependencies
+# Install system dependencies.
+# git is not optional: xpoint-cfi is pinned to a git tag rather than a PyPI
+# release (see backend/pyproject.toml [tool.uv.sources]), so `uv export` writes
+# it into requirements.txt as a `git+https://` requirement and the install below
+# clones it. Without git the build fails with "Git executable not found".
 RUN apt-get update && apt-get install -y --no-install-recommends \
   curl \
   gcc \
+  git \
   libc6-dev \
   libffi-dev \
   && rm -rf /var/lib/apt/lists/*

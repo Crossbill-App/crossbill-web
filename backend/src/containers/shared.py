@@ -79,6 +79,9 @@ from src.infrastructure.semantic.queries.search_hydration_query import SearchHyd
 from src.infrastructure.semantic.queries.semantic_search_query import SemanticSearchQuery
 from src.infrastructure.semantic.repositories.embedding_repository import EmbeddingRepository
 from src.infrastructure.tagging.repositories import TagRepository
+from src.infrastructure.web_reader.services.xpoint_cfi_position_anchor_service import (
+    XPointCfiPositionAnchorService,
+)
 
 
 def _create_s3_file_repository(settings: Any) -> S3FileRepository:  # noqa: ANN401
@@ -131,6 +134,14 @@ class SharedContainer(containers.DeclarativeContainer):
     epub_position_index_service = providers.Factory(EpubPositionIndexService)
     ebook_text_extraction_service = providers.Factory(EpubTextExtractionService)
     cover_image_service = providers.Factory(CoverImageService)
+
+    # Web reader. A Singleton, unlike the other services here: it caches parsed
+    # publications, which is only worth anything if the instance outlives the
+    # request. Its `evict` is what the ebook upload path calls.
+    position_anchor_service = providers.Singleton(
+        XPointCfiPositionAnchorService,
+        file_repository=file_repository,
+    )
 
     # Identity services
     user_repository = providers.Factory(UserRepository, db=db)
