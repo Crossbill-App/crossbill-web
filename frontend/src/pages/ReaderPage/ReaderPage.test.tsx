@@ -1,4 +1,5 @@
 import { aBookDetails } from '@tests/fixtures/book';
+import { aResumePosition } from '@tests/fixtures/publication';
 import { renderApp } from '@tests/harness/renderApp';
 import { bookApi } from '@tests/msw/bookApi';
 import {
@@ -404,3 +405,101 @@ test('closing the reader writes the last position immediately, and closes the se
   expect(last.closing).toBe(true);
   expect(last.locator.href).toBe('resources/OEBPS/chapter2.xhtml');
 }, 30_000);
+
+/**
+ * Opening a book puts the reader back where they left off — on this device or
+ * another (M2.4, #743). The server answers with a locator whichever reader
+ * recorded the place, so the reader here does not know or care which it was;
+ * what it has to do is open the navigator *at* that place rather than at the
+ * beginning, and not write it straight back as a move.
+ */
+test('a book opens where the reader left off', async () => {
+  aBookWithAnEpub(...readingPositionApi(aResumePosition()).handlers);
+
+  const screen = await renderApp({ path: '/book/1/read' });
+
+  // Chapter two, which is not where this book opens on its own — so the page
+  // number is the restore rather than a default.
+  await expect.element(screen.getByText('Page 2 of 2', { exact: false })).toBeVisible();
+});
+
+test('a place the e-reader recorded opens the same way', async () => {
+  aBookWithAnEpub(...readingPositionApi(aResumePosition({ source: 'koreader' })).handlers);
+
+  const screen = await renderApp({ path: '/book/1/read' });
+
+  await expect.element(screen.getByText('Page 2 of 2', { exact: false })).toBeVisible();
+});
+
+/**
+ * Restoring a place must not be mistaken for going somewhere. The navigator
+ * reports the restored position as soon as its frame loads, and again once the
+ * frame has settled into it — the same place, carrying the progression it
+ * really rendered at rather than the one that was asked for. Written back, that
+ * is a reading session for opening a book, and a position rewritten from a
+ * reader who has not read a word.
+ */
+test('restoring a position writes nothing back', async () => {
+  const positions = readingPositionApi(aResumePosition());
+  aBookWithAnEpub(...positions.handlers);
+
+  const screen = await renderApp({ path: '/book/1/read' });
+  await expect.element(screen.getByText('Page 2 of 2', { exact: false })).toBeVisible();
+
+  // Comfortably past the debounce, so a write the restore provoked would have
+  // landed by now.
+  await new Promise((resolve) => setTimeout(resolve, 8_000));
+  expect(positions.writes).toHaveLength(0);
+}, 30_000);
+
+/**
+ * The two halves of a place that could not be restored: the book opens anyway,
+ * at its beginning, and the reader is told why it is not where they left it.
+ * Asserted together because either alone is the wrong outcome — a book that
+ * does not open, or one that silently loses somebody's place.
+ */
+const expectAStartAndAnApology = async () => {
+  const screen = await renderApp({ path: '/book/1/read' });
+  await expect.element(screen.getByText('Page 1 of 2', { exact: false })).toBeVisible();
+  await expect
+    .element(screen.getByText("Couldn't restore your last position", { exact: false }))
+    .toBeVisible();
+};
+
+/**
+ * The EPUB has been replaced since the place was recorded, so the xpointer that
+ * still safely holds it no longer names anywhere in the book (ADR-0004 §5). The
+ * server says so rather than guessing, and the reader is told — because opening
+ * at page one with no explanation looks exactly like a reader who never got
+ * anywhere.
+ */
+test('a place that could not be found says so, and the book still opens', async () => {
+  aBookWithAnEpub(
+    ...readingPositionApi(aResumePosition({ locator: null, source: 'koreader', unresolved: true }))
+      .handlers
+  );
+
+  await expectAStartAndAnApology();
+});
+
+/**
+ * The stored locator names a resource this publication no longer has. The
+ * navigator would throw on it — its frame pool looks an initial position up in
+ * the position list and refuses one that is not there — which would cost the
+ * reader the whole book rather than a bookmark. Caught before it is offered.
+ */
+test('a place in a chapter the book no longer has costs a bookmark, not the book', async () => {
+  aBookWithAnEpub(
+    ...readingPositionApi(
+      aResumePosition({
+        locator: {
+          href: 'resources/OEBPS/chapter9.xhtml',
+          type: 'application/xhtml+xml',
+          locations: { position: 9, progression: 0 },
+        },
+      })
+    ).handlers
+  );
+
+  await expectAStartAndAnApology();
+});

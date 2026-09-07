@@ -58,8 +58,16 @@ const update = (locator: LocatorSchema, at: string, closing: boolean): ReadingPo
  * **The first position is remembered, not written.** The navigator announces
  * where it is as soon as a frame loads, so opening a book reports a position
  * before any reading has happened. Writing that would start a reading session
- * for merely opening a book — and, once M2.4 resumes into a stored position,
- * would write back the very position it had just restored.
+ * for merely opening a book — and would write back the very position it had
+ * just restored.
+ *
+ * **A restored place is not somewhere the reader went.** Once the book has been
+ * opened at a stored position (M2.4), the frame settles into it and reports it
+ * a *second* time, carrying the progression it really rendered at rather than
+ * the one that was asked for. That is a different locator and the same place,
+ * and the skip above has already been spent — so `restoredTo` is held until the
+ * reader leaves that position for another one. Without it, restoring a place
+ * writes it straight back and starts a reading session for opening a book.
  *
  * **A position that has not moved is not written.** A preference change, a
  * resize and a re-render all re-announce the same place.
@@ -83,7 +91,7 @@ const update = (locator: LocatorSchema, at: string, closing: boolean): ReadingPo
  * and the endpoint takes it (ADR-0004, Amendment 1), so a departing write needs
  * no access token in a header it may have no opportunity to set.
  */
-export const useReadingPositionWriter = (bookId: number) => {
+export const useReadingPositionWriter = (bookId: number, restoredTo: Locator | null) => {
   // What the server is believed to hold, as its own JSON, so that "has this
   // moved" is one comparison rather than a tour of the locator's optional
   // fields. Seeded by the position the book opened at.
@@ -104,6 +112,15 @@ export const useReadingPositionWriter = (bookId: number) => {
   // how long the reader has been quiet rather than counting from its own last
   // tick. Set when the book opens, so opening one does not immediately beat.
   const spokeAtRef = useRef(0);
+
+  // The position the book was opened *at*, when the reader was put back
+  // somewhere. Held in a ref rather than read from the closure so that learning
+  // it does not make a new callback: this one is bound to the navigator at
+  // construction, and a fresh identity would rebuild the reader.
+  const restoredAtRef = useRef<number | null>(null);
+  useEffect(() => {
+    restoredAtRef.current = restoredTo?.locations.position ?? null;
+  }, [restoredTo]);
 
   const send = useCallback(
     (body: ReadingPositionUpdate, viaFetch: boolean) => {
@@ -197,8 +214,22 @@ export const useReadingPositionWriter = (bookId: number) => {
       }
       if (key === writtenRef.current) return;
 
-      writtenRef.current = key;
       const observed: Observation = { locator: serialized, at: new Date().toISOString() };
+
+      // Still in the place the book was restored to: the frame settling, or a
+      // re-layout, saying the same thing in different numbers. Remembered so a
+      // heartbeat carries where the reader really is, but not written — a
+      // restore is a navigation this app performed, and a session started by
+      // one would be a session for opening a book. Forgotten the moment they
+      // genuinely move, after which this hook behaves as it always did.
+      if (serialized.locations?.position === restoredAtRef.current) {
+        writtenRef.current = key;
+        latestRef.current = observed;
+        return;
+      }
+      restoredAtRef.current = null;
+
+      writtenRef.current = key;
       latestRef.current = observed;
       pendingRef.current = observed;
       clearTimeout(timerRef.current);

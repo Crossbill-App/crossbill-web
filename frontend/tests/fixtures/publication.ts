@@ -1,4 +1,8 @@
-import type { PositionList, WebPublicationManifest } from '@/api/generated/model';
+import type {
+  PositionList,
+  ResumePositionResponse,
+  WebPublicationManifest,
+} from '@/api/generated/model';
 
 /** Where a book's manifest is served from, as the API's own `self` link states it. */
 const manifestHref = (bookId = 1) =>
@@ -61,5 +65,40 @@ export const aPositionList = (overrides: Partial<PositionList> = {}): PositionLi
       locations: { position: 2, progression: 0, totalProgression: 0.5 },
     },
   ],
+  ...overrides,
+});
+
+/** What the resume endpoint answers for a book nobody has read on any device. */
+export const nowhereToResume = (): ResumePositionResponse => ({
+  locator: null,
+  source: null,
+  unresolved: false,
+  xpoint: null,
+  position: null,
+  recorded_at: null,
+});
+
+/**
+ * A place to resume from, in the second chapter of `aManifest`'s publication.
+ *
+ * Deliberately not where the book would open on its own, so that a test seeing
+ * chapter two is seeing a restore rather than a default. `source` says which
+ * reader it came from; the locator is the same shape either way, because a
+ * position derived from a KOReader xpointer is converted server-side into the
+ * Readium locator the navigator speaks.
+ */
+export const aResumePosition = (
+  overrides: Partial<ResumePositionResponse> = {}
+): ResumePositionResponse => ({
+  ...nowhereToResume(),
+  locator: {
+    href: 'resources/OEBPS/chapter2.xhtml',
+    type: 'application/xhtml+xml',
+    locations: { position: 2, progression: 0, totalProgression: 0.5 },
+  },
+  source: 'web',
+  xpoint: '/body/DocFragment[2]/body/div[1]/p[1]',
+  position: { index: 16, char_index: 0 },
+  recorded_at: '2026-03-01T09:00:00Z',
   ...overrides,
 });

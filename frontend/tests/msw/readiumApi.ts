@@ -2,10 +2,11 @@ import type {
   PositionList,
   ReadingPosition,
   ReadingPositionUpdate,
+  ResumePositionResponse,
   WebPublicationManifest,
 } from '@/api/generated/model';
 import { http, HttpResponse } from 'msw';
-import { aManifest, aPositionList } from '../fixtures/publication';
+import { aManifest, aPositionList, nowhereToResume } from '../fixtures/publication';
 
 const MANIFEST_PATH = '/api/v1/readium/books/:bookId/manifest.json';
 const POSITIONS_PATH = '/api/v1/readium/books/:bookId/positions.json';
@@ -127,10 +128,14 @@ export const readiumApi = ({
  * `writes` rather than on a spy: what matters is what reached the server and
  * what it said, not which code path sent it.
  *
+ * `stored` is what the `GET` answers — where the book should open, on any
+ * device. It defaults to a book nobody has read anywhere, which is what every
+ * test that is not about resuming wants.
+ *
  * Register these after `readiumApi()` — MSW resolves newest first — when a test
- * needs to see the writes.
+ * needs to see the writes or to seed a place to resume from.
  */
-export const readingPositionApi = (stored: ReadingPosition | null = null) => {
+export const readingPositionApi = (stored: ResumePositionResponse = nowhereToResume()) => {
   const writes: ReadingPositionUpdate[] = [];
   const handlers = [
     http.get(POSITION_PATH, () => HttpResponse.json(stored)),
@@ -148,10 +153,19 @@ export const readingPositionApi = (stored: ReadingPosition | null = null) => {
   return { handlers, writes };
 };
 
-/** A book with no EPUB: the manifest 404s, which is how the app learns there is none. */
+/**
+ * A book with no EPUB: the manifest 404s, which is how the app learns there is
+ * none.
+ *
+ * The reading position still answers, as it does in production — that route
+ * 404s for a book that is not the caller's, never for one that merely has
+ * nothing to read — and the reader asks it in parallel with the manifest rather
+ * than waiting to find out whether there is a book to resume in.
+ */
 export const noPublication = [
   http.post(SESSION_PATH, () => HttpResponse.json({ expires_in: 900 })),
   http.get(MANIFEST_PATH, () => new HttpResponse(null, { status: 404 })),
+  ...readingPositionApi().handlers,
 ];
 
 /**
