@@ -469,10 +469,10 @@ class TestDecompressionIsBounded:
         """Should refuse a member that lies about its size rather than serve it.
 
         This is the outcome only. What the endpoint spends getting there is not
-        visible from out here, because the shared parser reads every manifest
-        item before this endpoint sees one -- see
+        visible from out here -- see
         ``tests/unit/infrastructure/web_reader/test_publication_resource_query.py``
-        for the assertion about the bytes this endpoint's own read allocates.
+        for the assertion about the bytes this endpoint's own read allocates,
+        and ``TestParsePublicationCost`` for the parse that precedes it.
         """
         await store_epub(
             db_session, test_book, storage_dir, understating_epub("big.css", 1024 * 1024)

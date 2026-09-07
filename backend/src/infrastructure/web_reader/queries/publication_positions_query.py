@@ -129,9 +129,11 @@ def _servable_sizes(
     positions could only ever point somewhere a reader cannot go.
 
     A member the archive does not hold is left out and counted as empty, which
-    is the backstop the resource endpoint has for the same case: the parser
-    reads every manifest item, so a spine naming a file the container lacks
-    fails the publication long before this.
+    is what the resource endpoint does with the same case: the parser reads the
+    package document and not the files it names (#773), so a spine naming a file
+    the container lacks still produces a reading order. Such a resource is worth
+    the one position every resource is worth, and the endpoint that serves it
+    answers 404.
     """
     sizes: dict[str, int] = {}
     for resource in reading_order:

@@ -353,8 +353,8 @@ class TestMalformedPublications:
     ) -> None:
         """Should name the file that exists, not the one its encoding decodes to.
 
-        ebooklib decodes manifest hrefs and leaves navigation hrefs as written,
-        so decoding both would turn the real file ``chapter%20one.xhtml`` into
+        The parser decodes a manifest href once and leaves a navigation href as
+        written, so decoding both would turn the real file ``chapter%20one.xhtml`` into
         ``chapter one.xhtml`` in the reading order while the TOC still named the
         real one -- two hrefs for one file, neither reachable in both places.
         """

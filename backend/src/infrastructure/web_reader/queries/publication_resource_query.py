@@ -88,12 +88,12 @@ class PublicationResourceQuery(PublicationQuery):
             try:
                 entry = archive.getinfo(path)
             except KeyError:
-                # A backstop, not an expected path: the parser reads every
-                # manifest item, so a package document naming a file the
-                # container does not hold fails the whole publication before
-                # this point. It stands so that any future divergence between
-                # what the parser lists and what the archive holds is a 404
-                # rather than an unhandled KeyError.
+                # Reachable, and the honest answer when it is: the parser reads
+                # the package document and not the files it names (#773), so a
+                # manifest naming a file the container does not hold yields a
+                # publication that lists a resource the archive lacks. Missing
+                # one file is not grounds for refusing the whole book, so the
+                # file that is not there is the one that is not found.
                 raise PublicationResourceNotFoundError(path) from None
 
             # Whether this member may be served at all is settled first: a
