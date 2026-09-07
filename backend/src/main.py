@@ -319,10 +319,20 @@ class SecurityHeadersMiddleware:
                     settings.ENVIRONMENT != "development"
                     and "content-security-policy" not in headers
                 ):
+                    # `blob:` in three directives is the web reader, and only
+                    # the web reader. Readium frames each publication resource
+                    # as a `blob:` document (`frame-src`) whose Readium CSS
+                    # arrives as a `blob:` stylesheet (`style-src`), and injects
+                    # its own scripts -- the selector generator ADR-0004 §2's
+                    # write path needs -- as `<script src="blob:...">`
+                    # (`script-src`). A book's own scripts are not covered by
+                    # any of it: they are inline or served from this origin, and
+                    # `publicationHardening.ts` strips them and pins the frame
+                    # to `script-src blob:` besides.
                     headers["Content-Security-Policy"] = (
                         "default-src 'self'; "
-                        "script-src 'self' blob: 'sha256-ZswfTY7H35rbv8WC7NXBoiC7WNu86vSzCDChNWwZZDM=' 'sha256-vkotUvpkIPYVpizTziU6038SoZQpXC7BFstfTehf3jU=' 'sha256-XwZ85A6voLmUP8995sA5TSyPQ64ebkQ2WDs4WBrJxCU=';"
-                        "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com blob:;"
+                        "script-src 'self' blob:; "
+                        "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com blob:; "
                         "img-src 'self' data: blob:; "
                         "font-src 'self' https://fonts.gstatic.com; "
                         "connect-src 'self'; "
