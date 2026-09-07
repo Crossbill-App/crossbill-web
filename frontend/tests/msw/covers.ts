@@ -14,13 +14,13 @@ const transparentPngBytes = () =>
 
 /**
  * `GET /covers/:file`, answering every request with the same placeholder
- * image. `BookCover` builds the URL from `VITE_API_URL`, which is unset in
- * tests, so it falls back to `http://localhost:8000` — the literal origin
- * matched here.
+ * image. `BookCover` prefixes the path with `API_BASE_URL`, which is empty
+ * unless `VITE_API_URL` overrides it — and `vitest.config.ts` keeps env files
+ * out of the test run, so the relative path matched here is what it requests.
  */
 export const coversApi = () => [
   http.get(
-    'http://localhost:8000/api/v1/covers/:file',
+    '/api/v1/covers/:file',
     () => new HttpResponse(transparentPngBytes(), { headers: { 'Content-Type': 'image/png' } })
   ),
 ];

@@ -9,6 +9,14 @@ export default mergeConfig(
     // Serves tests/public/mockServiceWorker.js during tests only, so the worker
     // script never ends up in the production build.
     publicDir: 'tests/public',
+    // Matches no variable name, so `import.meta.env` carries none of them —
+    // neither a developer's frontend/.env nor a variable exported in the
+    // shell or set by CI. Both reach a normal Vite build, and either would
+    // compile `VITE_API_URL=http://localhost:8000` into `API_BASE_URL`; the
+    // covers a page renders would then be fetched from that origin while the
+    // MSW handlers wait on relative paths. Restricting the env *directory*
+    // stops only the file half of that.
+    envPrefix: [],
     resolve: {
       alias: {
         '@tests': path.resolve(import.meta.dirname,'./tests'),
