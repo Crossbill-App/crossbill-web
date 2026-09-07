@@ -16,11 +16,41 @@ const chapterDocument = (title: string) =>
   <body><h1>${title}</h1><p>Attention is the rarest and purest form of generosity.</p></body>
 </html>`;
 
+/**
+ * A chapter that tries to break out of its frame.
+ *
+ * The frame is same-origin with the app and Readium runs it with
+ * `allow-same-origin allow-scripts`, so any of these, if it executed, would be
+ * reading and writing the app's own DOM — and could just as easily spend the
+ * session. Every vector marks `document.body` so a test can see which one got
+ * through: an inline script, an external script from the publication's own
+ * origin, an inline event handler, and a `javascript:` URL.
+ */
+const hostileChapter = () =>
+  `<?xml version="1.0" encoding="utf-8"?>
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <title>On Attention</title>
+    <script>parent.document.body.setAttribute('data-pwned', 'inline-script')</script>
+    <script src="evil.js"></script>
+  </head>
+  <body onload="parent.document.body.setAttribute('data-pwned', 'onload')">
+    <h1>On Attention</h1>
+    <p><a href="javascript:parent.document.body.setAttribute('data-pwned','href')">A link.</a></p>
+    <img src="x.png" onerror="parent.document.body.setAttribute('data-pwned', 'onerror')" />
+  </body>
+</html>`;
+
 /** The files `aManifest` names, keyed by the path the resource route receives. */
 const RESOURCES: Record<string, { body: string; type: string } | undefined> = {
   'OEBPS/chapter1.xhtml': { body: chapterDocument('On Attention'), type: 'application/xhtml+xml' },
   'OEBPS/chapter2.xhtml': { body: chapterDocument('On Memory'), type: 'application/xhtml+xml' },
   'OEBPS/style.css': { body: 'body { margin: 0; }', type: 'text/css' },
+  'OEBPS/evil.js': {
+    body: "parent.document.body.setAttribute('data-pwned', 'external-script')",
+    type: 'text/javascript',
+  },
 };
 
 interface ReadiumApiOptions {
@@ -28,6 +58,8 @@ interface ReadiumApiOptions {
   positions?: PositionList;
   /** Seconds of life the session endpoint claims for the publication cookie. */
   expiresIn?: number;
+  /** Serve the first chapter as a book that attacks the page that opened it. */
+  hostile?: boolean;
 }
 
 /**
@@ -36,13 +68,21 @@ interface ReadiumApiOptions {
  * The navigator fetches the reading order itself, so serving the chapters here
  * is what lets a test drive the real thing rather than a mock of it.
  */
-export const readiumApi = ({ manifest, positions, expiresIn = 900 }: ReadiumApiOptions = {}) => [
+export const readiumApi = ({
+  manifest,
+  positions,
+  expiresIn = 900,
+  hostile = false,
+}: ReadiumApiOptions = {}) => [
   http.post(SESSION_PATH, () => HttpResponse.json({ expires_in: expiresIn })),
   http.get(MANIFEST_PATH, () => HttpResponse.json(manifest ?? aManifest())),
   http.get(POSITIONS_PATH, () => HttpResponse.json(positions ?? aPositionList())),
   http.get(RESOURCE_PATH, ({ params }) => {
     const path = String(params[0]);
-    const resource = RESOURCES[path];
+    const resource =
+      hostile && path === 'OEBPS/chapter1.xhtml'
+        ? { body: hostileChapter(), type: 'application/xhtml+xml' }
+        : RESOURCES[path];
     if (!resource) return new HttpResponse(null, { status: 404 });
     return new HttpResponse(resource.body, {
       headers: { 'Content-Type': resource.type, ETag: `"${path}"` },

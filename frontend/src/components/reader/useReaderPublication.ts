@@ -1,5 +1,6 @@
 import { API_BASE_URL } from '@/api/base-url.ts';
 import { useGetReadiumManifest } from '@/api/generated/readium/readium.ts';
+import { hardeningFetch } from '@/components/reader/publicationHardening.ts';
 import { HttpFetcher, Locator, Manifest, Publication } from '@readium/shared';
 import Axios from 'axios';
 import { useEffect, useMemo, useState } from 'react';
@@ -7,15 +8,21 @@ import { useEffect, useMemo, useState } from 'react';
 const isNotFound = (error: unknown) => Axios.isAxiosError(error) && error.response?.status === 404;
 
 /**
- * The manifest is a book's structure, not its state: it only changes when the
- * EPUB behind it is replaced. Caching it for the session means the "Read" tab's
- * visibility probe and the reader itself share one request.
+ * The manifest is a book's structure, so it changes only when the EPUB behind
+ * it is replaced — which no screen in this app can do. The only writer is the
+ * KOReader plugin's upload, out of band, so there is no mutation here to hang
+ * an invalidation off and no event that could tell this tab the book changed.
+ *
+ * That rules out caching it for the session: a book replaced on the e-reader
+ * would keep serving its old chapters until a hard reload. It inherits the
+ * app-wide five minutes instead, which bounds the stale window without costing
+ * much — the backend caches the parsed publication under the book's file and
+ * evicts it on upload, so a refetch is a cache read, not a re-parse.
+ *
+ * `retry` is the one thing worth overriding: a missing EPUB answers 404, which
+ * is an answer rather than a failure to try again.
  */
-const MANIFEST_QUERY = {
-  staleTime: Infinity,
-  // A missing EPUB answers 404, which is an answer, not a failure to retry.
-  retry: false,
-} as const;
+const MANIFEST_QUERY = { retry: false } as const;
 
 const manifestUrl = (bookId: number) =>
   new URL(`${API_BASE_URL}/api/v1/readium/books/${bookId}/manifest.json`, window.location.origin)
@@ -31,6 +38,13 @@ const manifestUrl = (bookId: number) =>
  */
 const credentialedFetch: typeof fetch = (input, init) =>
   fetch(input, { ...init, credentials: 'include' });
+
+/**
+ * What the navigator is actually given: the credentialed fetch above, with
+ * every markup document it returns stripped of the book's own JavaScript. See
+ * `publicationHardening.ts` for why a book's scripts are the app's problem.
+ */
+const publicationFetch = hardeningFetch(credentialedFetch);
 
 /**
  * Whether this book has an EPUB the web reader can open.
@@ -90,7 +104,7 @@ export const useReaderPublication = (bookId: number): ReaderPublication => {
     manifest.setSelfLink(selfHref);
     return new Publication({
       manifest,
-      fetcher: new HttpFetcher(credentialedFetch, selfHref),
+      fetcher: new HttpFetcher(publicationFetch, selfHref),
     });
   }, [bookId, data]);
 

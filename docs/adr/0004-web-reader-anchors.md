@@ -348,3 +348,51 @@ every request.
 - **Any change to the plugin surface.** The KOReader plugin does not load
   publications, so no `koreader-plugin` minimum bump comes out of this
   amendment either.
+
+## Amendment 2: a publication's own scripts
+
+- **Date:** 2026-09-07
+- **Arises from:** #741 (M2.2), found in adversarial review of the reader route
+
+*Amendment 1* settled how an iframe load authenticates. It did not ask what the
+thing inside the iframe is allowed to do, and the answer turned out to be
+"everything".
+
+`@readium/navigator` frames each resource with
+`sandbox="allow-same-origin allow-scripts"` (`FrameManager.ts:28`) and the
+framed document is a `blob:` URL minted by the SPA — so the frame is
+**same-origin with the app**. The CSP the library injects into that document
+permits the content's own JavaScript outright:
+`script-src ${domains} blob: 'unsafe-inline'` (`FrameBlobBuilder.ts:5-21`). A
+`<script>` in an EPUB therefore ran with the reader's own privileges. This was
+not theoretical: a test fixture's `onload` handler reached
+`parent.document.body` and marked it.
+
+That matters because **Crossbill's books are uploaded by their owner from
+wherever they found them**. The library is not a trust boundary, and a
+downloaded EPUB is closer to a downloaded web page than to a document.
+
+**Decision: a publication's markup is disarmed before Readium ever frames it.**
+The `Publication`'s fetcher is ours, and Readium builds every frame from what
+that fetcher returns, so a wrapper around it (`publicationHardening.ts`) parses
+each HTML/XHTML resource, removes `<script>` elements, `on*` handlers and
+`javascript:` URLs, and prepends
+`script-src blob:; object-src 'none'; child-src 'none'`. CSP policies combine
+by intersection, so ours meets the library's at `blob:` — which is exactly the
+line between Readium's own injected scripts and the book's, since the former
+are injected as `<script src="blob:...">` (`Injector.ts`) and the latter never
+are.
+
+**Rejected: dropping `allow-scripts`.** Readium injects `css-selector-generator`
+into every document (`epubInjectables.ts`), and that is what turns a browser
+selection into a Locator — §2's write path, and the ground M3 and M4 stand on.
+Removing script execution from the frame removes the anchors with it.
+
+**Rejected: dropping `allow-same-origin`.** An opaque-origin frame cannot be
+scripted by its parent at all, which is how the navigator drives it.
+
+**Residual, accepted for now.** This is a mitigation, not a sandbox: the frame
+is still same-origin, so anything that does get script running there has the
+page. Scripted EPUB content does not work, which is the intended trade. The
+architectural fix is to serve publication resources from a separate origin;
+Readium's blob-URL design makes that awkward and it is not M2.2's to do.
