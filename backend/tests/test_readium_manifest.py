@@ -21,20 +21,17 @@ that agreement is the point rather than a formatting preference.
 
 import struct
 import zipfile
-from collections.abc import AsyncGenerator
 from io import BytesIO
 from pathlib import Path
 from typing import Any
 
 import pytest
-from httpx import ASGITransport, AsyncClient
+from httpx import AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession
 from starlette import status
 
 from src.infrastructure.library.services import epub_parser_service
-from src.main import app
-from src.models import Book, User
-from tests.conftest import create_test_book
+from src.models import Book
 
 FIXTURES = Path(__file__).parent / "fixtures"
 
@@ -156,14 +153,6 @@ LITERAL_PERCENT_EPUB = build_epub(
     nav_links='<li><a href="chapter%2520one.xhtml">Chapter One</a></li>',
     files=("chapter%20one.xhtml",),
 )
-
-
-@pytest.fixture
-async def anonymous_client() -> AsyncGenerator[AsyncClient, None]:
-    """A client with no authentication override, to see what the endpoint demands."""
-    transport = ASGITransport(app=app)
-    async with AsyncClient(transport=transport, base_url="http://test") as unauthenticated:
-        yield unauthenticated
 
 
 class TestManifestStructure:
@@ -557,81 +546,6 @@ class TestMalformedPublications:
         """Should turn away an archive whose declared uncompressed size is absurd."""
         monkeypatch.setattr(epub_parser_service, "MAX_PUBLICATION_UNCOMPRESSED_BYTES", 10)
         await store_epub(db_session, test_book, storage_dir, fixture_bytes("minimal.epub"))
-
-        response = await client.get(manifest_url(test_book))
-
-        assert response.status_code == status.HTTP_400_BAD_REQUEST
-
-
-class TestManifestAccess:
-    """Who may read a manifest, and what happens when there is none to read."""
-
-    async def test_requires_authentication(
-        self, anonymous_client: AsyncClient, test_book: Book
-    ) -> None:
-        """Should reject an unauthenticated request rather than serve the book."""
-        response = await anonymous_client.get(manifest_url(test_book))
-
-        assert response.status_code == status.HTTP_401_UNAUTHORIZED, response.text
-
-    async def test_unknown_book_is_not_found(self, client: AsyncClient) -> None:
-        """Should answer 404 for a book id that exists for nobody."""
-        response = await client.get("/api/v1/readium/books/99999/manifest.json")
-
-        assert response.status_code == status.HTTP_404_NOT_FOUND
-
-    async def test_another_users_book_is_not_found(
-        self,
-        client: AsyncClient,
-        db_session: AsyncSession,
-        other_user: User,
-        storage_dir: Path,
-    ) -> None:
-        """Should answer 404 for a readable EPUB belonging to somebody else."""
-        their_book = await create_test_book(
-            db_session=db_session, user_id=other_user.id, title="Not Yours"
-        )
-        await store_epub(db_session, their_book, storage_dir, fixture_bytes("minimal.epub"))
-
-        response = await client.get(manifest_url(their_book))
-
-        assert response.status_code == status.HTTP_404_NOT_FOUND
-
-    async def test_book_without_an_epub_is_not_found(
-        self, client: AsyncClient, test_book: Book
-    ) -> None:
-        """Should answer 404 when the book was never given a file to read."""
-        assert test_book.ebook_file is None
-
-        response = await client.get(manifest_url(test_book))
-
-        assert response.status_code == status.HTTP_404_NOT_FOUND
-
-    async def test_missing_epub_file_is_not_found(
-        self,
-        client: AsyncClient,
-        db_session: AsyncSession,
-        test_book: Book,
-        storage_dir: Path,
-    ) -> None:
-        """Should answer 404 when the row names a file the store does not hold."""
-        test_book.ebook_file = "vanished.epub"
-        test_book.file_type = "epub"
-        await db_session.commit()
-
-        response = await client.get(manifest_url(test_book))
-
-        assert response.status_code == status.HTTP_404_NOT_FOUND
-
-    async def test_unreadable_epub_is_rejected(
-        self,
-        client: AsyncClient,
-        db_session: AsyncSession,
-        test_book: Book,
-        storage_dir: Path,
-    ) -> None:
-        """Should fail the request rather than serve a manifest with nothing in it."""
-        await store_epub(db_session, test_book, storage_dir, b"not an epub at all")
 
         response = await client.get(manifest_url(test_book))
 

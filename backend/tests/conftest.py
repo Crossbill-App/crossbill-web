@@ -451,6 +451,19 @@ async def plugin_client(client: AsyncClient) -> AsyncGenerator[AsyncClient, None
 
 
 @pytest.fixture
+async def anonymous_client() -> AsyncGenerator[AsyncClient, None]:
+    """A client with no authentication override, to see what an endpoint demands.
+
+    Deliberately not built on ``client``: what makes it anonymous is the absence
+    of the dependency override that fixture installs, so it must not depend on
+    anything that installs one.
+    """
+    transport = ASGITransport(app=app)
+    async with AsyncClient(transport=transport, base_url="http://test") as unauthenticated:
+        yield unauthenticated
+
+
+@pytest.fixture
 def job_queue(client: AsyncClient) -> AsyncMock:
     """The contract-checked queue fake the ``client`` fixture put on the container.
 

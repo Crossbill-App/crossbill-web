@@ -3,9 +3,11 @@
 The manifest (M1.1) links a position list; this is the view behind that link. A
 *position* is Readium's unit of "how far through the book am I" for a format
 that has no pages of its own: the reading order is cut into equal-sized pieces,
-and a locator names each one. It is a dead end like any read model -- rendered
-into an HTTP response and never fed back into a command. See
-``docs/adr/0001-read-models-and-query-services.md``.
+and a locator names each one.
+
+Read-model rules apply as they do to every view here
+(``docs/adr/0001-read-models-and-query-services.md``): this is rendered and then
+it is finished with.
 """
 
 from dataclasses import dataclass

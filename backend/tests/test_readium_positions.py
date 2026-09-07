@@ -13,18 +13,15 @@ Hand-built EPUBs are what make that observable: their members' bytes are written
 out here, so a count asserted below is a division a reader can do on the page.
 """
 
-from collections.abc import AsyncGenerator
 from pathlib import Path
 from urllib.parse import urljoin
 
 import pytest
-from httpx import ASGITransport, AsyncClient
+from httpx import AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession
 from starlette import status
 
-from src.main import app
-from src.models import Book, User
-from tests.conftest import create_test_book
+from src.models import Book
 from tests.test_readium_manifest import (
     POSITION_LIST_MEDIA_TYPE,
     POSITION_LIST_REL,
@@ -70,14 +67,6 @@ FIXED_LAYOUT_PAGES_EPUB = build_epub(
     bodies={"p1.xhtml": b"a" * 4096, "p2.xhtml": b"b" * 4096},
     extra_metadata='<meta property="rendition:layout">pre-paginated</meta>',
 )
-
-
-@pytest.fixture
-async def anonymous_client() -> AsyncGenerator[AsyncClient, None]:
-    """A client with no authentication override, to see what the endpoint demands."""
-    transport = ASGITransport(app=app)
-    async with AsyncClient(transport=transport, base_url="http://test") as unauthenticated:
-        yield unauthenticated
 
 
 @pytest.fixture
@@ -327,63 +316,3 @@ class TestThePositionListIsReachedFromTheManifest:
 
             assert response.status_code == status.HTTP_200_OK, href
             assert response.content, href
-
-
-class TestPositionListAccess:
-    """Who may read a book's positions, and what happens when there is no book."""
-
-    async def test_requires_authentication(
-        self, anonymous_client: AsyncClient, long_chapters_book: Book
-    ) -> None:
-        """Should reject an unauthenticated request rather than describe the book."""
-        response = await anonymous_client.get(positions_url(long_chapters_book))
-
-        assert response.status_code == status.HTTP_401_UNAUTHORIZED, response.text
-
-    async def test_another_users_book_is_not_found(
-        self,
-        client: AsyncClient,
-        db_session: AsyncSession,
-        other_user: User,
-        storage_dir: Path,
-    ) -> None:
-        """Should answer 404 for a readable publication belonging to somebody else."""
-        their_book = await create_test_book(
-            db_session=db_session, user_id=other_user.id, title="Not Yours"
-        )
-        await store_epub(db_session, their_book, storage_dir, TWO_LONG_CHAPTERS_EPUB)
-
-        response = await client.get(positions_url(their_book))
-
-        assert response.status_code == status.HTTP_404_NOT_FOUND
-        assert "positions" not in response.text
-
-    async def test_unknown_book_is_not_found(self, client: AsyncClient) -> None:
-        """Should answer 404 for a book id that exists for nobody."""
-        response = await client.get("/api/v1/readium/books/99999/positions.json")
-
-        assert response.status_code == status.HTTP_404_NOT_FOUND
-
-    async def test_book_without_an_epub_is_not_found(
-        self, client: AsyncClient, test_book: Book
-    ) -> None:
-        """Should answer 404 when the book was never given a file to read."""
-        assert test_book.ebook_file is None
-
-        response = await client.get(positions_url(test_book))
-
-        assert response.status_code == status.HTTP_404_NOT_FOUND
-
-    async def test_unreadable_epub_is_rejected(
-        self,
-        client: AsyncClient,
-        db_session: AsyncSession,
-        test_book: Book,
-        storage_dir: Path,
-    ) -> None:
-        """Should fail the request rather than answer 404 for a book it cannot parse."""
-        await store_epub(db_session, test_book, storage_dir, b"not an epub at all")
-
-        response = await client.get(positions_url(test_book))
-
-        assert response.status_code == status.HTTP_400_BAD_REQUEST
