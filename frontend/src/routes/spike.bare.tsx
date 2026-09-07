@@ -21,6 +21,8 @@ export const Route = createFileRoute('/spike/bare')({
   component: BareReaderRoute,
   validateSearch: (search: Record<string, unknown>) => ({
     bookId: Number(search.bookId ?? 12),
+    // SPIKE: lets the route be opened from a pasted URL without a login.
+    token: typeof search.token === 'string' ? search.token : undefined,
   }),
 });
 
@@ -36,7 +38,10 @@ function BareReaderRoute() {
     let destroyed = false;
 
     const boot = async () => {
-      const token = getAccessToken() ?? sessionStorage.getItem('spikeToken');
+      const token =
+        getAccessToken() ??
+        new URLSearchParams(window.location.search).get('token') ??
+        sessionStorage.getItem('spikeToken');
       const base = `/api/v1/readium/books/${bookId}`;
 
       setStatus('minting publication cookie');
@@ -88,6 +93,14 @@ function BareReaderRoute() {
       );
       navRef.current = navigator;
       await navigator.load();
+      // NOT SOLVED IN THE TIMEBOX. The frames come out at the default iframe
+      // 300x150 rather than filling the container, and this resize nudge does
+      // not fix it. Everything functional works (frameLoaded, positions,
+      // navigation, applyDecorations) — it is the *layout* that bare
+      // @readium/navigator does not give you, and sizing the frame pool is
+      // precisely the chrome work M2.2 would be signing up for.
+      await new Promise((r) => requestAnimationFrame(r));
+      await navigator.resizeHandler();
       if (!destroyed) setStatus('ready');
     };
 

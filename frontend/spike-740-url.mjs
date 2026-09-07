@@ -1,0 +1,10 @@
+import { chromium } from 'playwright';
+const url = process.argv[2];
+const browser = await chromium.launch();
+const page = await (await browser.newContext({ viewport: { width: 1280, height: 900 } })).newPage();
+await page.goto(url, { waitUntil: 'load' });
+await page.waitForTimeout(12000);
+console.log('body:', (await page.evaluate(() => document.body.innerText)).slice(0, 200));
+console.log('iframes:', await page.evaluate(() => document.querySelectorAll('iframe').length));
+await page.screenshot({ path: process.argv[3] ?? 'spike-740-url.png' });
+await browser.close();

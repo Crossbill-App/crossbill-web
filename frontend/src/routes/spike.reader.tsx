@@ -30,6 +30,8 @@ export const Route = createFileRoute('/spike/reader')({
   component: SpikeReaderRoute,
   validateSearch: (search: Record<string, unknown>) => ({
     bookId: Number(search.bookId ?? 12),
+    // SPIKE: lets the route be opened from a pasted URL without a login.
+    token: typeof search.token === 'string' ? search.token : undefined,
   }),
 });
 
@@ -41,7 +43,10 @@ function usePublicationSession(bookId: number) {
   useEffect(() => {
     let cancelled = false;
     // SPIKE: sessionStorage fallback so the route can be driven without a login.
-    const token = getAccessToken() ?? sessionStorage.getItem('spikeToken');
+    const token =
+      getAccessToken() ??
+      new URLSearchParams(window.location.search).get('token') ??
+      sessionStorage.getItem('spikeToken');
     fetch(`/api/v1/readium/books/${bookId}/session`, {
       method: 'POST',
       headers: token ? { Authorization: `Bearer ${token}` } : {},
