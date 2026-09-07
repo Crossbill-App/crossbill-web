@@ -31,15 +31,33 @@ from src.infrastructure.web_reader.queries.stored_epub import StoredEpub, load_s
 # enough to stay readable in a log line or a browser's network panel.
 _VERSION_LENGTH = 32
 
-# The largest single file this will serve out of a publication. EPUB resources
-# are documents, styles, fonts and images: a chapter runs to kilobytes and even
-# a full-page scan in a fixed-layout book to a few megabytes, so this sits two
-# orders of magnitude above anything a real book contains and no legitimate
-# publication meets it. Audio and video are not EPUB resources and are not
-# planned. The parser's own cap is on the archive's *total* declared size, which
-# a single near-2-GiB member passes comfortably, so a per-member limit is what
-# stops one file from being the whole budget.
-MAX_RESOURCE_BYTES = 16 * 1024 * 1024
+# The largest single file this will serve out of a publication, derived from the
+# 50 MiB `MAX_EBOOK_SIZE` an upload may be.
+#
+# EPUB 3 carries audio, video, fonts and full-page images as well as documents,
+# so "a chapter is small" is no guide at all. What does bound a member is the
+# upload: every one of those formats is already compressed and stores at a ratio
+# near one, so a media member cannot be much larger than the archive that
+# carried it. Sitting above the upload cap therefore admits any member that
+# could have arrived as itself -- a 32 MiB comic page included -- while still
+# bounding what one request may hold.
+#
+# Only a member relying on real compression could exceed this, and that means
+# text: no publication has a 64 MiB XHTML document. The parser's own cap is on
+# the archive's *total* declared size, which one near-2-GiB member passes
+# comfortably, so a per-member limit is what stops one file being the whole
+# budget.
+MAX_RESOURCE_BYTES = 64 * 1024 * 1024
+
+# How much larger than its contents a compressed stream may plausibly be.
+# Deflate cannot meaningfully expand data: incompressible input falls back to
+# stored blocks, costing five bytes per 64 KiB block plus a small header. The
+# allowance is far looser than that -- a sixteenth, plus 256 bytes so tiny
+# members are not judged on rounding -- because its job is to catch a stream
+# orders of magnitude too big for what it claims to hold, not to police
+# encoders.
+_COMPRESSED_SLACK_DIVISOR = 16
+_COMPRESSED_SLACK_BYTES = 256
 
 
 class PublicationResourceQuery:
@@ -95,12 +113,18 @@ class PublicationResourceQuery:
                 # rather than an unhandled KeyError.
                 raise PublicationResourceNotFoundError(path) from None
 
+            # Whether this member may be served at all is settled first: a
+            # precondition narrows a request that would otherwise succeed
+            # (RFC 9110 §13.2), so it must not turn a refusal into "your copy is
+            # current" and leave a reader trusting a file it can never fetch.
+            # Both this and the version come from the archive's directory, so
+            # neither costs a decompression.
+            check_member_is_servable(entry)
+
             version = _version(stored, path)
-            # Answered before anything is decompressed. The version is made of
-            # what the archive's directory already says, so a reader that
-            # already holds this file costs a parse and nothing more -- which is
-            # the difference between a cheap conditional request and one that
-            # inflates a member in full only to discard it.
+            # Answered before anything is decompressed, which is the difference
+            # between a cheap conditional request and one that inflates a member
+            # in full only to discard it.
             if ANY_VERSION in known_versions or version in known_versions:
                 return PublicationResourceView(media_type=media_type, content=None, version=version)
             content = read_bounded_member(archive, entry)
@@ -133,29 +157,35 @@ def _media_types_by_member(publication: ParsedPublication) -> dict[str, str]:
     }
 
 
-def read_bounded_member(archive: zipfile.ZipFile, entry: zipfile.ZipInfo) -> bytes:
-    """Read one member without letting it decide how much memory that takes.
+def check_member_is_servable(entry: zipfile.ZipInfo) -> None:
+    """Decide from the central directory alone whether a member may be served.
 
-    Two things are needed, because the declared size is both the only cheap
-    signal and a claim the archive makes about itself:
+    Both questions are answered without decompressing anything, which is what
+    lets this run before a conditional request is considered -- a precondition
+    narrows a request that would otherwise succeed and must not rescue one that
+    would not.
 
-    - **The cap refuses an honest declaration for free.** A member declaring
-      more than :data:`MAX_RESOURCE_BYTES` is turned away without opening it.
-    - **The bounded read contains a dishonest one.** ``ZipFile.read()`` returns
-      no more than the declared size but does not *work* within it: measured on
-      CPython 3.13, reading a member that declares 10 bytes and really inflates
-      to 200 MB returns 10 bytes after allocating 437 MiB, because the
-      decompressor is handed an unbounded output limit and only the result is
-      truncated. ``open(entry).read(n)`` passes ``n`` down as the decompressor's
-      output limit, so asking for no more than the declaration bounds the work
-      as well as the answer -- the same member then costs 53 KiB.
+    The **cap** turns away an honest declaration over
+    :data:`MAX_RESOURCE_BYTES`.
 
-    A member that inflates past what it declared fails its CRC-32, which
-    ``zipfile`` raises as ``BadZipFile``; that is a broken publication rather
-    than a server fault, so it reads as one.
+    The **plausibility check** turns away a dishonest one. A member that really
+    inflates past what it declared normally fails its CRC-32, but that check is
+    forgeable: a crafted member whose stored checksum equals the CRC of its own
+    truncated prefix passes it, and would then be served silently short. The
+    compressed size is the tell. Deflate cannot meaningfully expand data, so a
+    stream far larger than the declaration could compress to is lying about one
+    of the two, and a member declaring eight bytes cannot honestly carry 200 KiB.
+
+    Residual risk, accepted knowingly: a member that overstates by only a little
+    -- within the slack -- still slips through with a forged prefix CRC, and is
+    served truncated. What remains is an integrity fault confined to one file of
+    a book, in an archive its own owner uploaded and only its owner can read;
+    memory stays bounded either way. Closing it completely would mean
+    decompressing every member to measure it, which is the cost this whole path
+    exists to avoid.
 
     Raises:
-        InvalidEbookError: If the member is over the cap, or is not readable.
+        InvalidEbookError: If the member is over the cap or misdescribes itself.
     """
     if entry.file_size > MAX_RESOURCE_BYTES:
         raise InvalidEbookError(
@@ -163,6 +193,38 @@ def read_bounded_member(archive: zipfile.ZipFile, entry: zipfile.ZipInfo) -> byt
             f"{MAX_RESOURCE_BYTES} limit",
             "epub",
         )
+    plausible = (
+        entry.file_size + entry.file_size // _COMPRESSED_SLACK_DIVISOR + _COMPRESSED_SLACK_BYTES
+    )
+    if entry.compress_size > plausible:
+        raise InvalidEbookError(
+            f"resource {entry.filename!r} declares {entry.file_size} bytes but carries a "
+            f"compressed stream of {entry.compress_size}",
+            "epub",
+        )
+
+
+def read_bounded_member(archive: zipfile.ZipFile, entry: zipfile.ZipInfo) -> bytes:
+    """Read one member without letting it decide how much memory that takes.
+
+    ``ZipFile.read()`` returns no more than the declared size but does not
+    *work* within it: measured on CPython 3.13, reading a member that declares
+    10 bytes and really inflates to 200 MB returns 10 bytes after allocating
+    437 MiB, because the decompressor is handed an unbounded output limit and
+    only the result is truncated. ``open(entry).read(n)`` passes ``n`` down as
+    that limit, so asking for no more than the declaration bounds the work as
+    well as the answer -- the same member then costs 53 KiB.
+
+    Call :func:`check_member_is_servable` first; this trusts the declaration to
+    be one worth reading up to.
+
+    A member that inflates past what it declared fails its CRC-32, which
+    ``zipfile`` raises as ``BadZipFile``; that is a broken publication rather
+    than a server fault, so it reads as one.
+
+    Raises:
+        InvalidEbookError: If the member is not readable.
+    """
     try:
         with archive.open(entry) as member:
             return member.read(entry.file_size + 1)

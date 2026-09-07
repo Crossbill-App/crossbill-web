@@ -55,6 +55,10 @@ RESOURCE_CACHE_CONTROL = "private"
 _MEDIA_TYPE = re.compile(r"[A-Za-z0-9][A-Za-z0-9!#$&^_.+-]*/[A-Za-z0-9][A-Za-z0-9!#$&^_.+-]*")
 FALLBACK_MEDIA_TYPE = "application/octet-stream"
 
+# An entity-tag as RFC 9110 §8.8.3 spells one: an optionally `W/`-prefixed
+# quoted string, whose content is any visible character but the quote itself.
+_ENTITY_TAG = re.compile(r'(?:W/)?"(?P<version>[\x21\x23-\x7e]*)"')
+
 
 class WebpubJSONResponse(JSONResponse):
     """JSON served as ``application/webpub+json``, which is what a navigator looks for."""
@@ -165,16 +169,27 @@ def _known_versions(if_none_match: str | None) -> frozenset[str]:
     so that a file the caller already has is never decompressed to answer that
     it has it.
 
-    RFC 9110 §13.1.2: ``*`` stands for any current representation, and the tags
-    are compared weakly, so ``W/"x"`` and ``"x"`` name the same version. Unwrapping
-    them here leaves the read with plain version strings and no HTTP syntax.
+    ``*`` stands for any current representation (RFC 9110 §13.1.2), and only on
+    its own -- mixed with tags it is not a header the grammar defines.
+
+    Everything else is read as the grammar spells it (§8.8.3): an entity-tag is
+    a quoted string, optionally prefixed ``W/``, and the comparison for a GET is
+    weak, so ``W/"x"`` and ``"x"`` name the same version. Anything that is not
+    an entity-tag is dropped rather than repaired -- unwrapping optional quotes
+    would let a bare token match, and answering 304 to a validator the standard
+    does not define means telling a reader its copy is current on no authority.
+    Dropping it serves the file, which is the harmless way to be unsure.
+
+    A tag may itself contain a comma, which splitting cannot honour; such a tag
+    matches nothing and the file is served. Ours are hexadecimal, so this costs
+    a revalidation only to a client echoing a tag it did not get from here.
     """
     if not if_none_match:
         return frozenset()
-    tags = [tag.strip() for tag in if_none_match.split(",")]
-    if ANY_VERSION in tags:
+    if if_none_match.strip() == ANY_VERSION:
         return frozenset({ANY_VERSION})
-    return frozenset(tag.removeprefix("W/").strip('"') for tag in tags)
+    parsed = (_ENTITY_TAG.fullmatch(tag.strip()) for tag in if_none_match.split(","))
+    return frozenset(tag.group("version") for tag in parsed if tag is not None)
 
 
 def _manifest(publication: ParsedPublication, self_href: str) -> WebPublicationManifest:

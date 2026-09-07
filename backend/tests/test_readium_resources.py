@@ -505,12 +505,17 @@ class TestDecompressionIsBounded:
         """Should answer 304 without reading the member at all.
 
         Everything the tag is made of comes from the archive's directory, so a
-        reader that already holds a file should cost no decompression. Dropping
-        the cap to nothing is what makes that observable: any attempt to read
-        the member would be refused, so a 304 can only mean none was made.
+        reader that already holds a file should cost no decompression. Only the
+        ordering separates the two from outside, so the spy is the assertion.
         """
         etag = (await client.get(resource_url(nested_toc_book, CHAPTER_1))).headers["etag"]
-        monkeypatch.setattr(publication_resource_query, "MAX_RESOURCE_BYTES", 0)
+        reads: list[str] = []
+
+        def refuse(archive: object, entry: zipfile.ZipInfo) -> bytes:
+            reads.append(entry.filename)
+            raise AssertionError("decompressed a member to answer a conditional request")
+
+        monkeypatch.setattr(publication_resource_query, "read_bounded_member", refuse)
 
         response = await client.get(
             resource_url(nested_toc_book, CHAPTER_1), headers={"If-None-Match": etag}
@@ -518,6 +523,60 @@ class TestDecompressionIsBounded:
 
         assert response.status_code == status.HTTP_304_NOT_MODIFIED
         assert response.content == b""
+        assert reads == []
+
+    async def test_the_size_policy_outranks_a_precondition(
+        self,
+        client: AsyncClient,
+        nested_toc_book: Book,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        """Should refuse an unservable member even to a caller that would take a 304.
+
+        A precondition narrows a request that would otherwise succeed (RFC 9110
+        §13.2). It cannot make one succeed that would not, so ``If-None-Match: *``
+        must not turn a refusal into "your copy is current" -- which would leave
+        a reader believing a file it can never fetch is up to date.
+        """
+        monkeypatch.setattr(publication_resource_query, "MAX_RESOURCE_BYTES", 10)
+
+        response = await client.get(
+            resource_url(nested_toc_book, CHAPTER_1), headers={"If-None-Match": "*"}
+        )
+
+        assert response.status_code == status.HTTP_400_BAD_REQUEST
+
+    @pytest.mark.parametrize(
+        "template",
+        [
+            "{version}",
+            "W/{version}",
+            '"{version}',
+            '{version}"',
+            "'{version}'",
+        ],
+    )
+    async def test_a_malformed_validator_does_not_match(
+        self, client: AsyncClient, nested_toc_book: Book, template: str
+    ) -> None:
+        """Should serve the file when the validator is not an entity-tag.
+
+        RFC 9110 §8.8.3 spells an entity-tag as an optionally ``W/``-prefixed
+        *quoted* string. Unwrapping optional quotes instead of reading the
+        grammar would let a bare token match, so a client that dropped the
+        quotes would be told its copy was current on the strength of a header
+        the standard does not define.
+        """
+        etag = (await client.get(resource_url(nested_toc_book, CHAPTER_1))).headers["etag"]
+        malformed = template.format(version=etag.strip('"'))
+        assert malformed != etag
+
+        response = await client.get(
+            resource_url(nested_toc_book, CHAPTER_1), headers={"If-None-Match": malformed}
+        )
+
+        assert response.status_code == status.HTTP_200_OK
+        assert response.content
 
 
 class TestOnlyPublicationFilesAreReachable:

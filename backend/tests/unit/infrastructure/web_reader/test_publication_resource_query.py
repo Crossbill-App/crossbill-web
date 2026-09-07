@@ -11,9 +11,12 @@ import tracemalloc
 import zipfile
 from io import BytesIO
 
+import pytest
+
 from src.domain.library.exceptions import InvalidEbookError
 from src.infrastructure.web_reader.queries.publication_resource_query import (
     MAX_RESOURCE_BYTES,
+    check_member_is_servable,
     read_bounded_member,
 )
 
@@ -61,13 +64,11 @@ def test_reads_an_ordinary_member_whole() -> None:
 
 
 def test_refuses_a_member_declaring_more_than_the_cap() -> None:
-    """Should turn away an honest oversized declaration without opening the member."""
+    """Should turn away an honest oversized declaration from the directory alone."""
     archive = archive_with("big.css", b"A" * 64, declared=MAX_RESOURCE_BYTES + 1)
 
-    outcome, peak = peak_bytes_reading(archive, "big.css")
-
-    assert isinstance(outcome, InvalidEbookError)
-    assert peak < 1024 * 1024, "opened a member it had already decided to refuse"
+    with pytest.raises(InvalidEbookError, match="over the"):
+        check_member_is_servable(archive.getinfo("big.css"))
 
 
 def test_a_member_that_understates_its_size_is_not_inflated() -> None:
@@ -103,15 +104,48 @@ def test_the_bound_is_the_declaration_not_the_cap() -> None:
     assert peak < MAX_RESOURCE_BYTES // 4
 
 
+def test_a_member_the_size_of_a_whole_upload_is_servable() -> None:
+    """Should serve anything an upload could legitimately have contained.
+
+    EPUB 3 carries audio, video, fonts and fixed-layout page images, and those
+    formats are already compressed, so they store at a ratio near one: a member
+    of them can be as large as the upload cap and no larger. A cap that turned
+    away a 32 MiB comic page would break a real book, and the manifest would go
+    on advertising the href it refused.
+    """
+    archive = archive_with("page.jpg", b"A" * 64, declared=32 * 1024 * 1024)
+
+    check_member_is_servable(archive.getinfo("page.jpg"))
+
+
+def test_refuses_a_member_whose_compressed_stream_is_too_big_to_be_honest() -> None:
+    """Should reject a declaration the compressed stream contradicts.
+
+    A crafted member can survive the CRC check by making the stored checksum
+    match its own truncated prefix, and would then be served silently short. The
+    compressed size is the tell that costs nothing to read: deflate cannot
+    meaningfully expand data, so a member declaring eight bytes cannot honestly
+    carry a 200 KiB stream.
+    """
+    archive = archive_with("bomb.css", b"A" * (1024 * 1024), declared=8)
+
+    with pytest.raises(InvalidEbookError, match="compressed"):
+        check_member_is_servable(archive.getinfo("bomb.css"))
+
+
+def test_an_ordinary_small_member_survives_the_plausibility_check() -> None:
+    """Should leave room for the overhead deflate adds to a file that will not shrink."""
+    body = b"\x00\x01\x02\x03\x04"
+
+    check_member_is_servable(archive_with("tiny.bin", body).getinfo("tiny.bin"))
+
+
 def test_a_member_declaring_exactly_the_cap_is_served() -> None:
     """Should refuse only what is strictly over the cap, pinning the boundary.
 
     Paired with the test above, this is what separates ``>`` from ``>=`` -- a
     limit that turned away the size it advertises would be a different limit.
     """
-    body = b"A" * 64
-    archive = archive_with("edge.css", body, declared=MAX_RESOURCE_BYTES)
+    archive = archive_with("edge.css", b"A" * 64, declared=MAX_RESOURCE_BYTES)
 
-    content, _ = peak_bytes_reading(archive, "edge.css")
-
-    assert content == body
+    check_member_is_servable(archive.getinfo("edge.css"))
