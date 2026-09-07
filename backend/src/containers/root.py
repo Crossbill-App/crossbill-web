@@ -157,4 +157,5 @@ class RootContainer(containers.DeclarativeContainer):
     web_reader = providers.Container(
         WebReaderContainer,
         web_publication_query=shared.web_publication_query,
+        publication_resource_query=shared.publication_resource_query,
     )

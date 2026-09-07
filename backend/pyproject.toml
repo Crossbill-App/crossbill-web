@@ -157,6 +157,7 @@ modules = [
     "src.domain.reading",
     "src.domain.reflection",
     "src.domain.tagging",
+    "src.domain.web_reader",
 ]
 
 [[tool.importlinter.contracts]]

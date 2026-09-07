@@ -87,13 +87,20 @@ def build_epub(
     spine: str,
     nav_links: str,
     files: tuple[str, ...] = (),
+    bodies: dict[str, bytes] | None = None,
+    compression: int = zipfile.ZIP_STORED,
 ) -> bytes:
     """Assemble an EPUB by hand, so an adversarial one reads as such in the diff.
 
     The fixture files on disk are ordinary books; these are the shapes a hostile
     or broken publication takes, and writing the OPF out here is what makes the
     attack visible next to the assertion about it.
+
+    Every name in ``files`` gets a placeholder document unless ``bodies`` gives
+    it content of its own, which is what lets a test pin the exact bytes of one
+    member.
     """
+    bodies = bodies or {}
     package = (
         '<?xml version="1.0" encoding="UTF-8"?>\n'
         '<package xmlns="http://www.idpf.org/2007/opf" version="3.0" unique-identifier="i">\n'
@@ -117,7 +124,7 @@ def build_epub(
     )
 
     out = BytesIO()
-    with zipfile.ZipFile(out, "w") as archive:
+    with zipfile.ZipFile(out, "w", compression) as archive:
         archive.writestr(zipfile.ZipInfo("mimetype"), "application/epub+zip", zipfile.ZIP_STORED)
         archive.writestr(
             "META-INF/container.xml",
@@ -130,7 +137,7 @@ def build_epub(
         archive.writestr("content.opf", package)
         archive.writestr("nav.xhtml", nav)
         for name in files:
-            archive.writestr(name, document)
+            archive.writestr(name, bodies.get(name, document.encode()))
     return out.getvalue()
 
 
@@ -569,18 +576,12 @@ class TestManifestAccess:
         self,
         client: AsyncClient,
         db_session: AsyncSession,
-        test_user: User,
+        other_user: User,
         storage_dir: Path,
     ) -> None:
         """Should answer 404 for a readable EPUB belonging to somebody else."""
-        stranger = User(email="stranger@example.com", hashed_password="x")
-        db_session.add(stranger)
-        await db_session.commit()
-        await db_session.refresh(stranger)
-        assert stranger.id != test_user.id
-
         their_book = await create_test_book(
-            db_session=db_session, user_id=stranger.id, title="Not Yours"
+            db_session=db_session, user_id=other_user.id, title="Not Yours"
         )
         await store_epub(db_session, their_book, storage_dir, fixture_bytes("minimal.epub"))
 
