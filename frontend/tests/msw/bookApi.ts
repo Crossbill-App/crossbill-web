@@ -14,6 +14,7 @@ import { http, HttpResponse } from 'msw';
 import { aBookDetails } from '../fixtures/book';
 import { aNote } from '../fixtures/notes';
 import { aBookActivity, aBookStatistics, noBookStatistics } from '../fixtures/sessions';
+import { noPublication } from './readiumApi';
 
 interface BookApiState {
   book: BookDetails;
@@ -52,6 +53,10 @@ export function bookApi(initial: Partial<BookApiState> = {}) {
 
   const handlers = [
     http.get('/api/v1/books/:bookId', () => HttpResponse.json(state.book)),
+    // The book page asks whether there is an EPUB, to decide whether to offer
+    // the "Read" tab. Books in tests have none unless the test says otherwise,
+    // in which case it registers `readiumApi()` after these handlers.
+    ...noPublication,
     http.get('/api/v1/books/:bookId/notes', () => HttpResponse.json({ items: state.notes })),
     http.get('/api/v1/books/:bookId/digest', () => HttpResponse.json({ items: state.digests })),
 
