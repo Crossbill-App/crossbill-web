@@ -13,6 +13,7 @@ from .ids import (
     ReadingSessionId,
     TagId,
     UserId,
+    WebReadingPositionId,
 )
 from .position import Position
 from .position_index import PositionIndex
@@ -33,6 +34,7 @@ __all__ = [
     "ReadingSessionId",
     "TagId",
     "UserId",
+    "WebReadingPositionId",
     "XPoint",
     "XPointRange",
 ]

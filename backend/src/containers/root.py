@@ -94,7 +94,7 @@ class RootContainer(containers.DeclarativeContainer):
         epub_parser_service=shared.epub_parser_service,
         epub_position_index_service=shared.epub_position_index_service,
         cover_image_service=shared.cover_image_service,
-        publication_cache=shared.position_anchor_service,
+        publication_cache=shared.publication_caches,
         book_details_query=shared.book_details_query,
         book_list_query=shared.book_list_query,
     )
@@ -160,4 +160,8 @@ class RootContainer(containers.DeclarativeContainer):
         web_publication_query=shared.web_publication_query,
         publication_resource_query=shared.publication_resource_query,
         publication_positions_query=shared.publication_positions_query,
+        web_reading_position_repository=shared.web_reading_position_repository,
+        reading_session_repository=shared.reading_session_repository,
+        position_anchor_service=shared.position_anchor_service,
+        book_position_index=shared.book_position_index,
     )

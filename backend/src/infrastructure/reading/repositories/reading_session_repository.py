@@ -171,6 +171,38 @@ class ReadingSessionRepository:
         orms = result.scalars().all()
         return [self.mapper.to_domain(orm) for orm in orms]
 
+    async def find_by_id(
+        self, session_id: ReadingSessionId, user_id: UserId
+    ) -> ReadingSession | None:
+        """Get one of the user's reading sessions by id.
+
+        The ``user_id`` filter is not decoration: this is reached from a row
+        that merely *names* a session id, and a session belonging to somebody
+        else must read as absent rather than as theirs.
+        """
+        stmt = select(ReadingSessionORM).where(
+            ReadingSessionORM.id == session_id.value,
+            ReadingSessionORM.user_id == user_id.value,
+        )
+        orm = (await self.db.execute(stmt)).scalar_one_or_none()
+        return self.mapper.to_domain(orm) if orm else None
+
+    async def save(self, session: ReadingSession) -> ReadingSession:
+        """Insert a session or update it in place, returning it with its real id."""
+        orm = None
+        if session.id.value:
+            orm = (
+                await self.db.execute(
+                    select(ReadingSessionORM).where(ReadingSessionORM.id == session.id.value)
+                )
+            ).scalar_one_or_none()
+
+        orm = self.mapper.to_orm(session, orm)
+        self.db.add(orm)
+        await self.db.commit()
+        await self.db.refresh(orm)
+        return self.mapper.to_domain(orm)
+
     async def bulk_update_positions(
         self,
         position_updates: list[tuple[ReadingSessionId, Position, Position]],

@@ -22,6 +22,21 @@ class ReadingSessionRepositoryProtocol(Protocol):
         self, book_id: BookId, user_id: UserId, limit: int, offset: int
     ) -> list[ReadingSession]: ...
 
+    async def find_by_id(
+        self, session_id: ReadingSessionId, user_id: UserId
+    ) -> ReadingSession | None:
+        """Return one of the user's sessions, or ``None`` if they have no such session."""
+        ...
+
+    async def save(self, session: ReadingSession) -> ReadingSession:
+        """Insert a session, or update the one it already is.
+
+        For the reader that reports its position as it goes rather than
+        uploading finished sittings: one session is written when the reading
+        starts and rewritten as it goes on.
+        """
+        ...
+
     async def bulk_update_positions(
         self,
         position_updates: list[tuple[ReadingSessionId, Position, Position]],

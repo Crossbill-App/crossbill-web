@@ -154,6 +154,15 @@ class Settings(BaseSettings):
     # Reading sessions
     MINIMUM_READING_SESSION_DURATION: int = 120
 
+    # How long a gap between two web-reader position writes ends the session
+    # they would otherwise both belong to (ADR-0004, Amendment 3). Generous,
+    # because nothing is over-counted by being generous: a session's end time is
+    # the last position it was told about, so a tab left open all night adds no
+    # reading time -- the timeout only decides where one sitting is cut from the
+    # next. Short enough that yesterday's session is not extended by today's
+    # first page turn.
+    WEB_READING_SESSION_IDLE_SECONDS: int = 1800
+
     # AI configuration
     AI_PROVIDER: (
         Literal["ollama"]
