@@ -72,6 +72,24 @@ UNLINKED_TOC_HREF = "#"
 # max-age: a book's file can be replaced under it at any time.
 RESOURCE_CACHE_CONTROL = "private"
 
+# The bytes served below are a file the user uploaded, and ADR-0004 Amendment 2
+# disarms them in the frontend -- but only along the path Readium takes, which
+# reads a resource with `fetch()` and frames a blob it built from the text
+# (`FrameBlobBuilder.buildHtmlFrame`). Any path that loads one of these URLs
+# *as a document* instead -- a frame navigating itself, a link followed out of
+# the reader, a URL pasted into the address bar -- gets the original markup with
+# no policy at all, and it is same-origin with the API.
+#
+# `sandbox` with no tokens is the answer to the whole family rather than to any
+# one member: the document is given an opaque origin and no scripts, no forms,
+# no plugins and no top-level navigation, so there is nothing left for a book's
+# markup to reach. It costs the reader nothing, because a header does not travel
+# into a blob: the navigator has only the response *text* by the time it builds
+# the frame, and the frame's own policy is the one Readium injects there.
+# Stylesheets, images and fonts are unaffected too -- CSP applies `sandbox` when
+# a response becomes a document or a worker, never to a subresource.
+RESOURCE_CONTENT_SECURITY_POLICY = "sandbox"
+
 # A media type as RFC 9110 §8.3.1 writes one, with no parameters, which is all
 # an EPUB's package document ever declares.
 _MEDIA_TYPE = re.compile(r"[A-Za-z0-9][A-Za-z0-9!#$&^_.+-]*/[A-Za-z0-9][A-Za-z0-9!#$&^_.+-]*")
@@ -273,9 +291,13 @@ async def get_readium_resource(
         path=path,
         known_versions=_known_versions(request.headers.get("if-none-match")),
     )
+    # The policy goes on the 304 as well as the 200: a 304 updates the headers
+    # of the copy a cache already holds (RFC 9111 §4.3.4), so omitting it would
+    # let a revalidation strip the policy off a stored response.
     headers = {
         "ETag": f'"{resource.version}"',
         "Cache-Control": RESOURCE_CACHE_CONTROL,
+        "Content-Security-Policy": RESOURCE_CONTENT_SECURITY_POLICY,
     }
     # No content means the caller's copy is current -- and, because it was asked
     # up front, means the file was never decompressed to find that out.

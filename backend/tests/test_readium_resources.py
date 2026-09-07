@@ -19,11 +19,12 @@ from io import BytesIO
 from pathlib import Path
 
 import pytest
-from httpx import AsyncClient
+from httpx import AsyncClient, Response
 from sqlalchemy.ext.asyncio import AsyncSession
 from starlette import status
 
 from src.infrastructure.web_reader.queries import publication_resource_query
+from src.main import settings as main_settings
 from src.models import Book
 from tests.test_readium_manifest import (
     LITERAL_PERCENT_EPUB,
@@ -42,6 +43,23 @@ COVER_ART = "EPUB/images/cover%20art.png"
 def resource_url(book: Book, href: str) -> str:
     """The URL a navigator resolves for a manifest href, ``resources/`` and all."""
     return f"/api/v1/readium/books/{book.id}/resources/{href}"
+
+
+async def serve_every_manifest_href(
+    client: AsyncClient, book: Book
+) -> list[tuple[dict[str, str], Response]]:
+    """Fetch every file the manifest names, paired with the link that named it.
+
+    A manifest that advertises an href this endpoint will not serve is the
+    failure the two of them can only have together, so the manifest is what
+    drives the requests rather than a list copied out of it.
+    """
+    manifest = (await client.get(f"/api/v1/readium/books/{book.id}/manifest.json")).json()
+    links: list[dict[str, str]] = manifest["readingOrder"] + manifest["resources"]
+    return [
+        (link, await client.get(resource_url(book, link["href"].removeprefix("resources/"))))
+        for link in links
+    ]
 
 
 def member_bytes(epub_content: bytes, name: str) -> bytes:
@@ -212,25 +230,118 @@ class TestServingPublicationFiles:
     async def test_the_manifests_hrefs_all_resolve(
         self, client: AsyncClient, nested_toc_book: Book
     ) -> None:
-        """Should serve every file the manifest names, with the type it named.
+        """Should serve every file the manifest names, with the type it named."""
+        served = await serve_every_manifest_href(client, nested_toc_book)
+        assert len(served) == 5
 
-        A manifest that advertises an href this endpoint will not serve is the
-        failure the two of them can only have together, so the manifest is what
-        drives the requests rather than a list copied out of it.
-        """
-        manifest = (
-            await client.get(f"/api/v1/readium/books/{nested_toc_book.id}/manifest.json")
-        ).json()
-        links = manifest["readingOrder"] + manifest["resources"]
-        assert len(links) == 5
-
-        for link in links:
-            href = link["href"].removeprefix("resources/")
-            response = await client.get(resource_url(nested_toc_book, href))
-
+        for link, response in served:
             assert response.status_code == status.HTTP_200_OK, link["href"]
             assert response.headers["content-type"] == link["type"], link["href"]
             assert response.content, link["href"]
+
+
+class TestServedResourcesCarryASandboxPolicy:
+    """The policy that makes a resource harmless when a browser loads it directly.
+
+    ADR-0004 Amendment 2 disarms a publication's markup in the frontend, but only
+    along the path Readium takes: it reads a resource with ``fetch()`` and frames
+    a blob built from the text. A path that loads one of these URLs *as a
+    document* -- a frame navigating itself, a link followed out of the reader --
+    never passes through that, and lands on a same-origin document made of bytes
+    the user uploaded. ``Content-Security-Policy: sandbox`` is what closes that
+    at the source: an opaque origin with no scripts, no forms and no top-level
+    navigation left to reach with.
+    """
+
+    async def test_a_chapter_is_served_under_a_sandbox_policy(
+        self, client: AsyncClient, nested_toc_book: Book
+    ) -> None:
+        """Should send the policy with the markup the reader's frames are built from."""
+        response = await client.get(resource_url(nested_toc_book, CHAPTER_1))
+
+        assert response.status_code == status.HTTP_200_OK, response.text
+        assert response.headers["content-security-policy"] == "sandbox"
+        assert response.headers["x-content-type-options"] == "nosniff"
+
+    async def test_a_direct_document_load_carries_the_policy(
+        self, client: AsyncClient, nested_toc_book: Book
+    ) -> None:
+        """Should send the policy to a browser navigating straight at the resource.
+
+        This is the request the frontend hardening cannot see: no ``fetch()``, no
+        blob, just a document load of the archive's own bytes. The endpoint does
+        not vary on how it was asked, and that is the point -- the policy is not
+        conditional on the caller looking like Readium.
+        """
+        response = await client.get(
+            resource_url(nested_toc_book, CHAPTER_1),
+            headers={
+                "Accept": "text/html,application/xhtml+xml",
+                "Sec-Fetch-Dest": "document",
+                "Sec-Fetch-Mode": "navigate",
+            },
+        )
+
+        assert response.status_code == status.HTTP_200_OK, response.text
+        assert b"<html" in response.content
+        assert response.headers["content-security-policy"] == "sandbox"
+
+    async def test_a_conditional_request_still_carries_the_policy(
+        self, client: AsyncClient, nested_toc_book: Book
+    ) -> None:
+        """Should send the policy on a 304 as well as on the file itself.
+
+        A 304 updates the headers of the copy a cache already holds (RFC 9111
+        §4.3.4), so a policy left off one would be a policy revalidation strips
+        from a stored response.
+        """
+        etag = (await client.get(resource_url(nested_toc_book, CHAPTER_1))).headers["etag"]
+
+        response = await client.get(
+            resource_url(nested_toc_book, CHAPTER_1), headers={"If-None-Match": etag}
+        )
+
+        assert response.status_code == status.HTTP_304_NOT_MODIFIED
+        assert response.headers["content-security-policy"] == "sandbox"
+
+    async def test_every_file_the_manifest_names_is_sandboxed(
+        self, client: AsyncClient, nested_toc_book: Book
+    ) -> None:
+        """Should policy every resource, not only the ones that look like documents.
+
+        A media type is copied from a package document the user uploaded, so it
+        is no basis for deciding what a browser will treat as a document -- an
+        SVG is scriptable, and a mislabelled file is exactly the case the header
+        has to cover.
+        """
+        served = await serve_every_manifest_href(client, nested_toc_book)
+        assert len(served) == 5
+
+        for link, response in served:
+            assert response.status_code == status.HTTP_200_OK, link["href"]
+            assert response.headers["content-security-policy"] == "sandbox", link["href"]
+
+    async def test_the_app_wide_policy_does_not_overwrite_it(
+        self,
+        client: AsyncClient,
+        nested_toc_book: Book,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        """Should keep the resource's own policy where the app sets one of its own.
+
+        ``SecurityHeadersMiddleware`` sends the app's policy outside development,
+        and ``MutableHeaders`` assignment replaces rather than appends -- so a
+        middleware that did not defer would quietly widen this endpoint back to
+        ``script-src 'self'`` in every environment that matters, and only there.
+        """
+        monkeypatch.setattr(main_settings, "ENVIRONMENT", "production")
+
+        resource = await client.get(resource_url(nested_toc_book, CHAPTER_1))
+        manifest = await client.get(f"/api/v1/readium/books/{nested_toc_book.id}/manifest.json")
+
+        assert resource.headers["content-security-policy"] == "sandbox"
+        # The app policy still reaches a response that expresses none of its own.
+        assert "default-src 'self'" in manifest.headers["content-security-policy"]
 
 
 class TestConditionalRequests:

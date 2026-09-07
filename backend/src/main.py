@@ -307,6 +307,17 @@ class SecurityHeadersMiddleware:
                 if settings.ENVIRONMENT != "development":
                     headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
                     headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains"
+                # A route that set its own policy keeps it. `MutableHeaders`
+                # replaces rather than appends, so assigning here unconditionally
+                # would overwrite a narrower policy with this broader one --
+                # which is exactly what the publication resource endpoint sets
+                # (`Content-Security-Policy: sandbox`, ADR-0004 Amendment 2) and
+                # exactly the environments where it matters. The app policy is
+                # the default for responses that express none.
+                if (
+                    settings.ENVIRONMENT != "development"
+                    and "content-security-policy" not in headers
+                ):
                     headers["Content-Security-Policy"] = (
                         "default-src 'self'; "
                         "script-src 'self'; "
