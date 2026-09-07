@@ -62,11 +62,6 @@ test('the reader opens with the book title and its controls', async () => {
   await expect.element(screen.getByRole('button', { name: 'Previous page' })).toBeVisible();
 });
 
-/**
- * On a phone the two arrow gutters were most of the screen, and the book was a
- * strip down the middle. The buttons go, and the chrome above the page — which
- * fits either way — stays exactly as it was.
- */
 /** The book open on a phone-sized viewport, showing its first page. */
 const aBookOpenOnAPhone = async (...extra: Parameters<typeof worker.use>) => {
   aBookWithAnEpub(...extra);
@@ -77,6 +72,11 @@ const aBookOpenOnAPhone = async (...extra: Parameters<typeof worker.use>) => {
   return screen;
 };
 
+/**
+ * On a phone the two arrow gutters were most of the screen, and the book was a
+ * strip down the middle. The buttons go, and the chrome above the page — which
+ * fits either way — stays exactly as it was.
+ */
 test('the arrow buttons give the page its width back on a phone', async () => {
   const screen = await aBookOpenOnAPhone();
 
@@ -94,7 +94,17 @@ test('the arrow buttons give the page its width back on a phone', async () => {
  * `userEvent` cannot: it drives the page the test is rendered in, and the frame
  * is a document of its own.
  */
-const gestureInPublication = ({ across, dragBy = 0 }: { across: number; dragBy?: number }) => {
+const gestureInPublication = async ({
+  across,
+  dragBy = 0,
+  holdFor = 0,
+  onSelection = false,
+}: {
+  across: number;
+  dragBy?: number;
+  holdFor?: number;
+  onSelection?: boolean;
+}) => {
   // Readium keeps a pool of frames and hides the ones that are not on screen.
   // Only the visible one is the page the reader is looking at, and only it is
   // the frame the navigator reported through `frameLoaded`.
@@ -116,8 +126,11 @@ const gestureInPublication = ({ across, dragBy = 0 }: { across: number; dragBy?:
     pointerType: 'touch',
   });
 
+  if (onSelection) view.getSelection()?.selectAllChildren(frame.contentDocument.body);
+
   target.dispatchEvent(new view.PointerEvent('pointerdown', at(from)));
   if (dragBy !== 0) target.dispatchEvent(new view.PointerEvent('pointermove', at(from - dragBy)));
+  if (holdFor !== 0) await new Promise((resolve) => setTimeout(resolve, holdFor));
   target.dispatchEvent(new view.PointerEvent('pointerup', at(from - dragBy)));
 };
 
@@ -133,7 +146,7 @@ const expectNoPageTurn = async () => {
 test('a tap on the right of the page turns to the next one', async () => {
   const screen = await aBookOpenOnAPhone();
 
-  gestureInPublication({ across: 0.9 });
+  await gestureInPublication({ across: 0.9 });
 
   await expect.element(screen.getByText('Page 2 of 2', { exact: false })).toBeVisible();
 });
@@ -145,7 +158,7 @@ test('a tap on the left of the page turns back', async () => {
   const screen = await renderApp({ path: '/book/1/read' });
   await expect.element(screen.getByText('Page 2 of 2', { exact: false })).toBeVisible();
 
-  gestureInPublication({ across: 0.1 });
+  await gestureInPublication({ across: 0.1 });
 
   await expect.element(screen.getByText('Page 1 of 2', { exact: false })).toBeVisible();
 });
@@ -157,7 +170,7 @@ test('a tap on the left of the page turns back', async () => {
 test('a tap in the middle of the page turns nothing', async () => {
   await aBookOpenOnAPhone();
 
-  gestureInPublication({ across: 0.5 });
+  await gestureInPublication({ across: 0.5 });
 
   await expectNoPageTurn();
 });
@@ -170,7 +183,33 @@ test('a tap in the middle of the page turns nothing', async () => {
 test('a pointer that travelled across the zone is not a tap', async () => {
   await aBookOpenOnAPhone();
 
-  gestureInPublication({ across: 0.9, dragBy: 30 });
+  await gestureInPublication({ across: 0.9, dragBy: 30 });
+
+  await expectNoPageTurn();
+});
+
+/**
+ * A long press is how a reader opens a selection, and M4 will hang the
+ * highlighting on it. Holding a finger down in a tap zone must not cost them
+ * the page they were about to select from.
+ */
+test('a finger held down in the zone is not a tap', async () => {
+  await aBookOpenOnAPhone();
+
+  await gestureInPublication({ across: 0.9, holdFor: 700 });
+
+  await expectNoPageTurn();
+});
+
+/**
+ * Selecting text runs to the edge of the page like any other text, so the tap
+ * that lands on a selection — and the one that dismisses it — has to leave the
+ * page alone. Otherwise a reader loses the passage they had just selected.
+ */
+test('a tap on selected text is not a page turn', async () => {
+  await aBookOpenOnAPhone();
+
+  await gestureInPublication({ across: 0.9, onSelection: true });
 
   await expectNoPageTurn();
 });
@@ -182,7 +221,7 @@ test('a click on the edge of the page turns nothing on a desktop viewport', asyn
   const screen = await renderApp({ path: '/book/1/read' });
   await expect.element(screen.getByText('Page 1 of 2', { exact: false })).toBeVisible();
 
-  gestureInPublication({ across: 0.9 });
+  await gestureInPublication({ across: 0.9 });
 
   await expectNoPageTurn();
 });
