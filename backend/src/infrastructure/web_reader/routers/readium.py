@@ -23,14 +23,15 @@ from src.application.web_reader.queries.get_publication_positions_use_case impor
 from src.application.web_reader.queries.get_publication_resource_use_case import (
     GetPublicationResourceUseCase,
 )
-from src.application.web_reader.queries.get_reading_position_use_case import (
-    GetReadingPositionUseCase,
+from src.application.web_reader.queries.get_resume_position_use_case import (
+    GetResumePositionUseCase,
 )
 from src.application.web_reader.queries.get_web_publication_use_case import (
     GetWebPublicationUseCase,
 )
 from src.application.web_reader.queries.publication_positions import PublicationPosition
 from src.application.web_reader.queries.publication_resource import ANY_VERSION
+from src.application.web_reader.queries.resume_position import ResumePosition
 from src.application.web_reader.queries.verify_publication_access_use_case import (
     VerifyPublicationAccessUseCase,
 )
@@ -49,6 +50,7 @@ from src.infrastructure.web_reader.schemas.reading_position_schemas import (
     LocatorSchema,
     ReadingPosition,
     ReadingPositionUpdate,
+    ResumePositionResponse,
 )
 from src.infrastructure.web_reader.schemas.readium_schemas import (
     POSITION_LIST_MEDIA_TYPE,
@@ -273,27 +275,68 @@ async def get_readium_positions(
 
 @router.get(
     "/books/{book_id}/reading-position",
-    response_model=ReadingPosition | None,
+    response_model=ResumePositionResponse,
     status_code=status.HTTP_200_OK,
 )
 async def get_reading_position(
     book_id: int,
     current_user: PublicationReader,
-    use_case: GetReadingPositionUseCase = Depends(
-        inject_use_case(container.web_reader.get_reading_position_use_case)
+    use_case: GetResumePositionUseCase = Depends(
+        inject_use_case(container.web_reader.get_resume_position_use_case)
     ),
-) -> ReadingPosition | None:
-    """Get where this reader last was in the book, or null if they have never been.
+) -> ResumePositionResponse:
+    """Get where the browser should open this book, whichever device was there last.
 
-    Null rather than 404: a book nobody has opened in the browser is an ordinary
-    state of an ordinary book, and 404 here would mean the same thing as a book
-    that is not the caller's, which it is not.
+    Not merely what the browser itself last stored: a reader who left off on
+    their e-reader is answered with *that* place, converted from the canonical
+    xpointer to a locator against the EPUB this server holds (ADR-0004 §2). The
+    two candidates are weighed on when the reader was at each, and sessions the
+    web reader wrote are left out of the comparison because the stored position
+    already says the same thing more exactly.
+
+    Always an object, never 404 and never null: a book nobody has opened is an
+    ordinary state of an ordinary book, and the reader has to be able to tell it
+    apart from a place that was lost when the EPUB was replaced.
     """
-    position = await use_case.get_reading_position(
+    resume = await use_case.get_resume_position(
         book_id=book_id,
         user_id=current_user.id.value,
     )
-    return _reading_position(position) if position else None
+    return _resume_position(resume)
+
+
+def _resume_position(resume: ResumePosition) -> ResumePositionResponse:
+    """Render where to open a book, in the coordinates the navigator speaks.
+
+    A locator the browser stored is handed back untouched -- its hrefs are the
+    ones the manifest published, and every field a navigator understands is
+    still on it, including any this codebase has no vocabulary for. One derived
+    from an xpointer arrives in the EPUB's own container paths instead, so its
+    href is pointed back at the URL that serves the file, exactly as the
+    manifest and the position list do.
+    """
+    locator = resume.stored_locator
+    if resume.derived_locator is not None:
+        derived = resume.derived_locator
+        locator = Locator(
+            href=_served_href(derived.href),
+            type=derived.type,
+            locations=derived.locations,
+            text=derived.text,
+        ).to_dict()
+    return ResumePositionResponse(
+        locator=LocatorSchema.model_validate(locator) if locator is not None else None,
+        source=resume.source,
+        unresolved=resume.unresolved,
+        xpoint=resume.xpoint.to_string() if resume.xpoint else None,
+        position=PositionResponse(
+            index=resume.position.index,
+            char_index=resume.position.char_index,
+        )
+        if resume.position
+        else None,
+        recorded_at=resume.recorded_at,
+    )
 
 
 @router.put(

@@ -16,6 +16,7 @@ from src.application.web_reader.anchors import (
     AnchorSource,
     Locator,
 )
+from src.application.web_reader.devices import WEB_READER_DEVICE_ID
 from src.application.web_reader.protocols.book_position_index import BookPositionIndexProtocol
 from src.application.web_reader.protocols.position_anchor_service import (
     PositionAnchorServiceProtocol,
@@ -72,12 +73,6 @@ MINIMUM_CONFIDENCE = {
     AnchorSource.ELEMENT: AnchorConfidence.HIGHLIGHT_ONLY,
     AnchorSource.PROGRESSION: AnchorConfidence.FUZZY,
 }
-
-# What a session created by the web reader records as its device, so that
-# browser reading is distinguishable from an e-reader's in the sessions list --
-# and so that its content hash cannot collide with a KOReader session that
-# happened to start at the same instant.
-WEB_READER_DEVICE_ID = "crossbill-web-reader"
 
 
 # How far back a reader may jump and still be in the same sitting, as a fraction
