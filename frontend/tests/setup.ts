@@ -12,6 +12,31 @@ AXIOS_INSTANCE.defaults.baseURL = '';
 
 const unhandledRequests: string[] = [];
 
+/**
+ * Chromium raises this whenever a `ResizeObserver` callback changes layout, so
+ * that the observations it could not deliver this frame are delivered on the
+ * next one. That is the specified behaviour, not a fault — and it is exactly
+ * what `@readium/navigator` does, because its own observer resizes the reader's
+ * container in response to being resized.
+ *
+ * It reaches the page as a window `error` event all the same, and Vitest fails
+ * whichever test happens to be running when one lands. Swallowing this one
+ * message keeps a third-party library's normal behaviour from failing tests at
+ * random; every other error still fails the run.
+ */
+const RESIZE_OBSERVER_NOTICE = 'ResizeObserver loop';
+
+window.addEventListener(
+  'error',
+  (event) => {
+    if (event.message.includes(RESIZE_OBSERVER_NOTICE)) {
+      event.stopImmediatePropagation();
+      event.preventDefault();
+    }
+  },
+  true
+);
+
 beforeAll(async () => {
   // The axios default above can be reassigned; this one cannot — components
   // build URLs from a constant compiled out of `import.meta.env`, so a leaked
