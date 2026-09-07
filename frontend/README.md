@@ -27,22 +27,34 @@ Modern React application for managing and viewing book highlights from KOReader.
 ```bash
 # Install dependencies
 npm install
-
-# Copy environment file
-cp .env.example .env
-
-# Update .env with your backend URL if different from default
-# VITE_API_URL=http://localhost:8000
 ```
+
+No `.env` is needed for the standard setup — see
+[Environment Variables](#environment-variables) if you want one.
 
 ### Development
 
 ```bash
+# Start the backend first (from the repo root)
+make dev-app
+
 # Start development server
 npm run dev
 
 # The app will be available at http://localhost:5173
 ```
+
+The dev server proxies `/api` to the backend on `http://localhost:8000`, so the
+app and the API share one origin — `http://localhost:5173`. Nothing in the
+frontend names the backend's host: the API client's base URL is empty and every
+request is relative to the page.
+
+That mirrors production, where FastAPI serves the built frontend and the API
+from the same app. It is also a requirement rather than a nicety: the reader
+loads EPUB resources into iframes, and a cross-origin iframe cannot be scripted.
+
+If your backend runs somewhere other than port 8000, change the proxy target in
+`vite.config.ts` rather than pointing the frontend across origins.
 
 ### Building
 
@@ -53,6 +65,9 @@ npm run build
 # Preview production build
 npm run preview
 ```
+
+`npm run preview` proxies `/api` the same way `npm run dev` does, so a built
+bundle still needs the backend running to be worth looking at.
 
 ## Available Scripts
 
@@ -95,7 +110,8 @@ frontend/
 ├── src/
 │   ├── api/
 │   │   ├── generated/   # Auto-generated API client (gitignored)
-│   │   └── axios-instance.ts
+│   │   ├── axios-instance.ts
+│   │   └── base-url.ts  # Where the API's origin is decided
 │   ├── components/
 │   │   ├── common/      # Reusable UI components
 │   │   ├── layout/      # Layout components (AppBar, etc.)
@@ -188,11 +204,32 @@ See [claude.md](./claude.md) for detailed development guidelines, including:
 
 ## Environment Variables
 
-Create a `.env` file based on `.env.example`:
+The app reads one variable, and works without it.
 
-```env
-VITE_API_URL=http://localhost:8000
+| Variable       | Default            | Effect                                                                                 |
+| -------------- | ------------------ | -------------------------------------------------------------------------------------- |
+| `VITE_API_URL` | _empty_ (relative) | Absolute origin to send API requests to, e.g. a deployed backend. Overrides the proxy. |
+
+Setting it is an escape hatch, not the normal path. Both dev (via the `/api`
+proxy) and production (FastAPI serving the frontend) already put the API on the
+app's own origin, and `VITE_API_URL` takes it back off that origin — which
+breaks the reader's iframes and makes cookie-based token refresh depend on the
+backend's CORS list. Use it only to point a local frontend at a backend
+elsewhere.
+
+To set it, copy the template and uncomment the line:
+
+```bash
+cp .env.example .env
 ```
+
+Precedence is simply: `VITE_API_URL` if it is set, otherwise the empty
+relative base. The single place that decides is `src/api/base-url.ts`, which
+both the axios instance and the cover-image URLs read.
+
+Tests deliberately ignore `.env` files (`envDir` in `vitest.config.ts` points
+at `tests/`), so a local `VITE_API_URL` cannot change what the MSW handlers
+have to match.
 
 ## Troubleshooting
 
