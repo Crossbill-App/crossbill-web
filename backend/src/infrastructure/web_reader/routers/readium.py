@@ -17,6 +17,7 @@ from src.application.web_reader.queries.get_publication_resource_use_case import
 from src.application.web_reader.queries.get_web_publication_use_case import (
     GetWebPublicationUseCase,
 )
+from src.application.web_reader.queries.publication_resource import ANY_VERSION
 from src.core import container
 from src.infrastructure.common.di import inject_use_case
 from src.infrastructure.web_reader.dependencies import PublicationReader
@@ -120,10 +121,15 @@ async def get_readium_resource(
         book_id=book_id,
         user_id=current_user.id.value,
         path=path,
+        known_versions=_known_versions(request.headers.get("if-none-match")),
     )
-    etag = f'"{resource.version}"'
-    headers = {"ETag": etag, "Cache-Control": RESOURCE_CACHE_CONTROL}
-    if _already_holds(request.headers.get("if-none-match"), etag):
+    headers = {
+        "ETag": f'"{resource.version}"',
+        "Cache-Control": RESOURCE_CACHE_CONTROL,
+    }
+    # No content means the caller's copy is current -- and, because it was asked
+    # up front, means the file was never decompressed to find that out.
+    if resource.content is None:
         return Response(status_code=status.HTTP_304_NOT_MODIFIED, headers=headers)
     # Content-Type goes in the headers rather than through `media_type`, which
     # would append `; charset=utf-8` to every `text/*` type. The bytes are
@@ -152,23 +158,23 @@ def _servable_media_type(declared: str) -> str:
     return declared if _MEDIA_TYPE.fullmatch(declared) else FALLBACK_MEDIA_TYPE
 
 
-def _already_holds(if_none_match: str | None, etag: str) -> bool:
-    """Decide whether a conditional request may be answered with 304.
+def _known_versions(if_none_match: str | None) -> frozenset[str]:
+    """Read the versions a caller says it already holds out of ``If-None-Match``.
 
-    RFC 9110 §13.1.2: ``*`` matches any current representation, and a list of
-    tags is compared weakly, so ``W/"x"`` and ``"x"`` are the same version of
-    the same file.
+    They are handed to the read, rather than compared against what comes back,
+    so that a file the caller already has is never decompressed to answer that
+    it has it.
+
+    RFC 9110 §13.1.2: ``*`` stands for any current representation, and the tags
+    are compared weakly, so ``W/"x"`` and ``"x"`` name the same version. Unwrapping
+    them here leaves the read with plain version strings and no HTTP syntax.
     """
     if not if_none_match:
-        return False
-    if if_none_match.strip() == "*":
-        return True
-    return any(_strong(tag.strip()) == _strong(etag) for tag in if_none_match.split(","))
-
-
-def _strong(entity_tag: str) -> str:
-    """Drop a weak validator's prefix, leaving the tag itself."""
-    return entity_tag.removeprefix("W/")
+        return frozenset()
+    tags = [tag.strip() for tag in if_none_match.split(",")]
+    if ANY_VERSION in tags:
+        return frozenset({ANY_VERSION})
+    return frozenset(tag.removeprefix("W/").strip('"') for tag in tags)
 
 
 def _manifest(publication: ParsedPublication, self_href: str) -> WebPublicationManifest:

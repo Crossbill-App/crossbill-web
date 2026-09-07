@@ -13,7 +13,9 @@ Only the files the manifest lists are reachable. The package document,
 publication, and the endpoint must not serve them.
 """
 
+import struct
 import zipfile
+import zlib
 from collections.abc import AsyncGenerator
 from io import BytesIO
 from pathlib import Path
@@ -23,6 +25,7 @@ from httpx import ASGITransport, AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession
 from starlette import status
 
+from src.infrastructure.web_reader.queries import publication_resource_query
 from src.main import app
 from src.models import Book, User
 from tests.conftest import create_test_book
@@ -48,6 +51,72 @@ def member_bytes(epub_content: bytes, name: str) -> bytes:
     """What the archive really holds under ``name``, to compare a response against."""
     with zipfile.ZipFile(BytesIO(epub_content)) as archive:
         return archive.read(name)
+
+
+def crc32_twin(payload: bytes) -> bytes:
+    """Different bytes of the same length with the same CRC-32.
+
+    CRC-32 is affine over GF(2) -- ``crc(x) = A(x) ^ crc(0)`` for a linear
+    ``A`` -- so two equal-length messages collide exactly when their difference
+    lies in ``A``'s kernel. Thirty-three single-bit differences are necessarily
+    dependent in a 32-bit space, so eliminating them against each other finds a
+    kernel vector to XOR in. Forging one is this cheap, which is the whole point
+    of the tests below: a CRC is a transmission check, never an identity.
+    """
+    length = len(payload)
+    assert length >= 5, "needs five bytes to hold thirty-three differing bits"
+    zero = zlib.crc32(bytes(length))
+    pivots: dict[int, tuple[int, int]] = {}
+
+    for bit in range(33):
+        probe = bytearray(length)
+        probe[bit // 8] |= 1 << (bit % 8)
+        delta = zlib.crc32(bytes(probe)) ^ zero
+        used = 1 << bit
+        while delta:
+            high = delta.bit_length() - 1
+            if high not in pivots:
+                pivots[high] = (delta, used)
+                break
+            other_delta, other_used = pivots[high]
+            delta ^= other_delta
+            used ^= other_used
+        else:
+            mask = bytearray(length)
+            for i in range(33):
+                if used >> i & 1:
+                    mask[i // 8] ^= 1 << (i % 8)
+            twin = bytes(b ^ m for b, m in zip(payload, mask, strict=True))
+            assert twin != payload
+            assert zlib.crc32(twin) == zlib.crc32(payload)
+            return twin
+
+    raise AssertionError("no CRC-32 collision found")
+
+
+def understating_epub(member: str, real_size: int) -> bytes:
+    """An EPUB whose one resource inflates far past the size it declares.
+
+    Both the local header and the central directory are rewritten, so nothing
+    short of decompressing the member can tell how big it really is. This is the
+    shape a decompression bomb takes once a size cap exists to get past.
+    """
+    epub = bytearray(
+        build_epub(
+            manifest_items=(
+                '<item id="c1" href="c1.xhtml" media-type="application/xhtml+xml"/>'
+                '<item id="big" href="big.css" media-type="text/css"/>'
+            ),
+            spine='<itemref idref="c1"/>',
+            nav_links='<li><a href="c1.xhtml">One</a></li>',
+            files=("c1.xhtml", member),
+            bodies={member: b"A" * real_size},
+            compression=zipfile.ZIP_DEFLATED,
+        )
+    )
+    for signature, offset in ((b"PK\x03\x04", 22), (b"PK\x01\x02", 24)):
+        struct.pack_into("<I", epub, epub.rfind(signature) + offset, 8)
+    return bytes(epub)
 
 
 @pytest.fixture
@@ -274,6 +343,195 @@ class TestConditionalRequests:
 
         assert response.status_code == status.HTTP_200_OK
         assert response.content
+
+
+class TestTheEtagIdentifiesTheBytes:
+    """An entity tag has to name the representation, not merely a checksum of it."""
+
+    async def test_two_empty_members_do_not_share_an_etag(
+        self,
+        client: AsyncClient,
+        db_session: AsyncSession,
+        test_book: Book,
+        storage_dir: Path,
+    ) -> None:
+        """Should tell two files apart even when their contents check out the same.
+
+        Two empty files have the same CRC-32, so a tag built from the checksum
+        alone is the same tag for both. A reader that had fetched one would then
+        be told its copy of the *other* was current.
+        """
+        await store_epub(
+            db_session,
+            test_book,
+            storage_dir,
+            build_epub(
+                manifest_items=(
+                    '<item id="c1" href="c1.xhtml" media-type="application/xhtml+xml"/>'
+                    '<item id="a" href="a.css" media-type="text/css"/>'
+                    '<item id="b" href="b.css" media-type="text/css"/>'
+                ),
+                spine='<itemref idref="c1"/>',
+                nav_links='<li><a href="c1.xhtml">One</a></li>',
+                files=("c1.xhtml", "a.css", "b.css"),
+                bodies={"a.css": b"", "b.css": b""},
+            ),
+        )
+
+        first = await client.get(resource_url(test_book, "a.css"))
+        second = await client.get(resource_url(test_book, "b.css"))
+
+        assert first.status_code == second.status_code == status.HTTP_200_OK
+        assert first.headers["etag"] != second.headers["etag"]
+
+    async def test_one_members_etag_does_not_satisfy_another(
+        self,
+        client: AsyncClient,
+        db_session: AsyncSession,
+        test_book: Book,
+        storage_dir: Path,
+    ) -> None:
+        """Should not answer 304 to a tag that was issued for a different file."""
+        await store_epub(
+            db_session,
+            test_book,
+            storage_dir,
+            build_epub(
+                manifest_items=(
+                    '<item id="c1" href="c1.xhtml" media-type="application/xhtml+xml"/>'
+                    '<item id="a" href="a.css" media-type="text/css"/>'
+                    '<item id="b" href="b.css" media-type="text/css"/>'
+                ),
+                spine='<itemref idref="c1"/>',
+                nav_links='<li><a href="c1.xhtml">One</a></li>',
+                files=("c1.xhtml", "a.css", "b.css"),
+                bodies={"a.css": b"", "b.css": b""},
+            ),
+        )
+        for_a = (await client.get(resource_url(test_book, "a.css"))).headers["etag"]
+
+        response = await client.get(
+            resource_url(test_book, "b.css"), headers={"If-None-Match": for_a}
+        )
+
+        assert response.status_code == status.HTTP_200_OK
+
+    async def test_a_replacement_member_with_a_forged_crc_still_retags(
+        self,
+        client: AsyncClient,
+        db_session: AsyncSession,
+        test_book: Book,
+        storage_dir: Path,
+    ) -> None:
+        """Should re-tag a replaced EPUB even when the member looks identical.
+
+        A re-upload keeps the storage filename, so the name cannot say the bytes
+        changed. Nor can the member's own central-directory record: forging a
+        CRC-32 at a fixed length is arithmetic, so a replacement can present the
+        same path, the same declared size and the same checksum over different
+        content. Serving the old bytes from a reader's cache for as long as it
+        keeps them is the failure this rules out.
+        """
+        original = b"body{color:red}"
+        twin = crc32_twin(original)
+
+        def epub_with(style: bytes) -> bytes:
+            return build_epub(
+                manifest_items=(
+                    '<item id="c1" href="c1.xhtml" media-type="application/xhtml+xml"/>'
+                    '<item id="s" href="style.css" media-type="text/css"/>'
+                ),
+                spine='<itemref idref="c1"/>',
+                nav_links='<li><a href="c1.xhtml">One</a></li>',
+                files=("c1.xhtml", "style.css"),
+                bodies={"style.css": style},
+            )
+
+        await store_epub(db_session, test_book, storage_dir, epub_with(original))
+        before = await client.get(resource_url(test_book, "style.css"))
+
+        # The same storage filename, as a real re-upload would reuse.
+        await store_epub(db_session, test_book, storage_dir, epub_with(twin))
+        after = await client.get(resource_url(test_book, "style.css"))
+
+        assert before.content == original
+        assert after.content == twin
+        assert after.content != before.content
+        assert after.headers["etag"] != before.headers["etag"]
+
+        stale = await client.get(
+            resource_url(test_book, "style.css"),
+            headers={"If-None-Match": before.headers["etag"]},
+        )
+        assert stale.status_code == status.HTTP_200_OK
+        assert stale.content == twin
+
+
+class TestDecompressionIsBounded:
+    """A publication is a file the user uploaded, so its members are not read on trust."""
+
+    async def test_refuses_a_member_larger_than_the_cap(
+        self,
+        client: AsyncClient,
+        nested_toc_book: Book,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        """Should turn away an oversized member rather than decompress it.
+
+        The cap is lowered rather than the fixture inflated: a real member big
+        enough to trip the limit would only make the test slow.
+        """
+        monkeypatch.setattr(publication_resource_query, "MAX_RESOURCE_BYTES", 10)
+
+        response = await client.get(resource_url(nested_toc_book, CHAPTER_1))
+
+        assert response.status_code == status.HTTP_400_BAD_REQUEST
+
+    async def test_refuses_a_member_that_understates_its_size(
+        self,
+        client: AsyncClient,
+        db_session: AsyncSession,
+        test_book: Book,
+        storage_dir: Path,
+    ) -> None:
+        """Should not inflate a member that lies its way past the cap.
+
+        The declared size is what the cap can check for free, so a bomb declares
+        a small one. Reading no more than the declaration is what keeps the lie
+        from costing anything: the member here really inflates to a megabyte
+        from an archive of a few hundred bytes.
+        """
+        await store_epub(
+            db_session, test_book, storage_dir, understating_epub("big.css", 1024 * 1024)
+        )
+
+        response = await client.get(resource_url(test_book, "big.css"))
+
+        assert response.status_code == status.HTTP_400_BAD_REQUEST
+        assert len(response.content) < 1024
+
+    async def test_a_conditional_request_decompresses_nothing(
+        self,
+        client: AsyncClient,
+        nested_toc_book: Book,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        """Should answer 304 without reading the member at all.
+
+        Everything the tag is made of comes from the archive's directory, so a
+        reader that already holds a file should cost no decompression. Dropping
+        the cap to nothing is what makes that observable: any attempt to read
+        the member would be refused, so a 304 can only mean none was made.
+        """
+        etag = (await client.get(resource_url(nested_toc_book, CHAPTER_1))).headers["etag"]
+        monkeypatch.setattr(publication_resource_query, "MAX_RESOURCE_BYTES", 0)
+
+        response = await client.get(
+            resource_url(nested_toc_book, CHAPTER_1), headers={"If-None-Match": etag}
+        )
+
+        assert response.status_code == status.HTTP_304_NOT_MODIFIED
+        assert response.content == b""
 
 
 class TestOnlyPublicationFilesAreReachable:
