@@ -4391,6 +4391,67 @@
         }
       }
     },
+    "/api/v1/readium/books/{book_id}/resources/{path}": {
+      "get": {
+        "tags": [
+          "readium"
+        ],
+        "summary": "Get Readium Resource",
+        "description": "Get one file of a book's publication, unchanged.\n\n``path`` is a manifest href with the ``resources/`` prefix stripped, so it\narrives here as the container-root path the reading order or the resource\nlist published -- decoded once by ASGI, which is the archive member's own\nname. Only the files the manifest names are reachable; the package document\nand ``META-INF/`` are not part of the publication and answer 404 like any\nother path the manifest does not list.",
+        "operationId": "get_readium_resource",
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "book_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Book Id"
+            }
+          },
+          {
+            "name": "path",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Path"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The file, under the media type the publication declares for it.",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "type": "string",
+                  "format": "binary"
+                }
+              }
+            }
+          },
+          "304": {
+            "description": "The caller already holds this version."
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/settings": {
       "get": {
         "tags": [
