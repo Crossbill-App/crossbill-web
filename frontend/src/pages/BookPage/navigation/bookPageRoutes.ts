@@ -1,4 +1,4 @@
-import { useHasPublication } from '@/components/reader/useReaderPublication.ts';
+import { useGetBookDetails } from '@/api/generated/books/books.ts';
 import {
   ChapterListIcon,
   FlashcardsIcon,
@@ -103,8 +103,13 @@ export const BOOK_PAGE_ROUTES: BookPageRouteConfig[] = [
  * EPUB, and while it is unknown whether there is one the tab stays hidden —
  * appearing late is a smaller surprise than appearing and then vanishing under
  * the pointer.
+ *
+ * `has_ebook` comes from the book-details query the page has already run, so
+ * this costs nothing. It used to be inferred from whether the Readium manifest
+ * answered or 404'd, which parsed a whole publication server-side to decide
+ * whether to draw a tab.
  */
 export const useBookPageRoutes = (bookId: number): BookPageRouteConfig[] => {
-  const hasPublication = useHasPublication(bookId);
-  return BOOK_PAGE_ROUTES.filter((route) => !route.needsPublication || hasPublication === true);
+  const { data: book } = useGetBookDetails(bookId);
+  return BOOK_PAGE_ROUTES.filter((route) => !route.needsPublication || book?.has_ebook === true);
 };

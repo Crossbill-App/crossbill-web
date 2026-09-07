@@ -46,26 +46,6 @@ const credentialedFetch: typeof fetch = (input, init) =>
  */
 const publicationFetch = hardeningFetch(credentialedFetch);
 
-/**
- * Whether this book has an EPUB the web reader can open.
- *
- * `undefined` while the answer is unknown, so a caller can tell "no EPUB" from
- * "not asked yet" and avoid flashing a tab that is about to disappear.
- *
- * The manifest is the only thing the API offers to ask with: `BookDetails`
- * carries no `has_ebook` flag, so presence is inferred from the manifest
- * answering rather than 404ing. That makes this a whole manifest parsed
- * server-side to decide whether to draw a tab, where a boolean on the
- * book-details view would do it for nothing. Cheap enough for now — the
- * manifest is cached per book and the reader reuses this very response — but
- * it is the thing to fix if the book page ever feels slow.
- */
-export const useHasPublication = (bookId: number): boolean | undefined => {
-  const { isError, isPending } = useGetReadiumManifest(bookId, { query: MANIFEST_QUERY });
-  if (isPending) return undefined;
-  return !isError;
-};
-
 type ReaderPublicationStatus = 'pending' | 'ready' | 'missing' | 'error';
 
 export interface ReaderPublication {
