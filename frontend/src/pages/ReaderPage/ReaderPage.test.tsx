@@ -5,6 +5,7 @@ import { noPublication, readiumApi, sessionUnauthorizedOnce } from '@tests/msw/r
 import { worker } from '@tests/msw/worker';
 import { http, HttpResponse } from 'msw';
 import { expect, test } from 'vitest';
+import { userEvent } from 'vitest/browser';
 
 /**
  * `bookApi` serves a book with no EPUB by default, so the reader's own
@@ -45,6 +46,28 @@ test('the book loads into the reader and it reports where it is', async () => {
   await expect.element(screen.getByText('Page 1 of 2', { exact: false })).toBeVisible();
 });
 
+/**
+ * Readium frames a publication in an iframe that is same-origin with the app
+ * and carries `allow-same-origin allow-scripts`, so a book's own JavaScript
+ * would run with the page's own privileges — able to read the DOM, spend the
+ * session cookie, and call the API as the reader. Books here come from
+ * wherever their owner found them, so "the EPUB is trusted" is not a premise
+ * worth holding.
+ */
+test('a book cannot run its own scripts against the page that opened it', async () => {
+  worker.use(...bookApi({ book: aBookDetails({ title: 'The Pragmatic Reader' }) }).handlers);
+  worker.use(...readiumApi({ hostile: true }));
+
+  const screen = await renderApp({ path: '/book/1/read' });
+  await expect.element(screen.getByText('Page 1 of 2', { exact: false })).toBeVisible();
+
+  // Settled rather than polled: a script that got through would mark the page
+  // a frame or two after the chapter renders, so an immediate assertion could
+  // pass while the attack was still in flight.
+  await new Promise((resolve) => setTimeout(resolve, 400));
+  expect(document.body.getAttribute('data-pwned')).toBeNull();
+});
+
 test('the contents drawer lists the chapters the manifest publishes', async () => {
   aBookWithAnEpub();
 
@@ -70,6 +93,80 @@ test('the appearance popover offers font size and page colour', async () => {
   await expect
     .element(screen.getByRole('button', { name: 'Sepia' }))
     .toHaveAttribute('aria-pressed', 'true');
+});
+
+/**
+ * The reader listens for arrow keys on the window so the book turns wherever
+ * the focus is. That used to mean the font-size slider did two things at once:
+ * grew the text and skipped a page.
+ */
+test('an arrow key on the font-size slider does not also turn the page', async () => {
+  aBookWithAnEpub();
+
+  const screen = await renderApp({ path: '/book/1/read' });
+  await expect.element(screen.getByText('Page 1 of 2', { exact: false })).toBeVisible();
+
+  await screen.getByRole('button', { name: 'Appearance' }).click();
+  const slider = screen.getByRole('slider', { name: 'Font size' });
+  await expect.element(slider).toBeVisible();
+
+  // Focused rather than clicked: this is the keyboard user's route to the
+  // control, and clicking a slider thumb mid-transition is a fight with the
+  // animation rather than a test of anything.
+  (slider.element() as HTMLElement).focus();
+  await userEvent.keyboard('{ArrowRight}');
+
+  // The slider took the key...
+  await expect.element(slider).not.toHaveAttribute('aria-valuenow', '1');
+
+  // ...and the book stayed where it was. Settled rather than asserted straight
+  // away: a page turn lands about a second later, so an immediate check would
+  // pass whether or not one was on its way.
+  await new Promise((resolve) => setTimeout(resolve, 1200));
+  expect(document.body.innerText).toContain('Page 1 of 2');
+});
+
+/**
+ * A load that fails used to leave the skeleton up forever, and — because
+ * teardown was chained off the boot's success — leak the half-built
+ * navigator's frames and blobs when the reader gave up and left.
+ */
+test('a book whose chapters will not load says so, and can be retried', async () => {
+  worker.use(...bookApi({ book: aBookDetails() }).handlers);
+  worker.use(...readiumApi());
+  worker.use(
+    http.get(
+      '/api/v1/readium/books/:bookId/resources/*',
+      () => new HttpResponse(null, { status: 500 })
+    )
+  );
+
+  const screen = await renderApp({ path: '/book/1/read' });
+
+  await expect
+    .element(screen.getByText('This book could not be opened in the reader.'))
+    .toBeVisible();
+  await expect.element(screen.getByRole('button', { name: 'Try again' })).toBeVisible();
+});
+
+/** A session that never succeeded is terminal — nothing can load without one. */
+test('a session that cannot be started at all reports it', async () => {
+  worker.use(...bookApi({ book: aBookDetails() }).handlers);
+  worker.use(...readiumApi());
+  worker.use(
+    http.post(
+      '/api/v1/readium/books/:bookId/session',
+      () => new HttpResponse(null, { status: 500 })
+    )
+  );
+
+  const screen = await renderApp({ path: '/book/1/read' });
+
+  await expect
+    .element(
+      screen.getByText('The reader could not start a session for this book.', { exact: false })
+    )
+    .toBeVisible();
 });
 
 test('closing the reader goes back to the book', async () => {
