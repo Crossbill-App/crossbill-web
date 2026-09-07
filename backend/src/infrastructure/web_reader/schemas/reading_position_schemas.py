@@ -13,6 +13,7 @@ from math import isfinite
 from pydantic import AliasChoices, BaseModel, ConfigDict, Field, field_validator
 
 from src.application.web_reader.queries.publication_positions import MAX_PUBLICATION_POSITIONS
+from src.application.web_reader.queries.resume_position import ResumeSource
 from src.infrastructure.common.schemas.position_schemas import PositionResponse
 
 
@@ -137,3 +138,52 @@ class ReadingPosition(BaseModel):
         description="The position in document order, or null when it could not be placed",
     )
     updated_at: dt = Field(..., description="When this position was recorded")
+
+
+class ResumePositionResponse(BaseModel):
+    """Where the web reader should open a book, whichever device was there last.
+
+    Always an object, never null. A book nobody has read and a book whose stored
+    place no longer exists both open at the beginning, but only the second is
+    worth telling the reader about, and a null body could not tell them apart.
+    Read it as: navigate to ``locator`` if there is one; otherwise start at the
+    beginning, and say so if ``unresolved``.
+    """
+
+    locator: LocatorSchema | None = Field(
+        None,
+        description=(
+            "Where to open the book, ready to navigate to, or null when there is "
+            "nowhere to resume to"
+        ),
+    )
+    source: ResumeSource | None = Field(
+        None,
+        description=(
+            "Which reader the position came from -- 'web' for this browser's own "
+            "stored place, 'koreader' for the end of a session synced from an "
+            "e-reader. Null when the book has never been read anywhere."
+        ),
+    )
+    unresolved: bool = Field(
+        False,
+        description=(
+            "Whether a position exists that could not be placed in the EPUB this "
+            "server now holds -- typically the file has been replaced. The book "
+            "opens at the beginning and the reader is told their place was lost."
+        ),
+    )
+    xpoint: str | None = Field(
+        None,
+        description=(
+            "The position in the format both readers agree on, present even when "
+            "no locator could be derived from it"
+        ),
+    )
+    position: PositionResponse | None = Field(
+        None,
+        description="The position in document order, or null when it could not be placed",
+    )
+    recorded_at: dt | None = Field(
+        None, description="When the reader was at this position, by their own device's clock"
+    )

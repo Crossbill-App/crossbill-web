@@ -11,6 +11,8 @@ import { TocDrawer } from '@/components/reader/TocDrawer.tsx';
 import { useReaderPublication } from '@/components/reader/useReaderPublication.ts';
 import { useReaderSession } from '@/components/reader/useReaderSession.ts';
 import { useReadingPositionWriter } from '@/components/reader/useReadingPositionWriter.ts';
+import { useResumeLocator } from '@/components/reader/useResumeLocator.ts';
+import { useSnackbar } from '@/context/SnackbarContext.tsx';
 import { NextPageIcon, PreviousPageIcon } from '@/theme/Icons.tsx';
 import { ICON_SIZE } from '@/theme/iconSizes.ts';
 import { Box, Button, IconButton, Skeleton, Stack, Typography, useTheme } from '@mui/material';
@@ -93,9 +95,15 @@ const whenSized = (element: HTMLElement) =>
  */
 export const ReaderShell = ({ bookId, title, onClose }: ReaderShellProps) => {
   const theme = useTheme();
+  const { showSnackbar } = useSnackbar();
   const { status: sessionStatus, isRenewing } = useReaderSession(bookId);
   const { status: publicationStatus, publication, positions } = useReaderPublication(bookId);
-  const recordPosition = useReadingPositionWriter(bookId);
+  const resume = useResumeLocator(bookId, positions);
+  // Set when a book failed to open *at* a restored place. The retry that follows
+  // starts from the beginning, so the locator has to stop being offered.
+  const [resumeRejected, setResumeRejected] = useState(false);
+  const openAt = resumeRejected ? null : (resume?.locator ?? null);
+  const { record: recordPosition, setArriving } = useReadingPositionWriter(bookId);
 
   const viewportRef = useRef<HTMLDivElement | null>(null);
   const navigatorRef = useRef<EpubNavigator | null>(null);
@@ -152,11 +160,16 @@ export const ReaderShell = ({ bookId, title, onClose }: ReaderShellProps) => {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [handleKeyDown]);
 
+  // `resume` joins the other two for the same reason `positions` did: a
+  // navigator takes its initial position once, at construction, so booting
+  // before the answer is in can only be corrected by a visible jump after the
+  // book has already rendered at the beginning.
   const isReady =
     sessionStatus === 'ready' &&
     publicationStatus === 'ready' &&
     !!publication &&
-    positions !== undefined;
+    positions !== undefined &&
+    resume !== undefined;
 
   useEffect(() => {
     if (!isReady) return;
@@ -165,6 +178,11 @@ export const ReaderShell = ({ bookId, title, onClose }: ReaderShellProps) => {
 
     // An AbortController rather than a plain flag: this boot is a chain of
     // awaits, and every step has to be able to ask whether it still matters.
+    // Everything the navigator reports from here until the book has been laid
+    // out is the book arriving, not the reader moving. Closed at the end of the
+    // boot below, and re-opened by the cleanup so a retry starts held again.
+    setArriving(true);
+
     const teardown = new AbortController();
     // Read through a call rather than the property: a narrowed flag is not what
     // this is, and the compiler would happily prove a later check redundant.
@@ -264,7 +282,13 @@ export const ReaderShell = ({ bookId, title, onClose }: ReaderShellProps) => {
           peripheral: () => {},
         },
         positions,
-        undefined,
+        // Where the reader left off, on this device or another. Handed to the
+        // constructor rather than navigated to after `load()`: the frame pool
+        // resolves it while building its first frame, so the book appears at
+        // the right place instead of appearing at the beginning and then
+        // jumping — and the navigator's first report is that place, which is
+        // what keeps a restore from being written back as a move.
+        openAt ?? undefined,
         { preferences: toEpubPreferences(theme, preferences), defaults: {} }
       );
 
@@ -282,6 +306,11 @@ export const ReaderShell = ({ bookId, title, onClose }: ReaderShellProps) => {
       const fontSize = epubNavigator.preferencesEditor.fontSize;
       setFontSizeBounds({ range: fontSize.supportedRange, step: fontSize.step });
       setLocator(epubNavigator.currentLocator);
+      // The book is on screen and settled, so from here on a report is the
+      // reader's own doing. Set synchronously rather than through state: the
+      // settle report follows the layout by microtasks, and a render is not
+      // something this can wait for.
+      setArriving(false);
       clearTimeout(watchdog);
     });
 
@@ -304,7 +333,19 @@ export const ReaderShell = ({ bookId, title, onClose }: ReaderShellProps) => {
     }, BOOT_TIMEOUT_MS);
 
     boot.catch(() => {
-      if (!isStale()) setBootFailed(true);
+      if (isStale()) return;
+      // A book that would not open at the reader's place may still open at its
+      // beginning: a stored locator is a reference into the EPUB as it was, and
+      // the navigator refuses one that names a resource or a page this
+      // publication no longer has. Losing a bookmark must not cost the book, so
+      // the place is dropped and the boot tried again without it -- once, since
+      // the second attempt is offering nothing that could be rejected.
+      if (openAt) {
+        setResumeRejected(true);
+        setBootAttempt((attempt) => attempt + 1);
+        return;
+      }
+      setBootFailed(true);
     });
 
     bootRef.current = boot.catch(() => undefined);
@@ -312,6 +353,7 @@ export const ReaderShell = ({ bookId, title, onClose }: ReaderShellProps) => {
     return () => {
       teardown.abort();
       clearTimeout(watchdog);
+      setArriving(true);
       setIsPageVisible(false);
       navigatorRef.current = null;
       // Already abandoned by the watchdog, which left a fresh promise in the
@@ -331,7 +373,28 @@ export const ReaderShell = ({ bookId, title, onClose }: ReaderShellProps) => {
     // submitted to the live one below. Listing it would rebuild the reader,
     // and the book would jump back to page one on every font-size nudge.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isReady, publication, positions, theme, handleKeyDown, recordPosition, bootAttempt]);
+  }, [
+    isReady,
+    publication,
+    positions,
+    openAt,
+    theme,
+    handleKeyDown,
+    recordPosition,
+    setArriving,
+    bootAttempt,
+  ]);
+
+  // Said once the book is on screen, so the reader reads it against the page it
+  // is about rather than against a skeleton. Not said for a book nobody has
+  // read: there was never a place to lose.
+  const toldOfLostPlace = useRef(false);
+  useEffect(() => {
+    if (!isPageVisible || toldOfLostPlace.current) return;
+    if (!resume?.lost && !resumeRejected) return;
+    toldOfLostPlace.current = true;
+    showSnackbar("Couldn't restore your last position, so the book opened at the start.", 'info');
+  }, [isPageVisible, resume, resumeRejected, showSnackbar]);
 
   useEffect(() => {
     if (!isPageVisible) return;

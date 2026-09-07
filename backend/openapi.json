@@ -4525,7 +4525,7 @@
           "readium"
         ],
         "summary": "Get Reading Position",
-        "description": "Get where this reader last was in the book, or null if they have never been.\n\nNull rather than 404: a book nobody has opened in the browser is an ordinary\nstate of an ordinary book, and 404 here would mean the same thing as a book\nthat is not the caller's, which it is not.",
+        "description": "Get where the browser should open this book, whichever device was there last.\n\nNot merely what the browser itself last stored: a reader who left off on\ntheir e-reader is answered with *that* place, converted from the canonical\nxpointer to a locator against the EPUB this server holds (ADR-0004 \u00a72). The\ntwo candidates are weighed on when the reader was at each, and sessions the\nweb reader wrote are left out of the comparison because the stored position\nalready says the same thing more exactly.\n\nAlways an object, never 404 and never null: a book nobody has opened is an\nordinary state of an ordinary book, and the reader has to be able to tell it\napart from a place that was lost when the EPUB was replaced.",
         "operationId": "get_reading_position",
         "security": [
           {
@@ -4565,15 +4565,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "anyOf": [
-                    {
-                      "$ref": "#/components/schemas/ReadingPosition"
-                    },
-                    {
-                      "type": "null"
-                    }
-                  ],
-                  "title": "Response Get Reading Position"
+                  "$ref": "#/components/schemas/ResumePositionResponse"
                 }
               }
             }
@@ -9130,13 +9122,13 @@
             "type": "string",
             "format": "date-time",
             "title": "Start Time",
-            "description": "Session start timestamp"
+            "description": "Session start, with a UTC offset (KOReader sends '...Z')"
           },
           "end_time": {
             "type": "string",
             "format": "date-time",
             "title": "End Time",
-            "description": "Session end timestamp"
+            "description": "Session end, with a UTC offset (KOReader sends '...Z')"
           },
           "start_xpoint": {
             "anyOf": [
@@ -9199,7 +9191,7 @@
               }
             ],
             "title": "Device Id",
-            "description": "Device identifier"
+            "description": "Device identifier. 'crossbill-web-reader' is reserved for reading done in the browser and is refused here."
           }
         },
         "type": "object",
@@ -9608,6 +9600,86 @@
         "type": "object",
         "title": "RefreshTokenRequest",
         "description": "Request body for refresh token (used by plugins)."
+      },
+      "ResumePositionResponse": {
+        "properties": {
+          "locator": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/LocatorSchema"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Where to open the book, ready to navigate to, or null when there is nowhere to resume to"
+          },
+          "source": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ResumeSource"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Which reader the position came from -- 'web' for this browser's own stored place, 'koreader' for the end of a session synced from an e-reader. Null when the book has never been read anywhere."
+          },
+          "unresolved": {
+            "type": "boolean",
+            "title": "Unresolved",
+            "description": "Whether a position exists that could not be placed in the EPUB this server now holds -- typically the file has been replaced. The book opens at the beginning and the reader is told their place was lost.",
+            "default": false
+          },
+          "xpoint": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Xpoint",
+            "description": "The position in the format both readers agree on, present even when no locator could be derived from it"
+          },
+          "position": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/PositionResponse"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The position in document order, or null when it could not be placed"
+          },
+          "recorded_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Recorded At",
+            "description": "When the reader was at this position, by their own device's clock"
+          }
+        },
+        "type": "object",
+        "title": "ResumePositionResponse",
+        "description": "Where the web reader should open a book, whichever device was there last.\n\nAlways an object, never null. A book nobody has read and a book whose stored\nplace no longer exists both open at the beginning, but only the second is\nworth telling the reader about, and a null body could not tell them apart.\nRead it as: navigate to ``locator`` if there is one; otherwise start at the\nbeginning, and say so if ``unresolved``."
+      },
+      "ResumeSource": {
+        "type": "string",
+        "enum": [
+          "web",
+          "koreader"
+        ],
+        "title": "ResumeSource",
+        "description": "Which reader the position being resumed from came from.\n\nAttributes:\n    WEB: The row the browser itself wrote. It carries the locator verbatim,\n        so the reader is put back exactly where it was.\n    KOREADER: The end of a reading session synced from an e-reader. Only an\n        xpointer was stored, so a locator has to be derived from the EPUB --\n        which is the conversion that can fail."
       },
       "SearchBookRef": {
         "properties": {

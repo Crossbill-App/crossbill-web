@@ -9,8 +9,8 @@ from src.application.web_reader.queries.get_publication_positions_use_case impor
 from src.application.web_reader.queries.get_publication_resource_use_case import (
     GetPublicationResourceUseCase,
 )
-from src.application.web_reader.queries.get_reading_position_use_case import (
-    GetReadingPositionUseCase,
+from src.application.web_reader.queries.get_resume_position_use_case import (
+    GetResumePositionUseCase,
 )
 from src.application.web_reader.queries.get_web_publication_use_case import (
     GetWebPublicationUseCase,
@@ -53,10 +53,12 @@ class WebReaderContainer(containers.DeclarativeContainer):
         book_repository=book_repository,
     )
 
-    get_reading_position_use_case = providers.Factory(
-        GetReadingPositionUseCase,
+    get_resume_position_use_case = providers.Factory(
+        GetResumePositionUseCase,
         book_repository=book_repository,
         position_repository=web_reading_position_repository,
+        session_repository=reading_session_repository,
+        position_anchor_service=position_anchor_service,
     )
 
     save_reading_position_use_case = providers.Factory(

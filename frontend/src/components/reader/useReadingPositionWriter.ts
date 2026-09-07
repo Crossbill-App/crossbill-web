@@ -55,11 +55,23 @@ const update = (locator: LocatorSchema, at: string, closing: boolean): ReadingPo
  * Returns one function: hand it every locator the navigator reports and it
  * decides what is worth writing.
  *
- * **The first position is remembered, not written.** The navigator announces
- * where it is as soon as a frame loads, so opening a book reports a position
- * before any reading has happened. Writing that would start a reading session
- * for merely opening a book — and, once M2.4 resumes into a stored position,
- * would write back the very position it had just restored.
+ * **Nothing the book says while it is arriving is a move.** `setArriving`
+ * brackets the boot, and every position reported inside it — the place the
+ * navigator was told to open at, the place the frame really settled on once it
+ * had laid the columns out, and whatever the resize on the way past reports —
+ * is the book appearing rather than a reader going anywhere. Nobody has turned
+ * a page in a book that is not on screen yet.
+ *
+ * This is what makes resuming safe (M2.4). A book opened at a stored position
+ * reports it once as asked for and again as rendered, and those are two
+ * different locators for one place; written back, they would start a reading
+ * session for opening a book and rewrite the position that had just been
+ * restored. The bracket is deliberately drawn around *time* rather than around
+ * the restored locator: a hold that asked "is this still the place we restored
+ * to" has to answer with some notion of sameness, and every such notion is
+ * wrong somewhere — keyed on the position number it swallows a reader turning
+ * pages through a long chapter, since a position is a span of the resource and
+ * not a rendered page. Once the book has arrived, every report is the reader's.
  *
  * **A position that has not moved is not written.** A preference change, a
  * resize and a re-render all re-announce the same place.
@@ -68,6 +80,15 @@ const update = (locator: LocatorSchema, at: string, closing: boolean): ReadingPo
  * while the tab is visible, the current position is written again unchanged --
  * which the server reads as the session continuing, because what ends a session
  * there is nothing arriving rather than anything being said.
+ *
+ * That applies to a reader who was *put back* somewhere just as it does to one
+ * who opened at the beginning, and deliberately: dwelling is reading, arriving
+ * is not. Somebody resumed onto page 200 who reads that page for ten minutes
+ * has read for ten minutes, exactly as somebody who opens a new book and reads
+ * its first page for ten minutes has — and suppressing the heartbeat after a
+ * restore would record the second and not the first. So the invariant a resume
+ * keeps is that a restore *alone* writes nothing; a restore plus ten minutes of
+ * reading writes, because of the reading.
  *
  * **Leaving closes the session; going to another tab does not.** Unmounting
  * writes the last position with `closing`, which is what ends the reading
@@ -104,6 +125,19 @@ export const useReadingPositionWriter = (bookId: number) => {
   // how long the reader has been quiet rather than counting from its own last
   // tick. Set when the book opens, so opening one does not immediately beat.
   const spokeAtRef = useRef(0);
+
+  // Whether the book is still being built. Starts true, because a navigator
+  // reports where it is before anybody can have read anything, and is set from
+  // the boot rather than inferred from what arrives.
+  //
+  // A ref written by a stable callback rather than a prop: the recording
+  // callback below is bound to the navigator at construction, so it must keep
+  // its identity for the reader's whole life, and a render is not something the
+  // boot can wait for -- the settle report follows the layout by microtasks.
+  const arrivingRef = useRef(true);
+  const setArriving = useCallback((arriving: boolean) => {
+    arrivingRef.current = arriving;
+  }, []);
 
   const send = useCallback(
     (body: ReadingPositionUpdate, viaFetch: boolean) => {
@@ -180,15 +214,21 @@ export const useReadingPositionWriter = (bookId: number) => {
     };
   }, [flush, send]);
 
-  return useCallback(
+  const record = useCallback(
     (locator: Locator) => {
       const serialized = locator.serialize() as LocatorSchema;
       const key = JSON.stringify(serialized);
-      // The place the reader was already in when the book opened. Remembering
-      // it is what makes every later report a move rather than a repetition.
-      if (writtenRef.current === null) {
+      const observed: Observation = { locator: serialized, at: new Date().toISOString() };
+
+      // The book is still arriving, or this is the very first thing said about
+      // it. Either way it is where the reader already was rather than somewhere
+      // they went, so it is remembered and not written. `writtenRef` is kept as
+      // its own condition rather than folded into the bracket: that a book's
+      // opening position is never written is an invariant of this hook, and it
+      // should not depend on a caller remembering to say when a boot began.
+      if (arrivingRef.current || writtenRef.current === null) {
         writtenRef.current = key;
-        latestRef.current = { locator: serialized, at: new Date().toISOString() };
+        latestRef.current = observed;
         // Nothing is written for merely opening a book, but staying in one is
         // reading: the heartbeat's clock starts here, so a reader settled on
         // this page is recorded even though they never turn it.
@@ -198,7 +238,6 @@ export const useReadingPositionWriter = (bookId: number) => {
       if (key === writtenRef.current) return;
 
       writtenRef.current = key;
-      const observed: Observation = { locator: serialized, at: new Date().toISOString() };
       latestRef.current = observed;
       pendingRef.current = observed;
       clearTimeout(timerRef.current);
@@ -210,4 +249,6 @@ export const useReadingPositionWriter = (bookId: number) => {
     },
     [send]
   );
+
+  return { record, setArriving };
 };

@@ -7,7 +7,7 @@ Uses ReadingSessionMapper internally for conversions.
 
 import logging
 
-from sqlalchemy import func, select, update
+from sqlalchemy import func, or_, select, update
 from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -185,6 +185,32 @@ class ReadingSessionRepository:
             ReadingSessionORM.user_id == user_id.value,
         )
         orm = (await self.db.execute(stmt)).scalar_one_or_none()
+        return self.mapper.to_domain(orm) if orm else None
+
+    async def find_latest_ended(
+        self, book_id: BookId, user_id: UserId, excluding_device_id: str | None = None
+    ) -> ReadingSession | None:
+        """Get the user's session of this book that ended most recently."""
+        stmt = (
+            select(ReadingSessionORM)
+            .where(
+                ReadingSessionORM.book_id == book_id.value,
+                ReadingSessionORM.user_id == user_id.value,
+            )
+            .order_by(ReadingSessionORM.end_time.desc())
+            .limit(1)
+        )
+        if excluding_device_id is not None:
+            # `IS NULL OR <> x` rather than `<> x`: a session with no device at
+            # all is not one that device wrote, and SQL's three-valued logic
+            # would drop it from the comparison.
+            stmt = stmt.where(
+                or_(
+                    ReadingSessionORM.device_id.is_(None),
+                    ReadingSessionORM.device_id != excluding_device_id,
+                )
+            )
+        orm = (await self.db.execute(stmt)).scalars().first()
         return self.mapper.to_domain(orm) if orm else None
 
     async def save(self, session: ReadingSession) -> ReadingSession:
