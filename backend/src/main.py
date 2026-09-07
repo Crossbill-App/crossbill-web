@@ -319,14 +319,42 @@ class SecurityHeadersMiddleware:
                     settings.ENVIRONMENT != "development"
                     and "content-security-policy" not in headers
                 ):
+                    # `blob:` in three directives is the web reader, and only
+                    # the web reader. Readium frames each publication resource
+                    # as a `blob:` document (`frame-src`) whose Readium CSS
+                    # arrives as a `blob:` stylesheet (`style-src`), and injects
+                    # its own scripts -- the selector generator ADR-0004 §2's
+                    # write path needs -- as `<script src="blob:...">`
+                    # (`script-src`). A book's own scripts are not covered by
+                    # any of it: they are inline or served from this origin, and
+                    # `publicationHardening.ts` strips them and pins the frame
+                    # to `script-src blob:` besides.
                     headers["Content-Security-Policy"] = (
                         "default-src 'self'; "
-                        "script-src 'self'; "
-                        "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; "
+                        "script-src 'self' blob:; "
+                        "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com blob:; "
                         "img-src 'self' data: blob:; "
                         "font-src 'self' https://fonts.gstatic.com; "
                         "connect-src 'self'; "
-                        "frame-ancestors 'none'; "
+                        "frame-src 'self' blob:; "
+                        # 'self' rather than 'none', and the web reader is why.
+                        # A blob: document inherits the CSP of the context that
+                        # created it, and WebKit then enforces the inherited
+                        # `frame-ancestors` against that document's own
+                        # ancestor -- so `'none'` made Safari refuse every
+                        # publication frame the reader built ("Refused to load
+                        # blob:... because it does not appear in the
+                        # frame-ancestors directive"), and a book never opened
+                        # on an iPhone. Chromium does not apply inherited
+                        # `frame-ancestors` to blob: children, which is why
+                        # desktop never saw it.
+                        #
+                        # Nothing is given up. `X-Frame-Options: DENY` above
+                        # still refuses every attempt to frame the app, and
+                        # `'self'` still refuses every cross-origin one at the
+                        # CSP level; what it now permits is this page framing
+                        # its own blob: documents, which is exactly the reader.
+                        "frame-ancestors 'self'; "
                         "base-uri 'self'; "
                         "form-action 'self'"
                     )

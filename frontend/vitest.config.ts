@@ -3,6 +3,21 @@ import path from 'path';
 import { defineConfig, mergeConfig } from 'vitest/config';
 import viteConfig from './vite.config';
 
+/**
+ * The engines to run in — Chromium alone unless `TEST_BROWSERS` says otherwise.
+ *
+ * The web reader is the reason this is a knob at all. It leans on the browser
+ * far harder than the rest of the app does (blob: documents, same-origin frames,
+ * a `<meta>` CSP inside them), and those are exactly the places engines differ:
+ * a book that would not open on iPhone Safari was a WebKit-only fault the
+ * Chromium suite could not see. `TEST_BROWSERS=chromium,webkit npm run test`
+ * runs both.
+ */
+const browsers = (process.env.TEST_BROWSERS ?? 'chromium')
+  .split(',')
+  .map((name) => name.trim())
+  .filter(Boolean);
+
 export default mergeConfig(
   viteConfig,
   defineConfig({
@@ -34,7 +49,7 @@ export default mergeConfig(
         enabled: true,
         headless: true,
         provider: playwright(),
-        instances: [{ browser: 'chromium' }],
+        instances: browsers.map((browser) => ({ browser })),
         viewport: { width: 1440, height: 900 },
       },
     },

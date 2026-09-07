@@ -10,18 +10,45 @@ import {
 import { TocDrawer } from '@/components/reader/TocDrawer.tsx';
 import { useReaderPublication } from '@/components/reader/useReaderPublication.ts';
 import { useReaderSession } from '@/components/reader/useReaderSession.ts';
+import { useReaderTapZones } from '@/components/reader/useReaderTapZones.ts';
 import { useReadingPositionWriter } from '@/components/reader/useReadingPositionWriter.ts';
 import { useResumeLocator } from '@/components/reader/useResumeLocator.ts';
 import { useSnackbar } from '@/context/SnackbarContext.tsx';
 import { NextPageIcon, PreviousPageIcon } from '@/theme/Icons.tsx';
 import { ICON_SIZE } from '@/theme/iconSizes.ts';
-import { Box, Button, IconButton, Skeleton, Stack, Typography, useTheme } from '@mui/material';
+import {
+  Box,
+  Button,
+  IconButton,
+  Skeleton,
+  Stack,
+  Typography,
+  useMediaQuery,
+  useTheme,
+} from '@mui/material';
 import { EpubNavigator } from '@readium/navigator';
 import type { Link, Locator } from '@readium/shared';
 import { useCallback, useEffect, useRef, useState } from 'react';
 
-/** Room in the margins for the page-turn buttons, so they never sit on the text. */
+/**
+ * Room in the margins for the page-turn buttons, so they never sit on the text.
+ *
+ * Only where those buttons are: on a phone the two gutters together were most of
+ * the screen, and the book was reduced to a strip down the middle. Below the
+ * breakpoint the buttons give way to tap zones and the reader keeps the width —
+ * with no gutter of ours at all, because Readium's own page gutter already holds
+ * the text 20px off each edge of the frame.
+ */
 const PAGE_TURN_GUTTER = 48;
+
+/**
+ * Air above and below the book, in theme spacing units.
+ *
+ * Readium's page gutter is horizontal only (`padding: 0 var(--RS__pageGutter)`),
+ * so without this the first line sits against the chrome's border and the last
+ * against the bottom of the screen. Nothing to double up with, at any width.
+ */
+const READING_SURFACE_INSET = 2;
 
 /**
  * What the font-size control offers before there is a navigator to ask.
@@ -42,6 +69,12 @@ const DEFAULT_FONT_SIZE_BOUNDS: { range: [number, number]; step: number } = {
  * fetching a chapter or two and assembling their blobs. Generous for that, and
  * short enough that a reader who is never getting a book is told rather than
  * left watching a skeleton.
+ *
+ * Briefly 60s, while books would not open on iPhone Safari. That was a CSP
+ * refusal rather than a slow load — `frame-ancestors 'none'`, inherited into
+ * the reader's blob: frames and enforced there by WebKit alone — so the frame
+ * failed instantly and no clock could have saved it. Waiting longer only meant
+ * a minute of skeleton before the same apology.
  */
 const BOOT_TIMEOUT_MS = 15_000;
 
@@ -95,6 +128,9 @@ const whenSized = (element: HTMLElement) =>
  */
 export const ReaderShell = ({ bookId, title, onClose }: ReaderShellProps) => {
   const theme = useTheme();
+  // A phone, near enough. The arrow buttons need gutters this viewport cannot
+  // spare, so below here the edges of the page turn it instead.
+  const isCompact = useMediaQuery(theme.breakpoints.down('sm'));
   const { showSnackbar } = useSnackbar();
   const { status: sessionStatus, isRenewing } = useReaderSession(bookId);
   const { status: publicationStatus, publication, positions } = useReaderPublication(bookId);
@@ -124,6 +160,21 @@ export const ReaderShell = ({ bookId, title, onClose }: ReaderShellProps) => {
 
   const goForward = useCallback(() => navigatorRef.current?.goForward(true, () => {}), []);
   const goBackward = useCallback(() => navigatorRef.current?.goBackward(true, () => {}), []);
+
+  // Spatial rather than logical, because a tap zone is a physical edge: in a
+  // right-to-left book the next page is the one to the *left*. The navigator
+  // resolves the two against the publication's reading progression.
+  const goLeft = useCallback(() => navigatorRef.current?.goLeft(true, () => {}), []);
+  const goRight = useCallback(() => navigatorRef.current?.goRight(true, () => {}), []);
+
+  // What replaces the arrow buttons where there is no room for them. Stable for
+  // the same reason `handleKeyDown` is, and bound to each frame in the same place.
+  const bindTapZones = useReaderTapZones({
+    enabled: isCompact,
+    suspended: isRenewing,
+    onLeft: goLeft,
+    onRight: goRight,
+  });
 
   // Mirrored into a ref so the key handler can consult it without becoming a
   // new function, which would mean rebinding every publication frame.
@@ -240,12 +291,14 @@ export const ReaderShell = ({ bookId, title, onClose }: ReaderShellProps) => {
            *
            * The seam M3.2 hangs its highlights on: decorations are applied per
            * frame, so this is where a newly loaded resource gets the ones that
-           * belong to it. Today it only reveals the page and gives the frame
-           * the arrow keys, which a same-origin iframe does not bubble up on
-           * its own.
+           * belong to it. Today it reveals the page and hands the frame the two
+           * ways of turning it — the arrow keys and, where the buttons cannot
+           * fit, the tap zones — neither of which a same-origin iframe bubbles
+           * up on its own.
            */
           frameLoaded: (frameWindow: Window) => {
             frameWindow.addEventListener('keydown', handleKeyDown);
+            bindTapZones(frameWindow);
             setIsPageVisible(true);
           },
           /**
@@ -270,6 +323,10 @@ export const ReaderShell = ({ bookId, title, onClose }: ReaderShellProps) => {
            */
           textSelected: () => {},
           timelineItemChanged: () => {},
+          // Readium pages the book itself on a pointer in the outer quarters of
+          // a frame unless the listener claims the event. It has to stay
+          // claimed: `useReaderTapZones` is what turns pages here, and a tap
+          // answered twice would skip one.
           tap: () => true,
           click: () => true,
           zoom: () => {},
@@ -380,6 +437,7 @@ export const ReaderShell = ({ bookId, title, onClose }: ReaderShellProps) => {
     openAt,
     theme,
     handleKeyDown,
+    bindTapZones,
     recordPosition,
     setArriving,
     bootAttempt,
@@ -473,8 +531,12 @@ export const ReaderShell = ({ bookId, title, onClose }: ReaderShellProps) => {
       />
 
       <Box sx={{ flex: 1, minHeight: 0, position: 'relative' }}>
-        <PageTurnButton edge="left" onClick={goBackward} disabled={isRenewing} />
-        <PageTurnButton edge="right" onClick={goForward} disabled={isRenewing} />
+        {!isCompact && (
+          <>
+            <PageTurnButton edge="left" onClick={goBackward} disabled={isRenewing} />
+            <PageTurnButton edge="right" onClick={goForward} disabled={isRenewing} />
+          </>
+        )}
 
         {/* The element the navigator measures. Its own container is created
             inside it once it has a box, and the frames Readium appends are
@@ -484,7 +546,8 @@ export const ReaderShell = ({ bookId, title, onClose }: ReaderShellProps) => {
           data-testid="reader-viewport"
           sx={{
             height: '100%',
-            px: `${PAGE_TURN_GUTTER}px`,
+            px: { xs: 0, sm: `${PAGE_TURN_GUTTER}px` },
+            py: READING_SURFACE_INSET,
             visibility: isPageVisible ? 'visible' : 'hidden',
             '& .readium-navigator-iframe': {
               position: 'absolute',
