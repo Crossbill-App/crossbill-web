@@ -1,10 +1,15 @@
 import { aBookDetails } from '@tests/fixtures/book';
 import { renderApp } from '@tests/harness/renderApp';
 import { bookApi } from '@tests/msw/bookApi';
-import { noPublication, readiumApi, sessionUnauthorizedOnce } from '@tests/msw/readiumApi';
+import {
+  ESCAPE_HATCH,
+  noPublication,
+  readiumApi,
+  sessionUnauthorizedOnce,
+} from '@tests/msw/readiumApi';
 import { worker } from '@tests/msw/worker';
-import { http, HttpResponse } from 'msw';
-import { expect, test } from 'vitest';
+import { delay, http, HttpResponse } from 'msw';
+import { expect, test, vi } from 'vitest';
 import { userEvent } from 'vitest/browser';
 
 /**
@@ -58,14 +63,30 @@ test('a book cannot run its own scripts against the page that opened it', async 
   worker.use(...bookApi({ book: aBookDetails({ title: 'The Pragmatic Reader' }) }).handlers);
   worker.use(...readiumApi({ hostile: true }));
 
+  // A file the publication never references, so asking for it can only mean
+  // the frame navigated out of the document we sanitised and into a raw,
+  // unsanitised one served straight from the API.
+  let escaped = false;
+  worker.use(
+    http.get(`/api/v1/readium/books/:bookId/resources/OEBPS/${ESCAPE_HATCH}`, () => {
+      escaped = true;
+      return new HttpResponse('', { headers: { 'Content-Type': 'application/xhtml+xml' } });
+    })
+  );
+
   const screen = await renderApp({ path: '/book/1/read' });
-  await expect.element(screen.getByText('Page 1 of 2', { exact: false })).toBeVisible();
 
   // Settled rather than polled: a script that got through would mark the page
   // a frame or two after the chapter renders, so an immediate assertion could
-  // pass while the attack was still in flight.
-  await new Promise((resolve) => setTimeout(resolve, 400));
+  // pass while the attack was still in flight. Long enough, too, for a meta
+  // refresh to navigate the frame.
+  await new Promise((resolve) => setTimeout(resolve, 1500));
   expect(document.body.getAttribute('data-pwned')).toBeNull();
+  expect(escaped).toBe(false);
+
+  // And the book really did render, so the assertions above were about a
+  // loaded chapter rather than an empty frame that could never attack anything.
+  await expect.element(screen.getByText('Page 1 of 2', { exact: false })).toBeVisible();
 });
 
 test('the contents drawer lists the chapters the manifest publishes', async () => {
@@ -147,6 +168,77 @@ test('a book whose chapters will not load says so, and can be retried', async ()
     .element(screen.getByText('This book could not be opened in the reader.'))
     .toBeVisible();
   await expect.element(screen.getByRole('button', { name: 'Try again' })).toBeVisible();
+});
+
+/**
+ * The slow one, and it earns it. A load that hangs cannot be waited out, and
+ * every later step was chained to it — including the teardown, and so the next
+ * attempt: "Try again" queued behind the load that hung and waited forever.
+ * Nothing short of a real hang reproduces that, and a real hang means waiting
+ * for the watchdog.
+ */
+test('a book whose load never finishes can still be retried', { timeout: 40_000 }, async () => {
+  worker.use(...bookApi({ book: aBookDetails() }).handlers);
+  worker.use(...readiumApi());
+
+  let chapterRequests = 0;
+  worker.use(
+    http.get('/api/v1/readium/books/:bookId/resources/OEBPS/chapter1.xhtml', async () => {
+      chapterRequests += 1;
+      // Never settles, which is what a hung load is.
+      await new Promise(() => {});
+      return new HttpResponse(null);
+    })
+  );
+
+  const screen = await renderApp({ path: '/book/1/read' });
+
+  await expect
+    .element(screen.getByRole('button', { name: 'Try again' }), { timeout: 25_000 })
+    .toBeVisible();
+  expect(chapterRequests).toBe(1);
+
+  await screen.getByRole('button', { name: 'Try again' }).click();
+
+  // A second attempt at the chapter means a genuinely new navigator was built,
+  // rather than one queued behind a promise that will never settle.
+  await vi.waitFor(() => expect(chapterRequests).toBe(2), { timeout: 10_000 });
+});
+
+/**
+ * Coming back to a tab that slept past the cookie's expiry starts a renewal,
+ * but the navigator was still interactive while it ran: a page turn would ask
+ * for a chapter with a dead credential and get a blank frame.
+ */
+test('a lapsed session holds the book until it has been renewed', async () => {
+  worker.use(...bookApi({ book: aBookDetails() }).handlers);
+  // One second of life, so the cookie has genuinely lapsed by the time the tab
+  // is brought back. The scheduled renewal cannot interfere: its floor is five.
+  worker.use(...readiumApi({ expiresIn: 1 }));
+
+  const screen = await renderApp({ path: '/book/1/read' });
+  await expect.element(screen.getByText('Page 1 of 2', { exact: false })).toBeVisible();
+
+  // The renewal that the return to the tab triggers, held open long enough to
+  // observe what the reader does while it is in flight.
+  worker.use(
+    http.post('/api/v1/readium/books/:bookId/session', async () => {
+      await delay(2_000);
+      return HttpResponse.json({ expires_in: 900 });
+    })
+  );
+
+  await new Promise((resolve) => setTimeout(resolve, 1_200));
+  window.dispatchEvent(new Event('focus'));
+
+  await expect.element(screen.getByText('Reconnecting...')).toBeVisible();
+  await expect.element(screen.getByRole('button', { name: 'Next page' })).toBeDisabled();
+
+  // ...and the book comes back on its own once the cookie has.
+  await expect
+    .element(screen.getByText('Reconnecting...'), { timeout: 5_000 })
+    .not.toBeInTheDocument();
+  await expect.element(screen.getByRole('button', { name: 'Next page' })).toBeEnabled();
 });
 
 /** A session that never succeeded is terminal — nothing can load without one. */
