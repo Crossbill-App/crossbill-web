@@ -26,7 +26,20 @@ const WAKE_MARGIN_MS = 30_000;
 /** Backoff for a renewal that failed while the book is still open. */
 const RETRY_DELAYS_MS = [1_000, 2_000, 5_000, 15_000, 30_000];
 
-export type ReaderSessionStatus = 'pending' | 'ready' | 'error';
+type ReaderSessionStatus = 'pending' | 'ready' | 'error';
+
+export interface ReaderSession {
+  status: ReaderSessionStatus;
+  /**
+   * True while the cookie is known to have lapsed and its replacement is still
+   * in flight.
+   *
+   * Only a cookie that has actually run out sets this. A renewal that happens
+   * early — the ordinary case — is invisible, because the credential the
+   * reader is using is still good and there is nothing to wait for.
+   */
+  isRenewing: boolean;
+}
 
 const refreshDelayMs = (expiresIn: number) =>
   Math.max(expiresIn * 1000 * REFRESH_AT, MIN_REFRESH_MS);
@@ -50,8 +63,9 @@ const refreshDelayMs = (expiresIn: number) =>
  * its own state rather than this one being asked to change books underneath
  * itself.
  */
-export const useReaderSession = (bookId: number): ReaderSessionStatus => {
+export const useReaderSession = (bookId: number): ReaderSession => {
   const [status, setStatus] = useState<ReaderSessionStatus>('pending');
+  const [isRenewing, setIsRenewing] = useState(false);
   // When the cookie the server last handed out runs out, in wall-clock terms.
   // Null until one has ever been issued, which is what separates "this reader
   // never started" from "a renewal went wrong mid-book".
@@ -80,6 +94,7 @@ export const useReaderSession = (bookId: number): ReaderSessionStatus => {
         if (isStale()) return;
         failuresRef.current = 0;
         expiresAtRef.current = Date.now() + session.expires_in * 1000;
+        setIsRenewing(false);
         setStatus('ready');
         schedule(refreshDelayMs(session.expires_in));
       } catch {
@@ -111,7 +126,12 @@ export const useReaderSession = (bookId: number): ReaderSessionStatus => {
     const renewIfDue = () => {
       if (isStale() || document.visibilityState !== 'visible') return;
       const expiresAt = expiresAtRef.current;
-      if (expiresAt !== null && Date.now() > expiresAt - WAKE_MARGIN_MS) void mintCookie();
+      if (expiresAt === null || Date.now() <= expiresAt - WAKE_MARGIN_MS) return;
+      // A cookie that has actually run out leaves the navigator loading
+      // resources against a dead credential, so the reader is held until the
+      // replacement lands. One renewed early needs no such ceremony.
+      if (Date.now() >= expiresAt) setIsRenewing(true);
+      void mintCookie();
     };
 
     void mintCookie();
@@ -126,5 +146,5 @@ export const useReaderSession = (bookId: number): ReaderSessionStatus => {
     };
   }, [bookId]);
 
-  return status;
+  return { status, isRenewing };
 };
