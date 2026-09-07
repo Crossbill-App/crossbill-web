@@ -46,7 +46,7 @@ from src.infrastructure.common.client_version import (
     KOREADER_PLUGIN,
     format_version,
 )
-from src.infrastructure.identity.dependencies import get_current_user
+from src.infrastructure.identity.dependencies import get_current_user, get_current_user_optional
 from src.infrastructure.library.repositories import file_repository
 from src.infrastructure.library.schemas import EreaderBookMetadata
 from src.infrastructure.reading.routers.reader_clock import reader_today
@@ -414,6 +414,10 @@ async def client(db_session: AsyncSession, test_user: User) -> AsyncGenerator[As
 
     app.dependency_overrides[get_db] = override_get_db
     app.dependency_overrides[get_current_user] = override_get_current_user
+    # Routes that accept a second credential ask for the user through the
+    # optional dependency instead, and would see an anonymous request without
+    # this: what makes this client authenticated is the override, not a header.
+    app.dependency_overrides[get_current_user_optional] = override_get_current_user
 
     # Always use local FileRepository in tests regardless of S3 env vars
     from src.core import container  # noqa: PLC0415
@@ -448,6 +452,27 @@ async def plugin_client(client: AsyncClient) -> AsyncGenerator[AsyncClient, None
         headers={CLIENT_VERSION_HEADER: SUPPORTED_CLIENT_HEADER_VALUE},
     ) as announced_client:
         yield announced_client
+
+
+@pytest.fixture
+async def browser_client(client: AsyncClient) -> AsyncGenerator[AsyncClient, None]:
+    """A client that authenticates the way a browser does, and no other way.
+
+    Built on ``client`` for its database, file store and queue, then stripped of
+    the authentication overrides: a request through this one carries whatever
+    credential the test gives it -- a Bearer header, a cookie the server set, or
+    nothing at all -- and is refused when it carries none.
+
+    ``https``, because the cookies under test are ``Secure``: over ``http`` the
+    jar would drop them silently and every assertion below would pass for want
+    of a cookie rather than because the server did anything.
+    """
+    del app.dependency_overrides[get_current_user]
+    del app.dependency_overrides[get_current_user_optional]
+
+    transport = ASGITransport(app=app)
+    async with AsyncClient(transport=transport, base_url="https://test") as browser:
+        yield browser
 
 
 @pytest.fixture

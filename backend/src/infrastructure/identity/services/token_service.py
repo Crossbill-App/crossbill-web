@@ -14,6 +14,7 @@ settings = get_settings()
 SECRET_KEY = settings.SECRET_KEY
 REFRESH_TOKEN_SECRET_KEY = settings.REFRESH_TOKEN_SECRET_KEY or SECRET_KEY
 ALGORITHM = "HS256"
+ACCESS_TOKEN_TYPE = "access"  # noqa: S105
 ACCESS_TOKEN_EXPIRE_MINUTES = settings.ACCESS_TOKEN_EXPIRE_MINUTES
 REFRESH_TOKEN_EXPIRE_DAYS = settings.REFRESH_TOKEN_EXPIRE_DAYS
 
@@ -30,7 +31,7 @@ class TokenWithRefresh(BaseModel):
 def create_access_token(user_id: int) -> str:
     """Create an access token for a user."""
     expire = datetime.now(UTC) + timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
-    to_encode = {"sub": str(user_id), "exp": expire, "type": "access"}
+    to_encode = {"sub": str(user_id), "exp": expire, "type": ACCESS_TOKEN_TYPE}
     return jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
 
 
@@ -41,10 +42,17 @@ def create_refresh_token(user_id: int, jti: str, expires_at: datetime) -> str:
 
 
 def verify_access_token(token: str) -> int | None:
-    """Verify an access token and return the user_id if valid."""
+    """Verify an access token and return the user_id if valid.
+
+    The ``type`` claim has to say ``access`` and not merely fail to say
+    ``refresh``. Other tokens are signed with this key -- the web reader's
+    publication credential (#737) among them -- and every one of them is
+    narrower than an access token, so accepting any token that verifies would
+    let the narrowest of them buy the widest.
+    """
     try:
         payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
-        if payload.get("type") == "refresh":
+        if payload.get("type") != ACCESS_TOKEN_TYPE:
             return None
         user_id = payload.get("sub")
         if user_id is None:
