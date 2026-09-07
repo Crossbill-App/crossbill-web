@@ -20,6 +20,12 @@ EPUB_PROFILE = "https://readium.org/webpub-manifest/profiles/epub"
 
 POSITION_LIST_REL = "http://readium.org/position-list"
 
+# The media type Readium registers for a position list, and the one its own
+# toolkits both sniff for and serve. A position list is JSON, so `application/json`
+# would be true as far as it goes -- it just does not tell a reader that the
+# document at the other end of the link is the thing the link says it is.
+POSITION_LIST_MEDIA_TYPE = "application/vnd.readium.position-list+json"
+
 
 class ReadiumProperties(BaseModel):
     """A Link's ``properties``; only ``layout`` is populated today."""
@@ -42,6 +48,42 @@ class ReadiumLink(BaseModel):
     title: str | None = None
     properties: ReadiumProperties | None = None
     children: list["ReadiumLink"] | None = None
+
+
+class ReadiumLocations(BaseModel):
+    """A Locator's ``locations``: where a position is, in every way it can be said.
+
+    Only the three a position list carries are modelled. A derived highlight
+    locator (ADR-0004 §2) says where it is with a CSS selector and a text quote
+    instead, and gets its own shape when it arrives.
+    """
+
+    model_config = ConfigDict(populate_by_name=True)
+
+    position: int
+    progression: float
+    total_progression: float = Field(serialization_alias="totalProgression")
+
+
+class ReadiumLocator(BaseModel):
+    """A Readium Locator Object naming one position of a publication."""
+
+    href: str
+    type: str
+    locations: ReadiumLocations
+
+
+class PositionList(BaseModel):
+    """The document a publication's ``position-list`` link resolves to.
+
+    ``total`` is redundant with the length of ``positions`` and is what the
+    format states anyway: a reader showing "page 7 of 240" needs the count, and
+    reading it off the array only works for a reader that fetched the whole
+    array.
+    """
+
+    total: int
+    positions: list[ReadiumLocator]
 
 
 class ReadiumMetadata(BaseModel):

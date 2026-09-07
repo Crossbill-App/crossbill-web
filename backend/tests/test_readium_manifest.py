@@ -41,6 +41,7 @@ FIXTURES = Path(__file__).parent / "fixtures"
 WEBPUB_MEDIA_TYPE = "application/webpub+json"
 EPUB_PROFILE = "https://readium.org/webpub-manifest/profiles/epub"
 POSITION_LIST_REL = "http://readium.org/position-list"
+POSITION_LIST_MEDIA_TYPE = "application/vnd.readium.position-list+json"
 
 
 def manifest_url(book: Book) -> str:
@@ -89,6 +90,7 @@ def build_epub(
     files: tuple[str, ...] = (),
     bodies: dict[str, bytes] | None = None,
     compression: int = zipfile.ZIP_STORED,
+    extra_metadata: str = "",
 ) -> bytes:
     """Assemble an EPUB by hand, so an adversarial one reads as such in the diff.
 
@@ -98,7 +100,8 @@ def build_epub(
 
     Every name in ``files`` gets a placeholder document unless ``bodies`` gives
     it content of its own, which is what lets a test pin the exact bytes of one
-    member.
+    member. ``extra_metadata`` is appended inside ``<metadata>``, which is where
+    a publication-wide ``rendition:layout`` goes.
     """
     bodies = bodies or {}
     package = (
@@ -106,7 +109,8 @@ def build_epub(
         '<package xmlns="http://www.idpf.org/2007/opf" version="3.0" unique-identifier="i">\n'
         '  <metadata xmlns:dc="http://purl.org/dc/elements/1.1/">'
         '<dc:identifier id="i">urn:uuid:hand-built</dc:identifier>'
-        "<dc:title>Hand Built</dc:title><dc:language>en</dc:language></metadata>\n"
+        "<dc:title>Hand Built</dc:title><dc:language>en</dc:language>"
+        f"{extra_metadata}</metadata>\n"
         '  <manifest><item id="nav" href="nav.xhtml" media-type="application/xhtml+xml" '
         f'properties="nav"/>{manifest_items}</manifest>\n'
         f"  <spine>{spine}</spine>\n</package>\n"
@@ -219,7 +223,11 @@ class TestManifestStructure:
                 "rel": "self",
                 "type": WEBPUB_MEDIA_TYPE,
             },
-            {"href": "positions.json", "rel": POSITION_LIST_REL, "type": "application/json"},
+            {
+                "href": "positions.json",
+                "rel": POSITION_LIST_REL,
+                "type": POSITION_LIST_MEDIA_TYPE,
+            },
         ]
 
     async def test_nests_the_toc_and_percent_encodes_hrefs(
