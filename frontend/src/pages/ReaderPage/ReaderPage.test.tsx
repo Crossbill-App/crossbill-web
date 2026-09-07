@@ -1,5 +1,5 @@
 import { aBookDetails } from '@tests/fixtures/book';
-import { aResumePosition } from '@tests/fixtures/publication';
+import { aManifest, aResumePosition } from '@tests/fixtures/publication';
 import { renderApp } from '@tests/harness/renderApp';
 import { bookApi } from '@tests/msw/bookApi';
 import {
@@ -99,11 +99,14 @@ const gestureInPublication = async ({
   dragBy = 0,
   holdFor = 0,
   onSelection = false,
+  resizeTo,
 }: {
   across: number;
   dragBy?: number;
   holdFor?: number;
   onSelection?: boolean;
+  /** Resize the viewport mid-gesture, as a rotation does. */
+  resizeTo?: { width: number; height: number };
 }) => {
   // Readium keeps a pool of frames and hides the ones that are not on screen.
   // Only the visible one is the page the reader is looking at, and only it is
@@ -131,6 +134,12 @@ const gestureInPublication = async ({
   target.dispatchEvent(new view.PointerEvent('pointerdown', at(from)));
   if (dragBy !== 0) target.dispatchEvent(new view.PointerEvent('pointermove', at(from - dragBy)));
   if (holdFor !== 0) await new Promise((resolve) => setTimeout(resolve, holdFor));
+  if (resizeTo) {
+    await page.viewport(resizeTo.width, resizeTo.height);
+    // The media query has to reach React, and React the reader, before the
+    // finger comes up — otherwise the race this simulates never happens.
+    await new Promise((resolve) => setTimeout(resolve, 100));
+  }
   target.dispatchEvent(new view.PointerEvent('pointerup', at(from - dragBy)));
 };
 
@@ -210,6 +219,50 @@ test('a tap on selected text is not a page turn', async () => {
   await aBookOpenOnAPhone();
 
   await gestureInPublication({ across: 0.9, onSelection: true });
+
+  await expectNoPageTurn();
+});
+
+/**
+ * The zones are physical edges, so what they mean depends on which way the book
+ * runs. In an Arabic or Hebrew book the next page lies to the *left*, and a
+ * reader tapping the left edge is reaching for it — the navigator's own
+ * `goLeft`/`goRight` are what map an edge onto a direction.
+ *
+ * The progression is taken from the language here, which is how Readium derives
+ * it when a manifest does not say (`Metadata.effectiveReadingProgression`), and
+ * how our own manifests arrive: the backend publishes no `readingProgression`.
+ * This pins the mapping only — M2.2 left RTL *rendering* untested, and this does
+ * not certify it.
+ */
+test('a tap on the left of a right-to-left book turns forward', async () => {
+  aBookWithAPublication({
+    manifest: aManifest({
+      metadata: { title: 'The Pragmatic Reader', language: 'ar', identifier: 'urn:uuid:rtl' },
+    }),
+  });
+  await page.viewport(PHONE_VIEWPORT.width, PHONE_VIEWPORT.height);
+
+  const screen = await renderApp({ path: '/book/1/read' });
+  await expect.element(screen.getByText('Page 1 of 2', { exact: false })).toBeVisible();
+
+  await gestureInPublication({ across: 0.1 });
+
+  await expect.element(screen.getByText('Page 2 of 2', { exact: false })).toBeVisible();
+});
+
+/**
+ * A rotation can cross the breakpoint between a finger going down and coming
+ * up. Sampling only at the end would let a gesture begun in button territory
+ * turn a page, so both ends of the tap have to agree that taps turn pages.
+ */
+test('a gesture that crosses the breakpoint mid-tap turns nothing', async () => {
+  aBookWithAnEpub();
+
+  const screen = await renderApp({ path: '/book/1/read' });
+  await expect.element(screen.getByText('Page 1 of 2', { exact: false })).toBeVisible();
+
+  await gestureInPublication({ across: 0.9, resizeTo: PHONE_VIEWPORT });
 
   await expectNoPageTurn();
 });

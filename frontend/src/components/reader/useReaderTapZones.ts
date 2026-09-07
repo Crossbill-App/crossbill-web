@@ -31,6 +31,15 @@ interface TapOrigin {
   at: number;
   /** Whether text was already selected when the pointer went down. */
   overSelection: boolean;
+  /**
+   * Whether taps turned pages when the pointer went down.
+   *
+   * Sampled here as well as at the lift because a rotation can cross the
+   * breakpoint mid-gesture: a finger put down while the arrow buttons were on
+   * screen must not turn a page when it comes up in tap-zone territory, and a
+   * real tap must not be dropped by the reverse.
+   */
+  enabled: boolean;
 }
 
 /**
@@ -50,8 +59,16 @@ interface ReaderTapZoneOptions {
   enabled: boolean;
   /** Page turns are held while true, as they are for the arrow buttons. */
   suspended: boolean;
-  onPrevious: () => void;
-  onNext: () => void;
+  /**
+   * Where the page to the *left* lies, spatially — not the previous one.
+   *
+   * A tap zone is a physical edge, so in an Arabic or Hebrew book the left edge
+   * is where the *next* page is. The navigator's own `goLeft`/`goRight` make
+   * that mapping off the publication's reading progression, and are what these
+   * should be given.
+   */
+  onLeft: () => void;
+  onRight: () => void;
 }
 
 /**
@@ -73,8 +90,8 @@ interface ReaderTapZoneOptions {
 export const useReaderTapZones = ({
   enabled,
   suspended,
-  onPrevious,
-  onNext,
+  onLeft,
+  onRight,
 }: ReaderTapZoneOptions) => {
   // Mirrored into a ref rather than closed over, so that crossing the breakpoint
   // or renewing a session does not change the identity of the binder below —
@@ -104,6 +121,7 @@ export const useReaderTapZones = ({
               y: event.clientY,
               at: Date.now(),
               overSelection: isSelecting(),
+              enabled: gateRef.current.enabled,
             }
           : null;
       });
@@ -118,7 +136,11 @@ export const useReaderTapZones = ({
         const start = origin;
         origin = null;
         const { enabled: tapsTurnPages, suspended: held } = gateRef.current;
-        if (!start || !tapsTurnPages || held) return;
+        // Both ends of the gesture have to agree, so that a rotation across the
+        // breakpoint mid-tap neither invents a page turn nor swallows one.
+        // `suspended` is read at the lift alone: a renewal that began and
+        // finished under the reader's finger leaves a page turn perfectly safe.
+        if (!start || !start.enabled || !tapsTurnPages || held) return;
 
         if (
           Math.abs(event.clientX - start.x) > TAP_SLOP_PX ||
@@ -136,10 +158,10 @@ export const useReaderTapZones = ({
         if (nearestInteractive(event.target)) return;
 
         const zone = frameWindow.innerWidth * TAP_ZONE_FRACTION;
-        if (event.clientX < zone) onPrevious();
-        else if (event.clientX > frameWindow.innerWidth - zone) onNext();
+        if (event.clientX < zone) onLeft();
+        else if (event.clientX > frameWindow.innerWidth - zone) onRight();
       });
     },
-    [onPrevious, onNext]
+    [onLeft, onRight]
   );
 };

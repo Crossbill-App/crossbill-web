@@ -155,13 +155,19 @@ export const ReaderShell = ({ bookId, title, onClose }: ReaderShellProps) => {
   const goForward = useCallback(() => navigatorRef.current?.goForward(true, () => {}), []);
   const goBackward = useCallback(() => navigatorRef.current?.goBackward(true, () => {}), []);
 
+  // Spatial rather than logical, because a tap zone is a physical edge: in a
+  // right-to-left book the next page is the one to the *left*. The navigator
+  // resolves the two against the publication's reading progression.
+  const goLeft = useCallback(() => navigatorRef.current?.goLeft(true, () => {}), []);
+  const goRight = useCallback(() => navigatorRef.current?.goRight(true, () => {}), []);
+
   // What replaces the arrow buttons where there is no room for them. Stable for
   // the same reason `handleKeyDown` is, and bound to each frame in the same place.
   const bindTapZones = useReaderTapZones({
     enabled: isCompact,
     suspended: isRenewing,
-    onPrevious: goBackward,
-    onNext: goForward,
+    onLeft: goLeft,
+    onRight: goRight,
   });
 
   // Mirrored into a ref so the key handler can consult it without becoming a
