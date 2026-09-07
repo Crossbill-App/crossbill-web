@@ -23,11 +23,18 @@ import { userEvent } from 'vitest/browser';
  * tab; the Readium handlers are what the reader itself needs once the tab is
  * followed. A book with an EPUB has both.
  */
-const aBookWithAnEpub = (...extra: Parameters<typeof worker.use>) => {
+const aBookWithAnEpub = (...extra: Parameters<typeof worker.use>) =>
+  aBookWithAPublication({}, ...extra);
+
+/** `aBookWithAnEpub`, for a test that needs the publication served differently. */
+const aBookWithAPublication = (
+  publication: Parameters<typeof readiumApi>[0],
+  ...extra: Parameters<typeof worker.use>
+) => {
   worker.use(
     ...bookApi({ book: aBookDetails({ title: 'The Pragmatic Reader', has_ebook: true }) }).handlers
   );
-  worker.use(...readiumApi());
+  worker.use(...readiumApi(publication));
   // A separate call, so a handler a test passes in wins: MSW gives later `use`
   // calls priority, while within one call the first argument wins.
   if (extra.length) worker.use(...extra);
@@ -526,11 +533,7 @@ test('reading on within the restored position is still written', async () => {
       },
     })
   );
-  worker.use(
-    ...bookApi({ book: aBookDetails({ title: 'The Pragmatic Reader', has_ebook: true }) }).handlers
-  );
-  worker.use(...readiumApi({ longFirstChapter: true }));
-  worker.use(...positions.handlers);
+  aBookWithAPublication({ longFirstChapter: true }, ...positions.handlers);
 
   const screen = await renderApp({ path: '/book/1/read' });
   await expect.element(screen.getByText('Page 1 of 2', { exact: false })).toBeVisible();
