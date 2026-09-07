@@ -33,6 +33,8 @@ dependencies = [
   # falls on. Carried explicitly so the zone database ships with the app
   # rather than depending on what the runtime image happens to install.
   "tzdata>=2025.3",
+  # Pinned to a git tag; see [tool.uv.sources] at the end of this file.
+  "xpoint-cfi",
 ]
 
 [dependency-groups]
@@ -230,3 +232,9 @@ also_copy = ["src/", "tests/"]
 # signal is trustworthy for anything the pure unit tests cover.
 timeout_constant = 20.0
 timeout_multiplier = 3.0
+
+# xpoint-cfi is the companion library that converts KOReader xpointers to
+# Readium locators (ADR-0004). It is not on PyPI, so it is pinned to a release
+# tag here; bumping it is a deliberate two-repo change, never a range.
+[tool.uv.sources]
+xpoint-cfi = { git = "https://github.com/Crossbill-App/xpoint-cfi.git", tag = "v0.1.0" }
