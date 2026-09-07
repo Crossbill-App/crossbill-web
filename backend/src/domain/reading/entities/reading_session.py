@@ -93,12 +93,19 @@ class ReadingSession(AggregateRoot[ReadingSessionId]):
         behind them and the range where it was, because a range that ran
         backwards would not be one.
 
+        **The end time only ever moves forward.** The moment comes from the
+        reader's own clock, so two devices, a clock correction or a write that
+        overtook another can all offer one earlier than the session already
+        reached; taking it would shorten a session that really did run that
+        long. The position beside it is still taken, because that is where the
+        reader is.
+
         Raises:
             DomainError: If ``moment`` is before the session started.
         """
         if as_aware(moment) < as_aware(self.start_time):
             raise DomainError("A reading session cannot be extended to before it started")
-        self.end_time = moment
+        self.end_time = max(as_aware(self.end_time), as_aware(moment))
         if position is not None:
             self.end_position = position
         if xpoint is not None and self.start_xpoint is not None:

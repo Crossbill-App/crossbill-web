@@ -497,26 +497,139 @@ what is stored is answered with what is stored rather than refused — the
 debounced write and the one a closing tab sends race by design, and the loser is
 not an error.
 
-### The confidence floor: `HIGHLIGHT_ONLY`
+### A reading position usually has no quote at all
 
-§5 requires callers to reject weak matches; this is where the reading position's
-line is drawn. `AnchorConfidence.HIGHLIGHT_ONLY` — the quote occurring exactly
-once — is the floor, so the two grades refused are exactly the two that mean *we
-do not know which place this is*: `FUZZY`, the quote not being in the book as
-written, which is the shape a replaced or differently typeset EPUB takes, and
-`AMBIGUOUS`, the quote occurring several times with neither context settling
-which. Everything at or above the floor identifies exactly one place in the
-document. A refusal is **422**, not 400: the request is well formed and the
-caller could not have sent anything better.
+**Corrected 2026-09-07, from the maintainer's own reading.** The paragraph this
+replaces assumed a reading position arrives with a text quote and a CSS
+selector, "which scopes the search to one element and makes the match unique far
+more often than not". It arrives with neither. `EpubNavigator` reports a page
+turn in a reflowable book from its column snapper's `progress` event, whose
+payload is a start fraction, an end fraction and some fragment ids; the Locator
+it builds from that carries an `href`, a `position`, a `progression`, an empty
+`fragments` array — and no text whatever. Every real position write was
+therefore refused with *"no highlight and no context to anchor to"*, while every
+test passed, because the fixtures were shaped like a **selection**.
 
-This is deliberately one grade below what a *highlight* will demand (M4.1). A
-highlight drawn in the wrong paragraph is a visible, lasting falsehood about
-what the reader marked; a reading position that is off costs them a moment
-finding their place. Requiring `ONE_CONTEXT` would reject a *unique* quote
-merely for having no abutting context — a great many unrecorded positions bought
-for that difference. In practice the navigator sends a CSS selector with the
-quote, which scopes the search to one element and makes the match unique far
-more often than not.
+So the conversion synthesises a quote out of the document itself when the
+Locator brought none, from whatever it did bring, and hands it back through the
+same tested conversion the quote path uses. `AnchorSource` records which of the
+three it was:
+
+- **`QUOTE`** — the Locator's own text. What a selection produces, and what
+  M3/M4's highlights will be.
+- **`ELEMENT`** — the element a `cssSelector` or a fragment id names; the quote
+  is that element's first run of text, so the position lands where the element
+  begins.
+- **`PROGRESSION`** — the text at that fraction of the resource. What a page
+  turn produces, and therefore the ordinary case rather than the exotic one.
+
+### The confidence floor, one per kind of anchor
+
+§5 requires callers to reject weak matches. The three anchors above are not
+points on one scale, so there is a floor for each rather than one for all — a
+`BOTH_CONTEXTS` from a quote and a `FUZZY` from a progression are not
+comparable, and the grade a synthesised quote comes back with would otherwise
+measure how well this code copied text out of a document it was reading anyway.
+Each is therefore **capped** at what the Locator's own evidence was worth, and
+compared against its own floor:
+
+| Anchor | Ceiling | Floor | Because |
+| --- | --- | --- | --- |
+| `QUOTE` | `BOTH_CONTEXTS` | `HIGHLIGHT_ONLY` | Graded on evidence the caller supplied — §5's case exactly |
+| `ELEMENT` | `HIGHLIGHT_ONLY` | `HIGHLIGHT_ONLY` | Names one place, corroborated by nothing else |
+| `PROGRESSION` | `FUZZY` | `FUZZY` | Approximate by construction, and accepted anyway |
+
+`HIGHLIGHT_ONLY` for a quote — the quote occurring exactly once — refuses
+exactly the two grades that mean *we do not know which place this is*: `FUZZY`,
+the quote not being in the book as written, which is the shape a replaced
+edition takes, and `AMBIGUOUS`, the quote occurring several times with neither
+context settling which. That is one grade below what a *highlight* will demand
+(M4.1): a highlight drawn in the wrong paragraph is a visible, lasting falsehood
+about what the reader marked, while a reading position that is off costs a
+moment finding one's place.
+
+**Accepting `PROGRESSION` is the load-bearing choice here**, and it is what the
+live failure taught: a floor that refused an approximate anchor would refuse to
+record reading at all, since almost every reading position *is* one. What still
+refuses is the conversion failing outright — a Locator naming a resource the
+book does not have — which is the signal §5 is actually for. A refusal is
+**422**, not 400: the request is well formed and the caller could not have sent
+anything better.
+
+The alternative, asking the frontend for a richer Locator, was rejected on
+inspection: the snapper's `progress` message has no text in it, `EpubNavigator`
+exposes no way to ask a frame for one, and scraping the iframe's DOM for context
+on every page turn is a great deal of machinery to make the *client* do work the
+server can do against a publication it has already parsed.
+
+### Concurrency: the position row is the control point
+
+Two tabs of the same book write independently, and the first draft took a
+decision between reading the row and writing it — which is a decision two
+writers can both take. It also wrote the reading session *first*, so a losing
+position write left a session row behind it.
+
+**The position is claimed first, in one conditional upsert, and the session is
+written only by the request that won the claim.** The write is an
+`INSERT … ON CONFLICT (user_id, book_id) DO UPDATE … WHERE updated_at <
+:written_at`, which answers both questions the write depends on — is there a row
+yet, is this newer than what is in it — at the moment of writing. The
+open-session pointer is then attached under `WHERE updated_at = :written_at`, so
+only the writer that is still the latest may move it: a close cannot undo a page
+turn that landed after it, and a page turn cannot reopen a session closed after
+it. An overtaken write is answered with what is stored, because the write a
+closing tab sends and the one a page turn sends race by design.
+
+**`updated_at` is the server's clock**, and it is the only thing that decides
+which of two writes is later. Ordering on the reader's own clock reads well
+until a second device is five minutes slow, at which point every write it will
+ever make is older than what is stored and is refused for good — a permanent,
+silent failure to record anything, bought to tidy up a reordering that is
+sub-second in practice. The reader's clock is used for the reading session's
+arithmetic, where it is the honest source, and nowhere else; the session's end
+time only ever moves forward, so a disagreeing clock cannot shorten a sitting.
+
+That clock is **bounded at both ends**: never later than now, or a clock running
+ahead invents reading time and then locks its owner out until the date it
+claimed; and never earlier than one idle window ago, which is as far back as a
+claim can reach and still join anything. Proportionate rather than airtight —
+this is a self-hosted library where the only person who can spend a credential
+is the person whose own statistics a lie would inflate.
+
+**Residual, accepted.** Two genuinely simultaneous *first* writes for a book can
+each create a session in the window between the two statements; the pointer ends
+at the later writer's, and the other is a stray zero-second session. No 500, no
+orphaned pointer, no duplicate row — one extra row in a rarely-hit race, which
+is a great deal less than what it replaced.
+
+### The caches are process-local, and the deployment is one process
+
+`PublicationCaches` evicts by calling a method on objects held in memory, which
+reaches this interpreter and no other. `Dockerfile` runs `uvicorn src.main:app`
+with **no `--workers`**, and the upload that replaces an EPUB is served by the
+same process that holds the caches, so today every cache that could go stale is
+told.
+
+This is a real constraint, not an implementation detail: give uvicorn a second
+worker and a book replaced through worker A goes on being served from worker B's
+parse until its LRU happens to drop it, with no error anywhere to say so. Adding
+workers therefore means **replacing** this rather than adding to it — a shared
+cache (Redis), or a cache key that changes when the bytes do (a content hash
+rather than the filename, which makes eviction unnecessary altogether). Neither
+is worth building for a deployment that has one process; both are a day's work
+when it stops having one. The constraint is written down at
+`PublicationCaches`, at the `Dockerfile` CMD, and here.
+
+### The reader says it is still there
+
+A session ends by not being extended, which means a reader who stays on one page
+for half an hour ends theirs at their last page turn — and a reader who never
+turns a page records nothing at all, since the position a book opens at is
+deliberately not written. So the reader **re-sends its current position every
+ten minutes while the tab is visible**, a third of the idle window, which the
+server reads as the session continuing because an unchanged position is still a
+position arriving. A hidden tab sends nothing, which is what keeps a book left
+open overnight from recording a night's reading.
 
 ### Also decided here
 
@@ -538,6 +651,12 @@ more often than not.
 - **A background job to close idle sessions.** There is nothing to close: see
   above. A sweeper would exist only to write an `end_time` that is already
   correct.
+- **Ordering two writes by the reader's clock.** See *Concurrency* above: it
+  trades a sub-second reordering for a device with a slow clock never recording
+  anything again.
+- **Scraping the publication frame for text context** so that every Locator
+  carries a quote. The server already holds the parsed publication; the client
+  would be doing the same work worse, on every page turn.
 - **A `web_reading_progress` notion of its own**, read by the progress bar
   instead of sessions. It would be a second answer to a question that already
   has one, and every reader of progress would have to learn to ask both.

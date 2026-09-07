@@ -1,6 +1,7 @@
 """API router serving the Readium Web Publication Manifest and the files it names."""
 
 import re
+from datetime import datetime
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, Request, Response
@@ -42,6 +43,7 @@ from src.infrastructure.identity.dependencies import (
     AuthenticatedCaller,
     get_authenticated_caller,
 )
+from src.infrastructure.reading.routers.reader_clock import reader_now
 from src.infrastructure.web_reader.dependencies import PublicationReader
 from src.infrastructure.web_reader.schemas.reading_position_schemas import (
     LocatorSchema,
@@ -308,6 +310,7 @@ async def put_reading_position(
     book_id: int,
     update: ReadingPositionUpdate,
     current_user: PublicationReader,
+    now: Annotated[datetime, Depends(reader_now)],
     use_case: SaveReadingPositionUseCase = Depends(
         inject_use_case(container.web_reader.save_reading_position_use_case)
     ),
@@ -331,6 +334,7 @@ async def put_reading_position(
         locator=_anchor_locator(update.locator),
         stored_locator=update.locator.model_dump(mode="json", by_alias=True, exclude_none=True),
         recorded_at=update.recorded_at,
+        now=now,
         closing=update.closing,
     )
     return _reading_position(stored)

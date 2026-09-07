@@ -21,6 +21,8 @@ repeats one sentence in two paragraphs, so quoting that sentence alone is
 genuinely ambiguous and quoting it with what precedes it is not.
 """
 
+from collections.abc import Iterator
+from contextlib import contextmanager
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from typing import Any
@@ -31,10 +33,14 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from starlette import status
 
+from src.config import get_settings
+from src.domain.common.time import as_aware
 from src.infrastructure.identity.services.token_service import create_access_token
+from src.infrastructure.reading.routers.reader_clock import reader_now
 from src.infrastructure.web_reader.services.publication_token_service import (
     PUBLICATION_COOKIE_NAME,
 )
+from src.main import app
 from src.models import Book, ReadingSession, User
 from tests.conftest import create_test_book
 from tests.test_readium_manifest import fixture_bytes, store_epub
@@ -129,9 +135,10 @@ async def put_position(
     at: datetime,
     before: str | None = None,
     closing: bool = False,
+    arriving: datetime | None = None,
 ) -> Response:
     """Write a position the way the reader does: a locator and the moment it was seen."""
-    return await put_locator(client, book_id, locator(quote, before=before), at, closing)
+    return await put_locator(client, book_id, locator(quote, before=before), at, closing, arriving)
 
 
 async def put_locator(
@@ -140,12 +147,36 @@ async def put_locator(
     body: dict[str, Any],
     at: datetime,
     closing: bool = False,
+    arriving: datetime | None = None,
 ) -> Response:
-    """Write one locator, whatever shape it is in."""
-    return await client.put(
-        position_url(book_id),
-        json={"locator": body, "recorded_at": at.isoformat(), "closing": closing},
-    )
+    """Write one locator, whatever shape it is in.
+
+    ``at`` is the reader's clock and ``arriving`` is the server's, which decides
+    which of two writes is the later. They are the same instant unless a test
+    says otherwise, because in life they very nearly are -- and a test that
+    pulls them apart is testing exactly that.
+    """
+    with server_clock(arriving or at):
+        return await client.put(
+            position_url(book_id),
+            json={"locator": body, "recorded_at": at.isoformat(), "closing": closing},
+        )
+
+
+@contextmanager
+def server_clock(at: datetime) -> Iterator[None]:
+    """Pin what the server thinks the time is, for one request.
+
+    Written down rather than left to the real clock because a reading session's
+    arithmetic is in minutes and a test's is in microseconds: without this,
+    every write below would land in the same instant and no session could span
+    anything.
+    """
+    app.dependency_overrides[reader_now] = lambda: at
+    try:
+        yield
+    finally:
+        del app.dependency_overrides[reader_now]
 
 
 @pytest.fixture
@@ -216,41 +247,116 @@ class TestStoringAPosition:
         stored = (await client.get(position_url(readable_book.id))).json()
         assert stored["position"] == SECOND_CHAPTER_POSITION
 
-    async def test_a_write_that_arrives_late_does_not_rewind_the_reader(
-        self, client: AsyncClient, readable_book: Book
+    async def test_the_write_that_arrives_last_is_the_one_that_is_stored(
+        self, client: AsyncClient, db_session: AsyncSession, readable_book: Book
     ) -> None:
-        """Should keep the newer position when an older observation lands after it.
+        """Should settle two writes by when they arrived, not by what their clocks claimed.
 
-        The debounced write and the one a closing tab sends race by design, so
-        the loser must be harmless rather than an error the page has to handle.
+        Freshness has to be a fact about this server. A second device whose
+        clock is five minutes slow would otherwise have every write it ever made
+        read as older than what is stored, and be refused for good -- a
+        permanent, silent failure to record anything, in exchange for tidiness
+        about an ordering that is sub-second in practice.
+
+        The reading session is what protects the reader from the disagreement:
+        its end time only moves forward, so the slow clock cannot shorten a
+        sitting that really did run.
         """
-        start = datetime(2026, 3, 1, 9, 0, tzinfo=UTC)
-        await put_position(client, readable_book.id, SECOND_CHAPTER, start + timedelta(minutes=5))
+        first = datetime(2026, 3, 1, 9, 10, tzinfo=UTC)
+        await put_position(client, readable_book.id, LAST_PARAGRAPH, first)
 
-        late = await put_position(client, readable_book.id, LAST_PARAGRAPH, start)
-
-        assert late.status_code == status.HTTP_200_OK
-        assert late.json()["position"] == SECOND_CHAPTER_POSITION
-        stored = (await client.get(position_url(readable_book.id))).json()
-        assert stored["position"] == SECOND_CHAPTER_POSITION
-
-    async def test_a_clock_that_runs_ahead_cannot_claim_the_future(
-        self, client: AsyncClient, readable_book: Book
-    ) -> None:
-        """Should record a position claimed for next week as recorded now.
-
-        Left alone, a fast clock would both invent reading time and lock the
-        reader out of writing again until the date it claimed.
-        """
-        before = datetime.now(UTC)
-
-        response = await put_position(
-            client, readable_book.id, LAST_PARAGRAPH, before + timedelta(days=7)
+        slow = await put_position(
+            client,
+            readable_book.id,
+            SECOND_CHAPTER,
+            datetime(2026, 3, 1, 9, 0, tzinfo=UTC),
+            arriving=datetime(2026, 3, 1, 9, 11, tzinfo=UTC),
         )
 
-        assert response.status_code == status.HTTP_200_OK
-        recorded = datetime.fromisoformat(response.json()["updated_at"])
-        assert before <= recorded <= datetime.now(UTC)
+        assert slow.status_code == status.HTTP_200_OK, slow.text
+        assert slow.json()["position"] == SECOND_CHAPTER_POSITION
+        sessions = await sessions_for(db_session, readable_book)
+        assert len(sessions) == 1
+        assert as_aware(sessions[0].end_time) == first
+
+    async def test_a_write_overtaken_before_it_lands_changes_nothing(
+        self, client: AsyncClient, db_session: AsyncSession, readable_book: Book
+    ) -> None:
+        """Should answer an overtaken write with what is stored, rather than refusing it.
+
+        The write a closing tab sends and the one a page turn sends race by
+        design, so the loser has to be harmless: no error for the page to
+        handle, no rewinding of the position that won, and -- the part that used
+        to be wrong -- no reading session left behind by a write that did not
+        happen. The position is claimed before any session is touched precisely
+        so that a loser has nothing to clean up.
+        """
+        await put_position(
+            client,
+            readable_book.id,
+            SECOND_CHAPTER,
+            datetime(2026, 3, 1, 9, 5, tzinfo=UTC),
+        )
+
+        overtaken = await put_position(
+            client,
+            readable_book.id,
+            LAST_PARAGRAPH,
+            datetime(2026, 3, 1, 9, 4, tzinfo=UTC),
+            arriving=datetime(2026, 3, 1, 9, 4, tzinfo=UTC),
+        )
+
+        assert overtaken.status_code == status.HTTP_200_OK
+        assert overtaken.json()["position"] == SECOND_CHAPTER_POSITION
+        assert len(await sessions_for(db_session, readable_book)) == 1
+
+    async def test_a_clock_that_runs_ahead_cannot_claim_the_future(
+        self, client: AsyncClient, db_session: AsyncSession, readable_book: Book
+    ) -> None:
+        """Should not credit a reader with reading time their clock invented.
+
+        Asserted on the session rather than the stored position, because the
+        session is where a claimed moment turns into a duration somebody is
+        credited with.
+        """
+        arriving = datetime(2026, 3, 1, 9, 0, tzinfo=UTC)
+
+        response = await put_position(
+            client,
+            readable_book.id,
+            LAST_PARAGRAPH,
+            arriving + timedelta(days=7),
+            arriving=arriving,
+        )
+
+        assert response.status_code == status.HTTP_200_OK, response.text
+        sessions = await sessions_for(db_session, readable_book)
+        assert as_aware(sessions[0].end_time) == arriving
+
+    async def test_a_backdated_write_cannot_reach_past_the_idle_window(
+        self, client: AsyncClient, db_session: AsyncSession, readable_book: Book
+    ) -> None:
+        """Should refuse to date a session further back than a session could still be open.
+
+        Proportionate rather than airtight: this is a self-hosted library where
+        the only person who can spend a credential is the person whose own
+        reading statistics a lie would inflate. What it stops is a wrong clock
+        quietly writing a year of reading history in one request.
+        """
+        arriving = datetime(2026, 3, 1, 9, 0, tzinfo=UTC)
+
+        response = await put_position(
+            client,
+            readable_book.id,
+            LAST_PARAGRAPH,
+            arriving - timedelta(days=365),
+            arriving=arriving,
+        )
+
+        assert response.status_code == status.HTTP_200_OK, response.text
+        sessions = await sessions_for(db_session, readable_book)
+        idle_window = timedelta(seconds=get_settings().WEB_READING_SESSION_IDLE_SECONDS)
+        assert as_aware(sessions[0].start_time) == arriving - idle_window
 
 
 class TestThePositionAPageTurnActuallySends:
@@ -597,6 +703,26 @@ class TestTheReadingSessionsThisMakes:
         assert sessions[0].device_id == "crossbill-web-reader"
         span = sessions[0].end_time - sessions[0].start_time
         assert span == timedelta(minutes=11)
+
+    async def test_writing_the_same_place_again_keeps_the_session_alive(
+        self, client: AsyncClient, db_session: AsyncSession, readable_book: Book
+    ) -> None:
+        """Should extend a session from a write that repeats the position it already has.
+
+        This is what the reader's heartbeat rests on. Someone on one page for
+        twenty minutes turns nothing and so reports nothing, and their session
+        would end at their first page turn and never mention the twenty minutes;
+        so the reader re-sends where it is while the tab is open. A server that
+        treated an unchanged position as nothing to do would make that pointless.
+        """
+        start = datetime(2026, 3, 1, 9, 0, tzinfo=UTC)
+        await put_position(client, readable_book.id, LAST_PARAGRAPH, start)
+
+        await put_position(client, readable_book.id, LAST_PARAGRAPH, start + timedelta(minutes=9))
+
+        sessions = await sessions_for(db_session, readable_book)
+        assert len(sessions) == 1
+        assert sessions[0].end_time - sessions[0].start_time == timedelta(minutes=9)
 
     async def test_a_long_gap_starts_a_new_session(
         self, client: AsyncClient, db_session: AsyncSession, readable_book: Book

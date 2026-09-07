@@ -17,6 +17,22 @@ class PublicationCaches:
     Implements ``PublicationCacheProtocol`` itself, so the upload path keeps
     depending on one thing and keeps having one line to get wrong, however many
     caches grow behind it.
+
+    **This only works because the API is one process.** Eviction is a method
+    call on objects held in memory, so it reaches the caches in *this*
+    interpreter and no other. ``Dockerfile`` runs ``uvicorn src.main:app`` with
+    no ``--workers``, and the upload that replaces an EPUB is served by the same
+    process that holds the caches, so today every cache that could go stale is
+    told. Give uvicorn a second worker and that stops being true: a book
+    replaced through worker A would go on being served from worker B's parse
+    until its LRU happened to drop it, with no error anywhere to say so.
+
+    Adding workers therefore means replacing this, not adding to it -- with a
+    shared cache (Redis), or with a key that changes when the bytes do (a
+    content hash rather than the filename, which is what makes an eviction
+    unnecessary at all). Neither is worth building for a deployment that has one
+    process; both are a day's work when it stops having one. See ADR-0004,
+    Amendment 3.
     """
 
     def __init__(self, caches: Sequence[PublicationCacheProtocol]) -> None:

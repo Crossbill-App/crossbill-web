@@ -15,6 +15,24 @@ import { useCallback, useEffect, useRef } from 'react';
  */
 const WRITE_DEBOUNCE_MS = 5_000;
 
+/**
+ * How often a reader who is not turning pages says they are still here.
+ *
+ * Without it, two things go unrecorded. A reader who stays on one page for
+ * half an hour reports nothing in that time, so the server -- which ends a
+ * session by simply not being told about it again -- closes theirs at the last
+ * page turn and never hears about the half hour. And a reader who opens a book
+ * and reads the first page without ever turning it records no session at all,
+ * because the position the book opened at is deliberately not written.
+ *
+ * A third of the server's idle window (30 minutes, `WEB_READING_SESSION_IDLE_
+ * SECONDS`), which leaves room for two to be missed to a throttled or sleeping
+ * tab before a sitting is cut in two. Being wrong here is cheap in both
+ * directions: too slow splits one sitting into two, too fast costs a request
+ * every few minutes.
+ */
+const HEARTBEAT_MS = 10 * 60 * 1000;
+
 const positionUrl = (bookId: number) =>
   new URL(`${API_BASE_URL}/api/v1/readium/books/${bookId}/reading-position`, window.location.origin)
     .href;
@@ -39,6 +57,11 @@ const update = (locator: LocatorSchema, at: string, closing: boolean): ReadingPo
  *
  * **A position that has not moved is not written.** A preference change, a
  * resize and a re-render all re-announce the same place.
+ *
+ * **A reader who is not turning pages still counts.** Every `HEARTBEAT_MS`,
+ * while the tab is visible, the current position is written again unchanged --
+ * which the server reads as the session continuing, because what ends a session
+ * there is nothing arriving rather than anything being said.
  *
  * **Leaving closes the session; going to another tab does not.** Unmounting
  * writes the last position with `closing`, which is what ends the reading
@@ -68,9 +91,15 @@ export const useReadingPositionWriter = (bookId: number) => {
   const readingRef = useRef(false);
   const timerRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
 
+  // When anything was last said about this book, so the heartbeat below can ask
+  // how long the reader has been quiet rather than counting from its own last
+  // tick. Set when the book opens, so opening one does not immediately beat.
+  const spokeAtRef = useRef(0);
+
   const send = useCallback(
     (body: ReadingPositionUpdate, viaFetch: boolean) => {
       readingRef.current = true;
+      spokeAtRef.current = Date.now();
       // A failed write is not worth telling the reader about: they are reading,
       // the next page turn tries again, and the position lost by saying nothing
       // is the one still in front of them.
@@ -108,15 +137,35 @@ export const useReadingPositionWriter = (bookId: number) => {
   );
 
   useEffect(() => {
+    // Polled rather than scheduled from each write: a timer set for one moment
+    // is a promise a browser does not keep — a backgrounded tab has them
+    // throttled to minutes and a sleeping machine does not run them at all — so
+    // the question is asked against the clock instead, the way the publication
+    // cookie's renewal is. Twice as often as a beat is due, so a tick lost to
+    // throttling still leaves the next one comfortably inside the server's idle
+    // window.
+    const tick = setInterval(() => {
+      // A backgrounded tab is not a reader: a session must not be extended for
+      // a book nobody is looking at.
+      if (document.visibilityState !== 'visible') return;
+      const locator = latestRef.current;
+      if (!locator) return;
+      if (Date.now() - spokeAtRef.current < HEARTBEAT_MS) return;
+      send(update(locator, new Date().toISOString(), false), false);
+    }, HEARTBEAT_MS / 2);
+
     const flushIfHidden = () => {
+      // Send what is pending, but leave the session open: coming back to the
+      // tab is the same sitting.
       if (document.visibilityState === 'hidden') flush(false);
     };
     document.addEventListener('visibilitychange', flushIfHidden);
     return () => {
       document.removeEventListener('visibilitychange', flushIfHidden);
+      clearInterval(tick);
       flush(true);
     };
-  }, [flush]);
+  }, [flush, send]);
 
   return useCallback(
     (locator: Locator) => {
@@ -127,6 +176,10 @@ export const useReadingPositionWriter = (bookId: number) => {
       if (writtenRef.current === null) {
         writtenRef.current = key;
         latestRef.current = serialized;
+        // Nothing is written for merely opening a book, but staying in one is
+        // reading: the heartbeat's clock starts here, so a reader settled on
+        // this page is recorded even though they never turn it.
+        spokeAtRef.current = Date.now();
         return;
       }
       if (key === writtenRef.current) return;

@@ -1,7 +1,7 @@
 """Record where a reader has got to in a book they are reading in the browser."""
 
 from collections.abc import Mapping
-from datetime import UTC, datetime
+from datetime import datetime, timedelta
 from typing import Any
 
 import structlog
@@ -127,9 +127,18 @@ class SaveReadingPositionUseCase:
         locator: Locator,
         stored_locator: Mapping[str, Any],
         recorded_at: datetime,
+        now: datetime,
         closing: bool = False,
     ) -> WebReadingPosition:
         """Record the reader's position, returning what is now stored for the book.
+
+        The order of the two writes is the whole of the concurrency story. The
+        position is claimed first, in one conditional upsert, and the reading
+        session is written only by the request that won that claim -- so no
+        session row can be left behind by a position write that did not happen,
+        and two tabs turning pages cannot collide into a duplicate-key error.
+        The session pointer is then attached under the same claim, so a write
+        that has since been overtaken quietly changes nothing.
 
         Args:
             book_id: The book being read.
@@ -138,9 +147,12 @@ class SaveReadingPositionUseCase:
                 the publication uses internally.
             stored_locator: The same position as the browser sent it, kept
                 verbatim so that handing it back needs no second translation.
-            recorded_at: When the reader was there, by their own clock. Clamped
-                to now, because a clock that is ahead must not invent reading
-                time it can then be credited with.
+            recorded_at: When the reader was there, by their own clock. Used for
+                the reading session's arithmetic and nothing else, and bounded
+                by :meth:`_reader_moment`.
+            now: The server's clock, read once at the edge. This -- never the
+                reader's clock -- is what decides which of two writes is the
+                later.
             closing: Whether the reader is leaving the book. The position is
                 stored and the session extended either way; this only says the
                 session is finished, so the next one starts fresh.
@@ -158,39 +170,63 @@ class SaveReadingPositionUseCase:
         if not book.ebook_file:
             raise EbookFileNotFoundError(book_id)
 
-        observed_at = min(as_aware(recorded_at), datetime.now(UTC))
-        stored = await self.position_repository.find_for_book(BookId(book_id), user)
-        # A write that has nothing new to say is answered with what is stored
-        # rather than refused: the unload beacon and an ordinary write race by
-        # design, and the loser is not an error.
-        if stored is not None and not stored.is_newer_than_stored(observed_at):
-            return stored
-
         xpoint = await self._canonical_position(book.ebook_file, locator)
         position = await self._resolve_position(book, xpoint)
-        session_id = await self._continue_session(book, user, stored, xpoint, position, observed_at)
 
-        if stored is None:
-            stored = WebReadingPosition.create(
+        recorded = await self.position_repository.record(
+            WebReadingPosition.create(
                 user_id=user,
                 book_id=BookId(book_id),
                 locator=stored_locator,
                 xpoint=xpoint,
-                observed_at=observed_at,
+                recorded_at=now,
                 position=position,
-                reading_session_id=session_id,
             )
-        else:
-            stored.record(
-                locator=stored_locator,
-                xpoint=xpoint,
-                observed_at=observed_at,
-                position=position,
-                reading_session_id=session_id,
-            )
-        if closing:
-            stored.close_session()
-        return await self.position_repository.save(stored)
+        )
+        # Overtaken. Answered with what is stored rather than refused: the write
+        # a closing tab sends and the one a page turn sends race by design, and
+        # the loser is not an error. Nothing has been written, and in particular
+        # no reading session has been touched.
+        if recorded is None:
+            stored = await self.position_repository.find_for_book(BookId(book_id), user)
+            if stored is not None:
+                return stored
+            raise UnresolvablePositionError("the position was overtaken and then removed")
+
+        observed_at = self._reader_moment(recorded_at, now)
+        session_id = await self._continue_session(
+            book, user, recorded.was_open, xpoint, position, observed_at
+        )
+        await self.position_repository.attach_session(
+            recorded.position, None if closing else session_id, now
+        )
+        return recorded.position
+
+    def _reader_moment(self, recorded_at: datetime, now: datetime) -> datetime:
+        """When to say the reader was there, given they said it themselves.
+
+        This is the reading session's clock, so it is the reader's own -- the
+        moment a page was turned is something only the browser knows, and a
+        write delayed in the network would otherwise be credited to when it
+        arrived. It is bounded at both ends, because a session's duration is
+        arithmetic on it:
+
+        - **Never later than now**, or a clock running ahead would invent
+          reading time and then lock its owner out until the date it claimed.
+        - **Never earlier than one idle window ago**, which is as far back as a
+          claim can reach and still join anything: a session that far behind is
+          closed by definition, so the worst a backdated write can do is start
+          one sitting an idle window long instead of at this instant.
+
+        The bound is proportionate rather than airtight. This is a self-hosted
+        library where the only person who can spend a credential is the person
+        whose reading statistics would be inflated by it; what it stops is a
+        wrong clock quietly corrupting a year of reading history, not a
+        determined owner lying to themselves.
+        """
+        claimed = as_aware(recorded_at)
+        earliest = now - timedelta(seconds=self.idle_seconds)
+        return min(max(claimed, earliest), now)
 
     async def _canonical_position(self, ebook_file: str, locator: Locator) -> XPoint:
         """Convert a browser locator to the stored position format, or refuse it.
@@ -241,13 +277,13 @@ class SaveReadingPositionUseCase:
         self,
         book: Book,
         user_id: UserId,
-        stored: WebReadingPosition | None,
+        was_open: ReadingSessionId | None,
         xpoint: XPoint,
         position: Position | None,
         observed_at: datetime,
     ) -> ReadingSessionId:
         """Extend the sitting this position belongs to, or begin a new one."""
-        open_session = await self._open_session(stored, user_id, observed_at)
+        open_session = await self._open_session(was_open, user_id, observed_at)
         if open_session is None:
             session = ReadingSession.create(
                 user_id=user_id,
@@ -261,12 +297,21 @@ class SaveReadingPositionUseCase:
             )
         else:
             session = open_session
-            session.extend_to(observed_at, xpoint=xpoint, position=position)
+            # Never before the sitting began. The moment comes from the reader's
+            # clock, and a second device a few minutes slow would otherwise
+            # offer one earlier than the session it is joining -- which is not a
+            # reader who read backwards, it is two clocks disagreeing, and the
+            # session is the wrong place to find out about it.
+            session.extend_to(
+                max(observed_at, as_aware(session.start_time)),
+                xpoint=xpoint,
+                position=position,
+            )
         return (await self.session_repository.save(session)).id
 
     async def _open_session(
         self,
-        stored: WebReadingPosition | None,
+        was_open: ReadingSessionId | None,
         user_id: UserId,
         observed_at: datetime,
     ) -> ReadingSession | None:
@@ -280,9 +325,9 @@ class SaveReadingPositionUseCase:
         stored position, so that a session is judged on when it was really last
         extended.
         """
-        if stored is None or stored.reading_session_id is None:
+        if was_open is None:
             return None
-        session = await self.session_repository.find_by_id(stored.reading_session_id, user_id)
+        session = await self.session_repository.find_by_id(was_open, user_id)
         if session is None:
             return None
         gap = (observed_at - as_aware(session.end_time)).total_seconds()

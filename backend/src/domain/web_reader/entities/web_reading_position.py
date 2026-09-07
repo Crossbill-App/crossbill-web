@@ -44,9 +44,12 @@ class WebReadingPosition(AggregateRoot[WebReadingPositionId]):
     - ``position`` may be absent: it is resolved through a ``PositionIndex``
       built from the EPUB, and an xpointer the index does not know resolves to
       nothing. Progress is then unknown rather than zero.
-    - Time only moves forward. ``record`` refuses an observation older than the
-      one already stored, so a write that arrives late -- the page-unload beacon
-      overtaken by an ordinary write -- cannot rewind the reader's place.
+    - ``updated_at`` is the *server's* clock, not the reader's, and it only
+      moves forward. It answers "which write was last", which has to be a fact
+      about this server: a second device whose clock is five minutes slow would
+      otherwise have every write it ever made read as older than what is stored
+      and be refused for good. The reader's own clock is used for the reading
+      session's arithmetic, where it is the honest source, and nowhere else.
     """
 
     id: WebReadingPositionId
@@ -70,57 +73,27 @@ class WebReadingPosition(AggregateRoot[WebReadingPositionId]):
         book_id: BookId,
         locator: Mapping[str, Any],
         xpoint: XPoint,
-        observed_at: datetime,
+        recorded_at: datetime,
         position: Position | None = None,
         reading_session_id: ReadingSessionId | None = None,
     ) -> "WebReadingPosition":
-        """Start recording where a reader is in a book they have not read here before."""
+        """Describe where a reader is now, for the store to write if it is the latest.
+
+        Built for every write, not only the first: the store keys on the reader
+        and the book and decides in one statement whether this observation is
+        the newest one, so there is nothing for a caller to load, mutate and
+        write back -- and nothing for two tabs to race over.
+        """
         return cls(
             id=WebReadingPositionId.generate(),
             user_id=user_id,
             book_id=book_id,
             locator=locator,
             xpoint=xpoint,
-            updated_at=observed_at,
+            updated_at=recorded_at,
             position=position,
             reading_session_id=reading_session_id,
         )
-
-    def is_newer_than_stored(self, observed_at: datetime) -> bool:
-        """Whether an observation made at ``observed_at`` has anything to add.
-
-        Asked before the work of converting a locator is done, so that a stale
-        write is cheap as well as harmless. Equal timestamps count as stale: the
-        reader was in one place at one instant, and the copy already stored is
-        as good as the one arriving.
-        """
-        return observed_at > self.updated_at
-
-    def record(
-        self,
-        locator: Mapping[str, Any],
-        xpoint: XPoint,
-        observed_at: datetime,
-        position: Position | None,
-        reading_session_id: ReadingSessionId | None,
-    ) -> None:
-        """Move the stored position to where the reader now is.
-
-        Raises:
-            DomainError: If ``observed_at`` is not after the stored observation.
-                The caller is expected to have asked
-                :meth:`is_newer_than_stored` first and skipped the write; this
-                is the invariant behind that, not a control-flow path.
-        """
-        if not self.is_newer_than_stored(observed_at):
-            raise DomainError("A reading position cannot move backwards in time")
-        if not locator:
-            raise DomainError("A reading position must carry the locator it was made from")
-        self.locator = locator
-        self.xpoint = xpoint
-        self.updated_at = observed_at
-        self.position = position
-        self.reading_session_id = reading_session_id
 
     def close_session(self) -> None:
         """Forget the open reading session, so the next write starts a new one.

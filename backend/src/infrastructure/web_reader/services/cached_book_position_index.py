@@ -31,6 +31,10 @@ class CachedBookPositionIndex:
     A singleton, like the anchor service, because a cache that does not outlive
     the request is not a cache. Two concurrent misses for the same book build it
     twice and the later one wins, which costs a parse and nothing else.
+
+    Process-local, and correct only while the API is one process -- see
+    ``PublicationCaches``, which is what the upload path evicts through and
+    where that constraint is written down.
     """
 
     def __init__(
