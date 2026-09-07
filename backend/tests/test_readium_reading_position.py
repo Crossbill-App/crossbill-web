@@ -23,7 +23,7 @@ genuinely ambiguous and quoting it with what precedes it is not.
 
 from collections.abc import Iterator
 from contextlib import contextmanager
-from datetime import UTC, datetime, timedelta
+from datetime import UTC, date, datetime, timedelta
 from pathlib import Path
 from typing import Any
 
@@ -42,7 +42,7 @@ from src.infrastructure.web_reader.services.publication_token_service import (
 )
 from src.main import app
 from src.models import Book, ReadingSession, User
-from tests.conftest import create_test_book
+from tests.conftest import create_test_book, readers_today
 from tests.test_readium_manifest import fixture_bytes, store_epub
 from tests.test_readium_session import present, start_publication_session
 
@@ -83,7 +83,9 @@ def position_url(book_id: int) -> str:
     return f"/api/v1/readium/books/{book_id}/reading-position"
 
 
-def a_page_turn(href: str = CHAPTER_ONE, progression: float = 0.0) -> dict[str, Any]:
+def a_page_turn(
+    href: str = CHAPTER_ONE, progression: float = 0.0, position: int = 1
+) -> dict[str, Any]:
     """A locator exactly as a page turn produces one -- which is to say, textless.
 
     This is the shape production sends and the shape that broke: ``EpubNavigator``
@@ -100,7 +102,7 @@ def a_page_turn(href: str = CHAPTER_ONE, progression: float = 0.0) -> dict[str, 
             "fragments": [],
             "progression": progression,
             "totalProgression": progression / 2,
-            "position": 1,
+            "position": position,
         },
     }
 
@@ -776,6 +778,118 @@ class TestTheReadingSessionsThisMakes:
         assert len(sessions) == 2
         assert sessions[0].end_time - sessions[0].start_time == timedelta(minutes=3)
         assert sessions[1].end_position == [16, 0]
+
+    async def test_a_session_carries_the_page_range_the_reader_was_shown(
+        self, client: AsyncClient, readable_book: Book
+    ) -> None:
+        """Should record the pages a sitting covered, as the sessions list renders them.
+
+        A session's pages are the numbers the reader themselves watched go by
+        -- ``locations.position`` is the Readium position list this API served,
+        and it is what the reader's chrome says "Page X of N" from. Left null,
+        a browser session rendered without its page range while every synced
+        one had it, and a book read on both demoted its whole activity grid
+        from pages to minutes.
+        """
+        start = datetime(2026, 3, 1, 9, 0, tzinfo=UTC)
+        await put_locator(client, readable_book.id, a_page_turn(progression=0.0), start)
+        await put_locator(
+            client,
+            readable_book.id,
+            a_page_turn(href=CHAPTER_TWO, progression=0.5, position=4),
+            start + timedelta(minutes=6),
+        )
+
+        listed = await client.get(f"/api/v1/books/{readable_book.id}/reading_sessions")
+
+        assert listed.status_code == status.HTTP_200_OK, listed.text
+        [session] = listed.json()["items"]
+        assert session["start_page"] == 1
+        assert session["end_page"] == 4
+
+    async def test_a_sitting_that_never_turns_a_page_still_has_one(
+        self, client: AsyncClient, readable_book: Book
+    ) -> None:
+        """Should show the one page a reader stayed on, rather than no pages at all.
+
+        The heartbeat writes the same position again to say the reader is still
+        there, so a sitting can genuinely span one page from beginning to end.
+        """
+        start = datetime(2026, 3, 1, 9, 0, tzinfo=UTC)
+        await put_locator(client, readable_book.id, a_page_turn(position=2), start)
+        await put_locator(
+            client, readable_book.id, a_page_turn(position=2), start + timedelta(minutes=9)
+        )
+
+        listed = await client.get(f"/api/v1/books/{readable_book.id}/reading_sessions")
+
+        [session] = listed.json()["items"]
+        assert session["start_page"] == 2
+        assert session["end_page"] == 2
+
+    async def test_paging_back_keeps_the_pages_the_sitting_covered(
+        self, client: AsyncClient, readable_book: Book
+    ) -> None:
+        """Should keep the furthest page reached when a reader turns back.
+
+        The same rule the xpoint range follows, and for the same reason: a range
+        that ran backwards would not be one, and what the card reports is the
+        ground the sitting covered.
+        """
+        start = datetime(2026, 3, 1, 9, 0, tzinfo=UTC)
+        await put_locator(client, readable_book.id, a_page_turn(position=2), start)
+        await put_locator(
+            client,
+            readable_book.id,
+            a_page_turn(href=CHAPTER_TWO, position=5),
+            start + timedelta(minutes=2),
+        )
+        await put_locator(
+            client, readable_book.id, a_page_turn(position=3), start + timedelta(minutes=4)
+        )
+
+        listed = await client.get(f"/api/v1/books/{readable_book.id}/reading_sessions")
+
+        [session] = listed.json()["items"]
+        assert session["start_page"] == 2
+        assert session["end_page"] == 5
+
+    async def test_browser_reading_does_not_demote_a_paged_book_to_minutes(
+        self, client: AsyncClient, db_session: AsyncSession, readable_book: Book
+    ) -> None:
+        """Should leave the activity grid counting pages for a book synced with them.
+
+        The grid counts pages only when *every* session of the book has them
+        (``ActivityUnitRule.EVERY_SESSION_PAGED``), so one page-less web session
+        used to silently rewrite a KOReader-read book's whole year from pages
+        into minutes. That is the consequence of the missing page range that a
+        reader would not connect to having opened the book in a browser.
+        """
+        synced = ReadingSession(
+            user_id=1,
+            book_id=readable_book.id,
+            start_time=datetime(2026, 2, 28, 20, 0, tzinfo=UTC),
+            end_time=datetime(2026, 2, 28, 21, 0, tzinfo=UTC),
+            start_page=1,
+            end_page=30,
+            content_hash="synced-from-the-ereader",
+            device_id="kindle",
+        )
+        db_session.add(synced)
+        await db_session.commit()
+
+        await put_locator(
+            client,
+            readable_book.id,
+            a_page_turn(position=31),
+            datetime(2026, 3, 1, 9, 0, tzinfo=UTC),
+        )
+
+        with readers_today(date(2026, 3, 1)):
+            response = await client.get(f"/api/v1/books/{readable_book.id}/statistics")
+
+        assert response.status_code == status.HTTP_200_OK, response.text
+        assert response.json()["activity"]["unit"] == "pages"
 
     async def test_the_statistics_page_counts_browser_reading(
         self, client: AsyncClient, readable_book: Book

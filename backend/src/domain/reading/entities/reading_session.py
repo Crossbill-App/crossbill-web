@@ -78,6 +78,7 @@ class ReadingSession(AggregateRoot[ReadingSessionId]):
         moment: datetime,
         xpoint: XPoint | None = None,
         position: Position | None = None,
+        page: int | None = None,
     ) -> None:
         """Carry an ongoing session forward to where the reader now is.
 
@@ -88,10 +89,15 @@ class ReadingSession(AggregateRoot[ReadingSessionId]):
         ends by not being extended again.
 
         ``end_position`` becomes where the reader *is*, since that is what
-        reading progress is read from. The xpoint range keeps the furthest the
-        session reached instead: a reader paging back leaves ``end_position``
-        behind them and the range where it was, because a range that ran
-        backwards would not be one.
+        reading progress is read from. The xpoint range and the page range keep
+        the furthest the session reached instead: a reader paging back leaves
+        ``end_position`` behind them and both ranges where they were, because a
+        range that ran backwards would not be one -- and because what a session
+        reports is the ground it covered.
+
+        ``page`` fills ``start_page`` as well when the session has none yet: a
+        sitting learns its first page number from the first write that carries
+        one, which is not always the write that began it.
 
         **The end time only ever moves forward.** The moment comes from the
         reader's own clock, so two devices, a clock correction or a write that
@@ -108,6 +114,9 @@ class ReadingSession(AggregateRoot[ReadingSessionId]):
         self.end_time = max(as_aware(self.end_time), as_aware(moment))
         if position is not None:
             self.end_position = position
+        if page is not None:
+            self.start_page = page if self.start_page is None else self.start_page
+            self.end_page = page if self.end_page is None else max(self.end_page, page)
         if xpoint is not None and self.start_xpoint is not None:
             with suppress(ValueError):
                 self.start_xpoint = XPointRange(start=self.start_xpoint.start, end=xpoint)

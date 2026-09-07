@@ -80,6 +80,24 @@ MINIMUM_CONFIDENCE = {
 WEB_READER_DEVICE_ID = "crossbill-web-reader"
 
 
+def _page(locator: Locator) -> int | None:
+    """The synthetic page a locator says it is on, if it says a usable one.
+
+    ``locations.position`` indexes the position list *this API served the
+    reader*, and it is the number their own chrome counts "Page X of N" from --
+    so a session filled from it reports the pages they watched go by, and reads
+    the same as a session synced from an e-reader, whose pages are that
+    device's own pagination.
+
+    A number outside the 1-based list Readium defines is treated as absent
+    rather than refused: the position itself is already stored and correct, and
+    a page range is what a session is *labelled* with. Degrading it costs a line
+    on a card; failing the write would cost the reading.
+    """
+    position = locator.locations.position
+    return position if position is not None and position > 0 else None
+
+
 class SaveReadingPositionUseCase:
     """Store a reading position from the browser, and keep its reading session going.
 
@@ -195,7 +213,7 @@ class SaveReadingPositionUseCase:
 
         observed_at = self._reader_moment(recorded_at, now)
         session_id = await self._continue_session(
-            book, user, recorded.was_open, xpoint, position, observed_at
+            book, user, recorded.was_open, xpoint, position, observed_at, _page(locator)
         )
         await self.position_repository.attach_session(
             recorded.position, None if closing else session_id, now
@@ -281,6 +299,7 @@ class SaveReadingPositionUseCase:
         xpoint: XPoint,
         position: Position | None,
         observed_at: datetime,
+        page: int | None,
     ) -> ReadingSessionId:
         """Extend the sitting this position belongs to, or begin a new one."""
         open_session = await self._open_session(was_open, user_id, observed_at)
@@ -293,6 +312,8 @@ class SaveReadingPositionUseCase:
                 start_xpoint=XPointRange(start=xpoint, end=xpoint),
                 start_position=position,
                 end_position=position,
+                start_page=page,
+                end_page=page,
                 device_id=WEB_READER_DEVICE_ID,
             )
         else:
@@ -306,6 +327,7 @@ class SaveReadingPositionUseCase:
                 max(observed_at, as_aware(session.start_time)),
                 xpoint=xpoint,
                 position=position,
+                page=page,
             )
         return (await self.session_repository.save(session)).id
 

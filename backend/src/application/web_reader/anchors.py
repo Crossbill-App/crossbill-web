@@ -124,11 +124,17 @@ class LocatorLocations:
             first, as a navigator reports them (``"#chapter-two"``). Carried
             because they name an element exactly, which is the second-best thing
             to a quote when a reading position arrives without one.
+        position: The 1-based number of this position in the publication's
+            position list -- the synthetic page the reader's own chrome counts
+            "Page X of N" from. Not used to *find* anything: the position list
+            it indexes is the one this API served, so it is the browser handing
+            back a number of ours rather than a claim about the document.
     """
 
     progression: float | None = None
     css_selector: str | None = None
     fragments: tuple[str, ...] = ()
+    position: int | None = None
 
     def to_dict(self) -> dict[str, object]:
         """Serialize to the Readium JSON shape, omitting unset fields."""
@@ -139,6 +145,8 @@ class LocatorLocations:
             out["cssSelector"] = self.css_selector
         if self.fragments:
             out["fragments"] = list(self.fragments)
+        if self.position is not None:
+            out["position"] = self.position
         return out
 
 

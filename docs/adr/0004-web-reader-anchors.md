@@ -465,6 +465,27 @@ browser reading distinguishable in the sessions list and keeps its content hash
 from colliding with a KOReader session that happened to start at the same
 instant.
 
+**A session's pages are Readium position numbers.** `start_page` / `end_page`
+have never been a canonical pagination — a KOReader session carries *that
+device's* page numbers, which depend on its screen and its font — so the honest
+equivalent for a browser session is the pagination the browser shows: the
+position list this API serves, which the reader's own chrome counts "Page X of
+N" from. The number arrives as `locations.position`, which is the browser
+handing back an index into a document of ours rather than a claim about the
+book, and a value outside Readium's 1-based list is treated as absent rather
+than refused — the position itself is already stored, and a page range is what a
+session is *labelled* with.
+
+Leaving them null was not merely a blank line on a card. The activity grid
+counts pages only when **every** session of a book has them
+(`ActivityUnitRule.EVERY_SESSION_PAGED`), so one page-less web session silently
+rewrote a KOReader-read book's whole year from pages into minutes — a
+consequence no reader would connect to having opened the book in a browser. The
+page range follows the same rule as the xpoint range: it keeps the furthest the
+sitting reached, so paging back reports the ground covered rather than a range
+running backwards, and a sitting the heartbeat carried across one page reports
+that page at both ends instead of nothing.
+
 ### The new table is a cache and a bookmark, not a second source of truth
 
 `web_reading_positions` (one row per reader and book) holds the Readium locator,
