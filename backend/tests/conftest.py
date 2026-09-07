@@ -72,11 +72,13 @@ from tests.ai_helpers import FakeAgent, digest_output
 logging.getLogger("aiosqlite").setLevel(logging.WARNING)
 
 
-def build_test_epub(path: Path) -> bytes:
+def build_test_epub(path: Path, paragraph: str = "Some content.") -> bytes:
     """Write a one-chapter EPUB to path and return its bytes.
 
-    The single paragraph is "Some content.", reachable at the xpoint
-    "/body/DocFragment[2]/body/p[1]/text().0".
+    The single paragraph defaults to "Some content." and is reachable at the
+    xpoint "/body/DocFragment[2]/body/p[1]/text().0". Pass a different
+    ``paragraph`` to build what is, to anything reading the file, another
+    edition of the same book.
     """
     book = epub.EpubBook()
     book.set_identifier("upload-test-epub")
@@ -84,7 +86,7 @@ def build_test_epub(path: Path) -> bytes:
     book.set_language("en")
 
     chapter = epub.EpubHtml(title="Chapter 1", file_name="chap01.xhtml", lang="en")
-    chapter.content = "<h1>Chapter 1</h1><p>Some content.</p>"
+    chapter.content = f"<h1>Chapter 1</h1><p>{paragraph}</p>"
     book.add_item(chapter)
     book.toc = [epub.Link("chap01.xhtml", "Chapter 1", "chap01")]
     book.add_item(epub.EpubNcx())
