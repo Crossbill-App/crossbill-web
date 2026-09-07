@@ -1,6 +1,6 @@
 import { Box, List, ListItemButton, ListItemIcon, ListItemText } from '@mui/material';
 import { createLink, useMatchRoute } from '@tanstack/react-router';
-import { BOOK_PAGE_LABELS, BOOK_PAGE_ROUTES } from './bookPageRoutes.ts';
+import { BOOK_PAGE_LABELS, useBookPageRoutes } from './bookPageRoutes.ts';
 
 const NavListItemButton = createLink(ListItemButton);
 
@@ -10,11 +10,12 @@ interface DesktopNavLinksProps {
 
 export const DesktopNavLinks = ({ bookId }: DesktopNavLinksProps) => {
   const matchRoute = useMatchRoute();
+  const routes = useBookPageRoutes(Number(bookId));
 
   return (
     <Box sx={{ mb: 3 }}>
       <List disablePadding>
-        {BOOK_PAGE_ROUTES.map((item) => {
+        {routes.map((item) => {
           const isActive = !!matchRoute({ to: item.to, params: { bookId } });
           const Icon = item.icon;
 
