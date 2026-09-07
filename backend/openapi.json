@@ -9122,13 +9122,13 @@
             "type": "string",
             "format": "date-time",
             "title": "Start Time",
-            "description": "Session start timestamp"
+            "description": "Session start, with a UTC offset (KOReader sends '...Z')"
           },
           "end_time": {
             "type": "string",
             "format": "date-time",
             "title": "End Time",
-            "description": "Session end timestamp"
+            "description": "Session end, with a UTC offset (KOReader sends '...Z')"
           },
           "start_xpoint": {
             "anyOf": [
@@ -9191,7 +9191,7 @@
               }
             ],
             "title": "Device Id",
-            "description": "Device identifier"
+            "description": "Device identifier. 'crossbill-web-reader' is reserved for reading done in the browser and is refused here."
           }
         },
         "type": "object",

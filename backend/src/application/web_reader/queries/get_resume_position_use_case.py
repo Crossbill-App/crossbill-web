@@ -7,7 +7,6 @@ from src.application.reading.protocols.reading_session_repository import (
     ReadingSessionRepositoryProtocol,
 )
 from src.application.web_reader.anchors import AnchorResolutionError
-from src.application.web_reader.devices import WEB_READER_DEVICE_ID
 from src.application.web_reader.protocols.position_anchor_service import (
     PositionAnchorServiceProtocol,
 )
@@ -19,6 +18,7 @@ from src.application.web_reader.queries.resume_position import (
     ResumePosition,
     ResumeSource,
 )
+from src.domain.common.devices import WEB_READER_DEVICE_ID
 from src.domain.common.time import as_aware
 from src.domain.common.value_objects import BookId, UserId, XPoint
 from src.domain.library.entities.book import Book

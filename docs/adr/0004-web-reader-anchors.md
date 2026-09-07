@@ -752,3 +752,108 @@ open overnight from recording a night's reading.
 - **Any change to the plugin surface.** KOReader still uploads finished
   sessions the way it always has, so no `koreader-plugin` minimum bump comes out
   of this amendment either.
+
+## Amendment 4: resuming from the latest position of any device
+
+- **Date:** 2026-09-07
+- **Resolves:** #743 (M2.4)
+
+*Amendment 3* settled what the browser writes. This settles what it reads back,
+which is a wider question than it looks: the browser is not the only reader, and
+somebody who got through three chapters on their e-reader last night expects the
+book to open there, not at the row this browser wrote last week.
+
+### The later of two sightings wins
+
+`GET /api/v1/readium/books/{id}/reading-position` answers **where the book should
+open**, not what the browser last stored. Two candidates, weighed on when the
+reader was at each:
+
+1. **The stored web position**, at its `recorded_at`. It carries the locator
+   verbatim, which is the best answer available — no conversion, no
+   approximation.
+2. **The end of the latest reading session another device wrote**, at its
+   `end_time`. Only an xpointer was ever stored for it (§1), so a locator is
+   derived from the EPUB on the way out — the forward direction of the anchor
+   port, which M0.2 built and nothing had used server-side until now.
+
+Ties go to the stored locator, because an exact answer beats a reconstructed one
+at equal freshness.
+
+### Sessions the web reader wrote are left out of (2), and that is the dedupe
+
+A web write records a position and an ordinary `reading_sessions` row about the
+same moment, so such a session never adds information. But it would frequently
+*win*, because its `end_time` is the **server's** clock while the position's
+`recorded_at` is the **reader's** — so a reader whose clock runs a minute behind
+would have their exact stored locator thrown over for one re-derived from the
+xpointer beside it. The same place, arrived at worse. Filtering on
+`device_id` is what stops it, and the id therefore had to become a name three
+places share: `domain/common/devices.py`, since §6 keeps `reading` from
+depending on the web reader existing.
+
+**The sync refuses that id** (422). A synced session wearing it would be taken
+for the browser's and left out of the search for ever — a wrong answer rather
+than a missing one. No e-reader is called this; Crossbill minted the name for
+its own sessions in M2.3, so refusing it takes nothing from any client that
+exists and needs no `koreader-plugin` bump.
+
+### A synced session must name an instant
+
+The comparison above puts a device's clock against a browser's, so **session
+moments must carry a UTC offset** and are normalised to UTC at the schema. A
+naive value was previously handed to a `timestamptz` column, where PostgreSQL
+reads it in whatever the connection's time zone happens to be — the same request
+meaning different instants on different deployments — and read as UTC it would
+put a device in Helsinki three hours into its own future, letting a session it
+finished this morning beat a page turned in a browser this afternoon.
+
+This is deliberately **not** the rule the highlight path follows. KOReader's
+annotations carry the device's own wall clock with no offset to parse, and are
+stored in a column that keeps none either. Sessions are built from Unix epochs
+through `os.date("!%Y-%m-%dT%H:%M:%SZ")` and always have been, so requiring here
+what the plugin has always sent breaks no released version — again, no bump.
+
+`as_aware` stays what it was: a rule about **storage**, repairing the offset
+SQLite drops. It is only sound while no boundary lets a client's naive timestamp
+reach a column, which is what the above secures.
+
+### Verification, for this direction, is "it resolved"
+
+§5 requires a derived anchor to be verified against the stored text. A *reading
+position* has no stored text — unlike a highlight, that is the whole difference
+between them — so there is nothing to compare a derived locator against, and a
+confidence grade here would measure this code copying text out of a document it
+was already reading. What the response reports instead is `source` and
+`unresolved`: an xpointer that no longer resolves against the EPUB now held is
+the shape a replaced edition takes, and the reader is told their place was lost
+rather than dropped at page one with no explanation.
+
+### Dwelling is reading; arriving is not
+
+The browser opens the book *at* the restored place, through the navigator's
+constructor, so there is no visible jump and no navigation to write down. The
+position writer suppresses everything reported while the book is being built —
+the place it was told to open at, the place the frame settled on once the
+columns were laid out — because nobody has turned a page in a book that is not
+on screen yet.
+
+The bracket is drawn around **time**, not around the restored locator. A hold
+that asked "is this still the place we restored to" must answer with some notion
+of sameness, and every such notion is wrong somewhere: keyed on the position
+number it swallows a reader turning pages through a long chapter, since a
+position is a span of the resource and not a rendered page. Once the book has
+arrived, every report is the reader's.
+
+The heartbeat is deliberately untouched. Somebody resumed onto page 200 who
+reads it for ten minutes has read for ten minutes, exactly as somebody who opens
+a new book and reads its first page for ten minutes has, and suppressing the
+beat after a restore would record the second and not the first. So the invariant
+is that a restore **alone** writes nothing; a restore plus ten minutes of
+reading writes, because of the reading. The ten-minute granularity — leave at
+9:59 and nothing is recorded, at 10:01 and it is — is the heartbeat's period
+and is the same for a restored reader as for any other; closing it would mean
+either writing on open, which *Amendment 3* rejects, or a dwell threshold at
+unmount, which is a number with no measurement behind it and would record
+zero-second sessions besides, since a sitting is measured from its first write
+to its last.

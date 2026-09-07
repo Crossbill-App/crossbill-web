@@ -16,7 +16,6 @@ from src.application.web_reader.anchors import (
     AnchorSource,
     Locator,
 )
-from src.application.web_reader.devices import WEB_READER_DEVICE_ID
 from src.application.web_reader.protocols.book_position_index import BookPositionIndexProtocol
 from src.application.web_reader.protocols.position_anchor_service import (
     PositionAnchorServiceProtocol,
@@ -25,6 +24,7 @@ from src.application.web_reader.protocols.web_reading_position_repository import
     WebReadingPositionRepositoryProtocol,
 )
 from src.config import get_settings
+from src.domain.common.devices import WEB_READER_DEVICE_ID
 from src.domain.common.time import as_aware
 from src.domain.common.value_objects import (
     BookId,
