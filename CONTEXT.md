@@ -33,6 +33,22 @@ user typed on the e-reader and the device it came from. The words they write
 about it in Crossbill live in a Note.
 _Avoid_: annotation, clipping, excerpt, quote, passage
 
+**Anchor**:
+A reference to a place in a book's content — where a highlight sits, or how far
+a reader got. The stored, canonical anchor is the KOReader xpointer; a Locator,
+and a CFI if one is ever exported, are derived from it and never authoritative.
+Deriving one is always checked against the text it is supposed to cover, so a
+weak match can be rejected rather than shown in the wrong place.
+_Avoid_: pointer, location, marker, reference
+
+**Locator**:
+The Readium form of an Anchor, used by the web reader: the resource `href`
+within the publication, a `cssSelector` for the enclosing element, and a text
+quote (`before` / `highlight` / `after`). Derived from the stored xpointer,
+computed for display and navigation, never stored as the truth of where
+something is.
+_Avoid_: CFI, selector, web position, bookmark
+
 **Highlight Style**:
 A highlighter appearance on the e-reader — a colour, a drawing style, or the
 combination of both — that the user can name and recolour for display.
