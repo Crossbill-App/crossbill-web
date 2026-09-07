@@ -10,6 +10,7 @@ import {
 import { TocDrawer } from '@/components/reader/TocDrawer.tsx';
 import { useReaderPublication } from '@/components/reader/useReaderPublication.ts';
 import { useReaderSession } from '@/components/reader/useReaderSession.ts';
+import { useReaderTapZones } from '@/components/reader/useReaderTapZones.ts';
 import { useReadingPositionWriter } from '@/components/reader/useReadingPositionWriter.ts';
 import { useResumeLocator } from '@/components/reader/useResumeLocator.ts';
 import { useSnackbar } from '@/context/SnackbarContext.tsx';
@@ -154,6 +155,15 @@ export const ReaderShell = ({ bookId, title, onClose }: ReaderShellProps) => {
   const goForward = useCallback(() => navigatorRef.current?.goForward(true, () => {}), []);
   const goBackward = useCallback(() => navigatorRef.current?.goBackward(true, () => {}), []);
 
+  // What replaces the arrow buttons where there is no room for them. Stable for
+  // the same reason `handleKeyDown` is, and bound to each frame in the same place.
+  const bindTapZones = useReaderTapZones({
+    enabled: isCompact,
+    suspended: isRenewing,
+    onPrevious: goBackward,
+    onNext: goForward,
+  });
+
   // Mirrored into a ref so the key handler can consult it without becoming a
   // new function, which would mean rebinding every publication frame.
   const isRenewingRef = useRef(false);
@@ -269,12 +279,14 @@ export const ReaderShell = ({ bookId, title, onClose }: ReaderShellProps) => {
            *
            * The seam M3.2 hangs its highlights on: decorations are applied per
            * frame, so this is where a newly loaded resource gets the ones that
-           * belong to it. Today it only reveals the page and gives the frame
-           * the arrow keys, which a same-origin iframe does not bubble up on
-           * its own.
+           * belong to it. Today it reveals the page and hands the frame the two
+           * ways of turning it — the arrow keys and, where the buttons cannot
+           * fit, the tap zones — neither of which a same-origin iframe bubbles
+           * up on its own.
            */
           frameLoaded: (frameWindow: Window) => {
             frameWindow.addEventListener('keydown', handleKeyDown);
+            bindTapZones(frameWindow);
             setIsPageVisible(true);
           },
           /**
@@ -299,6 +311,10 @@ export const ReaderShell = ({ bookId, title, onClose }: ReaderShellProps) => {
            */
           textSelected: () => {},
           timelineItemChanged: () => {},
+          // Readium pages the book itself on a pointer in the outer quarters of
+          // a frame unless the listener claims the event. It has to stay
+          // claimed: `useReaderTapZones` is what turns pages here, and a tap
+          // answered twice would skip one.
           tap: () => true,
           click: () => true,
           zoom: () => {},
@@ -409,6 +425,7 @@ export const ReaderShell = ({ bookId, title, onClose }: ReaderShellProps) => {
     openAt,
     theme,
     handleKeyDown,
+    bindTapZones,
     recordPosition,
     setArriving,
     bootAttempt,

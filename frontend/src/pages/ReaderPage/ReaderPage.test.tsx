@@ -67,16 +67,124 @@ test('the reader opens with the book title and its controls', async () => {
  * strip down the middle. The buttons go, and the chrome above the page — which
  * fits either way — stays exactly as it was.
  */
-test('the arrow buttons give the page its width back on a phone', async () => {
-  aBookWithAnEpub();
+/** The book open on a phone-sized viewport, showing its first page. */
+const aBookOpenOnAPhone = async (...extra: Parameters<typeof worker.use>) => {
+  aBookWithAnEpub(...extra);
   await page.viewport(PHONE_VIEWPORT.width, PHONE_VIEWPORT.height);
 
   const screen = await renderApp({ path: '/book/1/read' });
   await expect.element(screen.getByText('Page 1 of 2', { exact: false })).toBeVisible();
+  return screen;
+};
+
+test('the arrow buttons give the page its width back on a phone', async () => {
+  const screen = await aBookOpenOnAPhone();
 
   expect(screen.getByRole('button', { name: 'Next page' }).query()).toBeNull();
   expect(screen.getByRole('button', { name: 'Previous page' }).query()).toBeNull();
   await expect.element(screen.getByRole('button', { name: 'Contents' })).toBeVisible();
+});
+
+/**
+ * A pointer gesture inside the publication's own frame.
+ *
+ * The tap zones listen in the frame rather than over it — an overlay would sit
+ * between the reader and the book and eat the selection and the links that
+ * belong to it — so a test has to reach into the frame the way a finger does.
+ * `userEvent` cannot: it drives the page the test is rendered in, and the frame
+ * is a document of its own.
+ */
+const gestureInPublication = ({ across, dragBy = 0 }: { across: number; dragBy?: number }) => {
+  // Readium keeps a pool of frames and hides the ones that are not on screen.
+  // Only the visible one is the page the reader is looking at, and only it is
+  // the frame the navigator reported through `frameLoaded`.
+  const frame = [
+    ...document.querySelectorAll<HTMLIFrameElement>('iframe.readium-navigator-iframe'),
+  ].find((candidate) => candidate.style.visibility !== 'hidden');
+  const view = frame?.contentWindow as (Window & typeof globalThis) | null | undefined;
+  if (!view || !frame?.contentDocument) throw new Error('The publication has no frame to tap.');
+
+  const from = Math.round(view.innerWidth * across);
+  const y = Math.round(view.innerHeight / 2);
+  const target = frame.contentDocument.elementFromPoint(from, y) ?? frame.contentDocument.body;
+  const at = (clientX: number) => ({
+    clientX,
+    clientY: y,
+    bubbles: true,
+    isPrimary: true,
+    pointerId: 1,
+    pointerType: 'touch',
+  });
+
+  target.dispatchEvent(new view.PointerEvent('pointerdown', at(from)));
+  if (dragBy !== 0) target.dispatchEvent(new view.PointerEvent('pointermove', at(from - dragBy)));
+  target.dispatchEvent(new view.PointerEvent('pointerup', at(from - dragBy)));
+};
+
+/** Long enough for a page turn to have landed if one was coming. */
+const A_PAGE_TURN = 1_200;
+
+/** That the reader stayed where it was, waited out long enough to mean it. */
+const expectNoPageTurn = async () => {
+  await new Promise((resolve) => setTimeout(resolve, A_PAGE_TURN));
+  expect(document.body.innerText).toContain('Page 1 of 2');
+};
+
+test('a tap on the right of the page turns to the next one', async () => {
+  const screen = await aBookOpenOnAPhone();
+
+  gestureInPublication({ across: 0.9 });
+
+  await expect.element(screen.getByText('Page 2 of 2', { exact: false })).toBeVisible();
+});
+
+test('a tap on the left of the page turns back', async () => {
+  aBookWithAnEpub(...readingPositionApi(aResumePosition()).handlers);
+  await page.viewport(PHONE_VIEWPORT.width, PHONE_VIEWPORT.height);
+
+  const screen = await renderApp({ path: '/book/1/read' });
+  await expect.element(screen.getByText('Page 2 of 2', { exact: false })).toBeVisible();
+
+  gestureInPublication({ across: 0.1 });
+
+  await expect.element(screen.getByText('Page 1 of 2', { exact: false })).toBeVisible();
+});
+
+/**
+ * The zones are the edges, not the whole page: the middle has to stay a place a
+ * reader can put a finger down without losing their place.
+ */
+test('a tap in the middle of the page turns nothing', async () => {
+  await aBookOpenOnAPhone();
+
+  gestureInPublication({ across: 0.5 });
+
+  await expectNoPageTurn();
+});
+
+/**
+ * A swipe, a drag across text and a flick to scroll all begin as a pointer put
+ * down on the page, and every one of them would land in a tap zone. What
+ * separates a tap from all of them is that the pointer did not travel.
+ */
+test('a pointer that travelled across the zone is not a tap', async () => {
+  await aBookOpenOnAPhone();
+
+  gestureInPublication({ across: 0.9, dragBy: 30 });
+
+  await expectNoPageTurn();
+});
+
+/** The arrow buttons are still the way to turn a page where there is room for them. */
+test('a click on the edge of the page turns nothing on a desktop viewport', async () => {
+  aBookWithAnEpub();
+
+  const screen = await renderApp({ path: '/book/1/read' });
+  await expect.element(screen.getByText('Page 1 of 2', { exact: false })).toBeVisible();
+
+  gestureInPublication({ across: 0.9 });
+
+  await expectNoPageTurn();
 });
 
 /**
