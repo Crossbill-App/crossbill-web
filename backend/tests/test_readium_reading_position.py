@@ -1,6 +1,6 @@
-"""Reading position and reading sessions from the browser (M2.3, #742).
+"""Reading position and reading sessions from the browser (M2.3, #742; M2.4, #743).
 
-Two things are under test here and they are not the same thing.
+Three things are under test here and they are not the same thing.
 
 The **position** is what the browser stores so it can be put back where it was:
 a Readium locator, converted on the way in to the KOReader xpointer that both
@@ -13,6 +13,12 @@ about the web reader, so the way browser reading reaches them is by being
 ordinary rows in that table (ADR-0004, Amendment 3). The assertions below are
 therefore made through ``/statistics`` wherever they can be: what matters is not
 that a row exists but that the page a reader looks at counts it.
+
+The **resume** is where the browser opens the book, which is neither of the
+above and is answered by the same ``GET``. It is the later of the two sightings
+the reader has -- their stored web position, or the end of a sitting an e-reader
+synced -- and the second of those has only ever been an xpointer, so a locator
+is derived from the EPUB on the way out (``TestResumingWhereAnyDeviceLeftOff``).
 
 Every locator here is built from ``tests/fixtures/minimal.epub`` and converted
 for real -- no anchor service is faked, because the confidence a quote comes
@@ -44,7 +50,7 @@ from src.infrastructure.web_reader.services.publication_token_service import (
 )
 from src.main import app
 from src.models import Book, ReadingSession, User
-from tests.conftest import create_test_book, readers_today
+from tests.conftest import create_test_book, create_test_reading_session, readers_today
 from tests.test_readium_manifest import fixture_bytes, store_epub
 from tests.test_readium_session import present, start_publication_session
 
@@ -84,6 +90,32 @@ PLACE_OF = {
     LAST_PARAGRAPH: (CHAPTER_ONE, LAST_PARAGRAPH_SELECTOR),
     SECOND_CHAPTER: (CHAPTER_TWO, SECOND_CHAPTER_SELECTOR),
 }
+
+
+# What the resume endpoint answers for a book nobody has read on any device.
+# Spelled out whole rather than asserted field by field, because the difference
+# between this and a *lost* position is one field, and a test that only looked
+# at `locator` would not see it.
+NOWHERE_TO_RESUME = {
+    "locator": None,
+    "source": None,
+    "unresolved": False,
+    "xpoint": None,
+    "position": None,
+    "recorded_at": None,
+}
+
+# Where an e-reader might have left off: the first paragraph of chapter two, one
+# element on from where `SECOND_CHAPTER` quotes. KOReader stores an xpointer and
+# nothing else, so this is the whole of what a synced session says about where
+# the reader is.
+KOREADER_XPOINT = "/body/DocFragment[2]/body/div[1]/p[1]"
+KOREADER_DEVICE = "kobo-clara"
+
+# An xpointer into a fifth spine document, which `minimal.epub` does not have.
+# The shape a replaced EPUB takes: the position is still safely stored, and
+# there is no longer anywhere in this book to put it.
+XPOINT_IN_ANOTHER_EDITION = "/body/DocFragment[5]/body/div[1]/p[3]"
 
 
 def position_url(book_id: int) -> str:
@@ -242,14 +274,18 @@ class TestStoringAPosition:
         assert stored["locator"]["locations"]["cssSelector"] == LAST_PARAGRAPH_SELECTOR
         assert stored["locator"]["locations"]["progression"] == 0.5
 
-    async def test_a_book_never_read_here_has_no_position(
+    async def test_a_book_never_read_anywhere_has_no_position(
         self, client: AsyncClient, readable_book: Book
     ) -> None:
-        """Should answer null rather than 404: an unread book is not a missing one."""
+        """Should answer an empty resume rather than 404: an unread book is not a missing one.
+
+        And not ``unresolved`` either: nothing was lost, there was simply never
+        anywhere to go back to, which is what the reader must not be told about.
+        """
         response = await client.get(position_url(readable_book.id))
 
         assert response.status_code == status.HTTP_200_OK
-        assert response.json() is None
+        assert response.json() == NOWHERE_TO_RESUME
 
     async def test_a_later_write_replaces_an_earlier_one(
         self, client: AsyncClient, readable_book: Book
@@ -651,7 +687,7 @@ class TestRefusingAPosition:
 
         assert response.status_code == status.HTTP_422_UNPROCESSABLE_ENTITY, response.text
         assert response.json()["error"] == "unresolvable_position"
-        assert (await client.get(position_url(readable_book.id))).json() is None
+        assert (await client.get(position_url(readable_book.id))).json() == NOWHERE_TO_RESUME
 
     async def test_the_same_quote_is_accepted_once_context_settles_it(
         self, client: AsyncClient, readable_book: Book
@@ -1099,3 +1135,246 @@ class TestTheReadingSessionsThisMakes:
         # write, because a browser-only book has never been through the upload
         # path that used to be the only thing that measured a book's length.
         assert statistics["progress_percent"] == 89
+
+
+async def resume_for(client: AsyncClient, book_id: int) -> dict[str, Any]:
+    """Ask where the browser should open a book, and insist on being answered.
+
+    Never 404 and never null, whatever the answer turns out to be -- so a test
+    that only cares *where* need not restate that every time.
+    """
+    response = await client.get(position_url(book_id))
+    assert response.status_code == status.HTTP_200_OK, response.text
+    return response.json()
+
+
+class TestResumingWhereAnyDeviceLeftOff:
+    """Where the browser opens a book, when the browser is not the only reader (M2.4, #743).
+
+    The endpoint under test is the same ``GET`` the tests above read positions
+    back through, but the question it answers is a wider one. A reader who got
+    through three chapters on their e-reader last night and then opens the book
+    here has no stored web position at that place -- KOReader stores an xpointer
+    and nothing else -- so the answer has to come out of ``reading_sessions``
+    and be converted to a locator against the EPUB (ADR-0004 §2).
+
+    What the assertions turn on is which of the two candidates wins and what the
+    reader is told when neither can be placed.
+    """
+
+    async def a_koreader_session(
+        self,
+        db_session: AsyncSession,
+        book: Book,
+        user_id: int,
+        ended: datetime,
+        xpoint: str = KOREADER_XPOINT,
+    ) -> None:
+        """Record a sitting synced from an e-reader, ending where ``xpoint`` says.
+
+        Both xpoint columns are filled because the pair is read back as one
+        range and a session with only one of them has neither.
+        """
+        await create_test_reading_session(
+            db_session=db_session,
+            book=book,
+            user_id=user_id,
+            start_time=ended - timedelta(minutes=20),
+            minutes=20,
+            start_xpoint=FIRST_PARAGRAPH_XPOINT,
+            end_xpoint=xpoint,
+            device_id=KOREADER_DEVICE,
+        )
+
+    async def test_an_e_reader_read_more_recently_wins(
+        self,
+        client: AsyncClient,
+        db_session: AsyncSession,
+        test_user: User,
+        readable_book: Book,
+    ) -> None:
+        """Should open where the e-reader left off, converted into a locator to navigate to.
+
+        The conversion is the point: what was stored is an xpointer, and what a
+        navigator can be handed is a Locator naming a resource this API serves.
+        """
+        await put_position(
+            client, readable_book.id, LAST_PARAGRAPH, datetime(2026, 3, 1, 9, 0, tzinfo=UTC)
+        )
+        await self.a_koreader_session(
+            db_session, readable_book, test_user.id, datetime(2026, 3, 2, 21, 0, tzinfo=UTC)
+        )
+
+        resume = await resume_for(client, readable_book.id)
+        assert resume["source"] == "koreader"
+        assert resume["unresolved"] is False
+        assert resume["xpoint"] == KOREADER_XPOINT
+        # The href is the URL this API serves the file from, not the path inside
+        # the EPUB container: the navigator has never been told the file is
+        # called anything else.
+        assert resume["locator"]["href"] == CHAPTER_TWO
+        # A reading position is a caret rather than a selection, so it highlights
+        # nothing and the text it carries is what sits on either side of it --
+        # read out of the EPUB rather than approximated, which is what makes the
+        # forward conversion exact where the reverse one is a search.
+        assert resume["locator"]["text"]["highlight"] == ""
+        assert SECOND_CHAPTER in resume["locator"]["text"]["after"]
+
+    async def test_the_browser_read_more_recently_wins(
+        self,
+        client: AsyncClient,
+        db_session: AsyncSession,
+        test_user: User,
+        readable_book: Book,
+    ) -> None:
+        """Should open at the browser's own stored locator when it is the later sighting.
+
+        And hand it back whole. A locator the navigator itself produced needs no
+        conversion and loses nothing on the way out, which is why a tie goes to
+        it as well.
+        """
+        await self.a_koreader_session(
+            db_session, readable_book, test_user.id, datetime(2026, 3, 1, 21, 0, tzinfo=UTC)
+        )
+        await put_position(
+            client, readable_book.id, LAST_PARAGRAPH, datetime(2026, 3, 2, 9, 0, tzinfo=UTC)
+        )
+
+        resume = await resume_for(client, readable_book.id)
+        assert resume["source"] == "web"
+        assert resume["xpoint"] == LAST_PARAGRAPH_XPOINT
+        assert resume["position"] == LAST_PARAGRAPH_POSITION
+        assert resume["locator"]["href"] == CHAPTER_ONE
+        assert resume["locator"]["locations"]["cssSelector"] == LAST_PARAGRAPH_SELECTOR
+
+    async def test_an_e_reader_alone_is_enough_to_resume_from(
+        self,
+        client: AsyncClient,
+        db_session: AsyncSession,
+        test_user: User,
+        readable_book: Book,
+    ) -> None:
+        """Should open where the e-reader left off in a book never opened in a browser.
+
+        The case the whole ticket is for: nothing has ever written a
+        ``web_reading_positions`` row for this book, and the reader still lands
+        where they stopped reading.
+        """
+        await self.a_koreader_session(
+            db_session, readable_book, test_user.id, datetime(2026, 3, 1, 21, 0, tzinfo=UTC)
+        )
+
+        resume = await resume_for(client, readable_book.id)
+        assert resume["source"] == "koreader"
+        assert resume["locator"]["href"] == CHAPTER_TWO
+        assert resume["recorded_at"] == "2026-03-01T21:00:00Z"
+
+    async def test_the_browsers_own_session_never_beats_its_own_position(
+        self, client: AsyncClient, readable_book: Book
+    ) -> None:
+        """Should ignore the reading session a browser write makes when choosing where to open.
+
+        This is the dedupe, and it is not merely tidiness. A web write records
+        both a position and an ordinary ``reading_sessions`` row about the same
+        moment -- but the session's ``end_time`` is the *server's* clock while
+        the position's ``recorded_at`` is the *reader's*, so a reader whose
+        clock runs a few minutes behind would have their exact stored locator
+        thrown over for one re-derived from the xpointer beside it. The same
+        place, arrived at worse.
+
+        The clocks are pulled apart here on purpose: without the device filter
+        the session below is a quarter of an hour "newer" than the position it
+        was written with, and the answer would come back ``koreader``.
+        """
+        await put_position(
+            client,
+            readable_book.id,
+            LAST_PARAGRAPH,
+            datetime(2026, 3, 1, 9, 0, tzinfo=UTC),
+            arriving=datetime(2026, 3, 1, 9, 15, tzinfo=UTC),
+        )
+
+        resume = await resume_for(client, readable_book.id)
+        assert resume["source"] == "web"
+        assert resume["locator"]["locations"]["cssSelector"] == LAST_PARAGRAPH_SELECTOR
+
+    async def test_a_place_that_is_no_longer_in_the_book_is_reported_as_lost(
+        self,
+        client: AsyncClient,
+        db_session: AsyncSession,
+        test_user: User,
+        readable_book: Book,
+    ) -> None:
+        """Should say the place could not be found rather than pretend the book was never read.
+
+        An xpointer naming a spine document this EPUB does not have is what a
+        replaced edition looks like from here (ADR-0004 §5). The canonical
+        position is untouched and still comes back; what is missing is a view of
+        it, and the reader is entitled to be told so instead of being dropped at
+        page one with no explanation.
+        """
+        await self.a_koreader_session(
+            db_session,
+            readable_book,
+            test_user.id,
+            datetime(2026, 3, 1, 21, 0, tzinfo=UTC),
+            xpoint=XPOINT_IN_ANOTHER_EDITION,
+        )
+
+        resume = await resume_for(client, readable_book.id)
+        assert resume["locator"] is None
+        assert resume["unresolved"] is True
+        assert resume["source"] == "koreader"
+        assert resume["xpoint"] == XPOINT_IN_ANOTHER_EDITION
+
+    async def test_a_session_that_recorded_no_xpoint_says_nothing_about_where_to_open(
+        self,
+        client: AsyncClient,
+        db_session: AsyncSession,
+        test_user: User,
+        readable_book: Book,
+    ) -> None:
+        """Should fall back to the browser's position when a sitting recorded no place.
+
+        A KOReader session synced without positions has no xpointer at either
+        end, so it is no candidate however recent it is -- and must not shadow
+        the older sighting that does know where the reader was.
+        """
+        await put_position(
+            client, readable_book.id, LAST_PARAGRAPH, datetime(2026, 3, 1, 9, 0, tzinfo=UTC)
+        )
+        await create_test_reading_session(
+            db_session=db_session,
+            book=readable_book,
+            user_id=test_user.id,
+            start_time=datetime(2026, 3, 5, 21, 0, tzinfo=UTC),
+            device_id=KOREADER_DEVICE,
+        )
+
+        resume = await resume_for(client, readable_book.id)
+        assert resume["source"] == "web"
+        assert resume["xpoint"] == LAST_PARAGRAPH_XPOINT
+
+    async def test_the_publication_cookie_opens_a_resume(
+        self,
+        browser_client: AsyncClient,
+        db_session: AsyncSession,
+        test_user: User,
+        readable_book: Book,
+    ) -> None:
+        """Should answer a resume to the credential an iframe-bound reader holds.
+
+        The reader asks this on boot, when its access token may already have
+        lapsed -- so the publication cookie has to be enough, exactly as it is
+        for the manifest and every resource beside it (ADR-0004, Amendment 1).
+        """
+        await self.a_koreader_session(
+            db_session, readable_book, test_user.id, datetime(2026, 3, 1, 21, 0, tzinfo=UTC)
+        )
+        minted = await start_publication_session(browser_client, test_user, readable_book.id)
+        assert minted.status_code == status.HTTP_200_OK, minted.text
+
+        response = await browser_client.get(position_url(readable_book.id))
+
+        assert response.status_code == status.HTTP_200_OK, response.text
+        assert response.json()["locator"]["href"] == CHAPTER_TWO
