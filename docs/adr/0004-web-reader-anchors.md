@@ -604,27 +604,86 @@ turn that landed after it, and a page turn cannot reopen a session closed after
 it. An overtaken write is answered with what is stored, because the write a
 closing tab sends and the one a page turn sends race by design.
 
-**`updated_at` is the server's clock**, and it is the only thing that decides
-which of two writes is later. Ordering on the reader's own clock reads well
-until a second device is five minutes slow, at which point every write it will
-ever make is older than what is stored and is refused for good — a permanent,
-silent failure to record anything, bought to tidy up a reordering that is
-sub-second in practice. The reader's clock is used for the reading session's
-arithmetic, where it is the honest source, and nowhere else; the session's end
-time only ever moves forward, so a disagreeing clock cannot shorten a sitting.
+### Two clocks, answering two questions
 
-That clock is **bounded at both ends**: never later than now, or a clock running
-ahead invents reading time and then locks its owner out until the date it
-claimed; and never earlier than one idle window ago, which is as far back as a
-claim can reach and still join anything. Proportionate rather than airtight —
-this is a self-hosted library where the only person who can spend a credential
-is the person whose own statistics a lie would inflate.
+**`updated_at` is the server's clock**, and it decides *whether a write happens
+at all*. Ordering on the reader's own clock reads well until a second device is
+five minutes slow, at which point every write it will ever make is older than
+what is stored and is refused for good — a permanent, silent failure to record
+anything.
+
+**`recorded_at` is the reader's clock**, and it decides *whether a write moves
+the position*. Arrival cannot answer that one. Two tabs, one book: the first
+idles on page 20 while the second reads on to page 100; the first is then
+closed, and its dying write arrives **last**, carrying a page its reader left an
+hour ago. Ordered on arrival alone it wins, and a resume puts the reader back on
+page 20. So the upsert carries both conditions — `WHERE updated_at <
+:written_at` for the write, and a `CASE` per column on `recorded_at` for the
+move — and a write that does not move the position still lands: it extends the
+sitting, and closes it if that is what it came to say. A write that moved
+nothing *and* found no sitting open records nothing at all, because a tab
+closing on a page nobody is reading is not a session.
+
+This is also why a **heartbeat carries the observation's own moment** rather
+than the moment it fires: it says the reader is still here, never that they have
+moved. Sent with a fresh timestamp it would claim to be a newer sighting than
+the page another tab is actually on.
+
+**Neither clock measures reading.** A session's start and end are the server's
+clock alone, so no client can be credited with time it did not spend — which is
+a stronger guarantee than any bound on what a client may claim, and needs no
+bound at all. The reader's clock says *where* they were; it never says how long
+they read.
+
+Two live tabs still take turns owning the position, which is inherent to one
+stored position per reader and book: whichever the reader last moved in wins,
+and that is the right answer. What is fixed here is the tab that is **not**
+moving overwriting the one that is.
 
 **Residual, accepted.** Two genuinely simultaneous *first* writes for a book can
 each create a session in the window between the two statements; the pointer ends
 at the later writer's, and the other is a stray zero-second session. No 500, no
 orphaned pointer, no duplicate row — one extra row in a rarely-hit race, which
 is a great deal less than what it replaced.
+
+### A jump back across the book is a new sitting
+
+A sitting reports the ground it covered — its page range and its xpoint range
+keep the furthest they reached — while its `end_position` keeps where the reader
+is. Those two agree only while the reader is moving through the book. Somebody
+who finishes a novel and starts it again half an hour later would otherwise be
+**one** sitting reporting three hundred pages read with a progress bar on page
+one.
+
+So a backward jump of more than **a quarter of the book** ends the sitting and
+begins a new one. A quarter is not a sequence of page turns; it is navigation —
+a contents link, a bookmark, starting again. Re-reading the previous chapter,
+which is the largest backward move ordinary reading makes, is a few per cent of
+a book of ordinary length and sits comfortably inside it. The threshold sits
+nearer the cautious end than the middle deliberately: erring low splits a
+sitting that re-read a long chapter, which costs a row; erring high leaves the
+phantom pages the rule exists to stop.
+
+### What a locator may claim
+
+Both numbers a locator carries are bounded at the schema, because both feed
+arithmetic and neither was.
+
+`locations.position` is only ever an index the browser read out of a position
+list *this API served it*, so its ceiling is `MAX_PUBLICATION_POSITIONS` — the
+most positions any publication may be cut into. Unbounded it was two failures at
+once: a value past the column's range killed the request with a 500, and a
+merely enormous one was written down and credited as billions of pages read.
+
+`locations.progression` is multiplied by a resource's length and rounded, so
+`NaN` and `Infinity` — which JSON has no literal for but Python's parser reads
+anyway — raised out of `round()` as 500s. Non-finite values are read as *no
+progression* rather than refused, which is the one place these schemas degrade
+instead of validating: FastAPI reports a rejection in a body that quotes the
+offending value back, and a body quoting `NaN` cannot be serialised as JSON, so
+the 422 would turn into a 500 and tell the caller nothing. Read as absent, the
+locator is judged on what it does carry. The anchor port clamps again on its own
+account, since a port is reachable from more than one caller.
 
 ### The caches are process-local, and the deployment is one process
 

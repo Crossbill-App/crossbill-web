@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import logging
 from collections import OrderedDict
+from math import isfinite
 
 import xpoint_cfi
 from lxml.etree import _Element  # pyright: ignore[reportPrivateUsage]
@@ -303,12 +304,15 @@ def _text_at_progression(node: xpoint_cfi.NodeMap, progression: float | None) ->
     ``None`` when there is no progression to go on, or the resource holds no
     text to quote.
     """
-    if progression is None:
+    if progression is None or not isfinite(progression):
         return None
     full = node.extract_text(None, None)
     if not full.strip():
         return None
-    offset = min(len(full), max(0, round(progression * len(full))))
+    # Clamped to a fraction before it is one: the schema bounds this to 0..1,
+    # and the port is reachable from anywhere, so a value that got here another
+    # way must land somewhere in the resource rather than raise out of `round`.
+    offset = round(min(1.0, max(0.0, progression)) * len(full))
     if following := _first_run(full[offset:]):
         return LocatorText(after=following[:POINT_CONTEXT_CHARS])
     if preceding := _last_run(full[:offset]):

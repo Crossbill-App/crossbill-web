@@ -47,14 +47,22 @@ def positions(db_session: AsyncSession) -> WebReadingPositionRepository:
     return WebReadingPositionRepository(db_session)
 
 
-def a_position(book: Book, at: datetime, page: int = 1) -> WebReadingPosition:
-    """A position for the default user, distinguishable by ``page``."""
+def a_position(
+    book: Book, at: datetime, page: int = 1, observed: datetime | None = None
+) -> WebReadingPosition:
+    """A position for the default user, distinguishable by ``page``.
+
+    ``at`` is when the write arrives and ``observed`` when the reader was there;
+    they are the same instant unless a test pulls them apart, which is how the
+    two-tab race is written down.
+    """
     return WebReadingPosition.create(
         user_id=UserId(1),
         book_id=BookId(book.id),
         locator={"href": "OEBPS/chapter1.xhtml", "type": "x", "locations": {"position": page}},
         xpoint=XPoint.parse(XPOINT),
-        recorded_at=at,
+        written_at=at,
+        recorded_at=observed or at,
         position=Position(index=page, char_index=0),
     )
 
@@ -88,6 +96,7 @@ class TestRecordingAPosition:
 
         assert recorded is not None
         assert recorded.was_open is None
+        assert recorded.advanced is True
         assert recorded.position.position == Position(index=1, char_index=0)
         assert await row_count(db_session) == 1
 
@@ -140,6 +149,47 @@ class TestRecordingAPosition:
 
         assert later is not None
         assert later.was_open == opened
+
+
+class TestWhetherAWriteMovesThePosition:
+    """Arrival says whether a write lands; the reader's clock says whether it moves."""
+
+    async def test_a_write_carrying_an_older_sighting_lands_without_moving_anything(
+        self, positions: WebReadingPositionRepository, book: Book
+    ) -> None:
+        """Should keep the newer position while still letting the write through.
+
+        The two-tab race, at the statement that decides it: a tab idling on page
+        1 is closed while another has read on to page 9, so its write arrives
+        last carrying a sighting from an hour before. It has to land -- it is
+        closing a sitting -- and it must not put page 1 back.
+        """
+        await positions.record(a_position(book, FIRST + timedelta(hours=1), page=9))
+
+        stale = await positions.record(
+            a_position(book, FIRST + timedelta(hours=2), page=1, observed=FIRST)
+        )
+
+        assert stale is not None, "the write must land: it has a session to close"
+        assert stale.advanced is False
+        assert stale.position.position == Position(index=9, char_index=0)
+        assert stale.position.locator["locations"] == {"position": 9}
+
+    async def test_a_newer_sighting_moves_the_position(
+        self, positions: WebReadingPositionRepository, book: Book
+    ) -> None:
+        """Should move the position when the reader really has, which is the other half.
+
+        Paired with the test above on purpose: a rule that never moved anything
+        would pass that one and fail this.
+        """
+        await positions.record(a_position(book, FIRST, page=1))
+
+        moved = await positions.record(a_position(book, FIRST + timedelta(minutes=1), page=9))
+
+        assert moved is not None
+        assert moved.advanced is True
+        assert moved.position.position == Position(index=9, char_index=0)
 
 
 class TestClaimingTheSessionPointer:

@@ -41,7 +41,14 @@ class WebReadingPosition(Base):
     reading_session_id: Mapped[int | None] = mapped_column(
         ForeignKey("reading_sessions.id", ondelete="SET NULL"), nullable=True
     )
+    # The server's clock: which of two writes is later. A fact about this server,
+    # so that a device with a slow clock is not locked out of writing for good.
     updated_at: Mapped[dt] = mapped_column(DateTime(timezone=True), nullable=False)
+    # The reader's clock: when they were at the position stored here. The
+    # watermark a write must beat to *move* the position -- distinct from
+    # `updated_at`, because an idle tab's closing write arrives perfectly fresh
+    # and is still carrying a page the reader left an hour ago.
+    recorded_at: Mapped[dt] = mapped_column(DateTime(timezone=True), nullable=False)
     created_at: Mapped[dt] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), nullable=False
     )

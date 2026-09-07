@@ -8147,24 +8147,30 @@
           "position": {
             "anyOf": [
               {
-                "type": "integer"
+                "type": "integer",
+                "maximum": 204800.0,
+                "minimum": 1.0
               },
               {
                 "type": "null"
               }
             ],
-            "title": "Position"
+            "title": "Position",
+            "description": "1-based index into this publication's position list -- the synthetic page the reader is shown"
           },
           "progression": {
             "anyOf": [
               {
-                "type": "number"
+                "type": "number",
+                "maximum": 1.0,
+                "minimum": 0.0
               },
               {
                 "type": "null"
               }
             ],
-            "title": "Progression"
+            "title": "Progression",
+            "description": "How far into this resource the position sits, 0..1"
           },
           "totalProgression": {
             "anyOf": [
@@ -8205,7 +8211,7 @@
         },
         "type": "object",
         "title": "LocatorLocationsSchema",
-        "description": "A Locator's ``locations``: the same place said in several ways.\n\nEvery field is optional because a navigator fills in only what its current\nview can supply, and all of them are kept: the resume that M2.4 builds on\ntries the text quote, then the CSS selector, then a fragment id, then the\nprogression, in that order."
+        "description": "A Locator's ``locations``: the same place said in several ways.\n\nEvery field is optional because a navigator fills in only what its current\nview can supply, and all of them are kept: the resume that M2.4 builds on\ntries the text quote, then the CSS selector, then a fragment id, then the\nprogression, in that order.\n\nThe two numeric fields are bounded here rather than defended downstream,\nbecause both feed arithmetic. ``position`` is only ever a number the browser\nread out of a position list *this API served it*, so the ceiling is the most\npositions any publication may be cut into -- past that it indexes no list\nthat could exist, and unbounded it was both a 500 (a value past the\ncolumn's range) and a session credited with billions of pages. And a\nprogression is multiplied by a resource's length and rounded, so ``NaN`` and\n``Infinity`` -- which JSON has no literal for but Python's parser reads\nanyway -- have to be refused before they are arithmetic."
       },
       "LocatorSchema": {
         "properties": {

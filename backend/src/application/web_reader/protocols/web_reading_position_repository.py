@@ -17,10 +17,16 @@ class RecordedPosition:
         was_open: The reading session the row pointed at *before* this write --
             the sitting this one may be continuing. ``None`` when the reader has
             never read this book here, or closed it last time.
+        advanced: Whether this write actually moved the stored position, or only
+            proved the reader was still there. ``False`` when what was already
+            stored was observed later -- an idle tab's closing write, or a
+            heartbeat from a second tab. Such a write still extends and may
+            close the sitting; it just must not drag the position backwards.
     """
 
     position: WebReadingPosition
     was_open: ReadingSessionId | None
+    advanced: bool
 
 
 class WebReadingPositionRepositoryProtocol(Protocol):
@@ -39,8 +45,10 @@ class WebReadingPositionRepositoryProtocol(Protocol):
         *is there a row yet* and *is this newer than what is in it* -- are the
         database's to answer, at the moment of writing.
 
-        ``position.updated_at`` is the server's clock, and it is what "newest"
-        means here.
+        Two questions, settled in that one statement and reported apart:
+        ``position.updated_at`` (the server's clock) decides whether the write
+        happens at all, and ``position.recorded_at`` (the reader's) decides
+        whether it moves the position -- see ``advanced``.
 
         The open-session pointer is deliberately **not** written: it is claimed
         separately by :meth:`attach_session`, once the session it should point

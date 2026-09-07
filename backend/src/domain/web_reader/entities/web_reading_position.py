@@ -44,12 +44,18 @@ class WebReadingPosition(AggregateRoot[WebReadingPositionId]):
     - ``position`` may be absent: it is resolved through a ``PositionIndex``
       built from the EPUB, and an xpointer the index does not know resolves to
       nothing. Progress is then unknown rather than zero.
-    - ``updated_at`` is the *server's* clock, not the reader's, and it only
-      moves forward. It answers "which write was last", which has to be a fact
-      about this server: a second device whose clock is five minutes slow would
-      otherwise have every write it ever made read as older than what is stored
-      and be refused for good. The reader's own clock is used for the reading
-      session's arithmetic, where it is the honest source, and nowhere else.
+    - ``updated_at`` is the *server's* clock and answers "which write was last",
+      which has to be a fact about this server: a second device whose clock is
+      five minutes slow would otherwise have every write it ever made read as
+      older than what is stored and be refused for good.
+    - ``recorded_at`` is the *reader's* clock -- when they were at the position
+      stored here -- and it answers a different question: "has the reader
+      moved?". A write must beat it to replace the locator. The two cannot be
+      one field, because a tab idling on page 20 while another advances to page
+      100 sends its closing write with a perfectly fresh arrival and a position
+      an hour old; ordering on arrival alone lets it overwrite page 100.
+    - Reading *durations* use neither. A session is measured on the server's
+      clock alone, so no client can be credited with time it did not spend.
     """
 
     id: WebReadingPositionId
@@ -58,6 +64,7 @@ class WebReadingPosition(AggregateRoot[WebReadingPositionId]):
     locator: Mapping[str, Any]
     xpoint: XPoint
     updated_at: datetime
+    recorded_at: datetime
     position: Position | None = None
     reading_session_id: ReadingSessionId | None = None
 
@@ -73,6 +80,7 @@ class WebReadingPosition(AggregateRoot[WebReadingPositionId]):
         book_id: BookId,
         locator: Mapping[str, Any],
         xpoint: XPoint,
+        written_at: datetime,
         recorded_at: datetime,
         position: Position | None = None,
         reading_session_id: ReadingSessionId | None = None,
@@ -90,7 +98,8 @@ class WebReadingPosition(AggregateRoot[WebReadingPositionId]):
             book_id=book_id,
             locator=locator,
             xpoint=xpoint,
-            updated_at=recorded_at,
+            updated_at=written_at,
+            recorded_at=recorded_at,
             position=position,
             reading_session_id=reading_session_id,
         )

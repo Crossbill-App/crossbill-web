@@ -12,9 +12,21 @@
  * view can supply, and all of them are kept: the resume that M2.4 builds on
  * tries the text quote, then the CSS selector, then a fragment id, then the
  * progression, in that order.
+ *
+ * The two numeric fields are bounded here rather than defended downstream,
+ * because both feed arithmetic. ``position`` is only ever a number the browser
+ * read out of a position list *this API served it*, so the ceiling is the most
+ * positions any publication may be cut into -- past that it indexes no list
+ * that could exist, and unbounded it was both a 500 (a value past the
+ * column's range) and a session credited with billions of pages. And a
+ * progression is multiplied by a resource's length and rounded, so ``NaN`` and
+ * ``Infinity`` -- which JSON has no literal for but Python's parser reads
+ * anyway -- have to be refused before they are arithmetic.
  */
 export interface LocatorLocationsSchema {
+  /** 1-based index into this publication's position list -- the synthetic page the reader is shown */
   position?: number | null;
+  /** How far into this resource the position sits, 0..1 */
   progression?: number | null;
   totalProgression?: number | null;
   fragments?: string[] | null;

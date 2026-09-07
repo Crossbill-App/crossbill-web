@@ -33,7 +33,9 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from starlette import status
 
-from src.config import get_settings
+from src.application.web_reader.queries.publication_positions import (
+    MAX_PUBLICATION_POSITIONS,
+)
 from src.domain.common.time import as_aware
 from src.infrastructure.identity.services.token_service import create_access_token
 from src.infrastructure.reading.routers.reader_clock import reader_now
@@ -68,6 +70,11 @@ SECOND_CHAPTER_POSITION = {"index": 16, "char_index": 0}
 REPEATED = "The lantern went out at midnight."
 FIRST_PARAGRAPH_CONTEXT = "Chapter One"
 FIRST_PARAGRAPH_XPOINT = "/body/DocFragment[1]/body/div[1]/p[1]"
+
+# The same repeated sentence, disambiguated onto its *second* paragraph, which
+# sits between the two above in document order. Three known places one element
+# apart is what lets a backward move be made small on purpose.
+THIRD_PARAGRAPH_CONTEXT = "She wrote the same sentence twice, and meant it both times."
 
 # Where each quote is, and the CSS selector a navigator would have sent with it,
 # so that a test names a paragraph once and every write of it is shaped like the
@@ -107,7 +114,9 @@ def a_page_turn(
     }
 
 
-def locator(quote: str, before: str | None = None, progression: float = 0.5) -> dict[str, Any]:
+def locator(
+    quote: str, before: str | None = None, progression: float = 0.5, page: int | None = None
+) -> dict[str, Any]:
     """A locator shaped the way ``@readium/navigator`` serializes one.
 
     The href is the manifest's -- the URL this API serves the file from -- and
@@ -125,6 +134,8 @@ def locator(quote: str, before: str | None = None, progression: float = 0.5) -> 
     if before is not None:
         text["before"] = before
     locations: dict[str, Any] = {"progression": progression}
+    if page is not None:
+        locations["position"] = page
     if selector is not None:
         locations["cssSelector"] = selector
     return {"href": href, "type": XHTML, "locations": locations, "text": text}
@@ -138,9 +149,12 @@ async def put_position(
     before: str | None = None,
     closing: bool = False,
     arriving: datetime | None = None,
+    page: int | None = None,
 ) -> Response:
     """Write a position the way the reader does: a locator and the moment it was seen."""
-    return await put_locator(client, book_id, locator(quote, before=before), at, closing, arriving)
+    return await put_locator(
+        client, book_id, locator(quote, before=before, page=page), at, closing, arriving
+    )
 
 
 async def put_locator(
@@ -249,20 +263,16 @@ class TestStoringAPosition:
         stored = (await client.get(position_url(readable_book.id))).json()
         assert stored["position"] == SECOND_CHAPTER_POSITION
 
-    async def test_the_write_that_arrives_last_is_the_one_that_is_stored(
+    async def test_a_slow_clock_still_records_its_reading(
         self, client: AsyncClient, db_session: AsyncSession, readable_book: Book
     ) -> None:
-        """Should settle two writes by when they arrived, not by what their clocks claimed.
+        """Should let a write land on arrival, whatever the reader's clock claims.
 
-        Freshness has to be a fact about this server. A second device whose
-        clock is five minutes slow would otherwise have every write it ever made
-        read as older than what is stored, and be refused for good -- a
-        permanent, silent failure to record anything, in exchange for tidiness
-        about an ordering that is sub-second in practice.
-
-        The reading session is what protects the reader from the disagreement:
-        its end time only moves forward, so the slow clock cannot shorten a
-        sitting that really did run.
+        Whether a write happens at all is a fact about this server. A second
+        device whose clock is five minutes slow would otherwise have every write
+        it ever made read as older than what is stored and be refused for good.
+        Its reading is counted; only the *position* waits for its clock to catch
+        up, which the test below is about.
         """
         first = datetime(2026, 3, 1, 9, 10, tzinfo=UTC)
         await put_position(client, readable_book.id, LAST_PARAGRAPH, first)
@@ -276,10 +286,78 @@ class TestStoringAPosition:
         )
 
         assert slow.status_code == status.HTTP_200_OK, slow.text
-        assert slow.json()["position"] == SECOND_CHAPTER_POSITION
         sessions = await sessions_for(db_session, readable_book)
         assert len(sessions) == 1
-        assert as_aware(sessions[0].end_time) == first
+        assert sessions[0].end_time - sessions[0].start_time == timedelta(minutes=1)
+
+    async def test_an_idle_tab_closing_does_not_drag_the_reader_backwards(
+        self, client: AsyncClient, db_session: AsyncSession, readable_book: Book
+    ) -> None:
+        """Should keep the page a live tab reached when a stale one closes on an old page.
+
+        Two tabs, one book. The first sits on its page while the second reads
+        on; then the first is closed, and its dying write arrives *last* --
+        carrying a position its reader left long ago. Ordering on arrival alone,
+        that write wins: the stored position falls back to the abandoned page,
+        and a resume would put the reader there.
+
+        So arrival decides only whether a write happens. Whether it *moves* the
+        position is settled on the reader's own clock, which is what the closing
+        write cannot forge -- it is honestly carrying an old observation. It
+        still closes the sitting, which is what it came to say.
+        """
+        idling_at = datetime(2026, 3, 1, 9, 0, tzinfo=UTC)
+        await put_position(client, readable_book.id, LAST_PARAGRAPH, idling_at)
+        await put_position(
+            client, readable_book.id, SECOND_CHAPTER, datetime(2026, 3, 1, 9, 20, tzinfo=UTC)
+        )
+
+        closing = await put_position(
+            client,
+            readable_book.id,
+            LAST_PARAGRAPH,
+            idling_at,
+            closing=True,
+            arriving=datetime(2026, 3, 1, 9, 21, tzinfo=UTC),
+        )
+
+        assert closing.status_code == status.HTTP_200_OK, closing.text
+        assert closing.json()["position"] == SECOND_CHAPTER_POSITION
+        stored = (await client.get(position_url(readable_book.id))).json()
+        assert stored["position"] == SECOND_CHAPTER_POSITION
+        # The sitting was not dragged back either: progress is where the live
+        # tab got to, not where the closed one had been sitting.
+        sessions = await sessions_for(db_session, readable_book)
+        assert len(sessions) == 1
+        assert sessions[0].end_position == [16, 0]
+
+    async def test_a_stale_write_that_finds_no_sitting_open_invents_none(
+        self, client: AsyncClient, db_session: AsyncSession, readable_book: Book
+    ) -> None:
+        """Should record nothing when a tab closes on a page nothing is reading any more.
+
+        The write moved no position and found no sitting to extend, so there is
+        nothing it could honestly be a session of.
+        """
+        await put_position(
+            client,
+            readable_book.id,
+            SECOND_CHAPTER,
+            datetime(2026, 3, 1, 9, 20, tzinfo=UTC),
+            closing=True,
+        )
+        before = len(await sessions_for(db_session, readable_book))
+
+        await put_position(
+            client,
+            readable_book.id,
+            LAST_PARAGRAPH,
+            datetime(2026, 3, 1, 9, 0, tzinfo=UTC),
+            closing=True,
+            arriving=datetime(2026, 3, 1, 9, 21, tzinfo=UTC),
+        )
+
+        assert len(await sessions_for(db_session, readable_book)) == before
 
     async def test_a_write_overtaken_before_it_lands_changes_nothing(
         self, client: AsyncClient, db_session: AsyncSession, readable_book: Book
@@ -335,19 +413,19 @@ class TestStoringAPosition:
         sessions = await sessions_for(db_session, readable_book)
         assert as_aware(sessions[0].end_time) == arriving
 
-    async def test_a_backdated_write_cannot_reach_past_the_idle_window(
+    async def test_a_wild_clock_cannot_invent_reading_time(
         self, client: AsyncClient, db_session: AsyncSession, readable_book: Book
     ) -> None:
-        """Should refuse to date a session further back than a session could still be open.
+        """Should measure a sitting on the server's clock alone, however it is addressed.
 
-        Proportionate rather than airtight: this is a self-hosted library where
-        the only person who can spend a credential is the person whose own
-        reading statistics a lie would inflate. What it stops is a wrong clock
-        quietly writing a year of reading history in one request.
+        The reader's clock says where they were, never how long they read. A
+        write claiming a year ago and one claiming next week both land at the
+        moment they arrive, so a session is exactly as long as the server
+        watched it run -- which is a stronger guarantee than any bound on what
+        a client may claim, and needs no bound at all.
         """
         arriving = datetime(2026, 3, 1, 9, 0, tzinfo=UTC)
-
-        response = await put_position(
+        await put_position(
             client,
             readable_book.id,
             LAST_PARAGRAPH,
@@ -355,10 +433,18 @@ class TestStoringAPosition:
             arriving=arriving,
         )
 
-        assert response.status_code == status.HTTP_200_OK, response.text
+        await put_position(
+            client,
+            readable_book.id,
+            SECOND_CHAPTER,
+            arriving + timedelta(days=7),
+            arriving=arriving + timedelta(minutes=5),
+        )
+
         sessions = await sessions_for(db_session, readable_book)
-        idle_window = timedelta(seconds=get_settings().WEB_READING_SESSION_IDLE_SECONDS)
-        assert as_aware(sessions[0].start_time) == arriving - idle_window
+        assert len(sessions) == 1
+        assert as_aware(sessions[0].start_time) == arriving
+        assert sessions[0].end_time - sessions[0].start_time == timedelta(minutes=5)
 
 
 class TestThePositionAPageTurnActuallySends:
@@ -478,6 +564,59 @@ class TestThePositionAPageTurnActuallySends:
             a_page_turn(href="resources/OEBPS/chapter99.xhtml"),
             datetime(2026, 3, 1, 9, 0, tzinfo=UTC),
         )
+
+        assert response.status_code == status.HTTP_422_UNPROCESSABLE_ENTITY, response.text
+
+    @pytest.mark.parametrize(
+        "position",
+        [2**63, MAX_PUBLICATION_POSITIONS + 1, 2_000_000_000, -1],
+        ids=["overflows-the-column", "past-the-longest-publication", "billions", "negative"],
+    )
+    async def test_a_page_number_no_position_list_could_hold_is_refused(
+        self, client: AsyncClient, readable_book: Book, position: int
+    ) -> None:
+        """Should refuse a synthetic page number outside what this API could have served.
+
+        ``locations.position`` is only ever a number the browser read out of a
+        position list of ours, so one that no publication could produce is not a
+        position at all. Unbounded it was two failures at once: a value past the
+        column's range killed the request with a 500, and a merely enormous one
+        was written down and credited as billions of pages read.
+        """
+        page_turn = a_page_turn()
+        page_turn["locations"]["position"] = position
+
+        response = await put_locator(
+            client, readable_book.id, page_turn, datetime(2026, 3, 1, 9, 0, tzinfo=UTC)
+        )
+
+        assert response.status_code == status.HTTP_422_UNPROCESSABLE_ENTITY, response.text
+
+    @pytest.mark.parametrize(
+        "progression", ["NaN", "Infinity", "-Infinity", "1e308", "-0.5", "2.0"], ids=str
+    )
+    async def test_a_progression_that_is_not_a_fraction_is_refused(
+        self, client: AsyncClient, readable_book: Book, progression: str
+    ) -> None:
+        """Should refuse a progression outside 0..1 rather than compute with it.
+
+        JSON has no NaN literal but Python's parser reads one anyway, and a
+        progression is multiplied by a length and rounded -- so ``NaN`` raised
+        a ValueError and ``Infinity`` an OverflowError, both of them 500s, from
+        a body a client can simply send.
+        """
+        body = (
+            f'{{"locator": {{"href": "{CHAPTER_ONE}", "type": "{XHTML}", '
+            f'"locations": {{"progression": {progression}}}}}, '
+            f'"recorded_at": "2026-03-01T09:00:00+00:00", "closing": false}}'
+        )
+
+        with server_clock(datetime(2026, 3, 1, 9, 0, tzinfo=UTC)):
+            response = await client.put(
+                position_url(readable_book.id),
+                content=body,
+                headers={"Content-Type": "application/json"},
+            )
 
         assert response.status_code == status.HTTP_422_UNPROCESSABLE_ENTITY, response.text
 
@@ -827,32 +966,72 @@ class TestTheReadingSessionsThisMakes:
         assert session["start_page"] == 2
         assert session["end_page"] == 2
 
-    async def test_paging_back_keeps_the_pages_the_sitting_covered(
-        self, client: AsyncClient, readable_book: Book
+    async def test_paging_back_a_little_keeps_the_pages_the_sitting_covered(
+        self, client: AsyncClient, db_session: AsyncSession, readable_book: Book
     ) -> None:
-        """Should keep the furthest page reached when a reader turns back.
+        """Should stay one sitting when a reader turns back a page, keeping the furthest.
 
         The same rule the xpoint range follows, and for the same reason: a range
         that ran backwards would not be one, and what the card reports is the
         ground the sitting covered.
+
+        The fixture is 18 elements, so a quarter of it is four and a half; this
+        walks 6 → 10 → 9 in document order, a single element back, which is
+        ordinary re-reading and well inside the threshold.
         """
         start = datetime(2026, 3, 1, 9, 0, tzinfo=UTC)
-        await put_locator(client, readable_book.id, a_page_turn(position=2), start)
-        await put_locator(
+        await put_position(
+            client, readable_book.id, REPEATED, start, before=FIRST_PARAGRAPH_CONTEXT, page=2
+        )
+        await put_position(
+            client, readable_book.id, LAST_PARAGRAPH, start + timedelta(minutes=2), page=4
+        )
+        await put_position(
             client,
             readable_book.id,
-            a_page_turn(href=CHAPTER_TWO, position=5),
+            REPEATED,
+            start + timedelta(minutes=4),
+            before=THIRD_PARAGRAPH_CONTEXT,
+            page=3,
+        )
+
+        sessions = await sessions_for(db_session, readable_book)
+        assert len(sessions) == 1
+        assert (sessions[0].start_page, sessions[0].end_page) == (2, 4)
+        # Progress follows the reader; the page range keeps the ground covered.
+        assert sessions[0].end_position == [9, 0]
+
+    async def test_starting_the_book_again_is_a_new_sitting(
+        self, client: AsyncClient, db_session: AsyncSession, readable_book: Book
+    ) -> None:
+        """Should cut a new session when a reader jumps back across the book.
+
+        Otherwise a reader who finishes and starts again half an hour later is
+        one sitting that reports every page of the book as read while the
+        progress bar says page one -- the furthest-page rule and ``end_position``
+        pulling in opposite directions. A quarter of a book is not a sequence of
+        page turns; it is a contents link, a bookmark, or starting over.
+
+        Here that is 16 → 6 of eighteen elements: ten back, where four and a
+        half is the line. The sitting it left keeps what it covered.
+        """
+        start = datetime(2026, 3, 1, 9, 0, tzinfo=UTC)
+        await put_position(client, readable_book.id, SECOND_CHAPTER, start, page=9)
+
+        await put_position(
+            client,
+            readable_book.id,
+            REPEATED,
             start + timedelta(minutes=2),
-        )
-        await put_locator(
-            client, readable_book.id, a_page_turn(position=3), start + timedelta(minutes=4)
+            before=FIRST_PARAGRAPH_CONTEXT,
+            page=1,
         )
 
-        listed = await client.get(f"/api/v1/books/{readable_book.id}/reading_sessions")
-
-        [session] = listed.json()["items"]
-        assert session["start_page"] == 2
-        assert session["end_page"] == 5
+        sessions = await sessions_for(db_session, readable_book)
+        assert len(sessions) == 2
+        assert (sessions[0].start_page, sessions[0].end_page) == (9, 9)
+        assert (sessions[1].start_page, sessions[1].end_page) == (1, 1)
+        assert sessions[1].end_position == [6, 0]
 
     async def test_browser_reading_does_not_demote_a_paged_book_to_minutes(
         self, client: AsyncClient, db_session: AsyncSession, readable_book: Book

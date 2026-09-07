@@ -8,9 +8,11 @@ whatever the browser can be put back by is what it must be handed.
 """
 
 from datetime import datetime as dt
+from math import isfinite
 
-from pydantic import AliasChoices, BaseModel, ConfigDict, Field
+from pydantic import AliasChoices, BaseModel, ConfigDict, Field, field_validator
 
+from src.application.web_reader.queries.publication_positions import MAX_PUBLICATION_POSITIONS
 from src.infrastructure.common.schemas.position_schemas import PositionResponse
 
 
@@ -34,12 +36,51 @@ class LocatorLocationsSchema(BaseModel):
     view can supply, and all of them are kept: the resume that M2.4 builds on
     tries the text quote, then the CSS selector, then a fragment id, then the
     progression, in that order.
+
+    The two numeric fields are bounded here rather than defended downstream,
+    because both feed arithmetic. ``position`` is only ever a number the browser
+    read out of a position list *this API served it*, so the ceiling is the most
+    positions any publication may be cut into -- past that it indexes no list
+    that could exist, and unbounded it was both a 500 (a value past the
+    column's range) and a session credited with billions of pages. And a
+    progression is multiplied by a resource's length and rounded, so ``NaN`` and
+    ``Infinity`` -- which JSON has no literal for but Python's parser reads
+    anyway -- have to be refused before they are arithmetic.
     """
 
     model_config = ConfigDict(populate_by_name=True)
 
-    position: int | None = None
-    progression: float | None = None
+    position: int | None = Field(
+        default=None,
+        ge=1,
+        le=MAX_PUBLICATION_POSITIONS,
+        description=(
+            "1-based index into this publication's position list -- the synthetic "
+            "page the reader is shown"
+        ),
+    )
+    progression: float | None = Field(
+        default=None,
+        ge=0,
+        le=1,
+        description="How far into this resource the position sits, 0..1",
+    )
+
+    @field_validator("progression", mode="before")
+    @classmethod
+    def drop_non_finite(cls, value: object) -> object:
+        """Read ``NaN`` and ``Infinity`` as no progression at all.
+
+        Dropped rather than refused, and this is the one place in these schemas
+        that degrades instead of validating. A rejection would be reported by
+        FastAPI in a body that quotes the offending value back -- and a body
+        quoting ``NaN`` cannot be serialised as JSON, so the 422 turns into a
+        500 and the caller learns nothing at all. Read as absent, the locator
+        goes on to be judged on what it does carry, and a locator carrying
+        nothing else is refused with a message that says so.
+        """
+        return None if isinstance(value, float) and not isfinite(value) else value
+
     total_progression: float | None = Field(
         default=None,
         validation_alias=AliasChoices("totalProgression", "total_progression"),

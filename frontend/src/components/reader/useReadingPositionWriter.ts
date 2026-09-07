@@ -37,6 +37,12 @@ const positionUrl = (bookId: number) =>
   new URL(`${API_BASE_URL}/api/v1/readium/books/${bookId}/reading-position`, window.location.origin)
     .href;
 
+/** A position, and when the reader was seen at it. */
+interface Observation {
+  locator: LocatorSchema;
+  at: string;
+}
+
 const update = (locator: LocatorSchema, at: string, closing: boolean): ReadingPositionUpdate => ({
   locator,
   recorded_at: at,
@@ -82,10 +88,13 @@ export const useReadingPositionWriter = (bookId: number) => {
   // moved" is one comparison rather than a tour of the locator's optional
   // fields. Seeded by the position the book opened at.
   const writtenRef = useRef<string | null>(null);
-  // The most recent position, written or not — what a departing write sends.
-  const latestRef = useRef<LocatorSchema | null>(null);
+  // The most recent position and *when the reader was at it* — what a departing
+  // write and every heartbeat send. The moment is the observation's own, never
+  // the moment of sending: it is what tells the server whether this write has
+  // anything new to say about where the reader is.
+  const latestRef = useRef<Observation | null>(null);
   // A move that is still waiting out the debounce.
-  const pendingRef = useRef<{ locator: LocatorSchema; at: string } | null>(null);
+  const pendingRef = useRef<Observation | null>(null);
   // Whether a session has been started at all, so that opening a book and
   // leaving it does not close a session that was never opened.
   const readingRef = useRef(false);
@@ -124,11 +133,11 @@ export const useReadingPositionWriter = (bookId: number) => {
       const pending = pendingRef.current;
       pendingRef.current = null;
       if (closing) {
-        const locator = pending?.locator ?? latestRef.current;
+        const observed = pending ?? latestRef.current;
         // Something to record, or a session open that needs ending. A book
         // opened and closed again without being read is neither.
-        if (!locator || !(pending || readingRef.current)) return;
-        send(update(locator, new Date().toISOString(), true), true);
+        if (!observed || !(pending || readingRef.current)) return;
+        send(update(observed.locator, observed.at, true), true);
         return;
       }
       if (pending) send(update(pending.locator, pending.at, false), true);
@@ -148,10 +157,14 @@ export const useReadingPositionWriter = (bookId: number) => {
       // A backgrounded tab is not a reader: a session must not be extended for
       // a book nobody is looking at.
       if (document.visibilityState !== 'visible') return;
-      const locator = latestRef.current;
-      if (!locator) return;
+      const observed = latestRef.current;
+      if (!observed) return;
       if (Date.now() - spokeAtRef.current < HEARTBEAT_MS) return;
-      send(update(locator, new Date().toISOString(), false), false);
+      // The observation's own moment, not this one: a heartbeat says the reader
+      // is still here, never that they have moved. Sent with a fresh timestamp
+      // it would claim to be a newer sighting than the page another tab is
+      // actually on, and drag the stored position back to this one.
+      send(update(observed.locator, observed.at, false), false);
     }, HEARTBEAT_MS / 2);
 
     const flushIfHidden = () => {
@@ -175,7 +188,7 @@ export const useReadingPositionWriter = (bookId: number) => {
       // it is what makes every later report a move rather than a repetition.
       if (writtenRef.current === null) {
         writtenRef.current = key;
-        latestRef.current = serialized;
+        latestRef.current = { locator: serialized, at: new Date().toISOString() };
         // Nothing is written for merely opening a book, but staying in one is
         // reading: the heartbeat's clock starts here, so a reader settled on
         // this page is recorded even though they never turn it.
@@ -185,8 +198,9 @@ export const useReadingPositionWriter = (bookId: number) => {
       if (key === writtenRef.current) return;
 
       writtenRef.current = key;
-      latestRef.current = serialized;
-      pendingRef.current = { locator: serialized, at: new Date().toISOString() };
+      const observed: Observation = { locator: serialized, at: new Date().toISOString() };
+      latestRef.current = observed;
+      pendingRef.current = observed;
       clearTimeout(timerRef.current);
       timerRef.current = setTimeout(() => {
         const pending = pendingRef.current;
