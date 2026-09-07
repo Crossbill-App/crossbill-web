@@ -69,8 +69,14 @@ const DEFAULT_FONT_SIZE_BOUNDS: { range: [number, number]; step: number } = {
  * fetching a chapter or two and assembling their blobs. Generous for that, and
  * short enough that a reader who is never getting a book is told rather than
  * left watching a skeleton.
+ *
+ * Briefly 60s, while books would not open on iPhone Safari. That was a CSP
+ * refusal rather than a slow load — `frame-ancestors 'none'`, inherited into
+ * the reader's blob: frames and enforced there by WebKit alone — so the frame
+ * failed instantly and no clock could have saved it. Waiting longer only meant
+ * a minute of skeleton before the same apology.
  */
-const BOOT_TIMEOUT_MS = 60_000;
+const BOOT_TIMEOUT_MS = 15_000;
 
 /** How long an abandoned navigator gets to tear itself down before it is dropped. */
 const DESTROY_TIMEOUT_MS = 2_000;

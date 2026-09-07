@@ -29,7 +29,12 @@ const RESIZE_OBSERVER_NOTICE = 'ResizeObserver loop';
 window.addEventListener(
   'error',
   (event) => {
-    if (event.message.includes(RESIZE_OBSERVER_NOTICE)) {
+    // Not every `error` event is an `ErrorEvent`: a subresource that fails to
+    // load fires a plain `Event` on the way up, whose `message` is undefined.
+    // Reading it threw *inside this handler*, which Vitest then reported as the
+    // unhandled error the handler exists to prevent — noise under Chromium, and
+    // enough to fail whole files under WebKit, which fires more of them.
+    if (typeof event.message === 'string' && event.message.includes(RESIZE_OBSERVER_NOTICE)) {
       event.stopImmediatePropagation();
       event.preventDefault();
     }

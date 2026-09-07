@@ -66,6 +66,14 @@ const PARAGRAPHS_PAST_ONE_SCREEN = 120;
  * for `ESCAPE_HATCH` can only mean the frame navigated. That, rather than
  * whether the document it lands on then manages to run, is what a test can
  * observe without depending on how the frame pool happens to be timed.
+ *
+ * The `onerror` vector hangs off a `data:` URL that is not a PNG rather than a
+ * missing file. It has to fail to load for the handler to have its chance, and
+ * a `data:` URL fails in the decoder rather than over the network — WebKit
+ * issues the request for a missing file late enough that it lands after the
+ * test's own handlers are gone, which the unmocked-request guard rightly calls
+ * out. The vector is the same either way: an inline event handler that must not
+ * survive `disarm`.
  */
 const hostileChapter = () =>
   `<?xml version="1.0" encoding="utf-8"?>
@@ -80,7 +88,7 @@ const hostileChapter = () =>
   <body onload="parent.document.body.setAttribute('data-pwned', 'onload')">
     <h1>On Attention</h1>
     <p><a href="javascript:parent.document.body.setAttribute('data-pwned','href')">A link.</a></p>
-    <img src="x.png" onerror="parent.document.body.setAttribute('data-pwned', 'onerror')" />
+    <img src="data:image/png;base64,bm90LWFuLWltYWdl" onerror="parent.document.body.setAttribute('data-pwned', 'onerror')" />
   </body>
 </html>`;
 

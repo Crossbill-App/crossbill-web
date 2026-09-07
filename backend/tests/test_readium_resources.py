@@ -343,6 +343,35 @@ class TestServedResourcesCarryASandboxPolicy:
         # The app policy still reaches a response that expresses none of its own.
         assert "default-src 'self'" in manifest.headers["content-security-policy"]
 
+    async def test_the_app_policy_lets_the_reader_frame_its_own_documents(
+        self,
+        client: AsyncClient,
+        nested_toc_book: Book,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        """Should not forbid this page from framing the reader's blob: documents.
+
+        A blob: document inherits the policy of the context that created it, and
+        WebKit enforces the inherited ``frame-ancestors`` against that
+        document's own ancestor. With ``'none'`` it refused every publication
+        frame the reader built, so a book never opened on iPhone Safari while
+        desktop Chromium -- which does not apply inherited ``frame-ancestors``
+        to blob: children -- was perfectly happy.
+
+        ``X-Frame-Options: DENY`` is what keeps the app itself unframeable, and
+        ``'self'`` still refuses every cross-origin attempt at the CSP level.
+        """
+        monkeypatch.setattr(main_settings, "ENVIRONMENT", "production")
+
+        manifest = await client.get(f"/api/v1/readium/books/{nested_toc_book.id}/manifest.json")
+
+        policy = manifest.headers["content-security-policy"]
+        assert "frame-ancestors 'self'" in policy
+        assert "frame-ancestors 'none'" not in policy
+        assert manifest.headers["x-frame-options"] == "DENY"
+        # And the frames themselves are still allowed to be blob: at all.
+        assert "frame-src 'self' blob:" in policy
+
 
 class TestConditionalRequests:
     """The entity tag, and what a reader that already holds a file is told."""

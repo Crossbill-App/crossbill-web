@@ -337,7 +337,24 @@ class SecurityHeadersMiddleware:
                         "font-src 'self' https://fonts.gstatic.com; "
                         "connect-src 'self'; "
                         "frame-src 'self' blob:; "
-                        "frame-ancestors 'none'; "
+                        # 'self' rather than 'none', and the web reader is why.
+                        # A blob: document inherits the CSP of the context that
+                        # created it, and WebKit then enforces the inherited
+                        # `frame-ancestors` against that document's own
+                        # ancestor -- so `'none'` made Safari refuse every
+                        # publication frame the reader built ("Refused to load
+                        # blob:... because it does not appear in the
+                        # frame-ancestors directive"), and a book never opened
+                        # on an iPhone. Chromium does not apply inherited
+                        # `frame-ancestors` to blob: children, which is why
+                        # desktop never saw it.
+                        #
+                        # Nothing is given up. `X-Frame-Options: DENY` above
+                        # still refuses every attempt to frame the app, and
+                        # `'self'` still refuses every cross-origin one at the
+                        # CSP level; what it now permits is this page framing
+                        # its own blob: documents, which is exactly the reader.
+                        "frame-ancestors 'self'; "
                         "base-uri 'self'; "
                         "form-action 'self'"
                     )
