@@ -3,20 +3,15 @@
 The publication is parsed per request, exactly as the manifest endpoint parses
 it, because the parse is what says which files the publication *has* and what
 each one is. Holding the parse in a per-book cache is deliberately deferred to
-the measurement in #745 (ADR-0004 §4); until then the two endpoints pay the same
+the measurement in #745 (ADR-0004 §4); until then every endpoint pays the same
 cost in the same way rather than one of them growing a private shortcut.
 """
 
-import asyncio
 import hashlib
 import zipfile
 from io import BytesIO
 from urllib.parse import unquote
 
-from sqlalchemy.ext.asyncio import AsyncSession
-
-from src.application.library.protocols.file_repository import FileRepositoryProtocol
-from src.application.web_reader.protocols.publication_parser import PublicationParserProtocol
 from src.application.web_reader.publications import ParsedPublication
 from src.application.web_reader.queries.publication_resource import (
     ANY_VERSION,
@@ -25,7 +20,7 @@ from src.application.web_reader.queries.publication_resource import (
 from src.domain.common.value_objects.ids import BookId, UserId
 from src.domain.library.exceptions import InvalidEbookError
 from src.domain.web_reader.exceptions import PublicationResourceNotFoundError
-from src.infrastructure.web_reader.queries.stored_epub import StoredEpub, load_stored_epub
+from src.infrastructure.web_reader.queries.stored_epub import PublicationQuery, StoredEpub
 
 # Long enough that two files of one book cannot collide by accident, short
 # enough to stay readable in a log line or a browser's network panel.
@@ -60,18 +55,8 @@ _COMPRESSED_SLACK_DIVISOR = 16
 _COMPRESSED_SLACK_BYTES = 256
 
 
-class PublicationResourceQuery:
+class PublicationResourceQuery(PublicationQuery):
     """Serves one file of a book's publication, byte-for-byte as the EPUB holds it."""
-
-    def __init__(
-        self,
-        db: AsyncSession,
-        file_repository: FileRepositoryProtocol,
-        publication_parser: PublicationParserProtocol,
-    ) -> None:
-        self.db = db
-        self.file_repository = file_repository
-        self.publication_parser = publication_parser
 
     async def get_publication_resource(
         self, book_id: BookId, user_id: UserId, path: str, known_versions: frozenset[str]
@@ -84,13 +69,11 @@ class PublicationResourceQuery:
                 too large to serve.
             PublicationResourceNotFoundError: If the publication lists no such file.
         """
-        stored = await load_stored_epub(self.db, self.file_repository, book_id, user_id)
-        if stored is None:
-            return None
-        # Parsing the publication and reading a member are both blocking and
-        # both CPU-bound, so they share one hop off the event loop rather than
-        # stalling every other request in the process for the duration.
-        return await asyncio.to_thread(self._read_member, stored, path, known_versions)
+        return await self._read_publication(
+            book_id,
+            user_id,
+            lambda stored: self._read_member(stored, path, known_versions),
+        )
 
     def _read_member(
         self, stored: StoredEpub, path: str, known_versions: frozenset[str]

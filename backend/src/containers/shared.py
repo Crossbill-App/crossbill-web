@@ -79,6 +79,9 @@ from src.infrastructure.semantic.queries.search_hydration_query import SearchHyd
 from src.infrastructure.semantic.queries.semantic_search_query import SemanticSearchQuery
 from src.infrastructure.semantic.repositories.embedding_repository import EmbeddingRepository
 from src.infrastructure.tagging.repositories import TagRepository
+from src.infrastructure.web_reader.queries.publication_positions_query import (
+    PublicationPositionsQuery,
+)
 from src.infrastructure.web_reader.queries.publication_resource_query import (
     PublicationResourceQuery,
 )
@@ -251,6 +254,12 @@ class SharedContainer(containers.DeclarativeContainer):
     )
     publication_resource_query = providers.Factory(
         PublicationResourceQuery,
+        db=db,
+        file_repository=file_repository,
+        publication_parser=epub_parser_service,
+    )
+    publication_positions_query = providers.Factory(
+        PublicationPositionsQuery,
         db=db,
         file_repository=file_repository,
         publication_parser=epub_parser_service,

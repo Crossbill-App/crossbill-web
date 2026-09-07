@@ -2,17 +2,22 @@
 
 Every web reader view is served out of the book's stored EPUB rather than out of
 Postgres, so each adapter starts the same way: one row that says whether the
-caller may see this book and which file holds it, then the file itself. That
-opening is here so the manifest and the resource endpoint cannot drift on who
-may read what.
+caller may see this book and which file holds it, then the file itself, then the
+reading of it on a worker thread. That opening is here -- as
+:func:`load_stored_epub` and the :class:`PublicationQuery` base that calls it --
+so the manifest, the resource endpoint and the position list cannot drift on who
+may read what, or on what they are willing to do to the event loop.
 """
 
+import asyncio
+from collections.abc import Callable
 from dataclasses import dataclass
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.application.library.protocols.file_repository import FileRepositoryProtocol
+from src.application.web_reader.protocols.publication_parser import PublicationParserProtocol
 from src.domain.common.value_objects.ids import BookId, UserId
 from src.domain.library.exceptions import EbookFileNotFoundError
 from src.infrastructure.library.orm.book_model import Book as BookORM
@@ -62,3 +67,47 @@ async def load_stored_epub(
     if not content:
         raise EbookFileNotFoundError(book_id.value)
     return StoredEpub(title=row.title, file_name=row.ebook_file, content=content)
+
+
+class PublicationQuery:
+    """What a web reader query adapter is before it decides what it reads.
+
+    All three of them -- the manifest, one resource, the position list -- are
+    built the same way and open the same way, because none of them is answered
+    from Postgres. The book row only says whether the caller may look and which
+    file to look in; the answer is in the EPUB. Subclasses supply the reading
+    and nothing else.
+    """
+
+    def __init__(
+        self,
+        db: AsyncSession,
+        file_repository: FileRepositoryProtocol,
+        publication_parser: PublicationParserProtocol,
+    ) -> None:
+        self.db = db
+        self.file_repository = file_repository
+        self.publication_parser = publication_parser
+
+    async def _read_publication[T](
+        self, book_id: BookId, user_id: UserId, read: Callable[[StoredEpub], T]
+    ) -> T | None:
+        """Load a user's stored EPUB and read something out of it, off the event loop.
+
+        Parsing a publication and pulling bytes out of a zip are both blocking
+        and both CPU-bound, and they are proportional to the book rather than to
+        the request. These are plain GETs a reader issues on every open, so a
+        large publication handled inline would stall every other request in the
+        process for the duration -- hence the one hop to a worker thread, which
+        is here so that no view can quietly skip it.
+
+        Returns:
+            Whatever ``read`` returns, or ``None`` when the user has no such book.
+
+        Raises:
+            EbookFileNotFoundError: If the book exists but no EPUB is stored for it.
+        """
+        stored = await load_stored_epub(self.db, self.file_repository, book_id, user_id)
+        if stored is None:
+            return None
+        return await asyncio.to_thread(read, stored)

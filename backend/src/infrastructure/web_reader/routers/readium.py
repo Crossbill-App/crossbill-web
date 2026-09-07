@@ -11,20 +11,28 @@ from src.application.web_reader.publications import (
     PublicationResource,
     TocEntry,
 )
+from src.application.web_reader.queries.get_publication_positions_use_case import (
+    GetPublicationPositionsUseCase,
+)
 from src.application.web_reader.queries.get_publication_resource_use_case import (
     GetPublicationResourceUseCase,
 )
 from src.application.web_reader.queries.get_web_publication_use_case import (
     GetWebPublicationUseCase,
 )
+from src.application.web_reader.queries.publication_positions import PublicationPosition
 from src.application.web_reader.queries.publication_resource import ANY_VERSION
 from src.core import container
 from src.infrastructure.common.di import inject_use_case
 from src.infrastructure.web_reader.dependencies import PublicationReader
 from src.infrastructure.web_reader.schemas.readium_schemas import (
+    POSITION_LIST_MEDIA_TYPE,
     POSITION_LIST_REL,
     WEBPUB_MEDIA_TYPE,
+    PositionList,
     ReadiumLink,
+    ReadiumLocations,
+    ReadiumLocator,
     ReadiumMetadata,
     ReadiumProperties,
     WebPublicationManifest,
@@ -35,9 +43,7 @@ router = APIRouter(prefix="/readium", tags=["readium"])
 # Every href in the manifest is relative to the manifest's own URL, so a reader
 # that has resolved `/readium/books/7/manifest.json` reaches a resource at
 # `/readium/books/7/resources/<path in the container>` and the position list at
-# `/readium/books/7/positions.json`, with no base URL to configure. The two
-# endpoints those point at arrive in M1.2 and M1.3; linking to them now is what
-# the manifest is for.
+# `/readium/books/7/positions.json`, with no base URL to configure.
 RESOURCE_PATH_PREFIX = "resources/"
 POSITION_LIST_HREF = "positions.json"
 
@@ -66,6 +72,12 @@ class WebpubJSONResponse(JSONResponse):
     media_type = WEBPUB_MEDIA_TYPE
 
 
+class PositionListJSONResponse(JSONResponse):
+    """JSON served under the media type Readium registers for a position list."""
+
+    media_type = POSITION_LIST_MEDIA_TYPE
+
+
 @router.get(
     "/books/{book_id}/manifest.json",
     response_model=WebPublicationManifest,
@@ -88,6 +100,38 @@ async def get_readium_manifest(
     manifest = _manifest(publication, self_href=str(request.url))
     return WebpubJSONResponse(
         content=manifest.model_dump(mode="json", by_alias=True, exclude_none=True)
+    )
+
+
+@router.get(
+    "/books/{book_id}/positions.json",
+    response_model=PositionList,
+    response_class=PositionListJSONResponse,
+    status_code=status.HTTP_200_OK,
+)
+async def get_readium_positions(
+    book_id: int,
+    current_user: PublicationReader,
+    use_case: GetPublicationPositionsUseCase = Depends(
+        inject_use_case(container.web_reader.get_publication_positions_use_case)
+    ),
+) -> PositionListJSONResponse:
+    """Get the Readium position list for a book's EPUB.
+
+    This is what the manifest's ``position-list`` link resolves to: one Locator
+    per synthetic page of the publication, which is how a reader turns "where am
+    I" into a number it can show and store.
+    """
+    positions = await use_case.get_publication_positions(
+        book_id=book_id,
+        user_id=current_user.id.value,
+    )
+    document = PositionList(
+        total=len(positions),
+        positions=[_locator(position) for position in positions],
+    )
+    return PositionListJSONResponse(
+        content=document.model_dump(mode="json", by_alias=True, exclude_none=True)
     )
 
 
@@ -207,12 +251,25 @@ def _manifest(publication: ParsedPublication, self_href: str) -> WebPublicationM
             ReadiumLink(
                 href=POSITION_LIST_HREF,
                 rel=POSITION_LIST_REL,
-                type="application/json",
+                type=POSITION_LIST_MEDIA_TYPE,
             ),
         ],
         reading_order=[_resource_link(item) for item in publication.reading_order],
         resources=[_resource_link(item) for item in publication.resources],
         toc=[_toc_link(entry) for entry in publication.toc],
+    )
+
+
+def _locator(position: PublicationPosition) -> ReadiumLocator:
+    """Render one computed position as a Locator pointing at the resource endpoint."""
+    return ReadiumLocator(
+        href=_served_href(position.href),
+        type=position.media_type,
+        locations=ReadiumLocations(
+            position=position.position,
+            progression=position.progression,
+            total_progression=position.total_progression,
+        ),
     )
 
 

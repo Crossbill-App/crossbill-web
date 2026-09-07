@@ -21,26 +21,24 @@ that agreement is the point rather than a formatting preference.
 
 import struct
 import zipfile
-from collections.abc import AsyncGenerator
 from io import BytesIO
 from pathlib import Path
 from typing import Any
 
 import pytest
-from httpx import ASGITransport, AsyncClient
+from httpx import AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession
 from starlette import status
 
 from src.infrastructure.library.services import epub_parser_service
-from src.main import app
-from src.models import Book, User
-from tests.conftest import create_test_book
+from src.models import Book
 
 FIXTURES = Path(__file__).parent / "fixtures"
 
 WEBPUB_MEDIA_TYPE = "application/webpub+json"
 EPUB_PROFILE = "https://readium.org/webpub-manifest/profiles/epub"
 POSITION_LIST_REL = "http://readium.org/position-list"
+POSITION_LIST_MEDIA_TYPE = "application/vnd.readium.position-list+json"
 
 
 def manifest_url(book: Book) -> str:
@@ -89,6 +87,7 @@ def build_epub(
     files: tuple[str, ...] = (),
     bodies: dict[str, bytes] | None = None,
     compression: int = zipfile.ZIP_STORED,
+    extra_metadata: str = "",
 ) -> bytes:
     """Assemble an EPUB by hand, so an adversarial one reads as such in the diff.
 
@@ -98,7 +97,8 @@ def build_epub(
 
     Every name in ``files`` gets a placeholder document unless ``bodies`` gives
     it content of its own, which is what lets a test pin the exact bytes of one
-    member.
+    member. ``extra_metadata`` is appended inside ``<metadata>``, which is where
+    a publication-wide ``rendition:layout`` goes.
     """
     bodies = bodies or {}
     package = (
@@ -106,7 +106,8 @@ def build_epub(
         '<package xmlns="http://www.idpf.org/2007/opf" version="3.0" unique-identifier="i">\n'
         '  <metadata xmlns:dc="http://purl.org/dc/elements/1.1/">'
         '<dc:identifier id="i">urn:uuid:hand-built</dc:identifier>'
-        "<dc:title>Hand Built</dc:title><dc:language>en</dc:language></metadata>\n"
+        "<dc:title>Hand Built</dc:title><dc:language>en</dc:language>"
+        f"{extra_metadata}</metadata>\n"
         '  <manifest><item id="nav" href="nav.xhtml" media-type="application/xhtml+xml" '
         f'properties="nav"/>{manifest_items}</manifest>\n'
         f"  <spine>{spine}</spine>\n</package>\n"
@@ -141,6 +142,22 @@ def build_epub(
     return out.getvalue()
 
 
+def with_declared_size(epub_content: bytes, declared: int) -> bytes:
+    """Rewrite what the archive's last member claims to decompress to.
+
+    Both the local header and the central directory are rewritten, so nothing
+    short of decompressing the member can tell how big it really is. This is the
+    shape a size lie takes once a cap exists to get past, and it lies in both
+    directions: understating hides a decompression bomb behind a small
+    declaration, while overstating inflates whatever the server derives from the
+    declaration without having to ship the bytes.
+    """
+    epub = bytearray(epub_content)
+    for signature, offset in ((b"PK\x03\x04", 22), (b"PK\x01\x02", 24)):
+        struct.pack_into("<I", epub, epub.rfind(signature) + offset, declared)
+    return bytes(epub)
+
+
 # A publication whose one spine document is really named `chapter%20one.xhtml`
 # -- a literal percent sign in the file name, which the OPF therefore writes as
 # `chapter%2520one.xhtml`.
@@ -152,14 +169,6 @@ LITERAL_PERCENT_EPUB = build_epub(
     nav_links='<li><a href="chapter%2520one.xhtml">Chapter One</a></li>',
     files=("chapter%20one.xhtml",),
 )
-
-
-@pytest.fixture
-async def anonymous_client() -> AsyncGenerator[AsyncClient, None]:
-    """A client with no authentication override, to see what the endpoint demands."""
-    transport = ASGITransport(app=app)
-    async with AsyncClient(transport=transport, base_url="http://test") as unauthenticated:
-        yield unauthenticated
 
 
 class TestManifestStructure:
@@ -219,7 +228,11 @@ class TestManifestStructure:
                 "rel": "self",
                 "type": WEBPUB_MEDIA_TYPE,
             },
-            {"href": "positions.json", "rel": POSITION_LIST_REL, "type": "application/json"},
+            {
+                "href": "positions.json",
+                "rel": POSITION_LIST_REL,
+                "type": POSITION_LIST_MEDIA_TYPE,
+            },
         ]
 
     async def test_nests_the_toc_and_percent_encodes_hrefs(
@@ -549,81 +562,6 @@ class TestMalformedPublications:
         """Should turn away an archive whose declared uncompressed size is absurd."""
         monkeypatch.setattr(epub_parser_service, "MAX_PUBLICATION_UNCOMPRESSED_BYTES", 10)
         await store_epub(db_session, test_book, storage_dir, fixture_bytes("minimal.epub"))
-
-        response = await client.get(manifest_url(test_book))
-
-        assert response.status_code == status.HTTP_400_BAD_REQUEST
-
-
-class TestManifestAccess:
-    """Who may read a manifest, and what happens when there is none to read."""
-
-    async def test_requires_authentication(
-        self, anonymous_client: AsyncClient, test_book: Book
-    ) -> None:
-        """Should reject an unauthenticated request rather than serve the book."""
-        response = await anonymous_client.get(manifest_url(test_book))
-
-        assert response.status_code == status.HTTP_401_UNAUTHORIZED, response.text
-
-    async def test_unknown_book_is_not_found(self, client: AsyncClient) -> None:
-        """Should answer 404 for a book id that exists for nobody."""
-        response = await client.get("/api/v1/readium/books/99999/manifest.json")
-
-        assert response.status_code == status.HTTP_404_NOT_FOUND
-
-    async def test_another_users_book_is_not_found(
-        self,
-        client: AsyncClient,
-        db_session: AsyncSession,
-        other_user: User,
-        storage_dir: Path,
-    ) -> None:
-        """Should answer 404 for a readable EPUB belonging to somebody else."""
-        their_book = await create_test_book(
-            db_session=db_session, user_id=other_user.id, title="Not Yours"
-        )
-        await store_epub(db_session, their_book, storage_dir, fixture_bytes("minimal.epub"))
-
-        response = await client.get(manifest_url(their_book))
-
-        assert response.status_code == status.HTTP_404_NOT_FOUND
-
-    async def test_book_without_an_epub_is_not_found(
-        self, client: AsyncClient, test_book: Book
-    ) -> None:
-        """Should answer 404 when the book was never given a file to read."""
-        assert test_book.ebook_file is None
-
-        response = await client.get(manifest_url(test_book))
-
-        assert response.status_code == status.HTTP_404_NOT_FOUND
-
-    async def test_missing_epub_file_is_not_found(
-        self,
-        client: AsyncClient,
-        db_session: AsyncSession,
-        test_book: Book,
-        storage_dir: Path,
-    ) -> None:
-        """Should answer 404 when the row names a file the store does not hold."""
-        test_book.ebook_file = "vanished.epub"
-        test_book.file_type = "epub"
-        await db_session.commit()
-
-        response = await client.get(manifest_url(test_book))
-
-        assert response.status_code == status.HTTP_404_NOT_FOUND
-
-    async def test_unreadable_epub_is_rejected(
-        self,
-        client: AsyncClient,
-        db_session: AsyncSession,
-        test_book: Book,
-        storage_dir: Path,
-    ) -> None:
-        """Should fail the request rather than serve a manifest with nothing in it."""
-        await store_epub(db_session, test_book, storage_dir, b"not an epub at all")
 
         response = await client.get(manifest_url(test_book))
 

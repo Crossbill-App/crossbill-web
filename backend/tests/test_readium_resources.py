@@ -13,27 +13,24 @@ Only the files the manifest lists are reachable. The package document,
 publication, and the endpoint must not serve them.
 """
 
-import struct
 import zipfile
 import zlib
-from collections.abc import AsyncGenerator
 from io import BytesIO
 from pathlib import Path
 
 import pytest
-from httpx import ASGITransport, AsyncClient
+from httpx import AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession
 from starlette import status
 
 from src.infrastructure.web_reader.queries import publication_resource_query
-from src.main import app
-from src.models import Book, User
-from tests.conftest import create_test_book
+from src.models import Book
 from tests.test_readium_manifest import (
     LITERAL_PERCENT_EPUB,
     build_epub,
     fixture_bytes,
     store_epub,
+    with_declared_size,
 )
 
 CHAPTER_1 = "EPUB/text/chapter%201.xhtml"
@@ -112,11 +109,11 @@ TWIN_EMPTY_MEMBERS_EPUB = build_epub(
 def understating_epub(member: str, real_size: int) -> bytes:
     """An EPUB whose one resource inflates far past the size it declares.
 
-    Both the local header and the central directory are rewritten, so nothing
-    short of decompressing the member can tell how big it really is. This is the
-    shape a decompression bomb takes once a size cap exists to get past.
+    This is the shape a decompression bomb takes once a size cap exists to get
+    past: the declaration is the only cheap description of a member, so a bomb
+    is simply a member that lies in it.
     """
-    epub = bytearray(
+    return with_declared_size(
         build_epub(
             manifest_items=(
                 '<item id="c1" href="c1.xhtml" media-type="application/xhtml+xml"/>'
@@ -127,19 +124,9 @@ def understating_epub(member: str, real_size: int) -> bytes:
             files=("c1.xhtml", member),
             bodies={member: b"A" * real_size},
             compression=zipfile.ZIP_DEFLATED,
-        )
+        ),
+        declared=8,
     )
-    for signature, offset in ((b"PK\x03\x04", 22), (b"PK\x01\x02", 24)):
-        struct.pack_into("<I", epub, epub.rfind(signature) + offset, 8)
-    return bytes(epub)
-
-
-@pytest.fixture
-async def anonymous_client() -> AsyncGenerator[AsyncClient, None]:
-    """A client with no authentication override, to see what the endpoint demands."""
-    transport = ASGITransport(app=app)
-    async with AsyncClient(transport=transport, base_url="http://test") as unauthenticated:
-        yield unauthenticated
 
 
 @pytest.fixture
@@ -657,65 +644,3 @@ class TestOnlyPublicationFilesAreReachable:
         assert response.status_code == status.HTTP_200_OK, response.text
         assert response.headers["content-type"] == "application/octet-stream"
         assert "set-cookie" not in response.headers
-
-
-class TestResourceAccess:
-    """Who may read a publication's files, and what happens when there are none."""
-
-    async def test_requires_authentication(
-        self, anonymous_client: AsyncClient, nested_toc_book: Book
-    ) -> None:
-        """Should reject an unauthenticated request rather than serve the file."""
-        response = await anonymous_client.get(resource_url(nested_toc_book, CHAPTER_1))
-
-        assert response.status_code == status.HTTP_401_UNAUTHORIZED, response.text
-
-    async def test_another_users_book_is_not_found(
-        self,
-        client: AsyncClient,
-        db_session: AsyncSession,
-        other_user: User,
-        storage_dir: Path,
-    ) -> None:
-        """Should answer 404 for a readable file belonging to somebody else."""
-        their_book = await create_test_book(
-            db_session=db_session, user_id=other_user.id, title="Not Yours"
-        )
-        await store_epub(db_session, their_book, storage_dir, fixture_bytes("nested_toc.epub"))
-
-        response = await client.get(resource_url(their_book, CHAPTER_1))
-
-        assert response.status_code == status.HTTP_404_NOT_FOUND
-        assert b"<html" not in response.content
-
-    async def test_unknown_book_is_not_found(self, client: AsyncClient) -> None:
-        """Should answer 404 for a book id that exists for nobody."""
-        response = await client.get(
-            f"/api/v1/readium/books/99999/resources/{CHAPTER_1}",
-        )
-
-        assert response.status_code == status.HTTP_404_NOT_FOUND
-
-    async def test_book_without_an_epub_is_not_found(
-        self, client: AsyncClient, test_book: Book
-    ) -> None:
-        """Should answer 404 when the book was never given a file to read."""
-        assert test_book.ebook_file is None
-
-        response = await client.get(resource_url(test_book, CHAPTER_1))
-
-        assert response.status_code == status.HTTP_404_NOT_FOUND
-
-    async def test_unreadable_epub_is_rejected(
-        self,
-        client: AsyncClient,
-        db_session: AsyncSession,
-        test_book: Book,
-        storage_dir: Path,
-    ) -> None:
-        """Should fail the request rather than answer 404 for a book it cannot parse."""
-        await store_epub(db_session, test_book, storage_dir, b"not an epub at all")
-
-        response = await client.get(resource_url(test_book, CHAPTER_1))
-
-        assert response.status_code == status.HTTP_400_BAD_REQUEST

@@ -158,4 +158,5 @@ class RootContainer(containers.DeclarativeContainer):
         WebReaderContainer,
         web_publication_query=shared.web_publication_query,
         publication_resource_query=shared.publication_resource_query,
+        publication_positions_query=shared.publication_positions_query,
     )
