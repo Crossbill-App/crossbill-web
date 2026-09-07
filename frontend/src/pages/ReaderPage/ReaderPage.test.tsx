@@ -503,3 +503,43 @@ test('a place in a chapter the book no longer has costs a bookmark, not the book
 
   await expectAStartAndAnApology();
 });
+
+/**
+ * A position is a span of the *resource*, not a rendered page, so a chapter
+ * longer than a screen paginates into several columns that all sit inside one
+ * entry of the position list. Turning a page there is unmistakably reading and
+ * leaves `locations.position` exactly where it was.
+ *
+ * That is the case a hold keyed on the position number gets wrong: it classes
+ * every one of those turns as the restore still settling, so nothing is
+ * pending and nothing is written — and the reader closes the book having lost
+ * the sitting and the progress both. The hold has to end when the book has
+ * finished arriving, not when the position number happens to change.
+ */
+test('reading on within the restored position is still written', async () => {
+  const positions = readingPositionApi(
+    aResumePosition({
+      locator: {
+        href: 'resources/OEBPS/chapter1.xhtml',
+        type: 'application/xhtml+xml',
+        locations: { position: 1, progression: 0 },
+      },
+    })
+  );
+  worker.use(
+    ...bookApi({ book: aBookDetails({ title: 'The Pragmatic Reader', has_ebook: true }) }).handlers
+  );
+  worker.use(...readiumApi({ longFirstChapter: true }));
+  worker.use(...positions.handlers);
+
+  const screen = await renderApp({ path: '/book/1/read' });
+  await expect.element(screen.getByText('Page 1 of 2', { exact: false })).toBeVisible();
+
+  await screen.getByRole('button', { name: 'Next page' }).click();
+
+  // Still the same position — the turn stayed inside the long first chapter —
+  // and still a page the reader turned.
+  await expect.element(screen.getByText('Page 1 of 2', { exact: false })).toBeVisible();
+  await expect.poll(() => positions.writes.length, { timeout: 15_000 }).toBeGreaterThan(0);
+  expect(positions.writes[0].locator.href).toBe('resources/OEBPS/chapter1.xhtml');
+}, 30_000);

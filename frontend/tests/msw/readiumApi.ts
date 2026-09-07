@@ -23,13 +23,28 @@ const POSITION_PATH = '/api/v1/readium/books/:bookId/reading-position';
 export const ESCAPE_HATCH = 'escape-hatch.xhtml';
 
 /** A chapter as an EPUB actually ships one: XHTML, with its own namespace. */
-const chapterDocument = (title: string) =>
+const chapterDocument = (title: string, paragraphs = 1) =>
   `<?xml version="1.0" encoding="utf-8"?>
 <!DOCTYPE html>
 <html xmlns="http://www.w3.org/1999/xhtml">
   <head><title>${title}</title></head>
-  <body><h1>${title}</h1><p>Attention is the rarest and purest form of generosity.</p></body>
+  <body><h1>${title}</h1>${Array.from(
+    { length: paragraphs },
+    (_, index) => `<p>Attention is the rarest and purest form of generosity. (${index + 1})</p>`
+  ).join('')}</body>
 </html>`;
+
+/**
+ * How many paragraphs make a chapter longer than one screen.
+ *
+ * A position is a span of a resource, not a rendered page, so a chapter this
+ * long paginates into several columns that all sit inside position 1 of the
+ * list — which is the only way to turn a page in a test without the position
+ * number changing. Books whose chapters run to more than a screenful are the
+ * ordinary case rather than the exotic one; the fixture's usual one-paragraph
+ * chapters are what is unrepresentative.
+ */
+const PARAGRAPHS_PAST_ONE_SCREEN = 120;
 
 /**
  * A chapter that tries to break out of its frame.
@@ -87,6 +102,11 @@ interface ReadiumApiOptions {
   expiresIn?: number;
   /** Serve the first chapter as a book that attacks the page that opened it. */
   hostile?: boolean;
+  /**
+   * Serve the first chapter long enough to paginate into several columns, so
+   * that turning a page stays inside one entry of the position list.
+   */
+  longFirstChapter?: boolean;
 }
 
 /**
@@ -100,6 +120,7 @@ export const readiumApi = ({
   positions,
   expiresIn = 900,
   hostile = false,
+  longFirstChapter = false,
 }: ReadiumApiOptions = {}) => [
   http.post(SESSION_PATH, () => HttpResponse.json({ expires_in: expiresIn })),
   http.get(MANIFEST_PATH, () => HttpResponse.json(manifest ?? aManifest())),
@@ -110,10 +131,17 @@ export const readiumApi = ({
   ...readingPositionApi().handlers,
   http.get(RESOURCE_PATH, ({ params }) => {
     const path = String(params[0]);
-    const resource =
-      hostile && path === 'OEBPS/chapter1.xhtml'
+    const isFirstChapter = path === 'OEBPS/chapter1.xhtml';
+    const rewritten =
+      hostile && isFirstChapter
         ? { body: hostileChapter(), type: 'application/xhtml+xml' }
-        : RESOURCES[path];
+        : longFirstChapter && isFirstChapter
+          ? {
+              body: chapterDocument('On Attention', PARAGRAPHS_PAST_ONE_SCREEN),
+              type: 'application/xhtml+xml',
+            }
+          : undefined;
+    const resource = rewritten ?? RESOURCES[path];
     if (!resource) return new HttpResponse(null, { status: 404 });
     return new HttpResponse(resource.body, {
       headers: { 'Content-Type': resource.type, ETag: `"${path}"` },

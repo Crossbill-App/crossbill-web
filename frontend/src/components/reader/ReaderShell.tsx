@@ -103,7 +103,7 @@ export const ReaderShell = ({ bookId, title, onClose }: ReaderShellProps) => {
   // starts from the beginning, so the locator has to stop being offered.
   const [resumeRejected, setResumeRejected] = useState(false);
   const openAt = resumeRejected ? null : (resume?.locator ?? null);
-  const recordPosition = useReadingPositionWriter(bookId, openAt);
+  const { record: recordPosition, setArriving } = useReadingPositionWriter(bookId);
 
   const viewportRef = useRef<HTMLDivElement | null>(null);
   const navigatorRef = useRef<EpubNavigator | null>(null);
@@ -178,6 +178,11 @@ export const ReaderShell = ({ bookId, title, onClose }: ReaderShellProps) => {
 
     // An AbortController rather than a plain flag: this boot is a chain of
     // awaits, and every step has to be able to ask whether it still matters.
+    // Everything the navigator reports from here until the book has been laid
+    // out is the book arriving, not the reader moving. Closed at the end of the
+    // boot below, and re-opened by the cleanup so a retry starts held again.
+    setArriving(true);
+
     const teardown = new AbortController();
     // Read through a call rather than the property: a narrowed flag is not what
     // this is, and the compiler would happily prove a later check redundant.
@@ -301,6 +306,11 @@ export const ReaderShell = ({ bookId, title, onClose }: ReaderShellProps) => {
       const fontSize = epubNavigator.preferencesEditor.fontSize;
       setFontSizeBounds({ range: fontSize.supportedRange, step: fontSize.step });
       setLocator(epubNavigator.currentLocator);
+      // The book is on screen and settled, so from here on a report is the
+      // reader's own doing. Set synchronously rather than through state: the
+      // settle report follows the layout by microtasks, and a render is not
+      // something this can wait for.
+      setArriving(false);
       clearTimeout(watchdog);
     });
 
@@ -343,6 +353,7 @@ export const ReaderShell = ({ bookId, title, onClose }: ReaderShellProps) => {
     return () => {
       teardown.abort();
       clearTimeout(watchdog);
+      setArriving(true);
       setIsPageVisible(false);
       navigatorRef.current = null;
       // Already abandoned by the watchdog, which left a fresh promise in the
@@ -362,7 +373,17 @@ export const ReaderShell = ({ bookId, title, onClose }: ReaderShellProps) => {
     // submitted to the live one below. Listing it would rebuild the reader,
     // and the book would jump back to page one on every font-size nudge.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isReady, publication, positions, openAt, theme, handleKeyDown, recordPosition, bootAttempt]);
+  }, [
+    isReady,
+    publication,
+    positions,
+    openAt,
+    theme,
+    handleKeyDown,
+    recordPosition,
+    setArriving,
+    bootAttempt,
+  ]);
 
   // Said once the book is on screen, so the reader reads it against the page it
   // is about rather than against a skeleton. Not said for a book nobody has
