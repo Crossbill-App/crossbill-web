@@ -19,6 +19,7 @@ highlight cannot be anchored to a resource the manifest names differently, so
 that agreement is the point rather than a formatting preference.
 """
 
+import struct
 import zipfile
 from collections.abc import AsyncGenerator
 from io import BytesIO
@@ -467,6 +468,64 @@ class TestMalformedPublications:
         """
         monkeypatch.setattr(epub_parser_service, "MAX_PUBLICATION_ENTRIES", 3)
         await store_epub(db_session, test_book, storage_dir, fixture_bytes("minimal.epub"))
+
+        response = await client.get(manifest_url(test_book))
+
+        assert response.status_code == status.HTTP_400_BAD_REQUEST
+
+    async def test_rejects_too_many_entries_before_opening_the_archive(
+        self,
+        client: AsyncClient,
+        db_session: AsyncSession,
+        test_book: Book,
+        storage_dir: Path,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        """Should turn the book away on its declared count, not after parsing it.
+
+        ``ZipFile`` builds a ``ZipInfo`` per entry inside its constructor, so a
+        limit that only reads ``infolist()`` has already paid the allocation it
+        exists to prevent -- 200,000 empty members fit in a 17 MB archive and
+        cost about 100 MB to open. Only the ordering separates the two checks
+        from outside, so the spy is the assertion.
+        """
+        opened: list[object] = []
+        real_zipfile = zipfile.ZipFile
+
+        def spy(*args: Any, **kwargs: Any) -> zipfile.ZipFile:  # noqa: ANN401
+            opened.append(args[0] if args else None)
+            return real_zipfile(*args, **kwargs)
+
+        monkeypatch.setattr(epub_parser_service, "MAX_PUBLICATION_ENTRIES", 3)
+        monkeypatch.setattr(epub_parser_service.zipfile, "ZipFile", spy)
+        # minimal.epub holds six members, over the lowered cap.
+        await store_epub(db_session, test_book, storage_dir, fixture_bytes("minimal.epub"))
+
+        response = await client.get(manifest_url(test_book))
+
+        assert response.status_code == status.HTTP_400_BAD_REQUEST
+        assert opened == [], "the archive was opened despite declaring too many entries"
+
+    async def test_rejects_an_archive_whose_declared_count_lies_low(
+        self,
+        client: AsyncClient,
+        db_session: AsyncSession,
+        test_book: Book,
+        storage_dir: Path,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        """Should still catch an over-cap archive that understates its own count.
+
+        Reading the trailer means trusting it, so the check against the members
+        ``ZipFile`` actually found has to stay. An EOCD that lies low gets past
+        the cheap guard and is caught by the real one.
+        """
+        understated = bytearray(fixture_bytes("minimal.epub"))
+        eocd = understated.rfind(b"PK\x05\x06")
+        struct.pack_into("<H", understated, eocd + 10, 1)
+
+        monkeypatch.setattr(epub_parser_service, "MAX_PUBLICATION_ENTRIES", 3)
+        await store_epub(db_session, test_book, storage_dir, bytes(understated))
 
         response = await client.get(manifest_url(test_book))
 

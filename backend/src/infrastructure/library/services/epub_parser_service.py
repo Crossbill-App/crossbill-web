@@ -4,6 +4,7 @@
 
 import logging
 import posixpath
+import struct
 import zipfile
 from collections.abc import Iterable
 from io import BytesIO
@@ -49,6 +50,19 @@ _LAYOUT_BY_ITEMREF_PROPERTY = {
 # EPUB runs to a few hundred megabytes across a few thousand files.
 MAX_PUBLICATION_ENTRIES = 10_000
 MAX_PUBLICATION_UNCOMPRESSED_BYTES = 2 * 1024**3
+
+# Offsets into the zip trailer records, from APPNOTE.TXT sections 4.3.14-4.3.16.
+# Read by hand because the count has to be known before `zipfile` opens the file.
+_EOCD_SIGNATURE = b"PK\x05\x06"
+_EOCD_SIZE = 22
+_EOCD_ENTRY_COUNT_OFFSET = 10
+_EOCD_MAX_COMMENT = 0xFFFF
+_ZIP64_SENTINEL = 0xFFFF
+_ZIP64_LOCATOR_SIGNATURE = b"PK\x06\x07"
+_ZIP64_LOCATOR_SIZE = 20
+_ZIP64_LOCATOR_RECORD_OFFSET = 8
+_ZIP64_EOCD_SIGNATURE = b"PK\x06\x06"
+_ZIP64_ENTRY_COUNT_OFFSET = 32
 
 
 class _TocEntry(NamedTuple):
@@ -142,8 +156,68 @@ class _PackageDocument(NamedTuple):
     layout_by_idref: dict[str, PublicationLayout]
 
 
+def _declared_entry_count(epub_content: bytes) -> int | None:
+    """Read how many entries the archive claims, without opening it.
+
+    ``zipfile.ZipFile`` parses the whole central directory in its constructor
+    and builds a ``ZipInfo`` per entry, so by the time :func:`infolist` could be
+    consulted the allocation an entry limit exists to prevent has already
+    happened: 200,000 empty members fit in a 17 MB archive and cost ~100 MB to
+    open, and a file within the upload limit can declare several times that.
+    The count therefore has to come from the End of Central Directory record,
+    which sits in the last 64 KiB and costs one search.
+
+    Returns:
+        The declared total, or ``None`` when no EOCD record can be found -- in
+        which case ``ZipFile`` will refuse the archive on its own terms.
+    """
+    tail_start = max(0, len(epub_content) - (_EOCD_SIZE + _EOCD_MAX_COMMENT))
+    eocd = epub_content.rfind(_EOCD_SIGNATURE, tail_start)
+    if eocd < 0 or eocd + _EOCD_SIZE > len(epub_content):
+        return None
+
+    (count,) = struct.unpack_from("<H", epub_content, eocd + _EOCD_ENTRY_COUNT_OFFSET)
+    if count != _ZIP64_SENTINEL:
+        return count
+    # 0xFFFF is the "look in the ZIP64 record" sentinel, which any archive with
+    # more than 65,535 entries must use -- exactly the ones this guard is for.
+    return _zip64_entry_count(epub_content, eocd)
+
+
+def _zip64_entry_count(epub_content: bytes, eocd: int) -> int | None:
+    """Follow the ZIP64 locator that precedes ``eocd`` to the real entry count."""
+    locator = eocd - _ZIP64_LOCATOR_SIZE
+    if locator < 0 or not epub_content.startswith(_ZIP64_LOCATOR_SIGNATURE, locator):
+        return None
+
+    (record,) = struct.unpack_from("<Q", epub_content, locator + _ZIP64_LOCATOR_RECORD_OFFSET)
+    if record + _ZIP64_ENTRY_COUNT_OFFSET + 8 > len(epub_content):
+        return None
+    if not epub_content.startswith(_ZIP64_EOCD_SIGNATURE, record):
+        return None
+
+    (count,) = struct.unpack_from("<Q", epub_content, record + _ZIP64_ENTRY_COUNT_OFFSET)
+    return count
+
+
+def _reject_overfull_archive(epub_content: bytes) -> None:
+    """Refuse an archive that says it holds more members than a book could.
+
+    Runs before :class:`zipfile.ZipFile` is constructed; see
+    :func:`_declared_entry_count` for why that ordering is the whole point.
+
+    Raises:
+        InvalidEbookError: If the declared entry count is over the limit.
+    """
+    declared = _declared_entry_count(epub_content)
+    if declared is not None and declared > MAX_PUBLICATION_ENTRIES:
+        raise InvalidEbookError(
+            f"declares {declared} entries, over the {MAX_PUBLICATION_ENTRIES} limit", "epub"
+        )
+
+
 def _reject_oversized_archive(archive: zipfile.ZipFile) -> None:
-    """Refuse an archive whose own directory says it is far larger than a book.
+    """Refuse an archive whose parsed directory is far larger than a book.
 
     Read from the central directory, so this costs no decompression. It is a
     sanity check and not a decompression limit: the sizes an archive declares
@@ -152,9 +226,13 @@ def _reject_oversized_archive(archive: zipfile.ZipFile) -> None:
     gigabytes is turned away before ebooklib reads every entry into memory,
     which the compressed-bytes limit on upload cannot see.
 
+    The entry count is checked again here against the members ``ZipFile``
+    actually found, because an EOCD that understated the count would otherwise
+    slip past :func:`_reject_overfull_archive`.
+
     Raises:
-        InvalidEbookError: If the archive declares too many entries or too much
-            uncompressed content.
+        InvalidEbookError: If the archive holds too many entries or declares too
+            much uncompressed content.
     """
     entries = archive.infolist()
     if len(entries) > MAX_PUBLICATION_ENTRIES:
@@ -177,6 +255,7 @@ def _read_package_document(epub_content: bytes) -> _PackageDocument:
         InvalidEbookError: If the archive is implausibly large, or the container
             or its package document is missing or unparseable.
     """
+    _reject_overfull_archive(epub_content)
     try:
         with zipfile.ZipFile(BytesIO(epub_content)) as archive:
             _reject_oversized_archive(archive)
