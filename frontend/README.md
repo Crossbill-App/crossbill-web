@@ -227,6 +227,13 @@ Precedence is simply: `VITE_API_URL` if it is set, otherwise the empty
 relative base. The single place that decides is `src/api/base-url.ts`, which
 both the axios instance and the cover-image URLs read.
 
+Note that the value is compiled into the bundle at **build** time. For
+`npm run dev` that is the same moment the server starts, but for
+`npm run preview` the variable must be set when `npm run build` runs — setting
+it only for the preview command changes nothing, and the already-built bundle
+keeps its relative base (which the preview proxy then sends to
+`localhost:8000`).
+
 The test build sees no environment variables at all: `envPrefix: []` in
 `vitest.config.ts` matches no name, so neither a local `.env` nor a variable
 exported in your shell or set by CI can reach `import.meta.env`. `VITE_API_URL`
