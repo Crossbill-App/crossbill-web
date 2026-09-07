@@ -10,11 +10,13 @@ import pytest
 from ebooklib import epub
 
 from src.application.web_reader.publications import ParsedPublication, TocEntry
+from src.domain.library.exceptions import InvalidEbookError
+from src.infrastructure.library.services import epub_parser_service
 from src.infrastructure.library.services.epub_parser_service import (
     EpubParserService,
     _declared_entry_count,  # pyright: ignore[reportPrivateUsage]
 )
-from tests.test_readium_manifest import build_epub
+from tests.test_readium_manifest import build_epub, with_declared_size
 
 FAKE_IMAGE = b"\x89PNG\r\n\x1a\n\x00\x00\x00\rIHDR fake image bytes"
 
@@ -265,15 +267,23 @@ class TestParsePublicationCost:
         assert peak < self.PEAK_LIMIT, f"inflated the publication: {peak / 1024**2:.0f} MiB"
 
 
-def hand_built_epub(package: str, members: dict[str, str], opf_path: str = "content.opf") -> bytes:
+def hand_built_epub(
+    package: str | bytes,
+    members: dict[str, str | bytes],
+    opf_path: str = "content.opf",
+    compression: int = zipfile.ZIP_STORED,
+) -> bytes:
     """An EPUB assembled member by member, for shapes ``build_epub`` cannot take.
 
     ``build_epub`` writes an EPUB 3 with a navigation document, which is the
     shape nearly every assertion wants. These are the ones it is not: a book
-    navigated by an NCX, or one whose navigation is broken.
+    navigated by an NCX, one whose navigation lives in another directory, or one
+    whose structure is a decompression bomb. ``members`` is written in order, so
+    a test can put the member it means to rewrite last -- which is the one
+    ``with_declared_size`` reaches.
     """
     out = io.BytesIO()
-    with zipfile.ZipFile(out, "w") as archive:
+    with zipfile.ZipFile(out, "w", compression) as archive:
         archive.writestr(zipfile.ZipInfo("mimetype"), "application/epub+zip", zipfile.ZIP_STORED)
         archive.writestr(
             "META-INF/container.xml",
@@ -322,6 +332,109 @@ NAV_DOCUMENT = (
     '<body><nav epub:type="toc"><ol><li><a href="c1.xhtml">From the nav document</a></li>'
     "</ol></nav></body></html>"
 )
+
+
+class TestStructuralDocumentsAreBounded:
+    """The three documents the parse *does* read are read on the same terms.
+
+    Not decompressing the content is only half the bound: a publication that
+    resolves from its container, its package document and its navigation is a
+    publication whose bomb goes in one of those three. Their declared sizes are
+    as attacker-controlled as any other member's, and ``ZipFile.read()`` honours
+    a declaration for the result while ignoring it for the work -- so the reads
+    have to be bounded by the declaration and the declaration by a cap.
+    """
+
+    BOMB_SIZE = 64 * 1024 * 1024
+
+    @staticmethod
+    def _outcome_and_peak(service: EpubParserService, content: bytes) -> tuple[object, int]:
+        """Parse a hostile publication and report the outcome and what it peaked at."""
+        tracemalloc.start()
+        try:
+            try:
+                outcome: object = service.parse_publication(content)
+            except InvalidEbookError as e:
+                outcome = e
+            peak = tracemalloc.get_traced_memory()[1]
+        finally:
+            tracemalloc.stop()
+        return outcome, peak
+
+    def test_a_package_document_that_understates_its_size_is_not_inflated(
+        self, service: EpubParserService
+    ) -> None:
+        """Should refuse a package document that lies, without inflating it first.
+
+        The OPF is read before anything is known about the publication, so a
+        member that declares eight bytes and inflates to 64 MiB puts the whole
+        bomb back through the one file the parse cannot skip.
+        """
+        # The package document is written last and nothing follows it, so this
+        # is the member `with_declared_size` rewrites.
+        content = with_declared_size(
+            hand_built_epub(b"A" * self.BOMB_SIZE, {}, compression=zipfile.ZIP_DEFLATED),
+            declared=8,
+        )
+
+        outcome, peak = self._outcome_and_peak(service, content)
+
+        assert isinstance(outcome, InvalidEbookError)
+        assert peak < self.BOMB_SIZE // 8, (
+            f"inflated the package document: {peak / 1024**2:.0f} MiB"
+        )
+
+    def test_a_navigation_document_that_understates_its_size_is_not_inflated(
+        self, service: EpubParserService
+    ) -> None:
+        """Should refuse a lying navigation document rather than degrade past it.
+
+        Navigation that cannot be read costs only the table of contents, which
+        is the right answer for a book that is merely broken. A member lying
+        about its size is not that, and swallowing it would inflate 64 MiB and
+        then serve the publication as though nothing had happened.
+        """
+        content = with_declared_size(
+            hand_built_epub(
+                package_document(
+                    DC_METADATA,
+                    '<item id="nav" href="nav.xhtml" media-type="application/xhtml+xml" '
+                    'properties="nav"/>'
+                    '<item id="c1" href="c1.xhtml" media-type="application/xhtml+xml"/>',
+                    '<spine><itemref idref="c1"/></spine>',
+                ),
+                {"c1.xhtml": CHAPTER, "nav.xhtml": b"A" * self.BOMB_SIZE},
+                compression=zipfile.ZIP_DEFLATED,
+            ),
+            declared=8,
+        )
+
+        outcome, peak = self._outcome_and_peak(service, content)
+
+        assert isinstance(outcome, InvalidEbookError)
+        assert peak < self.BOMB_SIZE // 8, f"inflated the navigation: {peak / 1024**2:.0f} MiB"
+
+    def test_refuses_a_package_document_larger_than_the_cap(
+        self, service: EpubParserService, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """Should turn away an honest declaration over the cap, before reading it.
+
+        The cap is lowered rather than the fixture inflated: the guard reads the
+        declaration, so a real 16 MiB package document would only make the test
+        slow.
+        """
+        monkeypatch.setattr(epub_parser_service, "MAX_STRUCTURAL_DOCUMENT_BYTES", 1024)
+        content = hand_built_epub(
+            package_document(
+                DC_METADATA + f"<dc:description>{'x' * 4096}</dc:description>",
+                '<item id="c1" href="c1.xhtml" media-type="application/xhtml+xml"/>',
+                '<spine><itemref idref="c1"/></spine>',
+            ),
+            {"c1.xhtml": CHAPTER},
+        )
+
+        with pytest.raises(InvalidEbookError, match="over the"):
+            service.parse_publication(content)
 
 
 class TestPublicationNavigation:
@@ -380,6 +493,58 @@ class TestPublicationNavigation:
 
         assert [entry.title for entry in publication.toc] == ["From the nav document"]
 
+    @pytest.mark.parametrize(
+        ("navigation_item", "navigation"),
+        [
+            (
+                '<item id="ncx" href="nav/toc.ncx" media-type="application/x-dtbncx+xml"/>',
+                {
+                    "OPS/nav/toc.ncx": NCX.replace('src="c', 'src="../text/c'),
+                },
+            ),
+            (
+                '<item id="nav" href="nav/nav.xhtml" media-type="application/xhtml+xml" '
+                'properties="nav"/>',
+                {
+                    "OPS/nav/nav.xhtml": NAV_DOCUMENT.replace(
+                        'href="c1.xhtml"', 'href="../text/c1.xhtml"'
+                    ),
+                },
+            ),
+        ],
+        ids=["ncx", "nav"],
+    )
+    def test_resolves_a_link_against_the_directory_the_navigation_sits_in(
+        self,
+        service: EpubParserService,
+        navigation_item: str,
+        navigation: dict[str, str | bytes],
+    ) -> None:
+        """Should read ``../text/c1.xhtml`` from ``OPS/nav/`` as ``OPS/text/c1.xhtml``.
+
+        A navigation link is relative to the document that writes it, which is
+        not always the directory the package document sits in. Resolving it
+        anywhere else names a file the publication does not hold: the reading
+        order would say ``OPS/text/c1.xhtml`` while the table of contents said
+        ``text/c1.xhtml``, so every entry in it would lead nowhere.
+        """
+        content = hand_built_epub(
+            package_document(
+                DC_METADATA,
+                navigation_item
+                + '<item id="c1" href="text/c1.xhtml" media-type="application/xhtml+xml"/>'
+                + '<item id="c2" href="text/c2.xhtml" media-type="application/xhtml+xml"/>',
+                '<spine toc="ncx"><itemref idref="c1"/><itemref idref="c2"/></spine>',
+            ),
+            {**navigation, "OPS/text/c1.xhtml": CHAPTER, "OPS/text/c2.xhtml": CHAPTER},
+            opf_path="OPS/package.opf",
+        )
+
+        publication = service.parse_publication(content)
+
+        assert publication.toc[0].href == "OPS/text/c1.xhtml"
+        assert publication.reading_order[0].href == "OPS/text/c1.xhtml"
+
     def test_a_publication_whose_navigation_is_unreadable_still_opens(
         self, service: EpubParserService
     ) -> None:
@@ -429,14 +594,20 @@ class TestPublicationIdentifier:
     def test_publishes_the_identifier_the_package_marks_unique(
         self, service: EpubParserService
     ) -> None:
-        """Should pick the named one out of several, not merely the first."""
+        """Should pick the named one out of several, wherever in the list it sits.
+
+        The designated identifier is written first here and a second one after
+        it, because either ordering passes a rule that simply takes the first or
+        the last identifier it sees -- and only this ordering separates "the one
+        the package designates" from "the one that happens to be last".
+        """
         content = self._epub_identified_by(
             '<dc:identifier id="isbn">urn:isbn:9780000000001</dc:identifier>'
             '<dc:identifier id="uuid">urn:uuid:0000</dc:identifier>',
-            unique_id="uuid",
+            unique_id="isbn",
         )
 
-        assert service.parse_publication(content).metadata.identifier == "urn:uuid:0000"
+        assert service.parse_publication(content).metadata.identifier == "urn:isbn:9780000000001"
 
     def test_publishes_an_identifier_the_package_marks_as_nothing(
         self, service: EpubParserService

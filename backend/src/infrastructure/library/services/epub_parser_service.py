@@ -7,7 +7,7 @@ import mimetypes
 import posixpath
 import struct
 import zipfile
-from collections.abc import Iterable
+from collections.abc import Callable, Iterable
 from io import BytesIO
 from typing import Any, NamedTuple, cast
 from urllib.parse import quote, unquote
@@ -26,6 +26,7 @@ from src.application.web_reader.publications import (
 from src.domain.library.entities.chapter import TocChapter
 from src.domain.library.exceptions import InvalidEbookError
 from src.infrastructure.common.memory import trims_memory
+from src.infrastructure.common.zip_members import read_bounded_member
 
 logger = logging.getLogger(__name__)
 
@@ -43,9 +44,6 @@ _MEDIA_TYPE_CORRECTIONS = {"image/jpg": "image/jpeg"}
 
 # The manifest property naming the EPUB 3 navigation document.
 _NAV_PROPERTY = "nav"
-
-# What ``unique-identifier`` defaults to when the package document states none.
-_DEFAULT_IDENTIFIER_ID = "id"
 
 # EPUB spells the Readium layout property two ways: once for the publication, as
 # a `rendition:layout` metadata value, and per spine item, as an itemref
@@ -65,6 +63,23 @@ _LAYOUT_BY_ITEMREF_PROPERTY = {
 # EPUB runs to a few hundred megabytes across a few thousand files.
 MAX_PUBLICATION_ENTRIES = 10_000
 MAX_PUBLICATION_UNCOMPRESSED_BYTES = 2 * 1024**3
+
+# The largest container, package or navigation document this will read.
+#
+# The total above bounds the archive; this bounds each of the three members the
+# parse actually decompresses, which is what the total cannot do -- 2 GiB of
+# declared content is an ordinary illustrated library, and a single 2 GiB OPF is
+# a bomb wearing the only file the parse cannot skip.
+#
+# Derived from the entry cap rather than picked: a package document lists one
+# `<item>` per member, and at a generous 200 bytes an item, the largest manifest
+# admitted here -- `MAX_PUBLICATION_ENTRIES` -- writes about 2 MB. A navigation
+# document is the same shape and no denser: one line per entry. Eight times that
+# leaves room for the outliers this must not turn away, an anthology's
+# thousand-entry table of contents included, while sitting well under the
+# `MAX_RESOURCE_BYTES` cap on a member that is merely served -- a document the
+# parse must hold to answer at all is not the place for the loosest limit.
+MAX_STRUCTURAL_DOCUMENT_BYTES = 16 * 1024 * 1024
 
 # Offsets into the zip trailer records, from APPNOTE.TXT sections 4.3.14-4.3.16.
 # Read by hand because the count has to be known before `zipfile` opens the file.
@@ -318,29 +333,64 @@ def _read_publication(epub_content: bytes) -> tuple[_PackageDocument, tuple[_Nav
     package document it names, and the navigation document (or NCX) the package
     names in turn. Sizes and names come from the central directory, which costs
     nothing to consult, so what a publication costs to resolve is a property of
-    its structure rather than of its content.
+    its structure rather than of its content -- and each of the three is read
+    under :func:`_read_structural_document`, so being one of them is not a way
+    to be read on trust.
 
     Raises:
         InvalidEbookError: If the archive is implausibly large, or the container
-            or its package document is missing or unparseable.
+            or its package document is missing, oversized or unparseable.
     """
     _reject_overfull_archive(epub_content)
     try:
         with zipfile.ZipFile(BytesIO(epub_content)) as archive:
             _reject_oversized_archive(archive)
-            container = etree.fromstring(archive.read(CONTAINER_PATH))
+            container = etree.fromstring(_read_structural_document(archive, CONTAINER_PATH))
             rootfile = container.find(f".//{{{_CONTAINER_NS}}}rootfile")
             opf_path = rootfile.get("full-path") if rootfile is not None else None
             if not opf_path:
                 raise InvalidEbookError("container.xml names no package document", "epub")
             package = _package_document(
-                etree.fromstring(archive.read(opf_path)), posixpath.dirname(opf_path)
+                etree.fromstring(_read_structural_document(archive, opf_path)),
+                posixpath.dirname(opf_path),
             )
             return package, _read_navigation(archive, package)
     except InvalidEbookError:
         raise
     except Exception as e:
         raise InvalidEbookError(f"unreadable package document: {e!s}", "epub") from e
+
+
+def _read_structural_document(archive: zipfile.ZipFile, name: str) -> bytes:
+    """Read one of the documents a publication's structure is written in.
+
+    The declaration is checked before the read and enforced during it, in that
+    order, because neither does the other's job: the cap turns away a member
+    that honestly says it is too big, and the bounded read stops a member that
+    lies from inflating anyway. Without the second, a member declaring eight
+    bytes and holding two gigabytes passes the cap and then costs the two
+    gigabytes -- ``ZipFile.read()`` truncates the result to the declaration and
+    hands the decompressor no limit at all.
+
+    Raises:
+        InvalidEbookError: If the member is over the cap, unreadable, or carries
+            more than it declared.
+    """
+    entry = archive.getinfo(posixpath.normpath(name))
+    if entry.file_size > MAX_STRUCTURAL_DOCUMENT_BYTES:
+        raise InvalidEbookError(
+            f"{entry.filename!r} declares {entry.file_size} bytes, over the "
+            f"{MAX_STRUCTURAL_DOCUMENT_BYTES} limit",
+            "epub",
+        )
+
+    document = read_bounded_member(archive, entry)
+    if len(document) > entry.file_size:
+        raise InvalidEbookError(
+            f"{entry.filename!r} carries more than the {entry.file_size} bytes it declares",
+            "epub",
+        )
+    return document
 
 
 def _package_document(package: etree._Element, directory: str) -> _PackageDocument:
@@ -437,20 +487,23 @@ def _identifier(
 ) -> str | None:
     """Return the ``dc:identifier`` the package's ``unique-identifier`` names.
 
-    A publication that names none, or names one it does not carry, still has an
-    identity worth publishing, so the first identifier stands in. What it must
-    never be is invented: a manifest whose identifier changed between two
-    requests for the same file would make every reader's stored state name a
-    different book each time it looked.
-    """
-    unique_id = package.get("unique-identifier") or _DEFAULT_IDENTIFIER_ID
-    for _value, element_id in identifiers:
-        if element_id:
-            unique_id = element_id
+    The designation is the whole point of the attribute: a book commonly carries
+    several identifiers -- an ISBN, a UUID, a vendor's own -- and the package
+    says which one *is* the publication. Position among them says nothing, so
+    neither the first nor the last will do.
 
-    named = [value for value, element_id in identifiers if element_id == unique_id and value]
-    if named:
-        return named[-1]
+    A publication that designates none, or designates one it does not carry,
+    still has an identity worth publishing, so the first identifier stands in.
+    What it must never be is invented: a manifest whose identifier changed
+    between two requests for the same file would make every reader's stored
+    state name a different book each time it looked.
+    """
+    unique_id = package.get("unique-identifier")
+    designated = next(
+        (value for value, element_id in identifiers if element_id == unique_id and value), None
+    )
+    if designated is not None:
+        return designated
     return identifiers[0][0] if identifiers and identifiers[0][0] else None
 
 
@@ -524,17 +577,19 @@ def _read_navigation(archive: zipfile.ZipFile, package: _PackageDocument) -> tup
     A table of contents that cannot be read costs the table of contents and not
     the book: the reading order is what a reader opens, and a publication whose
     navigation is missing or malformed is still one a reader can page through.
+    A member that lies about its size is not merely broken, though, so the
+    refusal :func:`_read_structural_document` raises passes straight out --
+    degrading past a bomb would mean paying for it first.
     """
     source = _navigation_source(package)
     if source is None:
         return ()
 
-    member = posixpath.normpath(posixpath.join(package.directory, source.file_name))
+    member = posixpath.join(package.directory, source.file_name)
     try:
-        document = archive.read(member)
-        if source.base_path is None:
-            return _parse_ncx(document)
-        return _parse_nav(document, source.base_path)
+        return source.parse(_read_structural_document(archive, member), source.base_path)
+    except InvalidEbookError:
+        raise
     except Exception as e:
         logger.warning(f"Publication navigation {member!r} could not be read: {e!s}")
         return ()
@@ -545,23 +600,26 @@ class _NavigationSource(NamedTuple):
 
     Attributes:
         file_name: The member's path relative to the package document.
-        base_path: The directory its links resolve against, ``None`` for an NCX
-            -- whose sources resolve against the package document itself.
+        base_path: The directory its links resolve against -- its own, for both
+            formats, since a link is written relative to the document that
+            writes it and neither format has to sit beside the package document.
+        parse: The reader for the format it is written in.
     """
 
     file_name: str
-    base_path: str | None
+    base_path: str
+    parse: Callable[[bytes, str], tuple[_NavPoint, ...]]
 
 
 def _navigation_source(package: _PackageDocument) -> _NavigationSource | None:
     """Find the navigation document, or the NCX the spine falls back to."""
     for item in package.items:
         if item.media_type == _XHTML_MEDIA_TYPE and _NAV_PROPERTY in item.properties:
-            return _NavigationSource(item.file_name, posixpath.dirname(item.file_name))
+            return _NavigationSource(item.file_name, posixpath.dirname(item.file_name), _parse_nav)
 
     for item in package.items:
         if package.ncx_id and item.item_id == package.ncx_id:
-            return _NavigationSource(item.file_name, None)
+            return _NavigationSource(item.file_name, posixpath.dirname(item.file_name), _parse_ncx)
 
     return None
 
@@ -621,19 +679,20 @@ def _text_content(element: etree._Element) -> str:
     return "".join(cast(Iterable[str], element.itertext()))
 
 
-def _parse_ncx(document: bytes) -> tuple[_NavPoint, ...]:
+def _parse_ncx(document: bytes, base_path: str) -> tuple[_NavPoint, ...]:
     """Read an EPUB 2 NCX's ``navMap`` into nav points.
 
-    An NCX ``content`` source is relative to the NCX itself, which the EPUB 2
-    specification requires to sit beside the package document -- so the sources
-    are left as written, to be resolved against the package document's directory
-    like every other href here.
+    An NCX ``content`` source is relative to the NCX, which is a manifest item
+    like any other and need not sit beside the package document. Resolving one
+    anywhere but the NCX's own directory names a file the publication does not
+    hold, so a book whose NCX lives in a subdirectory would have a table of
+    contents pointing everywhere except at its own reading order.
     """
     nav_map = etree.fromstring(document).find(f"{{{_NCX_NS}}}navMap")
-    return _ncx_points(nav_map) if nav_map is not None else ()
+    return _ncx_points(nav_map, base_path) if nav_map is not None else ()
 
 
-def _ncx_points(parent: etree._Element) -> tuple[_NavPoint, ...]:
+def _ncx_points(parent: etree._Element, base_path: str) -> tuple[_NavPoint, ...]:
     """Walk one NCX element's ``navPoint`` children, and the points nested in them."""
     points: list[_NavPoint] = []
 
@@ -643,8 +702,8 @@ def _ncx_points(parent: etree._Element) -> tuple[_NavPoint, ...]:
         points.append(
             _NavPoint(
                 title=(label.text or "") if label is not None else "",
-                href=(content.get("src") or "") if content is not None else "",
-                children=_ncx_points(point),
+                href=_nav_href(base_path, content.get("src") if content is not None else None),
+                children=_ncx_points(point, base_path),
             )
         )
 
