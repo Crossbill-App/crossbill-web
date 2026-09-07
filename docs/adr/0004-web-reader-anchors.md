@@ -185,17 +185,11 @@ have been.
 
 ## Pending
 
-Two decisions belong in this ADR and are not yet made. **Both will be appended
-here as amendments once settled** — they are not separate ADRs, because both are
-about how a web reading position gets in and out of the system.
+One decision belongs in this ADR and is not yet made. **It will be appended here
+as an amendment once settled** — it is not a separate ADR, because it is about
+how a web reading position gets in and out of the system. (The other, auth for
+iframe resource loads, is settled below in *Amendment 1*.)
 
-- **Auth for iframe resource loads — M1.4 (#737).** The navigator loads each
-  resource URL straight into an iframe, and the API's Bearer token is held in
-  memory where an iframe load cannot send it. The candidate is a short-lived,
-  httpOnly publication access cookie scoped to one book's resource path,
-  mirroring the refresh cookie in `identity/routers/auth.py`; the rejected
-  alternative to record is signed URLs, which are stateless but put the token in
-  logs and in the manifest.
 - **How web reading maps onto reading sessions — M2.3 (#742).** Reading
   progress is derived from the latest reading session's `end_position`, so the
   browser has to produce sessions or produce something the progress bar and
@@ -245,4 +239,80 @@ about how a web reading position gets in and out of the system.
 - **#731 (M0.2)** — `xpoint-cfi` has no locator output yet. Until it lands,
   nothing in this ADR's §2 is implementable.
 - **#745 (M3.1)** — the measurement that decides §4.
-- **#737, #742** — see *Pending*.
+- **#742** — see *Pending*.
+
+## Amendment 1: authentication for iframe resource loads
+
+- **Date:** 2026-09-07
+- **Resolves:** #737 (M1.4), the first of the two decisions left *Pending* above
+
+`@readium/navigator` loads each resource of a publication straight into an
+iframe. An iframe load is a plain browser request: it carries cookies and
+nothing else, and in particular it cannot carry the SPA's access token, which is
+held in memory precisely so that nothing else can reach it. Some second
+credential is therefore unavoidable; the decision is which.
+
+### A short-lived publication cookie, scoped to one book
+
+`POST /api/v1/readium/books/{book_id}/session` is **Bearer-authenticated**,
+checks that the book is the caller's (404 if it is not, as everywhere else in
+the library), and sets an httpOnly cookie carrying a signed token that binds
+**one user, one book, and an expiry**. It answers 200 with `{"expires_in": …}`
+rather than 204: the cookie is httpOnly, so the page cannot read when it dies,
+and it has to know in order to re-post before it does.
+
+- **Signing** is the identity module's own — a JWT, HS256, `SECRET_KEY` — with a
+  `type: "publication"` claim. Because that key also signs access tokens,
+  `verify_access_token` was tightened in the same change to require
+  `type == "access"` rather than merely *not* `refresh`: a narrower credential
+  must not be spendable as a wider one.
+- **Scope** is the cookie's `path`, `/api/v1/readium/books/{book_id}/`. A
+  browser then sends it to that book's manifest, resources and position list,
+  and offers it to no other book and to nothing else in the API. The server does
+  not take the browser's word for it: the token's `book` claim is compared
+  against the path's `book_id`, and a mismatch is **401** — the caller has
+  presented no valid credential *for this book*, and 404 would mean telling a
+  token scoped to book A whether book B exists.
+- **Flags** are the refresh cookie's, for the same reasons: `httpOnly`,
+  `Secure` unless `COOKIE_SECURE` says otherwise (which is what lets a
+  plain-http development server work), `SameSite=Strict` — the reader and the
+  API are the same site, so the navigator's own iframe loads carry it while
+  nothing off-site can make a browser spend it.
+- **TTL** is the access token's lifetime (`ACCESS_TOKEN_EXPIRE_MINUTES`, 15
+  minutes by default), and the cookie's `Max-Age` matches, so a dead credential
+  is dropped rather than sent. The reader re-posts on the schedule it already
+  refreshes its access token on. Longer would mean a session that has ended — a
+  password changed, a refresh family revoked — could keep reading a book for
+  longer than it could keep calling the API; shorter buys nothing, since
+  everything this cookie opens is already open to the token that minted it.
+- **Every web reader route takes it**, the manifest included, because they share
+  one dependency (`get_publication_reader`, built for this in M1.2). This widens
+  nothing: a cookie is only ever issued to a caller that proved possession of a
+  Bearer token for that same book, so it opens no door its holder could not
+  already open — and one credential rule with one place to get wrong is the
+  point of that dependency.
+
+It is deliberately **not a session**: nothing is stored, nothing is revoked, and
+a token is a pure function of its claims. What bounds it is its scope — one
+book, read-only, for no longer than the token that bought it.
+
+### Rejected: signed URLs
+
+Signing each resource URL is equally stateless and needs no cookie at all. It
+was rejected because the credential then travels **in the URL**: it lands in
+access logs, in proxy logs and in browser history, and — since the navigator
+gets its resource URLs from the manifest — it would have to be minted into **the
+manifest itself**, which is a cached document. A cookie keeps the credential in
+a header a log does not record, and lets the manifest stay the same document for
+every request.
+
+### Not adopted
+
+- **Widening the cookie to the whole API.** It authenticates reading one
+  publication; anything else is what the Bearer token is for.
+- **A revocation list for publication tokens.** At a 15-minute TTL bounded by
+  the access token's own, this would add a store and a lookup to buy back
+  minutes.
+- **Any change to the plugin surface.** The KOReader plugin does not load
+  publications, so no `koreader-plugin` minimum bump comes out of this
+  amendment either.
