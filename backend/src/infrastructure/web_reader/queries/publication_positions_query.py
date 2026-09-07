@@ -51,44 +51,17 @@ from io import BytesIO
 from urllib.parse import unquote
 
 from src.application.web_reader.publications import PublicationLayout, PublicationResource
-from src.application.web_reader.queries.publication_positions import PublicationPosition
+from src.application.web_reader.queries.publication_positions import (
+    MAX_PUBLICATION_POSITIONS,
+    POSITION_LENGTH,
+    PublicationPosition,
+)
 from src.domain.common.value_objects.ids import BookId, UserId
 from src.domain.library.exceptions import InvalidEbookError
 from src.infrastructure.web_reader.queries.publication_resource_query import (
     check_member_is_servable,
 )
 from src.infrastructure.web_reader.queries.stored_epub import PublicationQuery, StoredEpub
-
-# Bytes of a reflowable document per position, which is the length every Readium
-# toolkit uses (readium/architecture#123). The number is arbitrary and the
-# agreement is not: a locator saying "position 42" means nothing unless whoever
-# reads it cut the book the same way whoever wrote it did.
-POSITION_LENGTH = 1024
-
-# The most positions one publication may be cut into.
-#
-# This endpoint is the one place in the web reader where a small file can ask
-# for an enormous answer. Everywhere else the response is bounded by bytes that
-# actually exist: a resource is a member that has to be decompressed, so the
-# archive has to carry it. A position list is arithmetic over sizes the central
-# directory *declares*, and a declaration costs four bytes to write -- so a
-# 1.3 KB archive can claim a two-gigabyte chapter and ask for two million
-# positions, each of which becomes a dataclass, a Pydantic model and a JSON
-# object on the way out.
-#
-# `check_member_is_servable` bounds each member at `MAX_RESOURCE_BYTES`, which
-# is 64 MiB and so 65,536 positions. That is not enough on its own: the parser
-# admits a publication declaring `MAX_PUBLICATION_UNCOMPRESSED_BYTES` in total,
-# and thirty-two members just under the per-member cap still add up to two
-# million positions. The per-member cap bounds one member; this bounds the sum.
-#
-# The size is derived from the upload limit rather than picked. An EPUB arrives
-# as at most the 50 MiB `MAX_EBOOK_SIZE` an upload may be, and XHTML deflates at
-# roughly four to one, so four times the upload cap is a generous ceiling on the
-# markup an honest reading order can hold. For scale: the longest novel ever
-# published runs to about 4 MB of text, some four thousand positions, so this
-# leaves roughly fiftyfold headroom over the largest book anyone has written.
-MAX_PUBLICATION_POSITIONS = 4 * 50 * 1024 * 1024 // POSITION_LENGTH
 
 
 class PublicationPositionsQuery(PublicationQuery):

@@ -30,6 +30,7 @@ from src.domain.common.exceptions import (
     EntityNotFoundError,
     ValidationError,
 )
+from src.domain.web_reader.exceptions import UnresolvablePositionError
 from src.infrastructure.common.client_ip import client_ip, client_ip_from_scope, proxy_chain
 from src.infrastructure.common.openapi import operation_id
 from src.infrastructure.common.rate_limit import RateLimitMiddleware, limiter
@@ -349,6 +350,10 @@ app.add_middleware(
 
 
 DOMAIN_ERROR_STATUS_MAP: list[tuple[type[DomainError], int, str]] = [
+    # Before the general rules below: a position the browser cannot place in the
+    # book is a well-formed request the server understood and still cannot act
+    # on, which is neither a bad request nor a missing thing.
+    (UnresolvablePositionError, 422, "unresolvable_position"),
     (EntityNotFoundError, 404, "not_found"),
     (ValidationError, 400, "bad_request"),
     (ConflictError, 409, "conflict"),
@@ -363,6 +368,7 @@ SAFE_MESSAGES: dict[int, str] = {
     401: "Authentication failed.",
     403: "You do not have permission to perform this action.",
     409: "The resource already exists or conflicts with current state.",
+    422: "The request was understood but could not be acted on.",
     500: "An unexpected error occurred.",
 }
 

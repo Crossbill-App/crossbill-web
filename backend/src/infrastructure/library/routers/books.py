@@ -159,6 +159,7 @@ def _build_book_details_schema(view: BookDetailsView) -> BookDetails:
         ],
         chapters=[_build_chapter_schema(chapter) for chapter in view.chapters],
         highlight_count=view.highlight_count,
+        has_ebook=view.has_ebook,
         reading_position=PositionResponse(
             index=view.reading_position.index,
             char_index=view.reading_position.char_index,

@@ -200,17 +200,10 @@ have been.
 
 ## Pending
 
-One decision belongs in this ADR and is not yet made. **It will be appended here
-as an amendment once settled** — it is not a separate ADR, because it is about
-how a web reading position gets in and out of the system. (The other, auth for
-iframe resource loads, is settled below in *Amendment 1*.)
-
-- **How web reading maps onto reading sessions — M2.3 (#742).** Reading
-  progress is derived from the latest reading session's `end_position`, so the
-  browser has to produce sessions or produce something the progress bar and
-  `ReadingStatisticsCalculator` understand. The candidate is to create real
-  sessions from the reader (start on open, end on close or idle, start/end
-  xpoints converted from locators) so both keep working unchanged.
+**Nothing.** Both decisions this section held are settled below — auth for
+iframe resource loads in *Amendment 1* (#737), and how web reading maps onto
+reading sessions in *Amendment 3* (#742). A new question about anchors belongs
+here as a new amendment; there is no open one to wait for.
 
 ## Consequences
 
@@ -254,7 +247,6 @@ iframe resource loads, is settled below in *Amendment 1*.)
 - **#731 (M0.2)** — `xpoint-cfi` has no locator output yet. Until it lands,
   nothing in this ADR's §2 is implementable.
 - **#745 (M3.1)** — the measurement that decides §4.
-- **#742** — see *Pending*.
 
 ## Amendment 1: authentication for iframe resource loads
 
@@ -410,3 +402,353 @@ travels into the frame. `SecurityHeadersMiddleware` was changed in the same
 place to leave a response's own policy alone rather than overwrite it, since the
 app-wide policy is only sent outside development — exactly where this one
 matters.
+
+## Amendment 3: how web reading becomes reading sessions
+
+- **Date:** 2026-09-07
+- **Resolves:** #742 (M2.3), the second of the two decisions left *Pending*
+  above — which is now empty
+
+Reading progress is the `end_position` of the latest row in `reading_sessions`,
+and the statistics page is `ReadingStatisticsCalculator` over every row of it.
+Neither knows the web reader exists. So the question this amendment settles is
+what the browser has to write for those two to keep being right.
+
+### The reader writes real reading sessions
+
+**Web reading produces ordinary `reading_sessions` rows** — the same table, the
+same columns, the same meaning — rather than a parallel notion of progress that
+the progress bar and the calculator would then have to learn about. Nothing in
+`reading` changed: the calculator, the activity grid, the book-details view's
+`reading_position` and the statistics endpoint were not touched, and a session
+made in the browser shows up in all of them because it is not a special kind of
+row.
+
+A session is written by the position endpoint itself, on the request that
+reports a position:
+
+- **It starts on the first position write after the book is opened**, not on
+  opening. The navigator announces where it is as soon as a frame loads, so
+  "opened" is a moment the browser reports whether or not anybody reads
+  anything; the frontend therefore remembers the position the book opened at
+  and writes only once it *changes*. Opening a book and closing it again
+  records nothing.
+- **It grows on every write after that.** `end_time` becomes the moment
+  reported, `end_position` becomes where the reader now is, and the xpoint
+  range is extended to the furthest the session reached — `ReadingSession.
+  extend_to`. A reader paging backwards moves `end_position` back with them,
+  because that is where they are and that is what progress means; the range
+  keeps its furthest extent, because a range that ran backwards would not be
+  one.
+- **It is kept alive while the reader is on one page.** Sitting still is not
+  the same as having stopped, so the reader re-sends its position every ten
+  minutes while the tab is visible; an unchanged position is still a position
+  arriving, and extends the session like any other.
+- **It ends by not being extended.** This is the part worth stating plainly:
+  **nothing has to run to close a web reading session.** Its `end_time` is
+  already the last position it was told about, so a session that stops being
+  extended is over the moment it stops. There is no background job, no sweeper,
+  and no idle-close write — and a tab left open all night adds no reading time,
+  because no positions arrive while nobody reads.
+- **A gap decides where one sitting is cut from the next.** A write arriving
+  more than `WEB_READING_SESSION_IDLE_SECONDS` (default 30 minutes) after the
+  open session's end starts a new session instead of extending it. Generous on
+  purpose: since over-counting is structurally impossible, the timeout only
+  decides *granularity*, and a slow reader on one page must not be cut in two.
+- **Leaving the book closes it explicitly.** The frontend's last write carries
+  `closing`, which clears the pointer to the open session so that the next
+  sitting starts a fresh one however soon the reader comes back. Written with a
+  `keepalive` fetch, the only kind of request a page may leave behind.
+
+The session records `device_id = "crossbill-web-reader"`, which both keeps
+browser reading distinguishable in the sessions list and keeps its content hash
+from colliding with a KOReader session that happened to start at the same
+instant.
+
+**A session's pages are Readium position numbers.** `start_page` / `end_page`
+have never been a canonical pagination — a KOReader session carries *that
+device's* page numbers, which depend on its screen and its font — so the honest
+equivalent for a browser session is the pagination the browser shows: the
+position list this API serves, which the reader's own chrome counts "Page X of
+N" from. The number arrives as `locations.position`, which is the browser
+handing back an index into a document of ours rather than a claim about the
+book, and a value outside Readium's 1-based list is treated as absent rather
+than refused — the position itself is already stored, and a page range is what a
+session is *labelled* with.
+
+Leaving them null was not merely a blank line on a card. The activity grid
+counts pages only when **every** session of a book has them
+(`ActivityUnitRule.EVERY_SESSION_PAGED`), so one page-less web session silently
+rewrote a KOReader-read book's whole year from pages into minutes — a
+consequence no reader would connect to having opened the book in a browser. The
+page range follows the same rule as the xpoint range: it keeps the furthest the
+sitting reached, so paging back reports the ground covered rather than a range
+running backwards, and a sitting the heartbeat carried across one page reports
+that page at both ends instead of nothing.
+
+### The new table is a cache and a bookmark, not a second source of truth
+
+`web_reading_positions` (one row per reader and book) holds the Readium locator,
+the xpointer it converted to, the resolved `Position`, when it was recorded, and
+the id of the session still being extended.
+
+**It is not where "how far through am I" is answered.** That stays the latest
+session's `end_position`, exactly as before. What this table holds is the two
+things a reading session cannot: the locator, so a browser can be put back
+precisely where it was (M2.4), and the open-session pointer, so the next write
+knows whether it is continuing a sitting. §2 already called a stored locator a
+cache entry rather than a record, and that is what this is — if the EPUB is
+replaced, the locator becomes a reference into a book that no longer exists and
+the xpointer beside it is what still means something.
+
+### Endpoints, and where they live
+
+`GET` and `PUT /api/v1/readium/books/{book_id}/reading-position`.
+
+**Under the `readium` prefix, not `/books/{id}/`** as #742's body wrote it. That
+wording predates *Amendment 1*: the publication cookie is scoped by `path` to
+`/api/v1/readium/books/{id}/`, so a route outside that prefix could not be
+reached by the credential a reader holds when its access token has lapsed
+mid-page. Putting these two inside it is what lets `get_publication_reader`
+serve them like every other web reader route — one credential rule, one place to
+get it wrong.
+
+The `PUT` body is the locator as the navigator serializes it, plus
+`recorded_at`, plus `closing`. `recorded_at` is the reader's own clock, and it
+sets the *reading session's* moment only — never which of two writes is later;
+see *Concurrency* below for both halves of that and for the bounds it is held
+within. A write that has been overtaken is answered with what is stored rather
+than refused: the debounced write and the one a closing tab sends race by
+design, and the loser is not an error.
+
+### A reading position usually has no quote at all
+
+**Corrected 2026-09-07, from the maintainer's own reading.** The paragraph this
+replaces assumed a reading position arrives with a text quote and a CSS
+selector, "which scopes the search to one element and makes the match unique far
+more often than not". It arrives with neither. `EpubNavigator` reports a page
+turn in a reflowable book from its column snapper's `progress` event, whose
+payload is a start fraction, an end fraction and some fragment ids; the Locator
+it builds from that carries an `href`, a `position`, a `progression`, an empty
+`fragments` array — and no text whatever. Every real position write was
+therefore refused with *"no highlight and no context to anchor to"*, while every
+test passed, because the fixtures were shaped like a **selection**.
+
+So the conversion synthesises a quote out of the document itself when the
+Locator brought none, from whatever it did bring, and hands it back through the
+same tested conversion the quote path uses. `AnchorSource` records which of the
+three it was:
+
+- **`QUOTE`** — the Locator's own text. What a selection produces, and what
+  M3/M4's highlights will be.
+- **`ELEMENT`** — the element a `cssSelector` or a fragment id names; the quote
+  is that element's first run of text, so the position lands where the element
+  begins.
+- **`PROGRESSION`** — the text at that fraction of the resource. What a page
+  turn produces, and therefore the ordinary case rather than the exotic one.
+
+### The confidence floor, one per kind of anchor
+
+§5 requires callers to reject weak matches. The three anchors above are not
+points on one scale, so there is a floor for each rather than one for all — a
+`BOTH_CONTEXTS` from a quote and a `FUZZY` from a progression are not
+comparable, and the grade a synthesised quote comes back with would otherwise
+measure how well this code copied text out of a document it was reading anyway.
+Each is therefore **capped** at what the Locator's own evidence was worth, and
+compared against its own floor:
+
+| Anchor | Ceiling | Floor | Because |
+| --- | --- | --- | --- |
+| `QUOTE` | `BOTH_CONTEXTS` | `HIGHLIGHT_ONLY` | Graded on evidence the caller supplied — §5's case exactly |
+| `ELEMENT` | `HIGHLIGHT_ONLY` | `HIGHLIGHT_ONLY` | Names one place, corroborated by nothing else |
+| `PROGRESSION` | `FUZZY` | `FUZZY` | Approximate by construction, and accepted anyway |
+
+`HIGHLIGHT_ONLY` for a quote — the quote occurring exactly once — refuses
+exactly the two grades that mean *we do not know which place this is*: `FUZZY`,
+the quote not being in the book as written, which is the shape a replaced
+edition takes, and `AMBIGUOUS`, the quote occurring several times with neither
+context settling which. That is one grade below what a *highlight* will demand
+(M4.1): a highlight drawn in the wrong paragraph is a visible, lasting falsehood
+about what the reader marked, while a reading position that is off costs a
+moment finding one's place.
+
+**Accepting `PROGRESSION` is the load-bearing choice here**, and it is what the
+live failure taught: a floor that refused an approximate anchor would refuse to
+record reading at all, since almost every reading position *is* one. What still
+refuses is the conversion failing outright — a Locator naming a resource the
+book does not have — which is the signal §5 is actually for. A refusal is
+**422**, not 400: the request is well formed and the caller could not have sent
+anything better.
+
+The alternative, asking the frontend for a richer Locator, was rejected on
+inspection: the snapper's `progress` message has no text in it, `EpubNavigator`
+exposes no way to ask a frame for one, and scraping the iframe's DOM for context
+on every page turn is a great deal of machinery to make the *client* do work the
+server can do against a publication it has already parsed.
+
+### Concurrency: the position row is the control point
+
+Two tabs of the same book write independently, and the first draft took a
+decision between reading the row and writing it — which is a decision two
+writers can both take. It also wrote the reading session *first*, so a losing
+position write left a session row behind it.
+
+**The position is claimed first, in one conditional upsert, and the session is
+written only by the request that won the claim.** The write is an
+`INSERT … ON CONFLICT (user_id, book_id) DO UPDATE … WHERE updated_at <
+:written_at`, which answers both questions the write depends on — is there a row
+yet, is this newer than what is in it — at the moment of writing. The
+open-session pointer is then attached under `WHERE updated_at = :written_at`, so
+only the writer that is still the latest may move it: a close cannot undo a page
+turn that landed after it, and a page turn cannot reopen a session closed after
+it. An overtaken write is answered with what is stored, because the write a
+closing tab sends and the one a page turn sends race by design.
+
+### Two clocks, answering two questions
+
+**`updated_at` is the server's clock**, and it decides *whether a write happens
+at all*. Ordering on the reader's own clock reads well until a second device is
+five minutes slow, at which point every write it will ever make is older than
+what is stored and is refused for good — a permanent, silent failure to record
+anything.
+
+**`recorded_at` is the reader's clock**, and it decides *whether a write moves
+the position*. Arrival cannot answer that one. Two tabs, one book: the first
+idles on page 20 while the second reads on to page 100; the first is then
+closed, and its dying write arrives **last**, carrying a page its reader left an
+hour ago. Ordered on arrival alone it wins, and a resume puts the reader back on
+page 20. So the upsert carries both conditions — `WHERE updated_at <
+:written_at` for the write, and a `CASE` per column on `recorded_at` for the
+move — and a write that does not move the position still lands: it extends the
+sitting, and closes it if that is what it came to say. A write that moved
+nothing *and* found no sitting open records nothing at all, because a tab
+closing on a page nobody is reading is not a session.
+
+This is also why a **heartbeat carries the observation's own moment** rather
+than the moment it fires: it says the reader is still here, never that they have
+moved. Sent with a fresh timestamp it would claim to be a newer sighting than
+the page another tab is actually on.
+
+**Neither clock measures reading.** A session's start and end are the server's
+clock alone, so no client can be credited with time it did not spend — which is
+a stronger guarantee than any bound on what a client may claim, and needs no
+bound at all. The reader's clock says *where* they were; it never says how long
+they read.
+
+Two live tabs still take turns owning the position, which is inherent to one
+stored position per reader and book: whichever the reader last moved in wins,
+and that is the right answer. What is fixed here is the tab that is **not**
+moving overwriting the one that is.
+
+**Residual, accepted.** Two genuinely simultaneous *first* writes for a book can
+each create a session in the window between the two statements; the pointer ends
+at the later writer's, and the other is a stray zero-second session. No 500, no
+orphaned pointer, no duplicate row — one extra row in a rarely-hit race, which
+is a great deal less than what it replaced.
+
+### A jump back across the book is a new sitting
+
+A sitting reports the ground it covered — its page range and its xpoint range
+keep the furthest they reached — while its `end_position` keeps where the reader
+is. Those two agree only while the reader is moving through the book. Somebody
+who finishes a novel and starts it again half an hour later would otherwise be
+**one** sitting reporting three hundred pages read with a progress bar on page
+one.
+
+So a backward jump of more than **a quarter of the book** ends the sitting and
+begins a new one. A quarter is not a sequence of page turns; it is navigation —
+a contents link, a bookmark, starting again. Re-reading the previous chapter,
+which is the largest backward move ordinary reading makes, is a few per cent of
+a book of ordinary length and sits comfortably inside it. The threshold sits
+nearer the cautious end than the middle deliberately: erring low splits a
+sitting that re-read a long chapter, which costs a row; erring high leaves the
+phantom pages the rule exists to stop.
+
+### What a locator may claim
+
+Both numbers a locator carries are bounded at the schema, because both feed
+arithmetic and neither was.
+
+`locations.position` is only ever an index the browser read out of a position
+list *this API served it*, so its ceiling is `MAX_PUBLICATION_POSITIONS` — the
+most positions any publication may be cut into. Unbounded it was two failures at
+once: a value past the column's range killed the request with a 500, and a
+merely enormous one was written down and credited as billions of pages read.
+
+`locations.progression` is multiplied by a resource's length and rounded, so
+`NaN` and `Infinity` — which JSON has no literal for but Python's parser reads
+anyway — raised out of `round()` as 500s. Non-finite values are read as *no
+progression* rather than refused, which is the one place these schemas degrade
+instead of validating: FastAPI reports a rejection in a body that quotes the
+offending value back, and a body quoting `NaN` cannot be serialised as JSON, so
+the 422 would turn into a 500 and tell the caller nothing. Read as absent, the
+locator is judged on what it does carry. The anchor port clamps again on its own
+account, since a port is reachable from more than one caller.
+
+### The caches are process-local, and the deployment is one process
+
+`PublicationCaches` evicts by calling a method on objects held in memory, which
+reaches this interpreter and no other. `Dockerfile` runs `uvicorn src.main:app`
+with **no `--workers`**, and the upload that replaces an EPUB is served by the
+same process that holds the caches, so today every cache that could go stale is
+told.
+
+This is a real constraint, not an implementation detail: give uvicorn a second
+worker and a book replaced through worker A goes on being served from worker B's
+parse until its LRU happens to drop it, with no error anywhere to say so. Adding
+workers therefore means **replacing** this rather than adding to it — a shared
+cache (Redis), or a cache key that changes when the bytes do (a content hash
+rather than the filename, which makes eviction unnecessary altogether). Neither
+is worth building for a deployment that has one process; both are a day's work
+when it stops having one. The constraint is written down at
+`PublicationCaches`, at the `Dockerfile` CMD, and here.
+
+### The reader says it is still there
+
+A session ends by not being extended, which means a reader who stays on one page
+for half an hour ends theirs at their last page turn — and a reader who never
+turns a page records nothing at all, since the position a book opens at is
+deliberately not written. So the reader **re-sends its current position every
+ten minutes while the tab is visible**, a third of the idle window, which the
+server reads as the session continuing because an unchanged position is still a
+position arriving. A hidden tab sends nothing, which is what keeps a book left
+open overnight from recording a night's reading.
+
+### Also decided here
+
+- **The book's own `end_position` is backfilled on the way past.** Progress is a
+  fraction of it, and until now only the KOReader upload path ever measured a
+  book's length — so a book read only in the browser had no denominator and no
+  progress. Reading one in the browser is as good an occasion to learn how long
+  it is.
+- **A second per-book cache, evicted with the first.** Resolving an xpointer to
+  a `Position` means a whole-EPUB parse, and the reader asks every few seconds,
+  so `CachedBookPositionIndex` holds position indices exactly as the anchor
+  service holds parsed publications. Both key on `Book.ebook_file`, which is
+  reused when an EPUB is replaced, so the upload path now evicts through a
+  `PublicationCaches` fan-out rather than naming one of them — one dependency,
+  however many caches grow behind it.
+
+### Not adopted
+
+- **A background job to close idle sessions.** There is nothing to close: see
+  above. A sweeper would exist only to write an `end_time` that is already
+  correct.
+- **Ordering two writes by the reader's clock.** See *Concurrency* above: it
+  trades a sub-second reordering for a device with a slow clock never recording
+  anything again.
+- **Scraping the publication frame for text context** so that every Locator
+  carries a quote. The server already holds the parsed publication; the client
+  would be doing the same work worse, on every page turn.
+- **A `web_reading_progress` notion of its own**, read by the progress bar
+  instead of sessions. It would be a second answer to a question that already
+  has one, and every reader of progress would have to learn to ask both.
+- **Trusting the client's clock for durations, or for ordering.** It sets the
+  moment a session is measured from, bounded at both ends; which of two writes
+  is later is the server's own clock and nothing else.
+- **Writing a position on open.** It would start a session for opening a book,
+  and — once M2.4 resumes into a stored position — write back the position it
+  had just restored.
+- **Any change to the plugin surface.** KOReader still uploads finished
+  sessions the way it always has, so no `koreader-plugin` minimum bump comes out
+  of this amendment either.

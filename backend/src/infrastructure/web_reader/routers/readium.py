@@ -1,12 +1,17 @@
 """API router serving the Readium Web Publication Manifest and the files it names."""
 
 import re
+from datetime import datetime
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, Request, Response
 from fastapi.responses import JSONResponse
 from starlette import status
 
+from src.application.web_reader.anchors import Locator, LocatorLocations, LocatorText
+from src.application.web_reader.commands.save_reading_position_use_case import (
+    SaveReadingPositionUseCase,
+)
 from src.application.web_reader.publications import (
     ParsedPublication,
     PublicationResource,
@@ -18,6 +23,9 @@ from src.application.web_reader.queries.get_publication_positions_use_case impor
 from src.application.web_reader.queries.get_publication_resource_use_case import (
     GetPublicationResourceUseCase,
 )
+from src.application.web_reader.queries.get_reading_position_use_case import (
+    GetReadingPositionUseCase,
+)
 from src.application.web_reader.queries.get_web_publication_use_case import (
     GetWebPublicationUseCase,
 )
@@ -28,12 +36,20 @@ from src.application.web_reader.queries.verify_publication_access_use_case impor
 )
 from src.config import get_settings
 from src.core import container
+from src.domain.web_reader.entities.web_reading_position import WebReadingPosition
 from src.infrastructure.common.di import inject_use_case
+from src.infrastructure.common.schemas.position_schemas import PositionResponse
 from src.infrastructure.identity.dependencies import (
     AuthenticatedCaller,
     get_authenticated_caller,
 )
+from src.infrastructure.reading.routers.reader_clock import reader_now
 from src.infrastructure.web_reader.dependencies import PublicationReader
+from src.infrastructure.web_reader.schemas.reading_position_schemas import (
+    LocatorSchema,
+    ReadingPosition,
+    ReadingPositionUpdate,
+)
 from src.infrastructure.web_reader.schemas.readium_schemas import (
     POSITION_LIST_MEDIA_TYPE,
     POSITION_LIST_REL,
@@ -253,6 +269,123 @@ async def get_readium_positions(
     return PositionListJSONResponse(
         content=document.model_dump(mode="json", by_alias=True, exclude_none=True)
     )
+
+
+@router.get(
+    "/books/{book_id}/reading-position",
+    response_model=ReadingPosition | None,
+    status_code=status.HTTP_200_OK,
+)
+async def get_reading_position(
+    book_id: int,
+    current_user: PublicationReader,
+    use_case: GetReadingPositionUseCase = Depends(
+        inject_use_case(container.web_reader.get_reading_position_use_case)
+    ),
+) -> ReadingPosition | None:
+    """Get where this reader last was in the book, or null if they have never been.
+
+    Null rather than 404: a book nobody has opened in the browser is an ordinary
+    state of an ordinary book, and 404 here would mean the same thing as a book
+    that is not the caller's, which it is not.
+    """
+    position = await use_case.get_reading_position(
+        book_id=book_id,
+        user_id=current_user.id.value,
+    )
+    return _reading_position(position) if position else None
+
+
+@router.put(
+    "/books/{book_id}/reading-position",
+    response_model=ReadingPosition,
+    status_code=status.HTTP_200_OK,
+    responses={
+        status.HTTP_422_UNPROCESSABLE_ENTITY: {
+            "description": "The locator names no place this book can be shown to have."
+        }
+    },
+)
+async def put_reading_position(
+    book_id: int,
+    update: ReadingPositionUpdate,
+    current_user: PublicationReader,
+    now: Annotated[datetime, Depends(reader_now)],
+    use_case: SaveReadingPositionUseCase = Depends(
+        inject_use_case(container.web_reader.save_reading_position_use_case)
+    ),
+) -> ReadingPosition:
+    """Record where the reader has got to, and keep their reading session going.
+
+    The position is converted to the canonical KOReader xpointer before anything
+    is stored (ADR-0004 §2) and refused if the conversion is too weak to say
+    where it is. It also extends -- or begins -- a real row in
+    ``reading_sessions``, which is how browser reading reaches the progress bar
+    and the reading statistics without either of them knowing the web reader
+    exists (ADR-0004, Amendment 3).
+
+    A write that says nothing newer than what is stored is answered with what is
+    stored, rather than refused: the write a closing tab sends and the one a
+    page turn sends race by design.
+    """
+    stored = await use_case.save_reading_position(
+        book_id=book_id,
+        user_id=current_user.id.value,
+        locator=_anchor_locator(update.locator),
+        stored_locator=update.locator.model_dump(mode="json", by_alias=True, exclude_none=True),
+        recorded_at=update.recorded_at,
+        now=now,
+        closing=update.closing,
+    )
+    return _reading_position(stored)
+
+
+def _reading_position(stored: WebReadingPosition) -> ReadingPosition:
+    """Render a stored position as the browser gets it back."""
+    return ReadingPosition(
+        locator=LocatorSchema.model_validate(stored.locator),
+        xpoint=stored.xpoint.to_string(),
+        position=PositionResponse(
+            index=stored.position.index,
+            char_index=stored.position.char_index,
+        )
+        if stored.position
+        else None,
+        updated_at=stored.updated_at,
+    )
+
+
+def _anchor_locator(locator: LocatorSchema) -> Locator:
+    """Read a navigator's locator into the vocabulary the anchor port speaks.
+
+    The href is the one translation that matters. Every href a navigator ever
+    saw came out of the manifest or the position list, so it names this
+    endpoint's URL for a file (``resources/OEBPS/chapter1.xhtml``) rather than
+    the file's path inside the container -- and the container path is what a
+    conversion against the EPUB resolves. This is ``_served_href`` read
+    backwards. A locator whose href carries no such prefix is passed through
+    unchanged and will simply name nothing in the publication.
+    """
+    return Locator(
+        href=_container_href(locator.href),
+        type=locator.type,
+        locations=LocatorLocations(
+            progression=locator.locations.progression,
+            css_selector=locator.locations.css_selector,
+            fragments=tuple(locator.locations.fragments or ()),
+            position=locator.locations.position,
+        ),
+        text=LocatorText(
+            before=locator.text.before,
+            highlight=locator.text.highlight,
+            after=locator.text.after,
+        ),
+    )
+
+
+def _container_href(served_href: str) -> str:
+    """Point a URL this endpoint serves back at the path inside the EPUB container."""
+    return served_href.removeprefix(RESOURCE_PATH_PREFIX)
 
 
 @router.get(

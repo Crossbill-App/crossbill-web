@@ -53,9 +53,11 @@ export function bookApi(initial: Partial<BookApiState> = {}) {
 
   const handlers = [
     http.get('/api/v1/books/:bookId', () => HttpResponse.json(state.book)),
-    // The book page asks whether there is an EPUB, to decide whether to offer
-    // the "Read" tab. Books in tests have none unless the test says otherwise,
-    // in which case it registers `readiumApi()` after these handlers.
+    // Whether there *is* an EPUB is `has_ebook` on the book above, which is
+    // what the Read tab reads. These handlers are the reader's own: a book left
+    // without an EPUB answers its manifest with a 404 rather than leaving a
+    // request unhandled if a test opens the reader anyway. A test with an EPUB
+    // registers `readiumApi()` after these — MSW resolves newest first.
     ...noPublication,
     http.get('/api/v1/books/:bookId/notes', () => HttpResponse.json({ items: state.notes })),
     http.get('/api/v1/books/:bookId/digest', () => HttpResponse.json({ items: state.digests })),

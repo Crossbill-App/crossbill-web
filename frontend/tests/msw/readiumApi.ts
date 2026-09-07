@@ -1,4 +1,9 @@
-import type { PositionList, WebPublicationManifest } from '@/api/generated/model';
+import type {
+  PositionList,
+  ReadingPosition,
+  ReadingPositionUpdate,
+  WebPublicationManifest,
+} from '@/api/generated/model';
 import { http, HttpResponse } from 'msw';
 import { aManifest, aPositionList } from '../fixtures/publication';
 
@@ -6,6 +11,7 @@ const MANIFEST_PATH = '/api/v1/readium/books/:bookId/manifest.json';
 const POSITIONS_PATH = '/api/v1/readium/books/:bookId/positions.json';
 const SESSION_PATH = '/api/v1/readium/books/:bookId/session';
 const RESOURCE_PATH = '/api/v1/readium/books/:bookId/resources/*';
+const POSITION_PATH = '/api/v1/readium/books/:bookId/reading-position';
 
 /**
  * The file a hostile chapter tries to navigate its own frame to.
@@ -97,6 +103,10 @@ export const readiumApi = ({
   http.post(SESSION_PATH, () => HttpResponse.json({ expires_in: expiresIn })),
   http.get(MANIFEST_PATH, () => HttpResponse.json(manifest ?? aManifest())),
   http.get(POSITIONS_PATH, () => HttpResponse.json(positions ?? aPositionList())),
+  // An open reader writes where it is, so every test that opens one meets these
+  // whether or not it is about them. `readingPositionApi` is the version that
+  // remembers what was written.
+  ...readingPositionApi().handlers,
   http.get(RESOURCE_PATH, ({ params }) => {
     const path = String(params[0]);
     const resource =
@@ -109,6 +119,34 @@ export const readiumApi = ({
     });
   }),
 ];
+
+/**
+ * The reading-position endpoints, remembering every write.
+ *
+ * The reader writes debounced and again on the way out, so a test asserts on
+ * `writes` rather than on a spy: what matters is what reached the server and
+ * what it said, not which code path sent it.
+ *
+ * Register these after `readiumApi()` — MSW resolves newest first — when a test
+ * needs to see the writes.
+ */
+export const readingPositionApi = (stored: ReadingPosition | null = null) => {
+  const writes: ReadingPositionUpdate[] = [];
+  const handlers = [
+    http.get(POSITION_PATH, () => HttpResponse.json(stored)),
+    http.put(POSITION_PATH, async ({ request }) => {
+      const update = (await request.json()) as ReadingPositionUpdate;
+      writes.push(update);
+      return HttpResponse.json({
+        locator: update.locator,
+        xpoint: '/body/DocFragment[1]/body/div[1]/p[1]',
+        position: { index: 1, char_index: 0 },
+        updated_at: update.recorded_at,
+      } satisfies ReadingPosition);
+    }),
+  ];
+  return { handlers, writes };
+};
 
 /** A book with no EPUB: the manifest 404s, which is how the app learns there is none. */
 export const noPublication = [

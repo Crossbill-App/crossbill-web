@@ -86,6 +86,13 @@ from src.infrastructure.web_reader.queries.publication_resource_query import (
     PublicationResourceQuery,
 )
 from src.infrastructure.web_reader.queries.web_publication_query import WebPublicationQuery
+from src.infrastructure.web_reader.repositories.web_reading_position_repository import (
+    WebReadingPositionRepository,
+)
+from src.infrastructure.web_reader.services.cached_book_position_index import (
+    CachedBookPositionIndex,
+)
+from src.infrastructure.web_reader.services.publication_caches import PublicationCaches
 from src.infrastructure.web_reader.services.xpoint_cfi_position_anchor_service import (
     XPointCfiPositionAnchorService,
 )
@@ -118,6 +125,7 @@ class SharedContainer(containers.DeclarativeContainer):
     note_repository = providers.Factory(NoteRepository, db=db)
     book_reflection_repository = providers.Factory(BookReflectionRepository, db=db)
     reading_session_repository = providers.Factory(ReadingSessionRepository, db=db)
+    web_reading_position_repository = providers.Factory(WebReadingPositionRepository, db=db)
     flashcard_repository = providers.Factory(FlashcardRepository, db=db)
     chapter_digest_repository = providers.Factory(ChapterDigestRepository, db=db)
     highlight_style_repository = providers.Factory(HighlightStyleRepository, db=db)
@@ -148,6 +156,18 @@ class SharedContainer(containers.DeclarativeContainer):
     position_anchor_service = providers.Singleton(
         XPointCfiPositionAnchorService,
         file_repository=file_repository,
+    )
+    # Singletons for the same reason, and evicted together: both are keyed on
+    # `Book.ebook_file`, and both hold something derived from bytes that an
+    # upload can replace under that key.
+    book_position_index = providers.Singleton(
+        CachedBookPositionIndex,
+        file_repository=file_repository,
+        position_index_service=epub_position_index_service,
+    )
+    publication_caches = providers.Singleton(
+        PublicationCaches,
+        caches=providers.List(position_anchor_service, book_position_index),
     )
 
     # Identity services

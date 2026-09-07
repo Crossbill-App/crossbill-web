@@ -10,6 +10,7 @@ import {
 import { TocDrawer } from '@/components/reader/TocDrawer.tsx';
 import { useReaderPublication } from '@/components/reader/useReaderPublication.ts';
 import { useReaderSession } from '@/components/reader/useReaderSession.ts';
+import { useReadingPositionWriter } from '@/components/reader/useReadingPositionWriter.ts';
 import { NextPageIcon, PreviousPageIcon } from '@/theme/Icons.tsx';
 import { ICON_SIZE } from '@/theme/iconSizes.ts';
 import { Box, Button, IconButton, Skeleton, Stack, Typography, useTheme } from '@mui/material';
@@ -94,6 +95,7 @@ export const ReaderShell = ({ bookId, title, onClose }: ReaderShellProps) => {
   const theme = useTheme();
   const { status: sessionStatus, isRenewing } = useReaderSession(bookId);
   const { status: publicationStatus, publication, positions } = useReaderPublication(bookId);
+  const recordPosition = useReadingPositionWriter(bookId);
 
   const viewportRef = useRef<HTMLDivElement | null>(null);
   const navigatorRef = useRef<EpubNavigator | null>(null);
@@ -228,7 +230,18 @@ export const ReaderShell = ({ bookId, title, onClose }: ReaderShellProps) => {
             frameWindow.addEventListener('keydown', handleKeyDown);
             setIsPageVisible(true);
           },
-          positionChanged: (current: Locator) => setLocator(current),
+          /**
+           * The navigator has settled somewhere new.
+           *
+           * Two readers of the same event: the chrome, which shows the page
+           * number, and the position writer, which decides whether this is
+           * worth telling the server about and keeps the reading session going
+           * if it is.
+           */
+          positionChanged: (current: Locator) => {
+            setLocator(current);
+            recordPosition(current);
+          },
           /**
            * The reader selected text in the book.
            *
@@ -318,7 +331,7 @@ export const ReaderShell = ({ bookId, title, onClose }: ReaderShellProps) => {
     // submitted to the live one below. Listing it would rebuild the reader,
     // and the book would jump back to page one on every font-size nudge.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isReady, publication, positions, theme, handleKeyDown, bootAttempt]);
+  }, [isReady, publication, positions, theme, handleKeyDown, recordPosition, bootAttempt]);
 
   useEffect(() => {
     if (!isPageVisible) return;

@@ -39,6 +39,7 @@ from src.infrastructure.reflection.orm.book_reflection_model import BookReflecti
 from src.infrastructure.semantic.orm.embedding_model import Embedding
 from src.infrastructure.tagging.orm.tag_group_model import TagGroup
 from src.infrastructure.tagging.orm.tag_model import Tag
+from src.infrastructure.web_reader.orm.web_reading_position_model import WebReadingPosition
 
 __all__ = [
     "AIChatSession",
@@ -60,6 +61,7 @@ __all__ = [
     "Tag",
     "TagGroup",
     "User",
+    "WebReadingPosition",
     "book_reflection_notes",
     "highlight_tags",
     "note_books",

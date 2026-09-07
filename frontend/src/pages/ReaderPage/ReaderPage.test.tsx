@@ -4,6 +4,7 @@ import { bookApi } from '@tests/msw/bookApi';
 import {
   ESCAPE_HATCH,
   noPublication,
+  readingPositionApi,
   readiumApi,
   sessionUnauthorizedOnce,
 } from '@tests/msw/readiumApi';
@@ -16,10 +17,19 @@ import { userEvent } from 'vitest/browser';
  * `bookApi` serves a book with no EPUB by default, so the reader's own
  * handlers have to be registered afterwards to win: MSW resolves in
  * registration order, newest first.
+ *
+ * `has_ebook` is what the book page reads to decide whether to offer the Read
+ * tab; the Readium handlers are what the reader itself needs once the tab is
+ * followed. A book with an EPUB has both.
  */
 const aBookWithAnEpub = (...extra: Parameters<typeof worker.use>) => {
-  worker.use(...bookApi({ book: aBookDetails({ title: 'The Pragmatic Reader' }) }).handlers);
-  worker.use(...readiumApi(), ...extra);
+  worker.use(
+    ...bookApi({ book: aBookDetails({ title: 'The Pragmatic Reader', has_ebook: true }) }).handlers
+  );
+  worker.use(...readiumApi());
+  // A separate call, so a handler a test passes in wins: MSW gives later `use`
+  // calls priority, while within one call the first argument wins.
+  if (extra.length) worker.use(...extra);
 };
 
 test('the reader opens with the book title and its controls', async () => {
@@ -328,3 +338,69 @@ test('a session refused with a 401 is retried through the app refresh', async ()
 
   await expect.poll(() => refreshes).toBeGreaterThan(0);
 });
+
+/**
+ * The reader's place is written back so that both readers agree where it is,
+ * and so that reading in the browser shows up in the reading statistics.
+ *
+ * The wait is the debounce, not slack: writing every page turn would be a
+ * request per page, so the reader has to go quiet before its place is written.
+ * These tests wait it out rather than faking the clock, because the navigator's
+ * own boot is a chain of timers and animation frames — a fake clock would be
+ * testing the mock's scheduler rather than the reader.
+ */
+test('turning a page writes the new position, once the reader settles', async () => {
+  const positions = readingPositionApi();
+  aBookWithAnEpub(...positions.handlers);
+
+  const screen = await renderApp({ path: '/book/1/read' });
+  await expect.element(screen.getByText('Page 1 of 2', { exact: false })).toBeVisible();
+  // Nothing yet: where the book opened is where the reader already was.
+  expect(positions.writes).toHaveLength(0);
+
+  await screen.getByRole('button', { name: 'Next page' }).click();
+
+  await expect.poll(() => positions.writes.length, { timeout: 15_000 }).toBe(1);
+  const [write] = positions.writes;
+  expect(write.locator.href).toBe('resources/OEBPS/chapter2.xhtml');
+  expect(write.closing).toBe(false);
+  expect(Date.parse(write.recorded_at)).toBeGreaterThan(0);
+}, 30_000);
+
+test('a reader who has not moved writes nothing at all', async () => {
+  const positions = readingPositionApi();
+  aBookWithAnEpub(...positions.handlers);
+
+  const screen = await renderApp({ path: '/book/1/read' });
+  await expect.element(screen.getByText('Page 1 of 2', { exact: false })).toBeVisible();
+
+  // Comfortably past the debounce: a reader that wrote where the book opened,
+  // or re-wrote the same place on every re-render, would have written by now.
+  await new Promise((resolve) => setTimeout(resolve, 8_000));
+  expect(positions.writes).toHaveLength(0);
+}, 30_000);
+
+/**
+ * Leaving the reader is what ends the reading session the server has been
+ * extending, so the last position must not be lost to the debounce — and it
+ * must say the book is being closed, or the next sitting would be folded into
+ * this one.
+ */
+test('closing the reader writes the last position immediately, and closes the session', async () => {
+  const positions = readingPositionApi();
+  aBookWithAnEpub(...positions.handlers);
+
+  const screen = await renderApp({ path: '/book/1/read' });
+  await expect.element(screen.getByText('Page 1 of 2', { exact: false })).toBeVisible();
+  await screen.getByRole('button', { name: 'Next page' }).click();
+  await expect.element(screen.getByText('Page 2 of 2', { exact: false })).toBeVisible();
+
+  await screen.getByRole('button', { name: 'Close reader' }).click();
+  await expect.element(screen.getByRole('heading', { name: 'Structure' })).toBeVisible();
+
+  // Well inside the debounce, so only the flush can have sent this.
+  await expect.poll(() => positions.writes.length).toBeGreaterThan(0);
+  const last = positions.writes[positions.writes.length - 1];
+  expect(last.closing).toBe(true);
+  expect(last.locator.href).toBe('resources/OEBPS/chapter2.xhtml');
+}, 30_000);

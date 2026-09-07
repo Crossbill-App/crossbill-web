@@ -261,6 +261,10 @@ class BookDetails(BaseModel):
         ge=0,
         description="Live highlights on the book, including any that sit in no chapter",
     )
+    has_ebook: bool = Field(
+        False,
+        description="Whether the book has an EPUB, and so can be read in the browser",
+    )
     reading_position: PositionResponse | None = Field(
         None, description="User's current reading position from latest session"
     )
