@@ -5,6 +5,7 @@
 import logging
 import posixpath
 import zipfile
+from collections.abc import Iterable
 from io import BytesIO
 from typing import Any, NamedTuple, cast
 from urllib.parse import quote, unquote
@@ -41,6 +42,13 @@ _LAYOUT_BY_ITEMREF_PROPERTY = {
     "rendition:layout-pre-paginated": PublicationLayout.FIXED,
     "rendition:layout-reflowable": PublicationLayout.REFLOWABLE,
 }
+
+# Serving a manifest parses whatever EPUB is stored for the book, and the upload
+# limit bounds only the compressed bytes, so these bound the shape the archive
+# declares for itself. Both are far above any real book: a heavily illustrated
+# EPUB runs to a few hundred megabytes across a few thousand files.
+MAX_PUBLICATION_ENTRIES = 10_000
+MAX_PUBLICATION_UNCOMPRESSED_BYTES = 2 * 1024**3
 
 
 class _TocEntry(NamedTuple):
@@ -134,15 +142,44 @@ class _PackageDocument(NamedTuple):
     layout_by_idref: dict[str, PublicationLayout]
 
 
+def _reject_oversized_archive(archive: zipfile.ZipFile) -> None:
+    """Refuse an archive whose own directory says it is far larger than a book.
+
+    Read from the central directory, so this costs no decompression. It is a
+    sanity check and not a decompression limit: the sizes an archive declares
+    are attacker-controlled and a deliberate bomb can understate them. What it
+    does buy is that a stored file which merely *claims* to expand to tens of
+    gigabytes is turned away before ebooklib reads every entry into memory,
+    which the compressed-bytes limit on upload cannot see.
+
+    Raises:
+        InvalidEbookError: If the archive declares too many entries or too much
+            uncompressed content.
+    """
+    entries = archive.infolist()
+    if len(entries) > MAX_PUBLICATION_ENTRIES:
+        raise InvalidEbookError(
+            f"declares {len(entries)} entries, over the {MAX_PUBLICATION_ENTRIES} limit", "epub"
+        )
+    declared_bytes = sum(entry.file_size for entry in entries)
+    if declared_bytes > MAX_PUBLICATION_UNCOMPRESSED_BYTES:
+        raise InvalidEbookError(
+            f"declares {declared_bytes} uncompressed bytes, over the "
+            f"{MAX_PUBLICATION_UNCOMPRESSED_BYTES} limit",
+            "epub",
+        )
+
+
 def _read_package_document(epub_content: bytes) -> _PackageDocument:
     """Read the OPF straight out of the container for what ebooklib does not keep.
 
     Raises:
-        InvalidEbookError: If the container or its package document is missing
-            or unparseable.
+        InvalidEbookError: If the archive is implausibly large, or the container
+            or its package document is missing or unparseable.
     """
     try:
         with zipfile.ZipFile(BytesIO(epub_content)) as archive:
+            _reject_oversized_archive(archive)
             container = etree.fromstring(archive.read(CONTAINER_PATH))
             rootfile = container.find(f".//{{{_CONTAINER_NS}}}rootfile")
             opf_path = rootfile.get("full-path") if rootfile is not None else None
@@ -183,18 +220,71 @@ def _layout_overrides(package: etree._Element) -> dict[str, PublicationLayout]:
     return overrides
 
 
-def _container_href(opf_dir: str, href: str) -> str:
-    """Resolve an OPF-relative href to a percent-encoded container-root path.
+def _container_href(opf_dir: str, file_path: str) -> str | None:
+    """Encode a decoded, OPF-relative file path as a container-root href.
 
-    ebooklib hands manifest file names back URL-decoded but leaves navigation
-    hrefs exactly as the document wrote them, so both are decoded first and
-    encoded once. That is what makes a manifest href byte-identical to the
-    ``href`` a derived Locator carries for the same file (ADR-0004 §2).
+    The argument is the file's real name, already decoded. Encoding it exactly
+    once is what makes the result byte-identical to the ``href`` a derived
+    Locator carries for the same file (ADR-0004 §2) -- including for a file
+    whose name genuinely contains a percent sign, where decoding a second time
+    would name a different file or none at all.
+
+    Returns:
+        The percent-encoded container-root path, or ``None`` if the path is
+        absolute or climbs out of the container. Such a path names something
+        the publication does not contain, and served under the manifest's own
+        URL it would resolve to a different endpoint entirely.
+    """
+    if file_path.startswith("/"):
+        return None
+    resolved = posixpath.normpath(posixpath.join(opf_dir, file_path))
+    if resolved == ".." or resolved.startswith("../"):
+        return None
+    return quote(resolved, safe="/")
+
+
+def _document_href(opf_dir: str, href: str) -> str | None:
+    """Resolve a navigation link's href, which ebooklib leaves exactly as written.
+
+    Unlike a manifest file name, this arrives still encoded, so it is decoded
+    once here and re-encoded by :func:`_container_href`. The escape check runs
+    on the decoded path, so ``..%2F..%2Fx`` is rejected along with ``../../x``.
     """
     path, _, fragment = href.partition("#")
-    resolved = posixpath.normpath(posixpath.join(opf_dir, unquote(path)))
-    encoded = quote(resolved, safe="/")
-    return f"{encoded}#{quote(unquote(fragment), safe='')}" if fragment else encoded
+    resolved = _container_href(opf_dir, unquote(path))
+    if resolved is None:
+        return None
+    return f"{resolved}#{quote(unquote(fragment), safe='')}" if fragment else resolved
+
+
+def _resources(
+    items: Iterable[Any],
+    opf_dir: str,
+    layouts: dict[str, PublicationLayout | None],
+) -> tuple[PublicationResource, ...]:
+    """Render manifest items as publication resources, dropping any that escape.
+
+    A single item pointing outside the container costs that item and not the
+    whole book -- a stray image is worth degrading over, and a spine emptied
+    this way is caught by the reading-order check in
+    :meth:`EpubParserService.parse_publication`.
+    """
+    resources: list[PublicationResource] = []
+
+    for item in items:
+        href = _container_href(opf_dir, item.file_name)
+        if href is None:
+            logger.warning(f"Dropped manifest item pointing outside the publication: {item.id!r}")
+            continue
+        resources.append(
+            PublicationResource(
+                href=href,
+                media_type=item.media_type,
+                layout=layouts.get(item.id),
+            )
+        )
+
+    return tuple(resources)
 
 
 def _toc_entries(toc_items: list[Any], opf_dir: str) -> tuple[TocEntry, ...]:
@@ -225,9 +315,19 @@ def _toc_entries(toc_items: list[Any], opf_dir: str) -> tuple[TocEntry, ...]:
 
 
 def _entry_href(item: Any, opf_dir: str) -> str | None:  # noqa: ANN401
-    """Resolve a TOC item's href, or ``None`` for a heading that links nowhere."""
+    """Resolve a TOC item's href, or ``None`` for a heading that links nowhere.
+
+    An href that escapes the container is treated as linking nowhere rather than
+    dropping the entry, so a hostile or broken link costs its own line's
+    navigation and not the nesting of everything under it.
+    """
     href = getattr(item, "href", None)
-    return _container_href(opf_dir, href) if href else None
+    if not href:
+        return None
+    resolved = _document_href(opf_dir, href)
+    if resolved is None:
+        logger.warning(f"Dropped TOC href pointing outside the publication: {href!r}")
+    return resolved
 
 
 def _first_metadata(book: Any, name: str) -> str | None:  # noqa: ANN401
@@ -343,8 +443,9 @@ class EpubParserService:
             root and percent-encoded.
 
         Raises:
-            InvalidEbookError: If the bytes are not a readable EPUB, or its
-                package document is missing or unparseable.
+            InvalidEbookError: If the bytes are not a readable EPUB, its package
+                document is missing or unparseable, or its spine names nothing
+                the publication contains.
         """
         package = _read_package_document(epub_content)
         try:
@@ -354,23 +455,25 @@ class EpubParserService:
 
         items_by_id = {item.id: item for item in book.get_items()}
         spine_ids = [idref for idref, _linear in book.spine if idref in items_by_id]
+        if dangling := len(book.spine) - len(spine_ids):
+            logger.warning(f"Spine names {dangling} item(s) missing from the manifest")
 
-        reading_order = tuple(
-            PublicationResource(
-                href=_container_href(package.directory, items_by_id[idref].file_name),
-                media_type=items_by_id[idref].media_type,
-                layout=package.layout_by_idref.get(idref, package.default_layout),
-            )
-            for idref in spine_ids
+        reading_order = _resources(
+            (items_by_id[idref] for idref in spine_ids),
+            package.directory,
+            {
+                idref: package.layout_by_idref.get(idref, package.default_layout)
+                for idref in spine_ids
+            },
         )
+        if not reading_order:
+            raise InvalidEbookError("has no readable spine items", "epub")
+
         in_spine = set(spine_ids)
-        resources = tuple(
-            PublicationResource(
-                href=_container_href(package.directory, item.file_name),
-                media_type=item.media_type,
-            )
-            for item in book.get_items()
-            if item.id not in in_spine
+        resources = _resources(
+            (item for item in book.get_items() if item.id not in in_spine),
+            package.directory,
+            {},
         )
 
         logger.info(

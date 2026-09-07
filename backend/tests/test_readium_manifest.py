@@ -30,6 +30,7 @@ from httpx import ASGITransport, AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession
 from starlette import status
 
+from src.infrastructure.library.services import epub_parser_service
 from src.main import app
 from src.models import Book, User
 from tests.conftest import create_test_book
@@ -78,6 +79,71 @@ def without_title(epub_content: bytes) -> bytes:
                 body = (text[:start] + text[end:]).encode()
             rebuilt.writestr(entry, body)
     return out.getvalue()
+
+
+def build_epub(
+    manifest_items: str,
+    spine: str,
+    nav_links: str,
+    files: tuple[str, ...] = (),
+) -> bytes:
+    """Assemble an EPUB by hand, so an adversarial one reads as such in the diff.
+
+    The fixture files on disk are ordinary books; these are the shapes a hostile
+    or broken publication takes, and writing the OPF out here is what makes the
+    attack visible next to the assertion about it.
+    """
+    package = (
+        '<?xml version="1.0" encoding="UTF-8"?>\n'
+        '<package xmlns="http://www.idpf.org/2007/opf" version="3.0" unique-identifier="i">\n'
+        '  <metadata xmlns:dc="http://purl.org/dc/elements/1.1/">'
+        '<dc:identifier id="i">urn:uuid:hand-built</dc:identifier>'
+        "<dc:title>Hand Built</dc:title><dc:language>en</dc:language></metadata>\n"
+        '  <manifest><item id="nav" href="nav.xhtml" media-type="application/xhtml+xml" '
+        f'properties="nav"/>{manifest_items}</manifest>\n'
+        f"  <spine>{spine}</spine>\n</package>\n"
+    )
+    nav = (
+        '<?xml version="1.0" encoding="UTF-8"?>'
+        '<html xmlns="http://www.w3.org/1999/xhtml" xmlns:epub="http://www.idpf.org/2007/ops">'
+        "<head><title>Contents</title></head>"
+        f'<body><nav epub:type="toc"><ol>{nav_links}</ol></nav></body></html>'
+    )
+    document = (
+        '<?xml version="1.0" encoding="UTF-8"?>'
+        '<html xmlns="http://www.w3.org/1999/xhtml"><head><title>Page</title></head>'
+        "<body><div><p>Hi there.</p></div></body></html>"
+    )
+
+    out = BytesIO()
+    with zipfile.ZipFile(out, "w") as archive:
+        archive.writestr(zipfile.ZipInfo("mimetype"), "application/epub+zip", zipfile.ZIP_STORED)
+        archive.writestr(
+            "META-INF/container.xml",
+            '<?xml version="1.0" encoding="UTF-8"?>'
+            '<container version="1.0" '
+            'xmlns="urn:oasis:names:tc:opendocument:xmlns:container"><rootfiles>'
+            '<rootfile full-path="content.opf" '
+            'media-type="application/oebps-package+xml"/></rootfiles></container>',
+        )
+        archive.writestr("content.opf", package)
+        archive.writestr("nav.xhtml", nav)
+        for name in files:
+            archive.writestr(name, document)
+    return out.getvalue()
+
+
+# A publication whose one spine document is really named `chapter%20one.xhtml`
+# -- a literal percent sign in the file name, which the OPF therefore writes as
+# `chapter%2520one.xhtml`.
+LITERAL_PERCENT_EPUB = build_epub(
+    manifest_items=(
+        '<item id="c1" href="chapter%2520one.xhtml" media-type="application/xhtml+xml"/>'
+    ),
+    spine='<itemref idref="c1"/>',
+    nav_links='<li><a href="chapter%2520one.xhtml">Chapter One</a></li>',
+    files=("chapter%20one.xhtml",),
+)
 
 
 @pytest.fixture
@@ -252,6 +318,175 @@ class TestManifestStructure:
 
         assert response.status_code == status.HTTP_200_OK, response.text
         assert response.json()["metadata"]["title"] == test_book.title == "Test Book"
+
+
+class TestMalformedPublications:
+    """What the endpoint does with an EPUB that is hostile, broken, or merely odd."""
+
+    async def test_encodes_a_literal_percent_in_a_filename_once(
+        self,
+        client: AsyncClient,
+        db_session: AsyncSession,
+        test_book: Book,
+        storage_dir: Path,
+    ) -> None:
+        """Should name the file that exists, not the one its encoding decodes to.
+
+        ebooklib decodes manifest hrefs and leaves navigation hrefs as written,
+        so decoding both would turn the real file ``chapter%20one.xhtml`` into
+        ``chapter one.xhtml`` in the reading order while the TOC still named the
+        real one -- two hrefs for one file, neither reachable in both places.
+        """
+        await store_epub(db_session, test_book, storage_dir, LITERAL_PERCENT_EPUB)
+
+        response = await client.get(manifest_url(test_book))
+
+        assert response.status_code == status.HTTP_200_OK, response.text
+        manifest = response.json()
+        expected = "resources/chapter%2520one.xhtml"
+        assert manifest["readingOrder"][0]["href"] == expected
+        assert manifest["toc"][0]["href"] == expected
+
+    def test_literal_percent_href_matches_the_derived_locator(self) -> None:
+        """The awkward name must agree with xpoint-cfi too, not just with itself."""
+        import xpoint_cfi  # noqa: PLC0415
+
+        publication: Any = xpoint_cfi.EpubMap.from_bytes(LITERAL_PERCENT_EPUB)
+        locator = xpoint_cfi.xpoint_to_locator(
+            publication, "/body/DocFragment[1]/body/div/p[1]/text().0"
+        )
+
+        assert locator.href == "chapter%2520one.xhtml"
+
+    async def test_drops_toc_hrefs_that_escape_the_container(
+        self,
+        client: AsyncClient,
+        db_session: AsyncSession,
+        test_book: Book,
+        storage_dir: Path,
+    ) -> None:
+        """Should not let a TOC link resolve to another endpoint under the book's URL.
+
+        ``resources/../../positions.json`` resolves against the manifest URL to
+        a sibling endpoint, so the entry keeps its title and loses its href.
+        """
+        await store_epub(
+            db_session,
+            test_book,
+            storage_dir,
+            build_epub(
+                manifest_items=(
+                    '<item id="c1" href="c1.xhtml" media-type="application/xhtml+xml"/>'
+                ),
+                spine='<itemref idref="c1"/>',
+                nav_links=(
+                    '<li><a href="../../positions.json">Escape</a></li>'
+                    '<li><a href="/etc/passwd">Absolute</a></li>'
+                    '<li><a href="..%2F..%2Fpositions.json">Encoded escape</a></li>'
+                    '<li><a href="c1.xhtml">Honest</a></li>'
+                ),
+                files=("c1.xhtml",),
+            ),
+        )
+
+        response = await client.get(manifest_url(test_book))
+
+        assert response.status_code == status.HTTP_200_OK, response.text
+        assert response.json()["toc"] == [
+            {"href": "#", "title": "Escape"},
+            {"href": "#", "title": "Absolute"},
+            {"href": "#", "title": "Encoded escape"},
+            {"href": "resources/c1.xhtml", "title": "Honest"},
+        ]
+
+    async def test_rejects_a_publication_with_an_empty_spine(
+        self,
+        client: AsyncClient,
+        db_session: AsyncSession,
+        test_book: Book,
+        storage_dir: Path,
+    ) -> None:
+        """Should fail rather than serve a manifest with nothing to read."""
+        await store_epub(
+            db_session,
+            test_book,
+            storage_dir,
+            build_epub(
+                manifest_items=(
+                    '<item id="c1" href="c1.xhtml" media-type="application/xhtml+xml"/>'
+                ),
+                spine="",
+                nav_links='<li><a href="c1.xhtml">One</a></li>',
+                files=("c1.xhtml",),
+            ),
+        )
+
+        response = await client.get(manifest_url(test_book))
+
+        assert response.status_code == status.HTTP_400_BAD_REQUEST
+
+    async def test_rejects_a_publication_whose_spine_names_nothing(
+        self,
+        client: AsyncClient,
+        db_session: AsyncSession,
+        test_book: Book,
+        storage_dir: Path,
+    ) -> None:
+        """Should fail when every idref dangles, rather than drop them silently."""
+        await store_epub(
+            db_session,
+            test_book,
+            storage_dir,
+            build_epub(
+                manifest_items=(
+                    '<item id="c1" href="c1.xhtml" media-type="application/xhtml+xml"/>'
+                ),
+                spine='<itemref idref="nowhere"/>',
+                nav_links='<li><a href="c1.xhtml">One</a></li>',
+                files=("c1.xhtml",),
+            ),
+        )
+
+        response = await client.get(manifest_url(test_book))
+
+        assert response.status_code == status.HTTP_400_BAD_REQUEST
+
+    async def test_rejects_an_archive_declaring_too_many_entries(
+        self,
+        client: AsyncClient,
+        db_session: AsyncSession,
+        test_book: Book,
+        storage_dir: Path,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        """Should turn a book away on its own central directory, before reading it.
+
+        The limit is lowered rather than the fixture inflated: the guard reads
+        the declared shape, so a real 10,000-entry archive would only make the
+        test slow, not more truthful.
+        """
+        monkeypatch.setattr(epub_parser_service, "MAX_PUBLICATION_ENTRIES", 3)
+        await store_epub(db_session, test_book, storage_dir, fixture_bytes("minimal.epub"))
+
+        response = await client.get(manifest_url(test_book))
+
+        assert response.status_code == status.HTTP_400_BAD_REQUEST
+
+    async def test_rejects_an_archive_declaring_too_much_content(
+        self,
+        client: AsyncClient,
+        db_session: AsyncSession,
+        test_book: Book,
+        storage_dir: Path,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        """Should turn away an archive whose declared uncompressed size is absurd."""
+        monkeypatch.setattr(epub_parser_service, "MAX_PUBLICATION_UNCOMPRESSED_BYTES", 10)
+        await store_epub(db_session, test_book, storage_dir, fixture_bytes("minimal.epub"))
+
+        response = await client.get(manifest_url(test_book))
+
+        assert response.status_code == status.HTTP_400_BAD_REQUEST
 
 
 class TestManifestAccess:

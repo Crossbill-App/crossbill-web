@@ -11,6 +11,7 @@ on the reading order, and the only substitution the adapter makes is the stored
 title, and only when the package document states none.
 """
 
+import asyncio
 from dataclasses import replace
 
 from sqlalchemy import select
@@ -58,7 +59,11 @@ class WebPublicationQuery:
         if not content:
             raise EbookFileNotFoundError(book_id.value)
 
-        publication = self.publication_parser.parse_publication(content)
+        # Parsing an EPUB is CPU-bound and proportional to the book, so it runs
+        # off the event loop: this is a plain GET a reader issues on every open,
+        # and a large publication parsed inline would stall every other request
+        # in the process for the duration.
+        publication = await asyncio.to_thread(self.publication_parser.parse_publication, content)
         if publication.metadata.title:
             return publication
         # An EPUB with no dc:title is invalid but does occur, and a manifest
