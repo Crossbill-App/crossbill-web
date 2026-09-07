@@ -13,6 +13,7 @@ from src.application.reading.protocols.reading_session_repository import (
 from src.application.web_reader.anchors import (
     AnchorConfidence,
     AnchorResolutionError,
+    AnchorSource,
     Locator,
 )
 from src.application.web_reader.protocols.book_position_index import BookPositionIndexProtocol
@@ -41,22 +42,36 @@ from src.domain.web_reader.exceptions import UnresolvablePositionError
 
 logger = structlog.get_logger(__name__)
 
-# The weakest match this will store a position from.
+# The weakest match this will store a position from -- one floor per kind of
+# anchor, because the three are not points on one scale (ADR-0004, Amendment 3).
 #
-# Resolving a browser locator back to an xpointer is a text search that grades
-# itself (ADR-0004 §5), and this floor is where "we know which place this is"
-# begins. The two grades below it are the two that mean the opposite: FUZZY is
-# the quote not being in the book as written -- the shape a replaced, differently
-# typeset EPUB takes -- and AMBIGUOUS is the quote being in several places with
-# neither context settling which. HIGHLIGHT_ONLY and above all identify exactly
-# one place in the document.
+# **A quote** is graded on evidence the browser supplied, which is what
+# ADR-0004 §5's floor is about, and HIGHLIGHT_ONLY is where "we know which place
+# this is" begins. The two grades below it are the two that mean the opposite:
+# FUZZY is the quote not being in the book as written -- the shape a replaced,
+# differently typeset EPUB takes -- and AMBIGUOUS is the quote being in several
+# places with neither context settling which. That is deliberately one grade
+# below what a *highlight* will demand (M4.1): a highlight drawn in the wrong
+# paragraph is a visible, lasting falsehood about what the reader marked, while
+# a reading position that is off costs a moment finding one's place.
 #
-# Deliberately one grade below what a *highlight* will demand (M4.1). A
-# highlight drawn in the wrong paragraph is a visible, lasting falsehood about
-# what the reader marked; a reading position that is off costs them a moment
-# finding their place. Rejecting a unique quote merely for having no abutting
-# context would trade a great many unrecorded positions for that difference.
-MINIMUM_POSITION_CONFIDENCE = AnchorConfidence.HIGHLIGHT_ONLY
+# **An element** names exactly one place in the document, which is the same
+# standard of evidence as a quote occurring exactly once, so it meets the same
+# floor and is capped there.
+#
+# **A progression** is approximate by construction and is accepted anyway --
+# and this is the load-bearing choice, because it is what almost every real
+# reading position turns out to be. A page turn in a reflowable book reaches
+# the server as an href and a fraction and nothing else, so a floor that
+# refused it would refuse to record reading at all. What still refuses is the
+# conversion failing outright, which is the signal §5 actually cares about: a
+# locator naming a resource the book does not have is an EPUB that has been
+# replaced, and that is an error rather than an approximation.
+MINIMUM_CONFIDENCE = {
+    AnchorSource.QUOTE: AnchorConfidence.HIGHLIGHT_ONLY,
+    AnchorSource.ELEMENT: AnchorConfidence.HIGHLIGHT_ONLY,
+    AnchorSource.PROGRESSION: AnchorConfidence.FUZZY,
+}
 
 # What a session created by the web reader records as its device, so that
 # browser reading is distinguishable from an e-reader's in the sessions list --
@@ -72,7 +87,8 @@ class SaveReadingPositionUseCase:
 
     **The position is converted and stored.** The locator the navigator produced
     is resolved back to the canonical KOReader xpointer (ADR-0004 §2), graded,
-    and rejected below :data:`MINIMUM_POSITION_CONFIDENCE`; the xpointer is then
+    and rejected below the :data:`MINIMUM_CONFIDENCE` its kind of anchor has
+    to clear; the xpointer is then
     resolved to a ``Position`` through the book's index. The locator itself is
     kept beside them so the browser can be put back exactly where it was.
 
@@ -188,15 +204,17 @@ class SaveReadingPositionUseCase:
         except AnchorResolutionError as exc:
             raise UnresolvablePositionError(str(exc)) from exc
 
-        if match.confidence < MINIMUM_POSITION_CONFIDENCE:
+        floor = MINIMUM_CONFIDENCE[match.anchored_by]
+        if match.confidence < floor:
             logger.info(
                 "rejected_weak_reading_position",
                 href=locator.href,
+                anchored_by=match.anchored_by.value,
                 confidence=match.confidence.name,
-                floor=MINIMUM_POSITION_CONFIDENCE.name,
+                floor=floor.name,
             )
             raise UnresolvablePositionError(
-                f"the quote matched too weakly ({match.confidence.name})"
+                f"the {match.anchored_by.value} matched too weakly ({match.confidence.name})"
             )
         return match.xpoints.start
 

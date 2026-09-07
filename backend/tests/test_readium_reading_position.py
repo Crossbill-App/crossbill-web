@@ -77,6 +77,28 @@ def position_url(book_id: int) -> str:
     return f"/api/v1/readium/books/{book_id}/reading-position"
 
 
+def a_page_turn(href: str = CHAPTER_ONE, progression: float = 0.0) -> dict[str, Any]:
+    """A locator exactly as a page turn produces one -- which is to say, textless.
+
+    This is the shape production sends and the shape that broke: ``EpubNavigator``
+    reports a turn from its column snapper's ``progress`` event, and the Locator
+    it builds carries an href, a position, a progression, an empty ``fragments``
+    list, and no text at all. Copied from one captured in the reader's own
+    browser test rather than imagined, because every fixture below that carries
+    a quote is a shape the navigator only rarely produces.
+    """
+    return {
+        "href": href,
+        "type": XHTML,
+        "locations": {
+            "fragments": [],
+            "progression": progression,
+            "totalProgression": progression / 2,
+            "position": 1,
+        },
+    }
+
+
 def locator(quote: str, before: str | None = None, progression: float = 0.5) -> dict[str, Any]:
     """A locator shaped the way ``@readium/navigator`` serializes one.
 
@@ -109,13 +131,20 @@ async def put_position(
     closing: bool = False,
 ) -> Response:
     """Write a position the way the reader does: a locator and the moment it was seen."""
+    return await put_locator(client, book_id, locator(quote, before=before), at, closing)
+
+
+async def put_locator(
+    client: AsyncClient,
+    book_id: int,
+    body: dict[str, Any],
+    at: datetime,
+    closing: bool = False,
+) -> Response:
+    """Write one locator, whatever shape it is in."""
     return await client.put(
         position_url(book_id),
-        json={
-            "locator": locator(quote, before=before),
-            "recorded_at": at.isoformat(),
-            "closing": closing,
-        },
+        json={"locator": body, "recorded_at": at.isoformat(), "closing": closing},
     )
 
 
@@ -222,6 +251,140 @@ class TestStoringAPosition:
         assert response.status_code == status.HTTP_200_OK
         recorded = datetime.fromisoformat(response.json()["updated_at"])
         assert before <= recorded <= datetime.now(UTC)
+
+
+class TestThePositionAPageTurnActuallySends:
+    """The textless locator a reflowable page turn produces -- the primary path.
+
+    Everything in :class:`TestStoringAPosition` hands the server a quote, which
+    is what a *selection* produces. A page turn produces none, and for a while
+    that meant every real write in production was refused 422 while every test
+    here passed. These are the tests that would have caught it.
+    """
+
+    async def test_a_page_turn_is_stored(self, client: AsyncClient, readable_book: Book) -> None:
+        """Should place a locator that carries nothing but an href and a progression."""
+        response = await put_locator(
+            client,
+            readable_book.id,
+            a_page_turn(href=CHAPTER_TWO, progression=0.0),
+            datetime(2026, 3, 1, 9, 0, tzinfo=UTC),
+        )
+
+        assert response.status_code == status.HTTP_200_OK, response.text
+        body = response.json()
+        # Chapter two's first element, which is where progression 0 of it is.
+        assert body["xpoint"].startswith("/body/DocFragment[2]/")
+        assert body["position"] is not None
+
+    async def test_progression_lands_where_it_points(
+        self, client: AsyncClient, readable_book: Book
+    ) -> None:
+        """Should put a reader most of the way through a chapter further on than one at its start.
+
+        The exact element is not the assertion -- a fraction of a resource's
+        characters is not a fraction of its rendered pages, and this never
+        claimed otherwise. That the two differ, in the right direction, is.
+        """
+        start = await put_locator(
+            client,
+            readable_book.id,
+            a_page_turn(progression=0.0),
+            datetime(2026, 3, 1, 9, 0, tzinfo=UTC),
+        )
+        later = await put_locator(
+            client,
+            readable_book.id,
+            a_page_turn(progression=0.9),
+            datetime(2026, 3, 1, 9, 5, tzinfo=UTC),
+        )
+
+        assert start.status_code == status.HTTP_200_OK, start.text
+        assert later.status_code == status.HTTP_200_OK, later.text
+        assert later.json()["position"]["index"] > start.json()["position"]["index"]
+
+    async def test_the_end_of_a_resource_is_still_a_place(
+        self, client: AsyncClient, readable_book: Book
+    ) -> None:
+        """Should place a reader at the very end of a chapter, where no text follows.
+
+        A caret is expressed as the text after it, and at progression 1 there is
+        none -- so the anchor has to fall back to the text before it or the last
+        page of every chapter would be unrecordable.
+        """
+        response = await put_locator(
+            client,
+            readable_book.id,
+            a_page_turn(progression=1.0),
+            datetime(2026, 3, 1, 9, 0, tzinfo=UTC),
+        )
+
+        assert response.status_code == status.HTTP_200_OK, response.text
+        assert response.json()["position"] is not None
+
+    async def test_an_element_named_by_selector_beats_a_progression(
+        self, client: AsyncClient, readable_book: Book
+    ) -> None:
+        """Should use the element a locator names, not the fraction beside it.
+
+        The progression here points at the start of the chapter and the selector
+        at its last paragraph; the selector is the one that knows.
+        """
+        page_turn = a_page_turn(progression=0.0)
+        page_turn["locations"]["cssSelector"] = LAST_PARAGRAPH_SELECTOR
+
+        response = await put_locator(
+            client, readable_book.id, page_turn, datetime(2026, 3, 1, 9, 0, tzinfo=UTC)
+        )
+
+        assert response.status_code == status.HTTP_200_OK, response.text
+        assert response.json()["xpoint"] == LAST_PARAGRAPH_XPOINT
+
+    async def test_a_fragment_id_names_an_element_too(
+        self, client: AsyncClient, readable_book: Book
+    ) -> None:
+        """Should follow a fragment identifier, which a reader gets by following a link."""
+        page_turn = a_page_turn(href=CHAPTER_TWO, progression=0.9)
+        page_turn["locations"]["fragments"] = ["#second"]
+
+        response = await put_locator(
+            client, readable_book.id, page_turn, datetime(2026, 3, 1, 9, 0, tzinfo=UTC)
+        )
+
+        assert response.status_code == status.HTTP_200_OK, response.text
+        # `#second` wraps chapter two from its heading, so the anchor is the heading.
+        assert response.json()["xpoint"] == "/body/DocFragment[2]/body/div[1]/h1[1]"
+
+    async def test_a_locator_naming_no_resource_is_still_refused(
+        self, client: AsyncClient, readable_book: Book
+    ) -> None:
+        """Should refuse a page turn in a chapter this book does not have.
+
+        The fallbacks are about reading a position from thin evidence, not about
+        accepting anything: a locator naming a resource the book has not got is
+        an EPUB that has been replaced, which is what ADR-0004 §5 is for.
+        """
+        response = await put_locator(
+            client,
+            readable_book.id,
+            a_page_turn(href="resources/OEBPS/chapter99.xhtml"),
+            datetime(2026, 3, 1, 9, 0, tzinfo=UTC),
+        )
+
+        assert response.status_code == status.HTTP_422_UNPROCESSABLE_ENTITY, response.text
+
+    async def test_a_locator_with_nothing_to_go_on_is_refused(
+        self, client: AsyncClient, readable_book: Book
+    ) -> None:
+        """Should refuse a locator carrying no text, no element and no progression."""
+        response = await put_locator(
+            client,
+            readable_book.id,
+            {"href": CHAPTER_ONE, "type": XHTML, "locations": {}},
+            datetime(2026, 3, 1, 9, 0, tzinfo=UTC),
+        )
+
+        assert response.status_code == status.HTTP_422_UNPROCESSABLE_ENTITY, response.text
 
 
 class TestRefusingAPosition:

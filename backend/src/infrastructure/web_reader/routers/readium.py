@@ -368,6 +368,7 @@ def _anchor_locator(locator: LocatorSchema) -> Locator:
         locations=LocatorLocations(
             progression=locator.locations.progression,
             css_selector=locator.locations.css_selector,
+            fragments=tuple(locator.locations.fragments or ()),
         ),
         text=LocatorText(
             before=locator.text.before,

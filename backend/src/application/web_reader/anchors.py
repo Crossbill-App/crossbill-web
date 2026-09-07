@@ -17,7 +17,7 @@ straight to a Pydantic schema without a second translation.
 """
 
 from dataclasses import dataclass, field
-from enum import IntEnum
+from enum import IntEnum, StrEnum
 
 from src.domain.common.value_objects.xpoint import XPointRange
 
@@ -60,6 +60,36 @@ class AnchorConfidence(IntEnum):
     BOTH_CONTEXTS = 4
 
 
+class AnchorSource(StrEnum):
+    """What a Locator gave the conversion to find a position by.
+
+    A Locator produced from a *selection* carries a text quote, which is the
+    evidence :class:`AnchorConfidence` grades. A Locator produced from a
+    *reading position* frequently carries none: ``@readium/navigator`` reports a
+    page turn from its snapper's ``progress`` event, and the Locator it builds
+    from that has an ``href`` and a progression and nothing else. Those points
+    are still resolvable, from weaker evidence, and a caller has to be able to
+    tell which kind it got -- the two are not comparable on one scale.
+
+    Attributes:
+        QUOTE: The Locator carried text, and the position is where that text
+            was found. This is the only kind whose ``AnchorConfidence`` grades
+            evidence the *caller* supplied.
+        ELEMENT: The Locator named one element -- a CSS selector or a fragment
+            id -- and the position is where that element's text begins.
+            Precision is an element: exactly one place, corroborated by nothing
+            beyond the element's own identity.
+        PROGRESSION: The Locator said only how far through the resource it was,
+            and the position is that fraction of the resource's text. Precision
+            is approximate by construction, because a fraction of the rendered
+            layout is not a fraction of the character count.
+    """
+
+    QUOTE = "quote"
+    ELEMENT = "element"
+    PROGRESSION = "progression"
+
+
 @dataclass(frozen=True)
 class LocatorText:
     """A Locator's text quote: the highlighted text and what surrounds it.
@@ -90,10 +120,15 @@ class LocatorLocations:
             estimates reading progress rather than rendered layout.
         css_selector: A ``querySelector``-resolvable selector for the enclosing
             element. Serialized as ``cssSelector``.
+        fragments: Fragment identifiers the position sits on, most specific
+            first, as a navigator reports them (``"#chapter-two"``). Carried
+            because they name an element exactly, which is the second-best thing
+            to a quote when a reading position arrives without one.
     """
 
     progression: float | None = None
     css_selector: str | None = None
+    fragments: tuple[str, ...] = ()
 
     def to_dict(self) -> dict[str, object]:
         """Serialize to the Readium JSON shape, omitting unset fields."""
@@ -102,6 +137,8 @@ class LocatorLocations:
             out["progression"] = self.progression
         if self.css_selector is not None:
             out["cssSelector"] = self.css_selector
+        if self.fragments:
+            out["fragments"] = list(self.fragments)
         return out
 
 
@@ -140,8 +177,15 @@ class AnchorMatch:
     Attributes:
         xpoints: The range the Locator's quote was found at -- the thing that
             would be stored, if the caller trusts the confidence.
-        confidence: How much evidence backed the match.
+        confidence: How much evidence backed the match, on the scale its
+            ``anchored_by`` supports. A point resolved from an element or a
+            progression is capped below what a quote can reach, because the
+            evidence behind it is weaker in kind and not only in degree.
+        anchored_by: What the Locator gave the conversion to work from. A floor
+            is only meaningful against this: ``BOTH_CONTEXTS`` from a quote and
+            ``FUZZY`` from a progression are not two points on one scale.
     """
 
     xpoints: XPointRange
     confidence: AnchorConfidence
+    anchored_by: AnchorSource = AnchorSource.QUOTE
