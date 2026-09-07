@@ -94,6 +94,21 @@ def crc32_twin(payload: bytes) -> bytes:
     raise AssertionError("no CRC-32 collision found")
 
 
+# Two resources that are both empty, and so share a CRC-32 of zero. Anything
+# that tells them apart has to be reading more than the checksum.
+TWIN_EMPTY_MEMBERS_EPUB = build_epub(
+    manifest_items=(
+        '<item id="c1" href="c1.xhtml" media-type="application/xhtml+xml"/>'
+        '<item id="a" href="a.css" media-type="text/css"/>'
+        '<item id="b" href="b.css" media-type="text/css"/>'
+    ),
+    spine='<itemref idref="c1"/>',
+    nav_links='<li><a href="c1.xhtml">One</a></li>',
+    files=("c1.xhtml", "a.css", "b.css"),
+    bodies={"a.css": b"", "b.css": b""},
+)
+
+
 def understating_epub(member: str, real_size: int) -> bytes:
     """An EPUB whose one resource inflates far past the size it declares.
 
@@ -361,22 +376,7 @@ class TestTheEtagIdentifiesTheBytes:
         alone is the same tag for both. A reader that had fetched one would then
         be told its copy of the *other* was current.
         """
-        await store_epub(
-            db_session,
-            test_book,
-            storage_dir,
-            build_epub(
-                manifest_items=(
-                    '<item id="c1" href="c1.xhtml" media-type="application/xhtml+xml"/>'
-                    '<item id="a" href="a.css" media-type="text/css"/>'
-                    '<item id="b" href="b.css" media-type="text/css"/>'
-                ),
-                spine='<itemref idref="c1"/>',
-                nav_links='<li><a href="c1.xhtml">One</a></li>',
-                files=("c1.xhtml", "a.css", "b.css"),
-                bodies={"a.css": b"", "b.css": b""},
-            ),
-        )
+        await store_epub(db_session, test_book, storage_dir, TWIN_EMPTY_MEMBERS_EPUB)
 
         first = await client.get(resource_url(test_book, "a.css"))
         second = await client.get(resource_url(test_book, "b.css"))
@@ -392,22 +392,7 @@ class TestTheEtagIdentifiesTheBytes:
         storage_dir: Path,
     ) -> None:
         """Should not answer 304 to a tag that was issued for a different file."""
-        await store_epub(
-            db_session,
-            test_book,
-            storage_dir,
-            build_epub(
-                manifest_items=(
-                    '<item id="c1" href="c1.xhtml" media-type="application/xhtml+xml"/>'
-                    '<item id="a" href="a.css" media-type="text/css"/>'
-                    '<item id="b" href="b.css" media-type="text/css"/>'
-                ),
-                spine='<itemref idref="c1"/>',
-                nav_links='<li><a href="c1.xhtml">One</a></li>',
-                files=("c1.xhtml", "a.css", "b.css"),
-                bodies={"a.css": b"", "b.css": b""},
-            ),
-        )
+        await store_epub(db_session, test_book, storage_dir, TWIN_EMPTY_MEMBERS_EPUB)
         for_a = (await client.get(resource_url(test_book, "a.css"))).headers["etag"]
 
         response = await client.get(
@@ -494,12 +479,13 @@ class TestDecompressionIsBounded:
         test_book: Book,
         storage_dir: Path,
     ) -> None:
-        """Should not inflate a member that lies its way past the cap.
+        """Should refuse a member that lies about its size rather than serve it.
 
-        The declared size is what the cap can check for free, so a bomb declares
-        a small one. Reading no more than the declaration is what keeps the lie
-        from costing anything: the member here really inflates to a megabyte
-        from an archive of a few hundred bytes.
+        This is the outcome only. What the endpoint spends getting there is not
+        visible from out here, because the shared parser reads every manifest
+        item before this endpoint sees one -- see
+        ``tests/unit/infrastructure/web_reader/test_publication_resource_query.py``
+        for the assertion about the bytes this endpoint's own read allocates.
         """
         await store_epub(
             db_session, test_book, storage_dir, understating_epub("big.css", 1024 * 1024)

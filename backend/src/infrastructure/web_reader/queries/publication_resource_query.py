@@ -103,7 +103,7 @@ class PublicationResourceQuery:
             # inflates a member in full only to discard it.
             if ANY_VERSION in known_versions or version in known_versions:
                 return PublicationResourceView(media_type=media_type, content=None, version=version)
-            content = _read_bounded(archive, entry)
+            content = read_bounded_member(archive, entry)
 
         return PublicationResourceView(media_type=media_type, content=content, version=version)
 
@@ -133,7 +133,7 @@ def _media_types_by_member(publication: ParsedPublication) -> dict[str, str]:
     }
 
 
-def _read_bounded(archive: zipfile.ZipFile, entry: zipfile.ZipInfo) -> bytes:
+def read_bounded_member(archive: zipfile.ZipFile, entry: zipfile.ZipInfo) -> bytes:
     """Read one member without letting it decide how much memory that takes.
 
     Two things are needed, because the declared size is both the only cheap
