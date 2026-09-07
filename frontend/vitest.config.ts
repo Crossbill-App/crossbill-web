@@ -9,6 +9,11 @@ export default mergeConfig(
     // Serves tests/public/mockServiceWorker.js during tests only, so the worker
     // script never ends up in the production build.
     publicDir: 'tests/public',
+    // Env files are read from tests/, which holds none, so a developer's own
+    // frontend/.env cannot reach the run. Without this a local
+    // `VITE_API_URL=http://localhost:8000` would send requests to that origin
+    // while the MSW handlers wait on relative paths.
+    envDir: 'tests',
     resolve: {
       alias: {
         '@tests': path.resolve(import.meta.dirname,'./tests'),

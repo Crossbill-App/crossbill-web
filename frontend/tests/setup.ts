@@ -6,6 +6,7 @@ import { pendingQueryClients } from './harness/renderApp';
 import { worker } from './msw/worker';
 
 // Relative URLs, so MSW handlers can be written against `/api/v1/...` paths.
+// Already the default; pinned here so the handlers do not depend on it.
 AXIOS_INSTANCE.defaults.baseURL = '';
 
 const unhandledRequests: string[] = [];
