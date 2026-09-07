@@ -3,18 +3,44 @@
 # pyright: reportPrivateUsage=false
 
 import logging
+import posixpath
+import zipfile
 from io import BytesIO
 from typing import Any, NamedTuple, cast
-from urllib.parse import unquote
+from urllib.parse import quote, unquote
 
 import ebooklib
 from ebooklib import epub
 from lxml import etree  # pyright: ignore[reportAttributeAccessIssue]
 
+from src.application.web_reader.publications import (
+    ParsedPublication,
+    PublicationLayout,
+    PublicationMetadata,
+    PublicationResource,
+    TocEntry,
+)
 from src.domain.library.entities.chapter import TocChapter
+from src.domain.library.exceptions import InvalidEbookError
 from src.infrastructure.common.memory import trims_memory
 
 logger = logging.getLogger(__name__)
+
+CONTAINER_PATH = "META-INF/container.xml"
+_CONTAINER_NS = "urn:oasis:names:tc:opendocument:xmlns:container"
+_OPF_NS = "http://www.idpf.org/2007/opf"
+
+# EPUB spells the Readium layout property two ways: once for the publication, as
+# a `rendition:layout` metadata value, and per spine item, as an itemref
+# property. Both use the same two names under different spellings.
+_LAYOUT_BY_RENDITION_VALUE = {
+    "pre-paginated": PublicationLayout.FIXED,
+    "reflowable": PublicationLayout.REFLOWABLE,
+}
+_LAYOUT_BY_ITEMREF_PROPERTY = {
+    "rendition:layout-pre-paginated": PublicationLayout.FIXED,
+    "rendition:layout-reflowable": PublicationLayout.REFLOWABLE,
+}
 
 
 class _TocEntry(NamedTuple):
@@ -87,6 +113,127 @@ def _extract_toc_hierarchy(
             )
 
     return entries
+
+
+class _PackageDocument(NamedTuple):
+    """The parts of the OPF that ebooklib parses and then throws away.
+
+    ebooklib reports manifest file names relative to the package document and
+    drops spine itemref properties entirely, so a manifest built from it alone
+    could name neither the right file nor its layout.
+
+    Attributes:
+        directory: The package document's directory inside the container, ``""``
+            when the OPF sits at the container root.
+        default_layout: The publication-wide ``rendition:layout``, if stated.
+        layout_by_idref: Per-spine-item layout overrides, keyed by manifest id.
+    """
+
+    directory: str
+    default_layout: PublicationLayout | None
+    layout_by_idref: dict[str, PublicationLayout]
+
+
+def _read_package_document(epub_content: bytes) -> _PackageDocument:
+    """Read the OPF straight out of the container for what ebooklib does not keep.
+
+    Raises:
+        InvalidEbookError: If the container or its package document is missing
+            or unparseable.
+    """
+    try:
+        with zipfile.ZipFile(BytesIO(epub_content)) as archive:
+            container = etree.fromstring(archive.read(CONTAINER_PATH))
+            rootfile = container.find(f".//{{{_CONTAINER_NS}}}rootfile")
+            opf_path = rootfile.get("full-path") if rootfile is not None else None
+            if not opf_path:
+                raise InvalidEbookError("container.xml names no package document", "epub")
+            package = etree.fromstring(archive.read(opf_path))
+    except InvalidEbookError:
+        raise
+    except Exception as e:
+        raise InvalidEbookError(f"unreadable package document: {e!s}", "epub") from e
+
+    return _PackageDocument(
+        directory=posixpath.dirname(opf_path),
+        default_layout=_default_layout(package),
+        layout_by_idref=_layout_overrides(package),
+    )
+
+
+def _default_layout(package: etree._Element) -> PublicationLayout | None:
+    """Read the publication-wide ``rendition:layout`` from the package metadata."""
+    for meta in package.iterfind(f"{{{_OPF_NS}}}metadata/{{{_OPF_NS}}}meta"):
+        if meta.get("property") == "rendition:layout":
+            return _LAYOUT_BY_RENDITION_VALUE.get((meta.text or "").strip())
+    return None
+
+
+def _layout_overrides(package: etree._Element) -> dict[str, PublicationLayout]:
+    """Read per-spine-item layout properties, keyed by the manifest id they name."""
+    overrides: dict[str, PublicationLayout] = {}
+    for itemref in package.iterfind(f"{{{_OPF_NS}}}spine/{{{_OPF_NS}}}itemref"):
+        idref = itemref.get("idref")
+        if not idref:
+            continue
+        for prop in (itemref.get("properties") or "").split():
+            layout = _LAYOUT_BY_ITEMREF_PROPERTY.get(prop)
+            if layout is not None:
+                overrides[idref] = layout
+    return overrides
+
+
+def _container_href(opf_dir: str, href: str) -> str:
+    """Resolve an OPF-relative href to a percent-encoded container-root path.
+
+    ebooklib hands manifest file names back URL-decoded but leaves navigation
+    hrefs exactly as the document wrote them, so both are decoded first and
+    encoded once. That is what makes a manifest href byte-identical to the
+    ``href`` a derived Locator carries for the same file (ADR-0004 §2).
+    """
+    path, _, fragment = href.partition("#")
+    resolved = posixpath.normpath(posixpath.join(opf_dir, unquote(path)))
+    encoded = quote(resolved, safe="/")
+    return f"{encoded}#{quote(unquote(fragment), safe='')}" if fragment else encoded
+
+
+def _toc_entries(toc_items: list[Any], opf_dir: str) -> tuple[TocEntry, ...]:
+    """Walk ebooklib's TOC tree into nested :class:`TocEntry` values.
+
+    Unlike :func:`_extract_toc_hierarchy`, which flattens for chapter storage,
+    this keeps the nesting a manifest's ``toc`` renders and keeps the href rather
+    than resolving it to an xpointer.
+    """
+    entries: list[TocEntry] = []
+
+    for item in toc_items:
+        if isinstance(item, tuple):
+            section = item[0]
+            children = _toc_entries(item[1] if len(item) > 1 else [], opf_dir)
+            title = getattr(section, "title", None)
+            if title is None:
+                # Untitled section: its children rise to the enclosing level.
+                entries.extend(children)
+                continue
+            entries.append(
+                TocEntry(title=title, href=_entry_href(section, opf_dir), children=children)
+            )
+        elif hasattr(item, "title"):
+            entries.append(TocEntry(title=item.title, href=_entry_href(item, opf_dir)))
+
+    return tuple(entries)
+
+
+def _entry_href(item: Any, opf_dir: str) -> str | None:  # noqa: ANN401
+    """Resolve a TOC item's href, or ``None`` for a heading that links nowhere."""
+    href = getattr(item, "href", None)
+    return _container_href(opf_dir, href) if href else None
+
+
+def _first_metadata(book: Any, name: str) -> str | None:  # noqa: ANN401
+    """Return the first non-empty Dublin Core value for ``name``."""
+    values = book.get_metadata("DC", name)
+    return values[0][0] if values and values[0][0] else None
 
 
 class EpubParserService:
@@ -179,6 +326,68 @@ class EpubParserService:
         except Exception as e:
             logger.error(f"Failed to parse TOC from EPUB: {e!s}")
             return []
+
+    @trims_memory
+    def parse_publication(self, epub_content: bytes) -> ParsedPublication:
+        """Resolve an EPUB into its reading order, resources, TOC and metadata.
+
+        Unlike :meth:`parse_toc`, a failure here is raised rather than swallowed:
+        a manifest with an empty reading order is not a degraded answer, it is a
+        book the reader cannot open.
+
+        Args:
+            epub_content: EPUB file content as bytes.
+
+        Returns:
+            The publication in Readium's terms, hrefs relative to the container
+            root and percent-encoded.
+
+        Raises:
+            InvalidEbookError: If the bytes are not a readable EPUB, or its
+                package document is missing or unparseable.
+        """
+        package = _read_package_document(epub_content)
+        try:
+            book = epub.read_epub(BytesIO(epub_content))
+        except Exception as e:
+            raise InvalidEbookError(f"cannot be read: {e!s}", "epub") from e
+
+        items_by_id = {item.id: item for item in book.get_items()}
+        spine_ids = [idref for idref, _linear in book.spine if idref in items_by_id]
+
+        reading_order = tuple(
+            PublicationResource(
+                href=_container_href(package.directory, items_by_id[idref].file_name),
+                media_type=items_by_id[idref].media_type,
+                layout=package.layout_by_idref.get(idref, package.default_layout),
+            )
+            for idref in spine_ids
+        )
+        in_spine = set(spine_ids)
+        resources = tuple(
+            PublicationResource(
+                href=_container_href(package.directory, item.file_name),
+                media_type=item.media_type,
+            )
+            for item in book.get_items()
+            if item.id not in in_spine
+        )
+
+        logger.info(
+            f"Parsed publication: {len(reading_order)} reading-order items, "
+            f"{len(resources)} resources"
+        )
+        return ParsedPublication(
+            metadata=PublicationMetadata(
+                title=_first_metadata(book, "title"),
+                author=_first_metadata(book, "creator"),
+                language=_first_metadata(book, "language"),
+                identifier=book.uid or _first_metadata(book, "identifier"),
+            ),
+            reading_order=reading_order,
+            resources=resources,
+            toc=_toc_entries(book.toc, package.directory),
+        )
 
     @trims_memory
     def extract_cover(self, epub_content: bytes) -> bytes | None:
