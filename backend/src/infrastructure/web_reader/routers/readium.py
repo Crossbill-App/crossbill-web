@@ -28,9 +28,11 @@ from src.application.web_reader.queries.verify_publication_access_use_case impor
 )
 from src.config import get_settings
 from src.core import container
-from src.domain.identity.entities.user import User
 from src.infrastructure.common.di import inject_use_case
-from src.infrastructure.identity import get_current_user
+from src.infrastructure.identity.dependencies import (
+    AuthenticatedCaller,
+    get_authenticated_caller,
+)
 from src.infrastructure.web_reader.dependencies import PublicationReader
 from src.infrastructure.web_reader.schemas.readium_schemas import (
     POSITION_LIST_MEDIA_TYPE,
@@ -47,7 +49,7 @@ from src.infrastructure.web_reader.schemas.readium_schemas import (
 from src.infrastructure.web_reader.schemas.session_schemas import PublicationSession
 from src.infrastructure.web_reader.services.publication_token_service import (
     PUBLICATION_COOKIE_NAME,
-    PUBLICATION_TOKEN_EXPIRE_MINUTES,
+    PublicationToken,
     create_publication_token,
 )
 
@@ -80,11 +82,6 @@ FALLBACK_MEDIA_TYPE = "application/octet-stream"
 _ENTITY_TAG = re.compile(r'(?:W/)?"(?P<version>[\x21\x23-\x7e]*)"')
 
 
-# How long a browser keeps the cookie: exactly as long as the token inside it is
-# good for, so an expired credential is dropped rather than sent and refused.
-PUBLICATION_COOKIE_MAX_AGE = PUBLICATION_TOKEN_EXPIRE_MINUTES * 60
-
-
 class WebpubJSONResponse(JSONResponse):
     """JSON served as ``application/webpub+json``, which is what a navigator looks for."""
 
@@ -103,11 +100,24 @@ def publication_cookie_path(book_id: int) -> str:
     One book, and the trailing slash matters: a browser sends a cookie to paths
     under its own, so this one reaches this book's manifest, resources and
     position list, and reaches neither another book's nor the rest of the API.
+
+    ``book_id`` is the *parsed* id, so the path is always the canonical spelling
+    of it. A request to ``/books/01/session`` -- or ``/books/%31``, or
+    ``/books/+1``, all of which FastAPI parses to the same integer -- is
+    answered with a cookie scoped to ``/books/1/``, which a browser will not
+    send back to the non-canonical URLs the reader would go on using. That is an
+    accepted sharp edge, not a hole: the cookie can only ever come out
+    *narrower* than the request, so the failure is 401s on resource loads and
+    never a cookie that reaches a book it does not name. The SPA and the
+    generated client both build these URLs from an integer, so nothing we ship
+    can produce the other spellings; canonicalising defensively would mean
+    taking every publication route's ``book_id`` as a string and rejecting what
+    FastAPI already accepts everywhere else in the API.
     """
     return f"{settings.API_V1_PREFIX}/readium/books/{book_id}/"
 
 
-def set_publication_cookie(response: Response, book_id: int, token: str) -> None:
+def set_publication_cookie(response: Response, book_id: int, token: PublicationToken) -> None:
     """Set a book's publication token as an httpOnly cookie.
 
     The flags are the refresh cookie's, for the same reasons: ``httpOnly`` so
@@ -117,15 +127,18 @@ def set_publication_cookie(response: Response, book_id: int, token: str) -> None
     work; ``SameSite=Strict`` because the reader and the API are the same site,
     so the navigator's own iframe loads carry it while nothing off-site can
     make a browser spend it.
+
+    ``Max-Age`` is the token's own remaining life, so the browser drops it
+    exactly when the server would start refusing it.
     """
     response.set_cookie(
         key=PUBLICATION_COOKIE_NAME,
-        value=token,
+        value=token.value,
         httponly=True,
         secure=settings.COOKIE_SECURE,
         samesite="strict",
         path=publication_cookie_path(book_id),
-        max_age=PUBLICATION_COOKIE_MAX_AGE,
+        max_age=token.expires_in,
     )
 
 
@@ -137,7 +150,7 @@ def set_publication_cookie(response: Response, book_id: int, token: str) -> None
 async def start_publication_session(
     book_id: int,
     response: Response,
-    current_user: Annotated[User, Depends(get_current_user)],
+    caller: Annotated[AuthenticatedCaller, Depends(get_authenticated_caller)],
     use_case: VerifyPublicationAccessUseCase = Depends(
         inject_use_case(container.web_reader.verify_publication_access_use_case)
     ),
@@ -146,18 +159,25 @@ async def start_publication_session(
 
     Bearer-authenticated, deliberately: this is the one route that mints the
     second credential, so possession of an access token is what buys it, and a
-    publication cookie can never extend itself.
+    publication cookie can never extend itself. It cannot outlast that token
+    either -- what is left of the access token caps the cookie, which is why
+    the caller arrives here carrying its expiry.
 
     It answers 200 with a body rather than 204. The cookie is ``httpOnly``, so
     the page cannot read when it expires, and it has to know: the reader
     re-posts here before the cookie dies, the way it already refreshes its
     access token. ``expires_in`` in seconds is what the token endpoints call
-    that same number.
+    that same number, and it is the real remaining life rather than the TTL.
     """
-    await use_case.verify_publication_access(book_id=book_id, user_id=current_user.id.value)
-    token = create_publication_token(user_id=current_user.id.value, book_id=book_id)
+    user_id = caller.user.id.value
+    await use_case.verify_publication_access(book_id=book_id, user_id=user_id)
+    token = create_publication_token(
+        user_id=user_id,
+        book_id=book_id,
+        not_after=caller.access_token_expires_at,
+    )
     set_publication_cookie(response, book_id, token)
-    return PublicationSession(expires_in=PUBLICATION_COOKIE_MAX_AGE)
+    return PublicationSession(expires_in=token.expires_in)
 
 
 @router.get(

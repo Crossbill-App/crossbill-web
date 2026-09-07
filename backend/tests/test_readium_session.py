@@ -10,6 +10,7 @@ header at all, the way the iframe enters them. What each endpoint then *serves*
 is M1.1-M1.3's business; what is asserted here is who gets in.
 """
 
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
 import pytest
@@ -17,6 +18,7 @@ from httpx import AsyncClient, Response
 from sqlalchemy.ext.asyncio import AsyncSession
 from starlette import status
 
+from src.infrastructure.identity.services import token_service
 from src.infrastructure.identity.services.token_service import create_access_token
 from src.infrastructure.web_reader.services import publication_token_service
 from src.infrastructure.web_reader.services.publication_token_service import (
@@ -118,6 +120,28 @@ class TestStartingASession:
         expires_in = response.json()["expires_in"]
         assert 0 < expires_in <= publication_token_service.PUBLICATION_TOKEN_EXPIRE_MINUTES * 60
 
+    async def test_the_cookie_never_outlives_the_token_that_bought_it(
+        self,
+        browser_client: AsyncClient,
+        test_user: User,
+        readable_book: Book,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        """Should cut the cookie short when the access token is nearly spent.
+
+        The TTL is a ceiling, not a grant. A Bearer token with a minute left
+        must not buy a quarter of an hour: that is precisely how a session that
+        has ended -- password changed, refresh family revoked -- would go on
+        reading, since nothing revokes a publication token once signed.
+        """
+        monkeypatch.setattr(token_service, "ACCESS_TOKEN_EXPIRE_MINUTES", 1)
+
+        response = await start_publication_session(browser_client, test_user, readable_book.id)
+
+        expires_in = response.json()["expires_in"]
+        assert 0 < expires_in <= 60, "the cookie outlived the access token that minted it"
+        assert f"Max-Age={expires_in}" in response.headers["set-cookie"]
+
     async def test_an_unauthenticated_request_gets_no_cookie(
         self, browser_client: AsyncClient, readable_book: Book
     ) -> None:
@@ -213,11 +237,7 @@ class TestACookieThatIsNoGood:
     """Every way a presented cookie can fail to be a credential."""
 
     async def test_an_expired_cookie_is_refused(
-        self,
-        browser_client: AsyncClient,
-        readable_book: Book,
-        test_user: User,
-        monkeypatch: pytest.MonkeyPatch,
+        self, browser_client: AsyncClient, readable_book: Book, test_user: User
     ) -> None:
         """Should refuse a token whose ``exp`` has passed, signature and all.
 
@@ -225,8 +245,9 @@ class TestACookieThatIsNoGood:
         browser that kept a cookie past ``Max-Age`` is exactly the case the
         server may not trust the browser for.
         """
-        monkeypatch.setattr(publication_token_service, "PUBLICATION_TOKEN_EXPIRE_MINUTES", -1)
-        present(browser_client, create_publication_token(test_user.id, readable_book.id))
+        already_over = datetime.now(UTC) - timedelta(seconds=1)
+        expired = create_publication_token(test_user.id, readable_book.id, not_after=already_over)
+        present(browser_client, expired.value)
 
         response = await browser_client.get(resource_url(readable_book.id))
 

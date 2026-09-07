@@ -1,5 +1,7 @@
 """FastAPI dependencies for identity and authentication."""
 
+from dataclasses import dataclass
+from datetime import datetime
 from typing import Annotated
 
 from fastapi import Depends
@@ -45,16 +47,47 @@ async def load_authenticated_user(use_case: GetUserByIdUseCase, user_id: int) ->
         raise AuthenticationError(CREDENTIALS_ERROR) from None
 
 
-async def _user_for_access_token(token: str, use_case: GetUserByIdUseCase) -> User:
-    """Resolve an access token to the user it was issued for.
+@dataclass(frozen=True)
+class AuthenticatedCaller:
+    """A Bearer-authenticated caller, with the expiry of the token that authenticated them.
+
+    The expiry is here because one route mints a credential of its own: the web
+    reader's publication cookie (#737), which may not outlive the access token
+    that bought it. Reading ``exp`` a second time in that route would mean
+    decoding the token twice and trusting the second decode to agree with the
+    first, so the caller carries it.
+    """
+
+    user: User
+    access_token_expires_at: datetime
+
+
+async def _authenticated_caller(token: str, use_case: GetUserByIdUseCase) -> AuthenticatedCaller:
+    """Resolve an access token to the caller it was issued for.
 
     Raises:
         AuthenticationError: If the token does not verify, or names no user.
     """
-    user_id = verify_access_token(token)
-    if user_id is None:
+    claims = verify_access_token(token)
+    if claims is None:
         raise AuthenticationError(CREDENTIALS_ERROR)
-    return await load_authenticated_user(use_case, user_id)
+    user = await load_authenticated_user(use_case, claims.user_id)
+    return AuthenticatedCaller(user=user, access_token_expires_at=claims.expires_at)
+
+
+async def get_authenticated_caller(
+    token: Annotated[str, Depends(oauth2_scheme)],
+    use_case: UserByIdUseCase,
+) -> AuthenticatedCaller:
+    """Get the current user together with how long their access token has left.
+
+    For routes that hand something back whose lifetime has to be bounded by the
+    Bearer token's; everywhere else wants ``get_current_user``.
+
+    Raises:
+        AuthenticationError: If the token is invalid or names no user.
+    """
+    return await _authenticated_caller(token, use_case)
 
 
 async def get_current_user(
@@ -74,7 +107,7 @@ async def get_current_user(
     Raises:
         AuthenticationError: If token is invalid or user not found
     """
-    return await _user_for_access_token(token, use_case)
+    return (await _authenticated_caller(token, use_case)).user
 
 
 async def get_current_user_optional(
@@ -94,4 +127,4 @@ async def get_current_user_optional(
     """
     if token is None:
         return None
-    return await _user_for_access_token(token, use_case)
+    return (await _authenticated_caller(token, use_case)).user

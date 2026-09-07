@@ -49,13 +49,15 @@ const withQueryKey = <T extends object, K>(query: T, queryKey: K): T & { queryKe
  *
  * Bearer-authenticated, deliberately: this is the one route that mints the
  * second credential, so possession of an access token is what buys it, and a
- * publication cookie can never extend itself.
+ * publication cookie can never extend itself. It cannot outlast that token
+ * either -- what is left of the access token caps the cookie, which is why
+ * the caller arrives here carrying its expiry.
  *
  * It answers 200 with a body rather than 204. The cookie is ``httpOnly``, so
  * the page cannot read when it expires, and it has to know: the reader
  * re-posts here before the cookie dies, the way it already refreshes its
  * access token. ``expires_in`` in seconds is what the token endpoints call
- * that same number.
+ * that same number, and it is the real remaining life rather than the TTL.
  * @summary Start Publication Session
  */
 export const startPublicationSession = (bookId: number, signal?: AbortSignal) => {

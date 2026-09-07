@@ -7,7 +7,11 @@ import jwt
 from jwt import InvalidTokenError
 from pydantic import BaseModel
 
-from src.application.identity.dtos import RefreshTokenClaims, TokenPairWithMetadata
+from src.application.identity.dtos import (
+    AccessTokenClaims,
+    RefreshTokenClaims,
+    TokenPairWithMetadata,
+)
 from src.config import get_settings
 
 settings = get_settings()
@@ -41,24 +45,30 @@ def create_refresh_token(user_id: int, jti: str, expires_at: datetime) -> str:
     return jwt.encode(to_encode, REFRESH_TOKEN_SECRET_KEY, algorithm=ALGORITHM)
 
 
-def verify_access_token(token: str) -> int | None:
-    """Verify an access token and return the user_id if valid.
+def verify_access_token(token: str) -> AccessTokenClaims | None:
+    """Verify an access token and return its claims if valid.
 
     The ``type`` claim has to say ``access`` and not merely fail to say
     ``refresh``. Other tokens are signed with this key -- the web reader's
     publication credential (#737) among them -- and every one of them is
     narrower than an access token, so accepting any token that verifies would
     let the narrowest of them buy the widest.
+
+    An ``exp`` is likewise required rather than assumed. Every token this
+    module issues carries one, and a token that does not is not one of ours.
     """
     try:
         payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
         if payload.get("type") != ACCESS_TOKEN_TYPE:
             return None
-        user_id = payload.get("sub")
-        if user_id is None:
+        user_id, expires_at = payload.get("sub"), payload.get("exp")
+        if user_id is None or expires_at is None:
             return None
-        return int(user_id)
-    except (InvalidTokenError, ValueError):
+        return AccessTokenClaims(
+            user_id=int(user_id),
+            expires_at=datetime.fromtimestamp(expires_at, UTC),
+        )
+    except (InvalidTokenError, ValueError, OSError, OverflowError):
         return None
 
 

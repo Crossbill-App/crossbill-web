@@ -4349,7 +4349,7 @@
           "readium"
         ],
         "summary": "Start Publication Session",
-        "description": "Hand the browser a cookie that lets it load this book's resources.\n\nBearer-authenticated, deliberately: this is the one route that mints the\nsecond credential, so possession of an access token is what buys it, and a\npublication cookie can never extend itself.\n\nIt answers 200 with a body rather than 204. The cookie is ``httpOnly``, so\nthe page cannot read when it expires, and it has to know: the reader\nre-posts here before the cookie dies, the way it already refreshes its\naccess token. ``expires_in`` in seconds is what the token endpoints call\nthat same number.",
+        "description": "Hand the browser a cookie that lets it load this book's resources.\n\nBearer-authenticated, deliberately: this is the one route that mints the\nsecond credential, so possession of an access token is what buys it, and a\npublication cookie can never extend itself. It cannot outlast that token\neither -- what is left of the access token caps the cookie, which is why\nthe caller arrives here carrying its expiry.\n\nIt answers 200 with a body rather than 204. The cookie is ``httpOnly``, so\nthe page cannot read when it expires, and it has to know: the reader\nre-posts here before the cookie dies, the way it already refreshes its\naccess token. ``expires_in`` in seconds is what the token endpoints call\nthat same number, and it is the real remaining life rather than the TTL.",
         "operationId": "start_publication_session",
         "security": [
           {
