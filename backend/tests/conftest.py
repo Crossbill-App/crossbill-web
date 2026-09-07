@@ -338,6 +338,22 @@ async def test_user(db_session: AsyncSession) -> User:
     return user
 
 
+@pytest.fixture
+async def other_user(db_session: AsyncSession, test_user: User) -> User:
+    """Somebody who is not the authenticated user, for the isolation case.
+
+    Every endpoint gets one: a dropped ``user_id`` filter is this app's worst
+    realistic bug class, and only a test that owns a second user's data catches
+    it.
+    """
+    stranger = User(email="stranger@example.com", hashed_password="x")
+    db_session.add(stranger)
+    await db_session.commit()
+    await db_session.refresh(stranger)
+    assert stranger.id != test_user.id
+    return stranger
+
+
 def contract_checked_queue() -> AsyncMock:
     """A fake job queue that checks each enqueue against the real SAQ task.
 

@@ -569,18 +569,12 @@ class TestManifestAccess:
         self,
         client: AsyncClient,
         db_session: AsyncSession,
-        test_user: User,
+        other_user: User,
         storage_dir: Path,
     ) -> None:
         """Should answer 404 for a readable EPUB belonging to somebody else."""
-        stranger = User(email="stranger@example.com", hashed_password="x")
-        db_session.add(stranger)
-        await db_session.commit()
-        await db_session.refresh(stranger)
-        assert stranger.id != test_user.id
-
         their_book = await create_test_book(
-            db_session=db_session, user_id=stranger.id, title="Not Yours"
+            db_session=db_session, user_id=other_user.id, title="Not Yours"
         )
         await store_epub(db_session, their_book, storage_dir, fixture_bytes("minimal.epub"))
 
