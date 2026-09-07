@@ -15,13 +15,39 @@ import { useResumeLocator } from '@/components/reader/useResumeLocator.ts';
 import { useSnackbar } from '@/context/SnackbarContext.tsx';
 import { NextPageIcon, PreviousPageIcon } from '@/theme/Icons.tsx';
 import { ICON_SIZE } from '@/theme/iconSizes.ts';
-import { Box, Button, IconButton, Skeleton, Stack, Typography, useTheme } from '@mui/material';
+import {
+  Box,
+  Button,
+  IconButton,
+  Skeleton,
+  Stack,
+  Typography,
+  useMediaQuery,
+  useTheme,
+} from '@mui/material';
 import { EpubNavigator } from '@readium/navigator';
 import type { Link, Locator } from '@readium/shared';
 import { useCallback, useEffect, useRef, useState } from 'react';
 
-/** Room in the margins for the page-turn buttons, so they never sit on the text. */
+/**
+ * Room in the margins for the page-turn buttons, so they never sit on the text.
+ *
+ * Only where those buttons are: on a phone the two gutters together were most of
+ * the screen, and the book was reduced to a strip down the middle. Below the
+ * breakpoint the buttons give way to tap zones and the reader keeps the width —
+ * with no gutter of ours at all, because Readium's own page gutter already holds
+ * the text 20px off each edge of the frame.
+ */
 const PAGE_TURN_GUTTER = 48;
+
+/**
+ * Air above and below the book, in theme spacing units.
+ *
+ * Readium's page gutter is horizontal only (`padding: 0 var(--RS__pageGutter)`),
+ * so without this the first line sits against the chrome's border and the last
+ * against the bottom of the screen. Nothing to double up with, at any width.
+ */
+const READING_SURFACE_INSET = 2;
 
 /**
  * What the font-size control offers before there is a navigator to ask.
@@ -95,6 +121,9 @@ const whenSized = (element: HTMLElement) =>
  */
 export const ReaderShell = ({ bookId, title, onClose }: ReaderShellProps) => {
   const theme = useTheme();
+  // A phone, near enough. The arrow buttons need gutters this viewport cannot
+  // spare, so below here the edges of the page turn it instead.
+  const isCompact = useMediaQuery(theme.breakpoints.down('sm'));
   const { showSnackbar } = useSnackbar();
   const { status: sessionStatus, isRenewing } = useReaderSession(bookId);
   const { status: publicationStatus, publication, positions } = useReaderPublication(bookId);
@@ -473,8 +502,12 @@ export const ReaderShell = ({ bookId, title, onClose }: ReaderShellProps) => {
       />
 
       <Box sx={{ flex: 1, minHeight: 0, position: 'relative' }}>
-        <PageTurnButton edge="left" onClick={goBackward} disabled={isRenewing} />
-        <PageTurnButton edge="right" onClick={goForward} disabled={isRenewing} />
+        {!isCompact && (
+          <>
+            <PageTurnButton edge="left" onClick={goBackward} disabled={isRenewing} />
+            <PageTurnButton edge="right" onClick={goForward} disabled={isRenewing} />
+          </>
+        )}
 
         {/* The element the navigator measures. Its own container is created
             inside it once it has a box, and the frames Readium appends are
@@ -484,7 +517,8 @@ export const ReaderShell = ({ bookId, title, onClose }: ReaderShellProps) => {
           data-testid="reader-viewport"
           sx={{
             height: '100%',
-            px: `${PAGE_TURN_GUTTER}px`,
+            px: { xs: 0, sm: `${PAGE_TURN_GUTTER}px` },
+            py: READING_SURFACE_INSET,
             visibility: isPageVisible ? 'visible' : 'hidden',
             '& .readium-navigator-iframe': {
               position: 'absolute',

@@ -11,8 +11,18 @@ import {
 } from '@tests/msw/readiumApi';
 import { worker } from '@tests/msw/worker';
 import { delay, http, HttpResponse } from 'msw';
-import { expect, test, vi } from 'vitest';
-import { userEvent } from 'vitest/browser';
+import { afterEach, expect, test, vi } from 'vitest';
+import { page, userEvent } from 'vitest/browser';
+
+/** Narrower than the `sm` breakpoint the reader lays itself out against. */
+const PHONE_VIEWPORT = { width: 390, height: 780 };
+
+/** `vitest.config.ts`'s own viewport, restored after a test has narrowed it. */
+const DEFAULT_VIEWPORT = { width: 1440, height: 900 };
+
+afterEach(async () => {
+  await page.viewport(DEFAULT_VIEWPORT.width, DEFAULT_VIEWPORT.height);
+});
 
 /**
  * `bookApi` serves a book with no EPUB by default, so the reader's own
@@ -50,6 +60,23 @@ test('the reader opens with the book title and its controls', async () => {
   await expect.element(screen.getByRole('button', { name: 'Appearance' })).toBeVisible();
   await expect.element(screen.getByRole('button', { name: 'Next page' })).toBeVisible();
   await expect.element(screen.getByRole('button', { name: 'Previous page' })).toBeVisible();
+});
+
+/**
+ * On a phone the two arrow gutters were most of the screen, and the book was a
+ * strip down the middle. The buttons go, and the chrome above the page — which
+ * fits either way — stays exactly as it was.
+ */
+test('the arrow buttons give the page its width back on a phone', async () => {
+  aBookWithAnEpub();
+  await page.viewport(PHONE_VIEWPORT.width, PHONE_VIEWPORT.height);
+
+  const screen = await renderApp({ path: '/book/1/read' });
+  await expect.element(screen.getByText('Page 1 of 2', { exact: false })).toBeVisible();
+
+  expect(screen.getByRole('button', { name: 'Next page' }).query()).toBeNull();
+  expect(screen.getByRole('button', { name: 'Previous page' }).query()).toBeNull();
+  await expect.element(screen.getByRole('button', { name: 'Contents' })).toBeVisible();
 });
 
 /**
