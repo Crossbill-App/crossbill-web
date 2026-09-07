@@ -70,7 +70,7 @@ const DEFAULT_FONT_SIZE_BOUNDS: { range: [number, number]; step: number } = {
  * short enough that a reader who is never getting a book is told rather than
  * left watching a skeleton.
  */
-const BOOT_TIMEOUT_MS = 15_000;
+const BOOT_TIMEOUT_MS = 60_000;
 
 /** How long an abandoned navigator gets to tear itself down before it is dropped. */
 const DESTROY_TIMEOUT_MS = 2_000;
