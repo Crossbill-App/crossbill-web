@@ -396,3 +396,17 @@ is still same-origin, so anything that does get script running there has the
 page. Scripted EPUB content does not work, which is the intended trade. The
 architectural fix is to serve publication resources from a separate origin;
 Readium's blob-URL design makes that awkward and it is not M2.2's to do.
+
+**Residual closed at the source (#741 follow-up).** The part of that residual
+that was about *documents loaded directly* rather than framed — a frame
+navigating itself, or any path reaching a resource URL without going through the
+hardening fetch — is now handled by the server: `GET
+/api/v1/readium/books/{book_id}/resources/{path}` answers with
+`Content-Security-Policy: sandbox` on both 200 and 304, which gives such a
+document an opaque origin and no scripts whatever the frontend does, and costs
+the reader nothing because the navigator reads the response as *text* and frames
+a blob it builds itself (`FrameBlobBuilder.buildHtmlFrame`), so the header never
+travels into the frame. `SecurityHeadersMiddleware` was changed in the same
+place to leave a response's own policy alone rather than overwrite it, since the
+app-wide policy is only sent outside development — exactly where this one
+matters.
