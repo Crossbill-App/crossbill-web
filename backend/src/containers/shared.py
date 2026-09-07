@@ -79,6 +79,7 @@ from src.infrastructure.semantic.queries.search_hydration_query import SearchHyd
 from src.infrastructure.semantic.queries.semantic_search_query import SemanticSearchQuery
 from src.infrastructure.semantic.repositories.embedding_repository import EmbeddingRepository
 from src.infrastructure.tagging.repositories import TagRepository
+from src.infrastructure.web_reader.queries.web_publication_query import WebPublicationQuery
 from src.infrastructure.web_reader.services.xpoint_cfi_position_anchor_service import (
     XPointCfiPositionAnchorService,
 )
@@ -235,3 +236,13 @@ class SharedContainer(containers.DeclarativeContainer):
     content_source = providers.Factory(ContentSource, db=db, settings=settings)
     semantic_search_query = providers.Factory(SemanticSearchQuery, db=db)
     search_hydration_query = providers.Factory(SearchHydrationQuery, db=db)
+
+    # Web reader. The publication a manifest renders lives in the EPUB rather
+    # than in Postgres, so the query takes the file store and the EPUB parser
+    # alongside the session.
+    web_publication_query = providers.Factory(
+        WebPublicationQuery,
+        db=db,
+        file_repository=file_repository,
+        publication_parser=epub_parser_service,
+    )

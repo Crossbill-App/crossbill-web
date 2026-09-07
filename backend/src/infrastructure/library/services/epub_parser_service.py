@@ -3,18 +3,66 @@
 # pyright: reportPrivateUsage=false
 
 import logging
+import posixpath
+import struct
+import zipfile
+from collections.abc import Iterable
 from io import BytesIO
 from typing import Any, NamedTuple, cast
-from urllib.parse import unquote
+from urllib.parse import quote, unquote
 
 import ebooklib
 from ebooklib import epub
 from lxml import etree  # pyright: ignore[reportAttributeAccessIssue]
 
+from src.application.web_reader.publications import (
+    ParsedPublication,
+    PublicationLayout,
+    PublicationMetadata,
+    PublicationResource,
+    TocEntry,
+)
 from src.domain.library.entities.chapter import TocChapter
+from src.domain.library.exceptions import InvalidEbookError
 from src.infrastructure.common.memory import trims_memory
 
 logger = logging.getLogger(__name__)
+
+CONTAINER_PATH = "META-INF/container.xml"
+_CONTAINER_NS = "urn:oasis:names:tc:opendocument:xmlns:container"
+_OPF_NS = "http://www.idpf.org/2007/opf"
+
+# EPUB spells the Readium layout property two ways: once for the publication, as
+# a `rendition:layout` metadata value, and per spine item, as an itemref
+# property. Both use the same two names under different spellings.
+_LAYOUT_BY_RENDITION_VALUE = {
+    "pre-paginated": PublicationLayout.FIXED,
+    "reflowable": PublicationLayout.REFLOWABLE,
+}
+_LAYOUT_BY_ITEMREF_PROPERTY = {
+    "rendition:layout-pre-paginated": PublicationLayout.FIXED,
+    "rendition:layout-reflowable": PublicationLayout.REFLOWABLE,
+}
+
+# Serving a manifest parses whatever EPUB is stored for the book, and the upload
+# limit bounds only the compressed bytes, so these bound the shape the archive
+# declares for itself. Both are far above any real book: a heavily illustrated
+# EPUB runs to a few hundred megabytes across a few thousand files.
+MAX_PUBLICATION_ENTRIES = 10_000
+MAX_PUBLICATION_UNCOMPRESSED_BYTES = 2 * 1024**3
+
+# Offsets into the zip trailer records, from APPNOTE.TXT sections 4.3.14-4.3.16.
+# Read by hand because the count has to be known before `zipfile` opens the file.
+_EOCD_SIGNATURE = b"PK\x05\x06"
+_EOCD_SIZE = 22
+_EOCD_ENTRY_COUNT_OFFSET = 10
+_EOCD_MAX_COMMENT = 0xFFFF
+_ZIP64_SENTINEL = 0xFFFF
+_ZIP64_LOCATOR_SIGNATURE = b"PK\x06\x07"
+_ZIP64_LOCATOR_SIZE = 20
+_ZIP64_LOCATOR_RECORD_OFFSET = 8
+_ZIP64_EOCD_SIGNATURE = b"PK\x06\x06"
+_ZIP64_ENTRY_COUNT_OFFSET = 32
 
 
 class _TocEntry(NamedTuple):
@@ -87,6 +135,284 @@ def _extract_toc_hierarchy(
             )
 
     return entries
+
+
+class _PackageDocument(NamedTuple):
+    """The parts of the OPF that ebooklib parses and then throws away.
+
+    ebooklib reports manifest file names relative to the package document and
+    drops spine itemref properties entirely, so a manifest built from it alone
+    could name neither the right file nor its layout.
+
+    Attributes:
+        directory: The package document's directory inside the container, ``""``
+            when the OPF sits at the container root.
+        default_layout: The publication-wide ``rendition:layout``, if stated.
+        layout_by_idref: Per-spine-item layout overrides, keyed by manifest id.
+    """
+
+    directory: str
+    default_layout: PublicationLayout | None
+    layout_by_idref: dict[str, PublicationLayout]
+
+
+def _declared_entry_count(epub_content: bytes) -> int | None:
+    """Read how many entries the archive claims, without opening it.
+
+    ``zipfile.ZipFile`` parses the whole central directory in its constructor
+    and builds a ``ZipInfo`` per entry, so by the time :func:`infolist` could be
+    consulted the allocation an entry limit exists to prevent has already
+    happened: 200,000 empty members fit in a 17 MB archive and cost ~100 MB to
+    open, and a file within the upload limit can declare several times that.
+    The count therefore has to come from the End of Central Directory record,
+    which sits in the last 64 KiB and costs one search.
+
+    Returns:
+        The declared total, or ``None`` when no EOCD record can be found -- in
+        which case ``ZipFile`` will refuse the archive on its own terms.
+    """
+    tail_start = max(0, len(epub_content) - (_EOCD_SIZE + _EOCD_MAX_COMMENT))
+    eocd = epub_content.rfind(_EOCD_SIGNATURE, tail_start)
+    if eocd < 0 or eocd + _EOCD_SIZE > len(epub_content):
+        return None
+
+    (count,) = struct.unpack_from("<H", epub_content, eocd + _EOCD_ENTRY_COUNT_OFFSET)
+    if count != _ZIP64_SENTINEL:
+        return count
+    # 0xFFFF is the "look in the ZIP64 record" sentinel, which any archive with
+    # more than 65,535 entries must use -- exactly the ones this guard is for.
+    return _zip64_entry_count(epub_content, eocd)
+
+
+def _zip64_entry_count(epub_content: bytes, eocd: int) -> int | None:
+    """Follow the ZIP64 locator that precedes ``eocd`` to the real entry count."""
+    locator = eocd - _ZIP64_LOCATOR_SIZE
+    if locator < 0 or not epub_content.startswith(_ZIP64_LOCATOR_SIGNATURE, locator):
+        return None
+
+    (record,) = struct.unpack_from("<Q", epub_content, locator + _ZIP64_LOCATOR_RECORD_OFFSET)
+    if record + _ZIP64_ENTRY_COUNT_OFFSET + 8 > len(epub_content):
+        return None
+    if not epub_content.startswith(_ZIP64_EOCD_SIGNATURE, record):
+        return None
+
+    (count,) = struct.unpack_from("<Q", epub_content, record + _ZIP64_ENTRY_COUNT_OFFSET)
+    return count
+
+
+def _reject_overfull_archive(epub_content: bytes) -> None:
+    """Refuse an archive that says it holds more members than a book could.
+
+    Runs before :class:`zipfile.ZipFile` is constructed; see
+    :func:`_declared_entry_count` for why that ordering is the whole point.
+
+    Raises:
+        InvalidEbookError: If the declared entry count is over the limit.
+    """
+    declared = _declared_entry_count(epub_content)
+    if declared is not None and declared > MAX_PUBLICATION_ENTRIES:
+        raise InvalidEbookError(
+            f"declares {declared} entries, over the {MAX_PUBLICATION_ENTRIES} limit", "epub"
+        )
+
+
+def _reject_oversized_archive(archive: zipfile.ZipFile) -> None:
+    """Refuse an archive whose parsed directory is far larger than a book.
+
+    Read from the central directory, so this costs no decompression. It is a
+    sanity check and not a decompression limit: the sizes an archive declares
+    are attacker-controlled and a deliberate bomb can understate them. What it
+    does buy is that a stored file which merely *claims* to expand to tens of
+    gigabytes is turned away before ebooklib reads every entry into memory,
+    which the compressed-bytes limit on upload cannot see.
+
+    The entry count is checked again here against the members ``ZipFile``
+    actually found, because an EOCD that understated the count would otherwise
+    slip past :func:`_reject_overfull_archive`.
+
+    Raises:
+        InvalidEbookError: If the archive holds too many entries or declares too
+            much uncompressed content.
+    """
+    entries = archive.infolist()
+    if len(entries) > MAX_PUBLICATION_ENTRIES:
+        raise InvalidEbookError(
+            f"declares {len(entries)} entries, over the {MAX_PUBLICATION_ENTRIES} limit", "epub"
+        )
+    declared_bytes = sum(entry.file_size for entry in entries)
+    if declared_bytes > MAX_PUBLICATION_UNCOMPRESSED_BYTES:
+        raise InvalidEbookError(
+            f"declares {declared_bytes} uncompressed bytes, over the "
+            f"{MAX_PUBLICATION_UNCOMPRESSED_BYTES} limit",
+            "epub",
+        )
+
+
+def _read_package_document(epub_content: bytes) -> _PackageDocument:
+    """Read the OPF straight out of the container for what ebooklib does not keep.
+
+    Raises:
+        InvalidEbookError: If the archive is implausibly large, or the container
+            or its package document is missing or unparseable.
+    """
+    _reject_overfull_archive(epub_content)
+    try:
+        with zipfile.ZipFile(BytesIO(epub_content)) as archive:
+            _reject_oversized_archive(archive)
+            container = etree.fromstring(archive.read(CONTAINER_PATH))
+            rootfile = container.find(f".//{{{_CONTAINER_NS}}}rootfile")
+            opf_path = rootfile.get("full-path") if rootfile is not None else None
+            if not opf_path:
+                raise InvalidEbookError("container.xml names no package document", "epub")
+            package = etree.fromstring(archive.read(opf_path))
+    except InvalidEbookError:
+        raise
+    except Exception as e:
+        raise InvalidEbookError(f"unreadable package document: {e!s}", "epub") from e
+
+    return _PackageDocument(
+        directory=posixpath.dirname(opf_path),
+        default_layout=_default_layout(package),
+        layout_by_idref=_layout_overrides(package),
+    )
+
+
+def _default_layout(package: etree._Element) -> PublicationLayout | None:
+    """Read the publication-wide ``rendition:layout`` from the package metadata."""
+    for meta in package.iterfind(f"{{{_OPF_NS}}}metadata/{{{_OPF_NS}}}meta"):
+        if meta.get("property") == "rendition:layout":
+            return _LAYOUT_BY_RENDITION_VALUE.get((meta.text or "").strip())
+    return None
+
+
+def _layout_overrides(package: etree._Element) -> dict[str, PublicationLayout]:
+    """Read per-spine-item layout properties, keyed by the manifest id they name."""
+    overrides: dict[str, PublicationLayout] = {}
+    for itemref in package.iterfind(f"{{{_OPF_NS}}}spine/{{{_OPF_NS}}}itemref"):
+        idref = itemref.get("idref")
+        if not idref:
+            continue
+        for prop in (itemref.get("properties") or "").split():
+            layout = _LAYOUT_BY_ITEMREF_PROPERTY.get(prop)
+            if layout is not None:
+                overrides[idref] = layout
+    return overrides
+
+
+def _container_href(opf_dir: str, file_path: str) -> str | None:
+    """Encode a decoded, OPF-relative file path as a container-root href.
+
+    The argument is the file's real name, already decoded. Encoding it exactly
+    once is what makes the result byte-identical to the ``href`` a derived
+    Locator carries for the same file (ADR-0004 §2) -- including for a file
+    whose name genuinely contains a percent sign, where decoding a second time
+    would name a different file or none at all.
+
+    Returns:
+        The percent-encoded container-root path, or ``None`` if the path is
+        absolute or climbs out of the container. Such a path names something
+        the publication does not contain, and served under the manifest's own
+        URL it would resolve to a different endpoint entirely.
+    """
+    if file_path.startswith("/"):
+        return None
+    resolved = posixpath.normpath(posixpath.join(opf_dir, file_path))
+    if resolved == ".." or resolved.startswith("../"):
+        return None
+    return quote(resolved, safe="/")
+
+
+def _document_href(opf_dir: str, href: str) -> str | None:
+    """Resolve a navigation link's href, which ebooklib leaves exactly as written.
+
+    Unlike a manifest file name, this arrives still encoded, so it is decoded
+    once here and re-encoded by :func:`_container_href`. The escape check runs
+    on the decoded path, so ``..%2F..%2Fx`` is rejected along with ``../../x``.
+    """
+    path, _, fragment = href.partition("#")
+    resolved = _container_href(opf_dir, unquote(path))
+    if resolved is None:
+        return None
+    return f"{resolved}#{quote(unquote(fragment), safe='')}" if fragment else resolved
+
+
+def _resources(
+    items: Iterable[Any],
+    opf_dir: str,
+    layouts: dict[str, PublicationLayout | None],
+) -> tuple[PublicationResource, ...]:
+    """Render manifest items as publication resources, dropping any that escape.
+
+    A single item pointing outside the container costs that item and not the
+    whole book -- a stray image is worth degrading over, and a spine emptied
+    this way is caught by the reading-order check in
+    :meth:`EpubParserService.parse_publication`.
+    """
+    resources: list[PublicationResource] = []
+
+    for item in items:
+        href = _container_href(opf_dir, item.file_name)
+        if href is None:
+            logger.warning(f"Dropped manifest item pointing outside the publication: {item.id!r}")
+            continue
+        resources.append(
+            PublicationResource(
+                href=href,
+                media_type=item.media_type,
+                layout=layouts.get(item.id),
+            )
+        )
+
+    return tuple(resources)
+
+
+def _toc_entries(toc_items: list[Any], opf_dir: str) -> tuple[TocEntry, ...]:
+    """Walk ebooklib's TOC tree into nested :class:`TocEntry` values.
+
+    Unlike :func:`_extract_toc_hierarchy`, which flattens for chapter storage,
+    this keeps the nesting a manifest's ``toc`` renders and keeps the href rather
+    than resolving it to an xpointer.
+    """
+    entries: list[TocEntry] = []
+
+    for item in toc_items:
+        if isinstance(item, tuple):
+            section = item[0]
+            children = _toc_entries(item[1] if len(item) > 1 else [], opf_dir)
+            title = getattr(section, "title", None)
+            if title is None:
+                # Untitled section: its children rise to the enclosing level.
+                entries.extend(children)
+                continue
+            entries.append(
+                TocEntry(title=title, href=_entry_href(section, opf_dir), children=children)
+            )
+        elif hasattr(item, "title"):
+            entries.append(TocEntry(title=item.title, href=_entry_href(item, opf_dir)))
+
+    return tuple(entries)
+
+
+def _entry_href(item: Any, opf_dir: str) -> str | None:  # noqa: ANN401
+    """Resolve a TOC item's href, or ``None`` for a heading that links nowhere.
+
+    An href that escapes the container is treated as linking nowhere rather than
+    dropping the entry, so a hostile or broken link costs its own line's
+    navigation and not the nesting of everything under it.
+    """
+    href = getattr(item, "href", None)
+    if not href:
+        return None
+    resolved = _document_href(opf_dir, href)
+    if resolved is None:
+        logger.warning(f"Dropped TOC href pointing outside the publication: {href!r}")
+    return resolved
+
+
+def _first_metadata(book: Any, name: str) -> str | None:  # noqa: ANN401
+    """Return the first non-empty Dublin Core value for ``name``."""
+    values = book.get_metadata("DC", name)
+    return values[0][0] if values and values[0][0] else None
 
 
 class EpubParserService:
@@ -179,6 +505,71 @@ class EpubParserService:
         except Exception as e:
             logger.error(f"Failed to parse TOC from EPUB: {e!s}")
             return []
+
+    @trims_memory
+    def parse_publication(self, epub_content: bytes) -> ParsedPublication:
+        """Resolve an EPUB into its reading order, resources, TOC and metadata.
+
+        Unlike :meth:`parse_toc`, a failure here is raised rather than swallowed:
+        a manifest with an empty reading order is not a degraded answer, it is a
+        book the reader cannot open.
+
+        Args:
+            epub_content: EPUB file content as bytes.
+
+        Returns:
+            The publication in Readium's terms, hrefs relative to the container
+            root and percent-encoded.
+
+        Raises:
+            InvalidEbookError: If the bytes are not a readable EPUB, its package
+                document is missing or unparseable, or its spine names nothing
+                the publication contains.
+        """
+        package = _read_package_document(epub_content)
+        try:
+            book = epub.read_epub(BytesIO(epub_content))
+        except Exception as e:
+            raise InvalidEbookError(f"cannot be read: {e!s}", "epub") from e
+
+        items_by_id = {item.id: item for item in book.get_items()}
+        spine_ids = [idref for idref, _linear in book.spine if idref in items_by_id]
+        if dangling := len(book.spine) - len(spine_ids):
+            logger.warning(f"Spine names {dangling} item(s) missing from the manifest")
+
+        reading_order = _resources(
+            (items_by_id[idref] for idref in spine_ids),
+            package.directory,
+            {
+                idref: package.layout_by_idref.get(idref, package.default_layout)
+                for idref in spine_ids
+            },
+        )
+        if not reading_order:
+            raise InvalidEbookError("has no readable spine items", "epub")
+
+        in_spine = set(spine_ids)
+        resources = _resources(
+            (item for item in book.get_items() if item.id not in in_spine),
+            package.directory,
+            {},
+        )
+
+        logger.info(
+            f"Parsed publication: {len(reading_order)} reading-order items, "
+            f"{len(resources)} resources"
+        )
+        return ParsedPublication(
+            metadata=PublicationMetadata(
+                title=_first_metadata(book, "title"),
+                author=_first_metadata(book, "creator"),
+                language=_first_metadata(book, "language"),
+                identifier=book.uid or _first_metadata(book, "identifier"),
+            ),
+            reading_order=reading_order,
+            resources=resources,
+            toc=_toc_entries(book.toc, package.directory),
+        )
 
     @trims_memory
     def extract_cover(self, epub_content: bytes) -> bytes | None:

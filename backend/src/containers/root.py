@@ -12,6 +12,7 @@ from src.containers.reflection import ReflectionContainer
 from src.containers.semantic import SemanticContainer
 from src.containers.shared import SharedContainer
 from src.containers.tagging import TaggingContainer
+from src.containers.web_reader import WebReaderContainer
 from src.database import current_db_session
 
 
@@ -151,4 +152,9 @@ class RootContainer(containers.DeclarativeContainer):
         semantic_search_query=shared.semantic_search_query,
         search_hydration_query=shared.search_hydration_query,
         book_list_query=shared.book_list_query,
+    )
+
+    web_reader = providers.Container(
+        WebReaderContainer,
+        web_publication_query=shared.web_publication_query,
     )

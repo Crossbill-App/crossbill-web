@@ -1,11 +1,17 @@
-"""Tests for EpubParserService cover extraction and TOC parsing."""
+"""Tests for EpubParserService cover extraction, TOC parsing and archive limits."""
 
+import io
+import struct
+import zipfile
 from pathlib import Path
 
 import pytest
 from ebooklib import epub
 
-from src.infrastructure.library.services.epub_parser_service import EpubParserService
+from src.infrastructure.library.services.epub_parser_service import (
+    EpubParserService,
+    _declared_entry_count,  # pyright: ignore[reportPrivateUsage]
+)
 
 FAKE_IMAGE = b"\x89PNG\r\n\x1a\n\x00\x00\x00\rIHDR fake image bytes"
 
@@ -181,3 +187,56 @@ class TestExtractCoverFromOPFMeta:
         epub_path = _create_epub_without_cover(tmp_path)
         result = service.extract_cover(epub_path.read_bytes())
         assert result is None
+
+
+class TestDeclaredEntryCount:
+    """Reading an archive's entry count out of its trailer, before opening it.
+
+    A unit test rather than an endpoint one: this is zip-format parsing with a
+    branch the manifest tests cannot reach, because the ZIP64 arm needs an
+    archive with more than 65,535 members and nothing about it involves HTTP.
+    """
+
+    @staticmethod
+    def _archive(entries: int, comment: bytes = b"") -> bytes:
+        """Build a real zip of empty members, so the trailer is Python's, not ours."""
+        buffer = io.BytesIO()
+        with zipfile.ZipFile(buffer, "w", zipfile.ZIP_STORED) as archive:
+            for index in range(entries):
+                archive.writestr(str(index), b"")
+            archive.comment = comment
+        return buffer.getvalue()
+
+    @pytest.mark.parametrize("entries", [0, 1, 7, 300])
+    def test_reads_the_count_from_the_end_of_central_directory(self, entries: int) -> None:
+        assert _declared_entry_count(self._archive(entries)) == entries
+
+    def test_follows_the_zip64_record_past_the_sixteen_bit_limit(self) -> None:
+        """Above 65,535 the count field holds 0xFFFF and the real total is in ZIP64.
+
+        Taking the sentinel at face value would read 65,535 for an archive of
+        any size, which is exactly the archive the limit exists to stop.
+        """
+        archive = self._archive(65_536)
+
+        eocd = archive.rfind(b"PK\x05\x06")
+        assert struct.unpack_from("<H", archive, eocd + 10)[0] == 0xFFFF, "no sentinel to follow"
+        assert _declared_entry_count(archive) == 65_536
+
+    def test_finds_the_record_behind_a_trailing_comment(self) -> None:
+        """The EOCD is not at the end of file when the archive carries a comment."""
+        assert _declared_entry_count(self._archive(4, comment=b"x" * 3000)) == 4
+
+    @pytest.mark.parametrize(
+        ("label", "content"),
+        [
+            ("empty", b""),
+            ("not a zip", b"nothing like an archive"),
+            ("truncated trailer", b"PK\x05\x06short"),
+        ],
+    )
+    def test_reports_nothing_for_an_archive_it_cannot_read(
+        self, label: str, content: bytes
+    ) -> None:
+        """Should decline to answer rather than raise; ZipFile will refuse it next."""
+        assert _declared_entry_count(content) is None, label

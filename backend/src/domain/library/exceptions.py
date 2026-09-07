@@ -10,6 +10,20 @@ class CoverNotFoundError(EntityNotFoundError):
         super().__init__("Cover", filename)
 
 
+class EbookFileNotFoundError(EntityNotFoundError):
+    """Raised when a book has no stored ebook file to read from.
+
+    Distinct from ``BookNotFoundError``: the book is there and the user owns it,
+    but nothing was ever uploaded for it or the stored file has since gone
+    missing. Both answer 404, and keeping them apart is what stops a storage
+    fault from reading as a deleted book in the logs.
+    """
+
+    def __init__(self, book_id: int) -> None:
+        super().__init__("Ebook file for book", book_id)
+        self.book_id = book_id
+
+
 class XPointNavigationError(ValidationError):
     """Could not navigate to xpoint location in EPUB."""
 
