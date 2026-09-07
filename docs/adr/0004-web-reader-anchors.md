@@ -78,6 +78,21 @@ The reverse direction exists too: a selection made in the browser produces a
 locator, which is converted **to an `XPointRange`** before anything is written.
 The write path stores xpointers whichever reader the reader used.
 
+**Ground truth corrected, 2026-09-07 (M2.1/#740, M2.2/#741).** The note in
+*Context* above — that everything about highlights is ours to build — is right
+about **thorium-web** and wrong about the toolkit underneath it. The Readium TS
+toolkit **does** ship a decoration layer: `EpubNavigator.applyDecorations(list,
+group)` and `registerDecorationObserver(group, observer)` are public API on the
+navigator, `@readium/decorator` supplies the styles and the diffing, and the
+decorator module is injected into every publication frame. `@edrlab/thorium-web`
+simply never calls any of it. What is ours to build is therefore the
+*conversion* (xpointer → locator) and the *UI around a selection*, not the
+drawing: rendering a highlight is one call on a navigator we own, under a group
+name we reserve (`crossbill-highlights`,
+`frontend/src/components/reader/decorations.ts`). This narrows M3.2 rather than
+changing any decision above — the locator stays derived, and the decoration is
+drawn from it.
+
 ### 3. CFI is export only
 
 EPUB CFI is a **nice-to-have export format (M5.5), never stored and never on a
