@@ -128,6 +128,8 @@ export * from './recentCapture.ts';
 export * from './recentCaptureKind.ts';
 export * from './refreshTokenRequest.ts';
 export * from './relatedContentParams.ts';
+export * from './resumePositionResponse.ts';
+export * from './resumeSource.ts';
 export * from './searchBookHighlightsParams.ts';
 export * from './searchBookRef.ts';
 export * from './sendChatMessageRequest.ts';

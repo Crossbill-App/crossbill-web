@@ -26,6 +26,7 @@ import type {
   PublicationSession,
   ReadingPosition,
   ReadingPositionUpdate,
+  ResumePositionResponse,
   WebPublicationManifest,
 } from '../model';
 
@@ -381,15 +382,22 @@ export function useGetReadiumPositions<
 }
 
 /**
- * Get where this reader last was in the book, or null if they have never been.
+ * Get where the browser should open this book, whichever device was there last.
  *
- * Null rather than 404: a book nobody has opened in the browser is an ordinary
- * state of an ordinary book, and 404 here would mean the same thing as a book
- * that is not the caller's, which it is not.
+ * Not merely what the browser itself last stored: a reader who left off on
+ * their e-reader is answered with *that* place, converted from the canonical
+ * xpointer to a locator against the EPUB this server holds (ADR-0004 §2). The
+ * two candidates are weighed on when the reader was at each, and sessions the
+ * web reader wrote are left out of the comparison because the stored position
+ * already says the same thing more exactly.
+ *
+ * Always an object, never 404 and never null: a book nobody has opened is an
+ * ordinary state of an ordinary book, and the reader has to be able to tell it
+ * apart from a place that was lost when the EPUB was replaced.
  * @summary Get Reading Position
  */
 export const getReadingPosition = (bookId: number, signal?: AbortSignal) => {
-  return axiosInstance<ReadingPosition | null>({
+  return axiosInstance<ResumePositionResponse>({
     url: `/api/v1/readium/books/${bookId}/reading-position`,
     method: 'GET',
     signal,
