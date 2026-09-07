@@ -440,6 +440,10 @@ reports a position:
   because that is where they are and that is what progress means; the range
   keeps its furthest extent, because a range that ran backwards would not be
   one.
+- **It is kept alive while the reader is on one page.** Sitting still is not
+  the same as having stopped, so the reader re-sends its position every ten
+  minutes while the tab is visible; an unchanged position is still a position
+  arriving, and extends the session like any other.
 - **It ends by not being extended.** This is the part worth stating plainly:
   **nothing has to run to close a web reading session.** Its `end_time` is
   already the last position it was told about, so a session that stops being
@@ -489,13 +493,12 @@ serve them like every other web reader route — one credential rule, one place 
 get it wrong.
 
 The `PUT` body is the locator as the navigator serializes it, plus
-`recorded_at`, plus `closing`. `recorded_at` is the reader's own clock and is
-**clamped to the moment the request arrives**: a clock that runs ahead must not
-invent reading time it would then be credited with, nor lock its owner out of
-writing until the date it claimed. A write whose observation is not newer than
-what is stored is answered with what is stored rather than refused — the
-debounced write and the one a closing tab sends race by design, and the loser is
-not an error.
+`recorded_at`, plus `closing`. `recorded_at` is the reader's own clock, and it
+sets the *reading session's* moment only — never which of two writes is later;
+see *Concurrency* below for both halves of that and for the bounds it is held
+within. A write that has been overtaken is answered with what is stored rather
+than refused: the debounced write and the one a closing tab sends race by
+design, and the loser is not an error.
 
 ### A reading position usually has no quote at all
 
@@ -660,8 +663,9 @@ open overnight from recording a night's reading.
 - **A `web_reading_progress` notion of its own**, read by the progress bar
   instead of sessions. It would be a second answer to a question that already
   has one, and every reader of progress would have to learn to ask both.
-- **Trusting the client's clock for durations.** It sets the moment, clamped;
-  it cannot set one in the future.
+- **Trusting the client's clock for durations, or for ordering.** It sets the
+  moment a session is measured from, bounded at both ends; which of two writes
+  is later is the server's own clock and nothing else.
 - **Writing a position on open.** It would start a session for opening a book,
   and — once M2.4 resumes into a stored position — write back the position it
   had just restored.
