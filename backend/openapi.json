@@ -4519,6 +4519,143 @@
         }
       }
     },
+    "/api/v1/readium/books/{book_id}/reading-position": {
+      "get": {
+        "tags": [
+          "readium"
+        ],
+        "summary": "Get Reading Position",
+        "description": "Get where this reader last was in the book, or null if they have never been.\n\nNull rather than 404: a book nobody has opened in the browser is an ordinary\nstate of an ordinary book, and 404 here would mean the same thing as a book\nthat is not the caller's, which it is not.",
+        "operationId": "get_reading_position",
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "book_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Book Id"
+            }
+          },
+          {
+            "name": "publication_access",
+            "in": "cookie",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Publication Access"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/components/schemas/ReadingPosition"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "title": "Response Get Reading Position"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "readium"
+        ],
+        "summary": "Put Reading Position",
+        "description": "Record where the reader has got to, and keep their reading session going.\n\nThe position is converted to the canonical KOReader xpointer before anything\nis stored (ADR-0004 \u00a72) and refused if the conversion is too weak to say\nwhere it is. It also extends -- or begins -- a real row in\n``reading_sessions``, which is how browser reading reaches the progress bar\nand the reading statistics without either of them knowing the web reader\nexists (ADR-0004, Amendment 3).\n\nA write that says nothing newer than what is stored is answered with what is\nstored, rather than refused: the write a closing tab sends and the one a\npage turn sends race by design.",
+        "operationId": "put_reading_position",
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "book_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Book Id"
+            }
+          },
+          {
+            "name": "publication_access",
+            "in": "cookie",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Publication Access"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ReadingPositionUpdate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReadingPosition"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "The locator names no place this book can be shown to have."
+          }
+        }
+      }
+    },
     "/api/v1/readium/books/{book_id}/resources/{path}": {
       "get": {
         "tags": [
@@ -5123,6 +5260,12 @@
             "title": "Highlight Count",
             "description": "Live highlights on the book, including any that sit in no chapter",
             "default": 0
+          },
+          "has_ebook": {
+            "type": "boolean",
+            "title": "Has Ebook",
+            "description": "Whether the book has an EPUB, and so can be read in the browser",
+            "default": false
           },
           "reading_position": {
             "anyOf": [
@@ -7999,6 +8142,151 @@
         "title": "LibraryStats",
         "description": "The year on the grid, said in numbers rather than squares.\n\nCounted over the same window as ``LibraryActivity``, but from the sessions:\na day that got through no pages is a day read with no square to show for it."
       },
+      "LocatorLocationsSchema": {
+        "properties": {
+          "position": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Position"
+          },
+          "progression": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Progression"
+          },
+          "totalProgression": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Totalprogression"
+          },
+          "fragments": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Fragments"
+          },
+          "cssSelector": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cssselector"
+          }
+        },
+        "type": "object",
+        "title": "LocatorLocationsSchema",
+        "description": "A Locator's ``locations``: the same place said in several ways.\n\nEvery field is optional because a navigator fills in only what its current\nview can supply, and all of them are kept: the resume that M2.4 builds on\ntries the text quote, then the CSS selector, then a fragment id, then the\nprogression, in that order."
+      },
+      "LocatorSchema": {
+        "properties": {
+          "href": {
+            "type": "string",
+            "title": "Href",
+            "description": "The resource, as the manifest names it"
+          },
+          "type": {
+            "type": "string",
+            "title": "Type",
+            "description": "The resource's media type"
+          },
+          "title": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Title"
+          },
+          "locations": {
+            "$ref": "#/components/schemas/LocatorLocationsSchema",
+            "default": {}
+          },
+          "text": {
+            "$ref": "#/components/schemas/LocatorTextSchema",
+            "default": {}
+          }
+        },
+        "type": "object",
+        "required": [
+          "href",
+          "type"
+        ],
+        "title": "LocatorSchema",
+        "description": "A Readium Locator Object as a navigator produces and consumes one."
+      },
+      "LocatorTextSchema": {
+        "properties": {
+          "before": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Before"
+          },
+          "highlight": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Highlight"
+          },
+          "after": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "After"
+          }
+        },
+        "type": "object",
+        "title": "LocatorTextSchema",
+        "description": "A Locator's text quote: what is at the position, and what surrounds it.\n\nFor a reading position ``highlight`` is the text the page begins on rather\nthan anything the reader marked; ``before`` and ``after`` are what make it\nfindable when the same sentence occurs twice."
+      },
       "Note": {
         "properties": {
           "id": {
@@ -8673,6 +8961,71 @@
         ],
         "title": "RankedContentGroups",
         "description": "Matches ranked against the embeddings index, grouped by content type.\n\nEvery group is present even when empty, and every item carries its score on\none scale, so a client can merge the groups back into a single ranked list.\n\nThe whole of what ``GET /semantic/related`` answers, and the ranked half of\nglobal search."
+      },
+      "ReadingPosition": {
+        "properties": {
+          "locator": {
+            "$ref": "#/components/schemas/LocatorSchema",
+            "description": "The position, ready to navigate to"
+          },
+          "xpoint": {
+            "type": "string",
+            "title": "Xpoint",
+            "description": "The same position in the format both readers agree on"
+          },
+          "position": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/PositionResponse"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The position in document order, or null when it could not be placed"
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Updated At",
+            "description": "When this position was recorded"
+          }
+        },
+        "type": "object",
+        "required": [
+          "locator",
+          "xpoint",
+          "updated_at"
+        ],
+        "title": "ReadingPosition",
+        "description": "Where a reader last was in a book, as the browser gets it back."
+      },
+      "ReadingPositionUpdate": {
+        "properties": {
+          "locator": {
+            "$ref": "#/components/schemas/LocatorSchema",
+            "description": "Where the reader now is"
+          },
+          "recorded_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Recorded At",
+            "description": "When the reader was there, by their own clock. Never read as later than the moment the request arrives."
+          },
+          "closing": {
+            "type": "boolean",
+            "title": "Closing",
+            "description": "Whether the reader is leaving the book. The position is stored either way; this ends the reading session rather than extending it next time.",
+            "default": false
+          }
+        },
+        "type": "object",
+        "required": [
+          "locator",
+          "recorded_at"
+        ],
+        "title": "ReadingPositionUpdate",
+        "description": "What the reader sends when they have moved."
       },
       "ReadingSession": {
         "properties": {
