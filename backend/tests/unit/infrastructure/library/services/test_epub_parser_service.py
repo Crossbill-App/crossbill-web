@@ -2,16 +2,19 @@
 
 import io
 import struct
+import tracemalloc
 import zipfile
 from pathlib import Path
 
 import pytest
 from ebooklib import epub
 
+from src.application.web_reader.publications import ParsedPublication, TocEntry
 from src.infrastructure.library.services.epub_parser_service import (
     EpubParserService,
     _declared_entry_count,  # pyright: ignore[reportPrivateUsage]
 )
+from tests.test_readium_manifest import build_epub
 
 FAKE_IMAGE = b"\x89PNG\r\n\x1a\n\x00\x00\x00\rIHDR fake image bytes"
 
@@ -187,6 +190,269 @@ class TestExtractCoverFromOPFMeta:
         epub_path = _create_epub_without_cover(tmp_path)
         result = service.extract_cover(epub_path.read_bytes())
         assert result is None
+
+
+class TestParsePublicationCost:
+    """What resolving a publication's structure *costs*, which no manifest can show.
+
+    Every readium request parses the stored EPUB, so the parse decides what one
+    request may be made to allocate. The bytes it must read are the container,
+    the package document and the navigation document -- a few kilobytes of
+    structure -- and nothing about a manifest entry requires reading the file it
+    names. Reading them all is a per-request tax the size of the whole book on
+    an honest one, and unbounded amplification on a crafted one: this archive is
+    130 KB and its members inflate to 128 MiB (#773).
+    """
+
+    # Large enough that inflating the publication cannot hide inside the noise
+    # of a parse, small enough to build in a test.
+    BOMB_SIZE = 128 * 1024 * 1024
+
+    # A parse reads three small documents and builds a dataclass per manifest
+    # item, so its peak has nothing to do with how much content the archive
+    # holds. Loose enough not to fail on an interpreter's own allocations,
+    # tight enough that reading one member of any real book would break it.
+    PEAK_LIMIT = 8 * 1024 * 1024
+
+    @staticmethod
+    def _high_ratio_epub(size: int) -> bytes:
+        """A publication whose members really do inflate to ``size``, honestly declared.
+
+        Nothing here is a lie the size guards could catch: the central directory
+        states the real uncompressed length, which is well under the limit the
+        parser admits. The archive is simply very compressible, as a book of
+        repeated markup is.
+        """
+        return build_epub(
+            manifest_items=(
+                '<item id="c1" href="c1.xhtml" media-type="application/xhtml+xml"/>'
+                '<item id="big" href="big.css" media-type="text/css"/>'
+            ),
+            spine='<itemref idref="c1"/>',
+            nav_links='<li><a href="c1.xhtml">One</a></li>',
+            files=("c1.xhtml", "big.css"),
+            bodies={"big.css": b"A" * size},
+            compression=zipfile.ZIP_DEFLATED,
+        )
+
+    @staticmethod
+    def _peak_bytes_parsing(
+        service: EpubParserService, content: bytes
+    ) -> tuple[ParsedPublication, int]:
+        """Parse a publication and report what the parse peaked at."""
+        tracemalloc.start()
+        try:
+            publication = service.parse_publication(content)
+            peak = tracemalloc.get_traced_memory()[1]
+        finally:
+            tracemalloc.stop()
+        return publication, peak
+
+    def test_reads_the_structure_without_inflating_the_content(
+        self, service: EpubParserService
+    ) -> None:
+        """Should cost what the package and navigation documents weigh, not the book."""
+        content = self._high_ratio_epub(self.BOMB_SIZE)
+        assert len(content) < 256 * 1024, "the archive itself should be small"
+
+        publication, peak = self._peak_bytes_parsing(service, content)
+
+        # The publication is still resolved in full: the point is the cost, not
+        # a narrower answer.
+        assert [item.href for item in publication.reading_order] == ["c1.xhtml"]
+        assert [item.href for item in publication.resources] == ["nav.xhtml", "big.css"]
+        assert [entry.title for entry in publication.toc] == ["One"]
+        assert peak < self.PEAK_LIMIT, f"inflated the publication: {peak / 1024**2:.0f} MiB"
+
+
+def hand_built_epub(package: str, members: dict[str, str], opf_path: str = "content.opf") -> bytes:
+    """An EPUB assembled member by member, for shapes ``build_epub`` cannot take.
+
+    ``build_epub`` writes an EPUB 3 with a navigation document, which is the
+    shape nearly every assertion wants. These are the ones it is not: a book
+    navigated by an NCX, or one whose navigation is broken.
+    """
+    out = io.BytesIO()
+    with zipfile.ZipFile(out, "w") as archive:
+        archive.writestr(zipfile.ZipInfo("mimetype"), "application/epub+zip", zipfile.ZIP_STORED)
+        archive.writestr(
+            "META-INF/container.xml",
+            '<?xml version="1.0" encoding="UTF-8"?>'
+            '<container version="1.0" '
+            'xmlns="urn:oasis:names:tc:opendocument:xmlns:container"><rootfiles>'
+            f'<rootfile full-path="{opf_path}" '
+            'media-type="application/oebps-package+xml"/></rootfiles></container>',
+        )
+        archive.writestr(opf_path, package)
+        for name, body in members.items():
+            archive.writestr(name, body)
+    return out.getvalue()
+
+
+def package_document(metadata: str, manifest: str, spine: str, unique_id: str = "i") -> str:
+    """A package document, with the three parts a test varies written out."""
+    return (
+        '<?xml version="1.0" encoding="UTF-8"?>'
+        f'<package xmlns="http://www.idpf.org/2007/opf" version="3.0" '
+        f'unique-identifier="{unique_id}">'
+        f'<metadata xmlns:dc="http://purl.org/dc/elements/1.1/">{metadata}</metadata>'
+        f"<manifest>{manifest}</manifest>{spine}</package>"
+    )
+
+
+DC_METADATA = (
+    '<dc:identifier id="i">urn:uuid:hand-built</dc:identifier>'
+    "<dc:title>Hand Built</dc:title><dc:language>en</dc:language>"
+)
+CHAPTER = '<html xmlns="http://www.w3.org/1999/xhtml"><body><p>Hi there.</p></body></html>'
+NCX = (
+    '<?xml version="1.0" encoding="UTF-8"?>'
+    '<ncx xmlns="http://www.daisy.org/z3986/2005/ncx/" version="2005-1"><navMap>'
+    '<navPoint id="p1"><navLabel><text>Part One</text></navLabel>'
+    '<content src="c1.xhtml"/>'
+    '<navPoint id="p1a"><navLabel><text>Chapter One</text></navLabel>'
+    '<content src="c1.xhtml#sec1"/></navPoint>'
+    "</navPoint>"
+    '<navPoint id="p2"><navLabel><text>Appendix</text></navLabel>'
+    '<content src="c2.xhtml"/></navPoint>'
+    "</navMap></ncx>"
+)
+NAV_DOCUMENT = (
+    '<html xmlns="http://www.w3.org/1999/xhtml" xmlns:epub="http://www.idpf.org/2007/ops">'
+    '<body><nav epub:type="toc"><ol><li><a href="c1.xhtml">From the nav document</a></li>'
+    "</ol></nav></body></html>"
+)
+
+
+class TestPublicationNavigation:
+    """Where a publication's table of contents comes from.
+
+    EPUB 3 states it in a navigation document and EPUB 2 in an NCX, and a
+    library's catalogue holds both. Neither is reachable through the manifest
+    fixtures, which are all EPUB 3, and both are ordinary tree-walking over a
+    document -- the case the unit tier is for.
+    """
+
+    def test_reads_a_nested_table_of_contents_from_an_ncx(self, service: EpubParserService) -> None:
+        """Should navigate an EPUB 2, which has no navigation document at all."""
+        content = hand_built_epub(
+            package_document(
+                DC_METADATA,
+                '<item id="ncx" href="toc.ncx" media-type="application/x-dtbncx+xml"/>'
+                '<item id="c1" href="c1.xhtml" media-type="application/xhtml+xml"/>'
+                '<item id="c2" href="c2.xhtml" media-type="application/xhtml+xml"/>',
+                '<spine toc="ncx"><itemref idref="c1"/><itemref idref="c2"/></spine>',
+            ),
+            {"toc.ncx": NCX, "c1.xhtml": CHAPTER, "c2.xhtml": CHAPTER},
+        )
+
+        publication = service.parse_publication(content)
+
+        assert publication.toc == (
+            TocEntry(
+                title="Part One",
+                href="c1.xhtml",
+                children=(TocEntry(title="Chapter One", href="c1.xhtml#sec1"),),
+            ),
+            TocEntry(title="Appendix", href="c2.xhtml"),
+        )
+
+    def test_prefers_the_navigation_document_to_the_ncx(self, service: EpubParserService) -> None:
+        """Should read the navigation of the version the publication declares.
+
+        A publication carrying both is an EPUB 3 keeping an NCX for older
+        readers, and the two disagree often enough to matter: the NCX is the
+        copy that stops being maintained.
+        """
+        content = hand_built_epub(
+            package_document(
+                DC_METADATA,
+                '<item id="ncx" href="toc.ncx" media-type="application/x-dtbncx+xml"/>'
+                '<item id="nav" href="nav.xhtml" media-type="application/xhtml+xml" '
+                'properties="nav"/>'
+                '<item id="c1" href="c1.xhtml" media-type="application/xhtml+xml"/>',
+                '<spine toc="ncx"><itemref idref="c1"/></spine>',
+            ),
+            {"toc.ncx": NCX, "nav.xhtml": NAV_DOCUMENT, "c1.xhtml": CHAPTER},
+        )
+
+        publication = service.parse_publication(content)
+
+        assert [entry.title for entry in publication.toc] == ["From the nav document"]
+
+    def test_a_publication_whose_navigation_is_unreadable_still_opens(
+        self, service: EpubParserService
+    ) -> None:
+        """Should lose the table of contents rather than the book.
+
+        The reading order is what a reader opens; a navigation document that is
+        missing, malformed or states no ``toc`` costs the lines a reader jumps
+        by, and nothing else.
+        """
+        content = hand_built_epub(
+            package_document(
+                DC_METADATA,
+                '<item id="nav" href="nav.xhtml" media-type="application/xhtml+xml" '
+                'properties="nav"/>'
+                '<item id="c1" href="c1.xhtml" media-type="application/xhtml+xml"/>',
+                '<spine><itemref idref="c1"/></spine>',
+            ),
+            {"c1.xhtml": CHAPTER},
+        )
+
+        publication = service.parse_publication(content)
+
+        assert publication.toc == ()
+        assert [item.href for item in publication.reading_order] == ["c1.xhtml"]
+
+
+class TestPublicationIdentifier:
+    """Which ``dc:identifier`` a manifest publishes, and that it is the book's own.
+
+    A reader keys its stored state on the identifier, so one that moved between
+    two requests for the same book would scatter that state across identities
+    that never existed.
+    """
+
+    @staticmethod
+    def _epub_identified_by(metadata: str, unique_id: str = "i") -> bytes:
+        return hand_built_epub(
+            package_document(
+                metadata,
+                '<item id="c1" href="c1.xhtml" media-type="application/xhtml+xml"/>',
+                '<spine><itemref idref="c1"/></spine>',
+                unique_id=unique_id,
+            ),
+            {"c1.xhtml": CHAPTER},
+        )
+
+    def test_publishes_the_identifier_the_package_marks_unique(
+        self, service: EpubParserService
+    ) -> None:
+        """Should pick the named one out of several, not merely the first."""
+        content = self._epub_identified_by(
+            '<dc:identifier id="isbn">urn:isbn:9780000000001</dc:identifier>'
+            '<dc:identifier id="uuid">urn:uuid:0000</dc:identifier>',
+            unique_id="uuid",
+        )
+
+        assert service.parse_publication(content).metadata.identifier == "urn:uuid:0000"
+
+    def test_publishes_an_identifier_the_package_marks_as_nothing(
+        self, service: EpubParserService
+    ) -> None:
+        """Should still name the book when no identifier carries the marked id.
+
+        The identifier a broken package states is worth publishing; an invented
+        one is not, and a fresh one per request least of all.
+        """
+        content = self._epub_identified_by("<dc:identifier>urn:uuid:unmarked</dc:identifier>")
+
+        first = service.parse_publication(content).metadata.identifier
+        second = service.parse_publication(content).metadata.identifier
+
+        assert first == "urn:uuid:unmarked"
+        assert second == first
 
 
 class TestDeclaredEntryCount:
