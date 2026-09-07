@@ -5,6 +5,19 @@ from datetime import datetime
 
 
 @dataclass(frozen=True)
+class AccessTokenClaims:
+    """Claims extracted from a verified access token JWT.
+
+    The expiry is carried alongside the user because a credential minted during
+    a request may not outlive the one that bought it: the web reader's
+    publication cookie (#737) is capped by this.
+    """
+
+    user_id: int
+    expires_at: datetime
+
+
+@dataclass(frozen=True)
 class RefreshTokenClaims:
     """Claims extracted from a verified refresh token JWT."""
 

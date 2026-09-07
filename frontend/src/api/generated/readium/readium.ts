@@ -8,16 +8,24 @@ import type {
   DataTag,
   DefinedInitialDataOptions,
   DefinedUseQueryResult,
+  MutationFunction,
   QueryClient,
   QueryFunction,
   QueryKey,
   UndefinedInitialDataOptions,
+  UseMutationOptions,
+  UseMutationResult,
   UseQueryOptions,
   UseQueryResult,
 } from '@tanstack/react-query';
-import { useQuery } from '@tanstack/react-query';
+import { useMutation, useQuery } from '@tanstack/react-query';
 
-import type { HTTPValidationError, PositionList, WebPublicationManifest } from '../model';
+import type {
+  HTTPValidationError,
+  PositionList,
+  PublicationSession,
+  WebPublicationManifest,
+} from '../model';
 
 import { axiosInstance } from '../../axios-instance.ts';
 
@@ -36,6 +44,92 @@ const withQueryKey = <T extends object, K>(query: T, queryKey: K): T & { queryKe
   return result;
 };
 
+/**
+ * Hand the browser a cookie that lets it load this book's resources.
+ *
+ * Bearer-authenticated, deliberately: this is the one route that mints the
+ * second credential, so possession of an access token is what buys it, and a
+ * publication cookie can never extend itself. It cannot outlast that token
+ * either -- what is left of the access token caps the cookie, which is why
+ * the caller arrives here carrying its expiry.
+ *
+ * It answers 200 with a body rather than 204. The cookie is ``httpOnly``, so
+ * the page cannot read when it expires, and it has to know: the reader
+ * re-posts here before the cookie dies, the way it already refreshes its
+ * access token. ``expires_in`` in seconds is what the token endpoints call
+ * that same number, and it is the real remaining life rather than the TTL.
+ * @summary Start Publication Session
+ */
+export const startPublicationSession = (bookId: number, signal?: AbortSignal) => {
+  return axiosInstance<PublicationSession>({
+    url: `/api/v1/readium/books/${bookId}/session`,
+    method: 'POST',
+    signal,
+  });
+};
+
+export const getStartPublicationSessionMutationOptions = <
+  TError = HTTPValidationError,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof startPublicationSession>>,
+    TError,
+    { bookId: number },
+    TContext
+  >;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof startPublicationSession>>,
+  TError,
+  { bookId: number },
+  TContext
+> => {
+  const mutationKey = ['startPublicationSession'];
+  const { mutation: mutationOptions } = options
+    ? options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey } };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof startPublicationSession>>,
+    { bookId: number }
+  > = (props) => {
+    const { bookId } = props ?? {};
+
+    return startPublicationSession(bookId);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type StartPublicationSessionMutationResult = NonNullable<
+  Awaited<ReturnType<typeof startPublicationSession>>
+>;
+
+export type StartPublicationSessionMutationError = HTTPValidationError;
+
+/**
+ * @summary Start Publication Session
+ */
+export const useStartPublicationSession = <TError = HTTPValidationError, TContext = unknown>(
+  options?: {
+    mutation?: UseMutationOptions<
+      Awaited<ReturnType<typeof startPublicationSession>>,
+      TError,
+      { bookId: number },
+      TContext
+    >;
+  },
+  queryClient?: QueryClient
+): UseMutationResult<
+  Awaited<ReturnType<typeof startPublicationSession>>,
+  TError,
+  { bookId: number },
+  TContext
+> => {
+  return useMutation(getStartPublicationSessionMutationOptions(options), queryClient);
+};
 /**
  * Get the Readium Web Publication Manifest for a book's EPUB.
  * @summary Get Readium Manifest

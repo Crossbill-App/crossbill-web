@@ -10,8 +10,14 @@ another.
 
 So the endpoints are the parameter. A fourth web reader route added without a
 row in :data:`READIUM_ENDPOINTS` gets none of this coverage, which is the one
-way this can still be wrong -- and M1.4 (#737), which is due to give these
-routes a second credential, has a single place to prove it did not open them up.
+way this can still be wrong -- and M1.4 (#737), which gave these routes a second
+credential, proves here that it did not open them up: the publication cookie
+opens every one of them for the book it names and none of them for any other,
+asserted at each door rather than at the one the ticket happened to mention.
+
+The session endpoint itself is not one of these rows. It serves no part of a
+publication and takes no second credential -- it is the Bearer-only route that
+mints one -- so its own rules are in ``test_readium_session.py``.
 """
 
 from collections.abc import Callable
@@ -22,9 +28,14 @@ from httpx import AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession
 from starlette import status
 
+from src.infrastructure.identity.services.token_service import create_access_token
+from src.infrastructure.web_reader.services.publication_token_service import (
+    PUBLICATION_COOKIE_NAME,
+)
 from src.models import Book, User
 from tests.conftest import create_test_book
 from tests.test_readium_manifest import fixture_bytes, store_epub
+from tests.test_readium_session import present, start_publication_session
 
 # Every route that serves part of a publication, as a function from a book id to
 # its URL. The resource path is one `minimal.epub` really contains, so a 404
@@ -144,3 +155,84 @@ class TestReadiumAccess:
         response = await client.get(readium_url(test_book.id))
 
         assert response.status_code == status.HTTP_400_BAD_REQUEST
+
+
+class TestTheSecondCredential:
+    """The publication cookie (M1.4), asserted at every door the Bearer token opens."""
+
+    async def test_the_cookie_opens_the_book_it_names(
+        self,
+        browser_client: AsyncClient,
+        db_session: AsyncSession,
+        test_user: User,
+        test_book: Book,
+        storage_dir: Path,
+        readium_url: Callable[[int], str],
+    ) -> None:
+        """Should serve every publication endpoint to a request carrying only the cookie.
+
+        No Authorization header anywhere in this test after the cookie is
+        minted, which is the whole point: an iframe cannot send one.
+        """
+        await store_epub(db_session, test_book, storage_dir, fixture_bytes("minimal.epub"))
+        minted = await start_publication_session(browser_client, test_user, test_book.id)
+        assert minted.status_code == status.HTTP_200_OK, minted.text
+
+        response = await browser_client.get(readium_url(test_book.id))
+
+        assert response.status_code == status.HTTP_200_OK, response.text
+
+    async def test_the_cookie_opens_no_other_book(
+        self,
+        browser_client: AsyncClient,
+        db_session: AsyncSession,
+        test_user: User,
+        test_book: Book,
+        storage_dir: Path,
+        readium_url: Callable[[int], str],
+    ) -> None:
+        """Should refuse book A's cookie at every one of book B's doors.
+
+        Both books are this user's and both are readable, so nothing but the
+        book the token names can be what turns the request away. Presented at
+        the root path on purpose: what is under test is the server's check, and
+        a jar honouring the cookie's own path would answer by never sending it.
+        """
+        await store_epub(db_session, test_book, storage_dir, fixture_bytes("minimal.epub"))
+        other_book = await create_test_book(
+            db_session=db_session, user_id=test_user.id, title="Also Mine", client_book_id="other"
+        )
+        await store_epub(
+            db_session, other_book, storage_dir, fixture_bytes("minimal.epub"), "other.epub"
+        )
+        minted = await start_publication_session(browser_client, test_user, test_book.id)
+        present(browser_client, minted.cookies[PUBLICATION_COOKIE_NAME])
+
+        response = await browser_client.get(readium_url(other_book.id))
+
+        assert response.status_code == status.HTTP_401_UNAUTHORIZED, response.text
+        assert PUBLICATION_CONTENT not in response.content
+
+    async def test_a_bearer_token_still_opens_everything(
+        self,
+        browser_client: AsyncClient,
+        db_session: AsyncSession,
+        test_user: User,
+        test_book: Book,
+        storage_dir: Path,
+        readium_url: Callable[[int], str],
+    ) -> None:
+        """Should keep serving a plain Bearer request, cookie or no cookie.
+
+        The rest of this file runs against a client whose authentication is
+        overridden away; this one presents a real access token, so a second
+        credential quietly displacing the first would show up here.
+        """
+        await store_epub(db_session, test_book, storage_dir, fixture_bytes("minimal.epub"))
+
+        response = await browser_client.get(
+            readium_url(test_book.id),
+            headers={"Authorization": f"Bearer {create_access_token(test_user.id)}"},
+        )
+
+        assert response.status_code == status.HTTP_200_OK, response.text

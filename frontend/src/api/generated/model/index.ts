@@ -108,6 +108,7 @@ export * from './paginatedResponseBookWithHighlightCount.ts';
 export * from './paginatedResponseReadingSession.ts';
 export * from './positionList.ts';
 export * from './positionResponse.ts';
+export * from './publicationSession.ts';
 export * from './rankedContentGroups.ts';
 export * from './readingSession.ts';
 export * from './readingSessionSyncItem.ts';
