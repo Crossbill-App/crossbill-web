@@ -266,7 +266,17 @@ and it has to know in order to re-post before it does.
   `verify_access_token` was tightened in the same change to require
   `type == "access"` rather than merely *not* `refresh`: a narrower credential
   must not be spendable as a wider one.
-- **Scope** is the cookie's `path`, `/api/v1/readium/books/{book_id}/`. A
+- **Scope** is the cookie's `path`, `/api/v1/readium/books/{book_id}/`, built
+  from the *parsed* id. Non-canonical spellings of the same id — `/books/01`,
+  `/books/%31`, `/books/+1`, all of which FastAPI parses alike — therefore get
+  a cookie scoped to the canonical path, which a browser will not send back to
+  the URL the reader used. That is an **accepted sharp edge**: the cookie can
+  only come out narrower than the request, never broader, so the failure mode
+  is 401s on resource loads rather than a cookie reaching a book it does not
+  name, and nothing we ship builds those URLs (the SPA and the generated client
+  both interpolate an integer). Canonicalising defensively would mean taking
+  `book_id` as a string on every publication route and rejecting what FastAPI
+  accepts everywhere else in the API. A
   browser then sends it to that book's manifest, resources and position list,
   and offers it to no other book and to nothing else in the API. The server does
   not take the browser's word for it: the token's `book` claim is compared
@@ -279,12 +289,19 @@ and it has to know in order to re-post before it does.
   API are the same site, so the navigator's own iframe loads carry it while
   nothing off-site can make a browser spend it.
 - **TTL** is the access token's lifetime (`ACCESS_TOKEN_EXPIRE_MINUTES`, 15
-  minutes by default), and the cookie's `Max-Age` matches, so a dead credential
-  is dropped rather than sent. The reader re-posts on the schedule it already
-  refreshes its access token on. Longer would mean a session that has ended — a
-  password changed, a refresh family revoked — could keep reading a book for
-  longer than it could keep calling the API; shorter buys nothing, since
-  everything this cookie opens is already open to the token that minted it.
+  minutes by default) **as a ceiling, capped by what is left of the access
+  token actually being spent** — `exp` of the cookie is the earlier of the two,
+  and `Max-Age` and the `expires_in` in the body are that real number rather
+  than the TTL. The cap is the point, not a detail: nothing revokes a
+  publication token once signed, so a Bearer token with a minute left that
+  bought a fresh quarter of an hour would be exactly the hole this TTL is
+  supposed to close — a session that has ended (password changed, refresh
+  family revoked) buying itself more reading on the way out. The route
+  therefore authenticates through `get_authenticated_caller`, which carries the
+  access token's `exp` alongside the user rather than decoding the token a
+  second time. The reader re-posts on the schedule it already refreshes on;
+  shorter buys nothing, since everything this cookie opens is already open to
+  the token that minted it.
 - **Every web reader route takes it**, the manifest included, because they share
   one dependency (`get_publication_reader`, built for this in M1.2). This widens
   nothing: a cookie is only ever issued to a caller that proved possession of a
