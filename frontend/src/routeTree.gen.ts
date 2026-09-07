@@ -22,6 +22,7 @@ import { Route as BookBookIdNotesRouteImport } from './routes/book.$bookId/notes
 import { Route as BookBookIdReflectionRouteImport } from './routes/book.$bookId/reflection'
 import { Route as BookBookIdStatisticsRouteImport } from './routes/book.$bookId/statistics'
 import { Route as BookBookIdStructureRouteImport } from './routes/book.$bookId/structure'
+import { Route as BookBookIdReadRouteImport } from './routes/book_.$bookId/read'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -88,6 +89,11 @@ const BookBookIdStructureRoute = BookBookIdStructureRouteImport.update({
   path: '/structure',
   getParentRoute: () => BookBookIdRoute,
 } as any)
+const BookBookIdReadRoute = BookBookIdReadRouteImport.update({
+  id: '/book_/$bookId/read',
+  path: '/book/$bookId/read',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -102,6 +108,7 @@ export interface FileRoutesByFullPath {
   '/book/$bookId/reflection': typeof BookBookIdReflectionRoute
   '/book/$bookId/statistics': typeof BookBookIdStatisticsRoute
   '/book/$bookId/structure': typeof BookBookIdStructureRoute
+  '/book/$bookId/read': typeof BookBookIdReadRoute
   '/book/$bookId/': typeof BookBookIdIndexRoute
 }
 export interface FileRoutesByTo {
@@ -116,6 +123,7 @@ export interface FileRoutesByTo {
   '/book/$bookId/reflection': typeof BookBookIdReflectionRoute
   '/book/$bookId/statistics': typeof BookBookIdStatisticsRoute
   '/book/$bookId/structure': typeof BookBookIdStructureRoute
+  '/book/$bookId/read': typeof BookBookIdReadRoute
   '/book/$bookId': typeof BookBookIdIndexRoute
 }
 export interface FileRoutesById {
@@ -132,6 +140,7 @@ export interface FileRoutesById {
   '/book/$bookId/reflection': typeof BookBookIdReflectionRoute
   '/book/$bookId/statistics': typeof BookBookIdStatisticsRoute
   '/book/$bookId/structure': typeof BookBookIdStructureRoute
+  '/book_/$bookId/read': typeof BookBookIdReadRoute
   '/book/$bookId/': typeof BookBookIdIndexRoute
 }
 export interface FileRouteTypes {
@@ -149,6 +158,7 @@ export interface FileRouteTypes {
     | '/book/$bookId/reflection'
     | '/book/$bookId/statistics'
     | '/book/$bookId/structure'
+    | '/book/$bookId/read'
     | '/book/$bookId/'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -163,6 +173,7 @@ export interface FileRouteTypes {
     | '/book/$bookId/reflection'
     | '/book/$bookId/statistics'
     | '/book/$bookId/structure'
+    | '/book/$bookId/read'
     | '/book/$bookId'
   id:
     | '__root__'
@@ -178,6 +189,7 @@ export interface FileRouteTypes {
     | '/book/$bookId/reflection'
     | '/book/$bookId/statistics'
     | '/book/$bookId/structure'
+    | '/book_/$bookId/read'
     | '/book/$bookId/'
   fileRoutesById: FileRoutesById
 }
@@ -188,6 +200,7 @@ export interface RootRouteChildren {
   RegisterRoute: typeof RegisterRoute
   SettingsRoute: typeof SettingsRoute
   BookBookIdRoute: typeof BookBookIdRouteWithChildren
+  BookBookIdReadRoute: typeof BookBookIdReadRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -283,6 +296,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof BookBookIdStructureRouteImport
       parentRoute: typeof BookBookIdRoute
     }
+    '/book_/$bookId/read': {
+      id: '/book_/$bookId/read'
+      path: '/book/$bookId/read'
+      fullPath: '/book/$bookId/read'
+      preLoaderRoute: typeof BookBookIdReadRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
@@ -317,6 +337,7 @@ const rootRouteChildren: RootRouteChildren = {
   RegisterRoute: RegisterRoute,
   SettingsRoute: SettingsRoute,
   BookBookIdRoute: BookBookIdRouteWithChildren,
+  BookBookIdReadRoute: BookBookIdReadRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
