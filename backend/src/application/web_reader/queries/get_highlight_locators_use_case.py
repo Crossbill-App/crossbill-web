@@ -8,6 +8,7 @@ in ``reading`` learns that locators exist.
 """
 
 import logging
+from collections.abc import Collection
 
 from src.application.web_reader.anchors import AnchorResolutionError, Locator
 from src.application.web_reader.protocols.position_anchor_service import (
@@ -48,14 +49,24 @@ class GetHighlightLocatorsUseCase:
         self.position_anchor_service = position_anchor_service
 
     async def for_book(
-        self, book_id: BookId, user_id: UserId
+        self,
+        book_id: BookId,
+        user_id: UserId,
+        highlight_ids: Collection[int] | None = None,
     ) -> dict[int, DerivedHighlightLocator]:
-        """Derive locators for every live highlight of a book, keyed by highlight id.
+        """Derive locators for a book's live highlights, keyed by highlight id.
+
+        ``highlight_ids`` restricts the work to the highlights the caller will
+        render. That is not an optimisation to skip when convenient: conversion
+        cost is per highlight (ADR-0004 §4), so a view showing three matches out
+        of a heavily annotated book would otherwise pay for all of them.
 
         Raises:
             BookNotFoundError: If the user has no such book.
         """
-        anchors = await self.highlight_anchor_query.anchors_for_book(book_id, user_id)
+        anchors = await self.highlight_anchor_query.anchors_for_book(
+            book_id, user_id, highlight_ids
+        )
         if anchors is None:
             raise BookNotFoundError(book_id.value)
         return await self._derive(anchors)

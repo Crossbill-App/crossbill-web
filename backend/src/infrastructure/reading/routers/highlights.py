@@ -12,6 +12,7 @@ from src.application.reading.commands.highlights.highlight_upload_use_case impor
     HighlightUploadUseCase,
 )
 from src.application.reading.queries.highlight_search import (
+    BookHighlightSearchView,
     SearchChapterView,
 )
 from src.application.reading.queries.highlight_search_use_case import (
@@ -44,6 +45,16 @@ router = APIRouter(prefix="", tags=["highlights"])
 
 
 LOCATOR_INCLUDE = "locator"
+
+
+def _matched_ids(view: BookHighlightSearchView) -> list[int]:
+    """The highlights this response will render, so only they are placed.
+
+    A search shows a handful of a book's highlights, and deriving a locator
+    costs per highlight rather than per book (ADR-0004 §4) -- so a heavily
+    annotated book searched for one word must not pay for its whole list.
+    """
+    return [highlight.id for chapter in view.chapters for highlight in chapter.highlights]
 
 
 def _build_chapter_schema(
@@ -197,7 +208,7 @@ async def search_book_highlights(
     """
     view = await use_case.search_book_highlights(book_id, current_user.id.value, search_text)
     locators = (
-        await locator_use_case.for_book(BookId(book_id), current_user.id)
+        await locator_use_case.for_book(BookId(book_id), current_user.id, _matched_ids(view))
         if LOCATOR_INCLUDE in (include or ())
         else {}
     )

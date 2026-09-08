@@ -11,7 +11,7 @@ unplaceable, which is what it is.
 """
 
 import logging
-from collections.abc import Sequence
+from collections.abc import Collection, Sequence
 
 from sqlalchemy import Row, Select, select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -55,7 +55,10 @@ class HighlightAnchorQuery:
         self.db = db
 
     async def anchors_for_book(
-        self, book_id: BookId, user_id: UserId
+        self,
+        book_id: BookId,
+        user_id: UserId,
+        highlight_ids: Collection[int] | None = None,
     ) -> BookHighlightAnchors | None:
         """Return the book's live highlights, or ``None`` if the user has no such book."""
         if not await self._owns_book(book_id, user_id):
@@ -69,6 +72,8 @@ class HighlightAnchorQuery:
             )
             .order_by(HighlightORM.id)
         )
+        if highlight_ids is not None:
+            stmt = stmt.where(HighlightORM.id.in_(highlight_ids))
         rows = (await self.db.execute(stmt)).all()
         ebook_file = await self._ebook_file(book_id, user_id)
         return _anchors(ebook_file, rows)

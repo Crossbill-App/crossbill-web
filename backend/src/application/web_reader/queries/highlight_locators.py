@@ -15,6 +15,7 @@ placed says so with a reason a client can branch on (ADR-0004 §5), because
 the same news.
 """
 
+from collections.abc import Collection
 from dataclasses import dataclass
 from enum import StrEnum
 from typing import Protocol
@@ -118,9 +119,17 @@ class HighlightAnchorQueryProtocol(Protocol):
     """
 
     async def anchors_for_book(
-        self, book_id: BookId, user_id: UserId
+        self,
+        book_id: BookId,
+        user_id: UserId,
+        highlight_ids: Collection[int] | None = None,
     ) -> BookHighlightAnchors | None:
-        """Return the book's live highlights, or ``None`` if the user has no such book."""
+        """Return the book's live highlights, or ``None`` if the user has no such book.
+
+        ``highlight_ids`` narrows the set to the highlights a caller is actually
+        going to render; ``None`` means the whole book, which is what a reader
+        drawing every decoration wants.
+        """
         ...
 
     async def anchor_for_highlight(
