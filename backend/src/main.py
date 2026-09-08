@@ -513,6 +513,7 @@ app.include_router(search_router.router, prefix=settings.API_V1_PREFIX)
 # Web reader
 app.include_router(web_reader_readium.router, prefix=settings.API_V1_PREFIX)
 app.include_router(web_reader_highlight_locators.router, prefix=settings.API_V1_PREFIX)
+app.include_router(web_reader_highlight_locators.book_router, prefix=settings.API_V1_PREFIX)
 
 # Common
 app.include_router(settings_router.router, prefix=settings.API_V1_PREFIX)

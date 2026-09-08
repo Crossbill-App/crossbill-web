@@ -41,6 +41,7 @@ export * from './collectionResponseEreaderHighlightItem.ts';
 export * from './collectionResponseFlashcardSuggestionItem.ts';
 export * from './collectionResponseFlashcardWithHighlight.ts';
 export * from './collectionResponseHighlightLabelInBook.ts';
+export * from './collectionResponseHighlightLocatorResponse.ts';
 export * from './collectionResponseNoteWithLinks.ts';
 export * from './collectionResponseRecentCapture.ts';
 export * from './collectionResponseTag.ts';
