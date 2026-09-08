@@ -84,6 +84,17 @@ const BOOT_TIMEOUT_MS = 15_000;
 /** How long an abandoned navigator gets to tear itself down before it is dropped. */
 const DESTROY_TIMEOUT_MS = 2_000;
 
+/**
+ * How long the last leg of a jump gets before the book is shown where it is.
+ *
+ * `go` reports through a callback, and a callback is not a promise: it is
+ * skipped outright while another navigation is in flight, and the search it
+ * runs happens inside a frame this code cannot see into. The reader is already
+ * in the right chapter by then, so the worst this bounds is a chapter head
+ * instead of a passage — never a book that does not appear.
+ */
+const JUMP_TIMEOUT_MS = 3_000;
+
 interface ReaderShellProps {
   bookId: number;
   title: string;
@@ -204,6 +215,14 @@ export const ReaderShell = ({
   // follows starts from the beginning, so the locator has to stop being offered.
   const [landingRejected, setLandingRejected] = useState(false);
   const openAt = landingRejected ? null : (landing?.locator ?? null);
+  /**
+   * Where the boot has to *finish* going once there are frames to go in, or
+   * `null` where opening at the resource is the whole journey.
+   *
+   * Only a jump has one. A resume is resource-granular by M2.4's own design and
+   * nothing here changes that; a jump promised the reader a passage.
+   */
+  const jumpTo = target !== null && landing?.missed === null && !landingRejected ? openAt : null;
   const { record: recordPosition, setArriving } = useReadingPositionWriter(bookId);
 
   const viewportRef = useRef<HTMLDivElement | null>(null);
@@ -243,10 +262,11 @@ export const ReaderShell = ({
     highlights,
     navigatorRef,
     onActivate: onOpenHighlight,
-    // Nothing to emphasise where the jump missed: the reader is at the start of
-    // a chapter rather than on the passage, and brightening a mark that is not
-    // on screen would only be a mark that quietly changed colour later.
-    emphasise: landing?.missed ? null : target,
+    // Nothing to emphasise where the reader did not arrive at the highlight:
+    // a missed jump puts them at the start of a chapter, and a rejected landing
+    // at the start of the book. Brightening a mark neither of them can see
+    // would only be a mark that quietly changed colour later, somewhere else.
+    emphasise: landing?.missed || landingRejected ? null : target,
     isPageVisible,
   });
 
@@ -481,6 +501,32 @@ export const ReaderShell = ({
       if (isStale()) return;
       const fontSize = epubNavigator.preferencesEditor.fontSize;
       setFontSizeBounds({ range: fontSize.supportedRange, step: fontSize.step });
+
+      // The last leg of a jump, and it has to be its own call.
+      //
+      // A navigator resolves its *initial* position by resource alone:
+      // `FramePoolManager.update` looks `locations.position` up in the position
+      // list only to learn which href to build, and the progression, the
+      // selector and the quoted text go no further. A book handed a highlight's
+      // locator therefore opens at the top of its chapter — the right chapter,
+      // the wrong place, and no way for the reader to tell the difference from
+      // a jump that worked.
+      //
+      // `go` is what finishes it: it sends the quote and the selector into the
+      // frame as `go_text` and lands on the words. So the constructor is still
+      // given the locator — that is what keeps the book from appearing at page
+      // one and then moving — and this walks the rest of the way before the
+      // page is revealed. Inside the arriving bracket, so none of it is written
+      // down as the reader going anywhere.
+      if (jumpTo) {
+        await Promise.race([
+          new Promise<void>((resolve) => {
+            epubNavigator?.go(jumpTo, false, () => resolve());
+          }),
+          new Promise((resolve) => setTimeout(resolve, JUMP_TIMEOUT_MS)),
+        ]);
+        if (isStale()) return;
+      }
       setLocator(epubNavigator.currentLocator);
       // The book is on screen and settled, so from here on a report is the
       // reader's own doing. Set synchronously rather than through state: the
@@ -554,6 +600,7 @@ export const ReaderShell = ({
     publication,
     positions,
     openAt,
+    jumpTo,
     theme,
     handleKeyDown,
     bindTapZones,

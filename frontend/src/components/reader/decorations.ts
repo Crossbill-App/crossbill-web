@@ -48,12 +48,18 @@ const TINT_OPACITY = 0.35;
  * with one entry brighter redraws exactly that one.
  *
  * A ramp rather than a flash held and dropped: `::highlight()` backgrounds are
- * not animatable, so the fade has to be drawn rather than declared, and four
- * steps is enough for the eye to read it as one mark settling rather than as
- * the page changing several times. It ends *at* `TINT_OPACITY`, so the last
- * step is the highlight as it will stay.
+ * not animatable, so the fade has to be drawn rather than declared, and a
+ * handful of steps is enough for the eye to read it as one mark settling rather
+ * than as the page changing several times.
+ *
+ * The last step *is* `TINT_OPACITY`, and it is there rather than implied. The
+ * ramp used to end on 0.44 and then stop, which put an unheld ninth of the
+ * fade's range into the moment the emphasis was dropped — a small snap at
+ * exactly the point the eye had been trained on the mark. Redrawing the last
+ * step costs nothing either: it is the decoration the highlight already has, so
+ * `applyDecorations` diffs it away.
  */
-const EMPHASIS_OPACITIES = [0.75, 0.62, 0.52, 0.44] as const;
+const EMPHASIS_OPACITIES = [0.75, 0.62, 0.52, 0.44, TINT_OPACITY] as const;
 
 /** How long each step of that ramp is held. */
 const EMPHASIS_STEP_MS = 260;

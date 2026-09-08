@@ -1,10 +1,10 @@
 import { useGetBookDetails } from '@/api/generated/books/books.ts';
 import { useGetHighlightLocator } from '@/api/generated/highlights/highlights.ts';
-import type { LocatorSchema } from '@/api/generated/model';
+import type { BookDetails, ChapterWithHighlights, LocatorSchema } from '@/api/generated/model';
 import { useGetReadingPosition } from '@/api/generated/readium/readium.ts';
 import { Locator, type Link } from '@readium/shared';
 import { findLast } from 'lodash';
-import { useMemo } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 
 /**
  * Where the reader left off is a fact about them, not about this browser, so
@@ -16,8 +16,32 @@ import { useMemo } from 'react';
  * The same terms suit the jump: a locator derived for one highlight is derived
  * against the EPUB as it is now, and a request that fails leaves the reader
  * with a fallback rather than with nothing.
+ *
+ * `refetchOnWindowFocus` is off against an app default of `'always'`. Where a
+ * book opens is settled the moment it opens — the answer is latched below and
+ * cannot be acted on again — so a refetch on every return to the tab could only
+ * spend a request to learn something nobody may use. It would also be a fresh
+ * object for the memo to chew on for the whole life of the reader.
  */
-const LANDING_QUERY = { retry: false, staleTime: 0, gcTime: 0 } as const;
+const LANDING_QUERY = {
+  retry: false,
+  staleTime: 0,
+  gcTime: 0,
+  refetchOnWindowFocus: false,
+} as const;
+
+/**
+ * How long a jump that missed waits for the book's own chapter names before
+ * giving up and opening at the start.
+ *
+ * Only this branch waits at all, and only for a fallback. The reader is looking
+ * at a skeleton while it does, and no watchdog covers this part of the boot —
+ * the reader's own starts once there is something to boot — so the wait has to
+ * end by itself. Long enough for an ordinary answer on a slow connection, short
+ * enough that a request which is never coming back costs a moment rather than
+ * the book.
+ */
+const CHAPTER_NAME_GRACE_MS = 3_000;
 
 /** The href the API gives a contents heading that links nowhere. */
 const UNLINKED_HREF = '#';
@@ -48,33 +72,65 @@ export interface ReaderLanding {
   missed: MissedLanding | null;
 }
 
+/** A landing, and whether it is the place that was asked for or only its resource. */
+interface Reconciled {
+  locator: Locator;
+  /**
+   * Whether the locator that was asked for said anything about where *inside*
+   * its resource it was. When it did not, all this landing knows is the
+   * chapter, and it must be reported as such rather than passed off as the
+   * passage — see `placesWithinResource`.
+   */
+  exact: boolean;
+}
+
 /**
- * Turns a stored position into a locator this publication can actually be
+ * Whether a locator says where inside its resource it is, or only which
+ * resource that is.
+ *
+ * The distinction is the difference between arriving at a passage and arriving
+ * at a chapter, and the reader is owed the truth about which they got (M3.4,
+ * #748). A locator with none of these reconciles perfectly happily — the href
+ * names a resource the publication has — and lands at the top of it, which
+ * looks exactly like a successful jump and is not one.
+ *
+ * A quote or a selector is enough: those name the words, and the navigator
+ * resolves them within the resource. So is a progression or a position, which
+ * name a place in it even if only approximately.
+ */
+const placesWithinResource = (locator: Locator): boolean =>
+  locator.locations.progression !== undefined ||
+  locator.locations.position !== undefined ||
+  locator.locations.fragments.length > 0 ||
+  locator.locations.otherLocations?.has('cssSelector') === true ||
+  locator.text?.highlight !== undefined;
+
+/**
+ * Turns a locator the server sent into one this publication can actually be
  * opened at, or `null` when it names nowhere in it.
  *
  * The reconciliation is not ceremony. `EpubNavigator` resolves an initial
  * position by looking its `locations.position` up in the position list it was
  * built with, and **throws** when it finds no match — which would turn a stale
  * bookmark into the reader's whole-page "could not be opened" screen. A stored
- * position carries the position number the browser saw when it was written, one
- * derived from a KOReader xpointer carries none at all, and one derived for a
- * highlight carries none either: what a highlight's locator carries is a CSS
- * selector and the text it quotes. None of the three can be trusted to index
- * the list this publication publishes today.
+ * position carries the position number the browser saw when it was written, and
+ * one derived from a KOReader xpointer or from a highlight's xpointer carries
+ * none at all: the backend computes a progression and a `cssSelector` against
+ * the EPUB, and leaves `position` to whoever holds a position list. Neither can
+ * be trusted to index the list this publication publishes today.
  *
  * So the entry is looked up by href and progression instead: the last position
  * of that resource that begins at or before where the target is. The locator
  * that was *asked for* is what is returned, wearing that entry's position
  * number — rather than the other way round, because everything else the asked
- * for locator carries (the quoted text, the selector) is what says where in the
- * resource this is, and a position is a span of a resource rather than a place
- * in one.
+ * for locator carries (the quoted text, the selector, the progression) is what
+ * says where in the resource this is, and a position is a span of a resource
+ * rather than a place in one.
  *
- * A progression is only put back when the target had one. A highlight's locator
- * does not, and writing a zero in would say "the top of this resource" over the
- * selector that says exactly where the words are.
+ * A progression is only written back when the target had one, so that a locator
+ * carrying only a selector is not told it is at the top of its resource.
  */
-const landingFor = (target: Locator, positions: Locator[]): Locator | null => {
+const landingFor = (target: Locator, positions: Locator[]): Reconciled | null => {
   const inResource = positions.filter((entry) => entry.href === target.href);
   if (inResource.length === 0) return null;
   const progression = target.locations.progression;
@@ -83,15 +139,18 @@ const landingFor = (target: Locator, positions: Locator[]): Locator | null => {
       inResource,
       (candidate) => (candidate.locations.progression ?? 0) <= (progression ?? 0)
     ) ?? inResource[0];
-  return target.copyWithLocations({
-    position: entry.locations.position,
-    totalProgression: entry.locations.totalProgression,
-    ...(progression === undefined ? {} : { progression }),
-  });
+  return {
+    locator: target.copyWithLocations({
+      position: entry.locations.position,
+      totalProgression: entry.locations.totalProgression,
+      ...(progression === undefined ? {} : { progression }),
+    }),
+    exact: placesWithinResource(target),
+  };
 };
 
 /** The landing for a locator the server sent, reconciled against this publication. */
-const reconciled = (stored: LocatorSchema, positions: Locator[]): Locator | null => {
+const reconciled = (stored: LocatorSchema, positions: Locator[]): Reconciled | null => {
   const target = Locator.deserialize(stored);
   return target ? landingFor(target, positions) : null;
 };
@@ -101,32 +160,109 @@ const flattenToc = (entries: Link[]): Link[] =>
   entries.flatMap((entry) => [entry, ...flattenToc(entry.children?.items ?? [])]);
 
 /**
- * Where a chapter begins, as this publication's own contents and position list
- * agree on it.
+ * A chapter title as it can be compared across two sources that both got it
+ * from the same EPUB and neither of which preserved its spacing exactly.
  *
- * Matched on the title, because that is the only thing the two sides share. A
- * highlight knows the chapter it was made in by name — the name the EPUB's own
- * contents gave it when the book was imported — and the manifest publishes the
- * same names against hrefs. Nothing in the highlight carries an href, and its
- * `chapter_number` is an import-order number rather than an index into this
- * manifest's contents, so it cannot be indexed with either.
+ * A title imported into the database and the same title in a manifest differ by
+ * a non-breaking space, a line break kept from the contents markup, or a run of
+ * indentation — none of which anybody meant. Collapsing them is safe in one
+ * direction only: the cost of over-normalising is a chapter matched that should
+ * not have been, which is caught by the ambiguity rule below; the cost of
+ * under-normalising is a fallback silently lost.
+ */
+const comparableTitle = (title: string): string => title.replace(/\s+/g, ' ').trim().toLowerCase();
+
+/**
+ * Which chapter of the book a highlight was made in, in terms the manifest's
+ * own contents can be searched with.
+ *
+ * The name is what the two sides share: a highlight's chapter is the title the
+ * EPUB's contents gave it when the book was imported, and the manifest
+ * publishes those same titles against hrefs. Nothing in a highlight carries an
+ * href.
+ *
+ * The other two fields exist because titles repeat. "Introduction" and
+ * "Conclusion" appear once per part in plenty of books, and matching on the
+ * title alone lands the reader in part one every time. `chapter_number` is the
+ * book's own ordering, so the *n*th chapter of that name here is the *n*th
+ * entry of that name there — a correspondence that is only worth trusting when
+ * both sides count the same number of them.
+ */
+interface ChapterHint {
+  name: string;
+  /** How many chapters of this book share the name and come before this one. */
+  occurrence: number;
+  /** How many chapters of this book carry that name at all. */
+  namesakes: number;
+}
+
+/** The book's own chapter order: its numbering, and its ids where that is absent. */
+const byChapterOrder = (a: ChapterWithHighlights, b: ChapterWithHighlights): number =>
+  (a.chapter_number ?? Number.MAX_SAFE_INTEGER) - (b.chapter_number ?? Number.MAX_SAFE_INTEGER) ||
+  a.id - b.id;
+
+const chapterHintFor = (details: BookDetails, highlightId: number): ChapterHint | null => {
+  const chapters = [...details.chapters].sort(byChapterOrder);
+  const chapter = chapters.find((candidate) =>
+    candidate.highlights.some((highlight) => highlight.id === highlightId)
+  );
+  if (!chapter?.name) return null;
+  const namesakes = chapters.filter((candidate) => candidate.name === chapter.name);
+  return {
+    name: chapter.name,
+    occurrence: namesakes.findIndex((candidate) => candidate.id === chapter.id),
+    namesakes: namesakes.length,
+  };
+};
+
+/**
+ * Where a chapter begins, as this publication's own contents and position list
+ * agree on it — or `null` where they cannot be made to agree confidently.
+ *
+ * One entry of that title is the easy case. Several is the case worth being
+ * careful about: the reader is already having a jump go wrong, and dropping
+ * them into the wrong part of the book while apologising for the *right* one
+ * would be worse than the plain start of the book. So the book's own chapter
+ * numbering breaks the tie, and only when both sides count the same number of
+ * chapters by that name — anything else is guesswork wearing a fallback's
+ * clothes.
  */
 const chapterStart = (
-  chapterName: string | null,
+  hint: ChapterHint | null,
   toc: Link[] | undefined,
   positions: Locator[]
 ): Locator | null => {
-  if (!chapterName || !toc) return null;
-  const wanted = chapterName.trim().toLowerCase();
-  const entry = flattenToc(toc).find(
+  if (!hint || !toc) return null;
+  const wanted = comparableTitle(hint.name);
+  if (!wanted) return null;
+
+  const matches = flattenToc(toc).filter(
     (candidate) =>
-      candidate.href !== UNLINKED_HREF && candidate.title?.trim().toLowerCase() === wanted
+      candidate.href !== UNLINKED_HREF && comparableTitle(candidate.title ?? '') === wanted
   );
+  const entry =
+    matches.length === 1
+      ? matches[0]
+      : matches.length === hint.namesakes
+        ? matches[hint.occurrence]
+        : undefined;
   if (!entry) return null;
+
   // The fragment names a place inside the resource; the position list is keyed
   // by the resource itself.
   const href = entry.href.split('#')[0];
   return positions.find((position) => position.href === href) ?? null;
+};
+
+/** Whether `ms` has passed since this became active. Never resets. */
+const useGraceElapsed = (ms: number, active: boolean): boolean => {
+  const [elapsed, setElapsed] = useState(false);
+  useEffect(() => {
+    if (!active) return;
+    const timer = setTimeout(() => setElapsed(true), ms);
+    return () => clearTimeout(timer);
+  }, [ms, active]);
+  return elapsed;
 };
 
 interface LandingInputs {
@@ -155,6 +291,17 @@ interface LandingInputs {
  * no second path here for the jump: `?highlightId=` changes *which* place the
  * book opens at, not when or how it is opened at one.
  *
+ * **The answer is latched, and that is a correctness property rather than an
+ * optimisation.** Where a book opened is a fact about one moment, and the
+ * queries behind it are live: book details are invalidated by every mutation
+ * the highlight dialog makes, and a reading position is re-read on whatever
+ * schedule its query keeps. Without the latch each of those hands the boot
+ * effect a freshly-built `Locator` and it rebuilds the navigator — throwing the
+ * reader back to where they were when they opened the book, and, once they turn
+ * a page from there, writing that regression to the server as their position.
+ * A landing cannot legitimately change after the book has opened at it, so it
+ * does not.
+ *
  * **Two things can say where to open, and the jump wins.** The resume answer is
  * for every device the reader owns: the browser's own stored locator, or the
  * end of the latest sitting an e-reader synced, converted from the canonical
@@ -166,12 +313,13 @@ interface LandingInputs {
  * them.
  *
  * **A jump that cannot be made exactly still goes somewhere useful** (M3.4,
- * #748). A highlight the server would not place, or one whose locator names a
- * resource this publication has not got, falls back to the start of the chapter
- * it was made in, and to the start of the book when even that cannot be found.
- * The chapter is worth waiting a moment for, which is why the book's own
- * details are read here: they are what name the chapter, and they have almost
- * always been fetched already by the view the reader jumped from.
+ * #748). A highlight the server would not place, one whose locator names a
+ * resource this publication has not got, and one whose locator names only a
+ * resource all fall back to the start of the chapter it was made in — and to
+ * the start of the book when even that cannot be found. That branch is the one
+ * place the book's own details are read, because they are what name the
+ * chapter; every other path here answers without them, so an ordinary open and
+ * a jump that lands never wait on that query at all.
  */
 export const useReaderLanding = ({
   bookId,
@@ -183,12 +331,21 @@ export const useReaderLanding = ({
   const jump = useGetHighlightLocator(target ?? 0, {
     query: { ...LANDING_QUERY, enabled: target !== null },
   });
-  // Only consulted for a jump that missed, and only for the chapter name. The
-  // reader itself never waits on this: the book opens without a title and
-  // without decorations, and both land when they land.
-  const book = useGetBookDetails(bookId);
 
-  return useMemo(() => {
+  // Narrowed to the one fact the fallback needs, and fetched only where it
+  // could be needed. `select` is what keeps a book's whole details payload —
+  // every highlight, every tag, re-fetched on every mutation the dialog makes —
+  // from being a dependency of where the book opens.
+  const selectChapter = useCallback(
+    (details: BookDetails) => (target === null ? null : chapterHintFor(details, target)),
+    [target]
+  );
+  const chapter = useGetBookDetails(bookId, {
+    query: { enabled: target !== null, select: selectChapter },
+  });
+  const outOfPatience = useGraceElapsed(CHAPTER_NAME_GRACE_MS, target !== null);
+
+  const answer = useMemo((): ReaderLanding | undefined => {
     if (positions === undefined) return undefined;
 
     if (target === null) {
@@ -199,35 +356,38 @@ export const useReaderLanding = ({
       // is an ordinary state of an ordinary book and is not worth a word.
       if (!stored) return { locator: null, lost: resume.data?.unresolved === true, missed: null };
       const landing = reconciled(stored, positions);
-      return { locator: landing, lost: landing === null, missed: null };
+      return { locator: landing?.locator ?? null, lost: landing === null, missed: null };
     }
 
     if (jump.isPending) return undefined;
     const placed = jump.data?.locator;
     const landing = placed ? reconciled(placed, positions) : null;
-    if (landing) return { locator: landing, lost: false, missed: null };
+    if (landing?.exact) return { locator: landing.locator, lost: false, missed: null };
 
-    // The jump missed. The chapter it was made in is the next best place, and
-    // the book has to have answered before that can be asked. `isPending` is
-    // what is waited on rather than the data: a details query that failed is
-    // never going to name the chapter, and holding the book shut for it would
-    // cost the reader the book over a fallback.
-    if (book.isPending) return undefined;
-    const chapterName =
-      book.data?.chapters.find((chapter) =>
-        chapter.highlights.some((highlight) => highlight.id === target)
-      )?.name ?? null;
-    const fallback = chapterStart(chapterName, toc, positions);
+    // The jump missed, or landed on nothing more precise than a resource. Both
+    // want the chapter, and the chapter wants the book's own names — so this is
+    // the one branch that waits, and it waits only until the query settles
+    // either way or the grace above runs out.
+    if (chapter.isPending && !outOfPatience) return undefined;
+    const fallback = chapterStart(chapter.data ?? null, toc, positions) ?? landing?.locator ?? null;
     return { locator: fallback, lost: false, missed: fallback ? 'chapter' : 'start' };
   }, [
     positions,
     target,
     toc,
+    outOfPatience,
     resume.isPending,
     resume.data,
     jump.isPending,
     jump.data,
-    book.isPending,
-    book.data,
+    chapter.isPending,
+    chapter.data,
   ]);
+
+  // Latched during render rather than in an effect, the way `useResetOnChange`
+  // adjusts state: an effect would let the un-latched answer reach the boot
+  // first, which is the whole thing being prevented.
+  const [landed, setLanded] = useState<ReaderLanding | undefined>(undefined);
+  if (landed === undefined && answer !== undefined) setLanded(answer);
+  return landed;
 };
