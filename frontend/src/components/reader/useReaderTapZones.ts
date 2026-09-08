@@ -69,6 +69,16 @@ interface ReaderTapZoneOptions {
    */
   onLeft: () => void;
   onRight: () => void;
+  /**
+   * Whether something in the book has already answered this pointer.
+   *
+   * Consulted like `nearestInteractive` below, and for the same reason: a tap
+   * that means something to the page is not also a page turn. It is a separate
+   * question only because the thing that answers may not be an element — a
+   * highlight decoration is a range Readium paints, not a node a `closest()`
+   * call can find.
+   */
+  isClaimed: (frameWindow: Window, clientX: number, clientY: number) => boolean;
 }
 
 /**
@@ -92,6 +102,7 @@ export const useReaderTapZones = ({
   suspended,
   onLeft,
   onRight,
+  isClaimed,
 }: ReaderTapZoneOptions) => {
   // Mirrored into a ref rather than closed over, so that crossing the breakpoint
   // or renewing a session does not change the identity of the binder below —
@@ -157,11 +168,18 @@ export const useReaderTapZones = ({
 
         if (nearestInteractive(event.target)) return;
 
+        // A highlight under the finger has already answered this tap — it is
+        // about to open in a dialog, over the top of the book. Asked before the
+        // zone test rather than inside it because a decoration in the middle of
+        // the page is claimed just as much; it simply had nothing to collide
+        // with until the edges started turning pages.
+        if (isClaimed(frameWindow, event.clientX, event.clientY)) return;
+
         const zone = frameWindow.innerWidth * TAP_ZONE_FRACTION;
         if (event.clientX < zone) onLeft();
         else if (event.clientX > frameWindow.innerWidth - zone) onRight();
       });
     },
-    [onLeft, onRight]
+    [onLeft, onRight, isClaimed]
   );
 };

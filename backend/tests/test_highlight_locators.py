@@ -1,8 +1,10 @@
-"""Readium locators derived for a book's highlights (M3.1, #745).
+"""Readium locators derived for a book's highlights (M3.1, #745; M3.2, #746).
 
-Two endpoints, one derivation. ``GET /books/{id}/highlights?include=locator``
-places a whole book's highlights so the reader can draw them, and
-``GET /highlights/{id}/locator`` places one so the reader can jump to it.
+Three endpoints, one derivation. ``GET /books/{id}/highlights?include=locator``
+places the highlights a *search* matched, ``GET /highlights/{id}/locator``
+places one so the reader can jump to it, and
+``GET /books/{id}/highlight-locators`` places a whole book's so the reader
+can draw every decoration in it.
 
 Every locator here is converted for real against ``tests/fixtures/minimal.epub``
 -- no anchor service is faked -- because what is under test is not that a field
@@ -32,15 +34,20 @@ from src.application.web_reader.queries.highlight_locators import (
     DerivedHighlightLocator,
     LocatorUnavailable,
 )
+from src.infrastructure.identity.services.token_service import create_access_token
 from src.infrastructure.library.repositories.file_repository import FileRepository
 from src.infrastructure.reading.schemas.highlight_builders import (
     build_highlight_schema,
     resolve_locator,
 )
 from src.infrastructure.web_reader.schemas.highlight_locator_schemas import HighlightLocator
+from src.infrastructure.web_reader.services.publication_token_service import (
+    PUBLICATION_COOKIE_NAME,
+)
 from src.models import Book, User
 from tests.conftest import create_test_book, create_test_chapter, create_test_highlight
 from tests.test_readium_manifest import fixture_bytes, store_epub
+from tests.test_readium_session import present, start_publication_session
 
 # Paragraphs of the fixture, and the xpointer range KOReader would have stored
 # for a highlight covering each. The offsets are character counts into the
@@ -90,6 +97,15 @@ def highlights_url(book_id: int) -> str:
 
 def locator_url(highlight_id: int) -> str:
     return f"/api/v1/highlights/{highlight_id}/locator"
+
+
+def book_locators_url(book_id: int) -> str:
+    return f"/api/v1/books/{book_id}/highlight-locators"
+
+
+def by_id(payload: dict[str, Any]) -> dict[int, dict[str, Any]]:
+    """The book-locators response, keyed by highlight id."""
+    return {item["highlight_id"]: item for item in payload["items"]}
 
 
 def by_text(payload: dict[str, Any]) -> dict[str, dict[str, Any]]:
@@ -655,3 +671,288 @@ class TestOneHighlightsLocator:
         response = await client.get(locator_url(gone.id))
 
         assert response.status_code == status.HTTP_404_NOT_FOUND
+
+
+class TestEveryLocatorInABook:
+    """``GET /readium/books/{id}/highlight-locators``, the decoration layer's read.
+
+    The reader draws every highlight it can place, so unlike the search view
+    above this one is asked for the whole list by construction. What matters
+    here is that the list is *complete*: one entry per live highlight, each
+    carrying either a place or a reason, so the reader can tell a highlight it
+    must not draw from one it was never told about.
+    """
+
+    async def test_places_every_live_highlight_in_the_book(
+        self,
+        client: AsyncClient,
+        db_session: AsyncSession,
+        test_user: User,
+        storage_dir: Path,
+    ) -> None:
+        """The whole book, without a search term to narrow it."""
+        book = await book_with_highlights(db_session, test_user, storage_dir, "reader-all.epub")
+
+        response = await client.get(book_locators_url(book.id))
+
+        assert response.status_code == status.HTTP_200_OK, response.text
+        placed = by_id(response.json())
+        assert len(placed) == 3
+        assert all(item["unavailable"] is None for item in placed.values())
+        hrefs = sorted(item["locator"]["href"] for item in placed.values())
+        assert hrefs == [CHAPTER_ONE_HREF, CHAPTER_ONE_HREF, CHAPTER_TWO_HREF]
+        quoted = {item["locator"]["text"]["highlight"] for item in placed.values()}
+        assert quoted == {LANTERN, MORNING, CEREMONY}
+        # The sentence occurs twice in chapter one, so the selector is what says
+        # which of the two paragraphs this decoration goes on.
+        selectors = {item["locator"]["locations"].get("cssSelector") for item in placed.values()}
+        assert LANTERN_SELECTOR in selectors
+        assert MORNING_SELECTOR in selectors
+
+    async def test_a_whole_book_costs_one_parse(
+        self,
+        client: AsyncClient,
+        db_session: AsyncSession,
+        test_user: User,
+        storage_dir: Path,
+        epub_reads: list[str],
+    ) -> None:
+        """Three highlights in two resources, one EPUB read (ADR-0004 §4)."""
+        book = await book_with_highlights(db_session, test_user, storage_dir, "reader-parse.epub")
+
+        response = await client.get(book_locators_url(book.id))
+
+        assert response.status_code == status.HTTP_200_OK
+        assert len(by_id(response.json())) == 3
+        assert epub_reads.count("reader-parse.epub") == 1
+
+    async def test_each_highlight_reports_its_own_reason(
+        self,
+        client: AsyncClient,
+        db_session: AsyncSession,
+        test_user: User,
+        storage_dir: Path,
+    ) -> None:
+        """One list, four verdicts -- and the placeable ones still place.
+
+        This is what makes the read safe to draw from. A book where some
+        highlights are lost is the ordinary case, not an error case, and each
+        entry has to say for itself which it is: the reader draws the placed
+        ones and M3.4 surfaces the rest.
+        """
+        book = await book_with_highlights(db_session, test_user, storage_dir, "reader-mixed.epub")
+        chapter = await create_test_chapter(db_session, book, name="Chapter One", chapter_number=1)
+        elsewhere = await create_test_highlight(
+            db_session,
+            book,
+            test_user.id,
+            text="Elsewhere entirely.",
+            datetime_str=WHEN,
+            chapter_id=chapter.id,
+            start_xpoint=XPOINTS_IN_ANOTHER_EDITION[0],
+            end_xpoint=XPOINTS_IN_ANOTHER_EDITION[1],
+        )
+        by_hand = await create_test_highlight(
+            db_session,
+            book,
+            test_user.id,
+            text="Typed in by hand.",
+            datetime_str=WHEN,
+            chapter_id=chapter.id,
+        )
+        stale = await create_test_highlight(
+            db_session,
+            book,
+            test_user.id,
+            text="A sentence this edition does not contain.",
+            datetime_str=WHEN,
+            chapter_id=chapter.id,
+            start_xpoint=LANTERN_XPOINTS[0],
+            end_xpoint=LANTERN_XPOINTS[1],
+        )
+
+        response = await client.get(book_locators_url(book.id))
+
+        assert response.status_code == status.HTTP_200_OK
+        placed = by_id(response.json())
+        assert len(placed) == 6
+        assert placed[elsewhere.id] == {
+            "highlight_id": elsewhere.id,
+            "locator": None,
+            "unavailable": "unresolved",
+        }
+        assert placed[by_hand.id]["unavailable"] == "not_placeable"
+        assert placed[stale.id]["unavailable"] == "text_mismatch"
+        drawable = [item for item in placed.values() if item["locator"] is not None]
+        assert len(drawable) == 3, "three bad xpointers must not cost the book its decorations"
+
+    async def test_a_book_with_no_readable_epub_says_so_for_every_highlight(
+        self,
+        client: AsyncClient,
+        db_session: AsyncSession,
+        test_user: User,
+        storage_dir: Path,
+    ) -> None:
+        """Never `unresolved`: what is gone is the file, not the reader's positions."""
+        book = await book_with_highlights(
+            db_session, test_user, storage_dir, "reader-vanished.epub", delete_file=True
+        )
+
+        response = await client.get(book_locators_url(book.id))
+
+        assert response.status_code == status.HTTP_200_OK
+        assert all(
+            item
+            == {"highlight_id": item["highlight_id"], "locator": None, "unavailable": "no_ebook"}
+            for item in by_id(response.json()).values()
+        )
+
+    async def test_a_deleted_highlight_is_simply_absent(
+        self,
+        client: AsyncClient,
+        db_session: AsyncSession,
+        test_user: User,
+        storage_dir: Path,
+    ) -> None:
+        """Nothing to draw and nothing to explain: the reader deleted it."""
+        book = await book_with_highlights(db_session, test_user, storage_dir, "reader-deleted.epub")
+        chapter = await create_test_chapter(db_session, book, name="Chapter One", chapter_number=1)
+        gone = await create_test_highlight(
+            db_session,
+            book,
+            test_user.id,
+            text="Struck out.",
+            datetime_str=WHEN,
+            chapter_id=chapter.id,
+            start_xpoint=LANTERN_XPOINTS[0],
+            end_xpoint=LANTERN_XPOINTS[1],
+            deleted_at=datetime.now(UTC).replace(tzinfo=None),
+        )
+
+        response = await client.get(book_locators_url(book.id))
+
+        assert response.status_code == status.HTTP_200_OK
+        assert gone.id not in by_id(response.json())
+
+    async def test_a_book_with_no_highlights_answers_an_empty_list(
+        self,
+        client: AsyncClient,
+        db_session: AsyncSession,
+        test_user: User,
+        test_book: Book,
+        storage_dir: Path,
+    ) -> None:
+        """An ordinary state of an ordinary book, not a 404 and not a null."""
+        await store_epub(
+            db_session, test_book, storage_dir, fixture_bytes("minimal.epub"), "reader-bare.epub"
+        )
+
+        response = await client.get(book_locators_url(test_book.id))
+
+        assert response.status_code == status.HTTP_200_OK
+        assert response.json() == {"items": []}
+
+    async def test_another_users_book_is_not_found(
+        self,
+        client: AsyncClient,
+        db_session: AsyncSession,
+        other_user: User,
+        storage_dir: Path,
+    ) -> None:
+        theirs = await book_with_highlights(
+            db_session, other_user, storage_dir, "reader-theirs.epub"
+        )
+
+        response = await client.get(book_locators_url(theirs.id))
+
+        assert response.status_code == status.HTTP_404_NOT_FOUND
+
+    async def test_the_publication_cookie_does_not_open_it(
+        self,
+        browser_client: AsyncClient,
+        db_session: AsyncSession,
+        test_user: User,
+        storage_dir: Path,
+    ) -> None:
+        """Should refuse the credential a navigator's iframe carries.
+
+        The route is outside the ``/readium`` prefix on purpose, and this is
+        what that buys. Every request the SPA makes for it carries a Bearer
+        token -- axios attaches one whenever it holds one and refreshes it on
+        401 -- so there is no reachable caller that would be helped by the
+        cookie, and accepting it would widen a per-publication credential into
+        one that reads a user's highlights.
+        """
+        book = await book_with_highlights(db_session, test_user, storage_dir, "reader-cookie.epub")
+        minted = await start_publication_session(browser_client, test_user, book.id)
+        present(browser_client, minted.cookies[PUBLICATION_COOKIE_NAME])
+
+        response = await browser_client.get(book_locators_url(book.id))
+
+        assert response.status_code == status.HTTP_401_UNAUTHORIZED, response.text
+
+    async def test_a_bearer_token_opens_it(
+        self,
+        browser_client: AsyncClient,
+        db_session: AsyncSession,
+        test_user: User,
+        storage_dir: Path,
+    ) -> None:
+        """Which is how the SPA asks, every time."""
+        book = await book_with_highlights(db_session, test_user, storage_dir, "reader-bearer.epub")
+
+        response = await browser_client.get(
+            book_locators_url(book.id),
+            headers={"Authorization": f"Bearer {create_access_token(test_user.id)}"},
+        )
+
+        assert response.status_code == status.HTTP_200_OK, response.text
+        assert len(by_id(response.json())) == 3
+
+    async def test_a_request_with_no_credential_is_refused(
+        self,
+        browser_client: AsyncClient,
+        db_session: AsyncSession,
+        test_user: User,
+        storage_dir: Path,
+    ) -> None:
+        book = await book_with_highlights(db_session, test_user, storage_dir, "reader-open.epub")
+
+        response = await browser_client.get(book_locators_url(book.id))
+
+        assert response.status_code == status.HTTP_401_UNAUTHORIZED
+
+
+class TestTheSearchViewIsUnchanged:
+    """M3.2 added a route; it must not have moved the one M3.1 built."""
+
+    async def test_the_search_endpoint_still_requires_a_search_term(
+        self,
+        client: AsyncClient,
+        db_session: AsyncSession,
+        test_user: User,
+        storage_dir: Path,
+    ) -> None:
+        """The whole-book read lives at its own URL, not behind an optional term."""
+        book = await book_with_highlights(db_session, test_user, storage_dir, "still-search.epub")
+
+        response = await client.get(highlights_url(book.id), params={"include": "locator"})
+
+        assert response.status_code == status.HTTP_422_UNPROCESSABLE_ENTITY
+
+    async def test_the_search_endpoint_still_places_nothing_without_the_flag(
+        self,
+        client: AsyncClient,
+        db_session: AsyncSession,
+        test_user: User,
+        storage_dir: Path,
+        epub_reads: list[str],
+    ) -> None:
+        """The flag still gates the parse, and the new route does not gate itself."""
+        book = await book_with_highlights(db_session, test_user, storage_dir, "still-flagged.epub")
+
+        response = await client.get(highlights_url(book.id), params={"searchText": "the"})
+
+        assert response.status_code == status.HTTP_200_OK
+        assert all(highlight["locator"] is None for highlight in by_text(response.json()).values())
+        assert "still-flagged.epub" not in epub_reads

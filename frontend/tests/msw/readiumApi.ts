@@ -1,4 +1,5 @@
 import type {
+  HighlightLocatorResponse,
   PositionList,
   ReadingPosition,
   ReadingPositionUpdate,
@@ -13,6 +14,7 @@ const POSITIONS_PATH = '/api/v1/readium/books/:bookId/positions.json';
 const SESSION_PATH = '/api/v1/readium/books/:bookId/session';
 const RESOURCE_PATH = '/api/v1/readium/books/:bookId/resources/*';
 const POSITION_PATH = '/api/v1/readium/books/:bookId/reading-position';
+const HIGHLIGHT_LOCATORS_PATH = '/api/v1/books/:bookId/highlight-locators';
 
 /**
  * The file a hostile chapter tries to navigate its own frame to.
@@ -45,6 +47,37 @@ const chapterDocument = (title: string, paragraphs = 1) =>
  * chapters are what is unrepresentative.
  */
 const PARAGRAPHS_PAST_ONE_SCREEN = 120;
+
+/**
+ * A paragraph of short words, which wraps with its lines nearly filling the
+ * column.
+ *
+ * For the tap-zone tests. Those need a point that is inside a highlight *and*
+ * inside the fifth of the screen that turns a page, and whether such a point
+ * exists is a fact about where the text happens to break: the ordinary fixture
+ * sentence ends its first line two pixels inside the zone at phone width, which
+ * is a test that passes or fails on the font. Short words leave a ragged edge
+ * only a word wide, so every line lands deep in the zone.
+ *
+ * Kept short enough to fit one screen, which matters as much. A chapter that
+ * paginates into several columns turns its pages *inside* one entry of the
+ * position list, so the page readout does not move and a test asserting on it
+ * could not tell a page turn from no page turn.
+ */
+export const DENSE_CHAPTER_TEXT = Array.from(
+  { length: 4 },
+  () => 'the cat sat on a mat and ran to the far end of it'
+)
+  .join(' ')
+  .concat('.');
+
+const denseChapter = () =>
+  `<?xml version="1.0" encoding="utf-8"?>
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head><title>On Attention</title></head>
+  <body><h1>On Attention</h1><p>${DENSE_CHAPTER_TEXT}</p></body>
+</html>`;
 
 /**
  * A chapter that tries to break out of its frame.
@@ -106,6 +139,13 @@ const RESOURCES: Record<string, { body: string; type: string } | undefined> = {
 interface ReadiumApiOptions {
   manifest?: WebPublicationManifest;
   positions?: PositionList;
+  /**
+   * Where the book's highlights are, for the decorations drawn over the text.
+   * Defaults to a book with none, which is what every test that is not about
+   * highlights wants — and is still an answer, so the reader draws nothing
+   * rather than waiting.
+   */
+  highlightLocators?: HighlightLocatorResponse[];
   /** Seconds of life the session endpoint claims for the publication cookie. */
   expiresIn?: number;
   /** Serve the first chapter as a book that attacks the page that opened it. */
@@ -115,6 +155,12 @@ interface ReadiumApiOptions {
    * that turning a page stays inside one entry of the position list.
    */
   longFirstChapter?: boolean;
+  /**
+   * Serve the first chapter as one paragraph of short words, whose lines run
+   * out to the edge of the column. What the tap-zone tests need to put a finger
+   * on a highlight and a page-turn zone at once.
+   */
+  denseFirstChapter?: boolean;
 }
 
 /**
@@ -126,13 +172,16 @@ interface ReadiumApiOptions {
 export const readiumApi = ({
   manifest,
   positions,
+  highlightLocators = [],
   expiresIn = 900,
   hostile = false,
   longFirstChapter = false,
+  denseFirstChapter = false,
 }: ReadiumApiOptions = {}) => [
   http.post(SESSION_PATH, () => HttpResponse.json({ expires_in: expiresIn })),
   http.get(MANIFEST_PATH, () => HttpResponse.json(manifest ?? aManifest())),
   http.get(POSITIONS_PATH, () => HttpResponse.json(positions ?? aPositionList())),
+  http.get(HIGHLIGHT_LOCATORS_PATH, () => HttpResponse.json({ items: highlightLocators })),
   // An open reader writes where it is, so every test that opens one meets these
   // whether or not it is about them. `readingPositionApi` is the version that
   // remembers what was written.
@@ -143,12 +192,14 @@ export const readiumApi = ({
     const rewritten =
       hostile && isFirstChapter
         ? { body: hostileChapter(), type: 'application/xhtml+xml' }
-        : longFirstChapter && isFirstChapter
-          ? {
-              body: chapterDocument('On Attention', PARAGRAPHS_PAST_ONE_SCREEN),
-              type: 'application/xhtml+xml',
-            }
-          : undefined;
+        : denseFirstChapter && isFirstChapter
+          ? { body: denseChapter(), type: 'application/xhtml+xml' }
+          : longFirstChapter && isFirstChapter
+            ? {
+                body: chapterDocument('On Attention', PARAGRAPHS_PAST_ONE_SCREEN),
+                type: 'application/xhtml+xml',
+              }
+            : undefined;
     const resource = rewritten ?? RESOURCES[path];
     if (!resource) return new HttpResponse(null, { status: 404 });
     return new HttpResponse(resource.body, {
@@ -201,6 +252,10 @@ export const readingPositionApi = (stored: ResumePositionResponse = nowhereToRes
 export const noPublication = [
   http.post(SESSION_PATH, () => HttpResponse.json({ expires_in: 900 })),
   http.get(MANIFEST_PATH, () => new HttpResponse(null, { status: 404 })),
+  // Asked for even here, and answered as it is in production: the route is
+  // about a book's highlights rather than about its EPUB, and it reports every
+  // one of them as `no_ebook` rather than failing.
+  http.get(HIGHLIGHT_LOCATORS_PATH, () => HttpResponse.json({ items: [] })),
   ...readingPositionApi().handlers,
 ];
 

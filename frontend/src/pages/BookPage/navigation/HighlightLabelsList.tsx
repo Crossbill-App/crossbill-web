@@ -1,7 +1,7 @@
 import { useGetBookHighlightLabels } from '@/api/generated/highlight-labels/highlight-labels.ts';
 import type { HighlightLabelInBook } from '@/api/generated/model';
 import { PaletteIcon } from '@/theme/Icons.tsx';
-import { getContrastColor } from '@/utils/colorUtils.ts';
+import { DEFAULT_LABEL_COLOR, getContrastColor } from '@/utils/colorUtils.ts';
 import { Box, Chip } from '@mui/material';
 
 import { SidebarSectionHeader } from './SidebarSectionHeader.tsx';
@@ -22,7 +22,7 @@ const getLabelDisplayName = (label: HighlightLabelInBook): string => {
 };
 
 const getLabelColor = (label: HighlightLabelInBook): string => {
-  return label.ui_color || '#6B7280';
+  return label.ui_color || DEFAULT_LABEL_COLOR;
 };
 
 const LabelChip = ({

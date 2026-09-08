@@ -15,6 +15,15 @@ export interface ColorOption {
   name: string;
 }
 
+/**
+ * What a highlight is shown in when its label carries no colour of its own.
+ *
+ * The Gray of the palette below rather than a colour outside it: an unlabelled
+ * highlight is still one of this set, just the quietest member. Named here so
+ * the sidebar's label chips and the web reader's decorations agree on it.
+ */
+export const DEFAULT_LABEL_COLOR = '#6B7280';
+
 export const LABEL_COLORS: readonly ColorOption[] = [
   { value: '#F59E0B', name: 'Yellow' }, // KOReader
   { value: '#F97316', name: 'Orange' }, // KOReader
@@ -28,6 +37,6 @@ export const LABEL_COLORS: readonly ColorOption[] = [
   { value: '#10B981', name: 'Green' }, // KOReader
   { value: '#84CC16', name: 'Olive' }, // KOReader
   { value: '#059669', name: 'Emerald' },
-  { value: '#6B7280', name: 'Gray' }, // KOReader
+  { value: DEFAULT_LABEL_COLOR, name: 'Gray' }, // KOReader
   { value: '#475569', name: 'Slate' },
 ];

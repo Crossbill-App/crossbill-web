@@ -4794,6 +4794,54 @@
         }
       }
     },
+    "/api/v1/books/{book_id}/highlight-locators": {
+      "get": {
+        "tags": [
+          "highlights"
+        ],
+        "summary": "Get Book Highlight Locators",
+        "description": "Get where every one of a book's highlights is in its EPUB, for drawing them.\n\nThe whole live list, in highlight-id order, one entry per highlight and\nnever a silent omission: each carries either a verified locator or a reason\nit has none, so a reader can tell a highlight it must not draw from one it\nwas never told about. Highlights the reader has deleted are simply absent.\n\nThis is the one caller that legitimately asks for a book's entire list. Every\nother view narrows to the highlights it will render, because conversion costs\nper highlight (ADR-0004 \u00a74, and the measurement in *Amendment 5*) -- but a\nreader drawing every decoration in a book is asking for all of them by\nconstruction, and on a heavily annotated, flatly structured book that is a\nsecond or more. The browser must therefore treat this as arriving *after*\nthe text rather than as something to open the book behind.\n\nA book that does not exist, or belongs to another user, answers 404.",
+        "operationId": "get_book_highlight_locators",
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "book_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Book Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CollectionResponse_HighlightLocatorResponse_"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/settings": {
       "get": {
         "tags": [
@@ -6266,6 +6314,22 @@
           "items"
         ],
         "title": "CollectionResponse[HighlightLabelInBook]"
+      },
+      "CollectionResponse_HighlightLocatorResponse_": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/HighlightLocatorResponse"
+            },
+            "type": "array",
+            "title": "Items"
+          }
+        },
+        "type": "object",
+        "required": [
+          "items"
+        ],
+        "title": "CollectionResponse[HighlightLocatorResponse]"
       },
       "CollectionResponse_NoteWithLinks_": {
         "properties": {
