@@ -58,7 +58,7 @@ export const HighlightViewDialog = ({
   const deleteHighlightMutation = useDeleteHighlights({
     mutation: {
       onSuccess: () => {
-        cache.bookChanged(bookId);
+        cache.highlightsChanged(bookId);
         controller.close();
       },
       onError: mutationErrorHandler('delete highlight'),

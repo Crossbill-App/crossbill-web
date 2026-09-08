@@ -1,4 +1,5 @@
 import type {
+  HighlightLocatorResponse,
   PositionList,
   ReadingPosition,
   ReadingPositionUpdate,
@@ -13,6 +14,7 @@ const POSITIONS_PATH = '/api/v1/readium/books/:bookId/positions.json';
 const SESSION_PATH = '/api/v1/readium/books/:bookId/session';
 const RESOURCE_PATH = '/api/v1/readium/books/:bookId/resources/*';
 const POSITION_PATH = '/api/v1/readium/books/:bookId/reading-position';
+const HIGHLIGHT_LOCATORS_PATH = '/api/v1/readium/books/:bookId/highlight-locators';
 
 /**
  * The file a hostile chapter tries to navigate its own frame to.
@@ -106,6 +108,13 @@ const RESOURCES: Record<string, { body: string; type: string } | undefined> = {
 interface ReadiumApiOptions {
   manifest?: WebPublicationManifest;
   positions?: PositionList;
+  /**
+   * Where the book's highlights are, for the decorations drawn over the text.
+   * Defaults to a book with none, which is what every test that is not about
+   * highlights wants — and is still an answer, so the reader draws nothing
+   * rather than waiting.
+   */
+  highlightLocators?: HighlightLocatorResponse[];
   /** Seconds of life the session endpoint claims for the publication cookie. */
   expiresIn?: number;
   /** Serve the first chapter as a book that attacks the page that opened it. */
@@ -126,6 +135,7 @@ interface ReadiumApiOptions {
 export const readiumApi = ({
   manifest,
   positions,
+  highlightLocators = [],
   expiresIn = 900,
   hostile = false,
   longFirstChapter = false,
@@ -133,6 +143,7 @@ export const readiumApi = ({
   http.post(SESSION_PATH, () => HttpResponse.json({ expires_in: expiresIn })),
   http.get(MANIFEST_PATH, () => HttpResponse.json(manifest ?? aManifest())),
   http.get(POSITIONS_PATH, () => HttpResponse.json(positions ?? aPositionList())),
+  http.get(HIGHLIGHT_LOCATORS_PATH, () => HttpResponse.json({ items: highlightLocators })),
   // An open reader writes where it is, so every test that opens one meets these
   // whether or not it is about them. `readingPositionApi` is the version that
   // remembers what was written.
@@ -201,6 +212,10 @@ export const readingPositionApi = (stored: ResumePositionResponse = nowhereToRes
 export const noPublication = [
   http.post(SESSION_PATH, () => HttpResponse.json({ expires_in: 900 })),
   http.get(MANIFEST_PATH, () => new HttpResponse(null, { status: 404 })),
+  // Asked for even here, and answered as it is in production: the route is
+  // about a book's highlights rather than about its EPUB, and it reports every
+  // one of them as `no_ebook` rather than failing.
+  http.get(HIGHLIGHT_LOCATORS_PATH, () => HttpResponse.json({ items: [] })),
   ...readingPositionApi().handlers,
 ];
 

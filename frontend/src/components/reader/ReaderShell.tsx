@@ -1,3 +1,4 @@
+import type { Highlight } from '@/api/generated/model';
 import { CHROME_MARKER } from '@/components/reader/chromeMarker.ts';
 import { HIGHLIGHT_DECORATION_GROUP } from '@/components/reader/decorations.ts';
 import { ReaderChrome } from '@/components/reader/ReaderChrome.tsx';
@@ -8,6 +9,7 @@ import {
   type ReaderPreferences,
 } from '@/components/reader/readerPreferences.ts';
 import { TocDrawer } from '@/components/reader/TocDrawer.tsx';
+import { useHighlightDecorations } from '@/components/reader/useHighlightDecorations.ts';
 import { useReaderPublication } from '@/components/reader/useReaderPublication.ts';
 import { useReaderSession } from '@/components/reader/useReaderSession.ts';
 import { useReaderTapZones } from '@/components/reader/useReaderTapZones.ts';
@@ -85,6 +87,14 @@ interface ReaderShellProps {
   bookId: number;
   title: string;
   onClose: () => void;
+  /**
+   * The book's highlights, for the colour their labels give each decoration.
+   * Empty while the book-details query is in flight, and empty for a book with
+   * none — neither of which stops a highlight being drawn.
+   */
+  highlights: Highlight[];
+  /** Open the highlight a reader tapped on the page. */
+  onOpenHighlight: (highlightId: number) => void;
 }
 
 /** Resolves once the element has a real box, or immediately if it already has one. */
@@ -126,7 +136,13 @@ const whenSized = (element: HTMLElement) =>
  * teardown lands in the middle of the second one's load and takes its frames
  * with it.
  */
-export const ReaderShell = ({ bookId, title, onClose }: ReaderShellProps) => {
+export const ReaderShell = ({
+  bookId,
+  title,
+  onClose,
+  highlights,
+  onOpenHighlight,
+}: ReaderShellProps) => {
   const theme = useTheme();
   // A phone, near enough. The arrow buttons need gutters this viewport cannot
   // spare, so below here the edges of the page turn it instead.
@@ -157,6 +173,15 @@ export const ReaderShell = ({ bookId, title, onClose }: ReaderShellProps) => {
   // rather than read off the instance while rendering: the editor is a live
   // object hanging off a ref, and a ref is not something a render may consult.
   const [fontSizeBounds, setFontSizeBounds] = useState(DEFAULT_FONT_SIZE_BOUNDS);
+
+  // The reader's own highlights, drawn on the page. Deliberately not part of
+  // `isReady` below: the book opens without them and they land when they land.
+  const { observer: decorationObserver, apply: applyDecorations } = useHighlightDecorations({
+    bookId,
+    highlights,
+    navigatorRef,
+    onActivate: onOpenHighlight,
+  });
 
   const goForward = useCallback(() => navigatorRef.current?.goForward(true, () => {}), []);
   const goBackward = useCallback(() => navigatorRef.current?.goBackward(true, () => {}), []);
@@ -289,16 +314,21 @@ export const ReaderShell = ({ bookId, title, onClose }: ReaderShellProps) => {
           /**
            * One frame of the publication is in the DOM and scriptable.
            *
-           * The seam M3.2 hangs its highlights on: decorations are applied per
-           * frame, so this is where a newly loaded resource gets the ones that
-           * belong to it. Today it reveals the page and hands the frame the two
-           * ways of turning it — the arrow keys and, where the buttons cannot
-           * fit, the tap zones — neither of which a same-origin iframe bubbles
-           * up on its own.
+           * It reveals the page and hands the frame the two ways of turning it
+           * — the arrow keys and, where the buttons cannot fit, the tap zones —
+           * neither of which a same-origin iframe bubbles up on its own.
+           *
+           * The decorations are re-offered here for one case only: a locator
+           * list that answered while there was no navigator to hand it to. The
+           * per-frame work is the navigator's own — it re-applies a resource's
+           * decorations to a frame as that frame loads — so this is not where a
+           * page turn gets its highlights, and it does not have to know which
+           * resource this frame holds.
            */
           frameLoaded: (frameWindow: Window) => {
             frameWindow.addEventListener('keydown', handleKeyDown);
             bindTapZones(frameWindow);
+            applyDecorations();
             setIsPageVisible(true);
           },
           /**
@@ -349,11 +379,19 @@ export const ReaderShell = ({ bookId, title, onClose }: ReaderShellProps) => {
         { preferences: toEpubPreferences(theme, preferences), defaults: {} }
       );
 
-      // Reserved now so the group exists before anything draws into it, and so
-      // that a decoration activated in M3.2 already has somewhere to arrive.
-      epubNavigator.registerDecorationObserver(HIGHLIGHT_DECORATION_GROUP, {});
-
+      // Published before `load()`, because the two calls below reach the
+      // navigator through this ref and the highlight layer has to be wired to
+      // it before it has frames to wire into.
       navigatorRef.current = epubNavigator;
+      // Registered with a real activation handler: the navigator turns
+      // activation on for a group only when an observer that handles it
+      // arrives, and every frame built from here is told the group is
+      // activatable as it loads.
+      epubNavigator.registerDecorationObserver(HIGHLIGHT_DECORATION_GROUP, decorationObserver);
+      // Whatever has already been fetched, before the first frame exists. The
+      // navigator holds the set and gives each frame its share as it loads.
+      applyDecorations();
+
       await epubNavigator.load();
       // The frame pool is laid out from the container's measurements, which
       // are only final after the browser has painted the frames it just added.
@@ -441,6 +479,11 @@ export const ReaderShell = ({ bookId, title, onClose }: ReaderShellProps) => {
     recordPosition,
     setArriving,
     bootAttempt,
+    // Both stable for the navigator's whole life, by construction: the
+    // highlight layer reads the changing parts through refs precisely so that
+    // a highlight being drawn is never a reason to rebuild the reader.
+    decorationObserver,
+    applyDecorations,
   ]);
 
   // Said once the book is on screen, so the reader reads it against the page it

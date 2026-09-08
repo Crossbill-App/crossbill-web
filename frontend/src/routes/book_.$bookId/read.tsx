@@ -9,4 +9,10 @@ import { createFileRoute } from '@tanstack/react-router';
  */
 export const Route = createFileRoute('/book_/$bookId/read')({
   component: ReaderPage,
+  // The same param the book page's highlight list opens its dialog with, so a
+  // highlight tapped on the page is a place in history and a link that can be
+  // pasted — and the back button closes the dialog rather than the book.
+  validateSearch: (search: Record<string, unknown>): { highlightId?: number } => ({
+    highlightId: (search.highlightId as number | undefined) || undefined,
+  }),
 });

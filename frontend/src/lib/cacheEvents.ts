@@ -7,6 +7,7 @@ import { getGetBookDigestQueryKey } from '@/api/generated/digest/digest.ts';
 import { getGetBookHighlightLabelsQueryKey } from '@/api/generated/highlight-labels/highlight-labels.ts';
 import { getGetActiveBookDigestBatchQueryKey } from '@/api/generated/jobs/jobs.ts';
 import { getGetNoteQueryKey, getGetNotesForBookQueryKey } from '@/api/generated/notes/notes.ts';
+import { getGetBookHighlightLocatorsQueryKey } from '@/api/generated/readium/readium.ts';
 import {
   getGetActiveBackfillQueryKey,
   getRelatedContentQueryKey,
@@ -50,6 +51,17 @@ export const useCacheEvents = () => {
     return {
       /** A book's own record changed — title, reading stage, cover, highlights. */
       bookChanged: (bookId: number) => invalidate(getGetBookDetailsQueryKey(bookId)),
+
+      /**
+       * A highlight was added or deleted, so what the book *has* changed.
+       *
+       * Separate from `bookChanged` because of the second key: deriving a
+       * book's locators costs an EPUB parse and a conversion per highlight
+       * (ADR-0004 §4), which a title edit has no business paying for. Only a
+       * change to the set of highlights can change where they are.
+       */
+      highlightsChanged: (bookId: number) =>
+        invalidate(getGetBookDetailsQueryKey(bookId), getGetBookHighlightLocatorsQueryKey(bookId)),
 
       /** A book was opened, which reorders the recent-books list. */
       bookViewed: () => invalidate(getGetRecentBooksQueryKey()),

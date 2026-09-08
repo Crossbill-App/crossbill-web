@@ -1,4 +1,5 @@
-import { aBookDetails } from '@tests/fixtures/book';
+import type { Highlight, HighlightLocatorResponse } from '@/api/generated/model';
+import { aBookDetails, aChapter, aHighlight } from '@tests/fixtures/book';
 import { aManifest, aResumePosition } from '@tests/fixtures/publication';
 import { renderApp } from '@tests/harness/renderApp';
 import { bookApi } from '@tests/msw/bookApi';
@@ -773,3 +774,286 @@ test('reading on within the restored position is still written', async () => {
   await expect.poll(() => positions.writes.length, { timeout: 15_000 }).toBeGreaterThan(0);
   expect(positions.writes[0].locator.href).toBe('resources/OEBPS/chapter1.xhtml');
 }, 30_000);
+
+/* ------------------------------------------------------------------ *
+ * M3.2 — the reader's highlights, drawn on the page (#746)
+ * ------------------------------------------------------------------ */
+
+/**
+ * Two phrases of the fixture's first chapter, and the label colour each is
+ * marked in.
+ *
+ * The chapter reads "Attention is the rarest and purest form of generosity.
+ * (1)", so these are two non-overlapping quotes of one paragraph — which is
+ * what makes two decorations in one frame, in two different colours, a thing a
+ * test can tell apart.
+ */
+const FIRST_QUOTE = 'Attention is the rarest';
+const SECOND_QUOTE = 'form of generosity';
+
+/** Yellow and Blue of `LABEL_COLORS`, at the alpha the reader lays them on with. */
+const YELLOW_TINT = 'rgba(245, 158, 11, 0.35)';
+const BLUE_TINT = 'rgba(59, 130, 246, 0.35)';
+
+/** The Gray a highlight whose label carries no colour falls back to. */
+const DEFAULT_TINT = 'rgba(107, 114, 128, 0.35)';
+
+const CHAPTER_ONE = 'resources/OEBPS/chapter1.xhtml';
+
+/** A highlight of the book, marked in `uiColor` and quoting `text`. */
+const aMarkedHighlight = (id: number, text: string, uiColor: string | null) =>
+  aHighlight({
+    id,
+    text,
+    label:
+      uiColor === null ? null : { highlight_style_id: id, text: 'Key idea', ui_color: uiColor },
+  });
+
+/** Where that highlight is, as the reader's locator endpoint answers it. */
+const aPlacedLocator = (id: number, quote: string): HighlightLocatorResponse => ({
+  highlight_id: id,
+  unavailable: null,
+  locator: {
+    href: CHAPTER_ONE,
+    type: 'application/xhtml+xml',
+    locations: {},
+    text: { highlight: quote },
+  },
+});
+
+/**
+ * A book whose highlights the reader can draw: the rows in book details, the
+ * places in the locator endpoint.
+ *
+ * The split is the production one. A highlight's label — and so its colour —
+ * rides on the book-details payload the reader already fetches for the title,
+ * and only where it is in the EPUB comes from the web reader's own endpoint.
+ */
+const aBookWithHighlights = (
+  highlights: Highlight[],
+  highlightLocators: HighlightLocatorResponse[],
+  ...extra: Parameters<typeof worker.use>
+) => {
+  worker.use(
+    ...bookApi({
+      book: aBookDetails({
+        title: 'The Pragmatic Reader',
+        has_ebook: true,
+        chapters: [aChapter({ highlights })],
+      }),
+    }).handlers
+  );
+  worker.use(...readiumApi({ highlightLocators }));
+  if (extra.length) worker.use(...extra);
+};
+
+/** The publication frame the reader is actually looking at. */
+const visibleFrame = () =>
+  [...document.querySelectorAll<HTMLIFrameElement>('iframe.readium-navigator-iframe')].find(
+    (candidate) => candidate.style.visibility !== 'hidden'
+  );
+
+/**
+ * Every colour a decoration is painted in inside the visible frame.
+ *
+ * Readium draws a highlight one of two ways, and which one it picks is the
+ * engine's business rather than ours: where the CSS Custom Highlight API is
+ * available it registers ranges and writes `::highlight()` rules into a style
+ * element, and where it is not it lays absolutely positioned boxes into a
+ * shadow root. Both are read here so the assertions below are about what the
+ * reader sees rather than about which path this browser took.
+ */
+const decorationTints = (): string[] => {
+  const doc = visibleFrame()?.contentDocument;
+  if (!doc) return [];
+  const fromRules = [...doc.querySelectorAll('style')]
+    .flatMap((sheet) => [...sheet.textContent.matchAll(/::highlight\([^)]*\)\s*{[^}]*}/g)])
+    .flatMap((rule) => [...rule[0].matchAll(/background-color:\s*([^;\n]+)/g)])
+    .map((match) => match[1].trim());
+  const fromBoxes = [...doc.querySelectorAll<HTMLElement>('div')]
+    .flatMap((host) =>
+      host.shadowRoot ? [...host.shadowRoot.querySelectorAll<HTMLElement>('*')] : []
+    )
+    .map((box) => box.style.backgroundColor)
+    .filter(Boolean);
+  return [...fromRules, ...fromBoxes];
+};
+
+/**
+ * The tints on the page, once they have had a chance to arrive.
+ *
+ * Polled well past the default second, because the whole point of this layer is
+ * that decorations are allowed to be late: one test below holds the locator
+ * response back on purpose, and a matcher that gave up first would be asserting
+ * the opposite of what the code promises.
+ */
+const DECORATIONS_ARRIVE_WITHIN = 6_000;
+
+const tintsOnThePage = () =>
+  expect.poll(() => [...new Set(decorationTints())].sort(), {
+    timeout: DECORATIONS_ARRIVE_WITHIN,
+  });
+
+/**
+ * The reader's highlights are the whole point of the milestone: a KOReader
+ * highlight made months ago on a device, drawn in the browser on the words it
+ * was made on, in the colour the reader chose for it.
+ */
+test('a book is opened with its highlights drawn on the page', async () => {
+  aBookWithHighlights(
+    [aMarkedHighlight(301, FIRST_QUOTE, '#F59E0B'), aMarkedHighlight(302, SECOND_QUOTE, '#3B82F6')],
+    [aPlacedLocator(301, FIRST_QUOTE), aPlacedLocator(302, SECOND_QUOTE)]
+  );
+
+  const screen = await renderApp({ path: '/book/1/read' });
+  await expect.element(screen.getByText('Page 1 of 2', { exact: false })).toBeVisible();
+
+  await tintsOnThePage().toEqual([BLUE_TINT, YELLOW_TINT].sort());
+});
+
+/**
+ * A highlight KOReader never gave a colour to is still a highlight, and still
+ * has to be findable on the page — in the palette's quietest member rather than
+ * in no colour at all.
+ */
+test('a highlight with no label colour is drawn in the default one', async () => {
+  aBookWithHighlights(
+    [aMarkedHighlight(301, FIRST_QUOTE, null)],
+    [aPlacedLocator(301, FIRST_QUOTE)]
+  );
+
+  const screen = await renderApp({ path: '/book/1/read' });
+  await expect.element(screen.getByText('Page 1 of 2', { exact: false })).toBeVisible();
+
+  await tintsOnThePage().toEqual([DEFAULT_TINT]);
+});
+
+/**
+ * The other half of ADR-0004 §5: a highlight the server would not place is one
+ * the reader must not draw, because the only alternative to no decoration is a
+ * confident one in the wrong paragraph. Saying so belongs in the chrome (M3.4),
+ * not on the page.
+ */
+test('a highlight that could not be placed is not drawn at all', async () => {
+  aBookWithHighlights(
+    [aMarkedHighlight(301, FIRST_QUOTE, '#F59E0B'), aMarkedHighlight(302, SECOND_QUOTE, '#3B82F6')],
+    [
+      aPlacedLocator(301, FIRST_QUOTE),
+      { highlight_id: 302, locator: null, unavailable: 'unresolved' },
+    ]
+  );
+
+  const screen = await renderApp({ path: '/book/1/read' });
+  await expect.element(screen.getByText('Page 1 of 2', { exact: false })).toBeVisible();
+
+  await tintsOnThePage().toEqual([YELLOW_TINT]);
+});
+
+/** A book nobody has marked opens as a book, with nothing drawn and nothing amiss. */
+test('a book with no highlights opens cleanly', async () => {
+  aBookWithHighlights([], []);
+
+  const screen = await renderApp({ path: '/book/1/read' });
+
+  await expect.element(screen.getByText('Page 1 of 2', { exact: false })).toBeVisible();
+  await expect.element(screen.getByRole('heading', { name: 'The Pragmatic Reader' })).toBeVisible();
+  expect(decorationTints()).toEqual([]);
+});
+
+/**
+ * *Amendment 5* measured a book's whole conversion at 561 ms in the worst case
+ * measured, and reasons that a flat book with hundreds of highlights runs into
+ * seconds. So the one thing the decorations may never do is hold up the book:
+ * the text arrives first and the marks catch up.
+ */
+test('the book is on screen before its highlights have been placed', async () => {
+  aBookWithHighlights(
+    [aMarkedHighlight(301, FIRST_QUOTE, '#F59E0B')],
+    [],
+    http.get('/api/v1/readium/books/:bookId/highlight-locators', async () => {
+      await delay(1_500);
+      return HttpResponse.json({ items: [aPlacedLocator(301, FIRST_QUOTE)] });
+    })
+  );
+
+  const screen = await renderApp({ path: '/book/1/read' });
+
+  // The skeleton has cleared and the reader is reading, with the locator
+  // request still in flight.
+  await expect.element(screen.getByText('Page 1 of 2', { exact: false })).toBeVisible();
+  expect(decorationTints()).toEqual([]);
+
+  // And the marks land on the page they belong to without it being reloaded.
+  await tintsOnThePage().toEqual([YELLOW_TINT]);
+});
+
+/** One drawn highlight, tapped, with its dialog open on the book. */
+const aTappedHighlight = async () => {
+  aBookWithHighlights(
+    [aMarkedHighlight(301, FIRST_QUOTE, '#F59E0B')],
+    [aPlacedLocator(301, FIRST_QUOTE)]
+  );
+
+  const screen = await renderApp({ path: '/book/1/read' });
+  await tintsOnThePage().toEqual([YELLOW_TINT]);
+  await tapQuoteInPublication(FIRST_QUOTE);
+  await expect.element(screen.getByRole('dialog')).toBeVisible();
+  return screen;
+};
+
+/**
+ * A highlight tapped in the book opens the same dialog the book page opens,
+ * through the same search param — so the URL can be pasted to somebody else.
+ */
+test('tapping a highlight on the page opens it', async () => {
+  const screen = await aTappedHighlight();
+
+  await expect.element(screen.getByRole('dialog').getByText(FIRST_QUOTE)).toBeVisible();
+  expect(window.location.search).toContain('highlightId=301');
+});
+
+/** The back button closes the dialog and leaves the reader where it was. */
+test('closing a tapped highlight goes back to the book', async () => {
+  const screen = await aTappedHighlight();
+
+  window.history.back();
+
+  await expect.poll(() => window.location.search).not.toContain('highlightId');
+  await expect.element(screen.getByText('Page 1 of 2', { exact: false })).toBeVisible();
+});
+
+/**
+ * A finger put down on a decorated phrase, in the publication's own document.
+ *
+ * Readium hit-tests an activation against the rects of the decorated range, so
+ * the gesture has to land on the words themselves — the range is found here the
+ * same way the decoration's own was, by quote.
+ */
+const tapQuoteInPublication = async (quote: string) => {
+  const frame = visibleFrame();
+  const doc = frame?.contentDocument;
+  const view = frame?.contentWindow as (Window & typeof globalThis) | null | undefined;
+  if (!doc || !view) throw new Error('The publication has no frame to tap.');
+
+  const paragraph = [...doc.querySelectorAll('p')].find((node) => node.textContent.includes(quote));
+  const textNode = paragraph?.firstChild;
+  if (!textNode?.textContent) throw new Error(`No paragraph in the book quotes "${quote}".`);
+
+  const start = textNode.textContent.indexOf(quote);
+  const range = doc.createRange();
+  range.setStart(textNode, start);
+  range.setEnd(textNode, start + quote.length);
+  const box = range.getBoundingClientRect();
+  const at = {
+    clientX: Math.round(box.left + box.width / 2),
+    clientY: Math.round(box.top + box.height / 2),
+    bubbles: true,
+    isPrimary: true,
+    pointerId: 1,
+    pointerType: 'touch',
+  };
+
+  const target = doc.elementFromPoint(at.clientX, at.clientY) ?? doc.body;
+  target.dispatchEvent(new view.PointerEvent('pointerdown', at));
+  target.dispatchEvent(new view.PointerEvent('pointerup', at));
+};
