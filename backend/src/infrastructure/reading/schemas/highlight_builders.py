@@ -5,13 +5,25 @@ Lives beside the schema it produces so that every router rendering a highlight
 """
 
 from src.application.common.queries.highlight_row import HighlightRow
+from src.application.web_reader.queries.highlight_locators import DerivedHighlightLocator
 from src.infrastructure.learning.schemas.flashcard_schemas import Flashcard
 from src.infrastructure.reading.schemas.highlight_schemas import Highlight, HighlightLabel
 from src.infrastructure.tagging.schemas.tag_schemas import TagInBook
+from src.infrastructure.web_reader.schemas.highlight_locator_schemas import (
+    build_highlight_locator,
+)
 
 
-def build_highlight_schema(highlight: HighlightRow) -> Highlight:
-    """Build the Highlight schema from a highlight in a read model."""
+def build_highlight_schema(
+    highlight: HighlightRow, locator: DerivedHighlightLocator | None = None
+) -> Highlight:
+    """Build the Highlight schema from a highlight in a read model.
+
+    ``locator`` is the web reader's derived anchor, and is passed only by views
+    whose caller asked for it. Every other view leaves it out and the field is
+    null, which is what keeps a list that draws no decorations from paying for
+    an EPUB parse it has no use for.
+    """
     return Highlight(
         id=highlight.id,
         book_id=highlight.book_id,
@@ -48,4 +60,5 @@ def build_highlight_schema(highlight: HighlightRow) -> Highlight:
         ],
         created_at=highlight.created_at,
         updated_at=highlight.updated_at,
+        locator=build_highlight_locator(locator) if locator is not None else None,
     )
