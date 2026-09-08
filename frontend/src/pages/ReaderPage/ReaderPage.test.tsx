@@ -1,4 +1,5 @@
 import type { Highlight, HighlightLocatorResponse } from '@/api/generated/model';
+import { READER_PREFERENCES_KEY } from '@/components/reader/readerPreferenceStorage.ts';
 import { aBookDetails, aChapter, aHighlight } from '@tests/fixtures/book';
 import { aDetailedPositionList, aManifest, aResumePosition } from '@tests/fixtures/publication';
 import { renderApp } from '@tests/harness/renderApp';
@@ -1906,6 +1907,62 @@ test('an alignment the reader chooses reaches the words on the page', async () =
   await screen.getByRole('button', { name: 'Justified' }).click();
 
   await expect.poll(() => readiumProperty('--USER__textAlign')).toBe('justify');
+});
+/**
+ * The whole point of the popover is that it is set once. A reader who justified
+ * their text on Monday is not asking to be shown the publisher's ragged right
+ * again on Tuesday, and the reader is remounted from scratch every time a book
+ * is opened.
+ */
+test('an appearance the reader set is still set when a book is opened again', async () => {
+  aBookWithAnEpub();
+  const screen = await openTheBook();
+
+  await openAppearance(screen);
+  await screen.getByRole('button', { name: 'Justified' }).click();
+  await expect.poll(() => readiumProperty('--USER__textAlign')).toBe('justify');
+
+  // Out of the reader and back in through the app's own front door, which is
+  // what unmounts the shell, destroys the navigator and builds a new one. The
+  // popover is dismissed first: it is modal, and its backdrop owns every click
+  // aimed at the chrome behind it.
+  await userEvent.keyboard('{Escape}');
+  await expect
+    .element(screen.getByRole('heading', { name: 'Text alignment' }))
+    .not.toBeInTheDocument();
+  await screen.getByRole('button', { name: 'Close reader' }).click();
+  await expect.element(screen.getByRole('heading', { name: 'Structure' })).toBeVisible();
+  await screen.getByRole('link', { name: 'Read' }).click();
+  await expectLandingAt(screen, 'Page 1 of 2');
+
+  // The book opens justified — not merely a control that remembers being
+  // pressed — because the navigator is seeded with the stored preferences
+  // rather than corrected once it has already laid the page out.
+  await expect.poll(() => readiumProperty('--USER__textAlign')).toBe('justify');
+  await openAppearance(screen);
+  await expect
+    .element(screen.getByRole('button', { name: 'Justified' }))
+    .toHaveAttribute('aria-pressed', 'true');
+}, 30_000);
+/**
+ * Storage is a place other things write to, and a browser is entitled to hand
+ * back whatever is under a key. None of that is the reader's problem: a book
+ * still opens, on the defaults, with nothing said about it.
+ */
+test('an appearance stored as nonsense opens the book on the defaults', async () => {
+  aBookWithAnEpub();
+  window.localStorage.setItem(READER_PREFERENCES_KEY, '{ not json at all');
+
+  const screen = await openTheBook();
+
+  await openAppearance(screen);
+  await expect.element(screen.getByText('100%')).toBeVisible();
+  await expect
+    .element(screen.getByRole('button', { name: 'Default' }))
+    .toHaveAttribute('aria-pressed', 'true');
+  await expect
+    .element(screen.getByRole('button', { name: 'Light' }))
+    .toHaveAttribute('aria-pressed', 'true');
 });
 /**
  * A wide screen fills itself with columns, which is more text per line than

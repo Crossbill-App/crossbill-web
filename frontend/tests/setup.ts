@@ -1,6 +1,7 @@
 import { AXIOS_INSTANCE } from '@/api/axios-instance';
 import { API_BASE_URL } from '@/api/base-url';
 import { clearTokens } from '@/api/token-manager';
+import { READER_PREFERENCES_KEY } from '@/components/reader/readerPreferenceStorage';
 import { afterAll, afterEach, beforeAll } from 'vitest';
 import { cleanup } from 'vitest-browser-react';
 import { pendingQueryClients } from './harness/renderApp';
@@ -101,6 +102,10 @@ afterEach(async () => {
 
   worker.resetHandlers();
   clearTokens();
+  // The reader remembers its appearance in the browser itself, and the browser
+  // is one process for the whole file. Cleared by name rather than wholesale so
+  // that a test which puts something else in storage still owns it.
+  window.localStorage.removeItem(READER_PREFERENCES_KEY);
 
   const unhandled = unhandledRequests.splice(0);
   if (unhandled.length > 0) {

@@ -4,11 +4,14 @@ import { CHROME_MARKER } from '@/components/reader/chromeMarker.ts';
 import { HIGHLIGHT_DECORATION_GROUP } from '@/components/reader/decorations.ts';
 import { ReaderChrome } from '@/components/reader/ReaderChrome.tsx';
 import {
-  DEFAULT_READER_PREFERENCES,
   readerPageColors,
   toEpubPreferences,
   type ReaderPreferences,
 } from '@/components/reader/readerPreferences.ts';
+import {
+  loadReaderPreferences,
+  saveReaderPreferences,
+} from '@/components/reader/readerPreferenceStorage.ts';
 import { TocDrawer } from '@/components/reader/TocDrawer.tsx';
 import { useHighlightDecorations } from '@/components/reader/useHighlightDecorations.ts';
 import { useReaderLanding, type ReaderLanding } from '@/components/reader/useReaderLanding.ts';
@@ -236,7 +239,11 @@ export const ReaderShell = ({
   // Bumped to ask for the whole navigator again, which is the only meaningful
   // retry: a half-built one has frames and blobs that have to go first.
   const [bootAttempt, setBootAttempt] = useState(0);
-  const [preferences, setPreferences] = useState<ReaderPreferences>(DEFAULT_READER_PREFERENCES);
+  // Seeded from the browser's own memory rather than from the defaults, and
+  // read during the first render rather than in an effect: the navigator takes
+  // its preferences at construction, and a font size that arrived a tick later
+  // would mean every book visibly re-flowing the moment it opened.
+  const [preferences, setPreferences] = useState<ReaderPreferences>(loadReaderPreferences);
   // Copied out of the navigator's own `EpubPreferencesEditor` once it exists,
   // rather than read off the instance while rendering: the editor is a live
   // object hanging off a ref, and a ref is not something a render may consult.
@@ -637,6 +644,13 @@ export const ReaderShell = ({
     if (!isPageVisible) return;
     void navigatorRef.current?.submitPreferences(toEpubPreferences(theme, preferences));
   }, [isPageVisible, preferences, theme]);
+
+  // Kept for the next book rather than for this one, so it is deliberately not
+  // conditional on the navigator having taken them: a reader who nudges the
+  // font size and closes the book has still expressed a preference.
+  useEffect(() => {
+    saveReaderPreferences(preferences);
+  }, [preferences]);
 
   const goToTocEntry = useCallback((link: Link) => {
     setIsTocOpen(false);
