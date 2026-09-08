@@ -1,16 +1,60 @@
 import { AXIOS_INSTANCE } from '@/api/axios-instance';
+import { API_BASE_URL } from '@/api/base-url';
 import { clearTokens } from '@/api/token-manager';
+import { READER_PREFERENCES_KEY } from '@/components/reader/readerPreferenceStorage';
 import { afterAll, afterEach, beforeAll } from 'vitest';
 import { cleanup } from 'vitest-browser-react';
 import { pendingQueryClients } from './harness/renderApp';
 import { worker } from './msw/worker';
 
 // Relative URLs, so MSW handlers can be written against `/api/v1/...` paths.
+// Already the default; pinned here so the handlers do not depend on it.
 AXIOS_INSTANCE.defaults.baseURL = '';
 
 const unhandledRequests: string[] = [];
 
+/**
+ * Chromium raises this whenever a `ResizeObserver` callback changes layout, so
+ * that the observations it could not deliver this frame are delivered on the
+ * next one. That is the specified behaviour, not a fault — and it is exactly
+ * what `@readium/navigator` does, because its own observer resizes the reader's
+ * container in response to being resized.
+ *
+ * It reaches the page as a window `error` event all the same, and Vitest fails
+ * whichever test happens to be running when one lands. Swallowing this one
+ * message keeps a third-party library's normal behaviour from failing tests at
+ * random; every other error still fails the run.
+ */
+const RESIZE_OBSERVER_NOTICE = 'ResizeObserver loop';
+
+window.addEventListener(
+  'error',
+  (event) => {
+    // Not every `error` event is an `ErrorEvent`: a subresource that fails to
+    // load fires a plain `Event` on the way up, whose `message` is undefined.
+    // Reading it threw *inside this handler*, which Vitest then reported as the
+    // unhandled error the handler exists to prevent — noise under Chromium, and
+    // enough to fail whole files under WebKit, which fires more of them.
+    if (typeof event.message === 'string' && event.message.includes(RESIZE_OBSERVER_NOTICE)) {
+      event.stopImmediatePropagation();
+      event.preventDefault();
+    }
+  },
+  true
+);
+
 beforeAll(async () => {
+  // The axios default above can be reassigned; this one cannot — components
+  // build URLs from a constant compiled out of `import.meta.env`, so a leaked
+  // env var can only be caught, not corrected. Left unchecked it shows up as a
+  // puzzling unmocked-request failure, or as a real request to a live backend.
+  if (API_BASE_URL !== '') {
+    throw new Error(
+      `API_BASE_URL is ${JSON.stringify(API_BASE_URL)}, not ''. An environment ` +
+        'variable reached the test build; see envPrefix in vitest.config.ts.'
+    );
+  }
+
   await worker.start({
     quiet: true,
     // MSW's own 'error' strategy only fails the request, which a component can
@@ -58,6 +102,10 @@ afterEach(async () => {
 
   worker.resetHandlers();
   clearTokens();
+  // The reader remembers its appearance in the browser itself, and the browser
+  // is one process for the whole file. Cleared by name rather than wholesale so
+  // that a test which puts something else in storage still owns it.
+  window.localStorage.removeItem(READER_PREFERENCES_KEY);
 
   const unhandled = unhandledRequests.splice(0);
   if (unhandled.length > 0) {

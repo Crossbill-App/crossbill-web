@@ -79,6 +79,24 @@ from src.infrastructure.semantic.queries.search_hydration_query import SearchHyd
 from src.infrastructure.semantic.queries.semantic_search_query import SemanticSearchQuery
 from src.infrastructure.semantic.repositories.embedding_repository import EmbeddingRepository
 from src.infrastructure.tagging.repositories import TagRepository
+from src.infrastructure.web_reader.queries.highlight_anchor_query import HighlightAnchorQuery
+from src.infrastructure.web_reader.queries.publication_positions_query import (
+    PublicationPositionsQuery,
+)
+from src.infrastructure.web_reader.queries.publication_resource_query import (
+    PublicationResourceQuery,
+)
+from src.infrastructure.web_reader.queries.web_publication_query import WebPublicationQuery
+from src.infrastructure.web_reader.repositories.web_reading_position_repository import (
+    WebReadingPositionRepository,
+)
+from src.infrastructure.web_reader.services.cached_book_position_index import (
+    CachedBookPositionIndex,
+)
+from src.infrastructure.web_reader.services.publication_caches import PublicationCaches
+from src.infrastructure.web_reader.services.xpoint_cfi_position_anchor_service import (
+    XPointCfiPositionAnchorService,
+)
 
 
 def _create_s3_file_repository(settings: Any) -> S3FileRepository:  # noqa: ANN401
@@ -108,6 +126,7 @@ class SharedContainer(containers.DeclarativeContainer):
     note_repository = providers.Factory(NoteRepository, db=db)
     book_reflection_repository = providers.Factory(BookReflectionRepository, db=db)
     reading_session_repository = providers.Factory(ReadingSessionRepository, db=db)
+    web_reading_position_repository = providers.Factory(WebReadingPositionRepository, db=db)
     flashcard_repository = providers.Factory(FlashcardRepository, db=db)
     chapter_digest_repository = providers.Factory(ChapterDigestRepository, db=db)
     highlight_style_repository = providers.Factory(HighlightStyleRepository, db=db)
@@ -131,6 +150,26 @@ class SharedContainer(containers.DeclarativeContainer):
     epub_position_index_service = providers.Factory(EpubPositionIndexService)
     ebook_text_extraction_service = providers.Factory(EpubTextExtractionService)
     cover_image_service = providers.Factory(CoverImageService)
+
+    # Web reader. A Singleton, unlike the other services here: it caches parsed
+    # publications, which is only worth anything if the instance outlives the
+    # request. Its `evict` is what the ebook upload path calls.
+    position_anchor_service = providers.Singleton(
+        XPointCfiPositionAnchorService,
+        file_repository=file_repository,
+    )
+    # Singletons for the same reason, and evicted together: both are keyed on
+    # `Book.ebook_file`, and both hold something derived from bytes that an
+    # upload can replace under that key.
+    book_position_index = providers.Singleton(
+        CachedBookPositionIndex,
+        file_repository=file_repository,
+        position_index_service=epub_position_index_service,
+    )
+    publication_caches = providers.Singleton(
+        PublicationCaches,
+        caches=providers.List(position_anchor_service, book_position_index),
+    )
 
     # Identity services
     user_repository = providers.Factory(UserRepository, db=db)
@@ -224,3 +263,28 @@ class SharedContainer(containers.DeclarativeContainer):
     content_source = providers.Factory(ContentSource, db=db, settings=settings)
     semantic_search_query = providers.Factory(SemanticSearchQuery, db=db)
     search_hydration_query = providers.Factory(SearchHydrationQuery, db=db)
+
+    # Web reader. The publication a manifest renders lives in the EPUB rather
+    # than in Postgres, so the query takes the file store and the EPUB parser
+    # alongside the session.
+    web_publication_query = providers.Factory(
+        WebPublicationQuery,
+        db=db,
+        file_repository=file_repository,
+        publication_parser=epub_parser_service,
+    )
+    publication_resource_query = providers.Factory(
+        PublicationResourceQuery,
+        db=db,
+        file_repository=file_repository,
+        publication_parser=epub_parser_service,
+    )
+    publication_positions_query = providers.Factory(
+        PublicationPositionsQuery,
+        db=db,
+        file_repository=file_repository,
+        publication_parser=epub_parser_service,
+    )
+    # No EPUB collaborator: this one reads the canonical xpointers out of
+    # Postgres and the anchor service does the deriving from them.
+    highlight_anchor_query = providers.Factory(HighlightAnchorQuery, db=db)

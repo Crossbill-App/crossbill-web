@@ -45,6 +45,8 @@ export interface BookDetails {
    * @minimum 0
    */
   highlight_count?: number;
+  /** Whether the book has an EPUB, and so can be read in the browser */
+  has_ebook?: boolean;
   /** User's current reading position from latest session */
   reading_position?: PositionResponse | null;
   /** End position of the book (total document length) */

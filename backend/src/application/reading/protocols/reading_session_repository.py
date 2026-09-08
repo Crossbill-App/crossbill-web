@@ -22,6 +22,36 @@ class ReadingSessionRepositoryProtocol(Protocol):
         self, book_id: BookId, user_id: UserId, limit: int, offset: int
     ) -> list[ReadingSession]: ...
 
+    async def find_by_id(
+        self, session_id: ReadingSessionId, user_id: UserId
+    ) -> ReadingSession | None:
+        """Return one of the user's sessions, or ``None`` if they have no such session."""
+        ...
+
+    async def find_latest_ended(
+        self, book_id: BookId, user_id: UserId, excluding_device_id: str | None = None
+    ) -> ReadingSession | None:
+        """Return the session of this book that ended most recently, or ``None``.
+
+        Ordered by ``end_time`` rather than ``start_time``, because the caller is
+        asking where the reader most recently *was*, and a long sitting that
+        began before a short later one still ended after it began.
+
+        ``excluding_device_id`` leaves out the sessions one device wrote. The
+        rule for which device that is belongs to the caller, not here: this only
+        offers the filter.
+        """
+        ...
+
+    async def save(self, session: ReadingSession) -> ReadingSession:
+        """Insert a session, or update the one it already is.
+
+        For the reader that reports its position as it goes rather than
+        uploading finished sittings: one session is written when the reading
+        starts and rewritten as it goes on.
+        """
+        ...
+
     async def bulk_update_positions(
         self,
         position_updates: list[tuple[ReadingSessionId, Position, Position]],

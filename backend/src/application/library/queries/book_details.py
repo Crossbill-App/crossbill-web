@@ -58,6 +58,7 @@ class BookDetailsView:
     book_flashcards: tuple[FlashcardRef, ...]
     chapters: tuple[ChapterWithHighlightsView, ...]
     highlight_count: int
+    has_ebook: bool
     reading_position: Position | None
     end_position: Position | None
     created_at: dt

@@ -7,12 +7,9 @@ import each other.
 """
 
 from dataclasses import dataclass
-from datetime import UTC, date, datetime, tzinfo
+from datetime import date, datetime, tzinfo
 
-
-def _as_aware(moment: datetime) -> datetime:
-    """Read a zoneless timestamp as UTC -- every store we read sessions from records UTC."""
-    return moment if moment.tzinfo is not None else moment.replace(tzinfo=UTC)
+from src.domain.common.time import as_aware
 
 
 def moment_in(moment: datetime, zone: tzinfo) -> datetime:
@@ -21,7 +18,7 @@ def moment_in(moment: datetime, zone: tzinfo) -> datetime:
     Two timestamps are only comparable once both have been read this way: the
     stores we load sessions from record UTC, but not all of them say so.
     """
-    return _as_aware(moment).astimezone(zone)
+    return as_aware(moment).astimezone(zone)
 
 
 def day_in(moment: datetime, zone: tzinfo) -> date:
@@ -69,5 +66,5 @@ class ReadingStretch:
         starts, and a legacy row that slipped through should cost the reader a
         wrong total rather than the whole page.
         """
-        elapsed = (_as_aware(self.end_time) - _as_aware(self.start_time)).total_seconds()
+        elapsed = (as_aware(self.end_time) - as_aware(self.start_time)).total_seconds()
         return max(0, round(elapsed))

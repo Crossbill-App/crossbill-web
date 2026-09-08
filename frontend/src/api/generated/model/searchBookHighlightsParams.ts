@@ -11,4 +11,8 @@ export type SearchBookHighlightsParams = {
    * @minLength 1
    */
   searchText: string;
+  /**
+   * Optional extras to compute for each highlight. `locator` adds the Readium locator the web reader draws and jumps by, derived from the highlight's stored position against the book's EPUB. Off by default because it costs an EPUB parse, which a list that renders no decorations has no use for.
+   */
+  include?: string[] | null;
 };

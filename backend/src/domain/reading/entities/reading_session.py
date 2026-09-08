@@ -2,16 +2,19 @@
 ReadingSession aggregate root.
 """
 
+from contextlib import suppress
 from dataclasses import dataclass, field
 from datetime import datetime
 
 from src.domain.common.aggregate_root import AggregateRoot
 from src.domain.common.exceptions import DomainError
+from src.domain.common.time import as_aware
 from src.domain.common.value_objects import (
     BookId,
     ContentHash,
     ReadingSessionId,
     UserId,
+    XPoint,
     XPointRange,
 )
 from src.domain.common.value_objects.position import Position
@@ -69,6 +72,54 @@ class ReadingSession(AggregateRoot[ReadingSessionId]):
 
         hash_input = f"{self.book_id}|{self.user_id}|{self.start_time}|{self.device_id or ''}"
         self.content_hash = ContentHash.compute(hash_input)
+
+    def extend_to(
+        self,
+        moment: datetime,
+        xpoint: XPoint | None = None,
+        position: Position | None = None,
+        page: int | None = None,
+    ) -> None:
+        """Carry an ongoing session forward to where the reader now is.
+
+        A session recorded by an e-reader arrives complete, so this is only ever
+        used by a reader that reports its position as it goes -- the web reader,
+        which extends one session as long as the reading keeps arriving
+        (ADR-0004, Amendment 3). Ending such a session takes no call at all: it
+        ends by not being extended again.
+
+        ``end_position`` becomes where the reader *is*, since that is what
+        reading progress is read from. The xpoint range and the page range keep
+        the furthest the session reached instead: a reader paging back leaves
+        ``end_position`` behind them and both ranges where they were, because a
+        range that ran backwards would not be one -- and because what a session
+        reports is the ground it covered.
+
+        ``page`` fills ``start_page`` as well when the session has none yet: a
+        sitting learns its first page number from the first write that carries
+        one, which is not always the write that began it.
+
+        **The end time only ever moves forward.** The moment comes from the
+        reader's own clock, so two devices, a clock correction or a write that
+        overtook another can all offer one earlier than the session already
+        reached; taking it would shorten a session that really did run that
+        long. The position beside it is still taken, because that is where the
+        reader is.
+
+        Raises:
+            DomainError: If ``moment`` is before the session started.
+        """
+        if as_aware(moment) < as_aware(self.start_time):
+            raise DomainError("A reading session cannot be extended to before it started")
+        self.end_time = max(as_aware(self.end_time), as_aware(moment))
+        if position is not None:
+            self.end_position = position
+        if page is not None:
+            self.start_page = page if self.start_page is None else self.start_page
+            self.end_page = page if self.end_page is None else max(self.end_page, page)
+        if xpoint is not None and self.start_xpoint is not None:
+            with suppress(ValueError):
+                self.start_xpoint = XPointRange(start=self.start_xpoint.start, end=xpoint)
 
     @classmethod
     def create(

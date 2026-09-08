@@ -430,3 +430,57 @@ test('the header count follows the filter while the stats strip keeps the total'
   // The pair the reader compares: 1 shown here, 3 in the book (ADR-0003).
   await expect.element(screen.getByText('3 highlights', { exact: true })).toBeVisible();
 });
+
+/* ------------------------------------------------------------------ *
+ * M3.3 — the way into the reader, from a highlight (#747)
+ * ------------------------------------------------------------------ */
+
+const aBookWithOneHighlight = (hasEbook: boolean) =>
+  aBookDetails({
+    has_ebook: hasEbook,
+    chapters: [
+      aChapter({ highlights: [aHighlight({ id: 301, text: 'The map is not the territory.' })] }),
+    ],
+  });
+
+/**
+ * The action the milestone is for: a highlight in a list, and one click to the
+ * page it was made on.
+ *
+ * Offered from the row and from the highlight's own dialog, because those are
+ * the two places a reader is looking at a highlight and might want to see it in
+ * its book. It is a link rather than a button so it can be opened in a tab, and
+ * the address is the same `?highlightId=` the reader reads: pasting it takes
+ * somebody else to the same passage.
+ */
+test('a highlight offers a way into the reader, from the row and from the dialog', async () => {
+  worker.use(...bookApi({ book: aBookWithOneHighlight(true) }).handlers);
+
+  const screen = await renderApp({ path: '/book/1/highlights' });
+  const inTheList = screen.getByRole('link', { name: 'Open in reader' });
+  await expect.element(inTheList).toBeVisible();
+  await expect.element(inTheList).toHaveAttribute('href', '/book/1/read?highlightId=301');
+
+  await screen.getByText('The map is not the territory.').click();
+  const dialog = screen.getByRole('dialog');
+  await expect.element(dialog.getByRole('link', { name: 'Open in reader' })).toBeVisible();
+});
+
+/**
+ * A book with no EPUB has no reader, exactly as it has no Read tab. An action
+ * whose only possible outcome is an apology is worse than no action.
+ */
+test('a book with no EPUB offers no way into the reader', async () => {
+  worker.use(...bookApi({ book: aBookWithOneHighlight(false) }).handlers);
+
+  const screen = await renderApp({ path: '/book/1/highlights' });
+  await expect.element(screen.getByText('The map is not the territory.')).toBeVisible();
+
+  expect(screen.getByRole('link', { name: 'Open in reader' }).query()).toBeNull();
+
+  await screen.getByText('The map is not the territory.').click();
+  await expect.element(screen.getByRole('dialog')).toBeVisible();
+  expect(
+    screen.getByRole('dialog').getByRole('link', { name: 'Open in reader' }).query()
+  ).toBeNull();
+});

@@ -29,10 +29,15 @@ FROM python:3.13-slim
 
 WORKDIR /app
 
-# Install system dependencies
+# Install system dependencies.
+# git is not optional: xpoint-cfi is pinned to a git tag rather than a PyPI
+# release (see backend/pyproject.toml [tool.uv.sources]), so `uv export` writes
+# it into requirements.txt as a `git+https://` requirement and the install below
+# clones it. Without git the build fails with "Git executable not found".
 RUN apt-get update && apt-get install -y --no-install-recommends \
   curl \
   gcc \
+  git \
   libc6-dev \
   libffi-dev \
   && rm -rf /var/lib/apt/lists/*
@@ -76,4 +81,9 @@ ENV PORT=8000
 # the flag would honour FORWARDED_ALLOW_IPS from the environment, so leaving it
 # on means a stray env var can hand callers their own rate-limit bucket.
 # Configure the trusted proxy in .env instead.
+# One worker, and the web reader depends on it: the parsed publications and
+# position indices behind the reader are held in memory and evicted by a method
+# call when a book's EPUB is replaced, which reaches this process and no other.
+# Adding --workers needs a shared cache first -- see PublicationCaches and
+# ADR-0004, Amendment 3.
 CMD ["sh", "-c", "alembic upgrade head && uvicorn src.main:app --host 0.0.0.0 --port ${PORT}"]

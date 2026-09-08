@@ -9,9 +9,9 @@
  * Schema for a single reading session in the sync request.
  */
 export interface ReadingSessionSyncItem {
-  /** Session start timestamp */
+  /** Session start, with a UTC offset (KOReader sends '...Z') */
   start_time: string;
-  /** Session end timestamp */
+  /** Session end, with a UTC offset (KOReader sends '...Z') */
   end_time: string;
   /** Start position (xpoint string) */
   start_xpoint?: string | null;
@@ -21,6 +21,6 @@ export interface ReadingSessionSyncItem {
   start_page?: number | null;
   /** End page number */
   end_page?: number | null;
-  /** Device identifier */
+  /** Device identifier. 'crossbill-web-reader' is reserved for reading done in the browser and is refused here. */
   device_id?: string | null;
 }

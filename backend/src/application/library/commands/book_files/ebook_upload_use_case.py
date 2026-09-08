@@ -13,6 +13,7 @@ from src.application.reading.protocols.highlight_repository import HighlightRepo
 from src.application.reading.protocols.reading_session_repository import (
     ReadingSessionRepositoryProtocol,
 )
+from src.application.web_reader.protocols.publication_cache import PublicationCacheProtocol
 from src.domain.common.value_objects.ids import BookId, UserId
 from src.domain.common.value_objects.position import Position
 from src.domain.common.value_objects.position_index import PositionIndex
@@ -36,6 +37,7 @@ class EbookUploadUseCase:
         position_index_service: PositionIndexServiceProtocol,
         highlight_repository: HighlightRepositoryProtocol,
         session_repository: ReadingSessionRepositoryProtocol,
+        publication_cache: PublicationCacheProtocol,
     ) -> None:
         """
         Initialize use case with dependencies.
@@ -49,6 +51,8 @@ class EbookUploadUseCase:
             position_index_service: Service for building position indices from EPUBs
             highlight_repository: Repository for highlight persistence
             session_repository: Repository for reading session persistence
+            publication_cache: Cache of parsed EPUBs the web reader derives
+                anchors from, invalidated when this use case replaces a file
         """
         self.book_repository = book_repository
         self.chapter_repository = chapter_repository
@@ -58,6 +62,7 @@ class EbookUploadUseCase:
         self.position_index_service = position_index_service
         self.highlight_repository = highlight_repository
         self.session_repository = session_repository
+        self.publication_cache = publication_cache
 
     async def upload_ebook(
         self,
@@ -116,9 +121,11 @@ class EbookUploadUseCase:
         if not self.epub_parser.validate_epub(content):
             raise InvalidEbookError("EPUB structure validation failed", ebook_type="EPUB")
 
-        # Get or generate UUID filename
+        # Get or generate UUID filename. A re-upload keeps the existing name, so
+        # the bytes behind a filename anything already parsed may change here.
         epub_filename = book.set_file("epub")
         await self.file_repository.save_epub(epub_filename, content)
+        self.publication_cache.evict(epub_filename)
 
         # Extract and save cover if none exists
         await self._extract_and_save_cover(book, content)

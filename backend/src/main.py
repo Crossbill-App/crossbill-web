@@ -30,6 +30,7 @@ from src.domain.common.exceptions import (
     EntityNotFoundError,
     ValidationError,
 )
+from src.domain.web_reader.exceptions import UnresolvablePositionError
 from src.infrastructure.common.client_ip import client_ip, client_ip_from_scope, proxy_chain
 from src.infrastructure.common.openapi import operation_id
 from src.infrastructure.common.rate_limit import RateLimitMiddleware, limiter
@@ -70,6 +71,10 @@ from src.infrastructure.reflection.routers import book_reflections as reflection
 from src.infrastructure.semantic.routers import search as search_router
 from src.infrastructure.semantic.routers import semantic as semantic_router
 from src.infrastructure.tagging.routers import tags as tagging_tags
+from src.infrastructure.web_reader.routers import (
+    highlight_locators as web_reader_highlight_locators,
+)
+from src.infrastructure.web_reader.routers import readium as web_reader_readium
 
 settings = get_settings()
 
@@ -306,14 +311,53 @@ class SecurityHeadersMiddleware:
                 if settings.ENVIRONMENT != "development":
                     headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
                     headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains"
+                # A route that set its own policy keeps it. `MutableHeaders`
+                # replaces rather than appends, so assigning here unconditionally
+                # would overwrite a narrower policy with this broader one --
+                # which is exactly what the publication resource endpoint sets
+                # (`Content-Security-Policy: sandbox`, ADR-0004 Amendment 2) and
+                # exactly the environments where it matters. The app policy is
+                # the default for responses that express none.
+                if (
+                    settings.ENVIRONMENT != "development"
+                    and "content-security-policy" not in headers
+                ):
+                    # `blob:` in three directives is the web reader, and only
+                    # the web reader. Readium frames each publication resource
+                    # as a `blob:` document (`frame-src`) whose Readium CSS
+                    # arrives as a `blob:` stylesheet (`style-src`), and injects
+                    # its own scripts -- the selector generator ADR-0004 §2's
+                    # write path needs -- as `<script src="blob:...">`
+                    # (`script-src`). A book's own scripts are not covered by
+                    # any of it: they are inline or served from this origin, and
+                    # `publicationHardening.ts` strips them and pins the frame
+                    # to `script-src blob:` besides.
                     headers["Content-Security-Policy"] = (
                         "default-src 'self'; "
-                        "script-src 'self'; "
-                        "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; "
+                        "script-src 'self' blob:; "
+                        "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com blob:; "
                         "img-src 'self' data: blob:; "
                         "font-src 'self' https://fonts.gstatic.com; "
                         "connect-src 'self'; "
-                        "frame-ancestors 'none'; "
+                        "frame-src 'self' blob:; "
+                        # 'self' rather than 'none', and the web reader is why.
+                        # A blob: document inherits the CSP of the context that
+                        # created it, and WebKit then enforces the inherited
+                        # `frame-ancestors` against that document's own
+                        # ancestor -- so `'none'` made Safari refuse every
+                        # publication frame the reader built ("Refused to load
+                        # blob:... because it does not appear in the
+                        # frame-ancestors directive"), and a book never opened
+                        # on an iPhone. Chromium does not apply inherited
+                        # `frame-ancestors` to blob: children, which is why
+                        # desktop never saw it.
+                        #
+                        # Nothing is given up. `X-Frame-Options: DENY` above
+                        # still refuses every attempt to frame the app, and
+                        # `'self'` still refuses every cross-origin one at the
+                        # CSP level; what it now permits is this page framing
+                        # its own blob: documents, which is exactly the reader.
+                        "frame-ancestors 'self'; "
                         "base-uri 'self'; "
                         "form-action 'self'"
                     )
@@ -337,6 +381,10 @@ app.add_middleware(
 
 
 DOMAIN_ERROR_STATUS_MAP: list[tuple[type[DomainError], int, str]] = [
+    # Before the general rules below: a position the browser cannot place in the
+    # book is a well-formed request the server understood and still cannot act
+    # on, which is neither a bad request nor a missing thing.
+    (UnresolvablePositionError, 422, "unresolvable_position"),
     (EntityNotFoundError, 404, "not_found"),
     (ValidationError, 400, "bad_request"),
     (ConflictError, 409, "conflict"),
@@ -351,6 +399,7 @@ SAFE_MESSAGES: dict[int, str] = {
     401: "Authentication failed.",
     403: "You do not have permission to perform this action.",
     409: "The resource already exists or conflicts with current state.",
+    422: "The request was understood but could not be acted on.",
     500: "An unexpected error occurred.",
 }
 
@@ -460,6 +509,10 @@ app.include_router(reflection_router.router, prefix=settings.API_V1_PREFIX)
 # Semantic search
 app.include_router(semantic_router.router, prefix=settings.API_V1_PREFIX)
 app.include_router(search_router.router, prefix=settings.API_V1_PREFIX)
+
+# Web reader
+app.include_router(web_reader_readium.router, prefix=settings.API_V1_PREFIX)
+app.include_router(web_reader_highlight_locators.router, prefix=settings.API_V1_PREFIX)
 
 # Common
 app.include_router(settings_router.router, prefix=settings.API_V1_PREFIX)

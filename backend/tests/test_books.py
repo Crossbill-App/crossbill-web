@@ -1,6 +1,7 @@
 """Tests for books API endpoints."""
 
 from datetime import UTC, datetime
+from pathlib import Path
 from typing import NamedTuple
 from unittest.mock import AsyncMock, patch
 
@@ -14,6 +15,7 @@ from src import models
 from src.infrastructure.semantic.repositories.embedding_repository import EmbeddingRepository
 from tests.conftest import CreateBookFunc, create_test_book, create_test_highlight
 from tests.semantic_helpers import index_highlight, plant_indexed_highlight
+from tests.test_readium_manifest import fixture_bytes, store_epub
 
 # Default user ID used by services (matches conftest default user)
 DEFAULT_USER_ID = 1
@@ -724,6 +726,29 @@ class TestGetBookDetails:
         assert response.status_code == status.HTTP_200_OK
         data = response.json()
         assert data["reading_position"] is None
+
+    async def test_get_book_details_reports_whether_there_is_an_epub(
+        self,
+        client: AsyncClient,
+        db_session: AsyncSession,
+        test_book: models.Book,
+        storage_dir: Path,
+    ) -> None:
+        """Should say `has_ebook` only once the book actually has a file behind it.
+
+        This is what the book page draws its Read tab from, so both answers are
+        asserted on the same book: a flag that were always true would pass the
+        second half alone.
+        """
+        before = await client.get(f"/api/v1/books/{test_book.id}")
+        assert before.status_code == status.HTTP_200_OK
+        assert before.json()["has_ebook"] is False
+
+        await store_epub(db_session, test_book, storage_dir, fixture_bytes("minimal.epub"))
+
+        after = await client.get(f"/api/v1/books/{test_book.id}")
+        assert after.status_code == status.HTTP_200_OK
+        assert after.json()["has_ebook"] is True
 
     async def test_get_book_details_includes_chapter_start_position(
         self,

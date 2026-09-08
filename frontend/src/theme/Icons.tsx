@@ -16,6 +16,10 @@ export {
   MoreVert as ManageIcon,
   Menu as MenuIcon,
   MoreHoriz as MoreIcon,
+  ChevronRight as NextPageIcon,
+  // The reader's page turns. Chevrons rather than the arrows above: those mean
+  // "somewhere else in the app", these mean "one page along in this book".
+  ChevronLeft as PreviousPageIcon,
   KeyboardArrowUp as ScrollToTopIcon,
   Search as SearchIcon,
 } from '@mui/icons-material';
@@ -32,6 +36,9 @@ export {
   FormatQuote as HighlightsIcon,
   Notes as NotesIcon,
   PaletteOutlined as PaletteIcon,
+  // Reading the book in the browser, as against `ReadingSessionIcon`, which
+  // means a session already read on a device.
+  ChromeReaderMode as ReaderIcon,
   AutoStories as ReadingSessionIcon,
   Psychology as ReflectionIcon,
   Equalizer as StatisticsIcon,

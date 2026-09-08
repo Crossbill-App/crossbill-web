@@ -12,6 +12,7 @@ from src.containers.reflection import ReflectionContainer
 from src.containers.semantic import SemanticContainer
 from src.containers.shared import SharedContainer
 from src.containers.tagging import TaggingContainer
+from src.containers.web_reader import WebReaderContainer
 from src.database import current_db_session
 
 
@@ -93,6 +94,7 @@ class RootContainer(containers.DeclarativeContainer):
         epub_parser_service=shared.epub_parser_service,
         epub_position_index_service=shared.epub_position_index_service,
         cover_image_service=shared.cover_image_service,
+        publication_cache=shared.publication_caches,
         book_details_query=shared.book_details_query,
         book_list_query=shared.book_list_query,
     )
@@ -150,4 +152,17 @@ class RootContainer(containers.DeclarativeContainer):
         semantic_search_query=shared.semantic_search_query,
         search_hydration_query=shared.search_hydration_query,
         book_list_query=shared.book_list_query,
+    )
+
+    web_reader = providers.Container(
+        WebReaderContainer,
+        book_repository=shared.book_repository,
+        web_publication_query=shared.web_publication_query,
+        publication_resource_query=shared.publication_resource_query,
+        publication_positions_query=shared.publication_positions_query,
+        highlight_anchor_query=shared.highlight_anchor_query,
+        web_reading_position_repository=shared.web_reading_position_repository,
+        reading_session_repository=shared.reading_session_repository,
+        position_anchor_service=shared.position_anchor_service,
+        book_position_index=shared.book_position_index,
     )

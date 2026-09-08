@@ -78,6 +78,7 @@ class BookDetailsQuery:
             book_flashcards=await self._fetch_book_flashcards(book_id, user_id),
             chapters=await self._fetch_chapters(book_id, user_id, highlights, labels),
             highlight_count=len(highlights),
+            has_ebook=book.ebook_file is not None,
             reading_position=reading_position,
             end_position=_position(book.end_position),
             created_at=book.created_at,

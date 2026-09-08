@@ -5,12 +5,14 @@ from datetime import UTC, datetime
 from typing import NamedTuple
 
 import pytest
-from httpx import AsyncClient
+from httpx import AsyncClient, Response
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from starlette import status
 
 from src import models
+from src.domain.common.devices import WEB_READER_DEVICE_ID
+from src.domain.common.time import as_aware
 from tests.conftest import create_test_book
 
 # Default user ID used by services (matches conftest default user)
@@ -438,6 +440,98 @@ class TestUploadReadingSessions:
         result = await db_session.execute(select(models.ReadingSession))
         sessions_in_db = result.scalars().all()
         assert len(sessions_in_db) == 0
+
+
+class TestWhatASyncedSessionMaySay:
+    """Two things the sync boundary refuses, both because the resume reads them.
+
+    A reading session is the one thing the plugin sends that is later weighed
+    against a clock and a writer other than its own: opening a book in the
+    browser picks the later of the stored web position and the end of the
+    latest session *another device* wrote (ADR-0004, Amendment 4). Both
+    comparisons have a premise, and these are where they are made true.
+    """
+
+    async def a_sync(self, plugin_client: AsyncClient, **session: object) -> Response:
+        """Sync one otherwise-valid session, with ``session`` overriding it."""
+        return await plugin_client.post(
+            "/api/v1/reading_sessions/sync",
+            json={
+                "client_book_id": "test-client-book-id",
+                "sessions": [
+                    {
+                        "start_time": "2024-01-15T10:00:00Z",
+                        "end_time": "2024-01-15T11:00:00Z",
+                        "start_xpoint": "/body/div[1]/p[1]",
+                        "end_xpoint": "/body/div[1]/p[50]",
+                        "device_id": "kindle-123",
+                    }
+                    | session
+                ],
+            },
+        )
+
+    async def test_a_session_with_no_offset_is_refused(
+        self, plugin_client: AsyncClient, test_book: models.Book
+    ) -> None:
+        """Should refuse a moment that names no instant, rather than guess one.
+
+        Read as UTC, a device in Helsinki reports every session three hours into
+        its own future, and one it finished this morning beats a page the reader
+        turned in a browser this afternoon -- so the browser resumes to
+        yesterday's chapter and there is nothing anywhere to say why. Handed to
+        a ``timestamptz`` column it is worse than a guess: PostgreSQL reads it
+        in whatever the connection's time zone happens to be, so the same
+        request means different instants on different deployments.
+
+        The plugin has never sent one. It builds both moments from Unix epochs
+        through ``os.date("!%Y-%m-%dT%H:%M:%SZ")``, and has since sessions were
+        first synced, which is why requiring what it already sends breaks no
+        released version and needs no bump of the client minimum.
+        """
+        response = await self.a_sync(plugin_client, end_time="2024-01-15T11:00:00")
+
+        assert response.status_code == status.HTTP_422_UNPROCESSABLE_ENTITY, response.text
+        assert "offset" in response.text
+
+    async def test_an_offset_is_kept_rather_than_read_off(
+        self, plugin_client: AsyncClient, db_session: AsyncSession, test_book: models.Book
+    ) -> None:
+        """Should place a session by the offset it carries, not by its wall clock.
+
+        The pair with the test above is the point: what is refused is a moment
+        that names no instant, not one whose numbers are unfamiliar. 13:00+03:00
+        is 10:00Z and is stored as such.
+        """
+        response = await self.a_sync(
+            plugin_client,
+            start_time="2024-01-15T13:00:00+03:00",
+            end_time="2024-01-15T14:00:00+03:00",
+        )
+
+        assert response.status_code == status.HTTP_200_OK, response.text
+        stored = (await db_session.execute(select(models.ReadingSession))).scalar_one()
+        assert as_aware(stored.start_time) == datetime(2024, 1, 15, 10, 0, tzinfo=UTC)
+
+    async def test_a_session_may_not_claim_to_be_the_web_reader(
+        self, plugin_client: AsyncClient, db_session: AsyncSession, test_book: models.Book
+    ) -> None:
+        """Should refuse the device id Crossbill keeps for reading done in the browser.
+
+        A synced session wearing that name is taken for one the web reader wrote
+        and left out of the search for where another device left off -- so it
+        would never be resumed from, silently, which is a wrong answer rather
+        than a missing one.
+
+        No e-reader is called this: the name was minted by Crossbill in M2.3 for
+        its own sessions, so refusing it takes nothing from any client that
+        exists and needs no bump of the plugin minimum either.
+        """
+        response = await self.a_sync(plugin_client, device_id=WEB_READER_DEVICE_ID)
+
+        assert response.status_code == status.HTTP_422_UNPROCESSABLE_ENTITY, response.text
+        assert "reserved" in response.text
+        assert (await db_session.execute(select(models.ReadingSession))).first() is None
 
 
 class TestGetBookReadingSessions:

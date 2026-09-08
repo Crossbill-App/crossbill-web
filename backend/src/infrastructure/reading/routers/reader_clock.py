@@ -36,3 +36,15 @@ def reader_today(zone: Annotated[tzinfo, Depends(reader_timezone)]) -> date:
     Resolved once at the edge and handed down; nothing below reads the clock.
     """
     return datetime.now(zone).date()
+
+
+def reader_now() -> datetime:
+    """The moment it is, on this server's clock.
+
+    A dependency rather than a call to ``datetime.now`` wherever one is needed,
+    for the same two reasons ``reader_today`` is one: the clock is read once at
+    the edge and handed down, and a test that needs to pin it overrides one
+    thing. Callers that compare a client's own idea of the time against this
+    need them resolved together, not a request apart.
+    """
+    return datetime.now(UTC)

@@ -985,6 +985,27 @@
               "title": "Searchtext"
             },
             "description": "Text to search for in highlights"
+          },
+          {
+            "name": "include",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Optional extras to compute for each highlight. `locator` adds the Readium locator the web reader draws and jumps by, derived from the highlight's stored position against the book's EPUB. Off by default because it costs an EPUB parse, which a list that renders no decorations has no use for.",
+              "title": "Include"
+            },
+            "description": "Optional extras to compute for each highlight. `locator` adds the Readium locator the web reader draws and jumps by, derived from the highlight's stored position against the book's EPUB. Off by default because it costs an EPUB parse, which a list that renders no decorations has no use for."
           }
         ],
         "responses": {
@@ -4343,6 +4364,484 @@
         }
       }
     },
+    "/api/v1/readium/books/{book_id}/session": {
+      "post": {
+        "tags": [
+          "readium"
+        ],
+        "summary": "Start Publication Session",
+        "description": "Hand the browser a cookie that lets it load this book's resources.\n\nBearer-authenticated, deliberately: this is the one route that mints the\nsecond credential, so possession of an access token is what buys it, and a\npublication cookie can never extend itself. It cannot outlast that token\neither -- what is left of the access token caps the cookie, which is why\nthe caller arrives here carrying its expiry.\n\nIt answers 200 with a body rather than 204. The cookie is ``httpOnly``, so\nthe page cannot read when it expires, and it has to know: the reader\nre-posts here before the cookie dies, the way it already refreshes its\naccess token. ``expires_in`` in seconds is what the token endpoints call\nthat same number, and it is the real remaining life rather than the TTL.",
+        "operationId": "start_publication_session",
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "book_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Book Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PublicationSession"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/readium/books/{book_id}/manifest.json": {
+      "get": {
+        "tags": [
+          "readium"
+        ],
+        "summary": "Get Readium Manifest",
+        "description": "Get the Readium Web Publication Manifest for a book's EPUB.",
+        "operationId": "get_readium_manifest",
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "book_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Book Id"
+            }
+          },
+          {
+            "name": "publication_access",
+            "in": "cookie",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Publication Access"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/webpub+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WebPublicationManifest"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/readium/books/{book_id}/positions.json": {
+      "get": {
+        "tags": [
+          "readium"
+        ],
+        "summary": "Get Readium Positions",
+        "description": "Get the Readium position list for a book's EPUB.\n\nThis is what the manifest's ``position-list`` link resolves to: one Locator\nper synthetic page of the publication, which is how a reader turns \"where am\nI\" into a number it can show and store.",
+        "operationId": "get_readium_positions",
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "book_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Book Id"
+            }
+          },
+          {
+            "name": "publication_access",
+            "in": "cookie",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Publication Access"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/vnd.readium.position-list+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PositionList"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/readium/books/{book_id}/reading-position": {
+      "get": {
+        "tags": [
+          "readium"
+        ],
+        "summary": "Get Reading Position",
+        "description": "Get where the browser should open this book, whichever device was there last.\n\nNot merely what the browser itself last stored: a reader who left off on\ntheir e-reader is answered with *that* place, converted from the canonical\nxpointer to a locator against the EPUB this server holds (ADR-0004 \u00a72). The\ntwo candidates are weighed on when the reader was at each, and sessions the\nweb reader wrote are left out of the comparison because the stored position\nalready says the same thing more exactly.\n\nAlways an object, never 404 and never null: a book nobody has opened is an\nordinary state of an ordinary book, and the reader has to be able to tell it\napart from a place that was lost when the EPUB was replaced.",
+        "operationId": "get_reading_position",
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "book_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Book Id"
+            }
+          },
+          {
+            "name": "publication_access",
+            "in": "cookie",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Publication Access"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ResumePositionResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "readium"
+        ],
+        "summary": "Put Reading Position",
+        "description": "Record where the reader has got to, and keep their reading session going.\n\nThe position is converted to the canonical KOReader xpointer before anything\nis stored (ADR-0004 \u00a72) and refused if the conversion is too weak to say\nwhere it is. It also extends -- or begins -- a real row in\n``reading_sessions``, which is how browser reading reaches the progress bar\nand the reading statistics without either of them knowing the web reader\nexists (ADR-0004, Amendment 3).\n\nA write that says nothing newer than what is stored is answered with what is\nstored, rather than refused: the write a closing tab sends and the one a\npage turn sends race by design.",
+        "operationId": "put_reading_position",
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "book_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Book Id"
+            }
+          },
+          {
+            "name": "publication_access",
+            "in": "cookie",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Publication Access"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ReadingPositionUpdate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReadingPosition"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "The locator names no place this book can be shown to have."
+          }
+        }
+      }
+    },
+    "/api/v1/readium/books/{book_id}/resources/{path}": {
+      "get": {
+        "tags": [
+          "readium"
+        ],
+        "summary": "Get Readium Resource",
+        "description": "Get one file of a book's publication, unchanged.\n\n``path`` is a manifest href with the ``resources/`` prefix stripped, so it\narrives here as the container-root path the reading order or the resource\nlist published -- decoded once by ASGI, which is the archive member's own\nname. Only the files the manifest names are reachable; the package document\nand ``META-INF/`` are not part of the publication and answer 404 like any\nother path the manifest does not list.",
+        "operationId": "get_readium_resource",
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "book_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Book Id"
+            }
+          },
+          {
+            "name": "path",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Path"
+            }
+          },
+          {
+            "name": "publication_access",
+            "in": "cookie",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Publication Access"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The file, under the media type the publication declares for it.",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "type": "string",
+                  "format": "binary"
+                }
+              }
+            }
+          },
+          "304": {
+            "description": "The caller already holds this version."
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/highlights/{highlight_id}/locator": {
+      "get": {
+        "tags": [
+          "highlights"
+        ],
+        "summary": "Get Highlight Locator",
+        "description": "Get the Readium locator for one highlight, for jumping to it in the web reader.\n\nThe locator is derived from the highlight's stored KOReader position against\nthe book's EPUB at request time and is never stored, so it is verified\nagainst the highlight's own text before being returned. A highlight that\ncannot be placed answers 200 with a null locator and a reason -- the\nhighlight itself is intact, and only this view of it is missing.\n\nA highlight that does not exist, or belongs to another user, answers 404.",
+        "operationId": "get_highlight_locator",
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "highlight_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Highlight Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HighlightLocatorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/books/{book_id}/highlight-locators": {
+      "get": {
+        "tags": [
+          "highlights"
+        ],
+        "summary": "Get Book Highlight Locators",
+        "description": "Get where every one of a book's highlights is in its EPUB, for drawing them.\n\nThe whole live list, in highlight-id order, one entry per highlight and\nnever a silent omission: each carries either a verified locator or a reason\nit has none, so a reader can tell a highlight it must not draw from one it\nwas never told about. Highlights the reader has deleted are simply absent.\n\nThis is the one caller that legitimately asks for a book's entire list. Every\nother view narrows to the highlights it will render, because conversion costs\nper highlight (ADR-0004 \u00a74, and the measurement in *Amendment 5*) -- but a\nreader drawing every decoration in a book is asking for all of them by\nconstruction, and on a heavily annotated, flatly structured book that is a\nsecond or more. The browser must therefore treat this as arriving *after*\nthe text rather than as something to open the book behind.\n\nA book that does not exist, or belongs to another user, answers 404.",
+        "operationId": "get_book_highlight_locators",
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "book_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Book Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CollectionResponse_HighlightLocatorResponse_"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/settings": {
       "get": {
         "tags": [
@@ -4870,6 +5369,12 @@
             "title": "Highlight Count",
             "description": "Live highlights on the book, including any that sit in no chapter",
             "default": 0
+          },
+          "has_ebook": {
+            "type": "boolean",
+            "title": "Has Ebook",
+            "description": "Whether the book has an EPUB, and so can be read in the browser",
+            "default": false
           },
           "reading_position": {
             "anyOf": [
@@ -5809,6 +6314,22 @@
           "items"
         ],
         "title": "CollectionResponse[HighlightLabelInBook]"
+      },
+      "CollectionResponse_HighlightLocatorResponse_": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/HighlightLocatorResponse"
+            },
+            "type": "array",
+            "title": "Items"
+          }
+        },
+        "type": "object",
+        "required": [
+          "items"
+        ],
+        "title": "CollectionResponse[HighlightLocatorResponse]"
       },
       "CollectionResponse_NoteWithLinks_": {
         "properties": {
@@ -6790,6 +7311,17 @@
             "type": "array",
             "title": "Flashcards",
             "description": "List of flashcards for this highlight"
+          },
+          "locator": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/HighlightLocator"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Where this highlight is in the EPUB, for the web reader to draw it. Opt-in: null unless the request asked for it with `include=locator`, and null on every view that has no such flag. Derived from the stored xpointer at request time and never stored (ADR-0004 \u00a72), so it carries a reason of its own when the highlight cannot be placed."
           }
         },
         "type": "object",
@@ -7197,6 +7729,72 @@
         "type": "object",
         "title": "HighlightLabelUpdate",
         "description": "Schema for updating a highlight label."
+      },
+      "HighlightLocator": {
+        "properties": {
+          "locator": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/LocatorSchema"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The verified Readium locator, with hrefs in the same coordinates the manifest publishes. Null when the highlight cannot be placed."
+          },
+          "unavailable": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/LocatorUnavailable"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Why there is no locator: 'no_ebook' (the book has no EPUB), 'not_placeable' (the highlight was never given a position), 'unresolved' (its position names nothing in this EPUB) or 'text_mismatch' (it resolved, but onto different text -- the shape a replaced edition takes). Null when the locator is present."
+          }
+        },
+        "type": "object",
+        "title": "HighlightLocator",
+        "description": "Where a highlight is in the EPUB, or why that cannot be said.\n\nExactly one of the two fields is set, and a client must handle both: a\nlocator here is derived from the stored xpointer at request time and\nverified against the highlight's own text, so a book whose EPUB has been\nreplaced answers with reasons rather than with places (ADR-0004 \u00a75)."
+      },
+      "HighlightLocatorResponse": {
+        "properties": {
+          "locator": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/LocatorSchema"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The verified Readium locator, with hrefs in the same coordinates the manifest publishes. Null when the highlight cannot be placed."
+          },
+          "unavailable": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/LocatorUnavailable"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Why there is no locator: 'no_ebook' (the book has no EPUB), 'not_placeable' (the highlight was never given a position), 'unresolved' (its position names nothing in this EPUB) or 'text_mismatch' (it resolved, but onto different text -- the shape a replaced edition takes). Null when the locator is present."
+          },
+          "highlight_id": {
+            "type": "integer",
+            "title": "Highlight Id",
+            "description": "The highlight this locator is for"
+          }
+        },
+        "type": "object",
+        "required": [
+          "highlight_id"
+        ],
+        "title": "HighlightLocatorResponse",
+        "description": "One highlight's locator, as the single-highlight endpoint answers it."
       },
       "HighlightResponseBase": {
         "properties": {
@@ -7745,6 +8343,169 @@
         ],
         "title": "LibraryStats",
         "description": "The year on the grid, said in numbers rather than squares.\n\nCounted over the same window as ``LibraryActivity``, but from the sessions:\na day that got through no pages is a day read with no square to show for it."
+      },
+      "LocatorLocationsSchema": {
+        "properties": {
+          "position": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "maximum": 204800.0,
+                "minimum": 1.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Position",
+            "description": "1-based index into this publication's position list -- the synthetic page the reader is shown"
+          },
+          "progression": {
+            "anyOf": [
+              {
+                "type": "number",
+                "maximum": 1.0,
+                "minimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Progression",
+            "description": "How far into this resource the position sits, 0..1"
+          },
+          "totalProgression": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Totalprogression"
+          },
+          "fragments": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Fragments"
+          },
+          "cssSelector": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cssselector"
+          }
+        },
+        "type": "object",
+        "title": "LocatorLocationsSchema",
+        "description": "A Locator's ``locations``: the same place said in several ways.\n\nEvery field is optional because a navigator fills in only what its current\nview can supply, and all of them are kept: the resume that M2.4 builds on\ntries the text quote, then the CSS selector, then a fragment id, then the\nprogression, in that order.\n\nThe two numeric fields are bounded here rather than defended downstream,\nbecause both feed arithmetic. ``position`` is only ever a number the browser\nread out of a position list *this API served it*, so the ceiling is the most\npositions any publication may be cut into -- past that it indexes no list\nthat could exist, and unbounded it was both a 500 (a value past the\ncolumn's range) and a session credited with billions of pages. And a\nprogression is multiplied by a resource's length and rounded, so ``NaN`` and\n``Infinity`` -- which JSON has no literal for but Python's parser reads\nanyway -- have to be refused before they are arithmetic."
+      },
+      "LocatorSchema": {
+        "properties": {
+          "href": {
+            "type": "string",
+            "title": "Href",
+            "description": "The resource, as the manifest names it"
+          },
+          "type": {
+            "type": "string",
+            "title": "Type",
+            "description": "The resource's media type"
+          },
+          "title": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Title"
+          },
+          "locations": {
+            "$ref": "#/components/schemas/LocatorLocationsSchema",
+            "default": {}
+          },
+          "text": {
+            "$ref": "#/components/schemas/LocatorTextSchema",
+            "default": {}
+          }
+        },
+        "type": "object",
+        "required": [
+          "href",
+          "type"
+        ],
+        "title": "LocatorSchema",
+        "description": "A Readium Locator Object as a navigator produces and consumes one."
+      },
+      "LocatorTextSchema": {
+        "properties": {
+          "before": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Before"
+          },
+          "highlight": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Highlight"
+          },
+          "after": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "After"
+          }
+        },
+        "type": "object",
+        "title": "LocatorTextSchema",
+        "description": "A Locator's text quote: what is at the position, and what surrounds it.\n\nFor a reading position ``highlight`` is the text the page begins on rather\nthan anything the reader marked; ``before`` and ``after`` are what make it\nfindable when the same sentence occurs twice."
+      },
+      "LocatorUnavailable": {
+        "type": "string",
+        "enum": [
+          "no_ebook",
+          "not_placeable",
+          "unresolved",
+          "text_mismatch",
+          "gone"
+        ],
+        "title": "LocatorUnavailable",
+        "description": "Why a highlight has no locator, in terms a client can act on.\n\nThe first two are about the *book* and the last three about the *highlight*,\nand keeping that line sharp is the point of the enum. ``NO_EBOOK`` says no\nhighlight in this book can be placed and nothing is wrong with any of them;\n``UNRESOLVED`` says this one highlight's position is lost. Collapsing a\nmissing file into the latter would tell a reader their positions were\ndestroyed when what is actually gone is the file.\n\nAttributes:\n    NO_EBOOK: There is no readable EPUB to derive against -- the book has\n        none stored, the file is not in the store any more, or what is there\n        does not parse. One reason for all three because a client can do\n        nothing different about them: the book cannot be opened in the\n        reader at all, and no highlight in it can be placed. Which of the\n        three it was is in the logs, where the difference between normal\n        state and data loss actually matters.\n    NOT_PLACEABLE: The highlight carries no xpointer range. Highlights\n        synced by older plugin versions, and any typed in by hand, have text\n        and no position -- they are real highlights that were never anywhere\n        in particular.\n    UNRESOLVED: The conversion failed for this highlight against an EPUB\n        that read and parsed perfectly well: its stored xpointer names a\n        place this edition does not have.\n    TEXT_MISMATCH: The conversion succeeded and landed on different text.\n        The dangerous case ADR-0004 \u00a75 exists for -- a confident locator\n        pointing at the wrong paragraph -- caught by comparing what the\n        derived anchor covers against the text stored with the highlight.\n    GONE: The highlight was deleted between the two reads a response is\n        built from -- the view that listed it, and the anchor lookup that\n        was to place it. Rare and harmless, but it still has to be *said*:\n        the schema promises a reason wherever there is no locator, and a\n        client that trusts that promise must not meet a null pair."
       },
       "Note": {
         "properties": {
@@ -8331,6 +9092,28 @@
         ],
         "title": "PaginatedResponse[ReadingSession]"
       },
+      "PositionList": {
+        "properties": {
+          "total": {
+            "type": "integer",
+            "title": "Total"
+          },
+          "positions": {
+            "items": {
+              "$ref": "#/components/schemas/ReadiumLocator"
+            },
+            "type": "array",
+            "title": "Positions"
+          }
+        },
+        "type": "object",
+        "required": [
+          "total",
+          "positions"
+        ],
+        "title": "PositionList",
+        "description": "The document a publication's ``position-list`` link resolves to.\n\n``total`` is redundant with the length of ``positions`` and is what the\nformat states anyway: a reader showing \"page 7 of 240\" needs the count, and\nreading it off the array only works for a reader that fetched the whole\narray."
+      },
       "PositionResponse": {
         "properties": {
           "index": {
@@ -8351,6 +9134,20 @@
         ],
         "title": "PositionResponse",
         "description": "Position in a book document."
+      },
+      "PublicationSession": {
+        "properties": {
+          "expires_in": {
+            "type": "integer",
+            "title": "Expires In"
+          }
+        },
+        "type": "object",
+        "required": [
+          "expires_in"
+        ],
+        "title": "PublicationSession",
+        "description": "What a reader learns when it is handed a publication cookie.\n\nThe cookie itself is httpOnly, so the page that asked for it cannot read\nwhen it dies. This is the one thing it needs back -- named ``expires_in``,\nin seconds, like the token response it schedules alongside."
       },
       "RankedContentGroups": {
         "properties": {
@@ -8384,6 +9181,71 @@
         ],
         "title": "RankedContentGroups",
         "description": "Matches ranked against the embeddings index, grouped by content type.\n\nEvery group is present even when empty, and every item carries its score on\none scale, so a client can merge the groups back into a single ranked list.\n\nThe whole of what ``GET /semantic/related`` answers, and the ranked half of\nglobal search."
+      },
+      "ReadingPosition": {
+        "properties": {
+          "locator": {
+            "$ref": "#/components/schemas/LocatorSchema",
+            "description": "The position, ready to navigate to"
+          },
+          "xpoint": {
+            "type": "string",
+            "title": "Xpoint",
+            "description": "The same position in the format both readers agree on"
+          },
+          "position": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/PositionResponse"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The position in document order, or null when it could not be placed"
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Updated At",
+            "description": "When this position was recorded"
+          }
+        },
+        "type": "object",
+        "required": [
+          "locator",
+          "xpoint",
+          "updated_at"
+        ],
+        "title": "ReadingPosition",
+        "description": "Where a reader last was in a book, as the browser gets it back."
+      },
+      "ReadingPositionUpdate": {
+        "properties": {
+          "locator": {
+            "$ref": "#/components/schemas/LocatorSchema",
+            "description": "Where the reader now is"
+          },
+          "recorded_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Recorded At",
+            "description": "When the reader was there, by their own clock. Never read as later than the moment the request arrives."
+          },
+          "closing": {
+            "type": "boolean",
+            "title": "Closing",
+            "description": "Whether the reader is leaving the book. The position is stored either way; this ends the reading session rather than extending it next time.",
+            "default": false
+          }
+        },
+        "type": "object",
+        "required": [
+          "locator",
+          "recorded_at"
+        ],
+        "title": "ReadingPositionUpdate",
+        "description": "What the reader sends when they have moved."
       },
       "ReadingSession": {
         "properties": {
@@ -8482,13 +9344,13 @@
             "type": "string",
             "format": "date-time",
             "title": "Start Time",
-            "description": "Session start timestamp"
+            "description": "Session start, with a UTC offset (KOReader sends '...Z')"
           },
           "end_time": {
             "type": "string",
             "format": "date-time",
             "title": "End Time",
-            "description": "Session end timestamp"
+            "description": "Session end, with a UTC offset (KOReader sends '...Z')"
           },
           "start_xpoint": {
             "anyOf": [
@@ -8551,7 +9413,7 @@
               }
             ],
             "title": "Device Id",
-            "description": "Device identifier"
+            "description": "Device identifier. 'crossbill-web-reader' is reserved for reading done in the browser and is refused here."
           }
         },
         "type": "object",
@@ -8627,6 +9489,199 @@
         ],
         "title": "ReadingSessionSyncResponse",
         "description": "Schema for reading session sync response.\n\nNote: If any session is invalid,\nthe entire request fails with 422 and this response is never returned."
+      },
+      "ReadiumLink": {
+        "properties": {
+          "href": {
+            "type": "string",
+            "title": "Href"
+          },
+          "type": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Type"
+          },
+          "rel": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Rel"
+          },
+          "title": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Title"
+          },
+          "properties": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ReadiumProperties"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "children": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/ReadiumLink"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Children"
+          }
+        },
+        "type": "object",
+        "required": [
+          "href"
+        ],
+        "title": "ReadiumLink",
+        "description": "A Readium Link Object.\n\nOne shape serves the reading order, the resource list, the manifest's own\nlinks and the table of contents, because the spec models all four as Links."
+      },
+      "ReadiumLocations": {
+        "properties": {
+          "position": {
+            "type": "integer",
+            "title": "Position"
+          },
+          "progression": {
+            "type": "number",
+            "title": "Progression"
+          },
+          "totalProgression": {
+            "type": "number",
+            "title": "Totalprogression"
+          }
+        },
+        "type": "object",
+        "required": [
+          "position",
+          "progression",
+          "totalProgression"
+        ],
+        "title": "ReadiumLocations",
+        "description": "A Locator's ``locations``: where a position is, in every way it can be said.\n\nOnly the three a position list carries are modelled. A derived highlight\nlocator (ADR-0004 \u00a72) says where it is with a CSS selector and a text quote\ninstead, and gets its own shape when it arrives."
+      },
+      "ReadiumLocator": {
+        "properties": {
+          "href": {
+            "type": "string",
+            "title": "Href"
+          },
+          "type": {
+            "type": "string",
+            "title": "Type"
+          },
+          "locations": {
+            "$ref": "#/components/schemas/ReadiumLocations"
+          }
+        },
+        "type": "object",
+        "required": [
+          "href",
+          "type",
+          "locations"
+        ],
+        "title": "ReadiumLocator",
+        "description": "A Readium Locator Object naming one position of a publication."
+      },
+      "ReadiumMetadata": {
+        "properties": {
+          "@type": {
+            "type": "string",
+            "title": "@Type",
+            "default": "http://schema.org/Book"
+          },
+          "conformsTo": {
+            "type": "string",
+            "title": "Conformsto",
+            "default": "https://readium.org/webpub-manifest/profiles/epub"
+          },
+          "identifier": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Identifier"
+          },
+          "title": {
+            "type": "string",
+            "title": "Title"
+          },
+          "author": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Author"
+          },
+          "language": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Language"
+          }
+        },
+        "type": "object",
+        "required": [
+          "title"
+        ],
+        "title": "ReadiumMetadata",
+        "description": "The manifest's ``metadata`` object."
+      },
+      "ReadiumProperties": {
+        "properties": {
+          "layout": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Layout"
+          }
+        },
+        "type": "object",
+        "title": "ReadiumProperties",
+        "description": "A Link's ``properties``; only ``layout`` is populated today."
       },
       "RecentCapture": {
         "properties": {
@@ -8767,6 +9822,86 @@
         "type": "object",
         "title": "RefreshTokenRequest",
         "description": "Request body for refresh token (used by plugins)."
+      },
+      "ResumePositionResponse": {
+        "properties": {
+          "locator": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/LocatorSchema"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Where to open the book, ready to navigate to, or null when there is nowhere to resume to"
+          },
+          "source": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ResumeSource"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Which reader the position came from -- 'web' for this browser's own stored place, 'koreader' for the end of a session synced from an e-reader. Null when the book has never been read anywhere."
+          },
+          "unresolved": {
+            "type": "boolean",
+            "title": "Unresolved",
+            "description": "Whether a position exists that could not be placed in the EPUB this server now holds -- typically the file has been replaced. The book opens at the beginning and the reader is told their place was lost.",
+            "default": false
+          },
+          "xpoint": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Xpoint",
+            "description": "The position in the format both readers agree on, present even when no locator could be derived from it"
+          },
+          "position": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/PositionResponse"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The position in document order, or null when it could not be placed"
+          },
+          "recorded_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Recorded At",
+            "description": "When the reader was at this position, by their own device's clock"
+          }
+        },
+        "type": "object",
+        "title": "ResumePositionResponse",
+        "description": "Where the web reader should open a book, whichever device was there last.\n\nAlways an object, never null. A book nobody has read and a book whose stored\nplace no longer exists both open at the beginning, but only the second is\nworth telling the reader about, and a null body could not tell them apart.\nRead it as: navigate to ``locator`` if there is one; otherwise start at the\nbeginning, and say so if ``unresolved``."
+      },
+      "ResumeSource": {
+        "type": "string",
+        "enum": [
+          "web",
+          "koreader"
+        ],
+        "title": "ResumeSource",
+        "description": "Which reader the position being resumed from came from.\n\nAttributes:\n    WEB: The row the browser itself wrote. It carries the locator verbatim,\n        so the reader is put back exactly where it was.\n    KOREADER: The end of a reading session synced from an e-reader. Only an\n        xpointer was stored, so a locator has to be derived from the EPUB --\n        which is the conversion that can fail."
       },
       "SearchBookRef": {
         "properties": {
@@ -9268,6 +10403,56 @@
           "type"
         ],
         "title": "ValidationError"
+      },
+      "WebPublicationManifest": {
+        "properties": {
+          "@context": {
+            "type": "string",
+            "title": "@Context",
+            "default": "https://readium.org/webpub-manifest/context.jsonld"
+          },
+          "metadata": {
+            "$ref": "#/components/schemas/ReadiumMetadata"
+          },
+          "links": {
+            "items": {
+              "$ref": "#/components/schemas/ReadiumLink"
+            },
+            "type": "array",
+            "title": "Links"
+          },
+          "readingOrder": {
+            "items": {
+              "$ref": "#/components/schemas/ReadiumLink"
+            },
+            "type": "array",
+            "title": "Readingorder"
+          },
+          "resources": {
+            "items": {
+              "$ref": "#/components/schemas/ReadiumLink"
+            },
+            "type": "array",
+            "title": "Resources"
+          },
+          "toc": {
+            "items": {
+              "$ref": "#/components/schemas/ReadiumLink"
+            },
+            "type": "array",
+            "title": "Toc"
+          }
+        },
+        "type": "object",
+        "required": [
+          "metadata",
+          "links",
+          "readingOrder",
+          "resources",
+          "toc"
+        ],
+        "title": "WebPublicationManifest",
+        "description": "A complete Readium Web Publication Manifest."
       }
     },
     "securitySchemes": {

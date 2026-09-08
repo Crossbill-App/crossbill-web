@@ -6,6 +6,7 @@
  */
 import type { Flashcard } from './flashcard.ts';
 import type { HighlightLabel } from './highlightLabel.ts';
+import type { HighlightLocator } from './highlightLocator.ts';
 import type { TagInBook } from './tagInBook.ts';
 
 /**
@@ -38,4 +39,6 @@ export interface Highlight {
   updated_at: string;
   /** List of flashcards for this highlight */
   flashcards: Flashcard[];
+  /** Where this highlight is in the EPUB, for the web reader to draw it. Opt-in: null unless the request asked for it with `include=locator`, and null on every view that has no such flag. Derived from the stored xpointer at request time and never stored (ADR-0004 §2), so it carries a reason of its own when the highlight cannot be placed. */
+  locator?: HighlightLocator | null;
 }

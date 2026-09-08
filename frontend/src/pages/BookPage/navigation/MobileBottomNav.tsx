@@ -11,12 +11,9 @@ import {
 } from '@mui/material';
 import { useNavigate, useParams, useRouterState } from '@tanstack/react-router';
 import { useLayoutEffect, useState } from 'react';
-import { BOOK_PAGE_LABELS, BOOK_PAGE_ROUTES } from './bookPageRoutes.ts';
+import { BOOK_PAGE_LABELS, BOOK_PAGE_ROUTES, useBookPageRoutes } from './bookPageRoutes.ts';
 
 const MORE_VALUE = 'more';
-
-const PRIMARY_ROUTES = BOOK_PAGE_ROUTES.filter((route) => !route.overflow);
-const OVERFLOW_ROUTES = BOOK_PAGE_ROUTES.filter((route) => route.overflow);
 
 const getActivePage = (pathname: string): string => {
   const match = BOOK_PAGE_ROUTES.find((route) => pathname.includes(`/${route.segment}`));
@@ -27,6 +24,9 @@ export const MobileBottomNav = () => {
   const { bookId } = useParams({ strict: false });
   const { location } = useRouterState();
   const navigate = useNavigate();
+  const routes = useBookPageRoutes(Number(bookId));
+  const primaryRoutes = routes.filter((route) => !route.overflow);
+  const overflowRoutes = routes.filter((route) => route.overflow);
 
   const [anchorEl, setAnchorEl] = useState<HTMLElement | null>(null);
   const menuOpen = Boolean(anchorEl);
@@ -40,7 +40,7 @@ export const MobileBottomNav = () => {
   }, []);
 
   const activePage = getActivePage(location.pathname);
-  const isOverflowActive = OVERFLOW_ROUTES.some((route) => route.segment === activePage);
+  const isOverflowActive = overflowRoutes.some((route) => route.segment === activePage);
   // Highlight the "More" tab whenever the active destination lives in the menu.
   const bottomNavValue = isOverflowActive ? MORE_VALUE : activePage;
 
@@ -77,7 +77,7 @@ export const MobileBottomNav = () => {
       }}
     >
       <BottomNavigation value={bottomNavValue} onChange={handleChange} showLabels>
-        {PRIMARY_ROUTES.map((route) => {
+        {primaryRoutes.map((route) => {
           const Icon = route.icon;
           return (
             <BottomNavigationAction
@@ -102,7 +102,7 @@ export const MobileBottomNav = () => {
         anchorOrigin={{ vertical: 'top', horizontal: 'right' }}
         transformOrigin={{ vertical: 'bottom', horizontal: 'right' }}
       >
-        {OVERFLOW_ROUTES.map((route) => {
+        {overflowRoutes.map((route) => {
           const Icon = route.icon;
           return (
             <MenuItem

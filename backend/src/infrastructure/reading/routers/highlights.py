@@ -12,12 +12,18 @@ from src.application.reading.commands.highlights.highlight_upload_use_case impor
     HighlightUploadUseCase,
 )
 from src.application.reading.queries.highlight_search import (
+    BookHighlightSearchView,
     SearchChapterView,
 )
 from src.application.reading.queries.highlight_search_use_case import (
     HighlightSearchUseCase,
 )
+from src.application.web_reader.queries.get_highlight_locators_use_case import (
+    GetHighlightLocatorsUseCase,
+)
+from src.application.web_reader.queries.highlight_locators import DerivedHighlightLocator
 from src.core import container
+from src.domain.common.value_objects.ids import BookId
 from src.domain.identity.entities.user import User
 from src.infrastructure.common.client_version import (
     UPGRADE_REQUIRED_RESPONSES,
@@ -33,15 +39,37 @@ from src.infrastructure.reading.schemas import (
     HighlightSyncRequest,
     HighlightSyncResponse,
 )
-from src.infrastructure.reading.schemas.highlight_builders import build_highlight_schema
+from src.infrastructure.reading.schemas.highlight_builders import (
+    build_highlight_schema,
+    resolve_locator,
+)
 
 router = APIRouter(prefix="", tags=["highlights"])
 
 
-def _build_chapter_schema(chapter: SearchChapterView) -> ChapterWithHighlights:
+LOCATOR_INCLUDE = "locator"
+
+
+def _matched_ids(view: BookHighlightSearchView) -> list[int]:
+    """The highlights this response will render, so only they are placed.
+
+    A search shows a handful of a book's highlights, and deriving a locator
+    costs per highlight rather than per book (ADR-0004 §4) -- so a heavily
+    annotated book searched for one word must not pay for its whole list.
+    """
+    return [highlight.id for chapter in view.chapters for highlight in chapter.highlights]
+
+
+def _build_chapter_schema(
+    chapter: SearchChapterView,
+    locators: dict[int, DerivedHighlightLocator],
+    wanted: bool,
+) -> ChapterWithHighlights:
     """Build the ChapterWithHighlights schema from the search read model.
 
     Search rows carry no parent chapter or start position, and never have.
+    ``wanted`` says whether the caller asked for locators at all, which is what
+    separates "no locator was requested" from "this one could not be placed".
     """
     return ChapterWithHighlights(
         id=chapter.id,
@@ -49,7 +77,10 @@ def _build_chapter_schema(chapter: SearchChapterView) -> ChapterWithHighlights:
         chapter_number=chapter.chapter_number,
         parent_id=None,
         start_position=None,
-        highlights=[build_highlight_schema(highlight) for highlight in chapter.highlights],
+        highlights=[
+            build_highlight_schema(highlight, resolve_locator(highlight.id, locators, wanted))
+            for highlight in chapter.highlights
+        ],
         created_at=chapter.created_at,
         updated_at=chapter.updated_at,
     )
@@ -154,8 +185,23 @@ async def search_book_highlights(
         min_length=1,
         description="Text to search for in highlights",
     ),
+    include: Annotated[
+        list[str] | None,
+        Query(
+            description=(
+                "Optional extras to compute for each highlight. `locator` adds the "
+                "Readium locator the web reader draws and jumps by, derived from the "
+                "highlight's stored position against the book's EPUB. Off by default "
+                "because it costs an EPUB parse, which a list that renders no "
+                "decorations has no use for."
+            ),
+        ),
+    ] = None,
     use_case: HighlightSearchUseCase = Depends(
         inject_use_case(container.reading.highlight_search_use_case)
+    ),
+    locator_use_case: GetHighlightLocatorsUseCase = Depends(
+        inject_use_case(container.web_reader.get_highlight_locators_use_case)
     ),
 ) -> BookHighlightSearchResponse:
     """
@@ -165,8 +211,14 @@ async def search_book_highlights(
     Results are ranked by relevance and excludes soft-deleted highlights.
     """
     view = await use_case.search_book_highlights(book_id, current_user.id.value, search_text)
+    wanted = LOCATOR_INCLUDE in (include or ())
+    locators = (
+        await locator_use_case.for_book(BookId(book_id), current_user.id, _matched_ids(view))
+        if wanted
+        else {}
+    )
     return BookHighlightSearchResponse(
-        chapters=[_build_chapter_schema(chapter) for chapter in view.chapters],
+        chapters=[_build_chapter_schema(chapter, locators, wanted) for chapter in view.chapters],
         total=view.total,
     )
 

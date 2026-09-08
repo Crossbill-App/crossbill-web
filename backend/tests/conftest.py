@@ -46,7 +46,7 @@ from src.infrastructure.common.client_version import (
     KOREADER_PLUGIN,
     format_version,
 )
-from src.infrastructure.identity.dependencies import get_current_user
+from src.infrastructure.identity.dependencies import get_current_user, get_current_user_optional
 from src.infrastructure.library.repositories import file_repository
 from src.infrastructure.library.schemas import EreaderBookMetadata
 from src.infrastructure.reading.routers.reader_clock import reader_today
@@ -72,11 +72,13 @@ from tests.ai_helpers import FakeAgent, digest_output
 logging.getLogger("aiosqlite").setLevel(logging.WARNING)
 
 
-def build_test_epub(path: Path) -> bytes:
+def build_test_epub(path: Path, paragraph: str = "Some content.") -> bytes:
     """Write a one-chapter EPUB to path and return its bytes.
 
-    The single paragraph is "Some content.", reachable at the xpoint
-    "/body/DocFragment[2]/body/p[1]/text().0".
+    The single paragraph defaults to "Some content." and is reachable at the
+    xpoint "/body/DocFragment[2]/body/p[1]/text().0". Pass a different
+    ``paragraph`` to build what is, to anything reading the file, another
+    edition of the same book.
     """
     book = epub.EpubBook()
     book.set_identifier("upload-test-epub")
@@ -84,7 +86,7 @@ def build_test_epub(path: Path) -> bytes:
     book.set_language("en")
 
     chapter = epub.EpubHtml(title="Chapter 1", file_name="chap01.xhtml", lang="en")
-    chapter.content = "<h1>Chapter 1</h1><p>Some content.</p>"
+    chapter.content = f"<h1>Chapter 1</h1><p>{paragraph}</p>"
     book.add_item(chapter)
     book.toc = [epub.Link("chap01.xhtml", "Chapter 1", "chap01")]
     book.add_item(epub.EpubNcx())
@@ -219,12 +221,20 @@ async def create_test_reading_session(
     end_position: list[int] | None = None,
     start_page: int | None = None,
     end_page: int | None = None,
+    start_xpoint: str | None = None,
+    end_xpoint: str | None = None,
+    device_id: str | None = None,
 ) -> ReadingSession:
     """Record a reading session that ran ``minutes`` from ``start_time``.
 
     The content hash only has to be unique per user, so it is derived from what
     already distinguishes one test session from another. Pages default to none,
     as they are for a book KOReader syncs by xpoint alone.
+
+    The xpoints default to none too, and a session given only one of them has
+    neither as far as the domain is concerned: the pair is read back as a single
+    range. ``device_id`` is what tells a session synced from an e-reader apart
+    from one the web reader wrote.
     """
     session = ReadingSession(
         user_id=user_id,
@@ -234,7 +244,10 @@ async def create_test_reading_session(
         end_position=end_position,
         start_page=start_page,
         end_page=end_page,
-        content_hash=f"hash-{start_time.isoformat()}-{book.id}-{user_id}",
+        start_xpoint=start_xpoint,
+        end_xpoint=end_xpoint,
+        device_id=device_id,
+        content_hash=f"hash-{start_time.isoformat()}-{book.id}-{user_id}-{device_id or ''}",
     )
     db_session.add(session)
     await db_session.commit()
@@ -336,6 +349,22 @@ async def test_user(db_session: AsyncSession) -> User:
     return user
 
 
+@pytest.fixture
+async def other_user(db_session: AsyncSession, test_user: User) -> User:
+    """Somebody who is not the authenticated user, for the isolation case.
+
+    Every endpoint gets one: a dropped ``user_id`` filter is this app's worst
+    realistic bug class, and only a test that owns a second user's data catches
+    it.
+    """
+    stranger = User(email="stranger@example.com", hashed_password="x")
+    db_session.add(stranger)
+    await db_session.commit()
+    await db_session.refresh(stranger)
+    assert stranger.id != test_user.id
+    return stranger
+
+
 def contract_checked_queue() -> AsyncMock:
     """A fake job queue that checks each enqueue against the real SAQ task.
 
@@ -396,6 +425,10 @@ async def client(db_session: AsyncSession, test_user: User) -> AsyncGenerator[As
 
     app.dependency_overrides[get_db] = override_get_db
     app.dependency_overrides[get_current_user] = override_get_current_user
+    # Routes that accept a second credential ask for the user through the
+    # optional dependency instead, and would see an anonymous request without
+    # this: what makes this client authenticated is the override, not a header.
+    app.dependency_overrides[get_current_user_optional] = override_get_current_user
 
     # Always use local FileRepository in tests regardless of S3 env vars
     from src.core import container  # noqa: PLC0415
@@ -430,6 +463,40 @@ async def plugin_client(client: AsyncClient) -> AsyncGenerator[AsyncClient, None
         headers={CLIENT_VERSION_HEADER: SUPPORTED_CLIENT_HEADER_VALUE},
     ) as announced_client:
         yield announced_client
+
+
+@pytest.fixture
+async def browser_client(client: AsyncClient) -> AsyncGenerator[AsyncClient, None]:
+    """A client that authenticates the way a browser does, and no other way.
+
+    Built on ``client`` for its database, file store and queue, then stripped of
+    the authentication overrides: a request through this one carries whatever
+    credential the test gives it -- a Bearer header, a cookie the server set, or
+    nothing at all -- and is refused when it carries none.
+
+    ``https``, because the cookies under test are ``Secure``: over ``http`` the
+    jar would drop them silently and every assertion below would pass for want
+    of a cookie rather than because the server did anything.
+    """
+    del app.dependency_overrides[get_current_user]
+    del app.dependency_overrides[get_current_user_optional]
+
+    transport = ASGITransport(app=app)
+    async with AsyncClient(transport=transport, base_url="https://test") as browser:
+        yield browser
+
+
+@pytest.fixture
+async def anonymous_client() -> AsyncGenerator[AsyncClient, None]:
+    """A client with no authentication override, to see what an endpoint demands.
+
+    Deliberately not built on ``client``: what makes it anonymous is the absence
+    of the dependency override that fixture installs, so it must not depend on
+    anything that installs one.
+    """
+    transport = ASGITransport(app=app)
+    async with AsyncClient(transport=transport, base_url="http://test") as unauthenticated:
+        yield unauthenticated
 
 
 @pytest.fixture

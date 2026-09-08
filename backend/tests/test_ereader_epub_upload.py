@@ -9,7 +9,9 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src import models
-from tests.conftest import create_test_book
+from src.containers import container
+from src.domain.common.value_objects.xpoint import XPoint
+from tests.conftest import build_test_epub, create_test_book
 
 CLIENT_BOOK_ID = "test-client-book-1"
 
@@ -100,6 +102,46 @@ class TestEpubUpload:
         )
 
         assert response.status_code == status.HTTP_404_NOT_FOUND
+
+    async def test_replacing_the_epub_evicts_the_cached_publication(
+        self,
+        plugin_client: AsyncClient,
+        db_session: AsyncSession,
+        ereader_book: models.Book,
+        epub_bytes: bytes,
+        storage_dir: Path,
+        tmp_path: Path,
+    ) -> None:
+        """A re-upload reuses the filename, so only eviction reveals the new text.
+
+        The anchor service is a process-wide singleton holding parsed EPUBs by
+        filename; without the upload path telling it, it would keep deriving
+        anchors from the edition that has been replaced.
+        """
+        caret = XPoint.parse("/body/DocFragment[2]/body/p[1]/text().0")
+        await plugin_client.post(
+            f"/api/v1/ereader/books/{CLIENT_BOOK_ID}/epub",
+            files={"epub": ("book.epub", epub_bytes, "application/epub+zip")},
+        )
+        await db_session.refresh(ereader_book)
+        assert ereader_book.ebook_file is not None
+
+        anchors = container.shared.position_anchor_service()
+        primed = await anchors.locator_for_xpoint(ereader_book.ebook_file, caret)
+        assert primed.text.after is not None
+        assert primed.text.after.startswith("Some content.")
+
+        second_edition = build_test_epub(tmp_path / "revised.epub", paragraph="Other content.")
+        response = await plugin_client.post(
+            f"/api/v1/ereader/books/{CLIENT_BOOK_ID}/epub",
+            files={"epub": ("book.epub", second_edition, "application/epub+zip")},
+        )
+        assert response.status_code == status.HTTP_200_OK
+
+        await db_session.refresh(ereader_book)
+        derived = await anchors.locator_for_xpoint(ereader_book.ebook_file, caret)
+        assert derived.text.after is not None
+        assert derived.text.after.startswith("Other content.")
 
     async def test_upload_backfills_positions_of_existing_highlights(
         self,
