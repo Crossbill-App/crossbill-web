@@ -2,6 +2,7 @@ import { useCreateBookmark, useDeleteBookmark } from '@/api/generated/bookmarks/
 import type { Bookmark } from '@/api/generated/model';
 import { IconButtonWithTooltip } from '@/components/buttons/IconButtonWithTooltip.tsx';
 import { DialogToolbar } from '@/components/dialogs/DialogToolbar.tsx';
+import { OpenInReaderButton } from '@/components/reader/OpenInReaderButton.tsx';
 import { useMutationErrorHandler } from '@/hooks/useMutationErrorHandler.ts';
 import { useCacheEvents } from '@/lib/cacheEvents.ts';
 import {
@@ -56,6 +57,9 @@ export const Toolbar = ({
 
   return (
     <DialogToolbar>
+      {/* First, because it is the only one that goes anywhere: the rest act on
+          the highlight in front of the reader, and this leaves for the book. */}
+      <OpenInReaderButton bookId={bookId} highlightId={highlightId} />
       <IconButtonWithTooltip
         label="Copy link to highlight"
         onClick={handleCopyLink}

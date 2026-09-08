@@ -28,18 +28,23 @@ from src.infrastructure.reading.orm.highlight_model import Highlight as Highligh
 
 logger = logging.getLogger(__name__)
 
-type _AnchorRow = Row[tuple[int, str, str | None, str | None, str | None]]
+type _AnchorRow = Row[tuple[int, int, str, str | None, str | None, str | None]]
 
 
-def _anchor_rows() -> Select[tuple[int, str, str | None, str | None, str | None]]:
+def _anchor_rows() -> Select[tuple[int, int, str, str | None, str | None, str | None]]:
     """The select every anchor lookup narrows.
 
     Built per call rather than held at module scope: an adapter is imported from
     the container early enough that a shared statement configures the ORM
     mappers before every model is registered (see ``docs/agents/read-models.md``).
+
+    ``book_id`` rides along for the single-highlight lookup, which is given a
+    highlight and has to answer with the book it is in so that a failed
+    conversion can be reported against it (M3.4, #748).
     """
     return select(
         HighlightORM.id,
+        HighlightORM.book_id,
         HighlightORM.text,
         HighlightORM.start_xpoint,
         HighlightORM.end_xpoint,
@@ -76,7 +81,7 @@ class HighlightAnchorQuery:
             stmt = stmt.where(HighlightORM.id.in_(highlight_ids))
         rows = (await self.db.execute(stmt)).all()
         ebook_file = await self._ebook_file(book_id, user_id)
-        return _anchors(ebook_file, rows)
+        return _anchors(book_id.value, ebook_file, rows)
 
     async def anchor_for_highlight(
         self, highlight_id: HighlightId, user_id: UserId
@@ -90,7 +95,7 @@ class HighlightAnchorQuery:
         row = (await self.db.execute(stmt)).first()
         if row is None:
             return None
-        return _anchors(row.ebook_file, [row])
+        return _anchors(row.book_id, row.ebook_file, [row])
 
     async def _owns_book(self, book_id: BookId, user_id: UserId) -> bool:
         """Report whether the book exists and belongs to the user."""
@@ -113,9 +118,12 @@ class HighlightAnchorQuery:
         return (await self.db.execute(stmt)).scalar_one_or_none()
 
 
-def _anchors(ebook_file: str | None, rows: Sequence[_AnchorRow]) -> BookHighlightAnchors:
+def _anchors(
+    book_id: int, ebook_file: str | None, rows: Sequence[_AnchorRow]
+) -> BookHighlightAnchors:
     """Map anchor rows to the view DTO."""
     return BookHighlightAnchors(
+        book_id=book_id,
         ebook_file=ebook_file,
         highlights=tuple(
             HighlightAnchor(

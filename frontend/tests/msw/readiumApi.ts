@@ -15,6 +15,7 @@ const SESSION_PATH = '/api/v1/readium/books/:bookId/session';
 const RESOURCE_PATH = '/api/v1/readium/books/:bookId/resources/*';
 const POSITION_PATH = '/api/v1/readium/books/:bookId/reading-position';
 const HIGHLIGHT_LOCATORS_PATH = '/api/v1/books/:bookId/highlight-locators';
+const HIGHLIGHT_LOCATOR_PATH = '/api/v1/highlights/:highlightId/locator';
 
 /**
  * The file a hostile chapter tries to navigate its own frame to.
@@ -182,6 +183,19 @@ export const readiumApi = ({
   http.get(MANIFEST_PATH, () => HttpResponse.json(manifest ?? aManifest())),
   http.get(POSITIONS_PATH, () => HttpResponse.json(positions ?? aPositionList())),
   http.get(HIGHLIGHT_LOCATORS_PATH, () => HttpResponse.json({ items: highlightLocators })),
+  // The single-highlight read the reader makes when it is opened *at* a
+  // highlight. Answered out of the same list, so a test that says where a
+  // book's highlights are has said it once: the two endpoints derive from one
+  // conversion server-side, and a fixture where they disagreed would be testing
+  // a state the API cannot produce. A highlight the list does not mention gets
+  // the answer the API gives for one it cannot place.
+  http.get(HIGHLIGHT_LOCATOR_PATH, ({ params }) => {
+    const highlightId = Number(params.highlightId);
+    const placed = highlightLocators.find((item) => item.highlight_id === highlightId);
+    return HttpResponse.json(
+      placed ?? { highlight_id: highlightId, locator: null, unavailable: 'unresolved' }
+    );
+  }),
   // An open reader writes where it is, so every test that opens one meets these
   // whether or not it is about them. `readingPositionApi` is the version that
   // remembers what was written.
@@ -256,6 +270,13 @@ export const noPublication = [
   // about a book's highlights rather than about its EPUB, and it reports every
   // one of them as `no_ebook` rather than failing.
   http.get(HIGHLIGHT_LOCATORS_PATH, () => HttpResponse.json({ items: [] })),
+  http.get(HIGHLIGHT_LOCATOR_PATH, ({ params }) =>
+    HttpResponse.json({
+      highlight_id: Number(params.highlightId),
+      locator: null,
+      unavailable: 'no_ebook',
+    })
+  ),
   ...readingPositionApi().handlers,
 ];
 

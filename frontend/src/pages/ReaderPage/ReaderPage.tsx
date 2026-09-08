@@ -1,11 +1,12 @@
 import { useGetBookDetails } from '@/api/generated/books/books.ts';
 import { useGetTags } from '@/api/generated/tags/tags.ts';
 import { ReaderShell } from '@/components/reader/ReaderShell.tsx';
+import { useResetOnChange } from '@/hooks/useResetOnChange.ts';
 import { HighlightViewDialog } from '@/pages/BookPage/Highlights/HighlightViewDialog';
 import { useHighlightDialog } from '@/pages/BookPage/Highlights/hooks/useHighlightDialog.ts';
-import { useNavigate, useParams } from '@tanstack/react-router';
+import { useNavigate, useParams, useSearch } from '@tanstack/react-router';
 import { keyBy } from 'lodash';
-import { useMemo } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 
 /**
  * Reading a book in the browser, at `/book/{id}/read`.
@@ -26,7 +27,9 @@ import { useMemo } from 'react';
  */
 export const ReaderPage = () => {
   const { bookId } = useParams({ strict: false });
+  const { highlightId } = useSearch({ from: '/book_/$bookId/read' });
   const navigate = useNavigate();
+  const arrival = useArrivalAtAHighlight(highlightId);
   const { data: book } = useGetBookDetails(Number(bookId));
   const { data: tagsResponse } = useGetTags(Number(bookId));
 
@@ -61,11 +64,12 @@ export const ReaderPage = () => {
         bookId={Number(bookId)}
         title={book?.title ?? ''}
         highlights={allHighlights}
+        highlightId={arrival.target ?? undefined}
         onOpenHighlight={highlightDialog.open}
         onClose={() => void navigate({ to: '/book/$bookId', params: { bookId: bookId! } })}
       />
 
-      {highlightDialog.activeItem && (
+      {!arrival.isArriving && highlightDialog.activeItem && (
         <HighlightViewDialog
           controller={highlightDialog}
           bookId={Number(bookId)}
@@ -75,4 +79,53 @@ export const ReaderPage = () => {
       )}
     </>
   );
+};
+
+interface Arrival {
+  /** The highlight this reader was opened at, or `null` for an ordinary open. */
+  target: number | null;
+  /** Whether the address still names it, and so whether its dialog is suppressed. */
+  isArriving: boolean;
+}
+
+/**
+ * `?highlightId=` on the way in, read once and then taken back out of the
+ * address (M3.3, #747).
+ *
+ * The param does two different jobs and only one of them belongs to an arrival.
+ * M3.2 gave it to the dialog: a decoration tapped in the book pushes it, and the
+ * back button pops it, so a highlight opened in the reader is a place in history
+ * and a link that can be pasted. M3.3 then made it a *destination* as well —
+ * which is what a link from a highlight view means by it.
+ *
+ * Doing both at once put a dialog over the passage the reader had just asked to
+ * be shown. They came to read it, so the arrival gets the jump and the emphasis
+ * and nothing on top; the dialog is one tap away on the mark itself.
+ *
+ * So the param is consumed rather than merely acted on. It is latched here on
+ * the first render, the dialog is held shut while it is still in the address,
+ * and a `replace` strips it — which leaves the reader with an address that
+ * describes what is on screen, a back button that leaves the reader in one step
+ * rather than closing a dialog nobody opened, and a reload that opens the book
+ * where the reader is rather than jumping again. Afterwards `target` is `null`
+ * and the param means what M3.2 made it mean, tapping the arrival highlight
+ * included.
+ */
+const useArrivalAtAHighlight = (highlightId: number | undefined): Arrival => {
+  const navigate = useNavigate({ from: '/book/$bookId/read' });
+  const [target, setTarget] = useState<number | null>(highlightId ?? null);
+
+  // The address has stopped naming it, so the arrival is over. Asking the
+  // address rather than remembering having asked for the strip: what ends an
+  // arrival is the param actually being gone, and the reader is looking at an
+  // unobscured page only once it is. A later tap changes the param too, which
+  // ends the arrival just as truly — by then the strip has already happened.
+  useResetOnChange([highlightId], () => setTarget(null));
+
+  useEffect(() => {
+    if (target === null) return;
+    void navigate({ search: () => ({}), replace: true, resetScroll: false });
+  }, [target, navigate]);
+
+  return { target, isArriving: target !== null };
 };

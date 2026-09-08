@@ -7,8 +7,10 @@ reads ``reading``'s canonical positions through a port of its own, and nothing
 in ``reading`` learns that locators exist.
 """
 
-import logging
 from collections.abc import Collection
+from functools import lru_cache
+
+import structlog
 
 from src.application.web_reader.anchors import AnchorResolutionError, Locator
 from src.application.web_reader.protocols.position_anchor_service import (
@@ -25,7 +27,59 @@ from src.domain.common.value_objects.ids import BookId, HighlightId, UserId
 from src.domain.common.value_objects.xpoint import XPointRange
 from src.domain.reading.exceptions import BookNotFoundError, HighlightNotFoundError
 
-logger = logging.getLogger(__name__)
+logger = structlog.get_logger(__name__)
+
+#: The failures worth a warning, and why the other three are not (M3.4, #748).
+#:
+#: These two are *conversions that went wrong* against an EPUB that read and
+#: parsed: an xpointer that named nothing, or one that landed on the wrong
+#: words. Those are the cases xpoint-cfi needs as corpus material, and each one
+#: is a book and a highlight somebody can go and look at.
+#:
+#: ``NO_EBOOK`` is a missing file rather than a bad conversion, and it would log
+#: once per highlight for every highlight in the book. ``NOT_PLACEABLE`` is a
+#: highlight that never had a position to convert -- ordinary for anything typed
+#: in by hand or synced by an older plugin. ``GONE`` is a delete landing between
+#: two reads. None of the three says anything about the conversion.
+_WORTH_REPORTING = frozenset({LocatorUnavailable.UNRESOLVED, LocatorUnavailable.TEXT_MISMATCH})
+
+
+@lru_cache(maxsize=4096)
+def _report_unconvertible(book_id: int, highlight_id: int, reason: LocatorUnavailable) -> None:
+    """Log one bad conversion, once per process.
+
+    The whole-book route is called every time a reader opens a book, so logging
+    at derivation time would repeat the same line for the same broken highlight
+    all day and bury the ones that are new. The cache is the once-ness: an
+    ``lru_cache`` over a function that returns nothing calls the body the first
+    time it sees a key and never again, and evicts the least recently seen when
+    it is full -- which is the whole of the rate limiting this needs. A restart
+    starts the log over, which is the right granularity for collecting corpus
+    cases rather than for alerting.
+
+    Keyed on the reason too, so a highlight that stops resolving and starts
+    landing on the wrong words is reported again: that is a different fact about
+    it.
+    """
+    logger.warning(
+        "highlight_locator_unavailable",
+        book_id=book_id,
+        highlight_id=highlight_id,
+        reason=reason.value,
+    )
+
+
+def forget_reported_locator_failures() -> None:
+    """Forget which conversion failures have already been reported.
+
+    A test seam, and a named one on purpose. The once-per-process cache above is
+    module state, so a test asserting on the warning has to be able to start from
+    a process that has reported nothing -- and book and highlight ids restart
+    with each test's database, so a pair an earlier test reported would be
+    silently skipped in a later one. Reaching into the cache from outside would
+    be reaching past the very thing it is there to guarantee.
+    """
+    _report_unconvertible.cache_clear()
 
 
 class GetHighlightLocatorsUseCase:
@@ -93,10 +147,19 @@ class GetHighlightLocatorsUseCase:
             if anchor.xpoints is not None
         }
         converted, unreadable = await self._converted(anchors.ebook_file, placeable)
-        return {
+        derived = {
             anchor.highlight_id: self._answer(anchor, unreadable, converted)
             for anchor in anchors.highlights
         }
+        # After the answers rather than inside `_answer`, so that what is logged
+        # is what the caller was actually told (M3.4, #748). The reader is not
+        # shown a word of this: a book of broken conversions would be a book of
+        # notices. It is written down so the conversions can be fixed.
+        for answer in derived.values():
+            reason = answer.unavailable
+            if reason is not None and reason in _WORTH_REPORTING:
+                _report_unconvertible(anchors.book_id, answer.highlight_id, reason)
+        return derived
 
     async def _converted(
         self, ebook_file: str | None, placeable: dict[int, XPointRange]
@@ -124,7 +187,8 @@ class GetHighlightLocatorsUseCase:
         except AnchorResolutionError as exc:
             logger.info(
                 "unreadable_publication_for_highlights",
-                extra={"ebook_file": ebook_file, "reason": str(exc)},
+                ebook_file=ebook_file,
+                reason=str(exc),
             )
             return {}, LocatorUnavailable.NO_EBOOK
         return converted, None

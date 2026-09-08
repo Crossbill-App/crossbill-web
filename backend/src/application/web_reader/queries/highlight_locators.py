@@ -118,11 +118,17 @@ class BookHighlightAnchors:
     derivation and not two.
 
     Attributes:
+        book_id: The book these highlights belong to. Not needed to *convert*
+            anything -- the conversion works off the xpointers and the file --
+            but a conversion that fails is reported with the book it failed in
+            (M3.4, #748), and a single-highlight lookup would otherwise have no
+            way to say which book that was.
         ebook_file: The stored EPUB's filename, or ``None`` if the book has no
             EPUB.
         highlights: The highlights to place.
     """
 
+    book_id: int
     ebook_file: str | None
     highlights: tuple[HighlightAnchor, ...]
 
