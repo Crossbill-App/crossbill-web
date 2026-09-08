@@ -3,6 +3,9 @@ from dependency_injector import containers, providers
 from src.application.web_reader.commands.save_reading_position_use_case import (
     SaveReadingPositionUseCase,
 )
+from src.application.web_reader.queries.get_highlight_locators_use_case import (
+    GetHighlightLocatorsUseCase,
+)
 from src.application.web_reader.queries.get_publication_positions_use_case import (
     GetPublicationPositionsUseCase,
 )
@@ -28,6 +31,7 @@ class WebReaderContainer(containers.DeclarativeContainer):
     web_publication_query = providers.Dependency()
     publication_resource_query = providers.Dependency()
     publication_positions_query = providers.Dependency()
+    highlight_anchor_query = providers.Dependency()
     web_reading_position_repository = providers.Dependency()
     reading_session_repository = providers.Dependency()
     position_anchor_service = providers.Dependency()
@@ -46,6 +50,12 @@ class WebReaderContainer(containers.DeclarativeContainer):
     get_publication_positions_use_case = providers.Factory(
         GetPublicationPositionsUseCase,
         publication_positions_query=publication_positions_query,
+    )
+
+    get_highlight_locators_use_case = providers.Factory(
+        GetHighlightLocatorsUseCase,
+        highlight_anchor_query=highlight_anchor_query,
+        position_anchor_service=position_anchor_service,
     )
 
     verify_publication_access_use_case = providers.Factory(

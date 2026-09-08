@@ -164,12 +164,25 @@ class HighlightResponseBase(HighlightBase):
 
 # Import Flashcard after HighlightResponseBase is defined to avoid circular import issues
 from src.infrastructure.learning.schemas.flashcard_schemas import Flashcard  # noqa: E402
+from src.infrastructure.web_reader.schemas.highlight_locator_schemas import (  # noqa: E402
+    HighlightLocator,
+)
 
 
 class Highlight(HighlightResponseBase):
     """Schema for Highlight response with flashcards."""
 
     flashcards: list[Flashcard] = Field(..., description="List of flashcards for this highlight")
+    locator: HighlightLocator | None = Field(
+        default=None,
+        description=(
+            "Where this highlight is in the EPUB, for the web reader to draw it. "
+            "Opt-in: null unless the request asked for it with `include=locator`, "
+            "and null on every view that has no such flag. Derived from the stored "
+            "xpointer at request time and never stored (ADR-0004 §2), so it carries "
+            "a reason of its own when the highlight cannot be placed."
+        ),
+    )
 
 
 class HighlightSyncRequest(BaseModel):

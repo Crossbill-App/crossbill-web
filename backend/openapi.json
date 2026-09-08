@@ -985,6 +985,27 @@
               "title": "Searchtext"
             },
             "description": "Text to search for in highlights"
+          },
+          {
+            "name": "include",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Optional extras to compute for each highlight. `locator` adds the Readium locator the web reader draws and jumps by, derived from the highlight's stored position against the book's EPUB. Off by default because it costs an EPUB parse, which a list that renders no decorations has no use for.",
+              "title": "Include"
+            },
+            "description": "Optional extras to compute for each highlight. `locator` adds the Readium locator the web reader draws and jumps by, derived from the highlight's stored position against the book's EPUB. Off by default because it costs an EPUB parse, which a list that renders no decorations has no use for."
           }
         ],
         "responses": {
@@ -4725,6 +4746,54 @@
         }
       }
     },
+    "/api/v1/highlights/{highlight_id}/locator": {
+      "get": {
+        "tags": [
+          "highlights"
+        ],
+        "summary": "Get Highlight Locator",
+        "description": "Get the Readium locator for one highlight, for jumping to it in the web reader.\n\nThe locator is derived from the highlight's stored KOReader position against\nthe book's EPUB at request time and is never stored, so it is verified\nagainst the highlight's own text before being returned. A highlight that\ncannot be placed answers 200 with a null locator and a reason -- the\nhighlight itself is intact, and only this view of it is missing.\n\nA highlight that does not exist, or belongs to another user, answers 404.",
+        "operationId": "get_highlight_locator",
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "highlight_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Highlight Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HighlightLocatorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/settings": {
       "get": {
         "tags": [
@@ -7178,6 +7247,17 @@
             "type": "array",
             "title": "Flashcards",
             "description": "List of flashcards for this highlight"
+          },
+          "locator": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/HighlightLocator"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Where this highlight is in the EPUB, for the web reader to draw it. Opt-in: null unless the request asked for it with `include=locator`, and null on every view that has no such flag. Derived from the stored xpointer at request time and never stored (ADR-0004 \u00a72), so it carries a reason of its own when the highlight cannot be placed."
           }
         },
         "type": "object",
@@ -7585,6 +7665,72 @@
         "type": "object",
         "title": "HighlightLabelUpdate",
         "description": "Schema for updating a highlight label."
+      },
+      "HighlightLocator": {
+        "properties": {
+          "locator": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/LocatorSchema"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The verified Readium locator, with hrefs in the same coordinates the manifest publishes. Null when the highlight cannot be placed."
+          },
+          "unavailable": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/LocatorUnavailable"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Why there is no locator: 'no_ebook' (the book has no EPUB), 'not_placeable' (the highlight was never given a position), 'unresolved' (its position names nothing in this EPUB) or 'text_mismatch' (it resolved, but onto different text -- the shape a replaced edition takes). Null when the locator is present."
+          }
+        },
+        "type": "object",
+        "title": "HighlightLocator",
+        "description": "Where a highlight is in the EPUB, or why that cannot be said.\n\nExactly one of the two fields is set, and a client must handle both: a\nlocator here is derived from the stored xpointer at request time and\nverified against the highlight's own text, so a book whose EPUB has been\nreplaced answers with reasons rather than with places (ADR-0004 \u00a75)."
+      },
+      "HighlightLocatorResponse": {
+        "properties": {
+          "locator": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/LocatorSchema"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The verified Readium locator, with hrefs in the same coordinates the manifest publishes. Null when the highlight cannot be placed."
+          },
+          "unavailable": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/LocatorUnavailable"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Why there is no locator: 'no_ebook' (the book has no EPUB), 'not_placeable' (the highlight was never given a position), 'unresolved' (its position names nothing in this EPUB) or 'text_mismatch' (it resolved, but onto different text -- the shape a replaced edition takes). Null when the locator is present."
+          },
+          "highlight_id": {
+            "type": "integer",
+            "title": "Highlight Id",
+            "description": "The highlight this locator is for"
+          }
+        },
+        "type": "object",
+        "required": [
+          "highlight_id"
+        ],
+        "title": "HighlightLocatorResponse",
+        "description": "One highlight's locator, as the single-highlight endpoint answers it."
       },
       "HighlightResponseBase": {
         "properties": {
@@ -8284,6 +8430,18 @@
         "type": "object",
         "title": "LocatorTextSchema",
         "description": "A Locator's text quote: what is at the position, and what surrounds it.\n\nFor a reading position ``highlight`` is the text the page begins on rather\nthan anything the reader marked; ``before`` and ``after`` are what make it\nfindable when the same sentence occurs twice."
+      },
+      "LocatorUnavailable": {
+        "type": "string",
+        "enum": [
+          "no_ebook",
+          "not_placeable",
+          "unresolved",
+          "text_mismatch",
+          "gone"
+        ],
+        "title": "LocatorUnavailable",
+        "description": "Why a highlight has no locator, in terms a client can act on.\n\nThe first two are about the *book* and the last three about the *highlight*,\nand keeping that line sharp is the point of the enum. ``NO_EBOOK`` says no\nhighlight in this book can be placed and nothing is wrong with any of them;\n``UNRESOLVED`` says this one highlight's position is lost. Collapsing a\nmissing file into the latter would tell a reader their positions were\ndestroyed when what is actually gone is the file.\n\nAttributes:\n    NO_EBOOK: There is no readable EPUB to derive against -- the book has\n        none stored, the file is not in the store any more, or what is there\n        does not parse. One reason for all three because a client can do\n        nothing different about them: the book cannot be opened in the\n        reader at all, and no highlight in it can be placed. Which of the\n        three it was is in the logs, where the difference between normal\n        state and data loss actually matters.\n    NOT_PLACEABLE: The highlight carries no xpointer range. Highlights\n        synced by older plugin versions, and any typed in by hand, have text\n        and no position -- they are real highlights that were never anywhere\n        in particular.\n    UNRESOLVED: The conversion failed for this highlight against an EPUB\n        that read and parsed perfectly well: its stored xpointer names a\n        place this edition does not have.\n    TEXT_MISMATCH: The conversion succeeded and landed on different text.\n        The dangerous case ADR-0004 \u00a75 exists for -- a confident locator\n        pointing at the wrong paragraph -- caught by comparing what the\n        derived anchor covers against the text stored with the highlight.\n    GONE: The highlight was deleted between the two reads a response is\n        built from -- the view that listed it, and the anchor lookup that\n        was to place it. Rare and harmless, but it still has to be *said*:\n        the schema promises a reason wherever there is no locator, and a\n        client that trusts that promise must not meet a null pair."
       },
       "Note": {
         "properties": {
