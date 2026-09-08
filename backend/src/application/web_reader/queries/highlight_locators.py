@@ -28,26 +28,44 @@ from src.domain.common.value_objects.xpoint import XPointRange
 class LocatorUnavailable(StrEnum):
     """Why a highlight has no locator, in terms a client can act on.
 
+    The first two are about the *book* and the last three about the *highlight*,
+    and keeping that line sharp is the point of the enum. ``NO_EBOOK`` says no
+    highlight in this book can be placed and nothing is wrong with any of them;
+    ``UNRESOLVED`` says this one highlight's position is lost. Collapsing a
+    missing file into the latter would tell a reader their positions were
+    destroyed when what is actually gone is the file.
+
     Attributes:
-        NO_EBOOK: The book has no EPUB stored, so there is nothing to derive
-            against. Nothing is wrong with the highlight; the reader simply
-            cannot be opened on this book at all.
+        NO_EBOOK: There is no readable EPUB to derive against -- the book has
+            none stored, the file is not in the store any more, or what is there
+            does not parse. One reason for all three because a client can do
+            nothing different about them: the book cannot be opened in the
+            reader at all, and no highlight in it can be placed. Which of the
+            three it was is in the logs, where the difference between normal
+            state and data loss actually matters.
         NOT_PLACEABLE: The highlight carries no xpointer range. Highlights
             synced by older plugin versions, and any typed in by hand, have text
             and no position -- they are real highlights that were never anywhere
             in particular.
-        UNRESOLVED: The conversion failed: the stored xpointer names a place
-            this EPUB does not have. The usual cause is a replaced file.
+        UNRESOLVED: The conversion failed for this highlight against an EPUB
+            that read and parsed perfectly well: its stored xpointer names a
+            place this edition does not have.
         TEXT_MISMATCH: The conversion succeeded and landed on different text.
             The dangerous case ADR-0004 §5 exists for -- a confident locator
             pointing at the wrong paragraph -- caught by comparing what the
             derived anchor covers against the text stored with the highlight.
+        GONE: The highlight was deleted between the two reads a response is
+            built from -- the view that listed it, and the anchor lookup that
+            was to place it. Rare and harmless, but it still has to be *said*:
+            the schema promises a reason wherever there is no locator, and a
+            client that trusts that promise must not meet a null pair.
     """
 
     NO_EBOOK = "no_ebook"
     NOT_PLACEABLE = "not_placeable"
     UNRESOLVED = "unresolved"
     TEXT_MISMATCH = "text_mismatch"
+    GONE = "gone"
 
 
 @dataclass(frozen=True)

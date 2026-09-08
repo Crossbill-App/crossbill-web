@@ -39,7 +39,10 @@ from src.infrastructure.reading.schemas import (
     HighlightSyncRequest,
     HighlightSyncResponse,
 )
-from src.infrastructure.reading.schemas.highlight_builders import build_highlight_schema
+from src.infrastructure.reading.schemas.highlight_builders import (
+    build_highlight_schema,
+    resolve_locator,
+)
 
 router = APIRouter(prefix="", tags=["highlights"])
 
@@ -60,12 +63,13 @@ def _matched_ids(view: BookHighlightSearchView) -> list[int]:
 def _build_chapter_schema(
     chapter: SearchChapterView,
     locators: dict[int, DerivedHighlightLocator],
+    wanted: bool,
 ) -> ChapterWithHighlights:
     """Build the ChapterWithHighlights schema from the search read model.
 
     Search rows carry no parent chapter or start position, and never have.
-    ``locators`` is empty unless the caller asked for them, and a highlight
-    missing from it renders with a null locator.
+    ``wanted`` says whether the caller asked for locators at all, which is what
+    separates "no locator was requested" from "this one could not be placed".
     """
     return ChapterWithHighlights(
         id=chapter.id,
@@ -74,7 +78,7 @@ def _build_chapter_schema(
         parent_id=None,
         start_position=None,
         highlights=[
-            build_highlight_schema(highlight, locators.get(highlight.id))
+            build_highlight_schema(highlight, resolve_locator(highlight.id, locators, wanted))
             for highlight in chapter.highlights
         ],
         created_at=chapter.created_at,
@@ -207,13 +211,14 @@ async def search_book_highlights(
     Results are ranked by relevance and excludes soft-deleted highlights.
     """
     view = await use_case.search_book_highlights(book_id, current_user.id.value, search_text)
+    wanted = LOCATOR_INCLUDE in (include or ())
     locators = (
         await locator_use_case.for_book(BookId(book_id), current_user.id, _matched_ids(view))
-        if LOCATOR_INCLUDE in (include or ())
+        if wanted
         else {}
     )
     return BookHighlightSearchResponse(
-        chapters=[_build_chapter_schema(chapter, locators) for chapter in view.chapters],
+        chapters=[_build_chapter_schema(chapter, locators, wanted) for chapter in view.chapters],
         total=view.total,
     )
 

@@ -17,6 +17,7 @@ not as a 500, because the canonical xpointer is safely stored either way and
 only this view of it is lost.
 """
 
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
@@ -25,7 +26,18 @@ from httpx import AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession
 from starlette import status
 
+from src.application.common.queries.highlight_row import HighlightRow
+from src.application.web_reader.anchors import Locator, LocatorText
+from src.application.web_reader.queries.highlight_locators import (
+    DerivedHighlightLocator,
+    LocatorUnavailable,
+)
 from src.infrastructure.library.repositories.file_repository import FileRepository
+from src.infrastructure.reading.schemas.highlight_builders import (
+    build_highlight_schema,
+    resolve_locator,
+)
+from src.infrastructure.web_reader.schemas.highlight_locator_schemas import HighlightLocator
 from src.models import Book, User
 from tests.conftest import create_test_book, create_test_chapter, create_test_highlight
 from tests.test_readium_manifest import fixture_bytes, store_epub
@@ -116,20 +128,33 @@ async def book_with_highlights(
     epub_filename: str,
     *,
     with_epub: bool = True,
+    epub_content: bytes | None = None,
+    delete_file: bool = False,
 ) -> Book:
     """A book of the fixture EPUB, with one placeable highlight in each chapter.
 
     Each test gets its own ``epub_filename``. The anchor service caches parsed
     publications by that name for the life of the process, so sharing one across
     tests would let a parse outlive the test that stored it.
+
+    The three ways a book can have no readable EPUB are all reachable from here,
+    because they are one answer with three causes: ``with_epub=False`` leaves the
+    column null, ``delete_file`` names a file that is not in the store, and
+    ``epub_content`` can be bytes that will not parse.
     """
     book = await create_test_book(
         db_session=db_session, user_id=user.id, title="Placed Book", author="A"
     )
     if with_epub:
         await store_epub(
-            db_session, book, storage_dir, fixture_bytes("minimal.epub"), filename=epub_filename
+            db_session,
+            book,
+            storage_dir,
+            epub_content if epub_content is not None else fixture_bytes("minimal.epub"),
+            filename=epub_filename,
         )
+        if delete_file:
+            (storage_dir / epub_filename).unlink()
     one = await create_test_chapter(db_session, book, name="Chapter One", chapter_number=1)
     two = await create_test_chapter(db_session, book, name="Chapter Two", chapter_number=2)
     await create_test_highlight(
@@ -357,23 +382,51 @@ class TestLocatorsForABooksHighlights:
         assert loose["locator"] is None
         assert loose["unavailable"] == "not_placeable"
 
-    async def test_a_book_with_no_epub_says_so_rather_than_failing(
+    @pytest.mark.parametrize(
+        ("cause", "stored"),
+        [
+            ("no EPUB was ever stored", {"with_epub": False}),
+            ("the file is gone from the store", {"delete_file": True}),
+            ("what is stored will not parse", {"epub_content": b"not an epub at all"}),
+        ],
+    )
+    async def test_a_book_with_no_readable_epub_says_so_for_every_highlight(
         self,
         client: AsyncClient,
         db_session: AsyncSession,
         test_user: User,
         storage_dir: Path,
+        cause: str,
+        stored: dict[str, Any],
     ) -> None:
+        """Three causes, one answer -- and never `unresolved`.
+
+        Each of these highlights has a perfectly good xpointer, and they all
+        fail together because the *book* cannot be read. Reporting them as
+        `unresolved` would tell a reader their positions were lost when what is
+        gone is the file; a book-wide failure has to stay distinguishable from a
+        per-highlight one.
+
+        The three are one reason on the wire because a client can do nothing
+        different about them: the book cannot be opened in the reader at all.
+        Which of the three it was is a matter for the logs, where the difference
+        between normal state and data loss is what matters.
+        """
         book = await book_with_highlights(
-            db_session, test_user, storage_dir, "absent.epub", with_epub=False
+            db_session, test_user, storage_dir, f"unreadable-{len(cause)}.epub", **stored
         )
 
         response = await client.get(
-            highlights_url(book.id), params={"searchText": "lantern", "include": "locator"}
+            highlights_url(book.id), params={"searchText": "o", "include": "locator"}
         )
 
-        assert response.status_code == status.HTTP_200_OK
-        assert by_text(response.json())[LANTERN]["locator"]["unavailable"] == "no_ebook"
+        assert response.status_code == status.HTTP_200_OK, cause
+        placed = by_text(response.json())
+        assert len(placed) == 3
+        assert all(
+            highlight["locator"] == {"locator": None, "unavailable": "no_ebook"}
+            for highlight in placed.values()
+        ), cause
 
     async def test_another_users_book_is_not_found(
         self,
@@ -389,6 +442,80 @@ class TestLocatorsForABooksHighlights:
         )
 
         assert response.status_code == status.HTTP_404_NOT_FOUND
+
+
+class TestAHighlightDeletedMidResponse:
+    """The one shape the API cannot be made to produce, and must still not emit.
+
+    A search response is built from two reads: the view that lists the
+    highlights, and the anchor lookup that places them. A DELETE landing between
+    the two drops a row from the second, and the highlight would then render
+    with a null locator *and* a null reason -- the one combination
+    ``HighlightLocator`` documents as impossible, and the one a client written
+    against that promise has no branch for.
+
+    The window is too small to open through the API, so the rule is exercised
+    where it lives -- beside the schema whose promise it keeps. No mocks: this
+    is the real read-model row and the real derived answer the response is built
+    from, asserted on the rendered schema rather than on the plumbing.
+    """
+
+    def a_row(self, highlight_id: int) -> HighlightRow:
+        """One highlight, as the search read model hands it to the builder."""
+        moment = datetime(2024, 1, 1, 10, tzinfo=UTC).replace(tzinfo=None)
+        return HighlightRow(
+            id=highlight_id,
+            book_id=1,
+            chapter_id=1,
+            chapter_name="Chapter One",
+            chapter_number=1,
+            text=LANTERN,
+            page=None,
+            datetime=moment,
+            label=None,
+            removed_from_devices=False,
+            tags=(),
+            flashcards=(),
+            created_at=moment,
+            updated_at=moment,
+        )
+
+    def rendered(
+        self, locators: dict[int, DerivedHighlightLocator], wanted: bool
+    ) -> HighlightLocator | None:
+        """What the response carries for highlight 7, given what was placed."""
+        row = self.a_row(7)
+        return build_highlight_schema(row, resolve_locator(row.id, locators, wanted)).locator
+
+    def test_a_highlight_the_anchor_lookup_no_longer_sees_reports_gone(self) -> None:
+        locator = self.rendered({}, True)
+
+        assert locator is not None, "a requested locator must never come back as no answer at all"
+        assert locator.locator is None
+        assert locator.unavailable == LocatorUnavailable.GONE
+
+    def test_without_the_flag_the_same_gap_is_simply_no_locator(self) -> None:
+        """Nothing was asked for, so nothing missing is being reported."""
+        assert self.rendered({}, False) is None
+
+    def test_a_highlight_the_lookup_did_place_keeps_its_locator(self) -> None:
+        """The fill must not swallow the answers that did arrive."""
+        placed = DerivedHighlightLocator(
+            highlight_id=7,
+            locator=Locator(
+                href="OEBPS/chapter1.xhtml",
+                type="application/xhtml+xml",
+                text=LocatorText(highlight=LANTERN),
+            ),
+        )
+
+        locator = self.rendered({7: placed}, True)
+
+        assert locator is not None
+        assert locator.unavailable is None
+        assert locator.locator is not None
+        assert locator.locator.href == CHAPTER_ONE_HREF
+        assert locator.locator.text.highlight == LANTERN
 
 
 class TestOneHighlightsLocator:
@@ -447,6 +574,37 @@ class TestOneHighlightsLocator:
             "unavailable": "unresolved",
         }
 
+    async def test_an_epub_gone_from_the_store_is_no_ebook_here_too(
+        self,
+        client: AsyncClient,
+        db_session: AsyncSession,
+        test_user: User,
+        storage_dir: Path,
+    ) -> None:
+        book = await book_with_highlights(
+            db_session, test_user, storage_dir, "single-vanished.epub", delete_file=True
+        )
+        chapter = await create_test_chapter(db_session, book, name="Chapter Three")
+        orphan = await create_test_highlight(
+            db_session,
+            book,
+            test_user.id,
+            text="Still perfectly well placed, in a file that is not there.",
+            datetime_str=WHEN,
+            chapter_id=chapter.id,
+            start_xpoint=LANTERN_XPOINTS[0],
+            end_xpoint=LANTERN_XPOINTS[1],
+        )
+
+        response = await client.get(locator_url(orphan.id))
+
+        assert response.status_code == status.HTTP_200_OK
+        assert response.json() == {
+            "highlight_id": orphan.id,
+            "locator": None,
+            "unavailable": "no_ebook",
+        }
+
     async def test_an_unknown_highlight_is_not_found(self, client: AsyncClient) -> None:
         response = await client.get(locator_url(999_999))
 
@@ -485,8 +643,6 @@ class TestOneHighlightsLocator:
         test_user: User,
         test_book: Book,
     ) -> None:
-        from datetime import UTC, datetime  # noqa: PLC0415
-
         gone = await create_test_highlight(
             db_session,
             test_book,

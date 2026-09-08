@@ -92,40 +92,52 @@ class GetHighlightLocatorsUseCase:
             for anchor in anchors.highlights
             if anchor.xpoints is not None
         }
-        converted = await self._converted(anchors.ebook_file, placeable)
+        converted, unreadable = await self._converted(anchors.ebook_file, placeable)
         return {
-            anchor.highlight_id: self._answer(anchor, anchors.ebook_file, converted)
+            anchor.highlight_id: self._answer(anchor, unreadable, converted)
             for anchor in anchors.highlights
         }
 
     async def _converted(
         self, ebook_file: str | None, placeable: dict[int, XPointRange]
-    ) -> dict[int, Locator | None]:
-        """The conversions the anchor port could make, empty if the book cannot be read.
+    ) -> tuple[dict[int, Locator | None], LocatorUnavailable | None]:
+        """The conversions the anchor port could make, and whether the book defeated it.
 
-        A book-wide failure -- no EPUB stored, or one that will not parse -- is
-        caught here rather than raised, because it degrades every highlight
-        equally and each of them reports it for itself.
+        A book-wide failure is caught here rather than raised, because it
+        degrades every highlight equally and each of them reports it for itself.
+        But it is carried back out as a *reason* rather than as an empty
+        mapping: an empty mapping is indistinguishable from "every one of these
+        xpointers failed", and answering a missing file with ``UNRESOLVED``
+        would tell a reader their positions were lost when what is gone is the
+        EPUB. The anchor port raises here only for the whole book -- a range it
+        cannot convert comes back as a ``None`` value inside the mapping -- so
+        catching it is unambiguous.
         """
-        if ebook_file is None or not placeable:
-            return {}
+        if ebook_file is None:
+            return {}, LocatorUnavailable.NO_EBOOK
+        if not placeable:
+            return {}, None
         try:
-            return await self.position_anchor_service.locators_for_xpoint_ranges(
+            converted = await self.position_anchor_service.locators_for_xpoint_ranges(
                 ebook_file, placeable
             )
         except AnchorResolutionError as exc:
-            logger.info("unreadable_publication_for_highlights", extra={"reason": str(exc)})
-            return {}
+            logger.info(
+                "unreadable_publication_for_highlights",
+                extra={"ebook_file": ebook_file, "reason": str(exc)},
+            )
+            return {}, LocatorUnavailable.NO_EBOOK
+        return converted, None
 
     def _answer(
         self,
         anchor: HighlightAnchor,
-        ebook_file: str | None,
+        unreadable: LocatorUnavailable | None,
         converted: dict[int, Locator | None],
     ) -> DerivedHighlightLocator:
         """Grade one highlight's conversion, verifying it before trusting it."""
-        if ebook_file is None:
-            return _unavailable(anchor, LocatorUnavailable.NO_EBOOK)
+        if unreadable is not None:
+            return _unavailable(anchor, unreadable)
         if anchor.xpoints is None:
             return _unavailable(anchor, LocatorUnavailable.NOT_PLACEABLE)
 

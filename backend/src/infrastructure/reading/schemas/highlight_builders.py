@@ -4,14 +4,42 @@ Lives beside the schema it produces so that every router rendering a highlight
 -- book details, in-book search -- gets the same field mapping.
 """
 
+from collections.abc import Mapping
+
 from src.application.common.queries.highlight_row import HighlightRow
-from src.application.web_reader.queries.highlight_locators import DerivedHighlightLocator
+from src.application.web_reader.queries.highlight_locators import (
+    DerivedHighlightLocator,
+    LocatorUnavailable,
+)
 from src.infrastructure.learning.schemas.flashcard_schemas import Flashcard
 from src.infrastructure.reading.schemas.highlight_schemas import Highlight, HighlightLabel
 from src.infrastructure.tagging.schemas.tag_schemas import TagInBook
 from src.infrastructure.web_reader.schemas.highlight_locator_schemas import (
     build_highlight_locator,
 )
+
+
+def resolve_locator(
+    highlight_id: int,
+    locators: Mapping[int, DerivedHighlightLocator],
+    wanted: bool,
+) -> DerivedHighlightLocator | None:
+    """One highlight's derived locator, or ``None`` if the caller asked for none.
+
+    Lives here, beside the schema, because it is that schema's promise it keeps.
+    A highlight list and the anchor lookup that places it are two reads, and a
+    highlight deleted between them is in the first and not the second. Falling
+    through to ``None`` would then render a highlight with no locator *and* no
+    reason -- the one combination :class:`HighlightLocator` documents as
+    impossible, and the one a client written against that promise has no branch
+    for. So a gap where an answer was asked for is reported as
+    :attr:`LocatorUnavailable.GONE` rather than passed on as silence.
+    """
+    if not wanted:
+        return None
+    return locators.get(highlight_id) or DerivedHighlightLocator(
+        highlight_id=highlight_id, unavailable=LocatorUnavailable.GONE
+    )
 
 
 def build_highlight_schema(
