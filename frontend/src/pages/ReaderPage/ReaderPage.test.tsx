@@ -1869,6 +1869,7 @@ test('a landing the navigator refused opens at the start without emphasising any
   await tintsOnThePage().toEqual([YELLOW_TINT]);
   expect(await emphasisAppearsWithin(EMPHASIS_RAMP_MS)).toBe(false);
 }, 30_000);
+
 /**
  * A ReadiumCSS custom property as it stands in the frame the reader is looking
  * at.
@@ -1891,6 +1892,7 @@ const openAppearance = async (screen: Screen) => {
   await screen.getByRole('button', { name: 'Appearance' }).click();
   await expect.element(screen.getByRole('heading', { name: 'Text alignment' })).toBeVisible();
 };
+
 /**
  * Justification is the setting worth proving end to end: unlike a colour or a
  * font size it is one ReadiumCSS applies only when it is *told* to, leaving the
@@ -1908,6 +1910,7 @@ test('an alignment the reader chooses reaches the words on the page', async () =
 
   await expect.poll(() => readiumProperty('--USER__textAlign')).toBe('justify');
 });
+
 /**
  * The whole point of the popover is that it is set once. A reader who justified
  * their text on Monday is not asking to be shown the publisher's ragged right
@@ -1944,6 +1947,7 @@ test('an appearance the reader set is still set when a book is opened again', as
     .element(screen.getByRole('button', { name: 'Justified' }))
     .toHaveAttribute('aria-pressed', 'true');
 }, 30_000);
+
 /**
  * Storage is a place other things write to, and a browser is entitled to hand
  * back whatever is under a key. None of that is the reader's problem: a book
@@ -1964,6 +1968,7 @@ test('an appearance stored as nonsense opens the book on the defaults', async ()
     .element(screen.getByRole('button', { name: 'Light' }))
     .toHaveAttribute('aria-pressed', 'true');
 });
+
 /**
  * A wide screen fills itself with columns, which is more text per line than
  * some people want to read. The switch is what caps it at one.
@@ -1979,6 +1984,7 @@ test('the single-column switch holds a wide page to one column', async () => {
 
   await expect.poll(columnCount).toBe('1');
 });
+
 /**
  * Below the breakpoint the viewport only ever fits one column, so Readium's own
  * automatic count is already one and the switch would be a control that changed
@@ -1994,4 +2000,34 @@ test('the column switch is not offered where there is no room for a second colum
   await expect
     .element(screen.getByRole('switch', { name: 'Single column' }))
     .not.toBeInTheDocument();
+});
+
+/**
+ * A contents list of ninety chapters that says nothing about where you are is a
+ * list you have to search to find yourself in. The mark is resource-granular,
+ * because that is all a reading position reliably says.
+ */
+test('the contents mark the chapter being read, and follow the reader out of it', async () => {
+  aBookWithAnEpub();
+  const screen = await openTheBook();
+
+  await screen.getByRole('button', { name: 'Contents' }).click();
+  const contents = screen.getByRole('navigation', { name: 'Table of contents' });
+  await expect
+    .element(contents.getByRole('button', { name: 'On Attention' }))
+    .toHaveAttribute('aria-current', 'location');
+  await expect
+    .element(contents.getByRole('button', { name: 'On Memory' }))
+    .not.toHaveAttribute('aria-current');
+  await screen.getByRole('button', { name: 'Close contents' }).click();
+
+  await turnThePage(screen);
+
+  await screen.getByRole('button', { name: 'Contents' }).click();
+  await expect
+    .element(contents.getByRole('button', { name: 'On Memory' }))
+    .toHaveAttribute('aria-current', 'location');
+  await expect
+    .element(contents.getByRole('button', { name: 'On Attention' }))
+    .not.toHaveAttribute('aria-current');
 });

@@ -798,6 +798,7 @@ export const ReaderShell = ({
         onClose={() => setIsTocOpen(false)}
         toc={publication?.toc?.items ?? []}
         onSelect={goToTocEntry}
+        currentHref={locator?.href ?? null}
       />
     </Box>
   );
