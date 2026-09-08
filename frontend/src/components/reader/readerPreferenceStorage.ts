@@ -40,10 +40,24 @@ interface StoredPreferences {
    * tracks the library rather than a hand-copy of it. It is also the
    * validation: `EpubPreferences` re-checks every field it parses — a font
    * size outside the supported range, an alignment that is not one of the
-   * four, a negative column count — and drops whatever it cannot use.
+   * four, a negative column count — and drops whatever it cannot use. A blob
+   * it cannot parse at all comes back as `null`, having said so on the console
+   * on its way; the reader gets the defaults either way.
    */
   epub: string;
 }
+
+/** The version of the record already written here, or `null` if there is none. */
+const storedVersion = (): number | null => {
+  try {
+    const raw = window.localStorage.getItem(READER_PREFERENCES_KEY);
+    if (raw === null) return null;
+    const stored = JSON.parse(raw) as Partial<StoredPreferences> | null;
+    return typeof stored?.version === 'number' ? stored.version : null;
+  } catch {
+    return null;
+  }
+};
 
 const storedTheme = (value: unknown): ReaderThemeName =>
   READER_THEMES.find((name) => name === value) ?? DEFAULT_READER_PREFERENCES.theme;
@@ -82,9 +96,23 @@ export const loadReaderPreferences = (): ReaderPreferences => {
   }
 };
 
-/** Writes the reader's appearance down, where the browser lets us. */
+/**
+ * Writes the reader's appearance down, where the browser lets us — and never
+ * over a record from a later version of this app.
+ *
+ * Without that guard the version field would enable the very loss it exists to
+ * prevent. A reader who has used a newer build in another browser tab, or who
+ * loads an older one from a stale cache, has a record this code cannot read;
+ * it falls back to the defaults, and the save on mount would then write those
+ * defaults over their real settings, permanently. Refusing to overwrite costs
+ * this session's changes, which the reader can make again; overwriting costs
+ * settings they cannot get back.
+ */
 export const saveReaderPreferences = (preferences: ReaderPreferences): void => {
   try {
+    const existing = storedVersion();
+    if (existing !== null && existing > STORAGE_VERSION) return;
+
     const stored: StoredPreferences = {
       version: STORAGE_VERSION,
       theme: preferences.theme,

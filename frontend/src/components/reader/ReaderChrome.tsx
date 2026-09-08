@@ -18,6 +18,11 @@ interface ReaderChromeProps {
   fontSizeStep: number;
   /** Passed through to the appearance popover; see `ReaderSettings`. */
   canChooseColumns: boolean;
+  /**
+   * Called as the popover opens, so the shell can measure the layout it is
+   * about to offer controls for while that layout is settled.
+   */
+  onOpenSettings: () => void;
 }
 
 /**
@@ -38,6 +43,7 @@ export const ReaderChrome = ({
   fontSizeRange,
   fontSizeStep,
   canChooseColumns,
+  onOpenSettings,
 }: ReaderChromeProps) => {
   const [settingsAnchor, setSettingsAnchor] = useState<HTMLElement | null>(null);
 
@@ -72,7 +78,12 @@ export const ReaderChrome = ({
 
         <Tooltip title="Appearance">
           <IconButton
-            onClick={(event) => setSettingsAnchor(event.currentTarget)}
+            onClick={(event) => {
+              // Before the anchor, so the measurement and the opening land in
+              // one render and the popover never shows a stale set of controls.
+              onOpenSettings();
+              setSettingsAnchor(event.currentTarget);
+            }}
             aria-label="Appearance"
             color="inherit"
           >

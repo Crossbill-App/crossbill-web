@@ -33,7 +33,7 @@ import {
   useTheme,
 } from '@mui/material';
 import { EpubNavigator } from '@readium/navigator';
-import type { Link, Locator } from '@readium/shared';
+import type { Link, Locator, TimelineItem } from '@readium/shared';
 import { useCallback, useEffect, useRef, useState } from 'react';
 
 /**
@@ -235,6 +235,30 @@ export const ReaderShell = ({
   const [isPageVisible, setIsPageVisible] = useState(false);
   const [locator, setLocator] = useState<Locator | null>(null);
   const [isTocOpen, setIsTocOpen] = useState(false);
+  /**
+   * The contents entry the reader is currently in, or `null` where the book's
+   * contents do not name it.
+   *
+   * Resolved by Readium's own `Timeline.tocEntryFor` rather than by matching
+   * hrefs here. It answers in three tiers — the entry for this resource, then
+   * the nearest preceding entry *within* the resource, then the nearest
+   * preceding resource's entry — and the last two are worth more than a
+   * hand-rolled match: the second marks the right section of a book published
+   * as one long file, and the third marks a cover or an interstitial with the
+   * chapter it follows rather than leaving the reader unplaced.
+   */
+  const [currentTocEntry, setCurrentTocEntry] = useState<Link | null>(null);
+  /**
+   * Whether the page is actually laid out in more than one column.
+   *
+   * Measured rather than inferred from the viewport, because the breakpoint is
+   * the wrong question: Readium fits as many columns as the *optimal line
+   * length* allows, so a 900px window, an iPad and any screen at all once the
+   * font size is up are all single-column while being nowhere near a phone.
+   * Read when the appearance popover opens, which is the moment the answer
+   * matters and a moment when the layout has settled.
+   */
+  const [columnsArePossible, setColumnsArePossible] = useState(false);
   const [bootFailed, setBootFailed] = useState(false);
   // Bumped to ask for the whole navigator again, which is the only meaningful
   // retry: a half-built one has frames and blobs that have to go first.
@@ -248,6 +272,20 @@ export const ReaderShell = ({
   // rather than read off the instance while rendering: the editor is a live
   // object hanging off a ref, and a ref is not something a render may consult.
   const [fontSizeBounds, setFontSizeBounds] = useState(DEFAULT_FONT_SIZE_BOUNDS);
+
+  // Stable, and reads the navigator out of the ref, so that wiring it into the
+  // navigator's listeners is not a reason to rebuild the reader.
+  const markTimelineItem = useCallback((item: TimelineItem | undefined) => {
+    const navigator = navigatorRef.current;
+    setCurrentTocEntry(
+      navigator && item ? (navigator.timeline.tocEntryFor(item)?.link ?? null) : null
+    );
+  }, []);
+
+  const measureColumns = useCallback(() => {
+    const columns = navigatorRef.current?.settings.columnCount ?? null;
+    setColumnsArePossible(columns !== null && columns > 1);
+  }, []);
 
   const goForward = useCallback(() => navigatorRef.current?.goForward(true, () => {}), []);
   const goBackward = useCallback(() => navigatorRef.current?.goBackward(true, () => {}), []);
@@ -460,7 +498,11 @@ export const ReaderShell = ({
            * until then, selecting text does what selecting text does.
            */
           textSelected: () => {},
-          timelineItemChanged: () => {},
+          /**
+           * The reader has moved into a different part of the book's own
+           * timeline, which is what marks their place in the contents.
+           */
+          timelineItemChanged: markTimelineItem,
           // Readium pages the book itself on a pointer in the outer quarters of
           // a frame unless the listener claims the event. It has to stay
           // claimed: `useReaderTapZones` is what turns pages here, and a tap
@@ -535,6 +577,9 @@ export const ReaderShell = ({
         if (isStale()) return;
       }
       setLocator(epubNavigator.currentLocator);
+      // The navigator reports a timeline item only when it *changes*, so the
+      // place the book opened at has to be asked for rather than waited for.
+      markTimelineItem(epubNavigator.timeline.locate(epubNavigator.currentLocator));
       // The book is on screen and settled, so from here on a report is the
       // reader's own doing. Set synchronously rather than through state: the
       // settle report follows the layout by microtasks, and a render is not
@@ -619,6 +664,7 @@ export const ReaderShell = ({
     // a highlight being drawn is never a reason to rebuild the reader.
     decorationObserver,
     applyDecorations,
+    markTimelineItem,
   ]);
 
   // Said once the book is on screen, so the reader reads it against the page it
@@ -721,11 +767,14 @@ export const ReaderShell = ({
         onPreferencesChange={setPreferences}
         fontSizeRange={fontSizeBounds.range}
         fontSizeStep={fontSizeBounds.step}
-        // Below the breakpoint the viewport only ever fits one column, so
-        // Readium's own automatic count is already one and the switch would be
-        // a control that did nothing. The setting itself is untouched — it is
-        // global, and still in force on the desktop it was set from.
-        canChooseColumns={!isCompact}
+        onOpenSettings={measureColumns}
+        // Offered only where it would do something: where the page really is
+        // in more than one column, or where the reader has already asked for
+        // one and must be able to ask for the other again. A single-column
+        // layout the reader never chose is Readium's answer to the width and
+        // the font size, and a switch to force what is already true would be a
+        // control that changed nothing.
+        canChooseColumns={preferences.singleColumn || columnsArePossible}
       />
 
       <Box sx={{ flex: 1, minHeight: 0, position: 'relative' }}>
@@ -798,7 +847,7 @@ export const ReaderShell = ({
         onClose={() => setIsTocOpen(false)}
         toc={publication?.toc?.items ?? []}
         onSelect={goToTocEntry}
-        currentHref={locator?.href ?? null}
+        current={currentTocEntry}
       />
     </Box>
   );

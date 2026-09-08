@@ -12,7 +12,7 @@ import {
   Typography,
 } from '@mui/material';
 import type { Link } from '@readium/shared';
-import { useEffect, useMemo, useRef } from 'react';
+import { useCallback } from 'react';
 
 /**
  * The href the API gives a heading that links nowhere — a part title with
@@ -24,75 +24,26 @@ const UNLINKED_HREF = '#';
 /** How far one level of nesting indents a chapter under its parent. */
 const INDENT_PER_LEVEL = 2;
 
-/**
- * The resource an href names, without the fragment or the query that follows
- * it. A contents entry may point into the middle of a chapter file; where the
- * reader *is* is only ever known by the file.
- */
-const resourceOf = (href: string): string => href.split(/[#?]/)[0];
-
-interface FlatEntry {
-  entry: Link;
-  depth: number;
-}
-
-/** Every entry of a contents tree, parents before their children. */
-const flatten = (entries: Link[], depth: number): FlatEntry[] =>
-  entries.flatMap((entry) => [
-    { entry, depth },
-    ...flatten(entry.children?.items ?? [], depth + 1),
-  ]);
-
-/**
- * Which entry of the contents the reader is currently inside, or `null` when
- * the book's contents do not name where they are.
- *
- * Resource-granular, because that is all a reading position reliably says: a
- * locator carries the file, and the sections within a file are the contents
- * page's own idea. Two rules turn the several entries that can share a file
- * into one answer.
- *
- * **Entries naming the whole file beat entries naming a section of it.** The
- * reader is *somewhere* in the chapter, and only the entry for the chapter
- * itself is true of wherever that is; picking one of its sections would be
- * marking a place nobody has been told they are at. Where every match names a
- * section — a book published as one long file, with its contents made of
- * fragments — there is no such entry and the first is the best available guess.
- *
- * **Then the deepest wins.** A part heading and the first chapter under it
- * routinely share an href, and the chapter is the more specific of the two.
- */
-const currentEntry = (toc: Link[], currentHref: string | null): Link | null => {
-  if (currentHref === null) return null;
-  const resource = resourceOf(currentHref);
-  const matches = flatten(toc, 0).filter(
-    ({ entry }) => entry.href !== UNLINKED_HREF && resourceOf(entry.href) === resource
-  );
-  if (matches.length === 0) return null;
-
-  const wholeResource = matches.filter(({ entry }) => !entry.href.includes('#'));
-  const candidates = wholeResource.length > 0 ? wholeResource : matches;
-  return candidates.reduce((deepest, candidate) =>
-    candidate.depth > deepest.depth ? candidate : deepest
-  ).entry;
-};
-
 interface TocDrawerProps {
   open: boolean;
   onClose: () => void;
   toc: Link[];
   onSelect: (link: Link) => void;
-  /** The resource the reader is in, from the navigator's own current locator. */
-  currentHref: string | null;
+  /**
+   * The entry the reader is currently in, resolved by Readium's own
+   * `Timeline.tocEntryFor` — see `ReaderShell`. Compared by identity, because
+   * that is the same `Link` object this tree is rendered from.
+   */
+  current: Link | null;
 }
 
 interface TocEntriesProps {
   entries: Link[];
   depth: number;
   onSelect: (link: Link) => void;
-  /** The one entry to mark, compared by identity — both come from the manifest. */
   current: Link | null;
-  currentRef: React.Ref<HTMLDivElement>;
+  /** Attached to the marked entry, which scrolls it into view as it mounts. */
+  currentRef: (node: HTMLDivElement | null) => void;
 }
 
 const TocEntries = ({ entries, depth, onSelect, current, currentRef }: TocEntriesProps) => (
@@ -142,16 +93,26 @@ const TocEntries = ({ entries, depth, onSelect, current, currentRef }: TocEntrie
  * of ninety chapters that always opens at chapter one is a list you have to
  * search to find yourself in.
  */
-export const TocDrawer = ({ open, onClose, toc, onSelect, currentHref }: TocDrawerProps) => {
-  const current = useMemo(() => currentEntry(toc, currentHref), [toc, currentHref]);
-  const currentRef = useRef<HTMLDivElement | null>(null);
-
-  useEffect(() => {
-    // The drawer mounts its contents as it opens, so this runs with the marked
-    // entry already laid out inside the scrolling panel. `nearest` because a
-    // chapter that is on screen anyway should not be moved under the reader.
-    if (open) currentRef.current?.scrollIntoView({ block: 'nearest' });
-  }, [open, current]);
+export const TocDrawer = ({ open, onClose, toc, onSelect, current }: TocDrawerProps) => {
+  /**
+   * Scrolls the marked entry into view as it attaches.
+   *
+   * A callback ref rather than an effect, and that is the whole point. A
+   * temporary `Drawer` renders nothing at all while it is closed, and MUI's
+   * `Portal` returns `null` on its first render — it only has a container to
+   * render into once its own layout effect has run. So the commit in which
+   * `open` becomes true mounts no list at all, and an effect keyed on `open`
+   * fires in exactly that commit, with nothing to scroll to; the commit that
+   * does mount the list changes none of that effect's dependencies, so it
+   * never runs again. The ref, by contrast, fires when the entry itself
+   * arrives, which is the first moment the question can be answered.
+   *
+   * Stable, so it fires on the marked entry appearing and moving rather than
+   * on every render of the list.
+   */
+  const currentRef = useCallback((node: HTMLDivElement | null) => {
+    node?.scrollIntoView({ block: 'center' });
+  }, []);
 
   return (
     <Drawer anchor="left" open={open} onClose={onClose}>
