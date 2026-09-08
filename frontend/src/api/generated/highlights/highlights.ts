@@ -25,6 +25,7 @@ import type {
   HTTPValidationError,
   HighlightDeleteRequest,
   HighlightDeleteResponse,
+  HighlightLocatorResponse,
   HighlightSyncRequest,
   HighlightSyncResponse,
   SearchBookHighlightsParams,
@@ -484,3 +485,136 @@ export const useDeleteHighlights = <TError = HTTPValidationError, TContext = unk
 > => {
   return useMutation(getDeleteHighlightsMutationOptions(options), queryClient);
 };
+/**
+ * Get the Readium locator for one highlight, for jumping to it in the web reader.
+ *
+ * The locator is derived from the highlight's stored KOReader position against
+ * the book's EPUB at request time and is never stored, so it is verified
+ * against the highlight's own text before being returned. A highlight that
+ * cannot be placed answers 200 with a null locator and a reason -- the
+ * highlight itself is intact, and only this view of it is missing.
+ *
+ * A highlight that does not exist, or belongs to another user, answers 404.
+ * @summary Get Highlight Locator
+ */
+export const getHighlightLocator = (highlightId: number, signal?: AbortSignal) => {
+  return axiosInstance<HighlightLocatorResponse>({
+    url: `/api/v1/highlights/${highlightId}/locator`,
+    method: 'GET',
+    signal,
+  });
+};
+
+export const getGetHighlightLocatorQueryKey = (highlightId: number) => {
+  return [`/api/v1/highlights/${highlightId}/locator`] as const;
+};
+
+export const getGetHighlightLocatorQueryOptions = <
+  TData = Awaited<ReturnType<typeof getHighlightLocator>>,
+  TError = HTTPValidationError,
+>(
+  highlightId: number,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<Awaited<ReturnType<typeof getHighlightLocator>>, TError, TData>
+    >;
+  }
+) => {
+  const { query: queryOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getGetHighlightLocatorQueryKey(highlightId);
+
+  const queryFn: QueryFunction<Awaited<ReturnType<typeof getHighlightLocator>>> = ({ signal }) =>
+    getHighlightLocator(highlightId, signal);
+
+  return {
+    queryKey,
+    queryFn,
+    enabled: highlightId !== null && highlightId !== undefined,
+    ...queryOptions,
+  } as UseQueryOptions<Awaited<ReturnType<typeof getHighlightLocator>>, TError, TData> & {
+    queryKey: DataTag<QueryKey, TData, TError>;
+  };
+};
+
+export type GetHighlightLocatorQueryResult = NonNullable<
+  Awaited<ReturnType<typeof getHighlightLocator>>
+>;
+export type GetHighlightLocatorQueryError = HTTPValidationError;
+
+export function useGetHighlightLocator<
+  TData = Awaited<ReturnType<typeof getHighlightLocator>>,
+  TError = HTTPValidationError,
+>(
+  highlightId: number,
+  options: {
+    query: Partial<
+      UseQueryOptions<Awaited<ReturnType<typeof getHighlightLocator>>, TError, TData>
+    > &
+      Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getHighlightLocator>>,
+          TError,
+          Awaited<ReturnType<typeof getHighlightLocator>>
+        >,
+        'initialData'
+      >;
+  },
+  queryClient?: QueryClient
+): DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+export function useGetHighlightLocator<
+  TData = Awaited<ReturnType<typeof getHighlightLocator>>,
+  TError = HTTPValidationError,
+>(
+  highlightId: number,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<Awaited<ReturnType<typeof getHighlightLocator>>, TError, TData>
+    > &
+      Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getHighlightLocator>>,
+          TError,
+          Awaited<ReturnType<typeof getHighlightLocator>>
+        >,
+        'initialData'
+      >;
+  },
+  queryClient?: QueryClient
+): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+export function useGetHighlightLocator<
+  TData = Awaited<ReturnType<typeof getHighlightLocator>>,
+  TError = HTTPValidationError,
+>(
+  highlightId: number,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<Awaited<ReturnType<typeof getHighlightLocator>>, TError, TData>
+    >;
+  },
+  queryClient?: QueryClient
+): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+/**
+ * @summary Get Highlight Locator
+ */
+
+export function useGetHighlightLocator<
+  TData = Awaited<ReturnType<typeof getHighlightLocator>>,
+  TError = HTTPValidationError,
+>(
+  highlightId: number,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<Awaited<ReturnType<typeof getHighlightLocator>>, TError, TData>
+    >;
+  },
+  queryClient?: QueryClient
+): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+  const queryOptions = getGetHighlightLocatorQueryOptions(highlightId, options);
+
+  const query = useQuery(queryOptions, queryClient) as UseQueryResult<TData, TError> & {
+    queryKey: DataTag<QueryKey, TData, TError>;
+  };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
