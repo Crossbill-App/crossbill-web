@@ -114,6 +114,12 @@ ADR gets an amendment. Persistence is deferred rather than adopted because a
 persisted anchor is a second copy of a position that can silently disagree with
 the first, and that cost is only worth paying against a measured number.
 
+**Measured, 2026-09-08 — see *Amendment 5*.** The threshold was exceeded (561 ms
+worst book), and persistence was still not adopted: the cost turned out to be a
+quadratic selector generator in `xpoint-cfi` rather than anything this cache or
+a persisted anchor addresses. Read the amendment before acting on the paragraph
+above; the trigger it describes has already fired.
+
 ### 5. Every derived anchor is verified
 
 A conversion is not trusted because it returned. **The text the derived anchor
@@ -246,7 +252,10 @@ here as a new amendment; there is no open one to wait for.
 
 - **#731 (M0.2)** — `xpoint-cfi` has no locator output yet. Until it lands,
   nothing in this ADR's §2 is implementable.
-- **#745 (M3.1)** — the measurement that decides §4.
+- ~~**#745 (M3.1)** — the measurement that decides §4.~~ Made; see
+  *Amendment 5*. What it left open is **Crossbill-App/xpoint-cfi#3**, the
+  quadratic selector generation the measurement found, and behind that M3.2 —
+  which is where drawing a whole book's decorations meets the number in earnest.
 
 ## Amendment 1: authentication for iframe resource loads
 
@@ -857,3 +866,88 @@ either writing on open, which *Amendment 3* rejects, or a dwell threshold at
 unmount, which is a number with no measurement behind it and would record
 zero-second sessions besides, since a sitting is measured from its first write
 to its last.
+
+## Amendment 5: the §4 measurement, and what it decided
+
+- **Date:** 2026-09-08
+- **Resolves:** the measurement §4 scheduled, made in #745 (M3.1)
+
+§4 said derivation stays on demand unless conversion costs more than roughly
+**200 ms per book**, in which case a follow-up persists anchors and this ADR
+gets an amendment. The measurement was made against the development clone: 15
+books carrying xpointed highlights, 356 highlights between them, EPUBs from
+0.08 to 8.5 MB. It came out **over the line**, and this is the amendment — but
+not the one §4 anticipated, because the number is not where it was expected to
+be.
+
+### The numbers
+
+| | worst | typical |
+| --- | --- | --- |
+| Parse (`EpubMap.from_bytes`) | **1.0 ms** | ~0.5 ms |
+| Convert every highlight of the book | **561 ms** (54 highlights) | 1–40 ms |
+| Whole book, cold cache | **531 ms** | |
+
+Second worst: 154 ms for 20 highlights. Everything else finished inside 45 ms.
+
+### Parsing is not the cost, and the per-book cache buys nothing here
+
+Converting the worst book a second time against the **already parsed**
+publication took 533 ms against 531 ms cold. Cold and warm are the same number,
+which settles two things at once.
+
+The first is that §4's per-book cache — the thing this ADR built to make a whole
+book cost one parse — **does not help the books that are slow**. It was not
+wrong to build: it is what keeps a book's list from re-reading and re-parsing
+the file per highlight, and the measurement above is only one parse deep
+*because* of it. But the cost it amortises turns out to be ~1 ms, and the cost
+that hurts is per *highlight* and amortises against nothing.
+
+The second is that **caching a parsed publication more widely is not worth
+building**, which answers the M1.1 review's suggestion (#734) that the manifest
+path's reparse be cached alongside the M0.3 cache. That parse costs at most
+**2.9 ms** across the same corpus. A cache for it would buy single-digit
+milliseconds and add a second thing that must be evicted correctly — the failure
+mode this ADR already calls out as noisy. Not adopted, on the measurement.
+(Unmeasured, and the one thing that could change this: the numbers price a parse
+of bytes already in hand, not an S3 fetch of them. If the manifest is ever slow
+in production, the fetch is what to measure.)
+
+### Where the time actually goes
+
+A profile of the worst book puts **2.1 of its 2.2 seconds** inside
+`xpoint_cfi.css_selector.resolve_selector` → `_matches_compound` → `_nth_child`
+→ `element_children`: generating a CSS selector for a highlight involves proving
+the selector unique, which rescans sibling lists, once per candidate. Books
+built as a few flat, enormous spine documents pay about **10 ms per highlight**;
+well-structured books pay about **0.2 ms**. The 561 ms is therefore not "large
+book" — the 8.5 MB book in the corpus converts 44 highlights in 13 ms — it is
+*flat* book.
+
+### Decision: fix the generator, do not persist anchors
+
+**Persistence is not adopted.** It would be building a second copy of every
+position — the thing §4 warns is a second source of truth that can silently
+disagree — to work around a quadratic loop in a library we own, in a repository
+we can change. Filed as **Crossbill-App/xpoint-cfi#3**: build the sibling index
+once per parent rather than rescanning per call.
+
+**Persistence remains the fallback, not a closed door.** If the library fix
+under-delivers — if a real book still costs more than ~200 ms after it — the
+case §4 makes is unchanged and reopens on the same terms, with a second
+measurement behind it.
+
+### What this ticket did instead, and it is not a substitute
+
+M3.1 derives locators only for the highlights a view will actually render, so a
+search showing three matches of a heavily annotated book converts three rather
+than all of it. That is worth having whatever the library does, but it does not
+answer the question above: a reader **drawing every decoration in a book**
+(M3.2) asks for the whole list by construction, and on a flat book with a couple
+of hundred highlights that is seconds. M3.2 is the milestone that meets this
+number in earnest.
+
+One thing the measurement changed on the spot: derivation now runs off the event
+loop (`asyncio.to_thread`), the parse included. Half a second of lxml inline on
+the loop is half a second of every other request in the process, which the
+per-book cache had been quietly hiding.
