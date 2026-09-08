@@ -68,6 +68,38 @@ export const aPositionList = (overrides: Partial<PositionList> = {}): PositionLi
   ...overrides,
 });
 
+/**
+ * A position list where the first chapter is several positions rather than one.
+ *
+ * The shape every real book has and `aPositionList` does not: a position is a
+ * span of a resource, and a chapter of any length is many of them. It is what a
+ * reconciliation test needs to say anything at all — against one position per
+ * resource, picking the last entry at or before a progression and picking the
+ * only entry are the same answer, so the arithmetic that matters is untestable.
+ *
+ * Chapter one is split in three at even progressions; chapter two stays whole,
+ * so a test can still tell the two resources apart by page number.
+ */
+export const aDetailedPositionList = (): PositionList => ({
+  total: 4,
+  positions: [
+    ...[0, 1, 2].map((index) => ({
+      href: 'resources/OEBPS/chapter1.xhtml',
+      type: 'application/xhtml+xml',
+      locations: {
+        position: index + 1,
+        progression: index / 3,
+        totalProgression: index / 4,
+      },
+    })),
+    {
+      href: 'resources/OEBPS/chapter2.xhtml',
+      type: 'application/xhtml+xml',
+      locations: { position: 4, progression: 0, totalProgression: 0.75 },
+    },
+  ],
+});
+
 /** What the resume endpoint answers for a book nobody has read on any device. */
 export const nowhereToResume = (): ResumePositionResponse => ({
   locator: null,

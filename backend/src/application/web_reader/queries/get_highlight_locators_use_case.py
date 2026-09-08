@@ -69,6 +69,19 @@ def _report_unconvertible(book_id: int, highlight_id: int, reason: LocatorUnavai
     )
 
 
+def forget_reported_locator_failures() -> None:
+    """Forget which conversion failures have already been reported.
+
+    A test seam, and a named one on purpose. The once-per-process cache above is
+    module state, so a test asserting on the warning has to be able to start from
+    a process that has reported nothing -- and book and highlight ids restart
+    with each test's database, so a pair an earlier test reported would be
+    silently skipped in a later one. Reaching into the cache from outside would
+    be reaching past the very thing it is there to guarantee.
+    """
+    _report_unconvertible.cache_clear()
+
+
 class GetHighlightLocatorsUseCase:
     """Places a book's highlights in its EPUB, one parse per book.
 

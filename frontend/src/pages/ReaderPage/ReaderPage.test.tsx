@@ -1,6 +1,6 @@
 import type { Highlight, HighlightLocatorResponse } from '@/api/generated/model';
 import { aBookDetails, aChapter, aHighlight } from '@tests/fixtures/book';
-import { aManifest, aResumePosition } from '@tests/fixtures/publication';
+import { aDetailedPositionList, aManifest, aResumePosition } from '@tests/fixtures/publication';
 import { renderApp } from '@tests/harness/renderApp';
 import { bookApi } from '@tests/msw/bookApi';
 import {
@@ -15,6 +15,8 @@ import { worker } from '@tests/msw/worker';
 import { delay, http, HttpResponse } from 'msw';
 import { afterEach, expect, test, vi } from 'vitest';
 import { page, userEvent } from 'vitest/browser';
+
+type Screen = Awaited<ReturnType<typeof renderApp>>;
 
 /** Narrower than the `sm` breakpoint the reader lays itself out against. */
 const PHONE_VIEWPORT = { width: 390, height: 780 };
@@ -64,14 +66,73 @@ test('the reader opens with the book title and its controls', async () => {
   await expect.element(screen.getByRole('button', { name: 'Previous page' })).toBeVisible();
 });
 
+/** What the reader is told when a jump could not be made exactly (M3.4, #748). */
+const MISSED_THE_HIGHLIGHT = "Couldn't find this highlight's exact place";
+const MISSED_THE_CHAPTER_TOO = "Couldn't find this highlight's place";
+
+/**
+ * Where the book says it opened, and — where one was owed — what it said about
+ * how it got there.
+ *
+ * Both halves together, because either alone is the wrong outcome: a book that
+ * lands somewhere unannounced looks like one that ignored the link, and an
+ * apology for a jump that worked is noise.
+ */
+const expectLandingAt = async (screen: Screen, page: string, apology?: string) => {
+  await expect.element(screen.getByText(page, { exact: false })).toBeVisible();
+  if (apology) await expect.element(screen.getByText(apology, { exact: false })).toBeVisible();
+};
+
+/**
+ * The book open at its first page — which is where every test that is not about
+ * resuming or jumping starts. Arranging the API is the caller's business; this
+ * is the opening.
+ */
+const openTheBook = async () => {
+  const screen = await renderApp({ path: '/book/1/read' });
+  await expectLandingAt(screen, 'Page 1 of 2');
+  return screen;
+};
+
+/** The reader turning one page forward, and the readout agreeing that they did. */
+const turnThePage = async (screen: Screen) => {
+  await screen.getByRole('button', { name: 'Next page' }).click();
+  await expectLandingAt(screen, 'Page 2 of 2');
+};
+
+/** Deleting the highlight whose dialog is open, confirmation and all. */
+const deleteTheOpenHighlight = async (screen: Screen) => {
+  await userEvent.click(screen.getByRole('button', { name: 'Delete highlight' }));
+  await userEvent.click(screen.getByRole('button', { name: 'Delete', exact: true }));
+};
+
+/**
+ * A delete the book itself honours: the next read of book details has lost the
+ * highlights.
+ *
+ * That is what makes the invalidation behind it a real one — a handler that
+ * only answered `success` would leave the refetch serving the same book, and a
+ * test built on it would be watching nothing happen.
+ */
+const aDeleteRemovingFromTheBook = (state: ReturnType<typeof bookApi>['state']) =>
+  http.delete('/api/v1/books/:bookId/highlight', async ({ request }) => {
+    const body = (await request.json()) as { highlight_ids: number[] };
+    const gone = new Set(body.highlight_ids);
+    state.book = {
+      ...state.book,
+      chapters: state.book.chapters.map((chapter) => ({
+        ...chapter,
+        highlights: chapter.highlights.filter((highlight) => !gone.has(highlight.id)),
+      })),
+    };
+    return HttpResponse.json({ success: true, message: 'Deleted', deleted_count: gone.size });
+  });
+
 /** The book open on a phone-sized viewport, showing its first page. */
 const aBookOpenOnAPhone = async (...extra: Parameters<typeof worker.use>) => {
   aBookWithAnEpub(...extra);
   await page.viewport(PHONE_VIEWPORT.width, PHONE_VIEWPORT.height);
-
-  const screen = await renderApp({ path: '/book/1/read' });
-  await expect.element(screen.getByText('Page 1 of 2', { exact: false })).toBeVisible();
-  return screen;
+  return openTheBook();
 };
 
 /**
@@ -245,8 +306,7 @@ test('a tap on the left of a right-to-left book turns forward', async () => {
   });
   await page.viewport(PHONE_VIEWPORT.width, PHONE_VIEWPORT.height);
 
-  const screen = await renderApp({ path: '/book/1/read' });
-  await expect.element(screen.getByText('Page 1 of 2', { exact: false })).toBeVisible();
+  const screen = await openTheBook();
 
   await gestureInPublication({ across: 0.1 });
 
@@ -261,8 +321,7 @@ test('a tap on the left of a right-to-left book turns forward', async () => {
 test('a gesture that crosses the breakpoint mid-tap turns nothing', async () => {
   aBookWithAnEpub();
 
-  const screen = await renderApp({ path: '/book/1/read' });
-  await expect.element(screen.getByText('Page 1 of 2', { exact: false })).toBeVisible();
+  await openTheBook();
 
   await gestureInPublication({ across: 0.9, resizeTo: PHONE_VIEWPORT });
 
@@ -273,8 +332,7 @@ test('a gesture that crosses the breakpoint mid-tap turns nothing', async () => 
 test('a click on the edge of the page turns nothing on a desktop viewport', async () => {
   aBookWithAnEpub();
 
-  const screen = await renderApp({ path: '/book/1/read' });
-  await expect.element(screen.getByText('Page 1 of 2', { exact: false })).toBeVisible();
+  await openTheBook();
 
   await gestureInPublication({ across: 0.9 });
 
@@ -371,8 +429,7 @@ test('the appearance popover offers font size and page colour', async () => {
 test('an arrow key on the font-size slider does not also turn the page', async () => {
   aBookWithAnEpub();
 
-  const screen = await renderApp({ path: '/book/1/read' });
-  await expect.element(screen.getByText('Page 1 of 2', { exact: false })).toBeVisible();
+  const screen = await openTheBook();
 
   await screen.getByRole('button', { name: 'Appearance' }).click();
   const slider = screen.getByRole('slider', { name: 'Font size' });
@@ -463,8 +520,7 @@ test('a lapsed session holds the book until it has been renewed', async () => {
   // is brought back. The scheduled renewal cannot interfere: its floor is five.
   worker.use(...readiumApi({ expiresIn: 1 }));
 
-  const screen = await renderApp({ path: '/book/1/read' });
-  await expect.element(screen.getByText('Page 1 of 2', { exact: false })).toBeVisible();
+  const screen = await openTheBook();
 
   // The renewal that the return to the tab triggers, held open long enough to
   // observe what the reader does while it is in flight.
@@ -590,8 +646,7 @@ test('turning a page writes the new position, once the reader settles', async ()
   const positions = readingPositionApi();
   aBookWithAnEpub(...positions.handlers);
 
-  const screen = await renderApp({ path: '/book/1/read' });
-  await expect.element(screen.getByText('Page 1 of 2', { exact: false })).toBeVisible();
+  const screen = await openTheBook();
   // Nothing yet: where the book opened is where the reader already was.
   expect(positions.writes).toHaveLength(0);
 
@@ -608,8 +663,7 @@ test('a reader who has not moved writes nothing at all', async () => {
   const positions = readingPositionApi();
   aBookWithAnEpub(...positions.handlers);
 
-  const screen = await renderApp({ path: '/book/1/read' });
-  await expect.element(screen.getByText('Page 1 of 2', { exact: false })).toBeVisible();
+  await openTheBook();
 
   // Comfortably past the debounce: a reader that wrote where the book opened,
   // or re-wrote the same place on every re-render, would have written by now.
@@ -627,10 +681,8 @@ test('closing the reader writes the last position immediately, and closes the se
   const positions = readingPositionApi();
   aBookWithAnEpub(...positions.handlers);
 
-  const screen = await renderApp({ path: '/book/1/read' });
-  await expect.element(screen.getByText('Page 1 of 2', { exact: false })).toBeVisible();
-  await screen.getByRole('button', { name: 'Next page' }).click();
-  await expect.element(screen.getByText('Page 2 of 2', { exact: false })).toBeVisible();
+  const screen = await openTheBook();
+  await turnThePage(screen);
 
   await screen.getByRole('button', { name: 'Close reader' }).click();
   await expect.element(screen.getByRole('heading', { name: 'Structure' })).toBeVisible();
@@ -695,8 +747,7 @@ test('restoring a position writes nothing back', async () => {
  * does not open, or one that silently loses somebody's place.
  */
 const expectAStartAndAnApology = async () => {
-  const screen = await renderApp({ path: '/book/1/read' });
-  await expect.element(screen.getByText('Page 1 of 2', { exact: false })).toBeVisible();
+  const screen = await openTheBook();
   await expect
     .element(screen.getByText("Couldn't restore your last position", { exact: false }))
     .toBeVisible();
@@ -764,8 +815,7 @@ test('reading on within the restored position is still written', async () => {
   );
   aBookWithAPublication({ longFirstChapter: true }, ...positions.handlers);
 
-  const screen = await renderApp({ path: '/book/1/read' });
-  await expect.element(screen.getByText('Page 1 of 2', { exact: false })).toBeVisible();
+  const screen = await openTheBook();
 
   await screen.getByRole('button', { name: 'Next page' }).click();
 
@@ -907,8 +957,7 @@ test('a book is opened with its highlights drawn on the page', async () => {
     [aPlacedLocator(301, FIRST_QUOTE), aPlacedLocator(302, SECOND_QUOTE)]
   );
 
-  const screen = await renderApp({ path: '/book/1/read' });
-  await expect.element(screen.getByText('Page 1 of 2', { exact: false })).toBeVisible();
+  await openTheBook();
 
   await tintsOnThePage().toEqual([BLUE_TINT, YELLOW_TINT].sort());
 });
@@ -924,8 +973,7 @@ test('a highlight with no label colour is drawn in the default one', async () =>
     [aPlacedLocator(301, FIRST_QUOTE)]
   );
 
-  const screen = await renderApp({ path: '/book/1/read' });
-  await expect.element(screen.getByText('Page 1 of 2', { exact: false })).toBeVisible();
+  await openTheBook();
 
   await tintsOnThePage().toEqual([DEFAULT_TINT]);
 });
@@ -945,8 +993,7 @@ test('a highlight that could not be placed is not drawn at all', async () => {
     ]
   );
 
-  const screen = await renderApp({ path: '/book/1/read' });
-  await expect.element(screen.getByText('Page 1 of 2', { exact: false })).toBeVisible();
+  await openTheBook();
 
   await tintsOnThePage().toEqual([YELLOW_TINT]);
 });
@@ -1183,8 +1230,7 @@ test('tapping a highlight in a tap zone opens it without turning the page', asyn
   );
   await page.viewport(PHONE_VIEWPORT.width, PHONE_VIEWPORT.height);
 
-  const screen = await renderApp({ path: '/book/1/read' });
-  await expect.element(screen.getByText('Page 1 of 2', { exact: false })).toBeVisible();
+  const screen = await openTheBook();
   await tintsOnThePage().toEqual([YELLOW_TINT]);
 
   // The forward edge, deliberately: the backward one has nowhere to go from
@@ -1238,28 +1284,16 @@ test('deleting a highlight takes its decoration with it and re-derives nothing',
       return HttpResponse.json({
         items: [aPlacedLocator(301, FIRST_QUOTE), aPlacedLocator(302, SECOND_QUOTE)],
       });
-    }),
-    http.delete('/api/v1/books/:bookId/highlight', async ({ request }) => {
-      const body = (await request.json()) as { highlight_ids: number[] };
-      const gone = new Set(body.highlight_ids);
-      bookState.book = {
-        ...bookState.book,
-        chapters: bookState.book.chapters.map((chapter) => ({
-          ...chapter,
-          highlights: chapter.highlights.filter((highlight) => !gone.has(highlight.id)),
-        })),
-      };
-      return HttpResponse.json({ success: true, message: 'Deleted', deleted_count: gone.size });
     })
   );
+  worker.use(aDeleteRemovingFromTheBook(bookState));
 
   const screen = await renderApp({ path: '/book/1/read' });
   await tintsOnThePage().toEqual([BLUE_TINT, YELLOW_TINT].sort());
   await tapQuoteInPublication(FIRST_QUOTE);
   await expect.element(screen.getByRole('dialog').getByText(FIRST_QUOTE)).toBeVisible();
 
-  await userEvent.click(screen.getByRole('button', { name: 'Delete highlight' }));
-  await userEvent.click(screen.getByRole('button', { name: 'Delete', exact: true }));
+  await deleteTheOpenHighlight(screen);
 
   // The yellow mark is off the page and the blue one is untouched.
   await tintsOnThePage().toEqual([BLUE_TINT]);
@@ -1277,8 +1311,7 @@ test('a label colour stored without its hash is still drawn in that colour', asy
     [aPlacedLocator(301, FIRST_QUOTE)]
   );
 
-  const screen = await renderApp({ path: '/book/1/read' });
-  await expect.element(screen.getByText('Page 1 of 2', { exact: false })).toBeVisible();
+  await openTheBook();
 
   await tintsOnThePage().toEqual([YELLOW_TINT]);
 });
@@ -1296,6 +1329,25 @@ const SECOND_CHAPTER_QUOTE = 'purest form of generosity';
 
 /** The titles the fixture manifest's contents give the two chapters. */
 const CHAPTER_TWO_TITLE = 'On Memory';
+
+/**
+ * Opening the reader the way a link from a highlight view opens it.
+ *
+ * The whole of M3.3 and M3.4 is what this address does, so every test below
+ * starts here and differs only in what the API has been told to answer.
+ */
+const openTheReaderAt = (highlightId: number) =>
+  renderApp({ path: `/book/1/read?highlightId=${highlightId}` });
+
+/**
+ * Nothing over the book. Settled rather than asserted straight away: a dialog
+ * driven by a search param would appear a render or two after the page does, so
+ * an immediate check could pass while one was still on its way.
+ */
+const expectNoDialog = async (screen: Screen) => {
+  await new Promise((resolve) => setTimeout(resolve, 500));
+  expect(screen.getByRole('dialog').query()).toBeNull();
+};
 
 /** That highlight's place, in the chapter the book does not open at. */
 const aLocatorInChapterTwo = (id: number): HighlightLocatorResponse => ({
@@ -1347,42 +1399,64 @@ const aBookMarkedInItsSecondChapter = (
  * opened on the passage it was made on rather than at the beginning.
  *
  * Chapter two, deliberately, because that is not where this book opens on its
- * own — so the page readout is the jump rather than a default. And the dialog is
- * open over it, because `?highlightId=` means "show me this highlight" and
- * showing somebody a highlight is both putting it in front of them and letting
- * them read what they wrote about it.
+ * own — so the page readout is the jump rather than a default.
+ *
+ * And nothing over it. `?highlightId=` opens the highlight's dialog when it is
+ * a decoration being tapped (M3.2), and doing that here too put a dialog over
+ * the very passage the reader had asked to be shown. What they came for is the
+ * page; the dialog is one tap away on the mark itself.
  */
-test('opening the reader at a highlight lands on it, with the highlight open', async () => {
+test('opening the reader at a highlight lands on the passage, unobscured', async () => {
   aBookMarkedInItsSecondChapter([aLocatorInChapterTwo(302)]);
 
-  const screen = await renderApp({ path: '/book/1/read?highlightId=302' });
+  const screen = await openTheReaderAt(302);
 
-  await expect.element(screen.getByText('Page 2 of 2', { exact: false })).toBeVisible();
-  await expect.element(screen.getByRole('dialog').getByText(SECOND_CHAPTER_QUOTE)).toBeVisible();
+  await expectLandingAt(screen, 'Page 2 of 2');
+  await expectNoDialog(screen);
 });
 
 /**
- * The other half of that, and the one the interplay turns on: the param opened
- * the dialog *and* moved the book, so dropping it must undo only the dialog.
+ * The address is left describing what is on screen, which is a book and not a
+ * dialog.
  *
- * A reader who closes the dialog is looking at the passage they came for. The
- * book going back to where they had left off would take it away from them.
+ * Consumed rather than merely acted on: the param is what M3.2 opens a dialog
+ * with, so leaving it in the address would mean a reload puts one back, and a
+ * back button that closes a dialog nobody opened before it leaves the reader.
+ * Stripping it with a `replace` costs the reader no history entry and no place
+ * in the book.
  */
-test('closing the highlight leaves the reader on the passage', async () => {
+test('arriving takes the highlight back out of the address', async () => {
   aBookMarkedInItsSecondChapter([aLocatorInChapterTwo(302)]);
 
-  const screen = await renderApp({ path: '/book/1/read?highlightId=302' });
-  await expect.element(screen.getByRole('dialog')).toBeVisible();
+  const screen = await openTheReaderAt(302);
+  await expectLandingAt(screen, 'Page 2 of 2');
 
-  await screen.getByRole('dialog').getByRole('button', { name: 'Close dialog' }).click();
-
-  // The param goes without the history entry it arrived in: a dialog opened
-  // *from* the URL has no push of its own to pop, so closing it replaces rather
-  // than going back — going back from here is leaving the reader, which is
-  // where the reader came from and not what closing a dialog means.
   await expect.poll(() => window.location.search).not.toContain('highlightId');
-  await expect.element(screen.getByRole('dialog').query()).toBeNull();
-  await expect.element(screen.getByText('Page 2 of 2', { exact: false })).toBeVisible();
+  await expectNoDialog(screen);
+});
+
+/**
+ * And the dialog is still there for the asking. The param goes back to meaning
+ * what M3.2 made it mean the moment the arrival is over — including for the
+ * very highlight the reader was brought to, which is the one they are most
+ * likely to want to read about.
+ */
+test('tapping the highlight a reader arrived at still opens it', async () => {
+  aBookMarkedInItsSecondChapter([aLocatorInChapterTwo(302)]);
+
+  const screen = await openTheReaderAt(302);
+  await tintsOnThePage().toEqual([BLUE_TINT]);
+  await expect.poll(() => window.location.search).not.toContain('highlightId');
+
+  await tapQuoteInPublication(SECOND_CHAPTER_QUOTE);
+
+  await expect.element(screen.getByRole('dialog').getByText(SECOND_CHAPTER_QUOTE)).toBeVisible();
+  expect(window.location.search).toContain('highlightId=302');
+
+  // And the back button closes it, as it does for any tapped decoration.
+  window.history.back();
+  await expect.poll(() => window.location.search).not.toContain('highlightId');
+  await expectLandingAt(screen, 'Page 2 of 2');
 });
 
 /**
@@ -1402,8 +1476,8 @@ test('jumping to a highlight does not overwrite where the reader was', async () 
     ...positions.handlers
   );
 
-  const screen = await renderApp({ path: '/book/1/read?highlightId=302' });
-  await expect.element(screen.getByRole('dialog')).toBeVisible();
+  const screen = await openTheReaderAt(302);
+  await expectLandingAt(screen, 'Page 2 of 2');
 
   // Comfortably past the debounce, so a write the arrival provoked would have
   // landed by now.
@@ -1420,8 +1494,8 @@ test('jumping to a highlight does not overwrite where the reader was', async () 
 test('the highlight a reader arrived at is briefly emphasised', async () => {
   aBookMarkedInItsSecondChapter([aLocatorInChapterTwo(302)]);
 
-  const screen = await renderApp({ path: '/book/1/read?highlightId=302' });
-  await expect.element(screen.getByText('Page 2 of 2', { exact: false })).toBeVisible();
+  const screen = await openTheReaderAt(302);
+  await expectLandingAt(screen, 'Page 2 of 2');
 
   // Brighter than the 0.35 every other highlight in the book is drawn at.
   await expect
@@ -1471,12 +1545,7 @@ test('a highlight nobody jumped to is drawn at its ordinary strength throughout'
 test('a highlight that cannot be placed opens its chapter, and says so', async () => {
   aBookMarkedInItsSecondChapter([{ highlight_id: 302, locator: null, unavailable: 'unresolved' }]);
 
-  const screen = await renderApp({ path: '/book/1/read?highlightId=302' });
-
-  await expect.element(screen.getByText('Page 2 of 2', { exact: false })).toBeVisible();
-  await expect
-    .element(screen.getByText("Couldn't find this highlight's exact place", { exact: false }))
-    .toBeVisible();
+  await expectLandingAt(await openTheReaderAt(302), 'Page 2 of 2', MISSED_THE_HIGHLIGHT);
 });
 
 /**
@@ -1491,12 +1560,7 @@ test('a highlight whose chapter is not in this edition opens at the start', asyn
     'A chapter this edition does not have'
   );
 
-  const screen = await renderApp({ path: '/book/1/read?highlightId=302' });
-
-  await expect.element(screen.getByText('Page 1 of 2', { exact: false })).toBeVisible();
-  await expect
-    .element(screen.getByText("Couldn't find this highlight's place", { exact: false }))
-    .toBeVisible();
+  await expectLandingAt(await openTheReaderAt(302), 'Page 1 of 2', MISSED_THE_CHAPTER_TOO);
 });
 
 /**
@@ -1520,8 +1584,287 @@ test('a jump wins over the place the reader left off at', async () => {
     ...positions.handlers
   );
 
-  const screen = await renderApp({ path: '/book/1/read?highlightId=302' });
-
   // Chapter two, where the highlight is — not chapter one, where they stopped.
-  await expect.element(screen.getByText('Page 2 of 2', { exact: false })).toBeVisible();
+  await expectLandingAt(await openTheReaderAt(302), 'Page 2 of 2');
 });
+
+/* ------------------------------------------------------------------ *
+ * M3.3/M3.4 — where the landing meets the rest of the reader
+ * ------------------------------------------------------------------ */
+
+/**
+ * Where a book opened is a fact about one moment, and everything behind it is a
+ * live query: the book's details are invalidated by every mutation the
+ * highlight dialog makes, and the reading position is re-read on its own
+ * schedule. Each of those used to hand the boot a freshly-built `Locator`,
+ * which rebuilt the navigator — throwing the reader back to where they were
+ * when they opened the book, silently, in the middle of reading it.
+ *
+ * The gesture here is the ordinary one: read on a bit, open a highlight, delete
+ * it. That is a real invalidation of the real query, not a poke at the cache.
+ */
+test('editing a highlight does not throw the reader back to where the book opened', async () => {
+  const positions = readingPositionApi();
+  // Marked in the *second* chapter, so the highlight is on the page the reader
+  // has read on to and can be opened from there.
+  const bookState = aBookWithHighlights(
+    [aMarkedHighlight(302, SECOND_CHAPTER_QUOTE, '#3B82F6')],
+    [aLocatorInChapterTwo(302)],
+    {},
+    ...positions.handlers
+  );
+  worker.use(aDeleteRemovingFromTheBook(bookState));
+
+  const screen = await openTheBook();
+
+  // The reader has moved. This is the place a rebuild would cost them.
+  await turnThePage(screen);
+  await tintsOnThePage().toEqual([BLUE_TINT]);
+
+  await tapQuoteInPublication(SECOND_CHAPTER_QUOTE);
+  await expect.element(screen.getByRole('dialog')).toBeVisible();
+  await deleteTheOpenHighlight(screen);
+
+  // Settled well past a boot, so a rebuild would have landed and been seen.
+  await new Promise((resolve) => setTimeout(resolve, 3_000));
+  expect(document.body.innerText).toContain('Page 2 of 2');
+  // And nothing wrote the reader backwards to where the book opened.
+  expect(positions.writes.map((write) => write.locator.href)).not.toContain(CHAPTER_ONE);
+}, 40_000);
+
+/**
+ * The same hazard through the other door: `refetchOnWindowFocus` is `'always'`
+ * app-wide, so coming back to the tab re-reads everything the landing was built
+ * from. Nothing about coming back to a tab is a reason to move the book.
+ */
+test('coming back to the tab leaves the reader where they were reading', async () => {
+  aBookWithAnEpub(...readingPositionApi().handlers);
+
+  const screen = await openTheBook();
+  await turnThePage(screen);
+
+  window.dispatchEvent(new Event('focus'));
+
+  await new Promise((resolve) => setTimeout(resolve, 3_000));
+  expect(document.body.innerText).toContain('Page 2 of 2');
+}, 30_000);
+
+/* ------------------------------------------------------------------ *
+ * M3.4 — the reconciliation, against locators shaped like the real ones
+ * ------------------------------------------------------------------ */
+
+/**
+ * A highlight locator as the backend actually builds one.
+ *
+ * `served_locator_schema` emits a progression *and* a `cssSelector` computed
+ * against the EPUB, plus the quoted text — and leaves `position` out, because
+ * only something holding a position list can supply one. Every fixture above
+ * carries none of that, which made them all tests of the degenerate case: a
+ * locator that names a resource and nothing else.
+ */
+const aRealisticLocator = (
+  id: number,
+  href: string,
+  progression: number,
+  quote: string
+): HighlightLocatorResponse => ({
+  highlight_id: id,
+  unavailable: null,
+  locator: {
+    href,
+    type: 'application/xhtml+xml',
+    locations: { progression, cssSelector: 'body > p:nth-of-type(101)' },
+    text: { highlight: quote },
+  },
+});
+
+/**
+ * One paragraph of the long first chapter, deep into it. `chapterDocument`
+ * numbers its paragraphs, so this is the only place in the book these words
+ * appear — which is what makes landing on them observable.
+ */
+const A_LATE_PARAGRAPH = 'purest form of generosity. (101)';
+
+/** The page readout as it stands, or `undefined` before the book has one. */
+const positionReadout = () => /Page \d+ of \d+ · \d+%/.exec(document.body.innerText)?.[0];
+
+/**
+ * The whole promise of the milestone, against a locator shaped like a real one
+ * and a chapter long enough for "the chapter" and "the passage" to be different
+ * answers.
+ *
+ * This is the test that found the thing worth finding. A navigator resolves its
+ * *initial* position by resource alone — `FramePoolManager.update` reads
+ * `locations.position` only to pick an href — so booting at a highlight's
+ * locator put the reader at the top of a hundred-paragraph chapter and called
+ * it a jump. Nothing shorter than a chapter that paginates could see it: with
+ * one-screen chapters, the top of the chapter *is* the passage.
+ *
+ * `go` is what carries the quote and the selector into the frame, and the boot
+ * now finishes with it. So the assertion is where the reader ends up: past the
+ * head of the chapter, in the chapter the highlight is in.
+ */
+test('a jump lands on the passage rather than at the head of its chapter', async () => {
+  aBookWithHighlights(
+    [aMarkedHighlight(301, A_LATE_PARAGRAPH, '#F59E0B')],
+    [aRealisticLocator(301, CHAPTER_ONE, 0.8, A_LATE_PARAGRAPH)],
+    { positions: aDetailedPositionList(), longFirstChapter: true }
+  );
+
+  const screen = await openTheReaderAt(301);
+  await expect.poll(positionReadout, { timeout: 10_000 }).toBeDefined();
+
+  // Still the book the position list describes, so the multi-position resource
+  // was reconciled rather than refused...
+  await expect.poll(positionReadout, { timeout: 10_000 }).toContain('of 4');
+  // ...and the reader is somewhere in it rather than at the top. `· 0%` is the
+  // chapter head, which is what a boot-only jump leaves them looking at.
+  await expect.poll(positionReadout, { timeout: 10_000 }).not.toContain('· 0%');
+  // No apology, because this jump was made: the locator said where inside the
+  // resource it was, and the reader was taken there.
+  expect(screen.getByText("Couldn't find this highlight", { exact: false }).query()).toBeNull();
+}, 30_000);
+
+/**
+ * A locator that names a resource and nothing else is not a jump that worked.
+ *
+ * It reconciles perfectly happily — the href is a resource the publication has
+ * — and lands at the top of it, which is indistinguishable on screen from
+ * arriving at the passage and is not that. What the reader got is the chapter,
+ * which is exactly what the M3.4 fallback would have given them, so they are
+ * told the same thing rather than being left to think the highlight is on the
+ * line in front of them.
+ */
+test('a locator that names only a resource is reported as landing on the chapter', async () => {
+  aBookWithHighlights(
+    [aMarkedHighlight(302, SECOND_CHAPTER_QUOTE, '#3B82F6')],
+    [
+      {
+        highlight_id: 302,
+        unavailable: null,
+        locator: { href: CHAPTER_TWO, type: 'application/xhtml+xml', locations: {} },
+      },
+    ]
+  );
+
+  await expectLandingAt(await openTheReaderAt(302), 'Page 2 of 2', MISSED_THE_HIGHLIGHT);
+});
+
+/* ------------------------------------------------------------------ *
+ * M3.4 — the chapter fallback where a book repeats its chapter titles
+ * ------------------------------------------------------------------ */
+
+/** A contents list with the same title on both chapters. */
+const aRepetitiveManifest = () =>
+  aManifest({
+    toc: [
+      { href: CHAPTER_ONE, title: 'Introduction' },
+      { href: CHAPTER_TWO, title: 'Introduction' },
+    ],
+  });
+
+/**
+ * A book whose chapters are all called "Introduction", with the target highlight
+ * in the `nth` of them.
+ */
+const aBookOfIntroductions = (chapterCount: number, targetIn: number) => {
+  worker.use(
+    ...bookApi({
+      book: aBookDetails({
+        title: 'The Pragmatic Reader',
+        has_ebook: true,
+        chapters: Array.from({ length: chapterCount }, (_, index) =>
+          aChapter({
+            id: 10 + index,
+            name: 'Introduction',
+            chapter_number: index + 1,
+            highlights:
+              index === targetIn ? [aMarkedHighlight(302, SECOND_CHAPTER_QUOTE, '#3B82F6')] : [],
+          })
+        ),
+      }),
+    }).handlers
+  );
+  worker.use(
+    ...readiumApi({
+      manifest: aRepetitiveManifest(),
+      highlightLocators: [{ highlight_id: 302, locator: null, unavailable: 'unresolved' }],
+    })
+  );
+};
+
+/**
+ * "Introduction" and "Conclusion" appear once per part in plenty of books, and
+ * a fallback that matches on the title alone drops the reader into part one
+ * every time. The book's own chapter numbering is what breaks the tie: the
+ * second chapter of that name here is the second entry of that name there.
+ */
+test('a repeated chapter title falls back to the right one of them', async () => {
+  aBookOfIntroductions(2, 1);
+
+  await expectLandingAt(await openTheReaderAt(302), 'Page 2 of 2', MISSED_THE_HIGHLIGHT);
+});
+
+/**
+ * And where the two sides do not even agree how many chapters carry the name,
+ * the correspondence is guesswork. The reader is already having a jump go
+ * wrong; dropping them into the wrong part of the book while apologising for
+ * the right one would be worse than the plain start of it.
+ */
+test('an ambiguous chapter title falls back to the start of the book instead of guessing', async () => {
+  aBookOfIntroductions(3, 2);
+
+  await expectLandingAt(await openTheReaderAt(302), 'Page 1 of 2', MISSED_THE_CHAPTER_TOO);
+});
+
+/**
+ * The first chapter refusing to load exactly once.
+ *
+ * `once` is what makes it a *transient* failure: MSW retires the handler after
+ * it has answered, so the retry falls through to the ordinary resource handler
+ * and gets the chapter. That is the one way to reach the rejected landing on
+ * purpose — the schema makes a position list's `position` required, so a
+ * reconciled locator always names an entry the navigator can find, and only a
+ * load that fails can make it refuse one.
+ */
+const theFirstChapterFailsOnce = http.get(
+  '/api/v1/readium/books/:bookId/resources/OEBPS/chapter1.xhtml',
+  () => new HttpResponse(null, { status: 500 }),
+  { once: true }
+);
+
+/** Whether the emphasis tint is ever painted during `ms`, sampled throughout. */
+const emphasisAppearsWithin = async (ms: number): Promise<boolean> => {
+  const deadline = Date.now() + ms;
+  let seen = false;
+  while (Date.now() < deadline) {
+    if (decorationTints().includes('rgba(245, 158, 11, 0.75)')) seen = true;
+    await new Promise((resolve) => setTimeout(resolve, 25));
+  }
+  return seen;
+};
+
+/**
+ * The landing the navigator refused, which the boot recovers from by opening
+ * the book again from its beginning.
+ *
+ * The reader is then at page one, which is nowhere near the highlight — so the
+ * emphasis has to be off. Brightening a mark the reader was never brought to is
+ * a highlight that quietly changes colour somewhere they are not looking, and
+ * then changes back.
+ */
+test('a landing the navigator refused opens at the start without emphasising anything', async () => {
+  aBookWithHighlights(
+    [aMarkedHighlight(301, FIRST_QUOTE, '#F59E0B')],
+    [aRealisticLocator(301, CHAPTER_ONE, 0.6, FIRST_QUOTE)],
+    {},
+    theFirstChapterFailsOnce
+  );
+
+  const screen = await openTheReaderAt(301);
+  await expectLandingAt(screen, 'Page 1 of 2', MISSED_THE_CHAPTER_TOO);
+
+  // The mark is drawn, in its ordinary colour, and never in the arrival one.
+  await tintsOnThePage().toEqual([YELLOW_TINT]);
+  expect(await emphasisAppearsWithin(EMPHASIS_RAMP_MS)).toBe(false);
+}, 30_000);

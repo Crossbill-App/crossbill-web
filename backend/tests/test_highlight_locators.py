@@ -34,7 +34,7 @@ from structlog.typing import EventDict
 from src.application.common.queries.highlight_row import HighlightRow
 from src.application.web_reader.anchors import Locator, LocatorText
 from src.application.web_reader.queries.get_highlight_locators_use_case import (
-    _report_unconvertible,
+    forget_reported_locator_failures,
 )
 from src.application.web_reader.queries.highlight_locators import (
     DerivedHighlightLocator,
@@ -984,15 +984,18 @@ class TestReportingConversionsThatFailed:
     def unreported(self) -> Iterator[None]:
         """A process that has not yet reported any conversion failure.
 
-        The cache behind the warning is what keeps one broken highlight from
-        filling a day of logs, and it is also what makes these assertions
-        order-dependent: a book and highlight id some earlier test already
-        reported would be silently skipped here. Cleared both ways, so this
-        class neither inherits a claim nor leaves one.
+        **Any test that asserts on this warning needs this fixture.** The cache
+        behind it is module-level state that lives for the whole process, which
+        is exactly what keeps one broken highlight from filling a day of logs --
+        and exactly what makes an assertion on it order-dependent. Book and
+        highlight ids restart with each test's database, so a pair some earlier
+        test already reported is silently skipped in a later one, and the test
+        fails or passes according to what ran before it. Cleared both ways here,
+        so this class neither inherits a claim nor leaves one behind.
         """
-        _report_unconvertible.cache_clear()
+        forget_reported_locator_failures()
         yield
-        _report_unconvertible.cache_clear()
+        forget_reported_locator_failures()
 
     def reported(self, captured: list[EventDict]) -> list[EventDict]:
         return [event for event in captured if event["event"] == "highlight_locator_unavailable"]
