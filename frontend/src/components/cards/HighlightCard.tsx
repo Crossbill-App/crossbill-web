@@ -2,6 +2,7 @@ import type { Bookmark, Highlight } from '@/api/generated/model';
 import { HoverableCardActionArea } from '@/components/cards/HoverableCardActionArea';
 import { MetadataRow } from '@/components/cards/MetadataRow.tsx';
 import { CountWithIcon } from '@/components/CountWithIcon.tsx';
+import { OpenInReaderButton } from '@/components/reader/OpenInReaderButton.tsx';
 import { TagChipList } from '@/components/TagChipList.tsx';
 import { LabelIndicator } from '@/pages/BookPage/common/LabelIndicator.tsx';
 import { NotOnDeviceChip } from '@/pages/BookPage/common/NotOnDeviceChip.tsx';
@@ -17,6 +18,15 @@ import { formatDate } from '@/utils/date.ts';
 import { buildPreviewText } from '@/utils/highlightPreview.ts';
 import { Box, Typography } from '@mui/material';
 import { memo, useMemo } from 'react';
+
+/**
+ * Room at the right of the card for the reader action, in theme spacing units.
+ *
+ * Kept whether or not the action is there. A book with an EPUB and one without
+ * would otherwise wrap their highlights differently, and the previews would
+ * shuffle the moment an EPUB was uploaded.
+ */
+const READER_ACTION_GUTTER = 6.5;
 
 export interface HighlightCardProps {
   highlight: Highlight;
@@ -106,37 +116,48 @@ export const HighlightCard = memo(function HighlightCard({
   };
 
   return (
-    <HoverableCardActionArea
-      id={`highlight-${highlight.id}`}
-      onClick={handleOpenModal}
-      sx={{
-        py: 3.5,
-        px: 2.5,
-      }}
-    >
-      <Box sx={{ flex: 1, minWidth: 0 }}>
-        <Box sx={{ display: 'flex', alignItems: 'start', gap: 1.5, mb: 2 }}>
-          <HighlightsIcon
-            sx={{
-              fontSize: ICON_SIZE.prominent,
-              color: 'primary.main',
-              flexShrink: 0,
-              mt: 0.3,
-              opacity: 0.7,
-            }}
-          />
-          <Typography
-            variant="body1"
-            sx={{
-              color: 'text.primary',
-            }}
-          >
-            {previewText}
-          </Typography>
-        </Box>
+    // The card is one big button, so the reader action cannot be inside it — a
+    // button within a button is neither valid nor reliably clickable. It is a
+    // sibling laid over the corner instead, and the card gives up the width for
+    // it so the two never sit on each other.
+    <Box sx={{ position: 'relative' }}>
+      <HoverableCardActionArea
+        id={`highlight-${highlight.id}`}
+        onClick={handleOpenModal}
+        sx={{
+          py: 3.5,
+          pl: 2.5,
+          pr: READER_ACTION_GUTTER,
+        }}
+      >
+        <Box sx={{ flex: 1, minWidth: 0 }}>
+          <Box sx={{ display: 'flex', alignItems: 'start', gap: 1.5, mb: 2 }}>
+            <HighlightsIcon
+              sx={{
+                fontSize: ICON_SIZE.prominent,
+                color: 'primary.main',
+                flexShrink: 0,
+                mt: 0.3,
+                opacity: 0.7,
+              }}
+            />
+            <Typography
+              variant="body1"
+              sx={{
+                color: 'text.primary',
+              }}
+            >
+              {previewText}
+            </Typography>
+          </Box>
 
-        <Footer highlight={highlight} bookmark={bookmark} noteCount={noteCount} />
+          <Footer highlight={highlight} bookmark={bookmark} noteCount={noteCount} />
+        </Box>
+      </HoverableCardActionArea>
+
+      <Box sx={{ position: 'absolute', top: 8, right: 8 }}>
+        <OpenInReaderButton bookId={highlight.book_id} highlightId={highlight.id} size="small" />
       </Box>
-    </HoverableCardActionArea>
+    </Box>
   );
 });
