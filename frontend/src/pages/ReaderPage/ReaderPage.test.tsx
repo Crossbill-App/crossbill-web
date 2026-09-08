@@ -1868,3 +1868,73 @@ test('a landing the navigator refused opens at the start without emphasising any
   await tintsOnThePage().toEqual([YELLOW_TINT]);
   expect(await emphasisAppearsWithin(EMPHASIS_RAMP_MS)).toBe(false);
 }, 30_000);
+/**
+ * A ReadiumCSS custom property as it stands in the frame the reader is looking
+ * at.
+ *
+ * This is the far end of the preferences path, and the only end worth
+ * asserting on: a setting the popover holds but never submits, or submits in
+ * terms ReadiumCSS does not recognise, would look identical in the control and
+ * change nothing about the words on the page. The navigator posts these into
+ * the frame and its own injectables write them onto the document element, so
+ * they arrive a moment after the click and every read of one is polled.
+ */
+const readiumProperty = (name: string): string =>
+  visibleFrame()?.contentDocument?.documentElement.style.getPropertyValue(name).trim() ?? '';
+
+/** How many columns ReadiumCSS has laid the current page out in. */
+const columnCount = () => readiumProperty('--USER__colCount');
+
+/** The appearance popover, open over the book. */
+const openAppearance = async (screen: Screen) => {
+  await screen.getByRole('button', { name: 'Appearance' }).click();
+  await expect.element(screen.getByRole('heading', { name: 'Text alignment' })).toBeVisible();
+};
+/**
+ * Justification is the setting worth proving end to end: unlike a colour or a
+ * font size it is one ReadiumCSS applies only when it is *told* to, leaving the
+ * book's own stylesheet in charge until then.
+ */
+test('an alignment the reader chooses reaches the words on the page', async () => {
+  aBookWithAnEpub();
+  const screen = await openTheBook();
+
+  // Nothing said, so the book's own stylesheet is still the one setting lines.
+  expect(readiumProperty('--USER__textAlign')).toBe('');
+
+  await openAppearance(screen);
+  await screen.getByRole('button', { name: 'Justified' }).click();
+
+  await expect.poll(() => readiumProperty('--USER__textAlign')).toBe('justify');
+});
+/**
+ * A wide screen fills itself with columns, which is more text per line than
+ * some people want to read. The switch is what caps it at one.
+ */
+test('the single-column switch holds a wide page to one column', async () => {
+  aBookWithAnEpub();
+  const screen = await openTheBook();
+
+  await expect.poll(columnCount).toBe('2');
+
+  await openAppearance(screen);
+  await screen.getByRole('switch', { name: 'Single column' }).click();
+
+  await expect.poll(columnCount).toBe('1');
+});
+/**
+ * Below the breakpoint the viewport only ever fits one column, so Readium's own
+ * automatic count is already one and the switch would be a control that changed
+ * nothing visible. The setting itself is untouched — it is global, and still in
+ * force on the desktop it was set from.
+ */
+test('the column switch is not offered where there is no room for a second column', async () => {
+  const screen = await aBookOpenOnAPhone();
+
+  await openAppearance(screen);
+
+  await expect.element(screen.getByRole('button', { name: 'Justified' })).toBeVisible();
+  await expect
+    .element(screen.getByRole('switch', { name: 'Single column' }))
+    .not.toBeInTheDocument();
+});

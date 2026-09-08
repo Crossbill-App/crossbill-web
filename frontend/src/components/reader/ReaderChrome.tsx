@@ -16,6 +16,8 @@ interface ReaderChromeProps {
   onPreferencesChange: (preferences: ReaderPreferences) => void;
   fontSizeRange: [number, number];
   fontSizeStep: number;
+  /** Passed through to the appearance popover; see `ReaderSettings`. */
+  canChooseColumns: boolean;
 }
 
 /**
@@ -35,6 +37,7 @@ export const ReaderChrome = ({
   onPreferencesChange,
   fontSizeRange,
   fontSizeStep,
+  canChooseColumns,
 }: ReaderChromeProps) => {
   const [settingsAnchor, setSettingsAnchor] = useState<HTMLElement | null>(null);
 
@@ -91,6 +94,7 @@ export const ReaderChrome = ({
         onChange={onPreferencesChange}
         fontSizeRange={fontSizeRange}
         fontSizeStep={fontSizeStep}
+        canChooseColumns={canChooseColumns}
       />
     </Box>
   );

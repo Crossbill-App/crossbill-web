@@ -707,6 +707,11 @@ export const ReaderShell = ({
         onPreferencesChange={setPreferences}
         fontSizeRange={fontSizeBounds.range}
         fontSizeStep={fontSizeBounds.step}
+        // Below the breakpoint the viewport only ever fits one column, so
+        // Readium's own automatic count is already one and the switch would be
+        // a control that did nothing. The setting itself is untouched — it is
+        // global, and still in force on the desktop it was set from.
+        canChooseColumns={!isCompact}
       />
 
       <Box sx={{ flex: 1, minHeight: 0, position: 'relative' }}>
