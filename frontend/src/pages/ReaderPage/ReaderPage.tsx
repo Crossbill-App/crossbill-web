@@ -3,7 +3,7 @@ import { useGetTags } from '@/api/generated/tags/tags.ts';
 import { ReaderShell } from '@/components/reader/ReaderShell.tsx';
 import { HighlightViewDialog } from '@/pages/BookPage/Highlights/HighlightViewDialog';
 import { useHighlightDialog } from '@/pages/BookPage/Highlights/hooks/useHighlightDialog.ts';
-import { useNavigate, useParams } from '@tanstack/react-router';
+import { useNavigate, useParams, useSearch } from '@tanstack/react-router';
 import { keyBy } from 'lodash';
 import { useMemo } from 'react';
 
@@ -26,6 +26,15 @@ import { useMemo } from 'react';
  */
 export const ReaderPage = () => {
   const { bookId } = useParams({ strict: false });
+  // The one search param this route takes, and it means two things at once: the
+  // book opens *at* that highlight (M3.3, #747) and the highlight's own dialog
+  // opens over it. A link from a highlight view says "show me this highlight",
+  // and showing somebody a highlight means both putting it in front of them and
+  // letting them read it with its notes and tags — the reader is what the
+  // passage is *in*, and the dialog is what the highlight *is*. Closing the
+  // dialog drops the param and leaves the book where it landed, which is the
+  // point: what is behind the dialog is the passage they came for.
+  const { highlightId } = useSearch({ from: '/book_/$bookId/read' });
   const navigate = useNavigate();
   const { data: book } = useGetBookDetails(Number(bookId));
   const { data: tagsResponse } = useGetTags(Number(bookId));
@@ -61,6 +70,7 @@ export const ReaderPage = () => {
         bookId={Number(bookId)}
         title={book?.title ?? ''}
         highlights={allHighlights}
+        highlightId={highlightId}
         onOpenHighlight={highlightDialog.open}
         onClose={() => void navigate({ to: '/book/$bookId', params: { bookId: bookId! } })}
       />

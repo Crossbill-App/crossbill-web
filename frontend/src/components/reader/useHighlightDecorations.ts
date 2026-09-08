@@ -3,11 +3,13 @@ import type { Highlight } from '@/api/generated/model';
 import {
   activatedHighlightId,
   decorationCoversPoint,
+  EMPHASIS,
   HIGHLIGHT_DECORATION_GROUP,
   highlightDecorations,
+  isPlaced,
 } from '@/components/reader/decorations.ts';
 import type { DecorationObserver, EpubNavigator } from '@readium/navigator';
-import { useCallback, useEffect, useMemo, useRef, type RefObject } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, type RefObject } from 'react';
 
 /**
  * Deriving a book's locators is the one read the reader makes that can take a
@@ -54,6 +56,22 @@ interface HighlightDecorationsOptions {
   navigatorRef: RefObject<EpubNavigator | null>;
   /** Called with the highlight a reader tapped a decoration for. */
   onActivate: (highlightId: number) => void;
+  /**
+   * The highlight this reader was opened to jump to, if any — brightened for a
+   * moment once there is a mark on the page to brighten (M3.3, #747).
+   *
+   * Latched by the caller at the moment the reader opened, like the landing
+   * itself: arriving at a highlight is what the emphasis is about, and a reader
+   * who then taps a second highlight has not arrived anywhere.
+   */
+  emphasise: number | null;
+  /**
+   * Whether the book is on screen. Only the emphasis waits on it: a pulse run
+   * over a skeleton is a pulse nobody saw, and the two are genuinely unordered
+   * — the locators can answer before the first frame is built or a second after
+   * it.
+   */
+  isPageVisible: boolean;
 }
 
 export interface HighlightDecorations {
@@ -105,12 +123,26 @@ export const useHighlightDecorations = ({
   highlights,
   navigatorRef,
   onActivate,
+  emphasise,
+  isPageVisible,
 }: HighlightDecorationsOptions): HighlightDecorations => {
   const { data } = useGetBookHighlightLocators(bookId, { query: LOCATORS_QUERY });
 
+  // Started when there is both a mark to brighten and a page to see it on, and
+  // not before either. The book and its marks arrive independently (Amendment
+  // 5) in whichever order they arrive, so a pulse tied to just one of the two
+  // is a pulse that sometimes runs over a skeleton and sometimes over an
+  // undecorated page.
+  const opacity = useEmphasisRamp(isPageVisible && isPlaced(data?.items ?? [], emphasise));
+
   const decorations = useMemo(
-    () => highlightDecorations(data?.items ?? [], highlights),
-    [data, highlights]
+    () =>
+      highlightDecorations(
+        data?.items ?? [],
+        highlights,
+        emphasise === null || opacity === null ? null : { highlightId: emphasise, opacity }
+      ),
+    [data, highlights, emphasise, opacity]
   );
 
   // Read through refs by the callbacks below, so that everything handed to the
@@ -173,4 +205,27 @@ export const useHighlightDecorations = ({
   );
 
   return { observer, apply, claimsPoint };
+};
+
+/**
+ * The tint strength of an emphasised decoration, stepping down to `null` once
+ * the ramp has run.
+ *
+ * `null` means "no emphasis", which is what every decoration in the book gets
+ * and what the emphasised one goes back to. The ramp is one-shot by
+ * construction: `drawable` goes false to true once, when the locator list
+ * arrives with a place for the highlight, and each step schedules the next
+ * until there are none left. A step that is unmounted mid-ramp simply stops.
+ */
+const useEmphasisRamp = (drawable: boolean): number | null => {
+  const [step, setStep] = useState(0);
+
+  useEffect(() => {
+    if (!drawable || step >= EMPHASIS.opacities.length) return;
+    const timer = setTimeout(() => setStep((current) => current + 1), EMPHASIS.stepMs);
+    return () => clearTimeout(timer);
+  }, [drawable, step]);
+
+  if (!drawable || step >= EMPHASIS.opacities.length) return null;
+  return EMPHASIS.opacities[step];
 };

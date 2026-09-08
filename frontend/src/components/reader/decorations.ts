@@ -36,6 +36,32 @@ export const HIGHLIGHT_DECORATION_GROUP = 'crossbill-highlights';
 const TINT_OPACITY = 0.35;
 
 /**
+ * How a highlight the reader was *brought here for* announces itself, and why
+ * it is the tint that does it.
+ *
+ * A jump from a highlight view (M3.3, #747) lands on a page that may already
+ * carry a dozen marks, and the reader has to be able to tell which one they
+ * clicked. Readium's decoration styles have no active or selected state to
+ * borrow — the built-ins are shapes (highlight, underline, outline) with a
+ * tint, and nothing that means "this one" — so what is available is the tint
+ * itself, and `applyDecorations` diffs by decoration, so re-offering the set
+ * with one entry brighter redraws exactly that one.
+ *
+ * A ramp rather than a flash held and dropped: `::highlight()` backgrounds are
+ * not animatable, so the fade has to be drawn rather than declared, and four
+ * steps is enough for the eye to read it as one mark settling rather than as
+ * the page changing several times. It ends *at* `TINT_OPACITY`, so the last
+ * step is the highlight as it will stay.
+ */
+const EMPHASIS_OPACITIES = [0.75, 0.62, 0.52, 0.44] as const;
+
+/** How long each step of that ramp is held. */
+const EMPHASIS_STEP_MS = 260;
+
+/** The emphasis ramp, and how long a step of it lasts. */
+export const EMPHASIS = { opacities: EMPHASIS_OPACITIES, stepMs: EMPHASIS_STEP_MS } as const;
+
+/**
  * Readium's contrast pass, and why this style opts out of it.
  *
  * `enforceContrast` darkens a tint in 10% steps until it stands at 3:1 against
@@ -81,11 +107,23 @@ export const activatedHighlightId = (decorationId: string): number | null => {
 const HEX_COLOR = /^#?[0-9a-f]{6}$/i;
 
 /** The tint a highlight is drawn in: its label's colour, or the palette's quietest. */
-const tintFor = (highlight: Highlight | undefined): string => {
+const tintFor = (highlight: Highlight | undefined, opacity: number): string => {
   const color = highlight?.label?.ui_color;
   const hex = color && HEX_COLOR.test(color) ? `#${color.replace('#', '')}` : DEFAULT_LABEL_COLOR;
-  return alpha(hex, TINT_OPACITY);
+  return alpha(hex, opacity);
 };
+
+/**
+ * One highlight drawn brighter than the rest, while the emphasis lasts.
+ *
+ * The colour is still the label's own: what marks the highlight out is how
+ * strongly it is laid on, not a colour of the reader's choosing, so a reader
+ * who knows their yellow highlights still sees a yellow one.
+ */
+export interface DecorationEmphasis {
+  highlightId: number;
+  opacity: number;
+}
 
 /**
  * The decorations a navigator draws for one book's highlights.
@@ -121,7 +159,8 @@ const tintFor = (highlight: Highlight | undefined): string => {
  */
 export const highlightDecorations = (
   locators: HighlightLocatorResponse[],
-  highlights: Highlight[] | undefined
+  highlights: Highlight[] | undefined,
+  emphasis: DecorationEmphasis | null = null
 ): Decoration[] => {
   const byId = new Map((highlights ?? []).map((highlight) => [highlight.id, highlight]));
   return locators.flatMap((placed) => {
@@ -129,19 +168,28 @@ export const highlightDecorations = (
     if (highlights !== undefined && !byId.has(placed.highlight_id)) return [];
     const locator = Locator.deserialize(placed.locator);
     if (!locator) return [];
+    const opacity = emphasis?.highlightId === placed.highlight_id ? emphasis.opacity : TINT_OPACITY;
     return [
       {
         id: decorationId(placed.highlight_id),
         locator,
         style: {
           type: DecorationStyleType.Highlight,
-          tint: tintFor(byId.get(placed.highlight_id)),
+          tint: tintFor(byId.get(placed.highlight_id), opacity),
           enforceContrast: ENFORCE_CONTRAST,
         },
       },
     ];
   });
 };
+
+/** Whether this book's locator list has a place to draw that highlight at. */
+export const isPlaced = (
+  locators: HighlightLocatorResponse[],
+  highlightId: number | null
+): boolean =>
+  highlightId !== null &&
+  locators.some((placed) => placed.highlight_id === highlightId && !!placed.locator);
 
 /**
  * Forget the locators of highlights that have just been deleted.

@@ -11,11 +11,11 @@ import {
 } from '@/components/reader/readerPreferences.ts';
 import { TocDrawer } from '@/components/reader/TocDrawer.tsx';
 import { useHighlightDecorations } from '@/components/reader/useHighlightDecorations.ts';
+import { useReaderLanding, type ReaderLanding } from '@/components/reader/useReaderLanding.ts';
 import { useReaderPublication } from '@/components/reader/useReaderPublication.ts';
 import { useReaderSession } from '@/components/reader/useReaderSession.ts';
 import { useReaderTapZones } from '@/components/reader/useReaderTapZones.ts';
 import { useReadingPositionWriter } from '@/components/reader/useReadingPositionWriter.ts';
-import { useResumeLocator } from '@/components/reader/useResumeLocator.ts';
 import { useSnackbar } from '@/context/SnackbarContext.tsx';
 import { NextPageIcon, PreviousPageIcon } from '@/theme/Icons.tsx';
 import { ICON_SIZE } from '@/theme/iconSizes.ts';
@@ -99,7 +99,42 @@ interface ReaderShellProps {
   highlights: Highlight[] | undefined;
   /** Open the highlight a reader tapped on the page. */
   onOpenHighlight: (highlightId: number) => void;
+  /**
+   * The highlight `?highlightId=` named when this reader was opened, if any
+   * (M3.3, #747) — the book opens *at* it and it is briefly emphasised.
+   *
+   * Read once, at mount, and latched below. The same param goes on to open the
+   * highlight's dialog and is dropped again when that dialog is closed, and
+   * neither of those is a reason to move the book: a reader who closes the
+   * dialog is looking at the passage they came for.
+   */
+  highlightId?: number;
 }
+
+/** What the reader is told when a jump could not be made exactly (M3.4, #748). */
+const MISSED_THE_HIGHLIGHT =
+  "Couldn't find this highlight's exact place, so the book opened at the start of its chapter.";
+const MISSED_THE_CHAPTER_TOO =
+  "Couldn't find this highlight's place, so the book opened at the start.";
+const LOST_THE_BOOKMARK = "Couldn't restore your last position, so the book opened at the start.";
+
+/**
+ * What to tell the reader about a book that did not open where it was asked to,
+ * or `null` when there is nothing to say.
+ *
+ * `rejected` is the navigator having refused the landing outright and the boot
+ * having started the book again from its beginning — so whatever was on offer,
+ * the reader is at page one and is owed the same sentence as if it had never
+ * been found. Which sentence that is depends on what was being asked for, which
+ * is what `isJump` says.
+ */
+const apologyFor = (landing: ReaderLanding, rejected: boolean, isJump: boolean): string | null => {
+  if (rejected) return isJump ? MISSED_THE_CHAPTER_TOO : LOST_THE_BOOKMARK;
+  if (landing.missed === 'chapter') return MISSED_THE_HIGHLIGHT;
+  if (landing.missed === 'start') return MISSED_THE_CHAPTER_TOO;
+  if (landing.lost) return LOST_THE_BOOKMARK;
+  return null;
+};
 
 /** Resolves once the element has a real box, or immediately if it already has one. */
 const whenSized = (element: HTMLElement) =>
@@ -146,6 +181,7 @@ export const ReaderShell = ({
   onClose,
   highlights,
   onOpenHighlight,
+  highlightId,
 }: ReaderShellProps) => {
   const theme = useTheme();
   // A phone, near enough. The arrow buttons need gutters this viewport cannot
@@ -154,11 +190,20 @@ export const ReaderShell = ({
   const { showSnackbar } = useSnackbar();
   const { status: sessionStatus, isRenewing } = useReaderSession(bookId);
   const { status: publicationStatus, publication, positions } = useReaderPublication(bookId);
-  const resume = useResumeLocator(bookId, positions);
-  // Set when a book failed to open *at* a restored place. The retry that follows
-  // starts from the beginning, so the locator has to stop being offered.
-  const [resumeRejected, setResumeRejected] = useState(false);
-  const openAt = resumeRejected ? null : (resume?.locator ?? null);
+  // Where the book opens, and what it was: a place the reader left off at, or a
+  // highlight they asked to be taken to. Latched at mount, so that the search
+  // param going away with the highlight's dialog cannot move the book.
+  const [target] = useState<number | null>(highlightId ?? null);
+  const landing = useReaderLanding({
+    bookId,
+    target,
+    positions,
+    toc: publication?.toc?.items,
+  });
+  // Set when a book failed to open *at* the place it was given. The retry that
+  // follows starts from the beginning, so the locator has to stop being offered.
+  const [landingRejected, setLandingRejected] = useState(false);
+  const openAt = landingRejected ? null : (landing?.locator ?? null);
   const { record: recordPosition, setArriving } = useReadingPositionWriter(bookId);
 
   const viewportRef = useRef<HTMLDivElement | null>(null);
@@ -198,6 +243,11 @@ export const ReaderShell = ({
     highlights,
     navigatorRef,
     onActivate: onOpenHighlight,
+    // Nothing to emphasise where the jump missed: the reader is at the start of
+    // a chapter rather than on the passage, and brightening a mark that is not
+    // on screen would only be a mark that quietly changed colour later.
+    emphasise: landing?.missed ? null : target,
+    isPageVisible,
   });
 
   // What replaces the arrow buttons where there is no room for them. Stable for
@@ -266,16 +316,17 @@ export const ReaderShell = ({
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [handleKeyDown]);
 
-  // `resume` joins the other two for the same reason `positions` did: a
+  // `landing` joins the other two for the same reason `positions` did: a
   // navigator takes its initial position once, at construction, so booting
   // before the answer is in can only be corrected by a visible jump after the
-  // book has already rendered at the beginning.
+  // book has already rendered at the beginning. That is as true of a jump to a
+  // highlight as it is of a resume, which is why both go through one answer.
   const isReady =
     sessionStatus === 'ready' &&
     publicationStatus === 'ready' &&
     !!publication &&
     positions !== undefined &&
-    resume !== undefined;
+    landing !== undefined;
 
   useEffect(() => {
     if (!isReady) return;
@@ -466,7 +517,7 @@ export const ReaderShell = ({
       // the place is dropped and the boot tried again without it -- once, since
       // the second attempt is offering nothing that could be rejected.
       if (openAt) {
-        setResumeRejected(true);
+        setLandingRejected(true);
         setBootAttempt((attempt) => attempt + 1);
         return;
       }
@@ -517,15 +568,23 @@ export const ReaderShell = ({
   ]);
 
   // Said once the book is on screen, so the reader reads it against the page it
-  // is about rather than against a skeleton. Not said for a book nobody has
-  // read: there was never a place to lose.
-  const toldOfLostPlace = useRef(false);
+  // is about rather than against a skeleton. Said once, and only where the book
+  // is not where it was asked to be: a book nobody has read never had a place
+  // to lose, and a highlight the reader landed on needs no explanation.
+  //
+  // Two apologies, because they are about different things (M3.4, #748). Losing
+  // a bookmark is a thing that happened to the book; a jump that missed is
+  // about the passage the reader just clicked on and is owed the more specific
+  // sentence. Both are snackbars over the open book rather than anything to
+  // dismiss: the reader came here to read, and the book is there to be read.
+  const apologised = useRef(false);
   useEffect(() => {
-    if (!isPageVisible || toldOfLostPlace.current) return;
-    if (!resume?.lost && !resumeRejected) return;
-    toldOfLostPlace.current = true;
-    showSnackbar("Couldn't restore your last position, so the book opened at the start.", 'info');
-  }, [isPageVisible, resume, resumeRejected, showSnackbar]);
+    if (!isPageVisible || apologised.current || !landing) return;
+    const message = apologyFor(landing, landingRejected, target !== null);
+    if (!message) return;
+    apologised.current = true;
+    showSnackbar(message, 'info');
+  }, [isPageVisible, landing, landingRejected, target, showSnackbar]);
 
   useEffect(() => {
     if (!isPageVisible) return;
