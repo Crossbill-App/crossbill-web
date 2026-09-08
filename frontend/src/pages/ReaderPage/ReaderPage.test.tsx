@@ -1,4 +1,5 @@
 import type { Highlight, HighlightLocatorResponse } from '@/api/generated/model';
+import { READER_PREFERENCES_KEY } from '@/components/reader/readerPreferenceStorage.ts';
 import { aBookDetails, aChapter, aHighlight } from '@tests/fixtures/book';
 import { aDetailedPositionList, aManifest, aResumePosition } from '@tests/fixtures/publication';
 import { renderApp } from '@tests/harness/renderApp';
@@ -1868,3 +1869,280 @@ test('a landing the navigator refused opens at the start without emphasising any
   await tintsOnThePage().toEqual([YELLOW_TINT]);
   expect(await emphasisAppearsWithin(EMPHASIS_RAMP_MS)).toBe(false);
 }, 30_000);
+
+/**
+ * A ReadiumCSS custom property as it stands in the frame the reader is looking
+ * at.
+ *
+ * This is the far end of the preferences path, and the only end worth
+ * asserting on: a setting the popover holds but never submits, or submits in
+ * terms ReadiumCSS does not recognise, would look identical in the control and
+ * change nothing about the words on the page. The navigator posts these into
+ * the frame and its own injectables write them onto the document element, so
+ * they arrive a moment after the click and every read of one is polled.
+ */
+const readiumProperty = (name: string): string =>
+  visibleFrame()?.contentDocument?.documentElement.style.getPropertyValue(name).trim() ?? '';
+
+/** How many columns ReadiumCSS has laid the current page out in. */
+const columnCount = () => readiumProperty('--USER__colCount');
+
+/** The appearance popover, open over the book. */
+const openAppearance = async (screen: Screen) => {
+  await screen.getByRole('button', { name: 'Appearance' }).click();
+  await expect.element(screen.getByRole('heading', { name: 'Text alignment' })).toBeVisible();
+};
+
+/**
+ * Justification is the setting worth proving end to end: unlike a colour or a
+ * font size it is one ReadiumCSS applies only when it is *told* to, leaving the
+ * book's own stylesheet in charge until then.
+ */
+test('an alignment the reader chooses reaches the words on the page', async () => {
+  aBookWithAnEpub();
+  const screen = await openTheBook();
+
+  // Nothing said, so the book's own stylesheet is still the one setting lines.
+  expect(readiumProperty('--USER__textAlign')).toBe('');
+
+  await openAppearance(screen);
+  await screen.getByRole('button', { name: 'Justified' }).click();
+
+  await expect.poll(() => readiumProperty('--USER__textAlign')).toBe('justify');
+});
+
+/**
+ * The whole point of the popover is that it is set once. A reader who justified
+ * their text on Monday is not asking to be shown the publisher's ragged right
+ * again on Tuesday, and the reader is remounted from scratch every time a book
+ * is opened.
+ */
+test('an appearance the reader set is still set when a book is opened again', async () => {
+  aBookWithAnEpub();
+  const screen = await openTheBook();
+
+  await openAppearance(screen);
+  await screen.getByRole('button', { name: 'Justified' }).click();
+  await expect.poll(() => readiumProperty('--USER__textAlign')).toBe('justify');
+
+  // Out of the reader and back in through the app's own front door, which is
+  // what unmounts the shell, destroys the navigator and builds a new one. The
+  // popover is dismissed first: it is modal, and its backdrop owns every click
+  // aimed at the chrome behind it.
+  await userEvent.keyboard('{Escape}');
+  await expect
+    .element(screen.getByRole('heading', { name: 'Text alignment' }))
+    .not.toBeInTheDocument();
+  await screen.getByRole('button', { name: 'Close reader' }).click();
+  await expect.element(screen.getByRole('heading', { name: 'Structure' })).toBeVisible();
+  await screen.getByRole('link', { name: 'Read' }).click();
+  await expectLandingAt(screen, 'Page 1 of 2');
+
+  // The book opens justified — not merely a control that remembers being
+  // pressed — because the navigator is seeded with the stored preferences
+  // rather than corrected once it has already laid the page out.
+  await expect.poll(() => readiumProperty('--USER__textAlign')).toBe('justify');
+  await openAppearance(screen);
+  await expect
+    .element(screen.getByRole('button', { name: 'Justified' }))
+    .toHaveAttribute('aria-pressed', 'true');
+}, 30_000);
+
+/** The reader opened over an appearance somebody else left in storage. */
+const openTheBookOverStoredPreferences = async (stored: string) => {
+  aBookWithAnEpub();
+  window.localStorage.setItem(READER_PREFERENCES_KEY, stored);
+  const screen = await openTheBook();
+  await openAppearance(screen);
+  return screen;
+};
+
+/** Every control back on what a first-time reader would see. */
+const expectTheDefaults = async (screen: Screen) => {
+  await expect.element(screen.getByText('100%')).toBeVisible();
+  await expect
+    .element(screen.getByRole('button', { name: 'Default' }))
+    .toHaveAttribute('aria-pressed', 'true');
+  await expect
+    .element(screen.getByRole('button', { name: 'Light' }))
+    .toHaveAttribute('aria-pressed', 'true');
+};
+
+/**
+ * Storage is a place other things write to, and a browser is entitled to hand
+ * back whatever is under a key. None of that is the reader's problem: a book
+ * still opens, on the defaults, with nothing said about it.
+ */
+test('an appearance stored as nonsense opens the book on the defaults', async () => {
+  await expectTheDefaults(await openTheBookOverStoredPreferences('{ not json at all'));
+});
+
+/**
+ * The envelope can be perfectly good JSON and the typography inside it still
+ * unreadable, which is the case the navigator's own deserialiser is here to
+ * catch: it is what re-checks the font size, the alignment and the column
+ * count, and what refuses a blob that is not preferences at all.
+ */
+test('an appearance whose stored typography is unreadable opens the book on the defaults', async () => {
+  const screen = await openTheBookOverStoredPreferences(
+    JSON.stringify({ version: 1, theme: 'light', epub: 'garbage' })
+  );
+
+  await expectTheDefaults(screen);
+});
+
+/**
+ * The version field would enable the very loss it exists to prevent if a save
+ * ignored it. A reader who has used a newer build — in another tab, or before
+ * this one was served from a stale cache — has a record this code cannot read;
+ * falling back to the defaults is right, and then writing those defaults over
+ * their real settings would destroy them permanently.
+ */
+test('an appearance written by a newer reader is read past, and left alone', async () => {
+  const fromTheFuture = JSON.stringify({
+    version: 2,
+    theme: 'dark',
+    epub: '{"fontSize":1.4}',
+    somethingNewer: true,
+  });
+
+  const screen = await openTheBookOverStoredPreferences(fromTheFuture);
+  await expectTheDefaults(screen);
+
+  // Not merely on mount: a setting changed here must not overwrite it either.
+  await screen.getByRole('button', { name: 'Sepia' }).click();
+  await expect
+    .element(screen.getByRole('button', { name: 'Sepia' }))
+    .toHaveAttribute('aria-pressed', 'true');
+
+  expect(window.localStorage.getItem(READER_PREFERENCES_KEY)).toBe(fromTheFuture);
+});
+
+/**
+ * A wide screen fills itself with columns, which is more text per line than
+ * some people want to read. The switch is what caps it at one — and it has to
+ * stay on offer once it has been used, or there would be no way back.
+ */
+test('the single-column switch holds a wide page to one column', async () => {
+  aBookWithAnEpub();
+  const screen = await openTheBook();
+
+  await expect.poll(columnCount).toBe('2');
+
+  await openAppearance(screen);
+  await screen.getByRole('switch', { name: 'Single column' }).click();
+
+  await expect.poll(columnCount).toBe('1');
+
+  // The page is now one column because the reader asked for it, which is not a
+  // reason to take the switch away from them.
+  await userEvent.keyboard('{Escape}');
+  await openAppearance(screen);
+  await expect.element(screen.getByRole('switch', { name: 'Single column' })).toBeChecked();
+});
+
+/**
+ * Readium fits as many columns as the optimal line length allows, not as many
+ * as the breakpoint suggests: this viewport is far wider than a phone and
+ * still lays the book out in one column. A switch to force what is already
+ * true is a control that does nothing, so it is not offered.
+ */
+test('the column switch is not offered where the page is already one column', async () => {
+  aBookWithAnEpub();
+  await page.viewport(1100, 900);
+  const screen = await openTheBook();
+
+  await expect.poll(columnCount).toBe('1');
+
+  await openAppearance(screen);
+
+  await expect.element(screen.getByRole('button', { name: 'Justified' })).toBeVisible();
+  await expect
+    .element(screen.getByRole('switch', { name: 'Single column' }))
+    .not.toBeInTheDocument();
+});
+
+/**
+ * A contents list of ninety chapters that says nothing about where you are is a
+ * list you have to search to find yourself in. The mark is resource-granular,
+ * because that is all a reading position reliably says.
+ */
+test('the contents mark the chapter being read, and follow the reader out of it', async () => {
+  aBookWithAnEpub();
+  const screen = await openTheBook();
+
+  await screen.getByRole('button', { name: 'Contents' }).click();
+  const contents = screen.getByRole('navigation', { name: 'Table of contents' });
+  await expect
+    .element(contents.getByRole('button', { name: 'On Attention' }))
+    .toHaveAttribute('aria-current', 'location');
+  await expect
+    .element(contents.getByRole('button', { name: 'On Memory' }))
+    .not.toHaveAttribute('aria-current');
+  await screen.getByRole('button', { name: 'Close contents' }).click();
+
+  await turnThePage(screen);
+
+  await screen.getByRole('button', { name: 'Contents' }).click();
+  await expect
+    .element(contents.getByRole('button', { name: 'On Memory' }))
+    .toHaveAttribute('aria-current', 'location');
+  await expect
+    .element(contents.getByRole('button', { name: 'On Attention' }))
+    .not.toHaveAttribute('aria-current');
+});
+
+/**
+ * The nearest ancestor of `node` that actually scrolls, whatever it is called.
+ * Asked of the DOM rather than named by class, so this is about the panel the
+ * reader scrolls rather than about which element MUI happens to put it on.
+ */
+const scrollerAbove = (node: HTMLElement): HTMLElement | null => {
+  for (let el = node.parentElement; el; el = el.parentElement) {
+    if (el.scrollHeight > el.clientHeight + 1) return el;
+  }
+  return null;
+};
+
+/** A book whose contents are long enough that the current chapter is off screen. */
+const aBookWithALongToc = () =>
+  aBookWithAPublication({
+    manifest: aManifest({
+      toc: [
+        ...Array.from({ length: 40 }, (_, index) => ({
+          href: `resources/OEBPS/front-matter-${index}.xhtml`,
+          title: `Front matter ${index}`,
+        })),
+        { href: 'resources/OEBPS/chapter1.xhtml', title: 'On Attention' },
+        { href: 'resources/OEBPS/chapter2.xhtml', title: 'On Memory' },
+      ],
+    }),
+  });
+
+/**
+ * Marking the chapter is only half of it. In a book with a real table of
+ * contents the mark is usually below the fold, and a drawer that opens at
+ * entry one has told the reader nothing they can see.
+ *
+ * The assertion is deliberately about where the entry *is* on screen rather
+ * than about the mark: this scrolling was broken for a while behind tests that
+ * passed, because `aria-current` looks exactly the same whether the panel
+ * moved or not.
+ */
+test('the contents open scrolled to the chapter being read', async () => {
+  aBookWithALongToc();
+  const screen = await openTheBook();
+
+  await screen.getByRole('button', { name: 'Contents' }).click();
+  const contents = screen.getByRole('navigation', { name: 'Table of contents' });
+  const marked = contents.getByRole('button', { name: 'On Attention' });
+  await expect.element(marked).toHaveAttribute('aria-current', 'location');
+
+  const node = marked.element() as HTMLElement;
+  await expect.poll(() => scrollerAbove(node)?.scrollTop ?? 0).toBeGreaterThan(0);
+
+  // And it is genuinely on screen, which is the thing the reader gets.
+  const box = node.getBoundingClientRect();
+  expect(box.top).toBeGreaterThanOrEqual(0);
+  expect(box.bottom).toBeLessThanOrEqual(window.innerHeight);
+});
