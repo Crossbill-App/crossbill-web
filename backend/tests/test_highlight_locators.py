@@ -19,6 +19,7 @@ not as a 500, because the canonical xpointer is safely stored either way and
 only this view of it is lost.
 """
 
+from collections.abc import Iterator
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
@@ -27,9 +28,14 @@ import pytest
 from httpx import AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession
 from starlette import status
+from structlog.testing import capture_logs
+from structlog.typing import EventDict
 
 from src.application.common.queries.highlight_row import HighlightRow
 from src.application.web_reader.anchors import Locator, LocatorText
+from src.application.web_reader.queries.get_highlight_locators_use_case import (
+    _report_unconvertible,
+)
 from src.application.web_reader.queries.highlight_locators import (
     DerivedHighlightLocator,
     LocatorUnavailable,
@@ -956,3 +962,179 @@ class TestTheSearchViewIsUnchanged:
         assert response.status_code == status.HTTP_200_OK
         assert all(highlight["locator"] is None for highlight in by_text(response.json()).values())
         assert "still-flagged.epub" not in epub_reads
+
+
+class TestReportingConversionsThatFailed:
+    """The structured warning M3.4 (#748) leaves behind for a bad conversion.
+
+    A highlight the reader is not shown is a highlight nobody will ever fix.
+    The reader gets no notice for it -- a book of broken conversions would be a
+    book of notices, and ADR-0004 §5 already says the safe answer is to draw
+    nothing -- so the record of it is a log line carrying the book and the
+    highlight, which is exactly what is needed to go and look at the EPUB and
+    turn the pair into an xpoint-cfi corpus case.
+
+    Only conversions that *went wrong* are reported. A book with no readable
+    EPUB and a highlight that never had a position are ordinary states with
+    nothing to fix, and logging them would bury the lines that matter under a
+    line per highlight per book.
+    """
+
+    @pytest.fixture(autouse=True)
+    def unreported(self) -> Iterator[None]:
+        """A process that has not yet reported any conversion failure.
+
+        The cache behind the warning is what keeps one broken highlight from
+        filling a day of logs, and it is also what makes these assertions
+        order-dependent: a book and highlight id some earlier test already
+        reported would be silently skipped here. Cleared both ways, so this
+        class neither inherits a claim nor leaves one.
+        """
+        _report_unconvertible.cache_clear()
+        yield
+        _report_unconvertible.cache_clear()
+
+    def reported(self, captured: list[EventDict]) -> list[EventDict]:
+        return [event for event in captured if event["event"] == "highlight_locator_unavailable"]
+
+    async def test_a_highlight_that_resolved_nowhere_is_logged_with_its_book(
+        self,
+        client: AsyncClient,
+        db_session: AsyncSession,
+        test_user: User,
+        storage_dir: Path,
+    ) -> None:
+        """The jump path's failure, named well enough to go and reproduce."""
+        book = await book_with_highlights(db_session, test_user, storage_dir, "reported-lost.epub")
+        chapter = await create_test_chapter(db_session, book, name="Chapter One", chapter_number=1)
+        lost = await create_test_highlight(
+            db_session,
+            book,
+            test_user.id,
+            text="Elsewhere entirely.",
+            datetime_str=WHEN,
+            chapter_id=chapter.id,
+            start_xpoint=XPOINTS_IN_ANOTHER_EDITION[0],
+            end_xpoint=XPOINTS_IN_ANOTHER_EDITION[1],
+        )
+
+        with capture_logs() as captured:
+            response = await client.get(locator_url(lost.id))
+
+        assert response.status_code == status.HTTP_200_OK
+        reported = self.reported(captured)
+        assert len(reported) == 1
+        assert reported[0]["log_level"] == "warning"
+        assert reported[0]["book_id"] == book.id
+        assert reported[0]["highlight_id"] == lost.id
+        assert reported[0]["reason"] == "unresolved"
+
+    async def test_a_highlight_that_landed_on_the_wrong_words_is_logged_too(
+        self,
+        client: AsyncClient,
+        db_session: AsyncSession,
+        test_user: User,
+        storage_dir: Path,
+    ) -> None:
+        """The dangerous one, and the most useful corpus case of the two."""
+        book = await book_with_highlights(db_session, test_user, storage_dir, "reported-stale.epub")
+        chapter = await create_test_chapter(db_session, book, name="Chapter One", chapter_number=1)
+        stale = await create_test_highlight(
+            db_session,
+            book,
+            test_user.id,
+            text="A sentence this edition does not contain.",
+            datetime_str=WHEN,
+            chapter_id=chapter.id,
+            start_xpoint=LANTERN_XPOINTS[0],
+            end_xpoint=LANTERN_XPOINTS[1],
+        )
+
+        with capture_logs() as captured:
+            await client.get(book_locators_url(book.id))
+
+        reported = self.reported(captured)
+        assert [(event["highlight_id"], event["reason"]) for event in reported] == [
+            (stale.id, "text_mismatch")
+        ]
+
+    async def test_the_same_highlight_is_not_reported_again(
+        self,
+        client: AsyncClient,
+        db_session: AsyncSession,
+        test_user: User,
+        storage_dir: Path,
+    ) -> None:
+        """Every open of a book re-derives it; the log must not grow with that.
+
+        The whole-book route runs on every visit to the reader, so a highlight
+        that cannot be converted would otherwise write the same line every time
+        anyone opened the book -- and the one broken highlight nobody had seen
+        before would be lost in it.
+        """
+        book = await book_with_highlights(db_session, test_user, storage_dir, "reported-twice.epub")
+        chapter = await create_test_chapter(db_session, book, name="Chapter One", chapter_number=1)
+        await create_test_highlight(
+            db_session,
+            book,
+            test_user.id,
+            text="Elsewhere entirely.",
+            datetime_str=WHEN,
+            chapter_id=chapter.id,
+            start_xpoint=XPOINTS_IN_ANOTHER_EDITION[0],
+            end_xpoint=XPOINTS_IN_ANOTHER_EDITION[1],
+        )
+
+        with capture_logs() as first:
+            await client.get(book_locators_url(book.id))
+        with capture_logs() as second:
+            await client.get(book_locators_url(book.id))
+
+        assert len(self.reported(first)) == 1
+        assert self.reported(second) == []
+
+    async def test_a_book_with_no_epub_is_not_reported_as_a_bad_conversion(
+        self,
+        client: AsyncClient,
+        db_session: AsyncSession,
+        test_user: User,
+        storage_dir: Path,
+    ) -> None:
+        """Nothing was converted, so there is no conversion to collect.
+
+        Reporting it would be a line for every highlight in the book, saying
+        only what the missing file already says once.
+        """
+        book = await book_with_highlights(
+            db_session, test_user, storage_dir, "reported-vanished.epub", delete_file=True
+        )
+
+        with capture_logs() as captured:
+            response = await client.get(book_locators_url(book.id))
+
+        assert response.status_code == status.HTTP_200_OK
+        assert self.reported(captured) == []
+
+    async def test_a_highlight_that_was_never_placed_is_not_reported(
+        self,
+        client: AsyncClient,
+        db_session: AsyncSession,
+        test_user: User,
+        storage_dir: Path,
+    ) -> None:
+        """No xpointer, no conversion, nothing broken -- an ordinary highlight."""
+        book = await book_with_highlights(db_session, test_user, storage_dir, "reported-hand.epub")
+        chapter = await create_test_chapter(db_session, book, name="Chapter One", chapter_number=1)
+        await create_test_highlight(
+            db_session,
+            book,
+            test_user.id,
+            text="Typed in by hand.",
+            datetime_str=WHEN,
+            chapter_id=chapter.id,
+        )
+
+        with capture_logs() as captured:
+            await client.get(book_locators_url(book.id))
+
+        assert self.reported(captured) == []
