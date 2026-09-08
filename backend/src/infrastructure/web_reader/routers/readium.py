@@ -46,6 +46,11 @@ from src.infrastructure.identity.dependencies import (
 )
 from src.infrastructure.reading.routers.reader_clock import reader_now
 from src.infrastructure.web_reader.dependencies import PublicationReader
+from src.infrastructure.web_reader.schemas.locator_builders import (
+    container_href,
+    served_href,
+    served_locator_schema,
+)
 from src.infrastructure.web_reader.schemas.reading_position_schemas import (
     LocatorSchema,
     ReadingPosition,
@@ -77,8 +82,9 @@ settings = get_settings()
 # Every href in the manifest is relative to the manifest's own URL, so a reader
 # that has resolved `/readium/books/7/manifest.json` reaches a resource at
 # `/readium/books/7/resources/<path in the container>` and the position list at
-# `/readium/books/7/positions.json`, with no base URL to configure.
-RESOURCE_PATH_PREFIX = "resources/"
+# `/readium/books/7/positions.json`, with no base URL to configure. The prefix
+# itself lives with the locator builders, because every locator leaving the
+# server crosses the same boundary.
 POSITION_LIST_HREF = "positions.json"
 
 # A table-of-contents heading that links nowhere. A Readium Link must have an
@@ -315,17 +321,13 @@ def _resume_position(resume: ResumePosition) -> ResumePositionResponse:
     href is pointed back at the URL that serves the file, exactly as the
     manifest and the position list do.
     """
-    locator = resume.stored_locator
+    locator: LocatorSchema | None = None
     if resume.derived_locator is not None:
-        derived = resume.derived_locator
-        locator = Locator(
-            href=_served_href(derived.href),
-            type=derived.type,
-            locations=derived.locations,
-            text=derived.text,
-        ).to_dict()
+        locator = served_locator_schema(resume.derived_locator)
+    elif resume.stored_locator is not None:
+        locator = LocatorSchema.model_validate(resume.stored_locator)
     return ResumePositionResponse(
-        locator=LocatorSchema.model_validate(locator) if locator is not None else None,
+        locator=locator,
         source=resume.source,
         unresolved=resume.unresolved,
         xpoint=resume.xpoint.to_string() if resume.xpoint else None,
@@ -405,12 +407,12 @@ def _anchor_locator(locator: LocatorSchema) -> Locator:
     saw came out of the manifest or the position list, so it names this
     endpoint's URL for a file (``resources/OEBPS/chapter1.xhtml``) rather than
     the file's path inside the container -- and the container path is what a
-    conversion against the EPUB resolves. This is ``_served_href`` read
+    conversion against the EPUB resolves. This is ``served_href`` read
     backwards. A locator whose href carries no such prefix is passed through
     unchanged and will simply name nothing in the publication.
     """
     return Locator(
-        href=_container_href(locator.href),
+        href=container_href(locator.href),
         type=locator.type,
         locations=LocatorLocations(
             progression=locator.locations.progression,
@@ -424,11 +426,6 @@ def _anchor_locator(locator: LocatorSchema) -> Locator:
             after=locator.text.after,
         ),
     )
-
-
-def _container_href(served_href: str) -> str:
-    """Point a URL this endpoint serves back at the path inside the EPUB container."""
-    return served_href.removeprefix(RESOURCE_PATH_PREFIX)
 
 
 @router.get(
@@ -563,7 +560,7 @@ def _manifest(publication: ParsedPublication, self_href: str) -> WebPublicationM
 def _locator(position: PublicationPosition) -> ReadiumLocator:
     """Render one computed position as a Locator pointing at the resource endpoint."""
     return ReadiumLocator(
-        href=_served_href(position.href),
+        href=served_href(position.href),
         type=position.media_type,
         locations=ReadiumLocations(
             position=position.position,
@@ -577,7 +574,7 @@ def _resource_link(resource: PublicationResource) -> ReadiumLink:
     """Render one publication file as a Link pointing at the resource endpoint."""
     layout = resource.layout
     return ReadiumLink(
-        href=_served_href(resource.href),
+        href=served_href(resource.href),
         type=resource.media_type,
         properties=ReadiumProperties(layout=layout.value) if layout else None,
     )
@@ -587,12 +584,7 @@ def _toc_link(entry: TocEntry) -> ReadiumLink:
     """Render one table-of-contents entry, and everything nested under it."""
     children = [_toc_link(child) for child in entry.children]
     return ReadiumLink(
-        href=_served_href(entry.href) if entry.href else UNLINKED_TOC_HREF,
+        href=served_href(entry.href) if entry.href else UNLINKED_TOC_HREF,
         title=entry.title,
         children=children or None,
     )
-
-
-def _served_href(container_href: str) -> str:
-    """Point a path inside the EPUB container at the URL that will serve it."""
-    return f"{RESOURCE_PATH_PREFIX}{container_href}"

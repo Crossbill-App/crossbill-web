@@ -160,6 +160,7 @@ class RootContainer(containers.DeclarativeContainer):
         web_publication_query=shared.web_publication_query,
         publication_resource_query=shared.publication_resource_query,
         publication_positions_query=shared.publication_positions_query,
+        highlight_anchor_query=shared.highlight_anchor_query,
         web_reading_position_repository=shared.web_reading_position_repository,
         reading_session_repository=shared.reading_session_repository,
         position_anchor_service=shared.position_anchor_service,

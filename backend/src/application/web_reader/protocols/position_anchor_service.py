@@ -1,5 +1,6 @@
 """Port for converting between the canonical xpointer and the Readium Locator."""
 
+from collections.abc import Mapping
 from typing import Protocol
 
 from src.application.web_reader.anchors import AnchorMatch, Locator
@@ -45,6 +46,29 @@ class PositionAnchorServiceProtocol(Protocol):
         Raises:
             AnchorResolutionError: If the EPUB is unavailable or either end does
                 not resolve against it.
+        """
+        ...
+
+    async def locators_for_xpoint_ranges(
+        self, ebook_file: str, ranges: Mapping[int, XPointRange]
+    ) -> dict[int, Locator | None]:
+        """Derive Locators for many ranges of one book against a single parse.
+
+        The whole-book conversion path. Callers hand in ranges keyed by whatever
+        identifies them -- a highlight id -- and get the same keys back, mapped
+        to a Locator or to ``None`` where that one range does not resolve. One
+        bad xpointer is one missing view, not a failed request, so a per-range
+        failure is a ``None`` rather than an exception (ADR-0004 §2).
+
+        Implementations parse once and convert the whole mapping without
+        returning to the event loop in between, which is what makes this
+        different from a caller's own loop over
+        :meth:`locator_for_xpoint_range`.
+
+        Raises:
+            AnchorResolutionError: If the *book* cannot be read at all -- no
+                EPUB stored, or one that does not parse. That is a failure of
+                every range at once and the caller degrades all of them.
         """
         ...
 

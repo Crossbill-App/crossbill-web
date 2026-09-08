@@ -8,8 +8,10 @@ web_reader.anchors``.
 
 from __future__ import annotations
 
+import asyncio
 import logging
 from collections import OrderedDict
+from collections.abc import Mapping
 from math import isfinite
 
 import xpoint_cfi
@@ -106,6 +108,37 @@ class XPointCfiPositionAnchorService:
         except xpoint_cfi.XpointCfiError as exc:
             raise AnchorResolutionError(f"Cannot locate {start!r}..{end!r}: {exc}") from exc
         return _to_locator(locator)
+
+    async def locators_for_xpoint_ranges(
+        self, ebook_file: str, ranges: Mapping[int, XPointRange]
+    ) -> dict[int, Locator | None]:
+        """Derive Locators for many ranges of one book against a single parse.
+
+        The whole loop is handed to one worker thread rather than awaited per
+        range. Two reasons, and the second is the one that bites: a conversion
+        is pure CPU in lxml with no await in it, so per-range hops would buy
+        nothing but scheduling; and a book's whole highlight list is long enough
+        to be measurable (ADR-0004 §4), which on the event loop is latency
+        every other request in the process pays.
+        """
+        if not ranges:
+            return {}
+        book = await self._publication(ebook_file)
+        return await asyncio.to_thread(self._converted, book, ranges)
+
+    def _converted(
+        self, book: xpoint_cfi.EpubMap, ranges: Mapping[int, XPointRange]
+    ) -> dict[int, Locator | None]:
+        """Convert every range against one parsed publication, on this thread."""
+        converted: dict[int, Locator | None] = {}
+        for key, xpoints in ranges.items():
+            start, end = xpoints.start.to_string(), xpoints.end.to_string()
+            try:
+                converted[key] = _to_locator(xpoint_cfi.xpoint_range_to_locator(book, start, end))
+            except xpoint_cfi.XpointCfiError as exc:
+                logger.info("unresolvable_highlight_anchor", extra={"key": key, "reason": str(exc)})
+                converted[key] = None
+        return converted
 
     async def xpoint_range_for_locator(self, ebook_file: str, locator: Locator) -> AnchorMatch:
         """Resolve a Locator back to the canonical ``XPointRange``, with a grade.
@@ -231,15 +264,23 @@ class XPointCfiPositionAnchorService:
         content = await self.file_repository.get_epub(ebook_file)
         if content is None:
             raise AnchorResolutionError(f"No EPUB stored for {ebook_file!r}")
-        try:
-            book = xpoint_cfi.EpubMap.from_bytes(content)
-        except xpoint_cfi.XpointCfiError as exc:
-            raise AnchorResolutionError(f"Cannot parse EPUB {ebook_file!r}: {exc}") from exc
+        # On a worker thread: an EPUB parse is lxml work with no await in it, so
+        # on a miss it would otherwise hold the loop for every other request in
+        # this process.
+        book = await asyncio.to_thread(_parse, ebook_file, content)
 
         self._publications[ebook_file] = book
         if len(self._publications) > PARSED_PUBLICATION_CACHE_SIZE:
             self._publications.popitem(last=False)
         return book
+
+
+def _parse(ebook_file: str, content: bytes) -> xpoint_cfi.EpubMap:
+    """Parse EPUB bytes into the library's publication map."""
+    try:
+        return xpoint_cfi.EpubMap.from_bytes(content)
+    except xpoint_cfi.XpointCfiError as exc:
+        raise AnchorResolutionError(f"Cannot parse EPUB {ebook_file!r}: {exc}") from exc
 
 
 def _anchoring_on(locator: Locator, text: LocatorText) -> Locator:

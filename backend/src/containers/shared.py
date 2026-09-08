@@ -79,6 +79,7 @@ from src.infrastructure.semantic.queries.search_hydration_query import SearchHyd
 from src.infrastructure.semantic.queries.semantic_search_query import SemanticSearchQuery
 from src.infrastructure.semantic.repositories.embedding_repository import EmbeddingRepository
 from src.infrastructure.tagging.repositories import TagRepository
+from src.infrastructure.web_reader.queries.highlight_anchor_query import HighlightAnchorQuery
 from src.infrastructure.web_reader.queries.publication_positions_query import (
     PublicationPositionsQuery,
 )
@@ -284,3 +285,6 @@ class SharedContainer(containers.DeclarativeContainer):
         file_repository=file_repository,
         publication_parser=epub_parser_service,
     )
+    # No EPUB collaborator: this one reads the canonical xpointers out of
+    # Postgres and the anchor service does the deriving from them.
+    highlight_anchor_query = providers.Factory(HighlightAnchorQuery, db=db)
