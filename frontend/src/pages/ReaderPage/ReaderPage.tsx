@@ -30,8 +30,12 @@ export const ReaderPage = () => {
   const { data: book } = useGetBookDetails(Number(bookId));
   const { data: tagsResponse } = useGetTags(Number(bookId));
 
+  // `undefined` until the book has answered, which the decoration layer reads
+  // as "nothing is known to be missing yet" rather than as "this book has no
+  // highlights". The two call for different drawing, and for different answers
+  // to a decoration being tapped.
   const allHighlights = useMemo(
-    () => book?.chapters.flatMap((chapter) => chapter.highlights) ?? [],
+    () => book?.chapters.flatMap((chapter) => chapter.highlights),
     [book]
   );
   const bookmarksByHighlightId = useMemo(
@@ -42,7 +46,10 @@ export const ReaderPage = () => {
   // `isMobile` is what asks the dialog to scroll a list back to the highlight
   // it closed on. There is no list here — there is a book — so it is false at
   // every width.
-  const highlightDialog = useHighlightDialog({ allHighlights, isMobile: false });
+  const highlightDialog = useHighlightDialog({
+    allHighlights: allHighlights ?? [],
+    isMobile: false,
+  });
 
   return (
     <>

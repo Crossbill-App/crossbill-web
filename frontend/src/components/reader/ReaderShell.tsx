@@ -1,4 +1,5 @@
 import type { Highlight } from '@/api/generated/model';
+import { isAnyDialogOpen } from '@/components/dialogs/dialogStack.ts';
 import { CHROME_MARKER } from '@/components/reader/chromeMarker.ts';
 import { HIGHLIGHT_DECORATION_GROUP } from '@/components/reader/decorations.ts';
 import { ReaderChrome } from '@/components/reader/ReaderChrome.tsx';
@@ -88,11 +89,14 @@ interface ReaderShellProps {
   title: string;
   onClose: () => void;
   /**
-   * The book's highlights, for the colour their labels give each decoration.
-   * Empty while the book-details query is in flight, and empty for a book with
-   * none — neither of which stops a highlight being drawn.
+   * The book's highlights, for the colour their labels give each decoration —
+   * and `undefined` until the book-details query has answered.
+   *
+   * Not the same as an empty array, which is a book nobody has marked. A
+   * highlight is drawn before its label is known and skipped once the book is
+   * known not to have it.
    */
-  highlights: Highlight[];
+  highlights: Highlight[] | undefined;
   /** Open the highlight a reader tapped on the page. */
   onOpenHighlight: (highlightId: number) => void;
 }
@@ -174,15 +178,6 @@ export const ReaderShell = ({
   // object hanging off a ref, and a ref is not something a render may consult.
   const [fontSizeBounds, setFontSizeBounds] = useState(DEFAULT_FONT_SIZE_BOUNDS);
 
-  // The reader's own highlights, drawn on the page. Deliberately not part of
-  // `isReady` below: the book opens without them and they land when they land.
-  const { observer: decorationObserver, apply: applyDecorations } = useHighlightDecorations({
-    bookId,
-    highlights,
-    navigatorRef,
-    onActivate: onOpenHighlight,
-  });
-
   const goForward = useCallback(() => navigatorRef.current?.goForward(true, () => {}), []);
   const goBackward = useCallback(() => navigatorRef.current?.goBackward(true, () => {}), []);
 
@@ -192,13 +187,32 @@ export const ReaderShell = ({
   const goLeft = useCallback(() => navigatorRef.current?.goLeft(true, () => {}), []);
   const goRight = useCallback(() => navigatorRef.current?.goRight(true, () => {}), []);
 
+  // The reader's own highlights, drawn on the page. Deliberately not part of
+  // `isReady` below: the book opens without them and they land when they land.
+  const {
+    observer: decorationObserver,
+    apply: applyDecorations,
+    claimsPoint: decorationClaimsPoint,
+  } = useHighlightDecorations({
+    bookId,
+    highlights,
+    navigatorRef,
+    onActivate: onOpenHighlight,
+  });
+
   // What replaces the arrow buttons where there is no room for them. Stable for
   // the same reason `handleKeyDown` is, and bound to each frame in the same place.
+  //
+  // `isClaimed` is what keeps a tap on a highlight near the edge of a phone
+  // screen from both opening the highlight and turning the page. Readium
+  // reports an activation asynchronously, well after this listener has run, so
+  // the zones ask the decoration layer directly instead of waiting to be told.
   const bindTapZones = useReaderTapZones({
     enabled: isCompact,
     suspended: isRenewing,
     onLeft: goLeft,
     onRight: goRight,
+    isClaimed: decorationClaimsPoint,
   });
 
   // Mirrored into a ref so the key handler can consult it without becoming a
@@ -215,6 +229,14 @@ export const ReaderShell = ({
     (event: KeyboardEvent) => {
       if (event.key !== 'ArrowRight' && event.key !== 'ArrowLeft') return;
       if (isRenewingRef.current) return;
+      // A dialog is over the book, and its arrows are its own — in the
+      // highlight dialog they page between highlights. Both handlers listen on
+      // the window, so the dialog calling `preventDefault` does not reach this
+      // one, and a book turned underneath an open dialog stays turned once the
+      // dialog closes. Asked of the shared stack rather than of a marker on one
+      // dialog, so that a dialog added later is covered without being told to
+      // mark itself.
+      if (isAnyDialogOpen()) return;
       // An arrow key belongs to whatever control is using it. On the font-size
       // slider it is a font size, in the contents list it is the next chapter;
       // it is only a page turn when the book itself has the keyboard. Chrome
@@ -224,6 +246,14 @@ export const ReaderShell = ({
       // frame arrive from another document, where this matches nothing.
       const target = event.target;
       if (target instanceof Element && target.closest(`[${CHROME_MARKER}]`)) return;
+      // Somewhere text is being typed or edited, where an arrow moves a caret.
+      // Not covered by the marker above: a field can be anywhere, including in
+      // a surface that is nobody's idea of reader chrome.
+      if (
+        target instanceof HTMLElement &&
+        (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable)
+      )
+        return;
 
       if (event.key === 'ArrowRight') goForward();
       else goBackward();

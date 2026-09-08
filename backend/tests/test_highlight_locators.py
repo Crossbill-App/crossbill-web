@@ -3,8 +3,8 @@
 Three endpoints, one derivation. ``GET /books/{id}/highlights?include=locator``
 places the highlights a *search* matched, ``GET /highlights/{id}/locator``
 places one so the reader can jump to it, and
-``GET /readium/books/{id}/highlight-locators`` places a whole book's so the
-reader can draw every decoration in it.
+``GET /books/{id}/highlight-locators`` places a whole book's so the reader
+can draw every decoration in it.
 
 Every locator here is converted for real against ``tests/fixtures/minimal.epub``
 -- no anchor service is faked -- because what is under test is not that a field
@@ -34,6 +34,7 @@ from src.application.web_reader.queries.highlight_locators import (
     DerivedHighlightLocator,
     LocatorUnavailable,
 )
+from src.infrastructure.identity.services.token_service import create_access_token
 from src.infrastructure.library.repositories.file_repository import FileRepository
 from src.infrastructure.reading.schemas.highlight_builders import (
     build_highlight_schema,
@@ -99,7 +100,7 @@ def locator_url(highlight_id: int) -> str:
 
 
 def book_locators_url(book_id: int) -> str:
-    return f"/api/v1/readium/books/{book_id}/highlight-locators"
+    return f"/api/v1/books/{book_id}/highlight-locators"
 
 
 def by_id(payload: dict[str, Any]) -> dict[int, dict[str, Any]]:
@@ -866,45 +867,47 @@ class TestEveryLocatorInABook:
 
         assert response.status_code == status.HTTP_404_NOT_FOUND
 
-    async def test_the_publication_cookie_opens_it(
+    async def test_the_publication_cookie_does_not_open_it(
         self,
         browser_client: AsyncClient,
         db_session: AsyncSession,
         test_user: User,
         storage_dir: Path,
     ) -> None:
-        """Should serve a request carrying only the credential a reading tab may have left.
+        """Should refuse the credential a navigator's iframe carries.
 
-        The route is under the cookie's path scope on purpose: it is fetched
-        while the book is open, from a page whose access token may have lapsed,
-        and the cookie names this one book -- which is exactly what this route
-        answers for.
+        The route is outside the ``/readium`` prefix on purpose, and this is
+        what that buys. Every request the SPA makes for it carries a Bearer
+        token -- axios attaches one whenever it holds one and refreshes it on
+        401 -- so there is no reachable caller that would be helped by the
+        cookie, and accepting it would widen a per-publication credential into
+        one that reads a user's highlights.
         """
         book = await book_with_highlights(db_session, test_user, storage_dir, "reader-cookie.epub")
         minted = await start_publication_session(browser_client, test_user, book.id)
-        assert minted.status_code == status.HTTP_200_OK, minted.text
+        present(browser_client, minted.cookies[PUBLICATION_COOKIE_NAME])
 
         response = await browser_client.get(book_locators_url(book.id))
 
-        assert response.status_code == status.HTTP_200_OK, response.text
-        assert len(by_id(response.json())) == 3
+        assert response.status_code == status.HTTP_401_UNAUTHORIZED, response.text
 
-    async def test_the_cookie_opens_no_other_book(
+    async def test_a_bearer_token_opens_it(
         self,
         browser_client: AsyncClient,
         db_session: AsyncSession,
         test_user: User,
         storage_dir: Path,
     ) -> None:
-        """Should refuse book A's cookie at book B's decorations, both being the caller's."""
-        book = await book_with_highlights(db_session, test_user, storage_dir, "reader-a.epub")
-        other = await book_with_highlights(db_session, test_user, storage_dir, "reader-b.epub")
-        minted = await start_publication_session(browser_client, test_user, book.id)
-        present(browser_client, minted.cookies[PUBLICATION_COOKIE_NAME])
+        """Which is how the SPA asks, every time."""
+        book = await book_with_highlights(db_session, test_user, storage_dir, "reader-bearer.epub")
 
-        response = await browser_client.get(book_locators_url(other.id))
+        response = await browser_client.get(
+            book_locators_url(book.id),
+            headers={"Authorization": f"Bearer {create_access_token(test_user.id)}"},
+        )
 
-        assert response.status_code == status.HTTP_401_UNAUTHORIZED, response.text
+        assert response.status_code == status.HTTP_200_OK, response.text
+        assert len(by_id(response.json())) == 3
 
     async def test_a_request_with_no_credential_is_refused(
         self,

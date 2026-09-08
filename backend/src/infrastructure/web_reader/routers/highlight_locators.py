@@ -1,27 +1,25 @@
 """Where a book's highlights are in the EPUB, for the reader to draw and jump to.
 
-Two routes over one derivation (M3.1, #745; M3.2, #746), and they sit on
-opposite sides of the publication cookie on purpose.
+Two routes over one derivation (M3.1, #745; M3.2, #746), and both are
+Bearer-authenticated and outside the ``/readium`` prefix.
 
-``GET /highlights/{id}/locator`` places **one** highlight so the reader can jump
-to it. It is Bearer-authenticated and outside the ``/readium`` prefix. The
-cookie exists for one reason (ADR-0004, *Amendment 1*): a navigator's iframe
-loads a resource as a plain browser request and cannot carry the SPA's access
-token. Nothing about that route is loaded that way -- the app fetches it with
-``fetch`` exactly as it fetches every other highlight view -- and scoping it
-under the cookie's path would widen that credential from *read this
-publication* to *read any of this user's highlights*, since the route is keyed
-by highlight rather than by book.
+The prefix is not cosmetic: it is the publication cookie's path scope, and
+``get_publication_reader`` makes *every* route under it accept that cookie as a
+single rule with one place to get wrong. The cookie exists for one reason
+(ADR-0004, *Amendment 1*): a navigator's iframe loads a resource as a plain
+browser request and cannot carry the SPA's access token. Neither route here is
+loaded that way -- the app fetches both with ``fetch``, through an axios
+instance that attaches a Bearer whenever it holds one and refreshes it on 401 --
+so there is no reachable request either would answer with the cookie and refuse
+without it. Putting them under the prefix would therefore widen that credential
+from *read this publication* to *read this user's highlights* and buy nothing
+back, and carving out an exception to the prefix's rule would cost more than the
+exception is worth.
 
-``GET /readium/books/{id}/highlight-locators`` places **every** highlight of one
-book, which is what a reader drawing decorations asks for. It takes either
-credential, and being under the cookie's path is the point rather than a cost:
-the cookie is minted per book and this route answers for that one book, so what
-it opens is exactly *read this publication* -- the scope the cookie already had.
-It has to be reachable that way, because unlike the jump above this is fetched
-**while reading**, from a page whose access token may have lapsed behind a tab
-that was left open, and a decoration layer that quietly stopped redrawing would
-be a worse failure than one that never drew at all.
+That the whole-book route is fetched *while reading* does not change it. A tab
+whose access token has lapsed has a refresh token that replaces it, which is the
+same machinery every other read in the app relies on; the decorations are not a
+special case that needs a second credential to survive a long-open tab.
 """
 
 from typing import Annotated
@@ -38,17 +36,12 @@ from src.domain.identity.entities.user import User
 from src.infrastructure.common.di import inject_use_case
 from src.infrastructure.common.schemas.response_wrappers import CollectionResponse
 from src.infrastructure.identity.dependencies import get_current_user
-from src.infrastructure.web_reader.dependencies import PublicationReader
 from src.infrastructure.web_reader.schemas.highlight_locator_schemas import (
     HighlightLocatorResponse,
     build_highlight_locator,
 )
 
 router = APIRouter(prefix="", tags=["highlights"])
-
-# The book-scoped read is the reader's own, so it lives under the reader's
-# prefix -- which is also the publication cookie's path scope.
-book_router = APIRouter(prefix="/readium", tags=["readium"])
 
 
 def _locator_response(derived: DerivedHighlightLocator) -> HighlightLocatorResponse:
@@ -89,14 +82,14 @@ async def get_highlight_locator(
     )
 
 
-@book_router.get(
+@router.get(
     "/books/{book_id}/highlight-locators",
     response_model=CollectionResponse[HighlightLocatorResponse],
     status_code=status.HTTP_200_OK,
 )
 async def get_book_highlight_locators(
     book_id: int,
-    current_user: PublicationReader,
+    current_user: Annotated[User, Depends(get_current_user)],
     use_case: GetHighlightLocatorsUseCase = Depends(
         inject_use_case(container.web_reader.get_highlight_locators_use_case)
     ),
@@ -116,10 +109,6 @@ async def get_book_highlight_locators(
     construction, and on a heavily annotated, flatly structured book that is a
     second or more. The browser must therefore treat this as arriving *after*
     the text rather than as something to open the book behind.
-
-    Authenticated by either the SPA's Bearer token or the book's publication
-    cookie, unlike the single-highlight route above: this one is fetched while
-    the book is open, and it answers for the one book the cookie already names.
 
     A book that does not exist, or belongs to another user, answers 404.
     """

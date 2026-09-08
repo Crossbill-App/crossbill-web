@@ -4,6 +4,7 @@ import { aManifest, aResumePosition } from '@tests/fixtures/publication';
 import { renderApp } from '@tests/harness/renderApp';
 import { bookApi } from '@tests/msw/bookApi';
 import {
+  DENSE_CHAPTER_TEXT,
   ESCAPE_HATCH,
   noPublication,
   readingPositionApi,
@@ -832,19 +833,20 @@ const aPlacedLocator = (id: number, quote: string): HighlightLocatorResponse => 
 const aBookWithHighlights = (
   highlights: Highlight[],
   highlightLocators: HighlightLocatorResponse[],
+  publication: Omit<Parameters<typeof readiumApi>[0], 'highlightLocators'> = {},
   ...extra: Parameters<typeof worker.use>
 ) => {
-  worker.use(
-    ...bookApi({
-      book: aBookDetails({
-        title: 'The Pragmatic Reader',
-        has_ebook: true,
-        chapters: [aChapter({ highlights })],
-      }),
-    }).handlers
-  );
-  worker.use(...readiumApi({ highlightLocators }));
+  const { handlers, state } = bookApi({
+    book: aBookDetails({
+      title: 'The Pragmatic Reader',
+      has_ebook: true,
+      chapters: [aChapter({ highlights })],
+    }),
+  });
+  worker.use(...handlers);
+  worker.use(...readiumApi({ ...publication, highlightLocators }));
   if (extra.length) worker.use(...extra);
+  return state;
 };
 
 /** The publication frame the reader is actually looking at. */
@@ -970,7 +972,8 @@ test('the book is on screen before its highlights have been placed', async () =>
   aBookWithHighlights(
     [aMarkedHighlight(301, FIRST_QUOTE, '#F59E0B')],
     [],
-    http.get('/api/v1/readium/books/:bookId/highlight-locators', async () => {
+    {},
+    http.get('/api/v1/books/:bookId/highlight-locators', async () => {
       await delay(1_500);
       return HttpResponse.json({ items: [aPlacedLocator(301, FIRST_QUOTE)] });
     })
@@ -1022,19 +1025,37 @@ test('closing a tapped highlight goes back to the book', async () => {
   await expect.element(screen.getByText('Page 1 of 2', { exact: false })).toBeVisible();
 });
 
-/**
- * A finger put down on a decorated phrase, in the publication's own document.
- *
- * Readium hit-tests an activation against the rects of the decorated range, so
- * the gesture has to land on the words themselves — the range is found here the
- * same way the decoration's own was, by quote.
- */
-const tapQuoteInPublication = async (quote: string) => {
+/** The visible frame's document and window, or a clear failure. */
+const publicationFrame = () => {
   const frame = visibleFrame();
   const doc = frame?.contentDocument;
   const view = frame?.contentWindow as (Window & typeof globalThis) | null | undefined;
   if (!doc || !view) throw new Error('The publication has no frame to tap.');
+  return { doc, view };
+};
 
+/** A finger down and up at one point of the publication's own document. */
+const tapPoint = (
+  doc: Document,
+  view: Window & typeof globalThis,
+  clientX: number,
+  clientY: number
+) => {
+  const at = {
+    clientX,
+    clientY,
+    bubbles: true,
+    isPrimary: true,
+    pointerId: 1,
+    pointerType: 'touch',
+  };
+  const target = doc.elementFromPoint(clientX, clientY) ?? doc.body;
+  target.dispatchEvent(new view.PointerEvent('pointerdown', at));
+  target.dispatchEvent(new view.PointerEvent('pointerup', at));
+};
+
+/** The range a quote occupies in the publication's document, as Readium decorated it. */
+const rangeOfQuote = (doc: Document, quote: string): Range => {
   const paragraph = [...doc.querySelectorAll('p')].find((node) => node.textContent.includes(quote));
   const textNode = paragraph?.firstChild;
   if (!textNode?.textContent) throw new Error(`No paragraph in the book quotes "${quote}".`);
@@ -1043,17 +1064,221 @@ const tapQuoteInPublication = async (quote: string) => {
   const range = doc.createRange();
   range.setStart(textNode, start);
   range.setEnd(textNode, start + quote.length);
-  const box = range.getBoundingClientRect();
-  const at = {
-    clientX: Math.round(box.left + box.width / 2),
-    clientY: Math.round(box.top + box.height / 2),
-    bubbles: true,
-    isPrimary: true,
-    pointerId: 1,
-    pointerType: 'touch',
-  };
-
-  const target = doc.elementFromPoint(at.clientX, at.clientY) ?? doc.body;
-  target.dispatchEvent(new view.PointerEvent('pointerdown', at));
-  target.dispatchEvent(new view.PointerEvent('pointerup', at));
+  return range;
 };
+
+/**
+ * A finger put down on a decorated phrase, in the publication's own document.
+ *
+ * Readium hit-tests an activation against the rects of the decorated range, so
+ * the gesture has to land on the words themselves — the range is found here the
+ * same way the decoration's own was, by quote.
+ */
+const tapQuoteInPublication = async (quote: string) => {
+  const { doc, view } = publicationFrame();
+  // The first line box rather than the whole range: a quote that wraps has a
+  // bounding rect spanning both lines, whose centre may be on neither.
+  const box = rangeOfQuote(doc, quote).getClientRects()[0];
+  tapPoint(doc, view, Math.round(box.left + box.width / 2), Math.round(box.top + box.height / 2));
+};
+
+/**
+ * A tap on a highlight at a point that would otherwise turn the page.
+ *
+ * The point is computed from the decorated range's own line boxes rather than
+ * guessed, and the search throws if no line of the highlight actually reaches
+ * into the zone. Without that, a test could tap somewhere harmless and pass
+ * while proving nothing — which is exactly what the first version of this did,
+ * by tapping the *backward* zone on page one, where a page turn has nowhere to
+ * go and leaves the readout unchanged either way.
+ */
+const tapHighlightInTapZone = async (quote: string, edge: 'left' | 'right') => {
+  const { doc, view } = publicationFrame();
+  // `TAP_ZONE_FRACTION` of `useReaderTapZones`, restated: a test that read the
+  // constant from the module could not notice the module changing it.
+  const zone = view.innerWidth * 0.2;
+  const inZone = (x: number) => (edge === 'left' ? x < zone : x > view.innerWidth - zone);
+
+  const point = [...rangeOfQuote(doc, quote).getClientRects()]
+    .map((rect) => ({
+      x: edge === 'left' ? Math.ceil(rect.left) + 2 : Math.floor(rect.right) - 2,
+      y: Math.round(rect.top + rect.height / 2),
+    }))
+    .find((candidate) => inZone(candidate.x));
+  if (!point)
+    throw new Error(
+      `No line of "${quote}" reaches the ${edge} tap zone, so this tap would prove nothing.`
+    );
+
+  tapPoint(doc, view, point.x, point.y);
+};
+
+/* ------------------------------------------------------------------ *
+ * M3.2 — where the highlight layer collides with the reader around it
+ * ------------------------------------------------------------------ */
+
+/** Both highlights of chapter one, drawn, with the first one's dialog open. */
+const aBookOfTwoOpenAtTheFirst = async (...extra: Parameters<typeof worker.use>) => {
+  aBookWithHighlights(
+    [aMarkedHighlight(301, FIRST_QUOTE, '#F59E0B'), aMarkedHighlight(302, SECOND_QUOTE, '#3B82F6')],
+    [aPlacedLocator(301, FIRST_QUOTE), aPlacedLocator(302, SECOND_QUOTE)],
+    {},
+    ...extra
+  );
+
+  const screen = await renderApp({ path: '/book/1/read' });
+  await tintsOnThePage().toEqual([BLUE_TINT, YELLOW_TINT].sort());
+  await tapQuoteInPublication(FIRST_QUOTE);
+  await expect.element(screen.getByRole('dialog').getByText(FIRST_QUOTE)).toBeVisible();
+  return screen;
+};
+
+/**
+ * Two window-level arrow-key handlers, one book underneath one dialog.
+ *
+ * The dialog pages between highlights and the reader turns pages, and both
+ * listen on the window — so the dialog calling `preventDefault` never reached
+ * the reader, and an arrow pressed to see the next highlight also turned the
+ * book behind it. Silently: the dialog covers the page, so the reader only
+ * found out on closing it, with the new position already written to the server.
+ */
+test('arrow keys page between highlights without turning the book underneath', async () => {
+  const positions = readingPositionApi();
+  const screen = await aBookOfTwoOpenAtTheFirst(...positions.handlers);
+
+  await userEvent.keyboard('{ArrowRight}');
+
+  await expect.element(screen.getByRole('dialog').getByText(SECOND_QUOTE)).toBeVisible();
+  await expectNoPageTurn();
+  expect(positions.writes).toEqual([]);
+});
+
+/** And the book is the book's again once the dialog is out of the way. */
+test('arrow keys turn the page again once the dialog is closed', async () => {
+  const screen = await aBookOfTwoOpenAtTheFirst();
+
+  window.history.back();
+  await expect.poll(() => window.location.search).not.toContain('highlightId');
+  await userEvent.keyboard('{ArrowRight}');
+
+  await expect.element(screen.getByText('Page 2 of 2', { exact: false })).toBeVisible();
+});
+
+/**
+ * A phone, a highlight near the edge, and two listeners on one `pointerup`.
+ *
+ * The tap zones live on the frame's window and Readium reports a decoration
+ * activation over `postMessage`, so the page had already turned by the time
+ * anything knew the tap belonged to a highlight: the reader got the dialog they
+ * asked for and lost their page for it. The zones ask the decoration layer
+ * directly now, while the gesture is still in hand.
+ */
+test('tapping a highlight in a tap zone opens it without turning the page', async () => {
+  const positions = readingPositionApi();
+  aBookWithHighlights(
+    [aMarkedHighlight(301, DENSE_CHAPTER_TEXT, '#F59E0B')],
+    [aPlacedLocator(301, DENSE_CHAPTER_TEXT)],
+    { denseFirstChapter: true },
+    ...positions.handlers
+  );
+  await page.viewport(PHONE_VIEWPORT.width, PHONE_VIEWPORT.height);
+
+  const screen = await renderApp({ path: '/book/1/read' });
+  await expect.element(screen.getByText('Page 1 of 2', { exact: false })).toBeVisible();
+  await tintsOnThePage().toEqual([YELLOW_TINT]);
+
+  // The forward edge, deliberately: the backward one has nowhere to go from
+  // page one, so a page turn there would be invisible and the test vacuous.
+  await tapHighlightInTapZone(DENSE_CHAPTER_TEXT, 'right');
+
+  await expect.element(screen.getByRole('dialog')).toBeVisible();
+  expect(window.location.search).toContain('highlightId=301');
+  await expectNoPageTurn();
+  expect(positions.writes).toEqual([]);
+});
+
+/** The zones still turn pages where no highlight has claimed the tap. */
+test('a tap zone still turns the page beside a highlight', async () => {
+  aBookWithHighlights(
+    [aMarkedHighlight(301, FIRST_QUOTE, '#F59E0B')],
+    [aPlacedLocator(301, FIRST_QUOTE)]
+  );
+  await page.viewport(PHONE_VIEWPORT.width, PHONE_VIEWPORT.height);
+
+  const screen = await renderApp({ path: '/book/1/read' });
+  await tintsOnThePage().toEqual([YELLOW_TINT]);
+
+  await gestureInPublication({ across: 0.9 });
+
+  await expect.element(screen.getByText('Page 2 of 2', { exact: false })).toBeVisible();
+});
+
+/**
+ * A deleted highlight leaves a mark that opens nothing.
+ *
+ * The book and the locators are two reads that settle separately, so between
+ * them the book has lost a highlight the locator list still places — drawn in
+ * the default grey, because the label went with the highlight, and inert when
+ * tapped, because the dialog has no highlight to show. Pruning the locator
+ * cache on the delete closes the window; refusing to draw a locator the loaded
+ * book does not claim closes it for every other order these two can settle in.
+ *
+ * It also asserts what did *not* happen: nothing asked the server to place the
+ * book again. That request is the most expensive read in the app (ADR-0004
+ * *Amendment 5*) and could only have returned what was already known.
+ */
+test('deleting a highlight takes its decoration with it and re-derives nothing', async () => {
+  let derivations = 0;
+  const bookState = aBookWithHighlights(
+    [aMarkedHighlight(301, FIRST_QUOTE, '#F59E0B'), aMarkedHighlight(302, SECOND_QUOTE, '#3B82F6')],
+    [],
+    {},
+    http.get('/api/v1/books/:bookId/highlight-locators', () => {
+      derivations += 1;
+      return HttpResponse.json({
+        items: [aPlacedLocator(301, FIRST_QUOTE), aPlacedLocator(302, SECOND_QUOTE)],
+      });
+    }),
+    http.delete('/api/v1/books/:bookId/highlight', async ({ request }) => {
+      const body = (await request.json()) as { highlight_ids: number[] };
+      const gone = new Set(body.highlight_ids);
+      bookState.book = {
+        ...bookState.book,
+        chapters: bookState.book.chapters.map((chapter) => ({
+          ...chapter,
+          highlights: chapter.highlights.filter((highlight) => !gone.has(highlight.id)),
+        })),
+      };
+      return HttpResponse.json({ success: true, message: 'Deleted', deleted_count: gone.size });
+    })
+  );
+
+  const screen = await renderApp({ path: '/book/1/read' });
+  await tintsOnThePage().toEqual([BLUE_TINT, YELLOW_TINT].sort());
+  await tapQuoteInPublication(FIRST_QUOTE);
+  await expect.element(screen.getByRole('dialog').getByText(FIRST_QUOTE)).toBeVisible();
+
+  await userEvent.click(screen.getByRole('button', { name: 'Delete highlight' }));
+  await userEvent.click(screen.getByRole('button', { name: 'Delete', exact: true }));
+
+  // The yellow mark is off the page and the blue one is untouched.
+  await tintsOnThePage().toEqual([BLUE_TINT]);
+  expect(derivations).toBe(1);
+});
+
+/**
+ * `ui_color` is stored text, and both spellings of a hex colour are in the
+ * wild. `alpha()` throws on the bare one, and a throw here happens while a book
+ * is being rendered — so the reader shows no book at all, over a label.
+ */
+test('a label colour stored without its hash is still drawn in that colour', async () => {
+  aBookWithHighlights(
+    [aMarkedHighlight(301, FIRST_QUOTE, 'F59E0B')],
+    [aPlacedLocator(301, FIRST_QUOTE)]
+  );
+
+  const screen = await renderApp({ path: '/book/1/read' });
+  await expect.element(screen.getByText('Page 1 of 2', { exact: false })).toBeVisible();
+
+  await tintsOnThePage().toEqual([YELLOW_TINT]);
+});

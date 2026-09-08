@@ -7,12 +7,14 @@ import { ConfirmationDialog } from '@/components/dialogs/ConfirmationDialog.tsx'
 import { ProgressBar } from '@/components/dialogs/ProgressBar.tsx';
 import { useDialogHorizontalNavigation } from '@/components/dialogs/useDialogHorizontalNavigation.ts';
 import { TagInput } from '@/components/inputs/TagInput.tsx';
+import { forgetHighlightLocators } from '@/components/reader/decorations.ts';
 import { SavedIndicator } from '@/components/SavedIndicator.tsx';
 import { useMutationErrorHandler } from '@/hooks/useMutationErrorHandler.ts';
 import { useCacheEvents } from '@/lib/cacheEvents.ts';
 import { useImmediateTagMutation } from '@/pages/BookPage/Highlights/HighlightViewDialog/hooks/useImmediateTagMutation.ts';
 import type { HighlightDialogController } from '@/pages/BookPage/Highlights/hooks/useHighlightDialog.ts';
 import { Box, Stack } from '@mui/material';
+import { useQueryClient } from '@tanstack/react-query';
 import { useState } from 'react';
 import { HighlightContent } from '../../common/HighlightContent.tsx';
 import { HighlightTabs } from './components/HighlightTabs.tsx';
@@ -55,10 +57,18 @@ export const HighlightViewDialog = ({
     onNavigate: controller.navigateToIndex,
   });
 
+  const queryClient = useQueryClient();
+
   const deleteHighlightMutation = useDeleteHighlights({
     mutation: {
       onSuccess: () => {
-        cache.highlightsChanged(bookId);
+        cache.bookChanged(bookId);
+        // The web reader draws this highlight on the page it was made on, and
+        // the places it draws from are a cache of their own. Pruned here rather
+        // than invalidated: re-deriving a whole book's locators is the most
+        // expensive read in the app, and it would answer a question a deletion
+        // has already settled.
+        forgetHighlightLocators(queryClient, bookId, [highlight.id]);
         controller.close();
       },
       onError: mutationErrorHandler('delete highlight'),
