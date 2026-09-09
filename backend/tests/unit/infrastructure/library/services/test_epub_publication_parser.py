@@ -17,7 +17,11 @@ from pathlib import Path
 import pytest
 
 from src.application.web_reader.protocols.publication_parser import PublicationParserProtocol
-from src.application.web_reader.publications import PublicationResource, TocEntry
+from src.application.web_reader.publications import (
+    PublicationLayout,
+    PublicationResource,
+    TocEntry,
+)
 from src.domain.library.exceptions import InvalidEbookError
 from src.infrastructure.library.services import epub_publication_parser
 from src.infrastructure.library.services.epub_parser_service import EpubParserService
@@ -28,6 +32,7 @@ _: PublicationParserProtocol = EpubParserService()
 FIXTURES = Path(__file__).parents[4] / "fixtures"
 MINIMAL_EPUB = FIXTURES / "minimal.epub"
 NESTED_TOC_EPUB = FIXTURES / "nested_toc.epub"
+FIXED_LAYOUT_EPUB = FIXTURES / "fixed_layout.epub"
 
 DEFAULT_IDENTIFIERS = '<dc:identifier id="bookid">urn:uuid:hand-built</dc:identifier>'
 DOCUMENT = (
@@ -148,6 +153,10 @@ def understating_its_last_member(content: bytes, declared: int) -> bytes:
 
 def hrefs(resources: tuple[PublicationResource, ...]) -> list[str]:
     return [resource.href for resource in resources]
+
+
+def layouts(resources: tuple[PublicationResource, ...]) -> list[PublicationLayout | None]:
+    return [resource.layout for resource in resources]
 
 
 def peak_bytes_refusing(content: bytes) -> int:
@@ -415,6 +424,102 @@ class TestAResourceIsPublishedUnderAUsableMediaType:
         )
 
         assert read_publication(content).resources[0].media_type == "text/css"
+
+
+class TestAReadingOrderItemCarriesTheLayoutThePublicationStates:
+    """``rendition:layout``, said for the whole publication or per spine item, in Readium's terms.
+
+    A layout nobody states is left unstated rather than defaulted, so a reader
+    applies its own; a spine item's own property beats the publication's.
+    """
+
+    SPINE = '<itemref idref="ch1"/><itemref idref="ch2"/>'
+
+    def test_a_fixed_layout_book_publishes_the_layout_each_of_its_pages_ends_up_with(self) -> None:
+        publication = EpubParserService().parse_publication(FIXED_LAYOUT_EPUB.read_bytes())
+
+        assert publication.metadata.title == "The Fixed Fixture"
+        assert hrefs(publication.reading_order) == ["page1.xhtml", "page2.xhtml"]
+        assert layouts(publication.reading_order) == [
+            PublicationLayout.FIXED,
+            PublicationLayout.REFLOWABLE,
+        ]
+        assert hrefs(publication.resources) == ["nav.xhtml"]
+        assert publication.resources[0].layout is None
+
+    def test_an_itemref_overrides_a_reflowable_publication_the_same_way(self) -> None:
+        content = self._two_page_epub(
+            '<itemref idref="ch1"/>'
+            '<itemref idref="ch2" properties="rendition:layout-pre-paginated"/>',
+            # The layout metadata is not the publication's only metadata, and
+            # says nothing by sitting first.
+            extra_metadata='<meta property="dcterms:modified">2024-01-01T00:00:00Z</meta>'
+            '<meta property="rendition:layout">reflowable</meta>',
+        )
+
+        assert layouts(read_publication(content).reading_order) == [
+            PublicationLayout.REFLOWABLE,
+            PublicationLayout.FIXED,
+        ]
+
+    def test_a_publication_stating_no_layout_leaves_every_item_without_one(self) -> None:
+        content = self._two_page_epub(self.SPINE)
+
+        assert layouts(read_publication(content).reading_order) == [None, None]
+
+    def test_a_layout_nobody_recognises_is_no_layout_rather_than_a_guess(self) -> None:
+        content = self._two_page_epub(
+            self.SPINE,
+            extra_metadata='<meta property="rendition:layout">paginated</meta>',
+        )
+
+        assert layouts(read_publication(content).reading_order) == [None, None]
+
+    def test_a_layout_value_written_around_whitespace_is_still_read(self) -> None:
+        content = self._two_page_epub(
+            self.SPINE,
+            extra_metadata='<meta property="rendition:layout">\n  pre-paginated\n</meta>',
+        )
+
+        assert layouts(read_publication(content).reading_order) == [
+            PublicationLayout.FIXED,
+            PublicationLayout.FIXED,
+        ]
+
+    def test_a_layout_refining_one_chapter_is_not_the_whole_publication_s(self) -> None:
+        # A refining meta describes the resource it names; read as the
+        # publication's it would flip every page of a reflowable book.
+        content = self._two_page_epub(
+            self.SPINE,
+            extra_metadata=(
+                '<meta refines="#ch1" property="rendition:layout">pre-paginated</meta>'
+                '<meta property="rendition:layout">reflowable</meta>'
+            ),
+        )
+
+        assert layouts(read_publication(content).reading_order) == [
+            PublicationLayout.REFLOWABLE,
+            PublicationLayout.REFLOWABLE,
+        ]
+
+    def test_a_layout_property_is_found_among_the_others_an_itemref_carries(self) -> None:
+        content = self._two_page_epub(
+            '<itemref idref="ch1" properties="page-spread-left'
+            ' rendition:layout-pre-paginated rendition:align-x-center"/>'
+            '<itemref idref="ch2" properties="page-spread-right"/>'
+        )
+
+        assert layouts(read_publication(content).reading_order) == [PublicationLayout.FIXED, None]
+
+    @staticmethod
+    def _two_page_epub(spine: str, extra_metadata: str = "") -> bytes:
+        return build_epub(
+            f'{CHAPTER_ITEM}<item id="ch2" href="chapter2.xhtml"'
+            ' media-type="application/xhtml+xml"/>',
+            spine,
+            files=("chapter1.xhtml", "chapter2.xhtml"),
+            extra_metadata=extra_metadata,
+        )
 
 
 class TestAStructuralDocumentCostsWhatItDeclares:

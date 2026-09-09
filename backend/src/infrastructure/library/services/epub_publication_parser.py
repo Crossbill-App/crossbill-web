@@ -7,7 +7,7 @@ import logging
 import mimetypes
 import posixpath
 import zipfile
-from collections.abc import Callable, Iterable
+from collections.abc import Callable, Iterable, Mapping
 from io import BytesIO
 from typing import NamedTuple, cast
 from urllib.parse import quote, unquote
@@ -16,6 +16,7 @@ from lxml import etree
 
 from src.application.web_reader.publications import (
     ParsedPublication,
+    PublicationLayout,
     PublicationMetadata,
     PublicationResource,
     TocEntry,
@@ -43,6 +44,17 @@ _FALLBACK_MEDIA_TYPE = "application/octet-stream"
 # Publishers write this one often enough that every reader corrects it.
 _MEDIA_TYPE_CORRECTIONS = {"image/jpg": "image/jpeg"}
 
+# EPUB states the same two layouts twice over: once for the publication as a
+# metadata value, and per spine item as an itemref property, spelled differently.
+_LAYOUT_BY_RENDITION_VALUE = {
+    "pre-paginated": PublicationLayout.FIXED,
+    "reflowable": PublicationLayout.REFLOWABLE,
+}
+_LAYOUT_BY_ITEMREF_PROPERTY = {
+    "rendition:layout-pre-paginated": PublicationLayout.FIXED,
+    "rendition:layout-reflowable": PublicationLayout.REFLOWABLE,
+}
+
 # A package document lists one item per archive member, so at a generous 200
 # bytes an item even a ten-thousand-file book writes about 2 MB of one.
 MAX_STRUCTURAL_DOCUMENT_BYTES = 16 * 1024 * 1024
@@ -64,6 +76,7 @@ class _PackageDocument(NamedTuple):
     metadata: PublicationMetadata
     items: tuple[_ManifestItem, ...]
     spine: tuple[str, ...]
+    spine_layouts: Mapping[str, PublicationLayout | None]
     ncx_id: str | None
 
 
@@ -95,14 +108,22 @@ def read_publication(epub_content: bytes) -> ParsedPublication:
     items_by_id = {item.item_id: item for item in package.items}
     spine_ids = [idref for idref in package.spine if idref in items_by_id]
     reading_order = _resources(
-        (items_by_id[idref] for idref in spine_ids), package.directory, sizes
+        (items_by_id[idref] for idref in spine_ids),
+        package.directory,
+        sizes,
+        layouts=package.spine_layouts,
     )
     if not reading_order:
         raise InvalidEbookError("has no readable spine items", "epub")
 
     in_spine = set(spine_ids)
+    # Layout is a property of a reading-order item, so what is merely served
+    # alongside carries none even where the publication states one.
     resources = _resources(
-        (item for item in package.items if item.item_id not in in_spine), package.directory, sizes
+        (item for item in package.items if item.item_id not in in_spine),
+        package.directory,
+        sizes,
+        layouts={},
     )
 
     logger.info(
@@ -157,6 +178,7 @@ def _parse_package_document(package: etree._Element, directory: str) -> _Package
             for itemref in _children(spine, f"{{{_OPF_NS}}}itemref")
             if (idref := itemref.get("idref"))
         ),
+        spine_layouts=_spine_layouts(spine, _default_layout(package)),
         ncx_id=(spine.get("toc") or None) if spine is not None else None,
     )
 
@@ -229,6 +251,31 @@ def _identifier(unique_id: str | None, identifiers: list[etree._Element]) -> str
     return identifiers[0].text if identifiers and identifiers[0].text else None
 
 
+def _default_layout(package: etree._Element) -> PublicationLayout | None:
+    for meta in _children(package.find(f"{{{_OPF_NS}}}metadata"), f"{{{_OPF_NS}}}meta"):
+        # A meta carrying `refines` describes the one resource it names, not the
+        # publication, so reading it here would let a chapter set the book's layout.
+        if meta.get("property") == "rendition:layout" and meta.get("refines") is None:
+            return _LAYOUT_BY_RENDITION_VALUE.get((meta.text or "").strip())
+    return None
+
+
+def _spine_layouts(
+    spine: etree._Element | None, default: PublicationLayout | None
+) -> dict[str, PublicationLayout | None]:
+    layouts: dict[str, PublicationLayout | None] = {}
+
+    for itemref in _children(spine, f"{{{_OPF_NS}}}itemref"):
+        if not (idref := itemref.get("idref")):
+            continue
+        layouts[idref] = default
+        for prop in (itemref.get("properties") or "").split():
+            if layout := _LAYOUT_BY_ITEMREF_PROPERTY.get(prop):
+                layouts[idref] = layout
+
+    return layouts
+
+
 def _container_path(opf_dir: str, file_name: str) -> str | None:
     # A path that leaves the container names something the publication does not
     # hold; under the manifest's own URL a leading ``//`` even names another host.
@@ -239,7 +286,10 @@ def _container_path(opf_dir: str, file_name: str) -> str | None:
 
 
 def _resources(
-    items: Iterable[_ManifestItem], opf_dir: str, sizes: dict[str, int]
+    items: Iterable[_ManifestItem],
+    opf_dir: str,
+    sizes: dict[str, int],
+    layouts: Mapping[str, PublicationLayout | None],
 ) -> tuple[PublicationResource, ...]:
     resources: list[PublicationResource] = []
 
@@ -260,7 +310,10 @@ def _resources(
         # up under, so it is byte-identical to a derived locator's href.
         resources.append(
             PublicationResource(
-                href=quote(container_path, safe="/"), media_type=item.media_type, size=size
+                href=quote(container_path, safe="/"),
+                media_type=item.media_type,
+                size=size,
+                layout=layouts.get(item.item_id),
             )
         )
 
