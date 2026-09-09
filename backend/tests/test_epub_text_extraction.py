@@ -5,7 +5,7 @@ from pathlib import Path
 
 import pytest
 from ebooklib import epub
-from lxml import etree  # pyright: ignore[reportAttributeAccessIssue]
+from lxml import etree
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.config import EPUBS_DIR

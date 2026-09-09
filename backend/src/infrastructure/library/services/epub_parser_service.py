@@ -9,7 +9,7 @@ from urllib.parse import unquote
 
 import ebooklib
 from ebooklib import epub
-from lxml import etree  # pyright: ignore[reportAttributeAccessIssue]
+from lxml import etree
 
 from src.application.web_reader.publications import ParsedPublication
 from src.domain.library.entities.chapter import TocChapter
