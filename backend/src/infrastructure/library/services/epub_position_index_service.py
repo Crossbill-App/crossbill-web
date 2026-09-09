@@ -4,7 +4,7 @@ import logging
 from io import BytesIO
 
 from ebooklib import epub
-from lxml import etree  # pyright: ignore[reportAttributeAccessIssue]
+from lxml import etree
 
 from src.domain.common.value_objects.position_index import PositionIndex
 from src.infrastructure.common.memory import trims_memory
