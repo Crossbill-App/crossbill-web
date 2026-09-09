@@ -7,6 +7,7 @@ once. A highlight cannot be anchored to a resource the index names differently.
 
 import hashlib
 import io
+import logging
 import struct
 import tracemalloc
 import zipfile
@@ -47,6 +48,12 @@ NCX_ITEM = '<item id="ncx" href="toc.ncx" media-type="application/x-dtbncx+xml"/
 CHAPTER_SPINE = '<itemref idref="ch1"/>'
 
 BOMB_SIZE = 64 * 1024 * 1024
+
+EOCD_SIGNATURE = b"PK\x05\x06"
+EOCD_ENTRY_COUNT_OFFSET = 10
+OVERFULL_ENTRIES = 70_000
+# Measured: `zipfile.ZipFile` peaks here building its `ZipInfo` per member.
+COST_OF_OPENING_OVERFULL = 38 * 1024**2
 
 
 def container_xml(rootfile: str = '<rootfile full-path="content.opf"/>') -> str:
@@ -151,6 +158,30 @@ def understating_its_last_member(content: bytes, declared: int) -> bytes:
     return bytes(patched)
 
 
+def understating_its_entry_count(content: bytes, declared: int) -> bytes:
+    """Rewrite the total the End of Central Directory record states, leaving the entries."""
+    patched = bytearray(content)
+    struct.pack_into(
+        "<H", patched, patched.rfind(EOCD_SIGNATURE) + EOCD_ENTRY_COUNT_OFFSET, declared
+    )
+    return bytes(patched)
+
+
+def archive_of_empty_members(entries: int, comment: bytes = b"") -> bytes:
+    """Build a real zip of empty members, so the trailer under test is Python's, not ours."""
+    out = BytesIO()
+    with zipfile.ZipFile(out, "w", zipfile.ZIP_STORED) as archive:
+        for index in range(entries):
+            archive.writestr(str(index), b"")
+        archive.comment = comment
+    return out.getvalue()
+
+
+def declared_entry_count(content: bytes) -> int:
+    eocd = content.rfind(EOCD_SIGNATURE)
+    return int(struct.unpack_from("<H", content, eocd + EOCD_ENTRY_COUNT_OFFSET)[0])
+
+
 def hrefs(resources: tuple[PublicationResource, ...]) -> list[str]:
     return [resource.href for resource in resources]
 
@@ -159,11 +190,11 @@ def layouts(resources: tuple[PublicationResource, ...]) -> list[PublicationLayou
     return [resource.layout for resource in resources]
 
 
-def peak_bytes_refusing(content: bytes) -> int:
+def peak_bytes_refusing(content: bytes, match: str | None = None) -> int:
     """Refuse an archive and report what refusing it cost, in bytes."""
     tracemalloc.start()
     try:
-        with pytest.raises(InvalidEbookError):
+        with pytest.raises(InvalidEbookError, match=match):
             read_publication(content)
         return tracemalloc.get_traced_memory()[1]
     finally:
@@ -330,6 +361,21 @@ class TestAManifestOnlyPromisesFilesTheServerCanServe:
 
         assert hrefs(publication.reading_order) == ["chapter1.xhtml"]
         assert publication.resources == ()
+
+    def test_a_spine_naming_items_the_manifest_does_not_hold_publishes_the_rest(
+        self, caplog: pytest.LogCaptureFixture
+    ) -> None:
+        content = build_epub(
+            CHAPTER_ITEM,
+            f'<itemref idref="ghost"/>{CHAPTER_SPINE}<itemref idref="phantom"/>',
+            files=("chapter1.xhtml",),
+        )
+
+        with caplog.at_level(logging.WARNING):
+            publication = read_publication(content)
+
+        assert hrefs(publication.reading_order) == ["chapter1.xhtml"]
+        assert "Dropped 2 spine items" in caplog.text
 
     def test_a_spine_emptied_by_missing_files_is_an_unopenable_book(self) -> None:
         content = build_epub(
@@ -557,6 +603,67 @@ class TestAStructuralDocumentCostsWhatItDeclares:
             archive.writestr("META-INF/container.xml", container_xml())
             archive.writestr("content.opf", body)
         return understating_its_last_member(out.getvalue(), declared)
+
+
+class TestAnArchiveDeclaresAShapeABookCouldHave:
+    """The entry count and the uncompressed total, which the upload limit cannot see.
+
+    The count is read from the archive's trailer by hand, so an archive over the
+    limit is refused without ``ZipFile`` ever building the directory it declares.
+    """
+
+    def test_an_archive_declaring_more_entries_than_a_book_holds_is_refused_unopened(self) -> None:
+        content = archive_of_empty_members(OVERFULL_ENTRIES)
+        assert len(content) < 8 * 1024**2, "the archive itself should be small"
+        # Past 65,535 the trailer can only hold 0xFFFF, which is over the limit
+        # on its own, so the ZIP64 record holding the real total is never read.
+        assert declared_entry_count(content) == 0xFFFF, "no sentinel to refuse"
+
+        peak = peak_bytes_refusing(content, match="declares 65535 entries")
+
+        assert peak < COST_OF_OPENING_OVERFULL // 32, (
+            f"opened the archive: {peak / 1024**2:.1f} MiB of the "
+            f"{COST_OF_OPENING_OVERFULL / 1024**2:.0f} MiB opening it costs"
+        )
+
+    def test_a_count_behind_a_trailing_archive_comment_is_still_found(self) -> None:
+        content = archive_of_empty_members(10_001, comment=b"x" * 3000)
+
+        with pytest.raises(InvalidEbookError, match="declares 10001 entries"):
+            read_publication(content)
+
+    def test_an_archive_understating_its_entry_count_is_refused_once_it_is_open(self) -> None:
+        content = understating_its_entry_count(archive_of_empty_members(10_001), declared=1)
+        assert declared_entry_count(content) == 1, "the trailer should tell the lie under test"
+
+        with pytest.raises(InvalidEbookError, match="holds 10001 entries"):
+            read_publication(content)
+
+    def test_an_archive_with_no_trailer_at_all_is_refused_by_the_archive_reader(self) -> None:
+        content = archive_of_empty_members(3)
+
+        with pytest.raises(InvalidEbookError, match="File is not a zip file"):
+            read_publication(content[: content.rfind(EOCD_SIGNATURE)])
+
+    def test_a_trailer_cut_off_mid_record_is_refused_rather_than_crashing(self) -> None:
+        content = archive_of_empty_members(3)
+
+        with pytest.raises(InvalidEbookError):
+            read_publication(content[: content.rfind(EOCD_SIGNATURE) + 8])
+
+    def test_a_declared_uncompressed_total_over_the_ceiling_is_refused(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        content = build_epub(CHAPTER_ITEM, CHAPTER_SPINE, files=("chapter1.xhtml",))
+        with zipfile.ZipFile(BytesIO(content)) as archive:
+            sizes = [entry.file_size for entry in archive.infolist()]
+        # Between the largest member and the total, so it is what the archive adds
+        # up to that is over the ceiling rather than any one member of it.
+        ceiling = (max(sizes) + sum(sizes)) // 2
+        monkeypatch.setattr(epub_publication_parser, "MAX_PUBLICATION_UNCOMPRESSED_BYTES", ceiling)
+
+        with pytest.raises(InvalidEbookError, match="uncompressed bytes"):
+            read_publication(content)
 
 
 class TestAPublicationCarriesTheTableOfContentsItStates:
