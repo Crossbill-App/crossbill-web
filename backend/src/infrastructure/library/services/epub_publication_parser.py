@@ -7,9 +7,9 @@ import logging
 import mimetypes
 import posixpath
 import zipfile
-from collections.abc import Iterable
+from collections.abc import Callable, Iterable
 from io import BytesIO
-from typing import NamedTuple
+from typing import NamedTuple, cast
 from urllib.parse import quote, unquote
 
 from lxml import etree
@@ -18,6 +18,7 @@ from src.application.web_reader.publications import (
     ParsedPublication,
     PublicationMetadata,
     PublicationResource,
+    TocEntry,
 )
 from src.domain.library.exceptions import InvalidEbookError
 from src.infrastructure.common.zip_members import read_bounded_member
@@ -28,6 +29,15 @@ CONTAINER_PATH = "META-INF/container.xml"
 _CONTAINER_NS = "urn:oasis:names:tc:opendocument:xmlns:container"
 _OPF_NS = "http://www.idpf.org/2007/opf"
 _DC_NS = "http://purl.org/dc/elements/1.1/"
+_NCX_NS = "http://www.daisy.org/z3986/2005/ncx/"
+
+_NAV_PROPERTY = "nav"
+
+_NAMES_TOC = "contains(concat(' ', normalize-space(.), ' '), ' toc ')"
+# Read as HTML, ``epub:type`` keeps its prefix rather than resolving to a
+# namespace; it names a list of tokens, and any other attribute only guesses.
+_TOC_NAV = f"//nav[@*[name()='epub:type'][{_NAMES_TOC}]]"
+_ANY_TOC_NAV = f"//nav[@*[{_NAMES_TOC}]]"
 
 _FALLBACK_MEDIA_TYPE = "application/octet-stream"
 # Publishers write this one often enough that every reader corrects it.
@@ -44,6 +54,7 @@ class _ManifestItem(NamedTuple):
     item_id: str
     file_name: str
     media_type: str
+    properties: tuple[str, ...]
 
 
 class _PackageDocument(NamedTuple):
@@ -53,10 +64,18 @@ class _PackageDocument(NamedTuple):
     metadata: PublicationMetadata
     items: tuple[_ManifestItem, ...]
     spine: tuple[str, ...]
+    ncx_id: str | None
+
+
+class _NavigationSource(NamedTuple):
+    """The member a publication's table of contents is written in, and the reader for it."""
+
+    file_name: str
+    parse: Callable[[bytes, str], tuple[TocEntry, ...]]
 
 
 def read_publication(epub_content: bytes) -> ParsedPublication:
-    """Resolve an EPUB into its reading order, resources and metadata.
+    """Resolve an EPUB into its reading order, resources, table of contents and metadata.
 
     Raises:
         InvalidEbookError: If the bytes are not a readable EPUB, its package
@@ -66,6 +85,7 @@ def read_publication(epub_content: bytes) -> ParsedPublication:
     try:
         with zipfile.ZipFile(BytesIO(epub_content)) as archive:
             package = _read_package_document(archive)
+            toc = _read_navigation(archive, package)
             sizes = {entry.filename: entry.file_size for entry in archive.infolist()}
     except InvalidEbookError:
         raise
@@ -92,7 +112,7 @@ def read_publication(epub_content: bytes) -> ParsedPublication:
         metadata=package.metadata,
         reading_order=reading_order,
         resources=resources,
-        toc=(),
+        toc=toc,
         content_hash=hashlib.sha256(epub_content).hexdigest(),
     )
 
@@ -127,15 +147,17 @@ def _read_structural_document(archive: zipfile.ZipFile, name: str) -> bytes:
 
 
 def _parse_package_document(package: etree._Element, directory: str) -> _PackageDocument:
+    spine = package.find(f"{{{_OPF_NS}}}spine")
     return _PackageDocument(
         directory=directory,
         metadata=_metadata(package),
         items=_manifest_items(package),
         spine=tuple(
             idref
-            for itemref in _children(package.find(f"{{{_OPF_NS}}}spine"), f"{{{_OPF_NS}}}itemref")
+            for itemref in _children(spine, f"{{{_OPF_NS}}}itemref")
             if (idref := itemref.get("idref"))
         ),
+        ncx_id=(spine.get("toc") or None) if spine is not None else None,
     )
 
 
@@ -159,6 +181,7 @@ def _manifest_items(package: etree._Element) -> tuple[_ManifestItem, ...]:
                 item_id=element.get("id") or "",
                 file_name=file_name,
                 media_type=_media_type(element.get("media-type"), file_name),
+                properties=tuple((element.get("properties") or "").split()),
             )
         )
 
@@ -242,3 +265,123 @@ def _resources(
         )
 
     return tuple(resources)
+
+
+def _read_navigation(archive: zipfile.ZipFile, package: _PackageDocument) -> tuple[TocEntry, ...]:
+    source = _navigation_source(package)
+    if source is None:
+        return ()
+
+    member = posixpath.normpath(posixpath.join(package.directory, source.file_name))
+    # Navigation the archive does not hold degrades like navigation that cannot
+    # be read, rather than costing the book as a missing package document does.
+    try:
+        archive.getinfo(member)
+    except KeyError:
+        logger.warning(f"Publication names navigation it does not hold: {member!r}")
+        return ()
+
+    # Navigation that cannot be parsed costs the table of contents alone; one the
+    # archive will not yield -- oversized, corrupt, lying about its size -- costs the book.
+    try:
+        return source.parse(_read_structural_document(archive, member), posixpath.dirname(member))
+    except InvalidEbookError:
+        raise
+    except Exception as e:
+        logger.warning(f"Publication navigation {member!r} could not be read: {e!s}")
+        return ()
+
+
+def _navigation_source(package: _PackageDocument) -> _NavigationSource | None:
+    # A publication carrying both is read from the navigation document, which is
+    # the one its own version defines.
+    for item in package.items:
+        if _NAV_PROPERTY in item.properties:
+            return _NavigationSource(item.file_name, _parse_nav)
+
+    for item in package.items:
+        if item.item_id == package.ncx_id:
+            return _NavigationSource(item.file_name, _parse_ncx)
+
+    return None
+
+
+def _parse_nav(document: bytes, nav_dir: str) -> tuple[TocEntry, ...]:
+    # Read as HTML rather than as XML because that is what a navigation document
+    # is served as, and a book whose nav is malformed XML still navigates.
+    root = etree.fromstring(document, etree.HTMLParser(encoding="utf-8"))
+    navs = cast(list[etree._Element], root.xpath(_TOC_NAV) or root.xpath(_ANY_TOC_NAV))
+    if not navs:
+        logger.warning("Navigation document states no table of contents")
+        return ()
+
+    ordered_list = navs[0].find("ol")
+    return _nav_entries(ordered_list, nav_dir) if ordered_list is not None else ()
+
+
+def _nav_entries(ordered_list: etree._Element, nav_dir: str) -> tuple[TocEntry, ...]:
+    entries: list[TocEntry] = []
+
+    for item in ordered_list.findall("li"):
+        sublist = item.find("ol")
+        link = item.find("a")
+        href = link.get("href") if link is not None else None
+        if sublist is not None:
+            heading = link if link is not None else item.find("span")
+            entries.append(
+                TocEntry(
+                    _text_content(heading) if heading is not None else "",
+                    _entry_href(nav_dir, href),
+                    _nav_entries(sublist, nav_dir),
+                )
+            )
+        elif link is not None and href:
+            entries.append(TocEntry(_text_content(link), _entry_href(nav_dir, href), ()))
+
+    return tuple(entries)
+
+
+def _text_content(element: etree._Element) -> str:
+    return "".join(cast(Iterable[str], element.itertext()))
+
+
+def _parse_ncx(document: bytes, ncx_dir: str) -> tuple[TocEntry, ...]:
+    nav_map = etree.fromstring(document).find(f"{{{_NCX_NS}}}navMap")
+    return _ncx_entries(nav_map, ncx_dir) if nav_map is not None else ()
+
+
+def _ncx_entries(parent: etree._Element, ncx_dir: str) -> tuple[TocEntry, ...]:
+    entries: list[TocEntry] = []
+
+    for point in parent.iterfind(f"{{{_NCX_NS}}}navPoint"):
+        label = point.find(f"{{{_NCX_NS}}}navLabel/{{{_NCX_NS}}}text")
+        content = point.find(f"{{{_NCX_NS}}}content")
+        entries.append(
+            TocEntry(
+                title=(label.text or "") if label is not None else "",
+                href=_entry_href(ncx_dir, content.get("src") if content is not None else None),
+                children=_ncx_entries(point, ncx_dir),
+            )
+        )
+
+    return tuple(entries)
+
+
+def _entry_href(base_dir: str, href: str | None) -> str | None:
+    # A link is written relative to the document that writes it, and arrives
+    # still encoded, so it is decoded once here and encoded once on the way out.
+    if not href:
+        return None
+    path, _, fragment = href.partition("#")
+    # A reference naming no member -- one carrying a scheme, or a fragment alone
+    # -- would otherwise resolve to the directory the navigation sits in.
+    if not path or ":" in path.partition("/")[0]:
+        return None
+    resolved = _container_path(base_dir, unquote(path))
+    if resolved is None:
+        # An entry whose href escapes links nowhere rather than being dropped: a
+        # hostile link costs its own line and not the nesting under it.
+        logger.warning(f"TOC entry pointing outside the publication links nowhere: {href!r}")
+        return None
+    encoded = quote(resolved, safe="/")
+    return f"{encoded}#{quote(unquote(fragment), safe='')}" if fragment else encoded

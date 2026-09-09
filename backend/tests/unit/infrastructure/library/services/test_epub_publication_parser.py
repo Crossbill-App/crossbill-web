@@ -10,13 +10,14 @@ import io
 import struct
 import tracemalloc
 import zipfile
+from collections.abc import Mapping
 from io import BytesIO
 from pathlib import Path
 
 import pytest
 
 from src.application.web_reader.protocols.publication_parser import PublicationParserProtocol
-from src.application.web_reader.publications import PublicationResource
+from src.application.web_reader.publications import PublicationResource, TocEntry
 from src.domain.library.exceptions import InvalidEbookError
 from src.infrastructure.library.services import epub_publication_parser
 from src.infrastructure.library.services.epub_parser_service import EpubParserService
@@ -24,7 +25,9 @@ from src.infrastructure.library.services.epub_publication_parser import read_pub
 
 _: PublicationParserProtocol = EpubParserService()
 
-MINIMAL_EPUB = Path(__file__).parents[4] / "fixtures" / "minimal.epub"
+FIXTURES = Path(__file__).parents[4] / "fixtures"
+MINIMAL_EPUB = FIXTURES / "minimal.epub"
+NESTED_TOC_EPUB = FIXTURES / "nested_toc.epub"
 
 DEFAULT_IDENTIFIERS = '<dc:identifier id="bookid">urn:uuid:hand-built</dc:identifier>'
 DOCUMENT = (
@@ -33,12 +36,45 @@ DOCUMENT = (
     b"<body><p>Hi there.</p></body></html>"
 )
 
+CHAPTER_ITEM = '<item id="ch1" href="chapter1.xhtml" media-type="application/xhtml+xml"/>'
+NAV_ITEM = '<item id="nav" href="nav.xhtml" media-type="application/xhtml+xml" properties="nav"/>'
+NCX_ITEM = '<item id="ncx" href="toc.ncx" media-type="application/x-dtbncx+xml"/>'
+CHAPTER_SPINE = '<itemref idref="ch1"/>'
+
+BOMB_SIZE = 64 * 1024 * 1024
+
 
 def container_xml(rootfile: str = '<rootfile full-path="content.opf"/>') -> str:
     return (
         '<?xml version="1.0" encoding="UTF-8"?>'
         '<container version="1.0" xmlns="urn:oasis:names:tc:opendocument:xmlns:container">'
         f"<rootfiles>{rootfile}</rootfiles></container>"
+    )
+
+
+def nav_document(
+    list_items: str, attributes: str = 'epub:type="toc"', preceded_by: str = ""
+) -> str:
+    return (
+        '<?xml version="1.0" encoding="UTF-8"?>'
+        '<html xmlns="http://www.w3.org/1999/xhtml" xmlns:epub="http://www.idpf.org/2007/ops">'
+        "<head><title>Contents</title></head>"
+        f"<body>{preceded_by}<nav {attributes}><ol>{list_items}</ol></nav></body></html>"
+    )
+
+
+def ncx_document(nav_points: str) -> str:
+    return (
+        '<?xml version="1.0" encoding="UTF-8"?>'
+        '<ncx xmlns="http://www.daisy.org/z3986/2005/ncx/" version="2005-1">'
+        f"<navMap>{nav_points}</navMap></ncx>"
+    )
+
+
+def nav_point(label: str, src: str, children: str = "") -> str:
+    return (
+        f"<navPoint><navLabel><text>{label}</text></navLabel>"
+        f'<content src="{src}"/>{children}</navPoint>'
     )
 
 
@@ -51,12 +87,15 @@ def build_epub(
     extra_metadata: str = "",
     opf_name: str = "content.opf",
     container: str | None = None,
+    spine_toc: str | None = None,
+    documents: Mapping[str, str] | None = None,
 ) -> bytes:
     """Assemble an EPUB by hand, so a broken or hostile one reads as such in the diff.
 
-    What the archive really holds (``files``) is deliberately separate from what
-    the manifest promises (``manifest_items``): a manifest naming a file that is
-    not there is one of the shapes under test.
+    What the archive really holds (``files``, and ``documents`` for a member
+    whose content matters) is deliberately separate from what the manifest
+    promises: a manifest naming a file that is not there is one of the shapes
+    under test.
     """
     package = (
         '<?xml version="1.0" encoding="UTF-8"?>'
@@ -65,7 +104,8 @@ def build_epub(
         '<metadata xmlns:dc="http://purl.org/dc/elements/1.1/">'
         f"{identifiers}<dc:title>Hand Built</dc:title><dc:language>en</dc:language>"
         f"{extra_metadata}</metadata>"
-        f"<manifest>{manifest_items}</manifest><spine>{spine}</spine></package>"
+        f"<manifest>{manifest_items}</manifest>"
+        f"<spine{f' toc="{spine_toc}"' if spine_toc is not None else ''}>{spine}</spine></package>"
     )
 
     out = BytesIO()
@@ -80,11 +120,45 @@ def build_epub(
         archive.writestr(opf_name, package)
         for name in files:
             archive.writestr(name, DOCUMENT)
+        for name, content in (documents or {}).items():
+            archive.writestr(name, content)
     return out.getvalue()
+
+
+def epub_with_nav(nav: str) -> bytes:
+    return build_epub(
+        f"{CHAPTER_ITEM}{NAV_ITEM}",
+        CHAPTER_SPINE,
+        files=("chapter1.xhtml",),
+        documents={"nav.xhtml": nav},
+    )
+
+
+def understating_its_last_member(content: bytes, declared: int) -> bytes:
+    """Rewrite the size the archive's final member declares, leaving what it holds.
+
+    Local header and central directory are patched alike, so no honest copy of
+    the number is left for the parse to prefer to the lie.
+    """
+    patched = bytearray(content)
+    for signature, offset in ((b"PK\x03\x04", 22), (b"PK\x01\x02", 24)):
+        struct.pack_into("<I", patched, patched.rfind(signature) + offset, declared)
+    return bytes(patched)
 
 
 def hrefs(resources: tuple[PublicationResource, ...]) -> list[str]:
     return [resource.href for resource in resources]
+
+
+def peak_bytes_refusing(content: bytes) -> int:
+    """Refuse an archive and report what refusing it cost, in bytes."""
+    tracemalloc.start()
+    try:
+        with pytest.raises(InvalidEbookError):
+            read_publication(content)
+        return tracemalloc.get_traced_memory()[1]
+    finally:
+        tracemalloc.stop()
 
 
 class TestAnEpubBecomesAPublicationIndex:
@@ -109,7 +183,10 @@ class TestAnEpubBecomesAPublicationIndex:
         assert hrefs(publication.resources) == ["OEBPS/nav.xhtml"]
         assert publication.resources[0].size == 376
         assert publication.content_hash == hashlib.sha256(content).hexdigest()
-        assert publication.toc == ()
+        assert publication.toc == (
+            TocEntry("Chapter One", "OEBPS/chapter1.xhtml"),
+            TocEntry("Chapter Two", "OEBPS/chapter2.xhtml"),
+        )
 
     def test_bytes_that_are_not_an_archive_at_all_are_not_a_readable_epub(self) -> None:
         with pytest.raises(InvalidEbookError):
@@ -198,6 +275,25 @@ class TestAnHrefNamesTheFileTheArchiveHolds:
         )
 
         assert hrefs(read_publication(content).reading_order) == ["a%2520b.xhtml"]
+
+    def test_a_toc_entry_names_that_file_the_way_the_reading_order_does(self) -> None:
+        # A navigation link arrives encoded and a manifest file name decoded, so
+        # the two meet only if each is decoded exactly as many times as it was.
+        content = build_epub(
+            f'<item id="ch1" href="a%2520b.xhtml" media-type="application/xhtml+xml"/>{NAV_ITEM}',
+            CHAPTER_SPINE,
+            files=("a%20b.xhtml",),
+            documents={
+                "nav.xhtml": nav_document(
+                    '<li><a href="a%2520b.xhtml#luku ääni">Luku Ääni</a></li>'
+                )
+            },
+        )
+
+        publication = read_publication(content)
+
+        assert hrefs(publication.reading_order) == ["a%2520b.xhtml"]
+        assert publication.toc == (TocEntry("Luku Ääni", "a%2520b.xhtml#luku%20%C3%A4%C3%A4ni"),)
 
 
 class TestAManifestOnlyPromisesFilesTheServerCanServe:
@@ -324,8 +420,6 @@ class TestAResourceIsPublishedUnderAUsableMediaType:
 class TestAStructuralDocumentCostsWhatItDeclares:
     """The package document is the one member the parse cannot skip."""
 
-    BOMB_SIZE = 64 * 1024 * 1024
-
     def test_a_package_document_over_the_cap_is_refused(
         self, monkeypatch: pytest.MonkeyPatch
     ) -> None:
@@ -344,29 +438,317 @@ class TestAStructuralDocumentCostsWhatItDeclares:
         # The cap alone cannot do this: a member declaring eight bytes passes it
         # and then costs the 64 MiB anyway, because ``ZipFile.read()`` truncates
         # its result to the declaration and hands the decompressor no limit.
-        content = self._epub_understating_its_package(b"A" * self.BOMB_SIZE, declared=8)
+        content = self._epub_understating_its_package(b"A" * BOMB_SIZE, declared=8)
         assert len(content) < 1024 * 1024, "the archive itself should be small"
 
-        tracemalloc.start()
-        try:
-            with pytest.raises(InvalidEbookError):
-                read_publication(content)
-            peak = tracemalloc.get_traced_memory()[1]
-        finally:
-            tracemalloc.stop()
+        peak = peak_bytes_refusing(content)
 
-        assert peak < self.BOMB_SIZE // 8, f"inflated the member: {peak / 1024**2:.0f} MiB"
+        assert peak < BOMB_SIZE // 8, f"inflated the member: {peak / 1024**2:.0f} MiB"
 
     @staticmethod
     def _epub_understating_its_package(body: bytes, declared: int) -> bytes:
-        # Local header and central directory are patched alike, so no honest
-        # copy of the number is left for the parse to prefer to the lie.
         out = io.BytesIO()
         with zipfile.ZipFile(out, "w", zipfile.ZIP_DEFLATED) as archive:
             archive.writestr("META-INF/container.xml", container_xml())
             archive.writestr("content.opf", body)
+        return understating_its_last_member(out.getvalue(), declared)
 
-        content = bytearray(out.getvalue())
-        for signature, offset in ((b"PK\x03\x04", 22), (b"PK\x01\x02", 24)):
-            struct.pack_into("<I", content, content.rfind(signature) + offset, declared)
-        return bytes(content)
+
+class TestAPublicationCarriesTheTableOfContentsItStates:
+    """The navigation document, or the NCX behind it, read into nested entries."""
+
+    def test_a_navigation_document_is_published_entry_for_entry(self) -> None:
+        publication = EpubParserService().parse_publication(NESTED_TOC_EPUB.read_bytes())
+
+        assert publication.metadata.title == "Kirjan Ääni"
+        assert publication.toc == (
+            TocEntry(
+                title="Part One",
+                href="EPUB/text/chapter%201.xhtml",
+                children=(
+                    TocEntry("Chapter One", "EPUB/text/chapter%201.xhtml#sec1"),
+                    TocEntry("Luku Ääni", "EPUB/text/luku-%C3%A4%C3%A4ni.xhtml"),
+                ),
+            ),
+            TocEntry("Appendix", "EPUB/text/luku-%C3%A4%C3%A4ni.xhtml#loppu"),
+        )
+
+    def test_a_publication_carrying_both_is_read_from_its_navigation_document(self) -> None:
+        content = build_epub(
+            f"{CHAPTER_ITEM}{NAV_ITEM}{NCX_ITEM}",
+            CHAPTER_SPINE,
+            files=("chapter1.xhtml",),
+            spine_toc="ncx",
+            documents={
+                "nav.xhtml": nav_document('<li><a href="chapter1.xhtml">From the nav</a></li>'),
+                "toc.ncx": ncx_document(nav_point("From the NCX", "chapter1.xhtml")),
+            },
+        )
+
+        assert read_publication(content).toc == (TocEntry("From the nav", "chapter1.xhtml"),)
+
+    def test_a_publication_stating_only_an_ncx_is_read_from_it(self) -> None:
+        content = build_epub(
+            f"{CHAPTER_ITEM}{NCX_ITEM}",
+            CHAPTER_SPINE,
+            files=("chapter1.xhtml",),
+            spine_toc="ncx",
+            documents={
+                "toc.ncx": ncx_document(
+                    nav_point(
+                        "Part One",
+                        "chapter1.xhtml",
+                        nav_point("Chapter One", "chapter1.xhtml#sec1"),
+                    )
+                )
+            },
+        )
+
+        assert read_publication(content).toc == (
+            TocEntry(
+                "Part One",
+                "chapter1.xhtml",
+                (TocEntry("Chapter One", "chapter1.xhtml#sec1"),),
+            ),
+        )
+
+    def test_a_publication_stating_neither_carries_no_table_of_contents(self) -> None:
+        content = build_epub(CHAPTER_ITEM, CHAPTER_SPINE, files=("chapter1.xhtml",))
+
+        assert read_publication(content).toc == ()
+
+    def test_a_spine_naming_an_empty_ncx_matches_no_item_at_all(self) -> None:
+        # An item declaring no id carries the empty string, so an empty ``toc``
+        # taken at face value would read the first of them as the NCX.
+        content = build_epub(
+            f'{CHAPTER_ITEM}<item href="toc.ncx" media-type="application/x-dtbncx+xml"/>',
+            CHAPTER_SPINE,
+            files=("chapter1.xhtml",),
+            spine_toc="",
+            documents={"toc.ncx": ncx_document(nav_point("From the NCX", "chapter1.xhtml"))},
+        )
+
+        assert read_publication(content).toc == ()
+
+    def test_a_navigation_document_declaring_the_wrong_media_type_is_still_read(self) -> None:
+        # ``properties="nav"`` names the navigation document by itself, and the
+        # parse reads it as HTML whatever the manifest calls it.
+        content = build_epub(
+            f'{CHAPTER_ITEM}<item id="nav" href="nav.xhtml" media-type="text/html"'
+            ' properties="nav"/>',
+            CHAPTER_SPINE,
+            files=("chapter1.xhtml",),
+            documents={
+                "nav.xhtml": nav_document('<li><a href="chapter1.xhtml">Chapter One</a></li>')
+            },
+        )
+
+        assert read_publication(content).toc == (TocEntry("Chapter One", "chapter1.xhtml"),)
+
+    def test_an_ncx_point_missing_its_label_or_its_target_still_takes_its_place(self) -> None:
+        content = build_epub(
+            f"{CHAPTER_ITEM}{NCX_ITEM}",
+            CHAPTER_SPINE,
+            files=("chapter1.xhtml",),
+            spine_toc="ncx",
+            documents={
+                "toc.ncx": ncx_document(
+                    '<navPoint><content src="chapter1.xhtml"/></navPoint>'
+                    "<navPoint><navLabel><text>Nowhere</text></navLabel></navPoint>"
+                )
+            },
+        )
+
+        assert read_publication(content).toc == (
+            TocEntry("", "chapter1.xhtml"),
+            TocEntry("Nowhere", None),
+        )
+
+    def test_a_navigation_document_resolves_its_links_against_its_own_directory(self) -> None:
+        content = build_epub(
+            '<item id="ch1" href="text/chapter1.xhtml" media-type="application/xhtml+xml"/>'
+            '<item id="nav" href="nav/toc.xhtml" media-type="application/xhtml+xml"'
+            ' properties="nav"/>',
+            CHAPTER_SPINE,
+            files=("OEBPS/text/chapter1.xhtml",),
+            opf_name="OEBPS/content.opf",
+            documents={
+                "OEBPS/nav/toc.xhtml": nav_document(
+                    '<li><a href="../text/chapter1.xhtml">Chapter One</a></li>'
+                )
+            },
+        )
+
+        assert read_publication(content).toc == (
+            TocEntry("Chapter One", "OEBPS/text/chapter1.xhtml"),
+        )
+
+
+class TestANavigationEntryNamesSomethingThePublicationHolds:
+    """An entry that cannot point anywhere still says where it sits."""
+
+    def test_an_entry_pointing_outside_the_container_keeps_its_title_and_children(self) -> None:
+        content = epub_with_nav(
+            nav_document(
+                '<li><a href="../secrets.xhtml">Outside</a>'
+                '<ol><li><a href="chapter1.xhtml">Inside</a></li></ol></li>'
+            )
+        )
+
+        assert read_publication(content).toc == (
+            TocEntry("Outside", None, (TocEntry("Inside", "chapter1.xhtml"),)),
+        )
+
+    def test_an_entry_linking_to_another_site_keeps_its_title_and_children(self) -> None:
+        content = epub_with_nav(
+            nav_document(
+                '<li><a href="https://example.com/a.html">Elsewhere</a>'
+                '<ol><li><a href="chapter1.xhtml">Inside</a></li></ol></li>'
+            )
+        )
+
+        assert read_publication(content).toc == (
+            TocEntry("Elsewhere", None, (TocEntry("Inside", "chapter1.xhtml"),)),
+        )
+
+    def test_an_entry_linking_only_to_a_fragment_links_nowhere(self) -> None:
+        content = epub_with_nav(
+            nav_document(
+                '<li><a href="#sec1">Somewhere in here</a>'
+                '<ol><li><a href="chapter1.xhtml">Inside</a></li></ol></li>'
+            )
+        )
+
+        assert read_publication(content).toc == (
+            TocEntry("Somewhere in here", None, (TocEntry("Inside", "chapter1.xhtml"),)),
+        )
+
+    def test_a_colon_after_the_first_path_segment_is_part_of_a_file_name(self) -> None:
+        content = build_epub(
+            f'<item id="ch1" href="text/a:b.xhtml" media-type="application/xhtml+xml"/>{NAV_ITEM}',
+            CHAPTER_SPINE,
+            files=("text/a:b.xhtml",),
+            documents={
+                "nav.xhtml": nav_document('<li><a href="text/a:b.xhtml">Chapter One</a></li>')
+            },
+        )
+
+        assert read_publication(content).toc == (TocEntry("Chapter One", "text/a%3Ab.xhtml"),)
+
+    def test_a_heading_over_other_entries_is_kept_and_a_line_naming_nothing_is_not(self) -> None:
+        content = epub_with_nav(
+            nav_document(
+                "<li><span>Part One</span>"
+                '<ol><li><a href="chapter1.xhtml">Chapter One</a></li></ol></li>'
+                "<li>Front matter</li>"
+            )
+        )
+
+        assert read_publication(content).toc == (
+            TocEntry("Part One", None, (TocEntry("Chapter One", "chapter1.xhtml"),)),
+        )
+
+
+class TestTheMarkupAroundAnEntryDoesNotCostTheTableOfContents:
+    """A navigation document is HTML, and carries whatever a publisher's toolchain left in it."""
+
+    def test_a_comment_inside_an_entry_leaves_it_and_its_children_intact(self) -> None:
+        content = epub_with_nav(
+            nav_document(
+                '<li><!-- generated --><a href="chapter1.xhtml">Part One</a>'
+                '<ol><li><a href="chapter1.xhtml#sec1">Chapter One</a></li></ol></li>'
+            )
+        )
+
+        assert read_publication(content).toc == (
+            TocEntry(
+                "Part One",
+                "chapter1.xhtml",
+                (TocEntry("Chapter One", "chapter1.xhtml#sec1"),),
+            ),
+        )
+
+    def test_an_entry_holding_nothing_but_its_children_is_titled_by_nothing(self) -> None:
+        content = epub_with_nav(
+            nav_document('<li><ol><li><a href="chapter1.xhtml">Chapter One</a></li></ol></li>')
+        )
+
+        assert read_publication(content).toc == (
+            TocEntry("", None, (TocEntry("Chapter One", "chapter1.xhtml"),)),
+        )
+
+    def test_a_navigation_type_naming_further_roles_still_names_the_table_of_contents(self) -> None:
+        content = epub_with_nav(
+            nav_document(
+                '<li><a href="chapter1.xhtml">Chapter One</a></li>',
+                attributes='epub:type="toc bodymatter"',
+            )
+        )
+
+        assert read_publication(content).toc == (TocEntry("Chapter One", "chapter1.xhtml"),)
+
+    def test_another_nav_answering_to_toc_first_does_not_win_over_the_stated_one(self) -> None:
+        content = epub_with_nav(
+            nav_document(
+                '<li><a href="chapter1.xhtml">From the toc nav</a></li>',
+                preceded_by=(
+                    '<nav epub:type="landmarks" id="toc"><ol>'
+                    '<li><a href="chapter1.xhtml">From the landmarks nav</a></li></ol></nav>'
+                ),
+            )
+        )
+
+        assert read_publication(content).toc == (TocEntry("From the toc nav", "chapter1.xhtml"),)
+
+
+class TestNavigationThatCannotBeReadCostsTheTableOfContentsAlone:
+    """A book whose navigation is broken is still a book a reader pages through."""
+
+    def test_a_navigation_document_that_cannot_be_parsed_leaves_the_book_readable(self) -> None:
+        content = epub_with_nav("")
+
+        publication = read_publication(content)
+
+        assert publication.toc == ()
+        assert hrefs(publication.reading_order) == ["chapter1.xhtml"]
+
+    def test_a_navigation_document_stating_no_table_of_contents_publishes_none(self) -> None:
+        content = epub_with_nav(
+            nav_document(
+                '<li><a href="chapter1.xhtml">Start reading</a></li>',
+                attributes='epub:type="landmarks"',
+            )
+        )
+
+        publication = read_publication(content)
+
+        assert publication.toc == ()
+        assert hrefs(publication.reading_order) == ["chapter1.xhtml"]
+
+    def test_a_navigation_document_the_archive_does_not_hold_leaves_the_book_readable(self) -> None:
+        # An absent member is the same shape of broken as an unparseable one,
+        # and the manifest drops the very item the spine here still needs.
+        content = build_epub(
+            f"{CHAPTER_ITEM}{NAV_ITEM}", CHAPTER_SPINE, files=("chapter1.xhtml",), documents={}
+        )
+
+        publication = read_publication(content)
+
+        assert publication.toc == ()
+        assert hrefs(publication.reading_order) == ["chapter1.xhtml"]
+        assert hrefs(publication.resources) == []
+
+    def test_a_navigation_document_that_understates_its_size_is_refused_uninflated(self) -> None:
+        # Degrading past this one would mean paying for the bomb first: the
+        # member is read before anything can tell that it is unparseable.
+        out = io.BytesIO(
+            build_epub(f"{CHAPTER_ITEM}{NAV_ITEM}", CHAPTER_SPINE, files=("chapter1.xhtml",))
+        )
+        with zipfile.ZipFile(out, "a", zipfile.ZIP_DEFLATED) as archive:
+            archive.writestr("nav.xhtml", b"A" * BOMB_SIZE)
+        content = understating_its_last_member(out.getvalue(), declared=8)
+        assert len(content) < 1024 * 1024, "the archive itself should be small"
+
+        peak = peak_bytes_refusing(content)
+
+        assert peak < BOMB_SIZE // 8, f"inflated the member: {peak / 1024**2:.0f} MiB"
