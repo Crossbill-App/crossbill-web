@@ -11,8 +11,10 @@ import ebooklib
 from ebooklib import epub
 from lxml import etree  # pyright: ignore[reportAttributeAccessIssue]
 
+from src.application.web_reader.publications import ParsedPublication
 from src.domain.library.entities.chapter import TocChapter
 from src.infrastructure.common.memory import trims_memory
+from src.infrastructure.library.services.epub_publication_parser import read_publication
 
 logger = logging.getLogger(__name__)
 
@@ -179,6 +181,11 @@ class EpubParserService:
         except Exception as e:
             logger.error(f"Failed to parse TOC from EPUB: {e!s}")
             return []
+
+    @trims_memory
+    def parse_publication(self, epub_content: bytes) -> ParsedPublication:
+        """Resolve an EPUB into its reading order, resources, TOC and metadata."""
+        return read_publication(epub_content)
 
     @trims_memory
     def extract_cover(self, epub_content: bytes) -> bytes | None:
