@@ -46,6 +46,10 @@ dev = [
   "aiosqlite>=0.22.1",
   "import-linter>=2.11",
   "mutmut>=3.6.0",
+  # Pinned to a git tag; see [tool.uv.sources] at the end of this file. A dev
+  # dependency because nothing this app serves imports it yet -- only the test
+  # holding the manifest's hrefs to the ones a highlight's Locator will name.
+  "xpoint-cfi",
 ]
 
 [build-system]
@@ -230,3 +234,9 @@ also_copy = ["src/", "tests/"]
 # signal is trustworthy for anything the pure unit tests cover.
 timeout_constant = 20.0
 timeout_multiplier = 3.0
+
+# xpoint-cfi is the companion library that converts KOReader xpointers to
+# Readium locators (ADR-0004). It is not on PyPI, so it is pinned to a release
+# tag here; bumping it is a deliberate two-repo change, never a range.
+[tool.uv.sources]
+xpoint-cfi = { git = "https://github.com/Crossbill-App/xpoint-cfi.git", tag = "v0.1.0" }

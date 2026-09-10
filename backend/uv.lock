@@ -668,6 +668,7 @@ dev = [
     { name = "pytest" },
     { name = "pytest-asyncio" },
     { name = "ruff" },
+    { name = "xpoint-cfi" },
 ]
 
 [package.metadata]
@@ -709,6 +710,7 @@ dev = [
     { name = "pytest", specifier = ">=9.0.3" },
     { name = "pytest-asyncio", specifier = ">=1.2.0" },
     { name = "ruff", specifier = ">=0.14.4" },
+    { name = "xpoint-cfi", git = "https://github.com/Crossbill-App/xpoint-cfi.git?tag=v0.1.0" },
 ]
 
 [[package]]
@@ -4266,6 +4268,14 @@ dependencies = [
 sdist = { url = "https://files.pythonhosted.org/packages/3f/33/e09aacf91323617a7e9717a3ae9893b15dd73c469a8d57eb083794555d61/xai_sdk-1.18.0.tar.gz", hash = "sha256:e3a8f58f37675cc154906fd78be7d26dd9215e5602ee3c40c1d2a03fb589bbaf", size = 453105, upload-time = "2026-08-13T01:26:39.86Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/85/5e/4bd6ed8d44783d9938e6db2b890dc58b26da75f15962e35e8d676365e406/xai_sdk-1.18.0-py3-none-any.whl", hash = "sha256:9e8bcc9e7ec9c92209801056e6ba9740ebde4f7e6a0b2ec111e9d78233f85ef9", size = 274111, upload-time = "2026-08-13T01:26:38.255Z" },
+]
+
+[[package]]
+name = "xpoint-cfi"
+version = "0.1.0"
+source = { git = "https://github.com/Crossbill-App/xpoint-cfi.git?tag=v0.1.0#f6dc91fa175e18f226b827d25979ffbc4533fb78" }
+dependencies = [
+    { name = "lxml" },
 ]
 
 [[package]]
