@@ -103,6 +103,8 @@ class RootContainer(containers.DeclarativeContainer):
         WebReaderContainer,
         publication_repository=shared.publication_repository,
         book_repository=shared.book_repository,
+        file_repository=shared.file_repository,
+        publication_parser=shared.epub_parser_service,
     )
 
     learning = providers.Container(

@@ -1,8 +1,10 @@
 """Tests for the Readium Web Publication Manifest endpoint.
 
-The endpoint renders the index stored beside a book at upload, so every test
-here writes a row rather than an EPUB: the archives on disk are only a
-convenient way to produce a realistic one.
+The endpoint renders the index stored beside a book at upload, so most tests
+here write a row rather than an EPUB: the archives on disk are only a
+convenient way to produce a realistic one. ``TestLazyDerivation`` covers the
+books that have no row, whose index is derived from the stored EPUB on first
+read.
 
 Three fixture EPUBs stand behind these, each carrying what the others do not:
 
@@ -23,12 +25,15 @@ cannot be anchored to a resource the manifest names differently, so that
 agreement is the point rather than a formatting preference.
 """
 
+import zipfile
 from dataclasses import replace
+from io import BytesIO
 from pathlib import Path
 from typing import Any
 
 import pytest
 from httpx import AsyncClient
+from sqlalchemy.exc import OperationalError
 from sqlalchemy.ext.asyncio import AsyncSession
 from starlette import status
 
@@ -40,7 +45,8 @@ from src.application.web_reader.publications import (
     TocEntry,
 )
 from src.config import get_settings
-from src.domain.common.value_objects import BookId
+from src.domain.common.value_objects import BookId, UserId
+from src.infrastructure.library.services.epub_parser_service import EpubParserService
 from src.infrastructure.library.services.epub_publication_parser import read_publication
 from src.infrastructure.web_reader.repositories.publication_repository import PublicationRepository
 from src.infrastructure.web_reader.schemas.locator_builders import RESOURCE_PATH_PREFIX
@@ -58,8 +64,28 @@ def manifest_url(book_id: int) -> str:
     return f"/api/v1/readium/books/{book_id}/manifest.json"
 
 
+def fixture_bytes(name: str) -> bytes:
+    return (FIXTURES / f"{name}.epub").read_bytes()
+
+
 def parse_fixture(name: str) -> ParsedPublication:
-    return read_publication((FIXTURES / f"{name}.epub").read_bytes())
+    return read_publication(fixture_bytes(name))
+
+
+def without_title(epub_content: bytes) -> bytes:
+    """Rebuild an EPUB with its ``dc:title`` removed -- invalid, but it happens."""
+    source = zipfile.ZipFile(BytesIO(epub_content))
+    out = BytesIO()
+    with zipfile.ZipFile(out, "w") as rebuilt:
+        for entry in source.namelist():
+            body = source.read(entry)
+            if entry.endswith(".opf"):
+                text = body.decode()
+                start = text.index("<dc:title>")
+                end = text.index("</dc:title>") + len("</dc:title>")
+                body = (text[:start] + text[end:]).encode()
+            rebuilt.writestr(entry, body)
+    return out.getvalue()
 
 
 async def store_publication(
@@ -76,6 +102,69 @@ async def store_fixture(db_session: AsyncSession, book: models.Book, name: str) 
     await store_publication(db_session, book, parse_fixture(name), f"{name}.epub")
 
 
+async def store_epub(
+    db_session: AsyncSession,
+    book: models.Book,
+    storage_dir: Path,
+    content: bytes,
+    filename: str = "book.epub",
+) -> None:
+    """Attach an EPUB to a book, both on disk and on the row that names it."""
+    storage_dir.mkdir(parents=True, exist_ok=True)
+    (storage_dir / filename).write_bytes(content)
+    book.ebook_file = filename
+    book.file_type = "epub"
+    await db_session.commit()
+
+
+async def stored_publication(
+    db_session: AsyncSession, book: models.Book
+) -> ParsedPublication | None:
+    return await PublicationRepository(db_session).get(BookId(book.id), UserId(book.user_id))
+
+
+async def another_users_book(db_session: AsyncSession) -> models.Book:
+    intruder = models.User(email="intruder@test.com")
+    db_session.add(intruder)
+    await db_session.commit()
+    await db_session.refresh(intruder)
+    return await create_test_book(
+        db_session, user_id=intruder.id, title="Not Yours", author="Someone"
+    )
+
+
+async def assert_serves_minimal_manifest(client: AsyncClient, book_id: int) -> None:
+    """Pin the whole document ``minimal.epub`` renders as, however its index got there.
+
+    Both routes to an index -- stored at upload, derived on first read -- owe
+    the reader this same document, so one place says what it is.
+    """
+    response = await client.get(manifest_url(book_id))
+
+    assert response.status_code == status.HTTP_200_OK, response.text
+    assert response.headers["content-type"].startswith(WEBPUB_MEDIA_TYPE)
+    manifest = response.json()
+    assert manifest["@context"] == "https://readium.org/webpub-manifest/context.jsonld"
+    assert manifest["metadata"] == {
+        "@type": "http://schema.org/Book",
+        "conformsTo": EPUB_PROFILE,
+        "identifier": "urn:uuid:8f1a0c2e-0000-4000-8000-000000000001",
+        "title": "The Lantern Fixture",
+        "language": "en",
+    }
+    assert manifest["readingOrder"] == [
+        {"href": "resources/OEBPS/chapter1.xhtml", "type": "application/xhtml+xml"},
+        {"href": "resources/OEBPS/chapter2.xhtml", "type": "application/xhtml+xml"},
+    ]
+    assert manifest["resources"] == [
+        {"href": "resources/OEBPS/nav.xhtml", "type": "application/xhtml+xml"},
+    ]
+    assert manifest["toc"] == [
+        {"href": "resources/OEBPS/chapter1.xhtml", "title": "Chapter One"},
+        {"href": "resources/OEBPS/chapter2.xhtml", "title": "Chapter Two"},
+    ]
+
+
 class TestManifestStructure:
     """The manifest a reader receives for GET /api/v1/readium/books/{id}/manifest.json."""
 
@@ -85,31 +174,7 @@ class TestManifestStructure:
         """Should serve metadata, reading order, resources, TOC and links as webpub JSON."""
         await store_fixture(db_session, test_book, "minimal")
 
-        response = await client.get(manifest_url(test_book.id))
-
-        assert response.status_code == status.HTTP_200_OK, response.text
-        assert response.headers["content-type"].startswith(WEBPUB_MEDIA_TYPE)
-
-        manifest = response.json()
-        assert manifest["@context"] == "https://readium.org/webpub-manifest/context.jsonld"
-        assert manifest["metadata"] == {
-            "@type": "http://schema.org/Book",
-            "conformsTo": EPUB_PROFILE,
-            "identifier": "urn:uuid:8f1a0c2e-0000-4000-8000-000000000001",
-            "title": "The Lantern Fixture",
-            "language": "en",
-        }
-        assert manifest["readingOrder"] == [
-            {"href": "resources/OEBPS/chapter1.xhtml", "type": "application/xhtml+xml"},
-            {"href": "resources/OEBPS/chapter2.xhtml", "type": "application/xhtml+xml"},
-        ]
-        assert manifest["resources"] == [
-            {"href": "resources/OEBPS/nav.xhtml", "type": "application/xhtml+xml"},
-        ]
-        assert manifest["toc"] == [
-            {"href": "resources/OEBPS/chapter1.xhtml", "title": "Chapter One"},
-            {"href": "resources/OEBPS/chapter2.xhtml", "title": "Chapter Two"},
-        ]
+        await assert_serves_minimal_manifest(client, test_book.id)
 
     async def test_links_to_itself_and_to_the_position_list(
         self, client: AsyncClient, db_session: AsyncSession, test_book: models.Book
@@ -278,13 +343,7 @@ class TestManifestAccess:
         self, client: AsyncClient, db_session: AsyncSession
     ) -> None:
         """Should refuse a book the caller does not own, stored index and all."""
-        intruder = models.User(email="intruder@test.com")
-        db_session.add(intruder)
-        await db_session.commit()
-        await db_session.refresh(intruder)
-        their_book = await create_test_book(
-            db_session, user_id=intruder.id, title="Not Yours", author="Someone"
-        )
+        their_book = await another_users_book(db_session)
         await store_fixture(db_session, their_book, "minimal")
 
         response = await client.get(manifest_url(their_book.id))
@@ -296,6 +355,147 @@ class TestManifestAccess:
         response = await client.get(manifest_url(999999))
 
         assert response.status_code == status.HTTP_404_NOT_FOUND
+
+
+def spy_on_parsing(monkeypatch: pytest.MonkeyPatch) -> list[bytes]:
+    """Record every EPUB handed to the parser, so a repeated parse is visible."""
+    parsed: list[bytes] = []
+    original = EpubParserService.parse_publication
+
+    def spy(self: EpubParserService, epub_content: bytes) -> ParsedPublication:
+        parsed.append(epub_content)
+        return original(self, epub_content)
+
+    monkeypatch.setattr(EpubParserService, "parse_publication", spy)
+    return parsed
+
+
+class TestLazyDerivation:
+    """Books stored before the index existed, whose EPUB is parsed on the first read."""
+
+    async def test_derives_the_whole_publication_from_the_stored_epub(
+        self,
+        client: AsyncClient,
+        db_session: AsyncSession,
+        test_book: models.Book,
+        storage_dir: Path,
+    ) -> None:
+        """Should serve the document a stored index would have served."""
+        await store_epub(db_session, test_book, storage_dir, fixture_bytes("minimal"))
+
+        await assert_serves_minimal_manifest(client, test_book.id)
+
+    async def test_keeps_the_derived_index_for_the_next_read(
+        self,
+        client: AsyncClient,
+        db_session: AsyncSession,
+        test_book: models.Book,
+        storage_dir: Path,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        """Should store what it derived, so a second read parses nothing."""
+        await store_epub(db_session, test_book, storage_dir, fixture_bytes("minimal"))
+        parsed = spy_on_parsing(monkeypatch)
+
+        first = await client.get(manifest_url(test_book.id))
+        second = await client.get(manifest_url(test_book.id))
+
+        assert first.status_code == status.HTTP_200_OK, first.text
+        assert second.json() == first.json()
+        assert len(parsed) == 1
+        stored = await stored_publication(db_session, test_book)
+        assert stored is not None
+        assert stored.metadata.title == "The Lantern Fixture"
+
+    async def test_another_users_book_is_not_found(
+        self, client: AsyncClient, db_session: AsyncSession, storage_dir: Path
+    ) -> None:
+        """Should refuse to derive an index for a book the caller does not own."""
+        their_book = await another_users_book(db_session)
+        await store_epub(db_session, their_book, storage_dir, fixture_bytes("minimal"))
+
+        response = await client.get(manifest_url(their_book.id))
+
+        assert response.status_code == status.HTTP_404_NOT_FOUND
+        assert await stored_publication(db_session, their_book) is None
+
+    async def test_a_book_with_no_ebook_file_is_not_found(
+        self, client: AsyncClient, test_book: models.Book
+    ) -> None:
+        """Should answer 404 when the book names no EPUB to derive from."""
+        response = await client.get(manifest_url(test_book.id))
+
+        assert response.status_code == status.HTTP_404_NOT_FOUND
+
+    async def test_an_ebook_file_missing_from_storage_is_not_found(
+        self,
+        client: AsyncClient,
+        db_session: AsyncSession,
+        test_book: models.Book,
+        storage_dir: Path,
+    ) -> None:
+        """Should answer 404 when the named EPUB is not in storage."""
+        await store_epub(db_session, test_book, storage_dir, fixture_bytes("minimal"))
+        (storage_dir / "book.epub").unlink()
+
+        response = await client.get(manifest_url(test_book.id))
+
+        assert response.status_code == status.HTTP_404_NOT_FOUND
+
+    async def test_an_unparseable_ebook_is_rejected(
+        self,
+        client: AsyncClient,
+        db_session: AsyncSession,
+        test_book: models.Book,
+        storage_dir: Path,
+    ) -> None:
+        """Should answer 400 rather than claim the book does not exist."""
+        await store_epub(db_session, test_book, storage_dir, b"not an epub")
+
+        response = await client.get(manifest_url(test_book.id))
+
+        assert response.status_code == status.HTTP_400_BAD_REQUEST
+        assert await stored_publication(db_session, test_book) is None
+
+    async def test_falls_back_to_the_library_title(
+        self,
+        client: AsyncClient,
+        db_session: AsyncSession,
+        test_book: models.Book,
+        storage_dir: Path,
+    ) -> None:
+        """Should title the manifest from the book row when the EPUB names no title."""
+        await store_epub(
+            db_session, test_book, storage_dir, without_title(fixture_bytes("minimal"))
+        )
+
+        response = await client.get(manifest_url(test_book.id))
+
+        assert response.status_code == status.HTTP_200_OK, response.text
+        assert response.json()["metadata"]["title"] == test_book.title == "Test Book"
+
+    async def test_serves_the_manifest_when_the_index_cannot_be_stored(
+        self,
+        client: AsyncClient,
+        db_session: AsyncSession,
+        test_book: models.Book,
+        storage_dir: Path,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        """Should answer the read even though the derived index could not be kept."""
+        await store_epub(db_session, test_book, storage_dir, fixture_bytes("minimal"))
+
+        async def failing_commit() -> None:
+            raise OperationalError(
+                "INSERT INTO book_publications", {}, Exception("database is locked")
+            )
+
+        monkeypatch.setattr(db_session, "commit", failing_commit)
+
+        response = await client.get(manifest_url(test_book.id))
+
+        assert response.status_code == status.HTTP_200_OK, response.text
+        assert response.json()["metadata"]["title"] == "The Lantern Fixture"
 
 
 async def test_manifest_hrefs_match_derived_locators(

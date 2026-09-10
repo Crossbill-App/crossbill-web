@@ -10,6 +10,13 @@ class CoverNotFoundError(EntityNotFoundError):
         super().__init__("Cover", filename)
 
 
+class EbookFileNotFoundError(EntityNotFoundError):
+    """Raised when a book exists but no ebook file is stored for it."""
+
+    def __init__(self, book_id: int) -> None:
+        super().__init__("Ebook file for book", book_id)
+
+
 class XPointNavigationError(ValidationError):
     """Could not navigate to xpoint location in EPUB."""
 
