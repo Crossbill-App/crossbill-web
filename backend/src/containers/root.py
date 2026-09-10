@@ -105,6 +105,7 @@ class RootContainer(containers.DeclarativeContainer):
         book_repository=shared.book_repository,
         file_repository=shared.file_repository,
         publication_parser=shared.epub_parser_service,
+        publication_resource_query=shared.publication_resource_query,
     )
 
     learning = providers.Container(

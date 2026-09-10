@@ -3,6 +3,9 @@ from dependency_injector import containers, providers
 from src.application.web_reader.queries.get_publication_positions_use_case import (
     GetPublicationPositionsUseCase,
 )
+from src.application.web_reader.queries.get_publication_resource_use_case import (
+    GetPublicationResourceUseCase,
+)
 from src.application.web_reader.queries.get_publication_use_case import GetPublicationUseCase
 
 
@@ -14,6 +17,7 @@ class WebReaderContainer(containers.DeclarativeContainer):
     book_repository = providers.Dependency()
     file_repository = providers.Dependency()
     publication_parser = providers.Dependency()
+    publication_resource_query = providers.Dependency()
 
     # Read models
     get_publication_use_case = providers.Factory(
@@ -25,5 +29,10 @@ class WebReaderContainer(containers.DeclarativeContainer):
     )
     get_publication_positions_use_case = providers.Factory(
         GetPublicationPositionsUseCase,
+        get_publication_use_case=get_publication_use_case,
+    )
+    get_publication_resource_use_case = providers.Factory(
+        GetPublicationResourceUseCase,
+        publication_resource_query=publication_resource_query,
         get_publication_use_case=get_publication_use_case,
     )
