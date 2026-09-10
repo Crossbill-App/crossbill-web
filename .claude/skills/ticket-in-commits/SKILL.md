@@ -63,17 +63,28 @@ Write a description file first — what the commit is, the departures worth
 their eye, the numbers that back a claim — then:
 
 ```bash
+revdiff --untracked --description-file=<path>
+```
+
+Where revdiff is installed as a plugin rather than on `PATH`, the launcher is:
+
+```bash
 R=$(ls -d "$HOME"/.claude/plugins/cache/revdiff/revdiff/*/.claude-plugin/skills/revdiff | tail -1)
 "$("$R/scripts/resolve-launcher.sh" launch-revdiff.sh \
    "$HOME/.claude/plugins/data/revdiff-revdiff")" \
   --untracked --description-file=<path>
 ```
 
-`--untracked` matters: new files are invisible without it. Exit 10 means
-annotations came back on stdout; empty output means the user reviewed and
-approved. It blocks for as long as the review takes, so set the bash timeout
-to its maximum — and if the tool times out, the launcher is still running,
-so wait for the user rather than relaunching.
+`--untracked` matters: new files are invisible without it.
+
+The bare binary is a TUI and needs a terminal, so a tool call cannot run it —
+`could not open a new TTY` means hand the command to the user and wait for
+their annotations, don't retry. The plugin launcher spawns its own terminal
+and can be run directly: exit 10 means annotations came back on stdout, empty
+output means the user reviewed and approved. It blocks for as long as the
+review takes, so set the bash timeout to its maximum — and if the tool times
+out, the launcher is still running, so wait for the user rather than
+relaunching.
 
 Answer a question annotation by checking, not from memory: to justify a
 pragma, delete it and re-run the type checker.
@@ -92,9 +103,12 @@ pragma, delete it and re-run the type checker.
   a container-escape hole, an uncatchable `zlib.error`, an lxml comment that
   discarded a whole table of contents, a legal attribute token list missed by
   an exact-match selector, and a `refines`-scoped property read as global.
-- **A real corpus, where one exists.** `~/Code/crossbill/xpoint-cfi/test-books`
-  holds 13 real EPUBs. "976 TOC entries, unchanged" is worth more than any
-  hand-built fixture for proving a refactor changed nothing.
+- **A real corpus, where one exists.** `backend/book-files/epubs` is the dev
+  app's own EPUB store — whatever has been uploaded on that machine, dozens of
+  real books. Name a path the agent can check rather than one from your other
+  machine, and have it report what it actually found. "976 TOC entries,
+  unchanged" is worth more than any hand-built fixture for proving a refactor
+  changed nothing.
 - **Cost claims get measured**, with the measured figure in the assertion
   message. A memory-guard test that only asserts an exception passes whether
   or not the guard runs where it is supposed to.
