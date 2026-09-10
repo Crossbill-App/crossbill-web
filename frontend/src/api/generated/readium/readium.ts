@@ -283,3 +283,131 @@ export function useGetReadiumPositions<
 
   return withQueryKey(query, queryOptions.queryKey);
 }
+
+/**
+ * Get one file of a book's publication, unchanged.
+ *
+ * ``path`` is a manifest href with the ``resources/`` prefix stripped and
+ * decoded once by ASGI, which is the archive member's own name. Only the files
+ * the manifest names are reachable.
+ * @summary Get Readium Resource
+ */
+export const getReadiumResource = (bookId: number, path: string, signal?: AbortSignal) => {
+  return axiosInstance<Blob>({
+    url: `/api/v1/readium/books/${bookId}/resources/${path}`,
+    method: 'GET',
+    responseType: 'blob',
+    signal,
+  });
+};
+
+export const getGetReadiumResourceQueryKey = (bookId: number, path: string) => {
+  return [`/api/v1/readium/books/${bookId}/resources/${path}`] as const;
+};
+
+export const getGetReadiumResourceQueryOptions = <
+  TData = Awaited<ReturnType<typeof getReadiumResource>>,
+  TError = HTTPValidationError,
+>(
+  bookId: number,
+  path: string,
+  options?: {
+    query?: Partial<UseQueryOptions<Awaited<ReturnType<typeof getReadiumResource>>, TError, TData>>;
+  }
+) => {
+  const { query: queryOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getGetReadiumResourceQueryKey(bookId, path);
+
+  const queryFn: QueryFunction<Awaited<ReturnType<typeof getReadiumResource>>> = ({ signal }) =>
+    getReadiumResource(bookId, path, signal);
+
+  return {
+    queryKey,
+    queryFn,
+    enabled: bookId !== null && bookId !== undefined && path !== null && path !== undefined,
+    ...queryOptions,
+  } as UseQueryOptions<Awaited<ReturnType<typeof getReadiumResource>>, TError, TData> & {
+    queryKey: DataTag<QueryKey, TData, TError>;
+  };
+};
+
+export type GetReadiumResourceQueryResult = NonNullable<
+  Awaited<ReturnType<typeof getReadiumResource>>
+>;
+export type GetReadiumResourceQueryError = HTTPValidationError;
+
+export function useGetReadiumResource<
+  TData = Awaited<ReturnType<typeof getReadiumResource>>,
+  TError = HTTPValidationError,
+>(
+  bookId: number,
+  path: string,
+  options: {
+    query: Partial<UseQueryOptions<Awaited<ReturnType<typeof getReadiumResource>>, TError, TData>> &
+      Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getReadiumResource>>,
+          TError,
+          Awaited<ReturnType<typeof getReadiumResource>>
+        >,
+        'initialData'
+      >;
+  },
+  queryClient?: QueryClient
+): DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+export function useGetReadiumResource<
+  TData = Awaited<ReturnType<typeof getReadiumResource>>,
+  TError = HTTPValidationError,
+>(
+  bookId: number,
+  path: string,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<Awaited<ReturnType<typeof getReadiumResource>>, TError, TData>
+    > &
+      Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getReadiumResource>>,
+          TError,
+          Awaited<ReturnType<typeof getReadiumResource>>
+        >,
+        'initialData'
+      >;
+  },
+  queryClient?: QueryClient
+): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+export function useGetReadiumResource<
+  TData = Awaited<ReturnType<typeof getReadiumResource>>,
+  TError = HTTPValidationError,
+>(
+  bookId: number,
+  path: string,
+  options?: {
+    query?: Partial<UseQueryOptions<Awaited<ReturnType<typeof getReadiumResource>>, TError, TData>>;
+  },
+  queryClient?: QueryClient
+): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+/**
+ * @summary Get Readium Resource
+ */
+
+export function useGetReadiumResource<
+  TData = Awaited<ReturnType<typeof getReadiumResource>>,
+  TError = HTTPValidationError,
+>(
+  bookId: number,
+  path: string,
+  options?: {
+    query?: Partial<UseQueryOptions<Awaited<ReturnType<typeof getReadiumResource>>, TError, TData>>;
+  },
+  queryClient?: QueryClient
+): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+  const queryOptions = getGetReadiumResourceQueryOptions(bookId, path, options);
+
+  const query = useQuery(queryOptions, queryClient) as UseQueryResult<TData, TError> & {
+    queryKey: DataTag<QueryKey, TData, TError>;
+  };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
