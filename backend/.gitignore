@@ -67,3 +67,5 @@ Thumbs.db
 book-files/
 *.epub
 *.pdf
+# The unanchored *.epub above matches at any depth, test fixtures included.
+!tests/fixtures/*.epub
