@@ -4142,6 +4142,54 @@
         }
       }
     },
+    "/api/v1/readium/books/{book_id}/positions.json": {
+      "get": {
+        "tags": [
+          "readium"
+        ],
+        "summary": "Get Readium Positions",
+        "description": "Get the Readium position list for a book's EPUB.\n\nThis is what the manifest's ``position-list`` link resolves to: one Locator\nper synthetic page of the publication, which is how a reader turns \"where am\nI\" into a number it can show and store.",
+        "operationId": "get_readium_positions",
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "book_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Book Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/vnd.readium.position-list+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PositionList"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/semantic/backfill": {
       "post": {
         "tags": [
@@ -8379,6 +8427,28 @@
         ],
         "title": "PaginatedResponse[ReadingSession]"
       },
+      "PositionList": {
+        "properties": {
+          "total": {
+            "type": "integer",
+            "title": "Total"
+          },
+          "positions": {
+            "items": {
+              "$ref": "#/components/schemas/ReadiumLocator"
+            },
+            "type": "array",
+            "title": "Positions"
+          }
+        },
+        "type": "object",
+        "required": [
+          "total",
+          "positions"
+        ],
+        "title": "PositionList",
+        "description": "The document a publication's ``position-list`` link resolves to.\n\n``total`` is redundant with the length of ``positions`` and is what the\nformat states anyway: a reader showing \"page 7 of 240\" needs the count, and\nreading it off the array only works for a reader that fetched the whole\narray."
+      },
       "PositionResponse": {
         "properties": {
           "index": {
@@ -8746,6 +8816,53 @@
         ],
         "title": "ReadiumLink",
         "description": "A Readium Link Object.\n\nOne shape serves the reading order, the resource list, the manifest's own\nlinks and the table of contents, because the spec models all four as Links."
+      },
+      "ReadiumLocations": {
+        "properties": {
+          "position": {
+            "type": "integer",
+            "title": "Position"
+          },
+          "progression": {
+            "type": "number",
+            "title": "Progression"
+          },
+          "totalProgression": {
+            "type": "number",
+            "title": "Totalprogression"
+          }
+        },
+        "type": "object",
+        "required": [
+          "position",
+          "progression",
+          "totalProgression"
+        ],
+        "title": "ReadiumLocations",
+        "description": "A Locator's ``locations``: where a position is, in every way it can be said.\n\nOnly the three a position list carries are modelled. A derived highlight\nlocator (ADR-0004 \u00a72) says where it is with a CSS selector and a text quote\ninstead, and gets its own shape when it arrives."
+      },
+      "ReadiumLocator": {
+        "properties": {
+          "href": {
+            "type": "string",
+            "title": "Href"
+          },
+          "type": {
+            "type": "string",
+            "title": "Type"
+          },
+          "locations": {
+            "$ref": "#/components/schemas/ReadiumLocations"
+          }
+        },
+        "type": "object",
+        "required": [
+          "href",
+          "type",
+          "locations"
+        ],
+        "title": "ReadiumLocator",
+        "description": "A Readium Locator Object naming one position of a publication."
       },
       "ReadiumMetadata": {
         "properties": {
