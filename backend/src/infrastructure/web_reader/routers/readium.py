@@ -1,4 +1,4 @@
-"""API router serving the Readium Web Publication Manifest of a book."""
+"""API router serving a book's Readium Web Publication Manifest and position list."""
 
 from typing import Annotated
 
@@ -11,7 +11,11 @@ from src.application.web_reader.publications import (
     PublicationResource,
     TocEntry,
 )
+from src.application.web_reader.queries.get_publication_positions_use_case import (
+    GetPublicationPositionsUseCase,
+)
 from src.application.web_reader.queries.get_publication_use_case import GetPublicationUseCase
+from src.application.web_reader.queries.publication_positions import PublicationPosition
 from src.config import get_settings
 from src.core import container
 from src.domain.identity import User
@@ -22,7 +26,10 @@ from src.infrastructure.web_reader.schemas.readium_schemas import (
     POSITION_LIST_MEDIA_TYPE,
     POSITION_LIST_REL,
     WEBPUB_MEDIA_TYPE,
+    PositionList,
     ReadiumLink,
+    ReadiumLocations,
+    ReadiumLocator,
     ReadiumMetadata,
     ReadiumProperties,
     WebPublicationManifest,
@@ -44,6 +51,12 @@ class WebpubJSONResponse(JSONResponse):
     """JSON served as ``application/webpub+json``, which is what a navigator looks for."""
 
     media_type = WEBPUB_MEDIA_TYPE
+
+
+class PositionListJSONResponse(JSONResponse):
+    """A position list served as the media type Readium registers for one."""
+
+    media_type = POSITION_LIST_MEDIA_TYPE
 
 
 @router.get(
@@ -68,6 +81,38 @@ async def get_readium_manifest(
     manifest = _manifest(publication, self_href=_self_href(request))
     return WebpubJSONResponse(
         content=manifest.model_dump(mode="json", by_alias=True, exclude_none=True)
+    )
+
+
+@router.get(
+    "/books/{book_id}/positions.json",
+    response_model=PositionList,
+    response_class=PositionListJSONResponse,
+    status_code=status.HTTP_200_OK,
+)
+async def get_readium_positions(
+    book_id: int,
+    current_user: Annotated[User, Depends(get_current_user)],
+    use_case: GetPublicationPositionsUseCase = Depends(
+        inject_use_case(container.web_reader.get_publication_positions_use_case)
+    ),
+) -> PositionListJSONResponse:
+    """Get the Readium position list for a book's EPUB.
+
+    This is what the manifest's ``position-list`` link resolves to: one Locator
+    per synthetic page of the publication, which is how a reader turns "where am
+    I" into a number it can show and store.
+    """
+    positions = await use_case.get_publication_positions(
+        book_id=book_id,
+        user_id=current_user.id.value,
+    )
+    document = PositionList(
+        total=len(positions),
+        positions=[_locator(position) for position in positions],
+    )
+    return PositionListJSONResponse(
+        content=document.model_dump(mode="json", by_alias=True, exclude_none=True)
     )
 
 
@@ -106,6 +151,19 @@ def _manifest(publication: ParsedPublication, self_href: str) -> WebPublicationM
         reading_order=[_resource_link(item) for item in publication.reading_order],
         resources=[_resource_link(item) for item in publication.resources],
         toc=[_toc_link(entry) for entry in publication.toc],
+    )
+
+
+def _locator(position: PublicationPosition) -> ReadiumLocator:
+    """Render one computed position as a Locator pointing at the resource endpoint."""
+    return ReadiumLocator(
+        href=served_href(position.href),
+        type=position.media_type,
+        locations=ReadiumLocations(
+            position=position.position,
+            progression=position.progression,
+            total_progression=position.total_progression,
+        ),
     )
 
 
