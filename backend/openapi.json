@@ -4235,6 +4235,9 @@
               }
             }
           },
+          "304": {
+            "description": "The caller already holds this version."
+          },
           "422": {
             "description": "Validation Error",
             "content": {
