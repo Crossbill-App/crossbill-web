@@ -26,7 +26,7 @@ class PublicationResourceQuery:
         self.file_repository = file_repository
 
     async def get_publication_resource(
-        self, book_id: BookId, user_id: UserId, path: str
+        self, book_id: BookId, user_id: UserId, path: str, known_versions: frozenset[str] | None
     ) -> PublicationResourceView | None:
         """Return one file of a user's publication, or ``None`` when no index is stored."""
         result = await self.db.execute(publication_row(book_id, user_id))
@@ -36,15 +36,23 @@ class PublicationResourceQuery:
 
         publication = publication_from_json(orm.publication, orm.content_hash)
         media_type = _media_types(publication).get(path)
+        # Membership is checked first so that a path the publication does not
+        # list is a 404 rather than a 304: a precondition narrows a request that
+        # would otherwise succeed (RFC 9110 §13.2), never turns a refusal into
+        # "your copy is current".
         if media_type is None:
             raise PublicationResourceNotFoundError(path)
+
+        version = publication.content_hash
+        if known_versions is None or version in known_versions:
+            return PublicationResourceView(media_type=media_type, content=None, version=version)
 
         content = await self.file_repository.get_epub(orm.file_name)
         if content is None:
             raise EbookFileNotFoundError(book_id.value)
 
         member = await asyncio.to_thread(_read_member, content, path)
-        return PublicationResourceView(media_type=media_type, content=member)
+        return PublicationResourceView(media_type=media_type, content=member, version=version)
 
 
 def _media_types(publication: ParsedPublication) -> dict[str, str]:
