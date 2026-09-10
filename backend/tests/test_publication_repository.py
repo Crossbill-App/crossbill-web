@@ -1,7 +1,7 @@
 """Tests for PublicationRepository.
 
-No endpoint reads a stored publication yet -- R1.3 is the first -- so this is
-the only tier where the ownership check on ``get`` can be exercised at all.
+No endpoint reads a stored publication yet, so this is the only tier where the
+ownership check on ``get`` can be exercised at all.
 """
 
 from pathlib import Path

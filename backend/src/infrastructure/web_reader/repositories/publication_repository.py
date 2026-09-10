@@ -51,11 +51,24 @@ class PublicationRepository:
         orm.content_hash = publication.content_hash
         orm.publication = publication_to_json(publication)
         orm.derived_at = datetime.now(UTC)
-        await self.db.commit()
+        await self._commit()
 
     async def delete(self, book_id: BookId) -> None:
         """Drop a book's stored index if it has one."""
         orm = await self.db.get(BookPublicationORM, book_id.value)
         if orm is not None:
             await self.db.delete(orm)
+            await self._commit()
+
+    async def _commit(self) -> None:
+        """Commit, leaving the session usable if it fails.
+
+        Alone among this app's repositories, a caller of this one carries on
+        after a write fails -- the index is derived data. An uncleared failure
+        would poison the session and fail their next statement instead.
+        """
+        try:
             await self.db.commit()
+        except Exception:
+            await self.db.rollback()
+            raise
