@@ -12,6 +12,7 @@ from src.containers.reflection import ReflectionContainer
 from src.containers.semantic import SemanticContainer
 from src.containers.shared import SharedContainer
 from src.containers.tagging import TaggingContainer
+from src.containers.web_reader import WebReaderContainer
 from src.database import current_db_session
 
 
@@ -96,6 +97,14 @@ class RootContainer(containers.DeclarativeContainer):
         publication_repository=shared.publication_repository,
         book_details_query=shared.book_details_query,
         book_list_query=shared.book_list_query,
+    )
+
+    web_reader = providers.Container(
+        WebReaderContainer,
+        publication_repository=shared.publication_repository,
+        book_repository=shared.book_repository,
+        file_repository=shared.file_repository,
+        publication_parser=shared.epub_parser_service,
     )
 
     learning = providers.Container(

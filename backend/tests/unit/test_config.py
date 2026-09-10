@@ -80,5 +80,36 @@ class TestCorsOriginsValidation:
         settings = _build_settings(
             ENVIRONMENT="production",
             CORS_ORIGINS=["https://example.com"],
+            PUBLIC_BASE_URL="https://example.com",
         )
         assert settings.CORS_ORIGINS == ["https://example.com"]
+
+
+class TestPublicBaseUrlValidation:
+    def test_development_empty_ok(self) -> None:
+        settings = _build_settings(ENVIRONMENT="development")
+        assert settings.PUBLIC_BASE_URL == ""
+
+    def test_production_empty_rejected(self) -> None:
+        with pytest.raises(ValueError, match="PUBLIC_BASE_URL must be set in production"):
+            _build_settings(
+                ENVIRONMENT="production",
+                CORS_ORIGINS=["https://example.com"],
+                PUBLIC_BASE_URL="",
+            )
+
+    def test_trailing_slash_stripped(self) -> None:
+        settings = _build_settings(PUBLIC_BASE_URL="  https://example.com/  ")
+        assert settings.PUBLIC_BASE_URL == "https://example.com"
+
+    def test_scheme_required(self) -> None:
+        with pytest.raises(ValueError, match="must start with http"):
+            _build_settings(PUBLIC_BASE_URL="example.com")
+
+    def test_path_rejected(self) -> None:
+        with pytest.raises(ValueError, match="must be a bare origin"):
+            _build_settings(PUBLIC_BASE_URL="https://example.com/api")
+
+    def test_query_rejected(self) -> None:
+        with pytest.raises(ValueError, match="must be a bare origin"):
+            _build_settings(PUBLIC_BASE_URL="https://example.com?a=1")

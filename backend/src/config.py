@@ -85,6 +85,12 @@ class Settings(BaseSettings):
         "http://localhost:8000",
     ]
 
+    # The origin a browser reaches this API at, e.g. https://crossbill.example.com.
+    # Links the app generates point at it: behind a TLS-terminating proxy a
+    # request only ever knows the internal scheme and host, so a link built from
+    # one would point somewhere no browser can reach. Required in production.
+    PUBLIC_BASE_URL: str = ""
+
     # Rate limiting (per-IP, applied app-wide via slowapi)
     RATE_LIMIT_ENABLED: bool = True
     RATE_LIMIT_DEFAULT: str = "300/minute"
@@ -244,6 +250,29 @@ class Settings(BaseSettings):
             raise ValueError(msg)
         return value
 
+    @field_validator("PUBLIC_BASE_URL", mode="after")
+    @classmethod
+    def normalize_public_base_url(cls, value: str) -> str:
+        """Require a bare origin, since the request's own path is appended to it.
+
+        A value carrying a path would be doubled onto that path silently, and
+        every link built from this setting would be wrong together.
+        """
+        normalized = value.strip().rstrip("/")
+        if not normalized:
+            return normalized
+        if not normalized.startswith(("http://", "https://")):
+            msg = "PUBLIC_BASE_URL must start with http:// or https://"
+            raise ValueError(msg)
+        authority = normalized.split("://", 1)[1]
+        if not authority or any(character in authority for character in "/?#"):
+            msg = (
+                "PUBLIC_BASE_URL must be a bare origin with no path, query or "
+                "fragment (e.g. https://crossbill.example.com)"
+            )
+            raise ValueError(msg)
+        return normalized
+
     @model_validator(mode="after")
     def validate_jwt_secret_keys(self) -> "Settings":
         """Require JWT signing secrets to be set and long enough to resist brute force."""
@@ -286,6 +315,20 @@ class Settings(BaseSettings):
             raise ValueError(msg)
         if "*" in self.CORS_ORIGINS:
             msg = "CORS_ORIGINS must not contain wildcard '*' in production"
+            raise ValueError(msg)
+        return self
+
+    @model_validator(mode="after")
+    def validate_public_base_url_in_production(self) -> "Settings":
+        """Require the public origin in production, where the request cannot supply it."""
+        if self.ENVIRONMENT != "production":
+            return self
+        if not self.PUBLIC_BASE_URL:
+            msg = (
+                "PUBLIC_BASE_URL must be set in production "
+                "(e.g. https://crossbill.example.com) so the links this app "
+                "generates resolve to the public origin"
+            )
             raise ValueError(msg)
         return self
 

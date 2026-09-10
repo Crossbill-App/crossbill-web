@@ -4094,6 +4094,54 @@
         }
       }
     },
+    "/api/v1/readium/books/{book_id}/manifest.json": {
+      "get": {
+        "tags": [
+          "readium"
+        ],
+        "summary": "Get Readium Manifest",
+        "description": "Get the Readium Web Publication Manifest for a book's EPUB.",
+        "operationId": "get_readium_manifest",
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "book_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Book Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/webpub+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WebPublicationManifest"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/semantic/backfill": {
       "post": {
         "tags": [
@@ -8628,6 +8676,152 @@
         "title": "ReadingSessionSyncResponse",
         "description": "Schema for reading session sync response.\n\nNote: If any session is invalid,\nthe entire request fails with 422 and this response is never returned."
       },
+      "ReadiumLink": {
+        "properties": {
+          "href": {
+            "type": "string",
+            "title": "Href"
+          },
+          "type": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Type"
+          },
+          "rel": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Rel"
+          },
+          "title": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Title"
+          },
+          "properties": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ReadiumProperties"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "children": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/ReadiumLink"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Children"
+          }
+        },
+        "type": "object",
+        "required": [
+          "href"
+        ],
+        "title": "ReadiumLink",
+        "description": "A Readium Link Object.\n\nOne shape serves the reading order, the resource list, the manifest's own\nlinks and the table of contents, because the spec models all four as Links."
+      },
+      "ReadiumMetadata": {
+        "properties": {
+          "@type": {
+            "type": "string",
+            "title": "@Type",
+            "default": "http://schema.org/Book"
+          },
+          "conformsTo": {
+            "type": "string",
+            "title": "Conformsto",
+            "default": "https://readium.org/webpub-manifest/profiles/epub"
+          },
+          "identifier": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Identifier"
+          },
+          "title": {
+            "type": "string",
+            "title": "Title"
+          },
+          "author": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Author"
+          },
+          "language": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Language"
+          }
+        },
+        "type": "object",
+        "required": [
+          "title"
+        ],
+        "title": "ReadiumMetadata",
+        "description": "The manifest's ``metadata`` object."
+      },
+      "ReadiumProperties": {
+        "properties": {
+          "layout": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Layout"
+          }
+        },
+        "type": "object",
+        "title": "ReadiumProperties",
+        "description": "A Link's ``properties``; only ``layout`` is populated today."
+      },
       "RecentCapture": {
         "properties": {
           "kind": {
@@ -9268,6 +9462,56 @@
           "type"
         ],
         "title": "ValidationError"
+      },
+      "WebPublicationManifest": {
+        "properties": {
+          "@context": {
+            "type": "string",
+            "title": "@Context",
+            "default": "https://readium.org/webpub-manifest/context.jsonld"
+          },
+          "metadata": {
+            "$ref": "#/components/schemas/ReadiumMetadata"
+          },
+          "links": {
+            "items": {
+              "$ref": "#/components/schemas/ReadiumLink"
+            },
+            "type": "array",
+            "title": "Links"
+          },
+          "readingOrder": {
+            "items": {
+              "$ref": "#/components/schemas/ReadiumLink"
+            },
+            "type": "array",
+            "title": "Readingorder"
+          },
+          "resources": {
+            "items": {
+              "$ref": "#/components/schemas/ReadiumLink"
+            },
+            "type": "array",
+            "title": "Resources"
+          },
+          "toc": {
+            "items": {
+              "$ref": "#/components/schemas/ReadiumLink"
+            },
+            "type": "array",
+            "title": "Toc"
+          }
+        },
+        "type": "object",
+        "required": [
+          "metadata",
+          "links",
+          "readingOrder",
+          "resources",
+          "toc"
+        ],
+        "title": "WebPublicationManifest",
+        "description": "A complete Readium Web Publication Manifest."
       }
     },
     "securitySchemes": {

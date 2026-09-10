@@ -38,6 +38,11 @@ services:
       ADMIN_USERNAME: ${ADMIN_USERNAME}
       ADMIN_PASSWORD: ${ADMIN_PASSWORD}
       CORS_ORIGINS: '["https://yourdomain.com"]'
+      # The public origin this API is reached at. Required here because
+      # ENVIRONMENT is production: the backend refuses to start without it,
+      # since a request that only ever saw the proxy's internal scheme and host
+      # cannot say where a browser reaches this app.
+      PUBLIC_BASE_URL: ${PUBLIC_BASE_URL}
       # Set to 1 if an *appending* reverse proxy (nginx, Caddy) terminates TLS in
       # front of this container, so per-IP rate limiting keys on the real client
       # instead of the proxy. Behind a proxy that rewrites X-Forwarded-For and
