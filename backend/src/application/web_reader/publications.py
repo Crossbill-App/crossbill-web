@@ -62,8 +62,7 @@ class PublicationResource:
             container root and percent-encoded.
         media_type: The media type the package document declares for it.
         size: The uncompressed size the archive declares for the member, in
-            bytes. A conditional request's ``Content-Length`` and the position
-            list are both computed from it.
+            bytes. The position list is computed from it.
         layout: The Readium layout, for reading-order items that state one.
             Always ``None`` for supporting resources, which have no layout.
     """

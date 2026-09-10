@@ -2,12 +2,10 @@
 
 from datetime import UTC, datetime
 
-from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.application.web_reader.publications import ParsedPublication
 from src.domain.common.value_objects.ids import BookId, UserId
-from src.infrastructure.library.orm.book_model import Book as BookORM
 from src.infrastructure.web_reader.mappers.publication_json import (
     publication_from_json,
     publication_to_json,
@@ -15,6 +13,7 @@ from src.infrastructure.web_reader.mappers.publication_json import (
 from src.infrastructure.web_reader.orm.book_publication_model import (
     BookPublication as BookPublicationORM,
 )
+from src.infrastructure.web_reader.publication_rows import publication_row
 
 
 class PublicationRepository:
@@ -29,13 +28,7 @@ class PublicationRepository:
         A book someone else owns reads as absent rather than as an error: the
         caller may not learn that the row exists.
         """
-        stmt = (
-            select(BookPublicationORM)
-            .join(BookORM, BookPublicationORM.book_id == BookORM.id)
-            .where(BookPublicationORM.book_id == book_id.value)
-            .where(BookORM.user_id == user_id.value)
-        )
-        result = await self.db.execute(stmt)
+        result = await self.db.execute(publication_row(book_id, user_id))
         orm = result.scalar_one_or_none()
         if orm is None:
             return None

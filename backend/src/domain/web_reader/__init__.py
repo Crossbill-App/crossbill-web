@@ -1,0 +1,1 @@
+"""Web reader domain layer."""

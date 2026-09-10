@@ -4190,6 +4190,64 @@
         }
       }
     },
+    "/api/v1/readium/books/{book_id}/resources/{path}": {
+      "get": {
+        "tags": [
+          "readium"
+        ],
+        "summary": "Get Readium Resource",
+        "description": "Get one file of a book's publication, unchanged.\n\n``path`` is a manifest href with the ``resources/`` prefix stripped and\ndecoded once by ASGI, which is the archive member's own name. Only the files\nthe manifest names are reachable.",
+        "operationId": "get_readium_resource",
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "book_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Book Id"
+            }
+          },
+          {
+            "name": "path",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Path"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The file, under the media type the publication declares for it.",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "type": "string",
+                  "format": "binary"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/semantic/backfill": {
       "post": {
         "tags": [

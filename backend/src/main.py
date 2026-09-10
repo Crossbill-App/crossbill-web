@@ -307,17 +307,20 @@ class SecurityHeadersMiddleware:
                 if settings.ENVIRONMENT != "development":
                     headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
                     headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains"
-                    headers["Content-Security-Policy"] = (
-                        "default-src 'self'; "
-                        "script-src 'self'; "
-                        "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; "
-                        "img-src 'self' data: blob:; "
-                        "font-src 'self' https://fonts.gstatic.com; "
-                        "connect-src 'self'; "
-                        "frame-ancestors 'none'; "
-                        "base-uri 'self'; "
-                        "form-action 'self'"
-                    )
+                    # `MutableHeaders` assignment replaces rather than appends,
+                    # so a route that set its own, narrower policy keeps it.
+                    if "content-security-policy" not in headers:
+                        headers["Content-Security-Policy"] = (
+                            "default-src 'self'; "
+                            "script-src 'self'; "
+                            "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; "
+                            "img-src 'self' data: blob:; "
+                            "font-src 'self' https://fonts.gstatic.com; "
+                            "connect-src 'self'; "
+                            "frame-ancestors 'none'; "
+                            "base-uri 'self'; "
+                            "form-action 'self'"
+                        )
             await send(message)
 
         await self.app(scope, receive, wrapped_send)

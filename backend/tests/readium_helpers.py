@@ -12,6 +12,9 @@ manifest links to. Both sets read the same fixture EPUBs:
   observable rather than incidental.
 - ``fixed_layout.epub``: ``rendition:layout`` stated for the publication and
   overridden on one spine item.
+
+``build_epub`` assembles adversarial publications by hand, for the shapes no
+fixture on disk has.
 """
 
 from pathlib import Path
@@ -24,6 +27,8 @@ from src.domain.common.value_objects import BookId
 from src.infrastructure.library.services.epub_publication_parser import read_publication
 from src.infrastructure.web_reader.repositories.publication_repository import PublicationRepository
 from tests.conftest import create_test_book
+from tests.epub_builders import NAV_ITEM, nav_document
+from tests.epub_builders import build_epub as _build_epub
 
 FIXTURES = Path(__file__).parent / "fixtures"
 
@@ -59,6 +64,31 @@ async def store_publication(
 
 async def store_fixture(db_session: AsyncSession, book: models.Book, name: str) -> None:
     await store_publication(db_session, book, parse_fixture(name), f"{name}.epub")
+
+
+def build_epub(
+    manifest_items: str, spine: str, nav_links: str, files: tuple[str, ...] = ()
+) -> bytes:
+    """Assemble an EPUB by hand, with the navigation document its manifest names."""
+    return _build_epub(
+        manifest_items=f"{NAV_ITEM}{manifest_items}",
+        spine=spine,
+        files=files,
+        documents={"nav.xhtml": nav_document(nav_links)},
+    )
+
+
+# A publication whose one spine document is really named `chapter%20one.xhtml`
+# -- a literal percent sign in the file name, which the OPF therefore writes as
+# `chapter%2520one.xhtml`.
+LITERAL_PERCENT_EPUB = build_epub(
+    manifest_items=(
+        '<item id="c1" href="chapter%2520one.xhtml" media-type="application/xhtml+xml"/>'
+    ),
+    spine='<itemref idref="c1"/>',
+    nav_links='<li><a href="chapter%2520one.xhtml">Chapter One</a></li>',
+    files=("chapter%20one.xhtml",),
+)
 
 
 async def another_users_book(db_session: AsyncSession) -> models.Book:

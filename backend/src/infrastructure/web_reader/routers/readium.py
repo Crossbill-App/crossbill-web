@@ -1,8 +1,9 @@
-"""API router serving a book's Readium Web Publication Manifest and position list."""
+"""API router serving a book's Readium Web Publication Manifest, position list and files."""
 
+import re
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, Request
+from fastapi import APIRouter, Depends, Request, Response
 from fastapi.responses import JSONResponse
 from starlette import status
 
@@ -13,6 +14,9 @@ from src.application.web_reader.publications import (
 )
 from src.application.web_reader.queries.get_publication_positions_use_case import (
     GetPublicationPositionsUseCase,
+)
+from src.application.web_reader.queries.get_publication_resource_use_case import (
+    GetPublicationResourceUseCase,
 )
 from src.application.web_reader.queries.get_publication_use_case import GetPublicationUseCase
 from src.application.web_reader.queries.publication_positions import PublicationPosition
@@ -45,6 +49,21 @@ POSITION_LIST_HREF = "positions.json"
 # A table-of-contents heading that links nowhere. A Readium Link must have an
 # href, so the entry keeps its title and points at the manifest itself.
 UNLINKED_TOC_HREF = "#"
+
+# A publication is one user's book, so a shared cache must not hold it.
+RESOURCE_CACHE_CONTROL = "private"
+
+# Readium reads a resource with `fetch()` and frames a blob it builds from the
+# text, so this header never reaches the path the reader takes. A browser
+# navigating straight at the URL gets same-origin markup the user uploaded, and
+# `sandbox` with no tokens leaves that document an opaque origin with no
+# scripts, no forms and no top-level navigation.
+RESOURCE_CONTENT_SECURITY_POLICY = "sandbox"
+
+# A plain `type/subtype`, no parameters, and deliberately narrower than RFC 9110
+# §8.3.1's `token` -- which an EPUB's package document has no use for.
+_MEDIA_TYPE = re.compile(r"[A-Za-z0-9][A-Za-z0-9!#$&^_.+-]*/[A-Za-z0-9][A-Za-z0-9!#$&^_.+-]*")
+FALLBACK_MEDIA_TYPE = "application/octet-stream"
 
 
 class WebpubJSONResponse(JSONResponse):
@@ -114,6 +133,58 @@ async def get_readium_positions(
     return PositionListJSONResponse(
         content=document.model_dump(mode="json", by_alias=True, exclude_none=True)
     )
+
+
+@router.get(
+    "/books/{book_id}/resources/{path:path}",
+    response_class=Response,
+    status_code=status.HTTP_200_OK,
+    responses={
+        status.HTTP_200_OK: {
+            "content": {"*/*": {"schema": {"type": "string", "format": "binary"}}},
+            "description": "The file, under the media type the publication declares for it.",
+        },
+    },
+)
+async def get_readium_resource(
+    book_id: int,
+    path: str,
+    current_user: Annotated[User, Depends(get_current_user)],
+    use_case: GetPublicationResourceUseCase = Depends(
+        inject_use_case(container.web_reader.get_publication_resource_use_case)
+    ),
+) -> Response:
+    """Get one file of a book's publication, unchanged.
+
+    ``path`` is a manifest href with the ``resources/`` prefix stripped and
+    decoded once by ASGI, which is the archive member's own name. Only the files
+    the manifest names are reachable.
+    """
+    resource = await use_case.get_publication_resource(
+        book_id=book_id,
+        user_id=current_user.id.value,
+        path=path,
+    )
+    # Content-Type is a raw header rather than `media_type`, which would append
+    # `; charset=utf-8` to every `text/*` type. The bytes go out unchanged and an
+    # EPUB's documents declare their own encoding.
+    return Response(
+        content=resource.content,
+        headers={
+            "Content-Type": _servable_media_type(resource.media_type),
+            "Cache-Control": RESOURCE_CACHE_CONTROL,
+            "Content-Security-Policy": RESOURCE_CONTENT_SECURITY_POLICY,
+        },
+    )
+
+
+def _servable_media_type(declared: str) -> str:
+    """Keep a package document's media type out of the response unless it is one.
+
+    The value is copied from a file the user uploaded: one carrying a newline
+    would smuggle a second header, one outside Latin-1 would fail to encode.
+    """
+    return declared if _MEDIA_TYPE.fullmatch(declared) else FALLBACK_MEDIA_TYPE
 
 
 def _self_href(request: Request) -> str:
