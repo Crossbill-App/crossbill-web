@@ -39,12 +39,14 @@ from src.infrastructure.reflection.orm.book_reflection_model import BookReflecti
 from src.infrastructure.semantic.orm.embedding_model import Embedding
 from src.infrastructure.tagging.orm.tag_group_model import TagGroup
 from src.infrastructure.tagging.orm.tag_model import Tag
+from src.infrastructure.web_reader.orm.book_publication_model import BookPublication
 
 __all__ = [
     "AIChatSession",
     "AIUsageRecord",
     "Base",
     "Book",
+    "BookPublication",
     "BookReflection",
     "Bookmark",
     "Chapter",

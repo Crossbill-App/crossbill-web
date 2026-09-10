@@ -79,6 +79,9 @@ from src.infrastructure.semantic.queries.search_hydration_query import SearchHyd
 from src.infrastructure.semantic.queries.semantic_search_query import SemanticSearchQuery
 from src.infrastructure.semantic.repositories.embedding_repository import EmbeddingRepository
 from src.infrastructure.tagging.repositories import TagRepository
+from src.infrastructure.web_reader.repositories.publication_repository import (
+    PublicationRepository,
+)
 
 
 def _create_s3_file_repository(settings: Any) -> S3FileRepository:  # noqa: ANN401
@@ -111,6 +114,7 @@ class SharedContainer(containers.DeclarativeContainer):
     flashcard_repository = providers.Factory(FlashcardRepository, db=db)
     chapter_digest_repository = providers.Factory(ChapterDigestRepository, db=db)
     highlight_style_repository = providers.Factory(HighlightStyleRepository, db=db)
+    publication_repository = providers.Factory(PublicationRepository, db=db)
     file_repository = providers.Selector(
         providers.Callable(
             lambda settings: "s3" if settings.s3_enabled else "local", settings=settings
