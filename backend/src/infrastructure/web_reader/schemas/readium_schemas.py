@@ -48,6 +48,40 @@ class ReadiumLink(BaseModel):
     children: list["ReadiumLink"] | None = None
 
 
+class ReadiumLocations(BaseModel):
+    """A Locator's ``locations``: where a position is, in every way it can be said.
+
+    Only the three a position list carries are modelled. A derived highlight
+    locator (ADR-0004 §2) says where it is with a CSS selector and a text quote
+    instead, and gets its own shape when it arrives.
+    """
+
+    position: int
+    progression: float
+    total_progression: float = Field(serialization_alias="totalProgression")
+
+
+class ReadiumLocator(BaseModel):
+    """A Readium Locator Object naming one position of a publication."""
+
+    href: str
+    type: str
+    locations: ReadiumLocations
+
+
+class PositionList(BaseModel):
+    """The document a publication's ``position-list`` link resolves to.
+
+    ``total`` is redundant with the length of ``positions`` and is what the
+    format states anyway: a reader showing "page 7 of 240" needs the count, and
+    reading it off the array only works for a reader that fetched the whole
+    array.
+    """
+
+    total: int
+    positions: list[ReadiumLocator]
+
+
 class ReadiumMetadata(BaseModel):
     """The manifest's ``metadata`` object."""
 

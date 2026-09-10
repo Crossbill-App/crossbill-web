@@ -17,7 +17,7 @@ import type {
 } from '@tanstack/react-query';
 import { useQuery } from '@tanstack/react-query';
 
-import type { HTTPValidationError, WebPublicationManifest } from '../model';
+import type { HTTPValidationError, PositionList, WebPublicationManifest } from '../model';
 
 import { axiosInstance } from '../../axios-instance.ts';
 
@@ -146,6 +146,136 @@ export function useGetReadiumManifest<
   queryClient?: QueryClient
 ): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
   const queryOptions = getGetReadiumManifestQueryOptions(bookId, options);
+
+  const query = useQuery(queryOptions, queryClient) as UseQueryResult<TData, TError> & {
+    queryKey: DataTag<QueryKey, TData, TError>;
+  };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+/**
+ * Get the Readium position list for a book's EPUB.
+ *
+ * This is what the manifest's ``position-list`` link resolves to: one Locator
+ * per synthetic page of the publication, which is how a reader turns "where am
+ * I" into a number it can show and store.
+ * @summary Get Readium Positions
+ */
+export const getReadiumPositions = (bookId: number, signal?: AbortSignal) => {
+  return axiosInstance<PositionList>({
+    url: `/api/v1/readium/books/${bookId}/positions.json`,
+    method: 'GET',
+    signal,
+  });
+};
+
+export const getGetReadiumPositionsQueryKey = (bookId: number) => {
+  return [`/api/v1/readium/books/${bookId}/positions.json`] as const;
+};
+
+export const getGetReadiumPositionsQueryOptions = <
+  TData = Awaited<ReturnType<typeof getReadiumPositions>>,
+  TError = HTTPValidationError,
+>(
+  bookId: number,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<Awaited<ReturnType<typeof getReadiumPositions>>, TError, TData>
+    >;
+  }
+) => {
+  const { query: queryOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getGetReadiumPositionsQueryKey(bookId);
+
+  const queryFn: QueryFunction<Awaited<ReturnType<typeof getReadiumPositions>>> = ({ signal }) =>
+    getReadiumPositions(bookId, signal);
+
+  return {
+    queryKey,
+    queryFn,
+    enabled: bookId !== null && bookId !== undefined,
+    ...queryOptions,
+  } as UseQueryOptions<Awaited<ReturnType<typeof getReadiumPositions>>, TError, TData> & {
+    queryKey: DataTag<QueryKey, TData, TError>;
+  };
+};
+
+export type GetReadiumPositionsQueryResult = NonNullable<
+  Awaited<ReturnType<typeof getReadiumPositions>>
+>;
+export type GetReadiumPositionsQueryError = HTTPValidationError;
+
+export function useGetReadiumPositions<
+  TData = Awaited<ReturnType<typeof getReadiumPositions>>,
+  TError = HTTPValidationError,
+>(
+  bookId: number,
+  options: {
+    query: Partial<
+      UseQueryOptions<Awaited<ReturnType<typeof getReadiumPositions>>, TError, TData>
+    > &
+      Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getReadiumPositions>>,
+          TError,
+          Awaited<ReturnType<typeof getReadiumPositions>>
+        >,
+        'initialData'
+      >;
+  },
+  queryClient?: QueryClient
+): DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+export function useGetReadiumPositions<
+  TData = Awaited<ReturnType<typeof getReadiumPositions>>,
+  TError = HTTPValidationError,
+>(
+  bookId: number,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<Awaited<ReturnType<typeof getReadiumPositions>>, TError, TData>
+    > &
+      Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getReadiumPositions>>,
+          TError,
+          Awaited<ReturnType<typeof getReadiumPositions>>
+        >,
+        'initialData'
+      >;
+  },
+  queryClient?: QueryClient
+): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+export function useGetReadiumPositions<
+  TData = Awaited<ReturnType<typeof getReadiumPositions>>,
+  TError = HTTPValidationError,
+>(
+  bookId: number,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<Awaited<ReturnType<typeof getReadiumPositions>>, TError, TData>
+    >;
+  },
+  queryClient?: QueryClient
+): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+/**
+ * @summary Get Readium Positions
+ */
+
+export function useGetReadiumPositions<
+  TData = Awaited<ReturnType<typeof getReadiumPositions>>,
+  TError = HTTPValidationError,
+>(
+  bookId: number,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<Awaited<ReturnType<typeof getReadiumPositions>>, TError, TData>
+    >;
+  },
+  queryClient?: QueryClient
+): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+  const queryOptions = getGetReadiumPositionsQueryOptions(bookId, options);
 
   const query = useQuery(queryOptions, queryClient) as UseQueryResult<TData, TError> & {
     queryKey: DataTag<QueryKey, TData, TError>;

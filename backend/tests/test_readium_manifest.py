@@ -6,17 +6,8 @@ convenient way to produce a realistic one. ``TestLazyDerivation`` covers the
 books that have no row, whose index is derived from the stored EPUB on first
 read.
 
-Three fixture EPUBs stand behind these, each carrying what the others do not:
-
-- ``minimal.epub``: the plain case -- two spine chapters, a navigation document
-  that is not in the spine, no author, no styling.
-- ``nested_toc.epub``: a package document one directory down, a two-level
-  navigation document, styles and an image among the resources, and file names
-  with a space and with non-ASCII letters, which is what makes percent-encoding
-  observable rather than incidental.
-- ``fixed_layout.epub``: ``rendition:layout`` stated for the publication and
-  overridden on one spine item, the only source of Readium's
-  ``properties.layout``.
+The three fixture EPUBs behind these are described in ``tests.readium_helpers``;
+``fixed_layout.epub`` is the only source of Readium's ``properties.layout``.
 
 The hrefs asserted here are the same strings ``xpoint-cfi`` puts in a derived
 Locator's ``href`` -- relative to the EPUB container root, percent-encoded --
@@ -47,29 +38,22 @@ from src.application.web_reader.publications import (
 from src.config import get_settings
 from src.domain.common.value_objects import BookId, UserId
 from src.infrastructure.library.services.epub_parser_service import EpubParserService
-from src.infrastructure.library.services.epub_publication_parser import read_publication
 from src.infrastructure.web_reader.repositories.publication_repository import PublicationRepository
 from src.infrastructure.web_reader.schemas.locator_builders import RESOURCE_PATH_PREFIX
-from tests.conftest import create_test_book
-
-FIXTURES = Path(__file__).parent / "fixtures"
+from tests.readium_helpers import (
+    FIXTURES,
+    POSITION_LIST_MEDIA_TYPE,
+    POSITION_LIST_REL,
+    another_users_book,
+    fixture_bytes,
+    manifest_url,
+    parse_fixture,
+    store_fixture,
+    store_publication,
+)
 
 WEBPUB_MEDIA_TYPE = "application/webpub+json"
 EPUB_PROFILE = "https://readium.org/webpub-manifest/profiles/epub"
-POSITION_LIST_REL = "http://readium.org/position-list"
-POSITION_LIST_MEDIA_TYPE = "application/vnd.readium.position-list+json"
-
-
-def manifest_url(book_id: int) -> str:
-    return f"/api/v1/readium/books/{book_id}/manifest.json"
-
-
-def fixture_bytes(name: str) -> bytes:
-    return (FIXTURES / f"{name}.epub").read_bytes()
-
-
-def parse_fixture(name: str) -> ParsedPublication:
-    return read_publication(fixture_bytes(name))
 
 
 def without_title(epub_content: bytes) -> bytes:
@@ -86,20 +70,6 @@ def without_title(epub_content: bytes) -> bytes:
                 body = (text[:start] + text[end:]).encode()
             rebuilt.writestr(entry, body)
     return out.getvalue()
-
-
-async def store_publication(
-    db_session: AsyncSession,
-    book: models.Book,
-    publication: ParsedPublication,
-    file_name: str = "book.epub",
-) -> None:
-    """Store a book's publication index, the way the upload does."""
-    await PublicationRepository(db_session).save(BookId(book.id), file_name, publication)
-
-
-async def store_fixture(db_session: AsyncSession, book: models.Book, name: str) -> None:
-    await store_publication(db_session, book, parse_fixture(name), f"{name}.epub")
 
 
 async def store_epub(
@@ -121,16 +91,6 @@ async def stored_publication(
     db_session: AsyncSession, book: models.Book
 ) -> ParsedPublication | None:
     return await PublicationRepository(db_session).get(BookId(book.id), UserId(book.user_id))
-
-
-async def another_users_book(db_session: AsyncSession) -> models.Book:
-    intruder = models.User(email="intruder@test.com")
-    db_session.add(intruder)
-    await db_session.commit()
-    await db_session.refresh(intruder)
-    return await create_test_book(
-        db_session, user_id=intruder.id, title="Not Yours", author="Someone"
-    )
 
 
 async def assert_serves_minimal_manifest(client: AsyncClient, book_id: int) -> None:
