@@ -46,6 +46,20 @@ class TestJwtSecretKeyValidation:
         assert len(settings.SECRET_KEY) == 32
         assert len(settings.REFRESH_TOKEN_SECRET_KEY) == 32
 
+    def test_empty_publication_secret_key_ok(self) -> None:
+        settings = _build_settings(PUBLICATION_TOKEN_SECRET_KEY="")
+        assert settings.PUBLICATION_TOKEN_SECRET_KEY == ""
+
+    def test_short_publication_secret_key_rejected(self) -> None:
+        with pytest.raises(
+            ValueError, match="PUBLICATION_TOKEN_SECRET_KEY must be at least 32 bytes when set"
+        ):
+            _build_settings(PUBLICATION_TOKEN_SECRET_KEY="c" * 31)
+
+    def test_exactly_32_byte_publication_secret_key_ok(self) -> None:
+        settings = _build_settings(PUBLICATION_TOKEN_SECRET_KEY="c" * 32)
+        assert len(settings.PUBLICATION_TOKEN_SECRET_KEY) == 32
+
 
 class TestCorsOriginsValidation:
     def test_development_empty_origins_ok(self) -> None:

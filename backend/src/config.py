@@ -128,6 +128,8 @@ class Settings(BaseSettings):
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 15
     REFRESH_TOKEN_EXPIRE_DAYS: int = 30
     REFRESH_TOKEN_SECRET_KEY: str = ""
+    # Signs the publication cookie. Optional: empty signs it with SECRET_KEY.
+    PUBLICATION_TOKEN_SECRET_KEY: str = ""
     COOKIE_SECURE: bool = True
 
     # How long a just-rotated refresh token keeps working. Rotation revokes the
@@ -275,17 +277,25 @@ class Settings(BaseSettings):
 
     @model_validator(mode="after")
     def validate_jwt_secret_keys(self) -> "Settings":
-        """Require JWT signing secrets to be set and long enough to resist brute force."""
+        """Require JWT signing secrets to be long enough to resist brute force.
+
+        PUBLICATION_TOKEN_SECRET_KEY alone may be empty, which signs publication
+        tokens with SECRET_KEY.
+        """
         minimum_length = 32
+        generate = 'Generate one with: python -c "import secrets; print(secrets.token_urlsafe(32))"'
         for field_name in ("SECRET_KEY", "REFRESH_TOKEN_SECRET_KEY"):
             value: str = getattr(self, field_name)
             if len(value.encode("utf-8")) < minimum_length:
-                msg = (
-                    f"{field_name} must be set to at least {minimum_length} bytes. "
-                    "Generate one with: "
-                    'python -c "import secrets; print(secrets.token_urlsafe(32))"'
-                )
+                msg = f"{field_name} must be set to at least {minimum_length} bytes. {generate}"
                 raise ValueError(msg)
+        publication_key = self.PUBLICATION_TOKEN_SECRET_KEY
+        if publication_key and len(publication_key.encode("utf-8")) < minimum_length:
+            msg = (
+                f"PUBLICATION_TOKEN_SECRET_KEY must be at least {minimum_length} bytes "
+                f"when set. {generate}"
+            )
+            raise ValueError(msg)
         return self
 
     @model_validator(mode="after")

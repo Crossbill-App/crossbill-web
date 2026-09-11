@@ -85,6 +85,9 @@ from src.infrastructure.web_reader.queries.publication_resource_query import (
 from src.infrastructure.web_reader.repositories.publication_repository import (
     PublicationRepository,
 )
+from src.infrastructure.web_reader.services.publication_token_service_adapter import (
+    PublicationTokenServiceAdapter,
+)
 
 
 def _create_s3_file_repository(settings: Any) -> S3FileRepository:  # noqa: ANN401
@@ -143,6 +146,7 @@ class SharedContainer(containers.DeclarativeContainer):
     user_repository = providers.Factory(UserRepository, db=db)
     password_service = providers.Singleton(PasswordServiceAdapter)
     token_service = providers.Singleton(TokenServiceAdapter)
+    publication_token_service = providers.Singleton(PublicationTokenServiceAdapter)
     refresh_token_repository = providers.Factory(RefreshTokenRepository, db=db)
 
     # Domain services
