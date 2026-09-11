@@ -307,7 +307,7 @@ export const getGetReadiumResourceQueryKey = (bookId: number, path: string) => {
 
 export const getGetReadiumResourceQueryOptions = <
   TData = Awaited<ReturnType<typeof getReadiumResource>>,
-  TError = HTTPValidationError,
+  TError = void | HTTPValidationError,
 >(
   bookId: number,
   path: string,
@@ -335,11 +335,11 @@ export const getGetReadiumResourceQueryOptions = <
 export type GetReadiumResourceQueryResult = NonNullable<
   Awaited<ReturnType<typeof getReadiumResource>>
 >;
-export type GetReadiumResourceQueryError = HTTPValidationError;
+export type GetReadiumResourceQueryError = void | HTTPValidationError;
 
 export function useGetReadiumResource<
   TData = Awaited<ReturnType<typeof getReadiumResource>>,
-  TError = HTTPValidationError,
+  TError = void | HTTPValidationError,
 >(
   bookId: number,
   path: string,
@@ -358,7 +358,7 @@ export function useGetReadiumResource<
 ): DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 export function useGetReadiumResource<
   TData = Awaited<ReturnType<typeof getReadiumResource>>,
-  TError = HTTPValidationError,
+  TError = void | HTTPValidationError,
 >(
   bookId: number,
   path: string,
@@ -379,7 +379,7 @@ export function useGetReadiumResource<
 ): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 export function useGetReadiumResource<
   TData = Awaited<ReturnType<typeof getReadiumResource>>,
-  TError = HTTPValidationError,
+  TError = void | HTTPValidationError,
 >(
   bookId: number,
   path: string,
@@ -394,7 +394,7 @@ export function useGetReadiumResource<
 
 export function useGetReadiumResource<
   TData = Awaited<ReturnType<typeof getReadiumResource>>,
-  TError = HTTPValidationError,
+  TError = void | HTTPValidationError,
 >(
   bookId: number,
   path: string,

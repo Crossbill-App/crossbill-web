@@ -21,7 +21,7 @@ class GetPublicationResourceUseCase:
         self.get_publication_use_case = get_publication_use_case
 
     async def get_publication_resource(
-        self, book_id: int, user_id: int, path: str
+        self, book_id: int, user_id: int, path: str, known_versions: frozenset[str] | None
     ) -> PublicationResourceView:
         """Return the file at ``path`` inside the book's EPUB container.
 
@@ -33,7 +33,7 @@ class GetPublicationResourceUseCase:
             PublicationResourceNotFoundError: If the publication lists no such file.
         """
         resource = await self.publication_resource_query.get_publication_resource(
-            BookId(book_id), UserId(user_id), path
+            BookId(book_id), UserId(user_id), path, known_versions
         )
         if resource is not None:
             return resource
@@ -42,7 +42,7 @@ class GetPublicationResourceUseCase:
         # not own -- so past this point the book exists.
         await self.get_publication_use_case.get_publication(book_id, user_id)
         resource = await self.publication_resource_query.get_publication_resource(
-            BookId(book_id), UserId(user_id), path
+            BookId(book_id), UserId(user_id), path, known_versions
         )
         if resource is None:
             raise PublicationIndexUnavailableError(book_id)

@@ -24,6 +24,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from starlette import status
 
 from src import models
+from src.infrastructure.library.repositories.file_repository import FileRepository
 from src.infrastructure.library.services.epub_publication_parser import read_publication
 from src.infrastructure.web_reader.repositories.publication_repository import PublicationRepository
 from src.main import settings as main_settings
@@ -331,3 +332,179 @@ class TestOnlyPublicationFilesAreReachable:
 
         assert response.status_code == status.HTTP_200_OK, response.text
         assert response.headers["content-type"] == "application/octet-stream"
+
+
+def one_chapter_epub(toc_title: str) -> bytes:
+    """A publication whose one chapter is fixed and whose book's bytes are not.
+
+    The chapter is identical across titles, so a reader holding it is only
+    re-served if the tag follows the book rather than the member.
+    """
+    return build_epub(
+        manifest_items='<item id="c1" href="c1.xhtml" media-type="application/xhtml+xml"/>',
+        spine='<itemref idref="c1"/>',
+        nav_links=f'<li><a href="c1.xhtml">{toc_title}</a></li>',
+        files=("c1.xhtml",),
+    )
+
+
+class TestConditionalRequests:
+    """The entity tag, and what a reader that already holds a file is told."""
+
+    async def test_a_matching_if_none_match_is_answered_304(
+        self, client: AsyncClient, nested_toc_book: models.Book
+    ) -> None:
+        """Should send the headers and no body when the caller's copy is current."""
+        etag = (await client.get(resource_url(nested_toc_book.id, CHAPTER_1))).headers["etag"]
+
+        response = await client.get(
+            resource_url(nested_toc_book.id, CHAPTER_1), headers={"If-None-Match": etag}
+        )
+
+        assert response.status_code == status.HTTP_304_NOT_MODIFIED
+        assert response.content == b""
+        assert response.headers["etag"] == etag
+        assert etag.startswith('"'), "a weak response tag would still match itself"
+        assert response.headers["cache-control"] == "private"
+        assert response.headers["content-security-policy"] == "sandbox"
+
+    async def test_a_weak_validator_still_matches(
+        self, client: AsyncClient, nested_toc_book: models.Book
+    ) -> None:
+        """Should compare tags weakly, as RFC 9110 requires for a GET."""
+        etag = (await client.get(resource_url(nested_toc_book.id, CHAPTER_1))).headers["etag"]
+
+        response = await client.get(
+            resource_url(nested_toc_book.id, CHAPTER_1), headers={"If-None-Match": f"W/{etag}"}
+        )
+
+        assert response.status_code == status.HTTP_304_NOT_MODIFIED
+
+    async def test_a_stale_if_none_match_is_answered_with_the_file(
+        self, client: AsyncClient, nested_toc_book: models.Book
+    ) -> None:
+        """Should serve the file when the caller holds some other version."""
+        response = await client.get(
+            resource_url(nested_toc_book.id, CHAPTER_1),
+            headers={"If-None-Match": '"not-the-one-we-serve"'},
+        )
+
+        assert response.status_code == status.HTTP_200_OK, response.text
+        assert response.content
+
+    async def test_a_wildcard_validator_matches(
+        self, client: AsyncClient, nested_toc_book: models.Book
+    ) -> None:
+        """Should read a lone ``*`` as any current representation (RFC 9110 §13.1.2)."""
+        response = await client.get(
+            resource_url(nested_toc_book.id, CHAPTER_1), headers={"If-None-Match": "*"}
+        )
+
+        assert response.status_code == status.HTTP_304_NOT_MODIFIED
+
+    async def test_a_quoted_star_is_a_tag_rather_than_the_wildcard(
+        self, client: AsyncClient, nested_toc_book: models.Book
+    ) -> None:
+        """Should serve the file to a caller holding the entity-tag ``"*"``.
+
+        ``*`` is a legal entity-tag character, so a wildcard carried inside the
+        set of known versions would be indistinguishable from this tag.
+        """
+        response = await client.get(
+            resource_url(nested_toc_book.id, CHAPTER_1), headers={"If-None-Match": '"*"'}
+        )
+
+        assert response.status_code == status.HTTP_200_OK, response.text
+        assert response.content
+
+    async def test_the_etag_changes_when_the_books_epub_is_replaced(
+        self,
+        client: AsyncClient,
+        db_session: AsyncSession,
+        test_book: models.Book,
+        storage_dir: Path,
+    ) -> None:
+        """Should re-tag a chapter whose own bytes are unchanged but whose book's are not."""
+        await store_indexed_epub(db_session, test_book, storage_dir, one_chapter_epub("One"))
+        before = await client.get(resource_url(test_book.id, "c1.xhtml"))
+
+        await store_indexed_epub(db_session, test_book, storage_dir, one_chapter_epub("Two"))
+        after = await client.get(
+            resource_url(test_book.id, "c1.xhtml"),
+            headers={"If-None-Match": before.headers["etag"]},
+        )
+
+        assert after.status_code == status.HTTP_200_OK, after.text
+        assert after.content == before.content
+        assert after.headers["etag"] != before.headers["etag"]
+
+    @pytest.mark.parametrize(
+        ("validator", "why"),
+        [
+            ("{version}", "a bare token is not an entity-tag"),
+            ('"x", *', "`*` is only a wildcard on its own"),
+        ],
+    )
+    async def test_a_malformed_validator_does_not_match(
+        self, client: AsyncClient, nested_toc_book: models.Book, validator: str, why: str
+    ) -> None:
+        """Should serve the file when the validator is not an entity-tag.
+
+        RFC 9110 §8.8.3 spells an entity-tag as an optionally ``W/``-prefixed
+        *quoted* string, so unwrapping optional quotes instead of reading the
+        grammar would tell a client that dropped them its copy was current.
+        """
+        etag = (await client.get(resource_url(nested_toc_book.id, CHAPTER_1))).headers["etag"]
+        malformed = validator.format(version=etag.strip('"'))
+        assert malformed != etag
+
+        response = await client.get(
+            resource_url(nested_toc_book.id, CHAPTER_1), headers={"If-None-Match": malformed}
+        )
+
+        assert response.status_code == status.HTTP_200_OK, why
+        assert response.content
+
+    async def test_a_conditional_request_reads_no_file(
+        self,
+        client: AsyncClient,
+        nested_toc_book: models.Book,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        """Should answer 304 without fetching the EPUB at all.
+
+        Only the ordering of the version check against the file read separates
+        the two from outside, so the spy is the assertion.
+        """
+        etag = (await client.get(resource_url(nested_toc_book.id, CHAPTER_1))).headers["etag"]
+        calls: list[str | None] = []
+        original = FileRepository.get_epub
+
+        async def counting(self: FileRepository, filename: str | None) -> bytes | None:
+            calls.append(filename)
+            return await original(self, filename)
+
+        monkeypatch.setattr(FileRepository, "get_epub", counting)
+
+        response = await client.get(
+            resource_url(nested_toc_book.id, CHAPTER_1), headers={"If-None-Match": etag}
+        )
+
+        assert response.status_code == status.HTTP_304_NOT_MODIFIED
+        assert calls == []
+
+    async def test_a_path_the_publication_does_not_list_is_not_found_however_it_is_asked_for(
+        self, client: AsyncClient, nested_toc_book: models.Book
+    ) -> None:
+        """Should 404 a path the manifest omits even to a caller holding the book's tag.
+
+        A precondition narrows a request that would otherwise succeed (RFC 9110
+        §13.2); it must not turn a refusal into "your copy is current".
+        """
+        etag = (await client.get(resource_url(nested_toc_book.id, CHAPTER_1))).headers["etag"]
+
+        response = await client.get(
+            resource_url(nested_toc_book.id, "EPUB/package.opf"), headers={"If-None-Match": etag}
+        )
+
+        assert response.status_code == status.HTTP_404_NOT_FOUND, response.text
