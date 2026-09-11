@@ -33,14 +33,26 @@ class AuthenticatedCaller:
     access_token_expires_at: datetime
 
 
+async def load_authenticated_user(use_case: GetUserByIdUseCase, user_id: int) -> User:
+    """Load the user a verified credential names.
+
+    A credential that verifies but names nobody is a failed authentication, not
+    a missing entity: it was issued for a user since deleted.
+
+    Raises:
+        AuthenticationError: If no such user exists.
+    """
+    try:
+        return await use_case.get_user(user_id)
+    except UserNotFoundError:
+        raise AuthenticationError(_CREDENTIALS_ERROR) from None
+
+
 async def _authenticated_caller(token: str, use_case: GetUserByIdUseCase) -> AuthenticatedCaller:
     claims = verify_access_token(token)
     if claims is None:
         raise AuthenticationError(_CREDENTIALS_ERROR)
-    try:
-        user = await use_case.get_user(claims.user_id)
-    except UserNotFoundError:
-        raise AuthenticationError(_CREDENTIALS_ERROR) from None
+    user = await load_authenticated_user(use_case, claims.user_id)
     return AuthenticatedCaller(user=user, access_token_expires_at=claims.expires_at)
 
 

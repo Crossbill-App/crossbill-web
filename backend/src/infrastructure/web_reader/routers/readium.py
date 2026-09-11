@@ -27,13 +27,9 @@ from src.application.web_reader.queries.publication_positions import Publication
 from src.config import get_settings
 from src.core import container
 from src.domain.common.exceptions import AuthenticationError
-from src.domain.identity import User
 from src.infrastructure.common.di import inject_use_case
-from src.infrastructure.identity import (
-    AuthenticatedCaller,
-    get_authenticated_caller,
-    get_current_user,
-)
+from src.infrastructure.identity import AuthenticatedCaller, get_authenticated_caller
+from src.infrastructure.web_reader.dependencies import PublicationReader
 from src.infrastructure.web_reader.schemas.locator_builders import served_href
 from src.infrastructure.web_reader.schemas.readium_schemas import (
     POSITION_LIST_MEDIA_TYPE,
@@ -152,7 +148,7 @@ async def start_publication_session(
 async def get_readium_manifest(
     book_id: int,
     request: Request,
-    current_user: Annotated[User, Depends(get_current_user)],
+    reader: PublicationReader,
     use_case: GetPublicationUseCase = Depends(
         inject_use_case(container.web_reader.get_publication_use_case)
     ),
@@ -160,7 +156,7 @@ async def get_readium_manifest(
     """Get the Readium Web Publication Manifest for a book's EPUB."""
     publication = await use_case.get_publication(
         book_id=book_id,
-        user_id=current_user.id.value,
+        user_id=reader.id.value,
     )
     manifest = _manifest(publication, self_href=_self_href(request))
     return WebpubJSONResponse(
@@ -176,7 +172,7 @@ async def get_readium_manifest(
 )
 async def get_readium_positions(
     book_id: int,
-    current_user: Annotated[User, Depends(get_current_user)],
+    reader: PublicationReader,
     use_case: GetPublicationPositionsUseCase = Depends(
         inject_use_case(container.web_reader.get_publication_positions_use_case)
     ),
@@ -189,7 +185,7 @@ async def get_readium_positions(
     """
     positions = await use_case.get_publication_positions(
         book_id=book_id,
-        user_id=current_user.id.value,
+        user_id=reader.id.value,
     )
     document = PositionList(
         total=len(positions),
@@ -216,7 +212,7 @@ async def get_readium_resource(
     book_id: int,
     path: str,
     request: Request,
-    current_user: Annotated[User, Depends(get_current_user)],
+    reader: PublicationReader,
     use_case: GetPublicationResourceUseCase = Depends(
         inject_use_case(container.web_reader.get_publication_resource_use_case)
     ),
@@ -229,7 +225,7 @@ async def get_readium_resource(
     """
     resource = await use_case.get_publication_resource(
         book_id=book_id,
-        user_id=current_user.id.value,
+        user_id=reader.id.value,
         path=path,
         known_versions=_known_versions(request.headers.get("if-none-match")),
     )
