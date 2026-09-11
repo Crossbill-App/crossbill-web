@@ -58,6 +58,7 @@ from src.infrastructure.reading.routers.reader_clock import reader_today
 from src.infrastructure.reading.schemas.ereader_highlight_schemas import (
     KOREADER_DATETIME_FORMAT,
 )
+from src.infrastructure.web_reader.dependencies import get_publication_reader
 from src.main import app
 from src.models import (
     Book,
@@ -434,6 +435,9 @@ async def client(db_session: AsyncSession, test_user: User) -> AsyncGenerator[As
     with app_test_wiring(db_session):
         app.dependency_overrides[get_current_user] = override_get_current_user
         app.dependency_overrides[get_authenticated_caller] = override_get_authenticated_caller
+        # The publication routes authenticate on a cookie; the tests that drive
+        # the cookie itself use `browser_client`, which overrides nothing.
+        app.dependency_overrides[get_publication_reader] = override_get_current_user
 
         transport = ASGITransport(app=app)
         async with AsyncClient(transport=transport, base_url="http://test") as test_client:
