@@ -4150,11 +4150,6 @@
         "summary": "Get Readium Manifest",
         "description": "Get the Readium Web Publication Manifest for a book's EPUB.",
         "operationId": "get_readium_manifest",
-        "security": [
-          {
-            "OAuth2PasswordBearer": []
-          }
-        ],
         "parameters": [
           {
             "name": "book_id",
@@ -4163,6 +4158,22 @@
             "schema": {
               "type": "integer",
               "title": "Book Id"
+            }
+          },
+          {
+            "name": "publication_access",
+            "in": "cookie",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Publication Access"
             }
           }
         ],
@@ -4198,11 +4209,6 @@
         "summary": "Get Readium Positions",
         "description": "Get the Readium position list for a book's EPUB.\n\nThis is what the manifest's ``position-list`` link resolves to: one Locator\nper synthetic page of the publication, which is how a reader turns \"where am\nI\" into a number it can show and store.",
         "operationId": "get_readium_positions",
-        "security": [
-          {
-            "OAuth2PasswordBearer": []
-          }
-        ],
         "parameters": [
           {
             "name": "book_id",
@@ -4211,6 +4217,22 @@
             "schema": {
               "type": "integer",
               "title": "Book Id"
+            }
+          },
+          {
+            "name": "publication_access",
+            "in": "cookie",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Publication Access"
             }
           }
         ],
@@ -4246,11 +4268,6 @@
         "summary": "Get Readium Resource",
         "description": "Get one file of a book's publication, unchanged.\n\n``path`` is a manifest href with the ``resources/`` prefix stripped and\ndecoded once by ASGI, which is the archive member's own name. Only the files\nthe manifest names are reachable.",
         "operationId": "get_readium_resource",
-        "security": [
-          {
-            "OAuth2PasswordBearer": []
-          }
-        ],
         "parameters": [
           {
             "name": "book_id",
@@ -4268,6 +4285,22 @@
             "schema": {
               "type": "string",
               "title": "Path"
+            }
+          },
+          {
+            "name": "publication_access",
+            "in": "cookie",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Publication Access"
             }
           }
         ],
