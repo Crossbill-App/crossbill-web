@@ -129,17 +129,14 @@ async def start_publication_session(
 
     Bearer-only by design: a publication cookie can never extend itself. The 200
     body says when to re-mint, which the httpOnly cookie cannot.
-
-    Raises:
-        AuthenticationError: If the access token has too little left to mint
-            against. ``Max-Age=0`` would delete the cookie the browser already
-            holds, so a spent credential is refused rather than answered.
     """
     token = await use_case.start_publication_session(
         book_id=book_id,
         user_id=caller.user.id.value,
         not_after=caller.access_token_expires_at,
     )
+    # `Max-Age=0` would delete the cookie the browser still holds, so a spent
+    # access token is refused rather than answered.
     if token.expires_in <= 0:
         raise AuthenticationError("Access token too close to expiry to start a session")
     set_publication_cookie(response, book_id, token)
