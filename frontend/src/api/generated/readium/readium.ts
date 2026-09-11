@@ -8,16 +8,24 @@ import type {
   DataTag,
   DefinedInitialDataOptions,
   DefinedUseQueryResult,
+  MutationFunction,
   QueryClient,
   QueryFunction,
   QueryKey,
   UndefinedInitialDataOptions,
+  UseMutationOptions,
+  UseMutationResult,
   UseQueryOptions,
   UseQueryResult,
 } from '@tanstack/react-query';
-import { useQuery } from '@tanstack/react-query';
+import { useMutation, useQuery } from '@tanstack/react-query';
 
-import type { HTTPValidationError, PositionList, WebPublicationManifest } from '../model';
+import type {
+  HTTPValidationError,
+  PositionList,
+  PublicationSession,
+  WebPublicationManifest,
+} from '../model';
 
 import { axiosInstance } from '../../axios-instance.ts';
 
@@ -36,6 +44,83 @@ const withQueryKey = <T extends object, K>(query: T, queryKey: K): T & { queryKe
   return result;
 };
 
+/**
+ * Hand the browser a cookie that lets it load this book's resources.
+ *
+ * Bearer-only by design: a publication cookie can never extend itself. The 200
+ * body says when to re-mint, which the httpOnly cookie cannot.
+ * @summary Start Publication Session
+ */
+export const startPublicationSession = (bookId: number, signal?: AbortSignal) => {
+  return axiosInstance<PublicationSession>({
+    url: `/api/v1/readium/books/${bookId}/session`,
+    method: 'POST',
+    signal,
+  });
+};
+
+export const getStartPublicationSessionMutationOptions = <
+  TError = HTTPValidationError,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof startPublicationSession>>,
+    TError,
+    { bookId: number },
+    TContext
+  >;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof startPublicationSession>>,
+  TError,
+  { bookId: number },
+  TContext
+> => {
+  const mutationKey = ['startPublicationSession'];
+  const { mutation: mutationOptions } = options
+    ? options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey } };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof startPublicationSession>>,
+    { bookId: number }
+  > = (props) => {
+    const { bookId } = props ?? {};
+
+    return startPublicationSession(bookId);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type StartPublicationSessionMutationResult = NonNullable<
+  Awaited<ReturnType<typeof startPublicationSession>>
+>;
+
+export type StartPublicationSessionMutationError = HTTPValidationError;
+
+/**
+ * @summary Start Publication Session
+ */
+export const useStartPublicationSession = <TError = HTTPValidationError, TContext = unknown>(
+  options?: {
+    mutation?: UseMutationOptions<
+      Awaited<ReturnType<typeof startPublicationSession>>,
+      TError,
+      { bookId: number },
+      TContext
+    >;
+  },
+  queryClient?: QueryClient
+): UseMutationResult<
+  Awaited<ReturnType<typeof startPublicationSession>>,
+  TError,
+  { bookId: number },
+  TContext
+> => {
+  return useMutation(getStartPublicationSessionMutationOptions(options), queryClient);
+};
 /**
  * Get the Readium Web Publication Manifest for a book's EPUB.
  * @summary Get Readium Manifest

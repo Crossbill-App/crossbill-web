@@ -4094,6 +4094,54 @@
         }
       }
     },
+    "/api/v1/readium/books/{book_id}/session": {
+      "post": {
+        "tags": [
+          "readium"
+        ],
+        "summary": "Start Publication Session",
+        "description": "Hand the browser a cookie that lets it load this book's resources.\n\nBearer-only by design: a publication cookie can never extend itself. The 200\nbody says when to re-mint, which the httpOnly cookie cannot.",
+        "operationId": "start_publication_session",
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "book_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Book Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PublicationSession"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/readium/books/{book_id}/manifest.json": {
       "get": {
         "tags": [
@@ -8530,6 +8578,20 @@
         ],
         "title": "PositionResponse",
         "description": "Position in a book document."
+      },
+      "PublicationSession": {
+        "properties": {
+          "expires_in": {
+            "type": "integer",
+            "title": "Expires In"
+          }
+        },
+        "type": "object",
+        "required": [
+          "expires_in"
+        ],
+        "title": "PublicationSession",
+        "description": "What a reader learns when it is handed a publication cookie."
       },
       "RankedContentGroups": {
         "properties": {

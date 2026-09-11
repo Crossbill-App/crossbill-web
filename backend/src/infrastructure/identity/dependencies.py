@@ -1,5 +1,7 @@
 """FastAPI dependencies for identity and authentication."""
 
+from dataclasses import dataclass
+from datetime import datetime
 from typing import Annotated
 
 from fastapi import Depends
@@ -15,32 +17,55 @@ from src.infrastructure.identity.services.token_service import verify_access_tok
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="auth/login")
 
+_CREDENTIALS_ERROR = "Could not validate credentials"
+
+UserByIdUseCase = Annotated[
+    GetUserByIdUseCase,
+    Depends(inject_use_case(container.identity.get_user_by_id_use_case)),
+]
+
+
+@dataclass(frozen=True)
+class AuthenticatedCaller:
+    """A Bearer-authenticated caller, with the expiry of the token that authenticated them."""
+
+    user: User
+    access_token_expires_at: datetime
+
+
+async def _authenticated_caller(token: str, use_case: GetUserByIdUseCase) -> AuthenticatedCaller:
+    claims = verify_access_token(token)
+    if claims is None:
+        raise AuthenticationError(_CREDENTIALS_ERROR)
+    try:
+        user = await use_case.get_user(claims.user_id)
+    except UserNotFoundError:
+        raise AuthenticationError(_CREDENTIALS_ERROR) from None
+    return AuthenticatedCaller(user=user, access_token_expires_at=claims.expires_at)
+
+
+async def get_authenticated_caller(
+    token: Annotated[str, Depends(oauth2_scheme)],
+    use_case: UserByIdUseCase,
+) -> AuthenticatedCaller:
+    """Get the current user together with how long their access token has left.
+
+    For routes that mint a credential of their own, whose lifetime has to be
+    bounded by the Bearer token's; everywhere else wants ``get_current_user``.
+
+    Raises:
+        AuthenticationError: If the token is invalid or names no user.
+    """
+    return await _authenticated_caller(token, use_case)
+
 
 async def get_current_user(
     token: Annotated[str, Depends(oauth2_scheme)],
-    use_case: Annotated[
-        GetUserByIdUseCase,
-        Depends(inject_use_case(container.identity.get_user_by_id_use_case)),
-    ],
+    use_case: UserByIdUseCase,
 ) -> User:
-    """
-    Get the current authenticated user from the access token.
-
-    Args:
-        token: JWT access token from Authorization header
-        use_case: Use case built against the request-scoped database session
-
-    Returns:
-        User domain entity
+    """Get the current authenticated user from the access token.
 
     Raises:
-        AuthenticationError: If token is invalid or user not found
+        AuthenticationError: If the token is invalid or names no user.
     """
-    user_id = verify_access_token(token)
-    if user_id is None:
-        raise AuthenticationError("Could not validate credentials")
-
-    try:
-        return await use_case.get_user(user_id)
-    except UserNotFoundError:
-        raise AuthenticationError("Could not validate credentials") from None
+    return (await _authenticated_caller(token, use_case)).user

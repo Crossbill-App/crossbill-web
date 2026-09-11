@@ -7,6 +7,10 @@ from fastapi import APIRouter, Depends, Request, Response
 from fastapi.responses import JSONResponse
 from starlette import status
 
+from src.application.web_reader.commands.start_publication_session_use_case import (
+    StartPublicationSessionUseCase,
+)
+from src.application.web_reader.dtos import PublicationToken
 from src.application.web_reader.publications import (
     ParsedPublication,
     PublicationResource,
@@ -22,9 +26,14 @@ from src.application.web_reader.queries.get_publication_use_case import GetPubli
 from src.application.web_reader.queries.publication_positions import PublicationPosition
 from src.config import get_settings
 from src.core import container
+from src.domain.common.exceptions import AuthenticationError
 from src.domain.identity import User
 from src.infrastructure.common.di import inject_use_case
-from src.infrastructure.identity import get_current_user
+from src.infrastructure.identity import (
+    AuthenticatedCaller,
+    get_authenticated_caller,
+    get_current_user,
+)
 from src.infrastructure.web_reader.schemas.locator_builders import served_href
 from src.infrastructure.web_reader.schemas.readium_schemas import (
     POSITION_LIST_MEDIA_TYPE,
@@ -37,6 +46,10 @@ from src.infrastructure.web_reader.schemas.readium_schemas import (
     ReadiumMetadata,
     ReadiumProperties,
     WebPublicationManifest,
+)
+from src.infrastructure.web_reader.schemas.session_schemas import PublicationSession
+from src.infrastructure.web_reader.services.publication_token_service import (
+    PUBLICATION_COOKIE_NAME,
 )
 
 router = APIRouter(prefix="/readium", tags=["readium"])
@@ -81,6 +94,53 @@ class PositionListJSONResponse(JSONResponse):
     """A position list served as the media type Readium registers for one."""
 
     media_type = POSITION_LIST_MEDIA_TYPE
+
+
+def set_publication_cookie(response: Response, book_id: int, token: PublicationToken) -> None:
+    """Set a book's publication token as an httpOnly cookie, dying with the token."""
+    settings = get_settings()
+    response.set_cookie(
+        key=PUBLICATION_COOKIE_NAME,
+        value=token.value,
+        httponly=True,
+        secure=settings.COOKIE_SECURE,
+        samesite="strict",
+        # The path is the scoping: a browser sends this cookie only to the routes
+        # under it, so one book's credential never reaches another's.
+        path=f"{settings.API_V1_PREFIX}/readium/books/{book_id}/",
+        max_age=token.expires_in,
+    )
+
+
+@router.post(
+    "/books/{book_id}/session",
+    response_model=PublicationSession,
+    status_code=status.HTTP_200_OK,
+)
+async def start_publication_session(
+    book_id: int,
+    response: Response,
+    caller: Annotated[AuthenticatedCaller, Depends(get_authenticated_caller)],
+    use_case: StartPublicationSessionUseCase = Depends(
+        inject_use_case(container.web_reader.start_publication_session_use_case)
+    ),
+) -> PublicationSession:
+    """Hand the browser a cookie that lets it load this book's resources.
+
+    Bearer-only by design: a publication cookie can never extend itself. The 200
+    body says when to re-mint, which the httpOnly cookie cannot.
+    """
+    token = await use_case.start_publication_session(
+        book_id=book_id,
+        user_id=caller.user.id.value,
+        not_after=caller.access_token_expires_at,
+    )
+    # `Max-Age=0` would delete the cookie the browser still holds, so a spent
+    # access token is refused rather than answered.
+    if token.expires_in <= 0:
+        raise AuthenticationError("Access token too close to expiry to start a session")
+    set_publication_cookie(response, book_id, token)
+    return PublicationSession(expires_in=token.expires_in)
 
 
 @router.get(

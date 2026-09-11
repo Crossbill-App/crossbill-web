@@ -5,6 +5,14 @@ from datetime import datetime
 
 
 @dataclass(frozen=True)
+class AccessTokenClaims:
+    """Claims extracted from a verified access token JWT."""
+
+    user_id: int
+    expires_at: datetime
+
+
+@dataclass(frozen=True)
 class RefreshTokenClaims:
     """Claims extracted from a verified refresh token JWT."""
 

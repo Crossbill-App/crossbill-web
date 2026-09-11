@@ -7,13 +7,19 @@ import jwt
 from jwt import InvalidTokenError
 from pydantic import BaseModel
 
-from src.application.identity.dtos import RefreshTokenClaims, TokenPairWithMetadata
+from src.application.identity.dtos import (
+    AccessTokenClaims,
+    RefreshTokenClaims,
+    TokenPairWithMetadata,
+)
 from src.config import get_settings
 
 settings = get_settings()
 SECRET_KEY = settings.SECRET_KEY
 REFRESH_TOKEN_SECRET_KEY = settings.REFRESH_TOKEN_SECRET_KEY or SECRET_KEY
 ALGORITHM = "HS256"
+ACCESS_TOKEN_TYPE = "access"  # noqa: S105
+REFRESH_TOKEN_TYPE = "refresh"  # noqa: S105
 ACCESS_TOKEN_EXPIRE_MINUTES = settings.ACCESS_TOKEN_EXPIRE_MINUTES
 REFRESH_TOKEN_EXPIRE_DAYS = settings.REFRESH_TOKEN_EXPIRE_DAYS
 
@@ -30,27 +36,34 @@ class TokenWithRefresh(BaseModel):
 def create_access_token(user_id: int) -> str:
     """Create an access token for a user."""
     expire = datetime.now(UTC) + timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
-    to_encode = {"sub": str(user_id), "exp": expire, "type": "access"}
+    to_encode = {"sub": str(user_id), "exp": expire, "type": ACCESS_TOKEN_TYPE}
     return jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
 
 
 def create_refresh_token(user_id: int, jti: str, expires_at: datetime) -> str:
     """Create a refresh token for a user with a jti claim."""
-    to_encode = {"sub": str(user_id), "exp": expires_at, "type": "refresh", "jti": jti}
+    to_encode = {"sub": str(user_id), "exp": expires_at, "type": REFRESH_TOKEN_TYPE, "jti": jti}
     return jwt.encode(to_encode, REFRESH_TOKEN_SECRET_KEY, algorithm=ALGORITHM)
 
 
-def verify_access_token(token: str) -> int | None:
-    """Verify an access token and return the user_id if valid."""
+def verify_access_token(token: str) -> AccessTokenClaims | None:
+    """Verify an access token and return its claims if valid.
+
+    The ``type`` claim has to say ``access`` rather than merely fail to say
+    ``refresh``: other tokens signed with this key are all narrower.
+    """
     try:
         payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
-        if payload.get("type") == "refresh":
+        if payload.get("type") != ACCESS_TOKEN_TYPE:
             return None
-        user_id = payload.get("sub")
-        if user_id is None:
+        user_id, expires_at = payload.get("sub"), payload.get("exp")
+        if user_id is None or expires_at is None:
             return None
-        return int(user_id)
-    except (InvalidTokenError, ValueError):
+        return AccessTokenClaims(
+            user_id=int(user_id),
+            expires_at=datetime.fromtimestamp(expires_at, UTC),
+        )
+    except (InvalidTokenError, TypeError, ValueError, OSError, OverflowError):
         return None
 
 
@@ -58,7 +71,7 @@ def verify_refresh_token(token: str) -> RefreshTokenClaims | None:
     """Verify a refresh token and return claims if valid."""
     try:
         payload = jwt.decode(token, REFRESH_TOKEN_SECRET_KEY, algorithms=[ALGORITHM])
-        if payload.get("type") != "refresh":
+        if payload.get("type") != REFRESH_TOKEN_TYPE:
             return None
         user_id = payload.get("sub")
         jti = payload.get("jti")

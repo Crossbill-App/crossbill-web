@@ -1,5 +1,8 @@
 {
-  "path": ["src", "tests"],
+  "path": [
+    "src",
+    "tests"
+  ],
   "gitignore": true,
   "ignore": [
     "**/alembic/versions/**",
@@ -8,9 +11,14 @@
     "**/mutants/**",
     "**/book-files/**"
   ],
-  "format": ["python"],
+  "format": [
+    "python"
+  ],
   "minLines": 5,
   "minTokens": 50,
-  "reporters": ["ai", "threshold"],
-  "threshold": 2.55
+  "reporters": [
+    "ai",
+    "threshold"
+  ],
+  "threshold": 2.1
 }
