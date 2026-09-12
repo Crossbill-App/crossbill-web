@@ -179,6 +179,9 @@ export class ReadiumReader implements EbookReader {
       toc: tocEntriesFrom(publication.toc?.items ?? []),
       tocHref: this.tocEntryHrefFor(navigator.timeline.locate(navigator.currentLocator)),
       location: toLocation(navigator.currentLocator),
+      // Asked of the navigator's own editor rather than copied from the library's
+      // `fontSizeRangeConfig`: a second copy of those numbers drifts on an upgrade.
+      fontSizeRange: navigator.preferencesEditor.fontSize.supportedRange,
     };
   }
 

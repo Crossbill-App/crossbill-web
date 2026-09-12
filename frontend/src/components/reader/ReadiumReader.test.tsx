@@ -4,6 +4,7 @@ import {
   type PageTurnDirection,
 } from '@/components/reader/EbookReader.ts';
 import { ReadiumReader } from '@/components/reader/ReadiumReader.ts';
+import { fontSizeRangeConfig } from '@readium/navigator';
 import { aManifest, aPositionList } from '@tests/fixtures/publication';
 import { noPublication, readiumApi } from '@tests/msw/readiumApi';
 import { worker } from '@tests/msw/worker';
@@ -80,6 +81,14 @@ test('opens the book at its first page and names its chapters', async () => {
   expect(opened.toc.map((entry) => entry.title)).toEqual(['On Attention', 'Part two']);
   expect(opened.toc[1].children.map((entry) => entry.title)).toEqual(['On Memory']);
   expect(frame()).not.toBeNull();
+});
+
+test("the book reports the font-size range the engine's own editor honours", async () => {
+  worker.use(...readiumApi());
+
+  const opened = await openTheBook();
+
+  expect(opened.fontSizeRange).toEqual(fontSizeRangeConfig.range);
 });
 
 test('opening with an appearance paints it into the book', async () => {

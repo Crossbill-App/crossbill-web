@@ -40,6 +40,8 @@ export interface EbookReaderState {
   toc: EbookTocEntry[];
   /** The contents entry covering where the reader is, or null where none does. */
   currentTocHref: string | null;
+  /** Null until a book is on screen: only an engine with one can report it. */
+  fontSizeRange: [number, number] | null;
   next: () => void;
   previous: () => void;
   goTo: (location: EbookLocation) => void;
@@ -71,6 +73,7 @@ export const useEbookReader = ({
   const [location, setLocation] = useState<EbookLocation | null>(null);
   const [toc, setToc] = useState<EbookTocEntry[]>(NO_TOC);
   const [currentTocHref, setCurrentTocHref] = useState<string | null>(null);
+  const [fontSizeRange, setFontSizeRange] = useState<[number, number] | null>(null);
   const [attempt, setAttempt] = useState(0);
   const readerRef = useRef<EbookReader | null>(null);
   // Through a ref, so a hold that starts mid-book never rebuilds the reader.
@@ -113,6 +116,7 @@ export const useEbookReader = ({
       setLocation(opened.location);
       setToc(opened.toc);
       setCurrentTocHref(opened.tocHref);
+      setFontSizeRange(opened.fontSizeRange);
       setOutcome('open');
     };
     const onFailed = (error: unknown) => {
@@ -154,6 +158,7 @@ export const useEbookReader = ({
     setPageCount(0);
     setToc(NO_TOC);
     setCurrentTocHref(null);
+    setFontSizeRange(null);
     setAttempt((count) => count + 1);
   }, []);
 
@@ -169,5 +174,16 @@ export const useEbookReader = ({
     void readerRef.current?.setAppearance(appearance);
   }, [appearance, status]);
 
-  return { status, pageCount, location, toc, currentTocHref, next, previous, goTo, retry };
+  return {
+    status,
+    pageCount,
+    location,
+    toc,
+    currentTocHref,
+    fontSizeRange,
+    next,
+    previous,
+    goTo,
+    retry,
+  };
 };

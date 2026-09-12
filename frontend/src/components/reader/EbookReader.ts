@@ -38,6 +38,8 @@ export interface OpenedEbook {
   /** The contents entry the book opened at, or null where none covers it. */
   tocHref: string | null;
   location: EbookLocation;
+  /** The range the engine honours for `EbookAppearance.fontSize`; any value inside it is legal. */
+  fontSizeRange: [number, number];
 }
 
 /** How the page should look, in terms any engine can honour. */

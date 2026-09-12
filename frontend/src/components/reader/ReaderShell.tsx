@@ -283,12 +283,15 @@ export const ReaderShell = ({
         currentHref={book.currentTocHref}
       />
 
-      <ReaderSettings
-        anchorEl={appearanceAnchor}
-        onClose={() => setAppearanceAnchor(null)}
-        preferences={preferences}
-        onChange={setPreferences}
-      />
+      {book.fontSizeRange && (
+        <ReaderSettings
+          anchorEl={appearanceAnchor}
+          onClose={() => setAppearanceAnchor(null)}
+          preferences={preferences}
+          onChange={setPreferences}
+          fontSizeRange={book.fontSizeRange}
+        />
+      )}
     </Box>
   );
 };

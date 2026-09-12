@@ -43,7 +43,16 @@ export class FakeEbookReader implements EbookReader {
   }
 
   resolveOpen(opened: Partial<OpenedEbook> = {}): void {
-    this.settle?.({ pageCount: 2, toc: [], tocHref: null, location: aFakeLocation(1), ...opened });
+    this.settle?.({
+      pageCount: 2,
+      toc: [],
+      tocHref: null,
+      location: aFakeLocation(1),
+      // Deliberately not the engine's own [0.7, 4], so a test about the
+      // stepper's limits proves the range crossed the seam.
+      fontSizeRange: [0.6, 2],
+      ...opened,
+    });
   }
 
   requestPageTurn(direction: PageTurnDirection): void {

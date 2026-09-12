@@ -452,6 +452,24 @@ test('an arrow key with the appearance open does not turn the page behind it', a
   await expect.element(screen.getByText('Page 1 of 2 · 0%')).toBeVisible();
 });
 
+test('a larger font size reaches the words on the page', async () => {
+  const screen = await aBookWithItsAppearanceOpen();
+
+  await screen.getByRole('button', { name: 'Larger text' }).click();
+
+  await expect.poll(() => userProperty('fontSize')).toBe('125%');
+});
+
+test('an arrow key typed into the font size does not turn the page', async () => {
+  const screen = await aBookWithItsAppearanceOpen();
+
+  await screen.getByRole('textbox', { name: 'Font size in percent' }).click();
+  await userEvent.keyboard('{ArrowRight}');
+
+  await new Promise((resolve) => setTimeout(resolve, 1_200));
+  await expect.element(screen.getByText('Page 1 of 2 · 0%')).toBeVisible();
+});
+
 test('pressing the setting already chosen leaves it chosen', async () => {
   const screen = await aBookWithItsAppearanceOpen();
   const justified = screen.getByRole('button', { name: 'Justified' });

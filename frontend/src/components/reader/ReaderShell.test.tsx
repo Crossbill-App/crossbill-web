@@ -220,6 +220,141 @@ const openTheAppearance = async (screen: Screen) => {
   await expect.element(screen.getByRole('dialog', { name: 'Appearance' })).toBeVisible();
 };
 
+const theFontSize = (screen: Screen) =>
+  screen.getByRole('textbox', { name: 'Font size in percent' });
+
+/** The popover open over a book whose engine reports the fake's own font-size range. */
+const anOpenAppearance = async () => {
+  worker.use(...readiumApi());
+  const screen = await anOpenBook();
+  await openTheAppearance(screen);
+  return screen;
+};
+
+const fontSizes = () => readers[0].appearances.map((appearance) => appearance.fontSize);
+
+test('the font size opens on what the book is showing, and steps by a quarter', async () => {
+  const screen = await anOpenAppearance();
+
+  await expect.element(theFontSize(screen)).toHaveValue('100');
+
+  await screen.getByRole('button', { name: 'Larger text' }).click();
+
+  await expect.element(theFontSize(screen)).toHaveValue('125');
+  expect(fontSizes()).toEqual([1.25]);
+});
+
+test("the larger button stops the size at the top of the engine's range", async () => {
+  const screen = await anOpenAppearance();
+  const larger = screen.getByRole('button', { name: 'Larger text' });
+  // Not a whole number of steps below the fake's ceiling of 2, so the press
+  // that follows has something to clamp.
+  await userEvent.fill(theFontSize(screen), '190');
+  await userEvent.keyboard('{Enter}');
+
+  await larger.click();
+
+  await expect.element(theFontSize(screen)).toHaveValue('200');
+  await expect.element(larger).toBeDisabled();
+  expect(fontSizes()).toEqual([1.9, 2]);
+});
+
+test("the smaller button stops the size at the bottom of the engine's range", async () => {
+  const screen = await anOpenAppearance();
+  const smaller = screen.getByRole('button', { name: 'Smaller text' });
+
+  // A second quarter down from where the book opened is past the fake's floor.
+  await smaller.click();
+  await smaller.click();
+
+  await expect.element(theFontSize(screen)).toHaveValue('60');
+  await expect.element(smaller).toBeDisabled();
+  expect(fontSizes()).toEqual([0.75, 0.6]);
+});
+
+test('the size the book opened at is still within reach of the buttons', async () => {
+  const screen = await anOpenAppearance();
+  const smaller = screen.getByRole('button', { name: 'Smaller text' });
+  const larger = screen.getByRole('button', { name: 'Larger text' });
+  await smaller.click();
+  await smaller.click();
+  await expect.element(theFontSize(screen)).toHaveValue('60');
+
+  await larger.click();
+  await larger.click();
+
+  // The floor does not sit on a quarter, and a reader who pokes at the buttons
+  // and changes their mind has to be able to get back to where they started.
+  await expect.element(theFontSize(screen)).toHaveValue('100');
+  expect(fontSizes()).toEqual([0.75, 0.6, 0.75, 1]);
+});
+
+test('a size typed between two steps steps to the nearer one', async () => {
+  const screen = await anOpenAppearance();
+  await userEvent.fill(theFontSize(screen), '103');
+  await userEvent.keyboard('{Enter}');
+
+  await screen.getByRole('button', { name: 'Larger text' }).click();
+
+  await expect.element(theFontSize(screen)).toHaveValue('125');
+  expect(fontSizes()).toEqual([1.03, 1.25]);
+});
+
+test('the arrow keys step the size the field is showing', async () => {
+  const screen = await anOpenAppearance();
+  await theFontSize(screen).click();
+
+  await userEvent.keyboard('{ArrowUp}');
+  await expect.element(theFontSize(screen)).toHaveValue('125');
+
+  await userEvent.keyboard('{ArrowDown}');
+  await expect.element(theFontSize(screen)).toHaveValue('100');
+  expect(fontSizes()).toEqual([1.25, 1]);
+});
+
+test('a size typed into the field reaches the book', async () => {
+  const screen = await anOpenAppearance();
+
+  await userEvent.fill(theFontSize(screen), '140');
+  await userEvent.keyboard('{Enter}');
+
+  expect(fontSizes()).toEqual([1.4]);
+});
+
+test("a size typed past the engine's range is brought inside it", async () => {
+  const screen = await anOpenAppearance();
+
+  await userEvent.fill(theFontSize(screen), '900');
+  await userEvent.keyboard('{Enter}');
+
+  await expect.element(theFontSize(screen)).toHaveValue('200');
+  expect(fontSizes()).toEqual([2]);
+});
+
+test('a field cleared and left alone leaves the size as it was', async () => {
+  const screen = await anOpenAppearance();
+
+  await userEvent.fill(theFontSize(screen), '');
+  await userEvent.tab();
+
+  await expect.element(theFontSize(screen)).toHaveValue('100');
+  expect(fontSizes()).toEqual([]);
+});
+
+test('a size being typed reaches the book only once it is committed', async () => {
+  const screen = await anOpenAppearance();
+
+  await userEvent.fill(theFontSize(screen), '1');
+  await userEvent.fill(theFontSize(screen), '15');
+  await userEvent.fill(theFontSize(screen), '150');
+
+  expect(fontSizes()).toEqual([]);
+
+  await userEvent.keyboard('{Enter}');
+
+  expect(fontSizes()).toEqual([1.5]);
+});
+
 test('a page colour chosen in the popover reaches the engine', async () => {
   worker.use(...readiumApi());
 
