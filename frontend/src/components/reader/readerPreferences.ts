@@ -59,7 +59,7 @@ const SPACINGS: Record<
 > = {
   tight: { lineHeight: 1.2, paragraphSpacing: null, paragraphIndent: null },
   default: { lineHeight: null, paragraphSpacing: null, paragraphIndent: null },
-  loose: { lineHeight: 1.8, paragraphSpacing: 1, paragraphIndent: 1.5 },
+  loose: { lineHeight: 1.8, paragraphSpacing: 1, paragraphIndent: 1 },
 };
 
 // `left` is `start`: in a right-to-left book the ragged edge belongs on the
