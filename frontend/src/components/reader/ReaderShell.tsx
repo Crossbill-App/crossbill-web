@@ -1,6 +1,11 @@
 import { API_BASE_URL } from '@/api/base-url.ts';
 import { IconButtonWithTooltip } from '@/components/buttons/IconButtonWithTooltip.tsx';
 import type { EbookTocEntry } from '@/components/reader/EbookReader.ts';
+import {
+  DEFAULT_READER_PREFERENCES,
+  readerPageColors,
+  toEbookAppearance,
+} from '@/components/reader/readerPreferences.ts';
 import { TocDrawer } from '@/components/reader/TocDrawer.tsx';
 import { useEbookReader, type UseEbookReaderOptions } from '@/components/reader/useEbookReader.ts';
 import { useReaderSession } from '@/components/reader/useReaderSession.ts';
@@ -15,10 +20,11 @@ import {
   Stack,
   Toolbar,
   Typography,
+  useTheme,
   type SxProps,
   type Theme,
 } from '@mui/material';
-import { useRef, useState } from 'react';
+import { useMemo, useRef, useState } from 'react';
 
 export interface ReaderShellProps {
   bookId: number;
@@ -45,8 +51,6 @@ const overlaySx: SxProps<Theme> = {
   zIndex: (t) => t.zIndex.appBar + 1,
   display: 'flex',
   flexDirection: 'column',
-  backgroundColor: 'background.default',
-  color: 'text.primary',
 };
 
 const manifestUrlFor = (bookId: number) =>
@@ -83,7 +87,7 @@ interface ReaderMessageProps {
 }
 
 const ReaderMessage = ({ children, onClose, onRetry }: ReaderMessageProps) => (
-  <Box sx={overlaySx}>
+  <Box sx={{ ...overlaySx, backgroundColor: 'background.default', color: 'text.primary' }}>
     <Box
       sx={{
         flex: 1,
@@ -124,11 +128,16 @@ export const ReaderShell = ({
   const { status: sessionStatus, isRenewing } = useReaderSession(bookId);
   const host = useRef<HTMLDivElement | null>(null);
   const [isTocOpen, setIsTocOpen] = useState(false);
+  const theme = useTheme();
+  const pageColors = readerPageColors(theme, DEFAULT_READER_PREFERENCES.pageColor);
+  // An object rebuilt every render would reopen the book on every render.
+  const appearance = useMemo(() => toEbookAppearance(theme, DEFAULT_READER_PREFERENCES), [theme]);
   const book = useEbookReader({
     host,
     manifestUrl: manifestUrlFor(bookId),
     enabled: sessionStatus === 'ready',
     holdPageTurns: isRenewing,
+    appearance,
     createReader,
     bootTimeoutMs,
   });
@@ -173,7 +182,14 @@ export const ReaderShell = ({
   };
 
   return (
-    <Box sx={overlaySx}>
+    <Box
+      sx={{
+        ...overlaySx,
+        backgroundColor: pageColors.background,
+        color: pageColors.text,
+        transition: (t) => t.transitions.create(['background-color', 'color']),
+      }}
+    >
       <Box sx={{ borderBottom: 1, borderColor: 'divider' }}>
         <Toolbar variant="dense" sx={{ gap: 1 }}>
           <IconButtonWithTooltip
@@ -243,7 +259,7 @@ export const ReaderShell = ({
               alignItems: 'center',
               justifyContent: 'center',
               pointerEvents: isRenewing ? 'auto' : 'none',
-              ...(isRenewing && { backgroundColor: 'background.default', opacity: 0.9 }),
+              ...(isRenewing && { backgroundColor: pageColors.background, opacity: 0.9 }),
             }}
           >
             {isRenewing && <Typography variant="body2">Reconnecting…</Typography>}

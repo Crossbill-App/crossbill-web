@@ -1,5 +1,6 @@
 import {
   PublicationUnavailableError,
+  type EbookAppearance,
   type EbookLocation,
   type EbookReader,
   type EbookTocEntry,
@@ -25,6 +26,8 @@ export interface UseEbookReaderOptions {
   /** True while a lapsed cookie is being replaced: a page fetched with a dead
    * credential comes back blank. */
   holdPageTurns: boolean;
+  /** How the page should look; the book opens on it. */
+  appearance: EbookAppearance;
   /** Must be referentially stable: an inline arrow rebuilds the reader every render. */
   createReader?: (host: HTMLElement) => EbookReader;
   bootTimeoutMs?: number;
@@ -59,6 +62,7 @@ export const useEbookReader = ({
   manifestUrl,
   enabled,
   holdPageTurns,
+  appearance,
   createReader = aReadiumReader,
   bootTimeoutMs = BOOT_TIMEOUT_MS,
 }: UseEbookReaderOptions): EbookReaderState => {
@@ -74,6 +78,12 @@ export const useEbookReader = ({
   useEffect(() => {
     holdRef.current = holdPageTurns;
   }, [holdPageTurns]);
+  // The same, so that changing the appearance never rebuilds the reader; a
+  // retry then opens on the current one rather than the one from mount.
+  const appearanceRef = useRef(appearance);
+  useEffect(() => {
+    appearanceRef.current = appearance;
+  }, [appearance]);
 
   useEffect(() => {
     const element = host.current;
@@ -115,7 +125,8 @@ export const useEbookReader = ({
     const abortedFirst = new Promise<never>((_, reject) => {
       signal.addEventListener('abort', () => reject(signal.reason as Error), { once: true });
     });
-    Promise.race([reader.open(manifestUrl, signal), abortedFirst]).then(onOpened, onFailed);
+    const opening = reader.open(manifestUrl, { appearance: appearanceRef.current, signal });
+    Promise.race([opening, abortedFirst]).then(onOpened, onFailed);
 
     return () => {
       cancel.abort();

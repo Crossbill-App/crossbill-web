@@ -1,5 +1,7 @@
 import type { EbookTocEntry, OpenedEbook } from '@/components/reader/EbookReader.ts';
 import { ReaderShell, type ReaderShellProps } from '@/components/reader/ReaderShell.tsx';
+import { theme } from '@/theme/theme.ts';
+import { ThemeProvider } from '@mui/material/styles';
 import { FakeEbookReader, aFakeLocation } from '@tests/fakes/FakeEbookReader';
 import { readiumApi } from '@tests/msw/readiumApi';
 import { worker } from '@tests/msw/worker';
@@ -33,13 +35,15 @@ const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
 const renderShell = async (props: Partial<ReaderShellProps> = {}) =>
   await render(
-    <ReaderShell
-      bookId={1}
-      title="The Pragmatic Reader"
-      onClose={() => {}}
-      createReader={createReader}
-      {...props}
-    />
+    <ThemeProvider theme={theme}>
+      <ReaderShell
+        bookId={1}
+        title="The Pragmatic Reader"
+        onClose={() => {}}
+        createReader={createReader}
+        {...props}
+      />
+    </ThemeProvider>
   );
 
 type Screen = Awaited<ReturnType<typeof renderShell>>;
@@ -76,8 +80,24 @@ test('the shell waits for the cookie before opening the book', async () => {
 
   expect(readers).toHaveLength(0);
   await expect.poll(() => readers.length).toBe(1);
-  expect(readers[0].openedWith).toEqual([MANIFEST_URL]);
+  expect(readers[0].openedWith.map((opened) => opened.manifestUrl)).toEqual([MANIFEST_URL]);
   await expect.element(screen.getByLabelText('Loading the book')).toBeVisible();
+});
+
+test("the book is opened with the reader's appearance", async () => {
+  worker.use(...readiumApi());
+
+  await renderShell();
+
+  await expect.poll(() => readers.length).toBe(1);
+  expect(readers[0].openedWith[0].appearance).toEqual({
+    fontSize: 1,
+    textAlign: null,
+    columnCount: 1,
+    // The light page is the app's own off-white rather than publisher white.
+    pageBackgroundColor: theme.palette.background.default,
+    pageTextColor: theme.palette.text.primary,
+  });
 });
 
 test('a book whose positions say nothing about progress still numbers its pages', async () => {

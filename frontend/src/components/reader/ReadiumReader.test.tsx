@@ -1,5 +1,6 @@
 import {
   PublicationUnavailableError,
+  type EbookAppearance,
   type PageTurnDirection,
 } from '@/components/reader/EbookReader.ts';
 import { ReadiumReader } from '@/components/reader/ReadiumReader.ts';
@@ -12,6 +13,15 @@ import { userEvent } from 'vitest/browser';
 
 const MANIFEST_PATH = '/api/v1/readium/books/:bookId/manifest.json';
 const MANIFEST_URL = `${window.location.origin}/api/v1/readium/books/1/manifest.json`;
+
+/** The reader's defaults as the seam carries them: the light page, at the book's own size. */
+const AN_APPEARANCE: EbookAppearance = {
+  fontSize: 1,
+  textAlign: null,
+  columnCount: 1,
+  pageBackgroundColor: '#fafaf9',
+  pageTextColor: '#1c1917',
+};
 
 let host: HTMLDivElement;
 let reader: ReadiumReader;
@@ -35,9 +45,17 @@ const recordEvents = () => {
   };
 };
 
+/** The book on the reader's own defaults, which is what every test but the appearance ones needs. */
+const openTheBook = (signal?: AbortSignal) =>
+  reader.open(MANIFEST_URL, { appearance: AN_APPEARANCE, signal });
+
 const frame = () => host.querySelector('iframe');
 
 const frameText = () => frame()?.contentDocument?.body.textContent ?? '';
+
+/** What ReadiumCSS has written into the chapter for one of its user settings. */
+const userProperty = (name: string) =>
+  frame()?.contentDocument?.documentElement.style.getPropertyValue(`--USER__${name}`) ?? '';
 
 beforeEach(() => {
   host = document.createElement('div');
@@ -55,7 +73,7 @@ afterEach(async () => {
 test('opens the book at its first page and names its chapters', async () => {
   worker.use(...readiumApi());
 
-  const opened = await reader.open(MANIFEST_URL);
+  const opened = await openTheBook();
 
   expect(opened.pageCount).toBe(2);
   expect(opened.location.locations.position).toBe(1);
@@ -64,9 +82,40 @@ test('opens the book at its first page and names its chapters', async () => {
   expect(frame()).not.toBeNull();
 });
 
+test('opening with an appearance paints it into the book', async () => {
+  worker.use(...readiumApi());
+
+  await reader.open(MANIFEST_URL, { appearance: AN_APPEARANCE });
+
+  await expect.poll(() => userProperty('fontSize')).toBe('100%');
+  expect(userProperty('backgroundColor')).toBe(AN_APPEARANCE.pageBackgroundColor);
+  expect(userProperty('textColor')).toBe(AN_APPEARANCE.pageTextColor);
+  // The book's own stylesheet is still the one setting lines.
+  expect(userProperty('textAlign')).toBe('');
+});
+
+test('setAppearance reaches a book already on screen', async () => {
+  worker.use(...readiumApi());
+  await reader.open(MANIFEST_URL, { appearance: AN_APPEARANCE });
+  await expect.poll(() => userProperty('fontSize')).toBe('100%');
+
+  await reader.setAppearance({
+    fontSize: 1.5,
+    textAlign: 'justify',
+    columnCount: null,
+    pageBackgroundColor: '#1c1917',
+    pageTextColor: '#f5f5f4',
+  });
+
+  await expect.poll(() => userProperty('textAlign')).toBe('justify');
+  await expect.poll(() => userProperty('backgroundColor')).toBe('#1c1917');
+  await expect.poll(() => userProperty('textColor')).toBe('#f5f5f4');
+  await expect.poll(() => userProperty('fontSize')).toBe('150%');
+});
+
 test('next and previous turn the page and report where the reader is', async () => {
   worker.use(...readiumApi());
-  await reader.open(MANIFEST_URL);
+  await openTheBook();
   const recorded = recordEvents();
 
   await reader.next();
@@ -80,7 +129,7 @@ test('next and previous turn the page and report where the reader is', async () 
 test('the book names the contents entry it opened at', async () => {
   worker.use(...readiumApi());
 
-  const opened = await reader.open(MANIFEST_URL);
+  const opened = await openTheBook();
 
   expect(opened.tocHref).toBe('resources/OEBPS/chapter1.xhtml');
   expect(opened.toc[0].href).toBe('resources/OEBPS/chapter1.xhtml');
@@ -88,7 +137,7 @@ test('the book names the contents entry it opened at', async () => {
 
 test('the reported contents entry follows the reader into the next chapter', async () => {
   worker.use(...readiumApi());
-  const opened = await reader.open(MANIFEST_URL);
+  const opened = await openTheBook();
   const recorded = recordEvents();
   const onMemory = opened.toc[1].children[0];
 
@@ -99,7 +148,7 @@ test('the reported contents entry follows the reader into the next chapter', asy
 
 test('a contents entry that declares no media type can be navigated to', async () => {
   worker.use(...readiumApi());
-  const opened = await reader.open(MANIFEST_URL);
+  const opened = await openTheBook();
   const recorded = recordEvents();
   const onMemory = opened.toc[1].children[0];
   expect(onMemory.type).toBe('');
@@ -111,7 +160,7 @@ test('a contents entry that declares no media type can be navigated to', async (
 
 test('goTo lands on the location it is given', async () => {
   worker.use(...readiumApi());
-  await reader.open(MANIFEST_URL);
+  await openTheBook();
   const recorded = recordEvents();
 
   await reader.goTo(aPositionList().positions[1]);
@@ -121,7 +170,7 @@ test('goTo lands on the location it is given', async () => {
 
 test('goTo rejects a location the book does not contain', async () => {
   worker.use(...readiumApi());
-  await reader.open(MANIFEST_URL);
+  await openTheBook();
 
   await expect(
     reader.goTo({
@@ -152,7 +201,7 @@ test('a manifest that claims another origin still has its chapters resolve again
     })
   );
 
-  await reader.open(MANIFEST_URL);
+  await openTheBook();
   await expect.poll(frameText).toContain('On Attention');
 
   const base = frame()!.contentDocument!.querySelector('base')!.href;
@@ -163,7 +212,7 @@ test('the manifest and the resources are asked for without a bearer token', asyn
   const requests: Request[] = [];
   worker.use(...readiumApi({ onRequest: (request) => requests.push(request) }));
 
-  await reader.open(MANIFEST_URL);
+  await openTheBook();
 
   const paths = requests.map((request) => new URL(request.url).pathname);
   expect(paths.some((path) => path.includes('/readium/books/1/resources/'))).toBe(true);
@@ -173,7 +222,7 @@ test('the manifest and the resources are asked for without a bearer token', asyn
 test('a book with no publication is reported as missing, an unreadable one as an error', async () => {
   worker.use(...noPublication);
 
-  const missing = await reader.open(MANIFEST_URL).catch((error: unknown) => error);
+  const missing = await openTheBook().catch((error: unknown) => error);
 
   expect(missing).toBeInstanceOf(PublicationUnavailableError);
   expect((missing as PublicationUnavailableError).reason).toBe('missing');
@@ -181,7 +230,9 @@ test('a book with no publication is reported as missing, an unreadable one as an
 
   worker.use(http.get(MANIFEST_PATH, () => new HttpResponse(null, { status: 500 })));
   const broken = new ReadiumReader(host);
-  const failed = await broken.open(MANIFEST_URL).catch((error: unknown) => error);
+  const failed = await broken
+    .open(MANIFEST_URL, { appearance: AN_APPEARANCE })
+    .catch((error: unknown) => error);
 
   expect(failed).toBeInstanceOf(PublicationUnavailableError);
   expect((failed as PublicationUnavailableError).reason).toBe('error');
@@ -189,7 +240,9 @@ test('a book with no publication is reported as missing, an unreadable one as an
 
   worker.use(http.get(MANIFEST_PATH, () => HttpResponse.html('<!doctype html>')));
   const notAManifest = new ReadiumReader(host);
-  const garbled = await notAManifest.open(MANIFEST_URL).catch((error: unknown) => error);
+  const garbled = await notAManifest
+    .open(MANIFEST_URL, { appearance: AN_APPEARANCE })
+    .catch((error: unknown) => error);
 
   expect(garbled).toBeInstanceOf(PublicationUnavailableError);
   expect((garbled as PublicationUnavailableError).reason).toBe('error');
@@ -198,7 +251,7 @@ test('a book with no publication is reported as missing, an unreadable one as an
 
 test('an arrow key pressed inside the book asks for a page turn', async () => {
   worker.use(...readiumApi());
-  await reader.open(MANIFEST_URL);
+  await openTheBook();
   await expect.poll(frameText).toContain('On Attention');
   const recorded = recordEvents();
 
@@ -222,7 +275,7 @@ test('a book cannot run its own scripts against the page that opened it', async 
 
   // Unsanitised, the chapter's meta refresh navigates the frame away and the
   // open never settles; the assertions below are what has to report that.
-  void reader.open(MANIFEST_URL).catch(() => undefined);
+  void openTheBook().catch(() => undefined);
   await expect.poll(frameText, { timeout: 5_000 }).toContain('On Attention');
 
   expect(document.body.getAttribute('data-pwned')).toBeNull();
@@ -231,7 +284,7 @@ test('a book cannot run its own scripts against the page that opened it', async 
 
 test('destroy removes the book from the page and can be called twice', async () => {
   worker.use(...readiumApi());
-  await reader.open(MANIFEST_URL);
+  await openTheBook();
 
   await reader.destroy();
 
@@ -250,7 +303,7 @@ test('aborting an open leaves nothing behind', async () => {
     })
   );
 
-  await expect(reader.open(MANIFEST_URL, controller.signal)).rejects.toThrow();
+  await expect(openTheBook(controller.signal)).rejects.toThrow();
 
   expect(frame()).toBeNull();
   expect(host.children).toHaveLength(0);
@@ -265,7 +318,7 @@ test(
     host.style.height = '0';
     const controller = new AbortController();
 
-    const opening = reader.open(MANIFEST_URL, controller.signal);
+    const opening = openTheBook(controller.signal);
     setTimeout(() => controller.abort(), 100);
 
     await expect(opening).rejects.toThrow();
@@ -278,7 +331,7 @@ test('destroying while the host has no size settles the open', { timeout: 3_000 
   host.style.width = '0';
   host.style.height = '0';
 
-  const opening = reader.open(MANIFEST_URL);
+  const opening = openTheBook();
   setTimeout(() => void reader.destroy(), 100);
 
   await expect(opening).rejects.toThrow();

@@ -111,6 +111,22 @@ test('the book opens at its first page', async () => {
   await expect.element(screen.getByRole('button', { name: 'Next page' })).toBeEnabled();
 });
 
+/** What ReadiumCSS has written into the chapter on screen, of its user settings. */
+const userProperty = (name: string) => {
+  const frames = [...document.querySelectorAll<HTMLIFrameElement>('iframe')];
+  const shown = frames.find((frame) => frame.getBoundingClientRect().width > 0);
+  return shown?.contentDocument?.documentElement.style.getPropertyValue(`--USER__${name}`) ?? '';
+};
+
+test('a book opens in one column on a wide screen', async () => {
+  worker.use(...aReadableBook());
+  worker.use(...readiumApi());
+
+  await openTheBook();
+
+  await expect.poll(() => userProperty('colCount')).toBe('1');
+});
+
 test('the next button turns the page and the label follows', async () => {
   worker.use(...aReadableBook());
   worker.use(...readiumApi());
