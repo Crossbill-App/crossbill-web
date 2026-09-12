@@ -1,4 +1,5 @@
 import type { WebPublicationManifest } from '@/api/generated/model';
+import { READER_PREFERENCES_KEY } from '@/components/reader/readerPreferenceStorage.ts';
 import { theme } from '@/theme/theme.ts';
 import { aBookDetails } from '@tests/fixtures/book';
 import { aManifest } from '@tests/fixtures/publication';
@@ -515,15 +516,64 @@ test('pressing the setting already chosen leaves it chosen', async () => {
   expect(userProperty('textAlign')).toBe('justify');
 });
 
-test('the appearance opens on what the reader has already chosen', async () => {
+/** The book on screen, justified by the reader, with the popover dismissed again. */
+const aJustifiedBook = async () => {
   const screen = await aBookWithItsAppearanceOpen();
   await screen.getByRole('button', { name: 'Justified' }).click();
   await expect.poll(() => userProperty('textAlign')).toBe('justify');
   await closeTheAppearance(screen);
+  return screen;
+};
+
+test('the appearance opens on what the reader has already chosen', async () => {
+  const screen = await aJustifiedBook();
 
   const reopened = await openTheAppearance(screen);
 
   await expect
     .element(reopened.getByRole('button', { name: 'Justified' }))
     .toHaveAttribute('aria-pressed', 'true');
+});
+
+test('an appearance the reader set is still set when the book is opened again', async () => {
+  const screen = await aJustifiedBook();
+  await screen.getByRole('button', { name: 'Close reader' }).click();
+  await expect.element(screen.getByRole('heading', { name: 'Ada Lovelace' })).toBeVisible();
+
+  await screen.getByRole('link', { name: 'Read', exact: true }).click();
+
+  await expectTheReaderOpen(screen);
+  await expect.poll(() => userProperty('textAlign'), { timeout: 5_000 }).toBe('justify');
+});
+
+/** The book on screen, opened after this record was left in the browser's storage. */
+const aBookOpenedAfterStoring = async (record: string) => {
+  window.localStorage.setItem(READER_PREFERENCES_KEY, record);
+  worker.use(...aReadableBook());
+  worker.use(...readiumApi());
+  await openTheBook();
+};
+
+test('an appearance stored as nonsense opens the book on the defaults', async () => {
+  await aBookOpenedAfterStoring('{not json at all');
+
+  await expect.poll(() => userProperty('backgroundColor')).toBe(theme.palette.background.default);
+  expect(userProperty('textAlign')).toBe('');
+  expect(userProperty('colCount')).toBe('1');
+});
+
+test('an appearance of values we do not offer opens the book on the defaults', async () => {
+  await aBookOpenedAfterStoring(
+    JSON.stringify({
+      version: 1,
+      pageColor: 'chartreuse',
+      fontSize: 1,
+      spacing: 'enormous',
+      alignment: 'sideways',
+      columns: 'three',
+    })
+  );
+
+  await expect.poll(() => userProperty('backgroundColor')).toBe(theme.palette.background.default);
+  expect(userProperty('colCount')).toBe('1');
 });

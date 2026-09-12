@@ -1,7 +1,9 @@
 import type { EbookTocEntry, OpenedEbook } from '@/components/reader/EbookReader.ts';
+import { READER_PREFERENCES_KEY } from '@/components/reader/readerPreferenceStorage.ts';
 import { ReaderShell, type ReaderShellProps } from '@/components/reader/ReaderShell.tsx';
 import { theme } from '@/theme/theme.ts';
 import { ThemeProvider } from '@mui/material/styles';
+import { fontSizeRangeConfig } from '@readium/navigator';
 import { FakeEbookReader, aFakeLocation } from '@tests/fakes/FakeEbookReader';
 import { readiumApi } from '@tests/msw/readiumApi';
 import { worker } from '@tests/msw/worker';
@@ -385,6 +387,72 @@ test('a page colour chosen in the popover reaches the engine', async () => {
     pageBackgroundColor: theme.customColors.readerPage.dark.background,
     pageTextColor: theme.customColors.readerPage.dark.text,
   });
+});
+
+/** A whole appearance, none of it the default, as the storage holds it. */
+const A_STORED_APPEARANCE = {
+  version: 1,
+  pageColor: 'dark',
+  fontSize: 1.5,
+  spacing: 'tight',
+  alignment: 'justified',
+  columns: 'auto',
+};
+
+const seedPreferences = (record: object) =>
+  window.localStorage.setItem(READER_PREFERENCES_KEY, JSON.stringify(record));
+
+const storedPreferences = () =>
+  JSON.parse(window.localStorage.getItem(READER_PREFERENCES_KEY) ?? 'null') as {
+    pageColor?: string;
+  } | null;
+
+test('the book is opened with the appearance left in storage', async () => {
+  worker.use(...readiumApi());
+  seedPreferences(A_STORED_APPEARANCE);
+
+  await renderShell();
+
+  await expect.poll(() => readers.length).toBe(1);
+  expect(readers[0].openedWith[0].appearance).toMatchObject({
+    fontSize: 1.5,
+    lineHeight: 1.2,
+    textAlign: 'justify',
+    columnCount: null,
+    pageBackgroundColor: theme.customColors.readerPage.dark.background,
+  });
+});
+
+test("a stored font size past the engine's range opens inside it", async () => {
+  worker.use(...readiumApi());
+  seedPreferences({ ...A_STORED_APPEARANCE, fontSize: 12 });
+
+  await renderShell();
+
+  await expect.poll(() => readers.length).toBe(1);
+  expect(readers[0].openedWith[0].appearance.fontSize).toBe(fontSizeRangeConfig.range[1]);
+});
+
+test('a setting chosen in the popover is written down', async () => {
+  const screen = await anOpenAppearance();
+
+  await screen.getByRole('button', { name: 'Dark' }).click();
+
+  expect(storedPreferences()?.pageColor).toBe('dark');
+});
+
+test('an appearance from a newer version is read past and left alone', async () => {
+  const fromANewerReader = JSON.stringify({ ...A_STORED_APPEARANCE, version: 2 });
+  window.localStorage.setItem(READER_PREFERENCES_KEY, fromANewerReader);
+  const screen = await anOpenAppearance();
+  expect(readers[0].openedWith[0].appearance.pageBackgroundColor).toBe(
+    theme.palette.background.default
+  );
+
+  await screen.getByRole('button', { name: 'Justified' }).click();
+
+  expect(readers[0].appearances).toHaveLength(1);
+  expect(window.localStorage.getItem(READER_PREFERENCES_KEY)).toBe(fromANewerReader);
 });
 
 test('opening the appearance and closing it again leaves the book alone', async () => {

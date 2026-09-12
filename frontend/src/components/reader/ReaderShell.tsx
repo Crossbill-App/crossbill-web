@@ -2,15 +2,11 @@ import { API_BASE_URL } from '@/api/base-url.ts';
 import { IconButtonWithTooltip } from '@/components/buttons/IconButtonWithTooltip.tsx';
 import type { EbookTocEntry } from '@/components/reader/EbookReader.ts';
 import { ReaderLoading } from '@/components/reader/ReaderLoading.tsx';
-import {
-  DEFAULT_READER_PREFERENCES,
-  readerPageColors,
-  toEbookAppearance,
-  type ReaderPreferences,
-} from '@/components/reader/readerPreferences.ts';
+import { readerPageColors, toEbookAppearance } from '@/components/reader/readerPreferences.ts';
 import { ReaderSettings } from '@/components/reader/ReaderSettings.tsx';
 import { TocDrawer } from '@/components/reader/TocDrawer.tsx';
 import { useEbookReader, type UseEbookReaderOptions } from '@/components/reader/useEbookReader.ts';
+import { useReaderPreferences } from '@/components/reader/useReaderPreferences.ts';
 import { useReaderSession } from '@/components/reader/useReaderSession.ts';
 import { useBodyScrollLock } from '@/hooks/useBodyScrollLock.ts';
 import {
@@ -137,7 +133,7 @@ export const ReaderShell = ({
   const { status: sessionStatus, isRenewing } = useReaderSession(bookId);
   const host = useRef<HTMLDivElement | null>(null);
   const [isTocOpen, setIsTocOpen] = useState(false);
-  const [preferences, setPreferences] = useState<ReaderPreferences>(DEFAULT_READER_PREFERENCES);
+  const [preferences, setPreferences] = useReaderPreferences();
   const [appearanceAnchor, setAppearanceAnchor] = useState<Element | null>(null);
   const theme = useTheme();
   const pageColors = readerPageColors(theme, preferences.pageColor);
