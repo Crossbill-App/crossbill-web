@@ -1,10 +1,9 @@
 import Axios, { AxiosError, AxiosRequestConfig, InternalAxiosRequestConfig } from 'axios';
+import { API_BASE_URL } from './base-url';
 import { clearTokens, getAccessToken, setAccessToken } from './token-manager';
 
-// Default baseURL - can be overridden by setting AXIOS_INSTANCE.defaults.baseURL
-// In development, this points to the local backend server
 export const AXIOS_INSTANCE = Axios.create({
-  baseURL: 'http://localhost:8000',
+  baseURL: API_BASE_URL,
   headers: {
     'Content-Type': 'application/json',
   },
