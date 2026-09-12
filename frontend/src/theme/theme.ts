@@ -79,6 +79,13 @@ const customColors = {
     empty: colors.stone[100], // A day with no reading
     full: colors.amber[700], // The book's heaviest reading days, as primary.main
   },
+
+  // The only colours in the app that leave it: the reader hands them to the
+  // book's own stylesheet, which paints them inside the book's frame.
+  readerPage: {
+    light: { background: colors.stone[50], text: colors.stone[900] },
+    dark: { background: colors.stone[900], text: colors.stone[100] },
+  },
 };
 
 const COARSE_POINTER_QUERY = '@media (pointer: coarse)';

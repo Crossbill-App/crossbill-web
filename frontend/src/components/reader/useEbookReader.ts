@@ -1,5 +1,6 @@
 import {
   PublicationUnavailableError,
+  type EbookAppearance,
   type EbookLocation,
   type EbookReader,
   type EbookTocEntry,
@@ -25,6 +26,8 @@ export interface UseEbookReaderOptions {
   /** True while a lapsed cookie is being replaced: a page fetched with a dead
    * credential comes back blank. */
   holdPageTurns: boolean;
+  /** How the page should look; the book opens on it. */
+  appearance: EbookAppearance;
   /** Must be referentially stable: an inline arrow rebuilds the reader every render. */
   createReader?: (host: HTMLElement) => EbookReader;
   bootTimeoutMs?: number;
@@ -37,6 +40,8 @@ export interface EbookReaderState {
   toc: EbookTocEntry[];
   /** The contents entry covering where the reader is, or null where none does. */
   currentTocHref: string | null;
+  /** Null until a book is on screen: only an engine with one can report it. */
+  fontSizeRange: [number, number] | null;
   next: () => void;
   previous: () => void;
   goTo: (location: EbookLocation) => void;
@@ -59,6 +64,7 @@ export const useEbookReader = ({
   manifestUrl,
   enabled,
   holdPageTurns,
+  appearance,
   createReader = aReadiumReader,
   bootTimeoutMs = BOOT_TIMEOUT_MS,
 }: UseEbookReaderOptions): EbookReaderState => {
@@ -67,6 +73,7 @@ export const useEbookReader = ({
   const [location, setLocation] = useState<EbookLocation | null>(null);
   const [toc, setToc] = useState<EbookTocEntry[]>(NO_TOC);
   const [currentTocHref, setCurrentTocHref] = useState<string | null>(null);
+  const [fontSizeRange, setFontSizeRange] = useState<[number, number] | null>(null);
   const [attempt, setAttempt] = useState(0);
   const readerRef = useRef<EbookReader | null>(null);
   // Through a ref, so a hold that starts mid-book never rebuilds the reader.
@@ -74,6 +81,13 @@ export const useEbookReader = ({
   useEffect(() => {
     holdRef.current = holdPageTurns;
   }, [holdPageTurns]);
+  // The same, so that changing the appearance never rebuilds the reader; a
+  // retry then opens on the current one rather than the one from mount.
+  const appearanceRef = useRef(appearance);
+  useEffect(() => {
+    appearanceRef.current = appearance;
+  }, [appearance]);
+  const appliedRef = useRef<EbookAppearance | null>(null);
 
   useEffect(() => {
     const element = host.current;
@@ -102,6 +116,7 @@ export const useEbookReader = ({
       setLocation(opened.location);
       setToc(opened.toc);
       setCurrentTocHref(opened.tocHref);
+      setFontSizeRange(opened.fontSizeRange);
       setOutcome('open');
     };
     const onFailed = (error: unknown) => {
@@ -115,7 +130,9 @@ export const useEbookReader = ({
     const abortedFirst = new Promise<never>((_, reject) => {
       signal.addEventListener('abort', () => reject(signal.reason as Error), { once: true });
     });
-    Promise.race([reader.open(manifestUrl, signal), abortedFirst]).then(onOpened, onFailed);
+    appliedRef.current = appearanceRef.current;
+    const opening = reader.open(manifestUrl, { appearance: appearanceRef.current, signal });
+    Promise.race([opening, abortedFirst]).then(onOpened, onFailed);
 
     return () => {
       cancel.abort();
@@ -141,6 +158,7 @@ export const useEbookReader = ({
     setPageCount(0);
     setToc(NO_TOC);
     setCurrentTocHref(null);
+    setFontSizeRange(null);
     setAttempt((count) => count + 1);
   }, []);
 
@@ -148,5 +166,24 @@ export const useEbookReader = ({
   // render: an effect that set the status would cascade one on every open.
   const status: EbookReaderStatus = enabled ? (outcome ?? 'opening') : 'idle';
 
-  return { status, pageCount, location, toc, currentTocHref, next, previous, goTo, retry };
+  // Guarded, because nothing in the engine's own chain compares anything: an
+  // appearance submitted again re-pushes CSS and reflows a book already right.
+  useEffect(() => {
+    if (status !== 'open' || appliedRef.current === appearance) return;
+    appliedRef.current = appearance;
+    void readerRef.current?.setAppearance(appearance);
+  }, [appearance, status]);
+
+  return {
+    status,
+    pageCount,
+    location,
+    toc,
+    currentTocHref,
+    fontSizeRange,
+    next,
+    previous,
+    goTo,
+    retry,
+  };
 };

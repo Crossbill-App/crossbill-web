@@ -54,6 +54,7 @@ export {
   ArrowDropDown as DropdownIcon,
   Edit as EditIcon,
   PlaylistAdd as EditTagsIcon,
+  TextIncrease as LargerTextIcon,
   Link as LinkIcon,
   LinkOff as LinkOffIcon,
   NoteAdd as NoteAddIcon,
@@ -62,6 +63,7 @@ export {
   Replay as RetryIcon,
   Check as SelectedIcon,
   Send as SendIcon,
+  TextDecrease as SmallerTextIcon,
   SwapVert as SortIcon,
 } from '@mui/icons-material';
 

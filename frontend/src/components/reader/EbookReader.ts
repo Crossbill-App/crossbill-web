@@ -38,6 +38,26 @@ export interface OpenedEbook {
   /** The contents entry the book opened at, or null where none covers it. */
   tocHref: string | null;
   location: EbookLocation;
+  /** The range the engine honours for `EbookAppearance.fontSize`; any value inside it is legal. */
+  fontSizeRange: [number, number];
+}
+
+/** How the page should look, in terms any engine can honour. */
+export interface EbookAppearance {
+  /** A multiplier on the publication's own font size; 1 is the book as its publisher set it. */
+  fontSize: number;
+  /** A multiplier on the font size; `null` leaves the book's own spacing alone. */
+  lineHeight: number | null;
+  /** The gap between paragraphs in rem; `null` leaves the book's own alone. */
+  paragraphSpacing: number | null;
+  /** The indent of a paragraph's first line in rem; `null` leaves the book's own alone. */
+  paragraphIndent: number | null;
+  /** `null` says nothing at all, leaving the book's own stylesheet in charge. */
+  textAlign: 'start' | 'justify' | null;
+  /** `null` fits as many columns as the width allows. */
+  columnCount: number | null;
+  pageBackgroundColor: string;
+  pageTextColor: string;
 }
 
 /** Which way a page turn was asked to go. */
@@ -54,15 +74,21 @@ export class PublicationUnavailableError extends Error {
   }
 }
 
+export interface OpenEbookOptions {
+  /** Handed to the engine at construction, so the book opens at the right size
+   * rather than reflowing a tick after it appears. */
+  appearance: EbookAppearance;
+  /** The caller's cancellation — an unmount, a remount, a boot watchdog — which
+   * every await inside observes, composed with the reader's own destruction. */
+  signal?: AbortSignal;
+}
+
 /** A book on screen, and the ways the UI moves through it. */
 export interface EbookReader {
-  /**
-   * Loads the book named by a Readium manifest URL into the host element. Call once.
-   *
-   * `signal` is the caller's cancellation (an unmount, a remount, a boot watchdog via
-   * `AbortSignal.timeout`); every await inside observes it, composed with the reader's destruction.
-   */
-  open(manifestUrl: string, signal?: AbortSignal): Promise<OpenedEbook>;
+  /** Loads the book named by a Readium manifest URL into the host element. Call once. */
+  open(manifestUrl: string, options: OpenEbookOptions): Promise<OpenedEbook>;
+  /** Applies an appearance to a book already on screen. */
+  setAppearance(appearance: EbookAppearance): Promise<void>;
   next(): Promise<void>;
   previous(): Promise<void>;
   goTo(location: EbookLocation): Promise<void>;

@@ -1,6 +1,8 @@
 import type {
+  EbookAppearance,
   EbookLocation,
   EbookReader,
+  OpenEbookOptions,
   OpenedEbook,
   PageTurnDirection,
 } from '@/components/reader/EbookReader.ts';
@@ -14,7 +16,8 @@ export const aFakeLocation = (position: number): EbookLocation => ({
 
 /** An `EbookReader` whose open the test settles and whose events the test fires. */
 export class FakeEbookReader implements EbookReader {
-  readonly openedWith: string[] = [];
+  readonly openedWith: { manifestUrl: string; appearance: EbookAppearance }[] = [];
+  readonly appearances: EbookAppearance[] = [];
   readonly goToCalls: EbookLocation[] = [];
   nextCalls = 0;
   previousCalls = 0;
@@ -26,11 +29,11 @@ export class FakeEbookReader implements EbookReader {
   private settle: ((opened: OpenedEbook) => void) | undefined;
   private isOpened = false;
 
-  async open(manifestUrl: string, signal?: AbortSignal): Promise<OpenedEbook> {
+  async open(manifestUrl: string, { appearance, signal }: OpenEbookOptions): Promise<OpenedEbook> {
     signal?.throwIfAborted();
     if (this.isOpened) throw new Error('A reader opens one book; build another one.');
     this.isOpened = true;
-    this.openedWith.push(manifestUrl);
+    this.openedWith.push({ manifestUrl, appearance });
     return await new Promise<OpenedEbook>((resolve, reject) => {
       this.settle = resolve;
       // The interface's contract, and the only way a boot watchdog can reach an
@@ -40,7 +43,16 @@ export class FakeEbookReader implements EbookReader {
   }
 
   resolveOpen(opened: Partial<OpenedEbook> = {}): void {
-    this.settle?.({ pageCount: 2, toc: [], tocHref: null, location: aFakeLocation(1), ...opened });
+    this.settle?.({
+      pageCount: 2,
+      toc: [],
+      tocHref: null,
+      location: aFakeLocation(1),
+      // Deliberately not the engine's own [0.7, 4], so a test about the
+      // stepper's limits proves the range crossed the seam.
+      fontSizeRange: [0.6, 2],
+      ...opened,
+    });
   }
 
   requestPageTurn(direction: PageTurnDirection): void {
@@ -49,6 +61,11 @@ export class FakeEbookReader implements EbookReader {
 
   reportTocEntry(href: string | null): void {
     for (const listener of [...this.tocEntryListeners]) listener(href);
+  }
+
+  setAppearance(appearance: EbookAppearance): Promise<void> {
+    this.appearances.push(appearance);
+    return Promise.resolve();
   }
 
   next(): Promise<void> {

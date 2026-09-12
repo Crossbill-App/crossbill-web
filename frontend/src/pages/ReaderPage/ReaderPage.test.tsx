@@ -1,4 +1,6 @@
 import type { WebPublicationManifest } from '@/api/generated/model';
+import { READER_PREFERENCES_KEY } from '@/components/reader/readerPreferenceStorage.ts';
+import { theme } from '@/theme/theme.ts';
 import { aBookDetails } from '@tests/fixtures/book';
 import { aManifest } from '@tests/fixtures/publication';
 import { renderApp } from '@tests/harness/renderApp';
@@ -109,6 +111,22 @@ test('the book opens at its first page', async () => {
 
   await expect.element(screen.getByRole('button', { name: 'Previous page' })).toBeEnabled();
   await expect.element(screen.getByRole('button', { name: 'Next page' })).toBeEnabled();
+});
+
+/** What ReadiumCSS has written into the chapter on screen, of its user settings. */
+const userProperty = (name: string) => {
+  const frames = [...document.querySelectorAll<HTMLIFrameElement>('iframe')];
+  const shown = frames.find((frame) => frame.getBoundingClientRect().width > 0);
+  return shown?.contentDocument?.documentElement.style.getPropertyValue(`--USER__${name}`) ?? '';
+};
+
+test('a book opens in one column on a wide screen', async () => {
+  worker.use(...aReadableBook());
+  worker.use(...readiumApi());
+
+  await openTheBook();
+
+  await expect.poll(() => userProperty('colCount')).toBe('1');
 });
 
 test('the next button turns the page and the label follows', async () => {
@@ -348,4 +366,214 @@ test('an arrow key with the contents open does not turn the page behind them', a
   // two later, and an immediate assertion would pass while it was in flight.
   await new Promise((resolve) => setTimeout(resolve, 1_200));
   await expect.element(screen.getByText('Page 1 of 2 · 0%')).toBeVisible();
+});
+
+const openTheAppearance = async (screen: Screen) => {
+  await screen.getByRole('button', { name: 'Appearance' }).click();
+  await expect.element(screen.getByRole('heading', { name: 'Page colour' })).toBeVisible();
+  return screen.getByRole('dialog', { name: 'Appearance' });
+};
+
+const closeTheAppearance = async (screen: Screen) => {
+  await userEvent.keyboard('{Escape}');
+  await expect.element(screen.getByRole('dialog', { name: 'Appearance' })).not.toBeInTheDocument();
+};
+
+/** A book on screen at its first page, with the appearance popover open over it. */
+const aBookWithItsAppearanceOpen = async () => {
+  worker.use(...aReadableBook());
+  worker.use(...readiumApi());
+  const screen = await openTheBook();
+  await openTheAppearance(screen);
+  return screen;
+};
+
+/** One spacing option, scoped past the alignment section's own "Default". */
+const spacingOption = (screen: Screen, name: string) =>
+  screen.getByRole('group', { name: 'Spacing' }).getByRole('button', { name });
+
+/** The reader's own frame: the fixed overlay its chrome and the book sit in. */
+const readerFrame = (screen: Screen) => {
+  const button = screen.getByRole('button', { name: 'Close reader' }).element();
+  for (let node = button.parentElement; node; node = node.parentElement) {
+    if (getComputedStyle(node).position === 'fixed') return node;
+  }
+  throw new Error('The reader is not on screen.');
+};
+
+const asRgb = (hex: string, opacity?: number) => {
+  const channels = [1, 3, 5].map((at) => parseInt(hex.slice(at, at + 2), 16)).join(', ');
+  return opacity === undefined ? `rgb(${channels})` : `rgba(${channels}, ${opacity})`;
+};
+
+test('the dark page is painted into the book and into the chrome around it', async () => {
+  worker.use(...aReadableBook());
+  worker.use(...readiumApi());
+  const screen = await openTheBook();
+  // Both read before the popover covers them: a role query skips the modal's
+  // aria-hidden siblings.
+  const frame = readerFrame(screen);
+  const label = screen.getByText('Page 1 of 2 · 0%').element();
+  const { dark } = theme.customColors.readerPage;
+  await openTheAppearance(screen);
+
+  await screen.getByRole('button', { name: 'Dark' }).click();
+
+  await expect.poll(() => userProperty('backgroundColor')).toBe(dark.background);
+  await expect.poll(() => userProperty('textColor')).toBe(dark.text);
+  await expect.poll(() => getComputedStyle(frame).backgroundColor).toBe(asRgb(dark.background));
+  // The position label is drawn from the page rather than the theme: the
+  // theme's own secondary text is 3.7:1 here, under the 4.5:1 body-text floor.
+  expect(getComputedStyle(label).color).toBe(asRgb(dark.text, 0.7));
+});
+
+test('a justified alignment reaches the words on the page', async () => {
+  worker.use(...aReadableBook());
+  worker.use(...readiumApi());
+  const screen = await openTheBook();
+  // The default says nothing at all, which is what leaves the book in charge.
+  expect(userProperty('textAlign')).toBe('');
+  await openTheAppearance(screen);
+
+  await screen.getByRole('button', { name: 'Justified' }).click();
+
+  await expect.poll(() => userProperty('textAlign')).toBe('justify');
+});
+
+test('a looser spacing reaches the words on the page', async () => {
+  worker.use(...aReadableBook());
+  worker.use(...readiumApi());
+  const screen = await openTheBook();
+  // The default says nothing at all, which is what leaves the book's own spacing.
+  expect(userProperty('lineHeight')).toBe('');
+  expect(userProperty('paraSpacing')).toBe('');
+  expect(userProperty('paraIndent')).toBe('');
+  await openTheAppearance(screen);
+
+  await spacingOption(screen, 'Loose').click();
+
+  await expect.poll(() => userProperty('lineHeight')).toBe('1.8');
+  await expect.poll(() => userProperty('paraSpacing')).toBe('1rem');
+  await expect.poll(() => userProperty('paraIndent')).toBe('1rem');
+});
+
+test('a spacing set back to default gives the book its own again', async () => {
+  const screen = await aBookWithItsAppearanceOpen();
+  await spacingOption(screen, 'Loose').click();
+  await expect.poll(() => userProperty('lineHeight')).toBe('1.8');
+
+  await spacingOption(screen, 'Default').click();
+
+  await expect.poll(() => userProperty('lineHeight')).toBe('');
+  await expect.poll(() => userProperty('paraSpacing')).toBe('');
+  await expect.poll(() => userProperty('paraIndent')).toBe('');
+});
+
+test('the automatic column count gives a wide page two columns', async () => {
+  const screen = await aBookWithItsAppearanceOpen();
+
+  await screen.getByRole('button', { name: 'Auto' }).click();
+
+  await expect.poll(() => userProperty('colCount')).toBe('2');
+});
+
+test('an arrow key with the appearance open does not turn the page behind it', async () => {
+  const screen = await aBookWithItsAppearanceOpen();
+
+  await userEvent.keyboard('{ArrowRight}');
+
+  await new Promise((resolve) => setTimeout(resolve, 1_200));
+  await expect.element(screen.getByText('Page 1 of 2 · 0%')).toBeVisible();
+});
+
+test('a larger font size reaches the words on the page', async () => {
+  const screen = await aBookWithItsAppearanceOpen();
+
+  await screen.getByRole('button', { name: 'Larger text' }).click();
+
+  await expect.poll(() => userProperty('fontSize')).toBe('125%');
+});
+
+test('an arrow key typed into the font size does not turn the page', async () => {
+  const screen = await aBookWithItsAppearanceOpen();
+
+  await screen.getByRole('textbox', { name: 'Font size in percent' }).click();
+  await userEvent.keyboard('{ArrowRight}');
+
+  await new Promise((resolve) => setTimeout(resolve, 1_200));
+  await expect.element(screen.getByText('Page 1 of 2 · 0%')).toBeVisible();
+});
+
+test('pressing the setting already chosen leaves it chosen', async () => {
+  const screen = await aBookWithItsAppearanceOpen();
+  const justified = screen.getByRole('button', { name: 'Justified' });
+  await justified.click();
+  await expect.poll(() => userProperty('textAlign')).toBe('justify');
+
+  await justified.click();
+
+  await expect.element(justified).toHaveAttribute('aria-pressed', 'true');
+  expect(userProperty('textAlign')).toBe('justify');
+});
+
+/** The book on screen, justified by the reader, with the popover dismissed again. */
+const aJustifiedBook = async () => {
+  const screen = await aBookWithItsAppearanceOpen();
+  await screen.getByRole('button', { name: 'Justified' }).click();
+  await expect.poll(() => userProperty('textAlign')).toBe('justify');
+  await closeTheAppearance(screen);
+  return screen;
+};
+
+test('the appearance opens on what the reader has already chosen', async () => {
+  const screen = await aJustifiedBook();
+
+  const reopened = await openTheAppearance(screen);
+
+  await expect
+    .element(reopened.getByRole('button', { name: 'Justified' }))
+    .toHaveAttribute('aria-pressed', 'true');
+});
+
+test('an appearance the reader set is still set when the book is opened again', async () => {
+  const screen = await aJustifiedBook();
+  await screen.getByRole('button', { name: 'Close reader' }).click();
+  await expect.element(screen.getByRole('heading', { name: 'Ada Lovelace' })).toBeVisible();
+
+  await screen.getByRole('link', { name: 'Read', exact: true }).click();
+
+  await expectTheReaderOpen(screen);
+  await expect.poll(() => userProperty('textAlign'), { timeout: 5_000 }).toBe('justify');
+});
+
+/** The book on screen, opened after this record was left in the browser's storage. */
+const aBookOpenedAfterStoring = async (record: string) => {
+  window.localStorage.setItem(READER_PREFERENCES_KEY, record);
+  worker.use(...aReadableBook());
+  worker.use(...readiumApi());
+  await openTheBook();
+};
+
+test('an appearance stored as nonsense opens the book on the defaults', async () => {
+  await aBookOpenedAfterStoring('{not json at all');
+
+  await expect.poll(() => userProperty('backgroundColor')).toBe(theme.palette.background.default);
+  expect(userProperty('textAlign')).toBe('');
+  expect(userProperty('colCount')).toBe('1');
+});
+
+test('an appearance of values we do not offer opens the book on the defaults', async () => {
+  await aBookOpenedAfterStoring(
+    JSON.stringify({
+      version: 1,
+      pageColor: 'chartreuse',
+      fontSize: 1,
+      spacing: 'enormous',
+      alignment: 'sideways',
+      columns: 'three',
+    })
+  );
+
+  await expect.poll(() => userProperty('backgroundColor')).toBe(theme.palette.background.default);
+  expect(userProperty('colCount')).toBe('1');
 });

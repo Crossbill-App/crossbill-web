@@ -61,6 +61,10 @@ async function waitForIdle(
 afterEach(async () => {
   cleanup();
 
+  // An appearance one test writes down would otherwise be what every test
+  // after it opens a book on, and the failure would look like anything but this.
+  window.localStorage.clear();
+
   // Unmounting stops any query's own refetch scheduling, but a request already
   // dispatched before unmount can still be in flight for a moment after. Give
   // every client this test created a bounded chance to finish before the

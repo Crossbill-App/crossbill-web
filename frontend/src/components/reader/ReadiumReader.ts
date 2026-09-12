@@ -1,14 +1,18 @@
 import {
   PublicationUnavailableError,
+  type EbookAppearance,
   type EbookLocation,
   type EbookReader,
   type EbookTocEntry,
+  type OpenEbookOptions,
   type OpenedEbook,
   type PageTurnDirection,
 } from '@/components/reader/EbookReader.ts';
 import { sanitizeResponse } from '@/components/reader/sanitizeResponse.ts';
 import {
   EpubNavigator,
+  EpubPreferences,
+  TextAlignment,
   type EpubNavigatorListeners,
   type IKeyboardPeripheralsConfig,
 } from '@readium/navigator';
@@ -42,6 +46,26 @@ const PAGE_TURN_KEYS: IKeyboardPeripheralsConfig = [
   { type: 'next_page', keyCombos: [{ keyCode: 39, suppressOnInteractiveElement: true }] },
   { type: 'previous_page', keyCombos: [{ keyCode: 37, suppressOnInteractiveElement: true }] },
 ];
+
+const TEXT_ALIGNMENTS: Record<NonNullable<EbookAppearance['textAlign']>, TextAlignment> = {
+  start: TextAlignment.start,
+  justify: TextAlignment.justify,
+};
+
+// Eight of `EpubPreferences`' forty-odd fields: every one set here is one the
+// reader can no longer inherit from the book. `null` rather than omitted,
+// because the navigator merges and skips `undefined`, so an omission is no reset.
+const toEpubPreferences = (appearance: EbookAppearance): EpubPreferences =>
+  new EpubPreferences({
+    fontSize: appearance.fontSize,
+    lineHeight: appearance.lineHeight,
+    paragraphSpacing: appearance.paragraphSpacing,
+    paragraphIndent: appearance.paragraphIndent,
+    textAlign: appearance.textAlign === null ? null : TEXT_ALIGNMENTS[appearance.textAlign],
+    columnCount: appearance.columnCount,
+    backgroundColor: appearance.pageBackgroundColor,
+    textColor: appearance.pageTextColor,
+  });
 
 const toLocation = (locator: Locator): EbookLocation => ({
   href: locator.href,
@@ -115,7 +139,7 @@ export class ReadiumReader implements EbookReader {
 
   constructor(private readonly host: HTMLElement) {}
 
-  async open(manifestUrl: string, signal?: AbortSignal): Promise<OpenedEbook> {
+  async open(manifestUrl: string, { appearance, signal }: OpenEbookOptions): Promise<OpenedEbook> {
     signal?.throwIfAborted();
     if (this.isOpened) throw new Error('A reader opens one book; build another one.');
     this.isOpened = true;
@@ -138,7 +162,11 @@ export class ReadiumReader implements EbookReader {
       this.navigatorListeners(),
       positions,
       undefined,
-      { preferences: {}, defaults: {}, keyboardPeripherals: PAGE_TURN_KEYS }
+      {
+        preferences: toEpubPreferences(appearance),
+        defaults: {},
+        keyboardPeripherals: PAGE_TURN_KEYS,
+      }
     );
     this.navigator = navigator;
 
@@ -154,7 +182,14 @@ export class ReadiumReader implements EbookReader {
       toc: tocEntriesFrom(publication.toc?.items ?? []),
       tocHref: this.tocEntryHrefFor(navigator.timeline.locate(navigator.currentLocator)),
       location: toLocation(navigator.currentLocator),
+      // Asked of the navigator's own editor rather than copied from the library's
+      // `fontSizeRangeConfig`: a second copy of those numbers drifts on an upgrade.
+      fontSizeRange: navigator.preferencesEditor.fontSize.supportedRange,
     };
+  }
+
+  async setAppearance(appearance: EbookAppearance): Promise<void> {
+    await this.navigator?.submitPreferences(toEpubPreferences(appearance));
   }
 
   async next(): Promise<void> {

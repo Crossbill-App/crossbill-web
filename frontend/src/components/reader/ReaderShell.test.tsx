@@ -1,11 +1,16 @@
 import type { EbookTocEntry, OpenedEbook } from '@/components/reader/EbookReader.ts';
+import { READER_PREFERENCES_KEY } from '@/components/reader/readerPreferenceStorage.ts';
 import { ReaderShell, type ReaderShellProps } from '@/components/reader/ReaderShell.tsx';
+import { theme } from '@/theme/theme.ts';
+import { ThemeProvider } from '@mui/material/styles';
+import { fontSizeRangeConfig } from '@readium/navigator';
 import { FakeEbookReader, aFakeLocation } from '@tests/fakes/FakeEbookReader';
 import { readiumApi } from '@tests/msw/readiumApi';
 import { worker } from '@tests/msw/worker';
 import { HttpResponse, delay, http } from 'msw';
 import { beforeEach, expect, test } from 'vitest';
 import { render } from 'vitest-browser-react';
+import { userEvent } from 'vitest/browser';
 
 const SESSION_PATH = '/api/v1/readium/books/:bookId/session';
 const RESOURCE_PATH = '/api/v1/readium/books/:bookId/resources/*';
@@ -33,13 +38,15 @@ const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
 const renderShell = async (props: Partial<ReaderShellProps> = {}) =>
   await render(
-    <ReaderShell
-      bookId={1}
-      title="The Pragmatic Reader"
-      onClose={() => {}}
-      createReader={createReader}
-      {...props}
-    />
+    <ThemeProvider theme={theme}>
+      <ReaderShell
+        bookId={1}
+        title="The Pragmatic Reader"
+        onClose={() => {}}
+        createReader={createReader}
+        {...props}
+      />
+    </ThemeProvider>
   );
 
 type Screen = Awaited<ReturnType<typeof renderShell>>;
@@ -76,8 +83,27 @@ test('the shell waits for the cookie before opening the book', async () => {
 
   expect(readers).toHaveLength(0);
   await expect.poll(() => readers.length).toBe(1);
-  expect(readers[0].openedWith).toEqual([MANIFEST_URL]);
+  expect(readers[0].openedWith.map((opened) => opened.manifestUrl)).toEqual([MANIFEST_URL]);
   await expect.element(screen.getByLabelText('Loading the book')).toBeVisible();
+});
+
+test("the book is opened with the reader's appearance", async () => {
+  worker.use(...readiumApi());
+
+  await renderShell();
+
+  await expect.poll(() => readers.length).toBe(1);
+  expect(readers[0].openedWith[0].appearance).toEqual({
+    fontSize: 1,
+    lineHeight: null,
+    paragraphSpacing: null,
+    paragraphIndent: null,
+    textAlign: null,
+    columnCount: 1,
+    // The light page is the app's own off-white rather than publisher white.
+    pageBackgroundColor: theme.palette.background.default,
+    pageTextColor: theme.palette.text.primary,
+  });
 });
 
 test('a book whose positions say nothing about progress still numbers its pages', async () => {
@@ -192,6 +218,253 @@ test('picking a contents entry goes there and closes the drawer', async () => {
   await expect
     .element(screen.getByRole('navigation', { name: 'Table of contents' }))
     .not.toBeInTheDocument();
+});
+
+const openTheAppearance = async (screen: Screen) => {
+  await screen.getByRole('button', { name: 'Appearance' }).click();
+  await expect.element(screen.getByRole('dialog', { name: 'Appearance' })).toBeVisible();
+};
+
+const theFontSize = (screen: Screen) =>
+  screen.getByRole('textbox', { name: 'Font size in percent' });
+
+/** The popover open over a book whose engine reports the fake's own font-size range. */
+const anOpenAppearance = async () => {
+  worker.use(...readiumApi());
+  const screen = await anOpenBook();
+  await openTheAppearance(screen);
+  return screen;
+};
+
+const fontSizes = () => readers[0].appearances.map((appearance) => appearance.fontSize);
+
+test('the font size opens on what the book is showing, and steps by a quarter', async () => {
+  const screen = await anOpenAppearance();
+
+  await expect.element(theFontSize(screen)).toHaveValue('100');
+
+  await screen.getByRole('button', { name: 'Larger text' }).click();
+
+  await expect.element(theFontSize(screen)).toHaveValue('125');
+  expect(fontSizes()).toEqual([1.25]);
+});
+
+test("the larger button stops the size at the top of the engine's range", async () => {
+  const screen = await anOpenAppearance();
+  const larger = screen.getByRole('button', { name: 'Larger text' });
+  // Not a whole number of steps below the fake's ceiling of 2, so the press
+  // that follows has something to clamp.
+  await userEvent.fill(theFontSize(screen), '190');
+  await userEvent.keyboard('{Enter}');
+
+  await larger.click();
+
+  await expect.element(theFontSize(screen)).toHaveValue('200');
+  await expect.element(larger).toBeDisabled();
+  expect(fontSizes()).toEqual([1.9, 2]);
+});
+
+test("the smaller button stops the size at the bottom of the engine's range", async () => {
+  const screen = await anOpenAppearance();
+  const smaller = screen.getByRole('button', { name: 'Smaller text' });
+
+  // A second quarter down from where the book opened is past the fake's floor.
+  await smaller.click();
+  await smaller.click();
+
+  await expect.element(theFontSize(screen)).toHaveValue('60');
+  await expect.element(smaller).toBeDisabled();
+  expect(fontSizes()).toEqual([0.75, 0.6]);
+});
+
+test('the size the book opened at is still within reach of the buttons', async () => {
+  const screen = await anOpenAppearance();
+  const smaller = screen.getByRole('button', { name: 'Smaller text' });
+  const larger = screen.getByRole('button', { name: 'Larger text' });
+  await smaller.click();
+  await smaller.click();
+  await expect.element(theFontSize(screen)).toHaveValue('60');
+
+  await larger.click();
+  await larger.click();
+
+  // The floor does not sit on a quarter, and a reader who pokes at the buttons
+  // and changes their mind has to be able to get back to where they started.
+  await expect.element(theFontSize(screen)).toHaveValue('100');
+  expect(fontSizes()).toEqual([0.75, 0.6, 0.75, 1]);
+});
+
+test('a size typed between two steps steps to the nearer one', async () => {
+  const screen = await anOpenAppearance();
+  await userEvent.fill(theFontSize(screen), '103');
+  await userEvent.keyboard('{Enter}');
+
+  await screen.getByRole('button', { name: 'Larger text' }).click();
+
+  await expect.element(theFontSize(screen)).toHaveValue('125');
+  expect(fontSizes()).toEqual([1.03, 1.25]);
+});
+
+test('the arrow keys step the size the field is showing', async () => {
+  const screen = await anOpenAppearance();
+  await theFontSize(screen).click();
+
+  await userEvent.keyboard('{ArrowUp}');
+  await expect.element(theFontSize(screen)).toHaveValue('125');
+
+  await userEvent.keyboard('{ArrowDown}');
+  await expect.element(theFontSize(screen)).toHaveValue('100');
+  expect(fontSizes()).toEqual([1.25, 1]);
+});
+
+test('a size typed into the field reaches the book', async () => {
+  const screen = await anOpenAppearance();
+
+  await userEvent.fill(theFontSize(screen), '140');
+  await userEvent.keyboard('{Enter}');
+
+  expect(fontSizes()).toEqual([1.4]);
+});
+
+test("a size typed past the engine's range is brought inside it", async () => {
+  const screen = await anOpenAppearance();
+
+  await userEvent.fill(theFontSize(screen), '900');
+  await userEvent.keyboard('{Enter}');
+
+  await expect.element(theFontSize(screen)).toHaveValue('200');
+  expect(fontSizes()).toEqual([2]);
+});
+
+test('a field cleared and left alone leaves the size as it was', async () => {
+  const screen = await anOpenAppearance();
+
+  await userEvent.fill(theFontSize(screen), '');
+  await userEvent.tab();
+
+  await expect.element(theFontSize(screen)).toHaveValue('100');
+  expect(fontSizes()).toEqual([]);
+});
+
+test('a size being typed reaches the book only once it is committed', async () => {
+  const screen = await anOpenAppearance();
+
+  await userEvent.fill(theFontSize(screen), '1');
+  await userEvent.fill(theFontSize(screen), '15');
+  await userEvent.fill(theFontSize(screen), '150');
+
+  expect(fontSizes()).toEqual([]);
+
+  await userEvent.keyboard('{Enter}');
+
+  expect(fontSizes()).toEqual([1.5]);
+});
+
+test('a spacing chosen in the popover reaches the engine', async () => {
+  const screen = await anOpenAppearance();
+
+  await screen.getByRole('button', { name: 'Tight' }).click();
+
+  expect(readers[0].appearances).toHaveLength(1);
+  expect(readers[0].appearances[0]).toMatchObject({
+    lineHeight: 1.2,
+    // Tight squeezes the lines and leaves the paragraph breaks as the book set them.
+    paragraphSpacing: null,
+    paragraphIndent: null,
+  });
+});
+
+test('a page colour chosen in the popover reaches the engine', async () => {
+  worker.use(...readiumApi());
+
+  const screen = await anOpenBook();
+  await openTheAppearance(screen);
+
+  await screen.getByRole('button', { name: 'Dark' }).click();
+
+  expect(readers[0].appearances).toHaveLength(1);
+  expect(readers[0].appearances[0]).toMatchObject({
+    pageBackgroundColor: theme.customColors.readerPage.dark.background,
+    pageTextColor: theme.customColors.readerPage.dark.text,
+  });
+});
+
+/** A whole appearance, none of it the default, as the storage holds it. */
+const A_STORED_APPEARANCE = {
+  version: 1,
+  pageColor: 'dark',
+  fontSize: 1.5,
+  spacing: 'tight',
+  alignment: 'justified',
+  columns: 'auto',
+};
+
+const seedPreferences = (record: object) =>
+  window.localStorage.setItem(READER_PREFERENCES_KEY, JSON.stringify(record));
+
+const storedPreferences = () =>
+  JSON.parse(window.localStorage.getItem(READER_PREFERENCES_KEY) ?? 'null') as {
+    pageColor?: string;
+  } | null;
+
+test('the book is opened with the appearance left in storage', async () => {
+  worker.use(...readiumApi());
+  seedPreferences(A_STORED_APPEARANCE);
+
+  await renderShell();
+
+  await expect.poll(() => readers.length).toBe(1);
+  expect(readers[0].openedWith[0].appearance).toMatchObject({
+    fontSize: 1.5,
+    lineHeight: 1.2,
+    textAlign: 'justify',
+    columnCount: null,
+    pageBackgroundColor: theme.customColors.readerPage.dark.background,
+  });
+});
+
+test("a stored font size past the engine's range opens inside it", async () => {
+  worker.use(...readiumApi());
+  seedPreferences({ ...A_STORED_APPEARANCE, fontSize: 12 });
+
+  await renderShell();
+
+  await expect.poll(() => readers.length).toBe(1);
+  expect(readers[0].openedWith[0].appearance.fontSize).toBe(fontSizeRangeConfig.range[1]);
+});
+
+test('a setting chosen in the popover is written down', async () => {
+  const screen = await anOpenAppearance();
+
+  await screen.getByRole('button', { name: 'Dark' }).click();
+
+  expect(storedPreferences()?.pageColor).toBe('dark');
+});
+
+test('an appearance from a newer version is read past and left alone', async () => {
+  const fromANewerReader = JSON.stringify({ ...A_STORED_APPEARANCE, version: 2 });
+  window.localStorage.setItem(READER_PREFERENCES_KEY, fromANewerReader);
+  const screen = await anOpenAppearance();
+  expect(readers[0].openedWith[0].appearance.pageBackgroundColor).toBe(
+    theme.palette.background.default
+  );
+
+  await screen.getByRole('button', { name: 'Justified' }).click();
+
+  expect(readers[0].appearances).toHaveLength(1);
+  expect(window.localStorage.getItem(READER_PREFERENCES_KEY)).toBe(fromANewerReader);
+});
+
+test('opening the appearance and closing it again leaves the book alone', async () => {
+  worker.use(...readiumApi());
+
+  const screen = await anOpenBook();
+  await openTheAppearance(screen);
+
+  await userEvent.keyboard('{Escape}');
+
+  await expect.element(screen.getByRole('dialog', { name: 'Appearance' })).not.toBeInTheDocument();
+  expect(readers[0].appearances).toEqual([]);
 });
 
 test('closing the shell destroys the reader', async () => {

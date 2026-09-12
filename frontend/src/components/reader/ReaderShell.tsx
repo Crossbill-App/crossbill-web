@@ -1,24 +1,35 @@
 import { API_BASE_URL } from '@/api/base-url.ts';
 import { IconButtonWithTooltip } from '@/components/buttons/IconButtonWithTooltip.tsx';
 import type { EbookTocEntry } from '@/components/reader/EbookReader.ts';
+import { ReaderLoading } from '@/components/reader/ReaderLoading.tsx';
+import { readerPageColors, toEbookAppearance } from '@/components/reader/readerPreferences.ts';
+import { ReaderSettings } from '@/components/reader/ReaderSettings.tsx';
 import { TocDrawer } from '@/components/reader/TocDrawer.tsx';
 import { useEbookReader, type UseEbookReaderOptions } from '@/components/reader/useEbookReader.ts';
+import { useReaderPreferences } from '@/components/reader/useReaderPreferences.ts';
 import { useReaderSession } from '@/components/reader/useReaderSession.ts';
 import { useBodyScrollLock } from '@/hooks/useBodyScrollLock.ts';
-import { ChapterListIcon, CloseIcon, NextPageIcon, PreviousPageIcon } from '@/theme/Icons.tsx';
+import {
+  ChapterListIcon,
+  CloseIcon,
+  NextPageIcon,
+  PaletteIcon,
+  PreviousPageIcon,
+} from '@/theme/Icons.tsx';
 import { ICON_SIZE } from '@/theme/iconSizes.ts';
 import {
+  alpha,
   Box,
   Button,
   IconButton,
-  Skeleton,
   Stack,
   Toolbar,
   Typography,
+  useTheme,
   type SxProps,
   type Theme,
 } from '@mui/material';
-import { useRef, useState } from 'react';
+import { useMemo, useRef, useState } from 'react';
 
 export interface ReaderShellProps {
   bookId: number;
@@ -45,8 +56,6 @@ const overlaySx: SxProps<Theme> = {
   zIndex: (t) => t.zIndex.appBar + 1,
   display: 'flex',
   flexDirection: 'column',
-  backgroundColor: 'background.default',
-  color: 'text.primary',
 };
 
 const manifestUrlFor = (bookId: number) =>
@@ -83,7 +92,7 @@ interface ReaderMessageProps {
 }
 
 const ReaderMessage = ({ children, onClose, onRetry }: ReaderMessageProps) => (
-  <Box sx={overlaySx}>
+  <Box sx={{ ...overlaySx, backgroundColor: 'background.default', color: 'text.primary' }}>
     <Box
       sx={{
         flex: 1,
@@ -124,11 +133,19 @@ export const ReaderShell = ({
   const { status: sessionStatus, isRenewing } = useReaderSession(bookId);
   const host = useRef<HTMLDivElement | null>(null);
   const [isTocOpen, setIsTocOpen] = useState(false);
+  const [preferences, setPreferences] = useReaderPreferences();
+  const [appearanceAnchor, setAppearanceAnchor] = useState<Element | null>(null);
+  const theme = useTheme();
+  const pageColors = readerPageColors(theme, preferences.pageColor);
+  // A new object every render would submit the same appearance to the engine
+  // again on every render, which is not a cost the engine skips.
+  const appearance = useMemo(() => toEbookAppearance(theme, preferences), [theme, preferences]);
   const book = useEbookReader({
     host,
     manifestUrl: manifestUrlFor(bookId),
     enabled: sessionStatus === 'ready',
     holdPageTurns: isRenewing,
+    appearance,
     createReader,
     bootTimeoutMs,
   });
@@ -173,8 +190,15 @@ export const ReaderShell = ({
   };
 
   return (
-    <Box sx={overlaySx}>
-      <Box sx={{ borderBottom: 1, borderColor: 'divider' }}>
+    <Box
+      sx={{
+        ...overlaySx,
+        backgroundColor: pageColors.background,
+        color: pageColors.text,
+        transition: (t) => t.transitions.create(['background-color', 'color']),
+      }}
+    >
+      <Box sx={{ borderBottom: 1, borderColor: alpha(pageColors.text, 0.12) }}>
         <Toolbar variant="dense" sx={{ gap: 1 }}>
           <IconButtonWithTooltip
             label="Contents"
@@ -188,11 +212,19 @@ export const ReaderShell = ({
               {title}
             </Typography>
             {book.pageCount > 0 && position !== undefined && (
-              <Typography variant="body2" noWrap sx={{ color: 'text.secondary' }}>
+              // 0.7 of the page's own text, which is 6.3:1 on the light page
+              // and 8.4:1 on the dark one; body text needs 4.5:1.
+              <Typography variant="body2" noWrap sx={{ color: alpha(pageColors.text, 0.7) }}>
                 {pageLabel(position, book.pageCount, book.location?.locations.totalProgression)}
               </Typography>
             )}
           </Stack>
+          <IconButtonWithTooltip
+            label="Appearance"
+            onClick={(event) => setAppearanceAnchor(event.currentTarget)}
+            disabled={!isOpen}
+            icon={<PaletteIcon sx={{ fontSize: ICON_SIZE.ui }} />}
+          />
           <IconButtonWithTooltip
             label="Close reader"
             onClick={onClose}
@@ -218,19 +250,7 @@ export const ReaderShell = ({
           }}
         />
 
-        {!isOpen && (
-          <Stack
-            aria-label="Loading the book"
-            aria-busy="true"
-            sx={{ position: 'absolute', inset: 0, p: 4, alignItems: 'center' }}
-          >
-            <Box sx={{ width: '100%', maxWidth: 640 }}>
-              {Array.from({ length: 12 }, (_, index) => (
-                <Skeleton key={index} height={28} width={index % 5 === 4 ? '55%' : '100%'} />
-              ))}
-            </Box>
-          </Stack>
-        )}
+        {!isOpen && <ReaderLoading />}
 
         {/* Mounted for as long as the book is: a live region that appears
             together with its text announces nothing. */}
@@ -243,7 +263,7 @@ export const ReaderShell = ({
               alignItems: 'center',
               justifyContent: 'center',
               pointerEvents: isRenewing ? 'auto' : 'none',
-              ...(isRenewing && { backgroundColor: 'background.default', opacity: 0.9 }),
+              ...(isRenewing && { backgroundColor: pageColors.background, opacity: 0.9 }),
             }}
           >
             {isRenewing && <Typography variant="body2">Reconnecting…</Typography>}
@@ -258,6 +278,16 @@ export const ReaderShell = ({
         onSelect={goToTocEntry}
         currentHref={book.currentTocHref}
       />
+
+      {book.fontSizeRange && (
+        <ReaderSettings
+          anchorEl={appearanceAnchor}
+          onClose={() => setAppearanceAnchor(null)}
+          preferences={preferences}
+          onChange={setPreferences}
+          fontSizeRange={book.fontSizeRange}
+        />
+      )}
     </Box>
   );
 };
