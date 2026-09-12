@@ -8,13 +8,19 @@ import { FakeEbookReader, aFakeLocation } from '@tests/fakes/FakeEbookReader';
 import { readiumApi } from '@tests/msw/readiumApi';
 import { worker } from '@tests/msw/worker';
 import { HttpResponse, delay, http } from 'msw';
-import { beforeEach, expect, test } from 'vitest';
+import { afterEach, beforeEach, expect, test } from 'vitest';
 import { render } from 'vitest-browser-react';
-import { userEvent } from 'vitest/browser';
+import { page, userEvent } from 'vitest/browser';
 
 const SESSION_PATH = '/api/v1/readium/books/:bookId/session';
 const RESOURCE_PATH = '/api/v1/readium/books/:bookId/resources/*';
 const MANIFEST_URL = `${window.location.origin}/api/v1/readium/books/1/manifest.json`;
+
+/** Narrower than the `sm` breakpoint the reader lays itself out against. */
+const PHONE_VIEWPORT = { width: 390, height: 780 };
+
+/** `vitest.config.ts`'s own viewport, restored after a test has narrowed it. */
+const DEFAULT_VIEWPORT = { width: 1440, height: 900 };
 
 const readers: FakeEbookReader[] = [];
 
@@ -26,6 +32,10 @@ const createReader = () => {
 
 beforeEach(() => {
   readers.length = 0;
+});
+
+afterEach(async () => {
+  await page.viewport(DEFAULT_VIEWPORT.width, DEFAULT_VIEWPORT.height);
 });
 
 const aSlowSession = (ms: number) =>
@@ -474,4 +484,30 @@ test('closing the shell destroys the reader', async () => {
   screen.unmount();
 
   await expect.poll(() => readers[0].destroyed).toBe(true);
+});
+
+/**
+ * On a phone the two arrow gutters were most of the screen and the book was a
+ * strip down the middle, while the buttons themselves sat over the page they
+ * turn. Swiping is the gesture at hand there — Readium's own column snapper
+ * handles it inside the publication's frame — so the buttons go and the page
+ * takes the width back. The chrome above the page, which fits either way,
+ * stays exactly as it was.
+ */
+test('the page-turn buttons stand aside on a phone and come back on a wider screen', async () => {
+  worker.use(...readiumApi());
+  const screen = await anOpenBook();
+
+  await page.viewport(PHONE_VIEWPORT.width, PHONE_VIEWPORT.height);
+
+  // Out of the accessibility tree, not merely out of sight: a `display: none`
+  // button is one no pointer, screen reader or tab stop can reach.
+  await expect.poll(() => screen.getByRole('button', { name: 'Next page' }).query()).toBeNull();
+  expect(screen.getByRole('button', { name: 'Previous page' }).query()).toBeNull();
+  await expect.element(screen.getByRole('button', { name: 'Contents' })).toBeVisible();
+
+  await page.viewport(DEFAULT_VIEWPORT.width, DEFAULT_VIEWPORT.height);
+
+  await expect.element(screen.getByRole('button', { name: 'Next page' })).toBeVisible();
+  await expect.element(screen.getByRole('button', { name: 'Previous page' })).toBeVisible();
 });
