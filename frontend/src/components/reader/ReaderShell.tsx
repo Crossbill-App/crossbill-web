@@ -74,7 +74,16 @@ const PageTurnButton = ({ edge, onClick, disabled }: PageTurnButtonProps) => (
     disabled={disabled}
     color="inherit"
     aria-label={edge === 'left' ? 'Previous page' : 'Next page'}
-    sx={{ position: 'absolute', top: '50%', transform: 'translateY(-50%)', [edge]: 4, zIndex: 1 }}
+    sx={{
+      position: 'absolute',
+      top: '50%',
+      transform: 'translateY(-50%)',
+      [edge]: 4,
+      zIndex: 1,
+      // Gone on a phone, where they cover the page they turn and swiping is
+      // the gesture at hand; the gutter they need goes with them.
+      display: { xs: 'none', sm: 'inline-flex' },
+    }}
   >
     {edge === 'left' ? (
       <PreviousPageIcon sx={{ fontSize: ICON_SIZE.prominent }} />
