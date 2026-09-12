@@ -245,6 +245,27 @@ class TestServedResourcesCarryASandboxPolicy:
         # The app policy still reaches a response that expresses none of its own.
         assert "default-src 'self'" in manifest.headers["content-security-policy"]
 
+    async def test_the_app_policy_lets_the_reader_frame_its_own_documents(
+        self,
+        client: AsyncClient,
+        nested_toc_book: models.Book,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        """Should not forbid this page from framing the reader's blob documents.
+
+        Chromium does not apply an inherited ``frame-ancestors`` to blob
+        children, so no desktop run ever reaches this.
+        """
+        monkeypatch.setattr(main_settings, "ENVIRONMENT", "production")
+
+        manifest = await client.get(manifest_url(nested_toc_book.id))
+
+        policy = manifest.headers["content-security-policy"]
+        assert "frame-ancestors 'self'" in policy
+        assert "frame-src 'self' blob:" in policy
+        assert "script-src 'self' blob:" in policy
+        assert "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com blob:" in policy
+
 
 class TestOnlyPublicationFilesAreReachable:
     """What the endpoint refuses, which is everything the manifest does not name."""

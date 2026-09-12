@@ -312,12 +312,26 @@ class SecurityHeadersMiddleware:
                     if "content-security-policy" not in headers:
                         headers["Content-Security-Policy"] = (
                             "default-src 'self'; "
-                            "script-src 'self'; "
-                            "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; "
+                            # Readium injects its own scripts as
+                            # `<script src="blob:...">` and its CSS as a blob
+                            # stylesheet. A book's own scripts take nothing from
+                            # this: they are inline or same-origin.
+                            "script-src 'self' blob:; "
+                            "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com blob:; "
                             "img-src 'self' data: blob:; "
                             "font-src 'self' https://fonts.gstatic.com; "
                             "connect-src 'self'; "
-                            "frame-ancestors 'none'; "
+                            # Readium frames each publication resource as a
+                            # blob document.
+                            "frame-src 'self' blob:; "
+                            # A blob document inherits the policy of the context
+                            # that created it, and WebKit enforces the inherited
+                            # `frame-ancestors` against that document's own
+                            # ancestor -- so `'none'` makes Safari refuse every
+                            # publication frame the reader builds. This also
+                            # supersedes `X-Frame-Options` above, which a browser
+                            # ignores once a response carries `frame-ancestors`.
+                            "frame-ancestors 'self'; "
                             "base-uri 'self'; "
                             "form-action 'self'"
                         )
