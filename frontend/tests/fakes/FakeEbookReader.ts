@@ -15,12 +15,14 @@ export const aFakeLocation = (position: number): EbookLocation => ({
 /** An `EbookReader` whose open the test settles and whose events the test fires. */
 export class FakeEbookReader implements EbookReader {
   readonly openedWith: string[] = [];
+  readonly goToCalls: EbookLocation[] = [];
   nextCalls = 0;
   previousCalls = 0;
   destroyed = false;
 
   private readonly locationListeners = new Set<(location: EbookLocation) => void>();
   private readonly pageTurnListeners = new Set<(direction: PageTurnDirection) => void>();
+  private readonly tocEntryListeners = new Set<(href: string | null) => void>();
   private settle: ((opened: OpenedEbook) => void) | undefined;
   private isOpened = false;
 
@@ -38,11 +40,15 @@ export class FakeEbookReader implements EbookReader {
   }
 
   resolveOpen(opened: Partial<OpenedEbook> = {}): void {
-    this.settle?.({ pageCount: 2, toc: [], location: aFakeLocation(1), ...opened });
+    this.settle?.({ pageCount: 2, toc: [], tocHref: null, location: aFakeLocation(1), ...opened });
   }
 
   requestPageTurn(direction: PageTurnDirection): void {
     for (const listener of [...this.pageTurnListeners]) listener(direction);
+  }
+
+  reportTocEntry(href: string | null): void {
+    for (const listener of [...this.tocEntryListeners]) listener(href);
   }
 
   next(): Promise<void> {
@@ -55,7 +61,8 @@ export class FakeEbookReader implements EbookReader {
     return Promise.resolve();
   }
 
-  goTo(): Promise<void> {
+  goTo(location: EbookLocation): Promise<void> {
+    this.goToCalls.push(location);
     return Promise.resolve();
   }
 
@@ -67,6 +74,11 @@ export class FakeEbookReader implements EbookReader {
   onPageTurnRequested(listener: (direction: PageTurnDirection) => void): () => void {
     this.pageTurnListeners.add(listener);
     return () => this.pageTurnListeners.delete(listener);
+  }
+
+  onTocEntryChanged(listener: (href: string | null) => void): () => void {
+    this.tocEntryListeners.add(listener);
+    return () => this.tocEntryListeners.delete(listener);
   }
 
   destroy(): Promise<void> {

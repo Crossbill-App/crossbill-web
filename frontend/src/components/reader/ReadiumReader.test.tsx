@@ -19,14 +19,18 @@ let reader: ReadiumReader;
 const recordEvents = () => {
   const positions: (number | undefined)[] = [];
   const turns: PageTurnDirection[] = [];
+  const tocHrefs: (string | null)[] = [];
   reader.onLocationChanged((location) => positions.push(location.locations.position));
   reader.onPageTurnRequested((direction) => turns.push(direction));
+  reader.onTocEntryChanged((href) => tocHrefs.push(href));
   return {
     positions,
     turns,
+    tocHrefs,
     clear: () => {
       positions.length = 0;
       turns.length = 0;
+      tocHrefs.length = 0;
     },
   };
 };
@@ -71,6 +75,38 @@ test('next and previous turn the page and report where the reader is', async () 
   recorded.clear();
   await reader.previous();
   await expect.poll(() => recorded.positions).toContain(1);
+});
+
+test('the book names the contents entry it opened at', async () => {
+  worker.use(...readiumApi());
+
+  const opened = await reader.open(MANIFEST_URL);
+
+  expect(opened.tocHref).toBe('resources/OEBPS/chapter1.xhtml');
+  expect(opened.toc[0].href).toBe('resources/OEBPS/chapter1.xhtml');
+});
+
+test('the reported contents entry follows the reader into the next chapter', async () => {
+  worker.use(...readiumApi());
+  const opened = await reader.open(MANIFEST_URL);
+  const recorded = recordEvents();
+  const onMemory = opened.toc[1].children[0];
+
+  await reader.next();
+
+  await expect.poll(() => recorded.tocHrefs).toEqual([onMemory.href]);
+});
+
+test('a contents entry that declares no media type can be navigated to', async () => {
+  worker.use(...readiumApi());
+  const opened = await reader.open(MANIFEST_URL);
+  const recorded = recordEvents();
+  const onMemory = opened.toc[1].children[0];
+  expect(onMemory.type).toBe('');
+
+  await reader.goTo({ href: onMemory.href, type: onMemory.type, locations: {} });
+
+  await expect.poll(() => recorded.positions).toContain(2);
 });
 
 test('goTo lands on the location it is given', async () => {

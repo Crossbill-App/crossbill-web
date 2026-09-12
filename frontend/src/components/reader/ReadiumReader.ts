@@ -12,7 +12,15 @@ import {
   type EpubNavigatorListeners,
   type IKeyboardPeripheralsConfig,
 } from '@readium/navigator';
-import { HttpFetcher, Locator, Manifest, Publication, type Link } from '@readium/shared';
+import {
+  HttpFetcher,
+  Locator,
+  LocatorLocations,
+  Manifest,
+  Publication,
+  type Link,
+  type TimelineItem,
+} from '@readium/shared';
 
 const DESTROY_TIMEOUT_MS = 2000;
 
@@ -47,15 +55,20 @@ const toLocation = (locator: Locator): EbookLocation => ({
   },
 });
 
-const fromLocation = (location: EbookLocation): Locator => {
-  const locator = Locator.deserialize(location);
-  if (!locator) throw new Error('That location does not name a place in a publication.');
-  return locator;
-};
+// Built rather than deserialized: `Locator.deserialize` refuses a location
+// whose media type is empty, which is what a contents entry usually carries.
+const fromLocation = (location: EbookLocation): Locator =>
+  new Locator({
+    href: location.href,
+    type: location.type,
+    title: location.title,
+    locations: new LocatorLocations(location.locations),
+  });
 
 const tocEntriesFrom = (links: Link[]): EbookTocEntry[] =>
   links.map((link) => ({
     href: link.href,
+    type: link.type ?? '',
     title: link.title ?? '',
     children: tocEntriesFrom(link.children?.items ?? []),
   }));
@@ -93,6 +106,7 @@ const whenSized = (element: HTMLElement, signal: AbortSignal) =>
 export class ReadiumReader implements EbookReader {
   private readonly locationListeners = new Set<(location: EbookLocation) => void>();
   private readonly pageTurnListeners = new Set<(direction: PageTurnDirection) => void>();
+  private readonly tocEntryListeners = new Set<(href: string | null) => void>();
   private readonly destruction = new AbortController();
   private navigator: EpubNavigator | undefined;
   private wrapper: HTMLDivElement | undefined;
@@ -138,6 +152,7 @@ export class ReadiumReader implements EbookReader {
     return {
       pageCount: positions.length,
       toc: tocEntriesFrom(publication.toc?.items ?? []),
+      tocHref: this.tocEntryHrefFor(navigator.timeline.locate(navigator.currentLocator)),
       location: toLocation(navigator.currentLocator),
     };
   }
@@ -166,6 +181,10 @@ export class ReadiumReader implements EbookReader {
     return this.subscribe(this.pageTurnListeners, listener);
   }
 
+  onTocEntryChanged(listener: (href: string | null) => void): () => void {
+    return this.subscribe(this.tocEntryListeners, listener);
+  }
+
   async destroy(): Promise<void> {
     if (this.isDestroyed) return;
     this.isDestroyed = true;
@@ -189,6 +208,7 @@ export class ReadiumReader implements EbookReader {
     this.wrapper = undefined;
     this.locationListeners.clear();
     this.pageTurnListeners.clear();
+    this.tocEntryListeners.clear();
   }
 
   /** The wrapper Readium's ResizeObserver may keep, and the container it draws into. */
@@ -240,7 +260,8 @@ export class ReadiumReader implements EbookReader {
     return {
       frameLoaded: () => {},
       positionChanged: (locator) => this.notify(this.locationListeners, toLocation(locator)),
-      timelineItemChanged: () => {},
+      timelineItemChanged: (item) =>
+        this.notify(this.tocEntryListeners, this.tocEntryHrefFor(item)),
       // Claimed so Readium's own quarter-screen pager does not turn pages
       // behind the UI's back.
       tap: () => true,
@@ -258,6 +279,14 @@ export class ReadiumReader implements EbookReader {
         if (event.type === 'previous_page') this.notify(this.pageTurnListeners, 'previous');
       },
     };
+  }
+
+  /** Most places in a book have no contents entry of their own; `tocEntryFor`
+   * walks back to the nearest one that covers them. */
+  private tocEntryHrefFor(item: TimelineItem | undefined): string | null {
+    const navigator = this.navigator;
+    if (!navigator || !item) return null;
+    return navigator.timeline.tocEntryFor(item)?.link.href ?? null;
   }
 
   private move(

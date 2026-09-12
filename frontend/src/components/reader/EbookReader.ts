@@ -25,6 +25,8 @@ export interface EbookLocation {
 /** One heading of the book's table of contents. */
 export interface EbookTocEntry {
   href: string;
+  /** Empty for the many manifests whose contents links declare no media type. */
+  type: string;
   title: string;
   children: EbookTocEntry[];
 }
@@ -33,6 +35,8 @@ export interface EbookTocEntry {
 export interface OpenedEbook {
   pageCount: number;
   toc: EbookTocEntry[];
+  /** The contents entry the book opened at, or null where none covers it. */
+  tocHref: string | null;
   location: EbookLocation;
 }
 
@@ -64,5 +68,7 @@ export interface EbookReader {
   goTo(location: EbookLocation): Promise<void>;
   onLocationChanged(listener: (location: EbookLocation) => void): () => void;
   onPageTurnRequested(listener: (direction: PageTurnDirection) => void): () => void;
+  /** The reader has moved into a different contents entry; `OpenedEbook.tocHref` is the first. */
+  onTocEntryChanged(listener: (href: string | null) => void): () => void;
   destroy(): Promise<void>;
 }
