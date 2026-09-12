@@ -84,6 +84,7 @@ export const useEbookReader = ({
   useEffect(() => {
     appearanceRef.current = appearance;
   }, [appearance]);
+  const appliedRef = useRef<EbookAppearance | null>(null);
 
   useEffect(() => {
     const element = host.current;
@@ -125,6 +126,7 @@ export const useEbookReader = ({
     const abortedFirst = new Promise<never>((_, reject) => {
       signal.addEventListener('abort', () => reject(signal.reason as Error), { once: true });
     });
+    appliedRef.current = appearanceRef.current;
     const opening = reader.open(manifestUrl, { appearance: appearanceRef.current, signal });
     Promise.race([opening, abortedFirst]).then(onOpened, onFailed);
 
@@ -158,6 +160,14 @@ export const useEbookReader = ({
   // Derived rather than stored, so that starting an attempt is not itself a
   // render: an effect that set the status would cascade one on every open.
   const status: EbookReaderStatus = enabled ? (outcome ?? 'opening') : 'idle';
+
+  // Guarded, because nothing in the engine's own chain compares anything: an
+  // appearance submitted again re-pushes CSS and reflows a book already right.
+  useEffect(() => {
+    if (status !== 'open' || appliedRef.current === appearance) return;
+    appliedRef.current = appearance;
+    void readerRef.current?.setAppearance(appearance);
+  }, [appearance, status]);
 
   return { status, pageCount, location, toc, currentTocHref, next, previous, goTo, retry };
 };

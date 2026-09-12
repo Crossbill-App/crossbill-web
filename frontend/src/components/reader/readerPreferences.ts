@@ -2,13 +2,29 @@ import type { EbookAppearance } from '@/components/reader/EbookReader.ts';
 import type { Theme } from '@mui/material/styles';
 
 /** The page colours the reader can choose between. */
-export type ReaderPageColor = 'light' | 'dark';
+export const READER_PAGE_COLORS = ['light', 'dark'] as const;
+export type ReaderPageColor = (typeof READER_PAGE_COLORS)[number];
+export const READER_PAGE_COLOR_LABELS: Record<ReaderPageColor, string> = {
+  light: 'Light',
+  dark: 'Dark',
+};
 
 /** How lines are set, `default` leaving the book's own stylesheet in charge. */
-type ReaderAlignment = 'default' | 'left' | 'justified';
+export const READER_ALIGNMENTS = ['default', 'left', 'justified'] as const;
+type ReaderAlignment = (typeof READER_ALIGNMENTS)[number];
+export const READER_ALIGNMENT_LABELS: Record<ReaderAlignment, string> = {
+  default: 'Default',
+  left: 'Left',
+  justified: 'Justified',
+};
 
 /** How many columns the page is set in. */
-type ReaderColumns = 'single' | 'auto';
+export const READER_COLUMNS = ['single', 'auto'] as const;
+type ReaderColumns = (typeof READER_COLUMNS)[number];
+export const READER_COLUMN_LABELS: Record<ReaderColumns, string> = {
+  single: '1 column',
+  auto: 'Auto',
+};
 
 export interface ReaderPreferences {
   pageColor: ReaderPageColor;

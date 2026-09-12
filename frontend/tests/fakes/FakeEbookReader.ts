@@ -17,6 +17,7 @@ export const aFakeLocation = (position: number): EbookLocation => ({
 /** An `EbookReader` whose open the test settles and whose events the test fires. */
 export class FakeEbookReader implements EbookReader {
   readonly openedWith: { manifestUrl: string; appearance: EbookAppearance }[] = [];
+  readonly appearances: EbookAppearance[] = [];
   readonly goToCalls: EbookLocation[] = [];
   nextCalls = 0;
   previousCalls = 0;
@@ -53,7 +54,8 @@ export class FakeEbookReader implements EbookReader {
     for (const listener of [...this.tocEntryListeners]) listener(href);
   }
 
-  setAppearance(): Promise<void> {
+  setAppearance(appearance: EbookAppearance): Promise<void> {
+    this.appearances.push(appearance);
     return Promise.resolve();
   }
 

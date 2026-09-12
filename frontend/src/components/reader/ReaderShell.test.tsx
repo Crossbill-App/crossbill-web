@@ -8,6 +8,7 @@ import { worker } from '@tests/msw/worker';
 import { HttpResponse, delay, http } from 'msw';
 import { beforeEach, expect, test } from 'vitest';
 import { render } from 'vitest-browser-react';
+import { userEvent } from 'vitest/browser';
 
 const SESSION_PATH = '/api/v1/readium/books/:bookId/session';
 const RESOURCE_PATH = '/api/v1/readium/books/:bookId/resources/*';
@@ -212,6 +213,38 @@ test('picking a contents entry goes there and closes the drawer', async () => {
   await expect
     .element(screen.getByRole('navigation', { name: 'Table of contents' }))
     .not.toBeInTheDocument();
+});
+
+const openTheAppearance = async (screen: Screen) => {
+  await screen.getByRole('button', { name: 'Appearance' }).click();
+  await expect.element(screen.getByRole('dialog', { name: 'Appearance' })).toBeVisible();
+};
+
+test('a page colour chosen in the popover reaches the engine', async () => {
+  worker.use(...readiumApi());
+
+  const screen = await anOpenBook();
+  await openTheAppearance(screen);
+
+  await screen.getByRole('button', { name: 'Dark' }).click();
+
+  expect(readers[0].appearances).toHaveLength(1);
+  expect(readers[0].appearances[0]).toMatchObject({
+    pageBackgroundColor: theme.customColors.readerPage.dark.background,
+    pageTextColor: theme.customColors.readerPage.dark.text,
+  });
+});
+
+test('opening the appearance and closing it again leaves the book alone', async () => {
+  worker.use(...readiumApi());
+
+  const screen = await anOpenBook();
+  await openTheAppearance(screen);
+
+  await userEvent.keyboard('{Escape}');
+
+  await expect.element(screen.getByRole('dialog', { name: 'Appearance' })).not.toBeInTheDocument();
+  expect(readers[0].appearances).toEqual([]);
 });
 
 test('closing the shell destroys the reader', async () => {
