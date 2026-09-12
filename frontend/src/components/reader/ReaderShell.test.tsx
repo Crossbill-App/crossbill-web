@@ -1,3 +1,4 @@
+import type { EbookTocEntry, OpenedEbook } from '@/components/reader/EbookReader.ts';
 import { ReaderShell, type ReaderShellProps } from '@/components/reader/ReaderShell.tsx';
 import { FakeEbookReader, aFakeLocation } from '@tests/fakes/FakeEbookReader';
 import { readiumApi } from '@tests/msw/readiumApi';
@@ -43,11 +44,24 @@ const renderShell = async (props: Partial<ReaderShellProps> = {}) =>
 
 type Screen = Awaited<ReturnType<typeof renderShell>>;
 
+/** Two chapters, the second without a media type, as many manifests publish them. */
+const A_TOC: EbookTocEntry[] = [
+  {
+    href: 'resources/OEBPS/chapter1.xhtml',
+    type: 'application/xhtml+xml',
+    title: 'On Attention',
+    children: [],
+  },
+  { href: 'resources/OEBPS/chapter2.xhtml', type: '', title: 'On Memory', children: [] },
+];
+
+const aBookWithContents = (): Partial<OpenedEbook> => ({ toc: A_TOC, tocHref: A_TOC[0].href });
+
 /** The shell with the book on screen at its first page. */
-const anOpenBook = async () => {
+const anOpenBook = async (opened: Partial<OpenedEbook> = {}) => {
   const screen = await renderShell();
   await expect.poll(() => readers.length).toBe(1);
-  readers[0].resolveOpen();
+  readers[0].resolveOpen(opened);
   await expect.element(screen.getByText('Page 1 of 2')).toBeVisible();
   return screen;
 };
@@ -64,6 +78,14 @@ test('the shell waits for the cookie before opening the book', async () => {
   await expect.poll(() => readers.length).toBe(1);
   expect(readers[0].openedWith).toEqual([MANIFEST_URL]);
   await expect.element(screen.getByLabelText('Loading the book')).toBeVisible();
+});
+
+test('a book whose positions say nothing about progress still numbers its pages', async () => {
+  worker.use(...readiumApi());
+
+  const screen = await anOpenBook();
+
+  await expect.element(screen.getByText('Page 1 of 2', { exact: true })).toBeVisible();
 });
 
 test('a page turn asked for by the book is forwarded', async () => {
@@ -136,6 +158,40 @@ test('a book whose chapters never arrive times out and can be retried', async ()
   await screen.getByRole('button', { name: 'Try again' }).click();
 
   await expect.element(screen.getByText('Page 1 of 2'), { timeout: 5_000 }).toBeVisible();
+});
+
+test('the contents are not offered until the book is on screen', async () => {
+  worker.use(...readiumApi());
+
+  const screen = await renderShell();
+
+  await expect.element(screen.getByRole('button', { name: 'Contents' })).toBeDisabled();
+
+  await expect.poll(() => readers.length).toBe(1);
+  readers[0].resolveOpen(aBookWithContents());
+
+  await expect.element(screen.getByRole('button', { name: 'Contents' })).toBeEnabled();
+});
+
+test('picking a contents entry goes there and closes the drawer', async () => {
+  worker.use(...readiumApi());
+
+  const screen = await anOpenBook(aBookWithContents());
+
+  await screen.getByRole('button', { name: 'Contents' }).click();
+  // The entry the book opened at, which the seam reports through `tocHref` alone.
+  await expect
+    .element(screen.getByRole('button', { name: 'On Attention' }))
+    .toHaveAttribute('aria-current', 'location');
+
+  await screen.getByRole('button', { name: 'On Memory' }).click();
+
+  expect(readers[0].goToCalls).toEqual([
+    { href: 'resources/OEBPS/chapter2.xhtml', type: '', locations: {} },
+  ]);
+  await expect
+    .element(screen.getByRole('navigation', { name: 'Table of contents' }))
+    .not.toBeInTheDocument();
 });
 
 test('closing the shell destroys the reader', async () => {

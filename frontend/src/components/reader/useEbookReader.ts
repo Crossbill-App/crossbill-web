@@ -2,6 +2,7 @@ import {
   PublicationUnavailableError,
   type EbookLocation,
   type EbookReader,
+  type EbookTocEntry,
   type OpenedEbook,
 } from '@/components/reader/EbookReader.ts';
 import { ReadiumReader } from '@/components/reader/ReadiumReader.ts';
@@ -33,8 +34,12 @@ export interface EbookReaderState {
   status: EbookReaderStatus;
   pageCount: number;
   location: EbookLocation | null;
+  toc: EbookTocEntry[];
+  /** The contents entry covering where the reader is, or null where none does. */
+  currentTocHref: string | null;
   next: () => void;
   previous: () => void;
+  goTo: (location: EbookLocation) => void;
   retry: () => void;
 }
 
@@ -45,6 +50,8 @@ const outcomeOfFailure = (error: unknown): EbookReaderOutcome => {
   if (error instanceof DOMException && error.name === 'TimeoutError') return 'timeout';
   return 'error';
 };
+
+const NO_TOC: EbookTocEntry[] = [];
 
 /** One book opened into a host element, and where the reader is in it. */
 export const useEbookReader = ({
@@ -58,6 +65,8 @@ export const useEbookReader = ({
   const [outcome, setOutcome] = useState<EbookReaderOutcome | null>(null);
   const [pageCount, setPageCount] = useState(0);
   const [location, setLocation] = useState<EbookLocation | null>(null);
+  const [toc, setToc] = useState<EbookTocEntry[]>(NO_TOC);
+  const [currentTocHref, setCurrentTocHref] = useState<string | null>(null);
   const [attempt, setAttempt] = useState(0);
   const readerRef = useRef<EbookReader | null>(null);
   // Through a ref, so a hold that starts mid-book never rebuilds the reader.
@@ -77,6 +86,7 @@ export const useEbookReader = ({
     let isOpen = false;
     const unsubscribes = [
       reader.onLocationChanged(setLocation),
+      reader.onTocEntryChanged(setCurrentTocHref),
       reader.onPageTurnRequested((direction) => {
         // Readium's pager sets a navigating flag it never clears when it has no
         // frames yet, so one key before the book is up kills every later turn.
@@ -90,6 +100,8 @@ export const useEbookReader = ({
       isOpen = true;
       setPageCount(opened.pageCount);
       setLocation(opened.location);
+      setToc(opened.toc);
+      setCurrentTocHref(opened.tocHref);
       setOutcome('open');
     };
     const onFailed = (error: unknown) => {
@@ -117,12 +129,18 @@ export const useEbookReader = ({
 
   const next = useCallback(() => void readerRef.current?.next(), []);
   const previous = useCallback(() => void readerRef.current?.previous(), []);
+  const goTo = useCallback(
+    (destination: EbookLocation) => void readerRef.current?.goTo(destination),
+    []
+  );
   // Both, and in one go: the host is unmounted behind the message this is
   // offered on, and has to be back in the tree before the new attempt looks for it.
   const retry = useCallback(() => {
     setOutcome(null);
-    // Otherwise the last attempt's page label sits over the new attempt's skeleton.
+    // Nothing from the last attempt survives into the new one.
     setPageCount(0);
+    setToc(NO_TOC);
+    setCurrentTocHref(null);
     setAttempt((count) => count + 1);
   }, []);
 
@@ -130,5 +148,5 @@ export const useEbookReader = ({
   // render: an effect that set the status would cascade one on every open.
   const status: EbookReaderStatus = enabled ? (outcome ?? 'opening') : 'idle';
 
-  return { status, pageCount, location, next, previous, retry };
+  return { status, pageCount, location, toc, currentTocHref, next, previous, goTo, retry };
 };

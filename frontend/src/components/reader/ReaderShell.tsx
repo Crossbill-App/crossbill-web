@@ -1,9 +1,11 @@
 import { API_BASE_URL } from '@/api/base-url.ts';
 import { IconButtonWithTooltip } from '@/components/buttons/IconButtonWithTooltip.tsx';
+import type { EbookTocEntry } from '@/components/reader/EbookReader.ts';
+import { TocDrawer } from '@/components/reader/TocDrawer.tsx';
 import { useEbookReader, type UseEbookReaderOptions } from '@/components/reader/useEbookReader.ts';
 import { useReaderSession } from '@/components/reader/useReaderSession.ts';
 import { useBodyScrollLock } from '@/hooks/useBodyScrollLock.ts';
-import { CloseIcon, NextPageIcon, PreviousPageIcon } from '@/theme/Icons.tsx';
+import { ChapterListIcon, CloseIcon, NextPageIcon, PreviousPageIcon } from '@/theme/Icons.tsx';
 import { ICON_SIZE } from '@/theme/iconSizes.ts';
 import {
   Box,
@@ -16,7 +18,7 @@ import {
   type SxProps,
   type Theme,
 } from '@mui/material';
-import { useRef } from 'react';
+import { useRef, useState } from 'react';
 
 export interface ReaderShellProps {
   bookId: number;
@@ -29,6 +31,13 @@ export interface ReaderShellProps {
 
 /** The width the page-turn buttons need beside the text on anything but a phone. */
 const PAGE_TURN_GUTTER = '48px';
+
+/** Readium's own page gutter is horizontal only, so the air above and below is ours to add. */
+const READING_SURFACE_INSET = 2;
+
+const pageLabel = (page: number, pageCount: number, progression: number | undefined) =>
+  `Page ${page} of ${pageCount}` +
+  (progression === undefined ? '' : ` · ${Math.round(progression * 100)}%`);
 
 const overlaySx: SxProps<Theme> = {
   position: 'fixed',
@@ -114,6 +123,7 @@ export const ReaderShell = ({
   useBodyScrollLock(true);
   const { status: sessionStatus, isRenewing } = useReaderSession(bookId);
   const host = useRef<HTMLDivElement | null>(null);
+  const [isTocOpen, setIsTocOpen] = useState(false);
   const book = useEbookReader({
     host,
     manifestUrl: manifestUrlFor(bookId),
@@ -157,17 +167,29 @@ export const ReaderShell = ({
   const pageTurnsDisabled = isRenewing || !isOpen;
   const position = book.location?.locations.position;
 
+  const goToTocEntry = (entry: EbookTocEntry) => {
+    setIsTocOpen(false);
+    book.goTo({ href: entry.href, type: entry.type, locations: {} });
+  };
+
   return (
     <Box sx={overlaySx}>
       <Box sx={{ borderBottom: 1, borderColor: 'divider' }}>
         <Toolbar variant="dense" sx={{ gap: 1 }}>
+          <IconButtonWithTooltip
+            label="Contents"
+            onClick={() => setIsTocOpen(true)}
+            disabled={!isOpen}
+            edge="start"
+            icon={<ChapterListIcon sx={{ fontSize: ICON_SIZE.ui }} />}
+          />
           <Stack sx={{ flex: 1, minWidth: 0 }}>
             <Typography variant="h6" component="h1" noWrap>
               {title}
             </Typography>
             {book.pageCount > 0 && position !== undefined && (
               <Typography variant="body2" noWrap sx={{ color: 'text.secondary' }}>
-                Page {position} of {book.pageCount}
+                {pageLabel(position, book.pageCount, book.location?.locations.totalProgression)}
               </Typography>
             )}
           </Stack>
@@ -191,6 +213,7 @@ export const ReaderShell = ({
           sx={{
             height: '100%',
             px: { xs: 0, sm: PAGE_TURN_GUTTER },
+            py: READING_SURFACE_INSET,
             visibility: isOpen ? 'visible' : 'hidden',
           }}
         />
@@ -227,6 +250,14 @@ export const ReaderShell = ({
           </Stack>
         )}
       </Box>
+
+      <TocDrawer
+        open={isTocOpen}
+        onClose={() => setIsTocOpen(false)}
+        toc={book.toc}
+        onSelect={goToTocEntry}
+        currentHref={book.currentTocHref}
+      />
     </Box>
   );
 };
