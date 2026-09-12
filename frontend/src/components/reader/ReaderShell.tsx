@@ -1,15 +1,34 @@
+import { API_BASE_URL } from '@/api/base-url.ts';
 import { IconButtonWithTooltip } from '@/components/buttons/IconButtonWithTooltip.tsx';
+import { useEbookReader, type UseEbookReaderOptions } from '@/components/reader/useEbookReader.ts';
 import { useReaderSession } from '@/components/reader/useReaderSession.ts';
 import { useBodyScrollLock } from '@/hooks/useBodyScrollLock.ts';
-import { CloseIcon } from '@/theme/Icons.tsx';
+import { CloseIcon, NextPageIcon, PreviousPageIcon } from '@/theme/Icons.tsx';
 import { ICON_SIZE } from '@/theme/iconSizes.ts';
-import { Box, Button, Toolbar, Typography, type SxProps, type Theme } from '@mui/material';
+import {
+  Box,
+  Button,
+  IconButton,
+  Skeleton,
+  Stack,
+  Toolbar,
+  Typography,
+  type SxProps,
+  type Theme,
+} from '@mui/material';
+import { useRef } from 'react';
 
 export interface ReaderShellProps {
   bookId: number;
   title: string;
   onClose: () => void;
+  /** Both only for tests: a fake engine, and a watchdog short enough to wait for. */
+  createReader?: UseEbookReaderOptions['createReader'];
+  bootTimeoutMs?: number;
 }
+
+/** The width the page-turn buttons need beside the text on anything but a phone. */
+const PAGE_TURN_GUTTER = '48px';
 
 const overlaySx: SxProps<Theme> = {
   position: 'fixed',
@@ -21,12 +40,40 @@ const overlaySx: SxProps<Theme> = {
   color: 'text.primary',
 };
 
+const manifestUrlFor = (bookId: number) =>
+  new URL(`${API_BASE_URL}/api/v1/readium/books/${bookId}/manifest.json`, window.location.origin)
+    .href;
+
+interface PageTurnButtonProps {
+  edge: 'left' | 'right';
+  onClick: () => void;
+  disabled: boolean;
+}
+
+const PageTurnButton = ({ edge, onClick, disabled }: PageTurnButtonProps) => (
+  <IconButton
+    onClick={onClick}
+    disabled={disabled}
+    color="inherit"
+    aria-label={edge === 'left' ? 'Previous page' : 'Next page'}
+    sx={{ position: 'absolute', top: '50%', transform: 'translateY(-50%)', [edge]: 4, zIndex: 1 }}
+  >
+    {edge === 'left' ? (
+      <PreviousPageIcon sx={{ fontSize: ICON_SIZE.prominent }} />
+    ) : (
+      <NextPageIcon sx={{ fontSize: ICON_SIZE.prominent }} />
+    )}
+  </IconButton>
+);
+
 interface ReaderMessageProps {
   children: string;
   onClose: () => void;
+  /** Offered only where trying again could plausibly work. */
+  onRetry?: () => void;
 }
 
-const ReaderMessage = ({ children, onClose }: ReaderMessageProps) => (
+const ReaderMessage = ({ children, onClose, onRetry }: ReaderMessageProps) => (
   <Box sx={overlaySx}>
     <Box
       sx={{
@@ -41,34 +88,89 @@ const ReaderMessage = ({ children, onClose }: ReaderMessageProps) => (
       }}
     >
       <Typography>{children}</Typography>
-      <Button variant="outlined" onClick={onClose}>
-        Back to book
-      </Button>
+      <Stack direction="row" spacing={2}>
+        <Button variant="outlined" onClick={onClose}>
+          Back to book
+        </Button>
+        {onRetry && (
+          <Button variant="contained" onClick={onRetry}>
+            Try again
+          </Button>
+        )}
+      </Stack>
     </Box>
   </Box>
 );
 
-/** The reader's full-viewport frame: a title bar, a way out, and the viewport. */
-export const ReaderShell = ({ bookId, title, onClose }: ReaderShellProps) => {
+/** The reader's full-viewport frame: a title bar, a way out, and the book. */
+export const ReaderShell = ({
+  bookId,
+  title,
+  onClose,
+  createReader,
+  bootTimeoutMs,
+}: ReaderShellProps) => {
   // A fixed overlay never scrolls the body, which is what arms pull-to-refresh.
   useBodyScrollLock(true);
-  const { status } = useReaderSession(bookId);
+  const { status: sessionStatus, isRenewing } = useReaderSession(bookId);
+  const host = useRef<HTMLDivElement | null>(null);
+  const book = useEbookReader({
+    host,
+    manifestUrl: manifestUrlFor(bookId),
+    enabled: sessionStatus === 'ready',
+    holdPageTurns: isRenewing,
+    createReader,
+    bootTimeoutMs,
+  });
 
-  if (status === 'error') {
+  if (sessionStatus === 'error') {
     return (
       <ReaderMessage onClose={onClose}>
         The reader could not start a session for this book. Please try again later.
       </ReaderMessage>
     );
   }
+  if (book.status === 'missing') {
+    return (
+      <ReaderMessage onClose={onClose}>
+        This book has no EPUB file, so there is nothing to read here yet. Upload one to read it in
+        the browser.
+      </ReaderMessage>
+    );
+  }
+  if (book.status === 'error') {
+    return (
+      <ReaderMessage onClose={onClose} onRetry={book.retry}>
+        The book could not be opened. Please try again later.
+      </ReaderMessage>
+    );
+  }
+  if (book.status === 'timeout') {
+    return (
+      <ReaderMessage onClose={onClose} onRetry={book.retry}>
+        This book could not be opened in the reader.
+      </ReaderMessage>
+    );
+  }
+
+  const isOpen = book.status === 'open';
+  const pageTurnsDisabled = isRenewing || !isOpen;
+  const position = book.location?.locations.position;
 
   return (
     <Box sx={overlaySx}>
       <Box sx={{ borderBottom: 1, borderColor: 'divider' }}>
         <Toolbar variant="dense" sx={{ gap: 1 }}>
-          <Typography variant="h6" component="h1" noWrap sx={{ flex: 1, minWidth: 0 }}>
-            {title}
-          </Typography>
+          <Stack sx={{ flex: 1, minWidth: 0 }}>
+            <Typography variant="h6" component="h1" noWrap>
+              {title}
+            </Typography>
+            {book.pageCount > 0 && position !== undefined && (
+              <Typography variant="body2" noWrap sx={{ color: 'text.secondary' }}>
+                Page {position} of {book.pageCount}
+              </Typography>
+            )}
+          </Stack>
           <IconButtonWithTooltip
             label="Close reader"
             onClick={onClose}
@@ -78,7 +180,53 @@ export const ReaderShell = ({ bookId, title, onClose }: ReaderShellProps) => {
         </Toolbar>
       </Box>
 
-      <Box sx={{ flex: 1, minHeight: 0, position: 'relative' }} />
+      <Box sx={{ flex: 1, minHeight: 0, position: 'relative' }}>
+        <PageTurnButton edge="left" onClick={book.previous} disabled={pageTurnsDisabled} />
+        <PageTurnButton edge="right" onClick={book.next} disabled={pageTurnsDisabled} />
+
+        {/* Hidden rather than unmounted: the engine measures this box to lay
+            the book out, and a box that is not there has no size to measure. */}
+        <Box
+          ref={host}
+          sx={{
+            height: '100%',
+            px: { xs: 0, sm: PAGE_TURN_GUTTER },
+            visibility: isOpen ? 'visible' : 'hidden',
+          }}
+        />
+
+        {!isOpen && (
+          <Stack
+            aria-label="Loading the book"
+            aria-busy="true"
+            sx={{ position: 'absolute', inset: 0, p: 4, alignItems: 'center' }}
+          >
+            <Box sx={{ width: '100%', maxWidth: 640 }}>
+              {Array.from({ length: 12 }, (_, index) => (
+                <Skeleton key={index} height={28} width={index % 5 === 4 ? '55%' : '100%'} />
+              ))}
+            </Box>
+          </Stack>
+        )}
+
+        {/* Mounted for as long as the book is: a live region that appears
+            together with its text announces nothing. */}
+        {isOpen && (
+          <Stack
+            aria-live="polite"
+            sx={{
+              position: 'absolute',
+              inset: 0,
+              alignItems: 'center',
+              justifyContent: 'center',
+              pointerEvents: isRenewing ? 'auto' : 'none',
+              ...(isRenewing && { backgroundColor: 'background.default', opacity: 0.9 }),
+            }}
+          >
+            {isRenewing && <Typography variant="body2">Reconnecting…</Typography>}
+          </Stack>
+        )}
+      </Box>
     </Box>
   );
 };
