@@ -32,6 +32,8 @@ export {
   FormatQuote as HighlightsIcon,
   Notes as NotesIcon,
   PaletteOutlined as PaletteIcon,
+  // Reading the book here in the browser, not a session read on a device.
+  ChromeReaderMode as ReaderIcon,
   AutoStories as ReadingSessionIcon,
   Psychology as ReflectionIcon,
   Equalizer as StatisticsIcon,
