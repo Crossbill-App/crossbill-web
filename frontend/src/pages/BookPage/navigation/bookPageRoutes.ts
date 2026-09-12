@@ -3,6 +3,7 @@ import {
   FlashcardsIcon,
   HighlightsIcon,
   NotesIcon,
+  ReaderIcon,
   ReflectionIcon,
   StatisticsIcon,
 } from '@/theme/Icons.tsx';
@@ -13,6 +14,7 @@ type BookPageRoute =
   | '/book/$bookId/highlights'
   | '/book/$bookId/flashcards'
   | '/book/$bookId/notes'
+  | '/book/$bookId/read'
   | '/book/$bookId/reflection'
   | '/book/$bookId/statistics';
 
@@ -26,6 +28,7 @@ export const BOOK_PAGE_LABELS = {
   highlights: 'Highlights',
   flashcards: 'Flashcards',
   notes: 'Notes',
+  read: 'Read',
   reflection: 'Reflection',
   statistics: 'Statistics',
 } as const;
@@ -65,6 +68,11 @@ export const BOOK_PAGE_ROUTES: BookPageRouteConfig[] = [
     to: '/book/$bookId/notes',
     segment: 'notes',
     icon: NotesIcon,
+  },
+  {
+    to: '/book/$bookId/read',
+    segment: 'read',
+    icon: ReaderIcon,
   },
   {
     to: '/book/$bookId/reflection',

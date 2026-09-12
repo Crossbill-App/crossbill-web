@@ -1,6 +1,7 @@
 import type { BookDetails } from '@/api/generated/model';
 import { BookCover } from '@/components/BookCover.tsx';
 import { IconButtonWithTooltip } from '@/components/buttons/IconButtonWithTooltip.tsx';
+import { OpenInReaderButton } from '@/components/reader/OpenInReaderButton.tsx';
 import { ReadingStageChip } from '@/pages/BookPage/Reflection/ReadingStageChip.tsx';
 import { ManageIcon } from '@/theme/Icons.tsx';
 import { Box, LinearProgress, Tooltip, Typography } from '@mui/material';
@@ -12,6 +13,13 @@ import { BookStatsStrip } from './BookStatsStrip.tsx';
 export interface BookTitleProps {
   book: BookDetails;
 }
+
+const titleActionSx = {
+  color: 'text.primary',
+  ml: 0.5,
+  verticalAlign: 'middle',
+  '& svg': { fontSize: '1.75rem' },
+} as const;
 
 export const BookTitle = ({ book }: BookTitleProps) => {
   const [editDialogOpen, setEditDialogOpen] = useState(false);
@@ -97,13 +105,9 @@ export const BookTitle = ({ book }: BookTitleProps) => {
               onClick={handleEdit}
               icon={<ManageIcon />}
               size="small"
-              sx={{
-                color: 'text.primary',
-                ml: 0.5,
-                verticalAlign: 'middle',
-                '& svg': { fontSize: '1.75rem' },
-              }}
+              sx={titleActionSx}
             />
+            <OpenInReaderButton bookId={book.id} size="small" sx={titleActionSx} />
           </Typography>
 
           <Typography

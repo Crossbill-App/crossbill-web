@@ -16,6 +16,10 @@ export {
   MoreVert as ManageIcon,
   Menu as MenuIcon,
   MoreHoriz as MoreIcon,
+  // Chevrons, not arrows: these turn a page inside the book, where the arrows
+  // above mean going somewhere else in the app.
+  ChevronRight as NextPageIcon,
+  ChevronLeft as PreviousPageIcon,
   KeyboardArrowUp as ScrollToTopIcon,
   Search as SearchIcon,
 } from '@mui/icons-material';
@@ -32,6 +36,8 @@ export {
   FormatQuote as HighlightsIcon,
   Notes as NotesIcon,
   PaletteOutlined as PaletteIcon,
+  // Reading the book here in the browser, not a session read on a device.
+  ChromeReaderMode as ReaderIcon,
   AutoStories as ReadingSessionIcon,
   Psychology as ReflectionIcon,
   Equalizer as StatisticsIcon,

@@ -27,7 +27,12 @@ export default mergeConfig(
     // Pre-bundled up front: discovering these mid-run makes Vite reload the page
     // and Vitest reports the reload as a failed test.
     optimizeDeps: {
-      include: ['react/jsx-dev-runtime', 'react-dom/client'],
+      include: [
+        'react/jsx-dev-runtime',
+        'react-dom/client',
+        '@readium/navigator',
+        '@readium/shared',
+      ],
     },
     test: {
       include: ['src/**/*.test.tsx'],
