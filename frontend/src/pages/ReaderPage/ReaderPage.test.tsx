@@ -387,6 +387,10 @@ const aBookWithItsAppearanceOpen = async () => {
   return screen;
 };
 
+/** One line-height option, scoped past the alignment section's own "Default". */
+const lineHeightOption = (screen: Screen, name: string) =>
+  screen.getByRole('group', { name: 'Line height' }).getByRole('button', { name });
+
 /** The reader's own frame: the fixed overlay its chrome and the book sit in. */
 const readerFrame = (screen: Screen) => {
   const button = screen.getByRole('button', { name: 'Close reader' }).element();
@@ -433,6 +437,29 @@ test('a justified alignment reaches the words on the page', async () => {
   await screen.getByRole('button', { name: 'Justified' }).click();
 
   await expect.poll(() => userProperty('textAlign')).toBe('justify');
+});
+
+test('a line height the reader chooses reaches the words on the page', async () => {
+  worker.use(...aReadableBook());
+  worker.use(...readiumApi());
+  const screen = await openTheBook();
+  // The default says nothing at all, which is what leaves the book's own spacing.
+  expect(userProperty('lineHeight')).toBe('');
+  await openTheAppearance(screen);
+
+  await lineHeightOption(screen, 'Loose').click();
+
+  await expect.poll(() => userProperty('lineHeight')).toBe('1.8');
+});
+
+test('a line height set back to default gives the book its own spacing again', async () => {
+  const screen = await aBookWithItsAppearanceOpen();
+  await lineHeightOption(screen, 'Loose').click();
+  await expect.poll(() => userProperty('lineHeight')).toBe('1.8');
+
+  await lineHeightOption(screen, 'Default').click();
+
+  await expect.poll(() => userProperty('lineHeight')).toBe('');
 });
 
 test('the automatic column count gives a wide page two columns', async () => {

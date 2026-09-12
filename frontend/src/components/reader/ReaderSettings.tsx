@@ -4,6 +4,8 @@ import {
   READER_ALIGNMENTS,
   READER_COLUMN_LABELS,
   READER_COLUMNS,
+  READER_LINE_HEIGHT_LABELS,
+  READER_LINE_HEIGHTS,
   READER_PAGE_COLOR_LABELS,
   READER_PAGE_COLORS,
   type ReaderPreferences,
@@ -121,6 +123,13 @@ export const ReaderSettings = ({
         range={fontSizeRange}
         value={preferences.fontSize}
         onChange={(fontSize) => onChange({ ...preferences, fontSize })}
+      />
+      <ChoiceSection
+        heading="Line height"
+        options={READER_LINE_HEIGHTS}
+        labels={READER_LINE_HEIGHT_LABELS}
+        value={preferences.lineHeight}
+        onSelect={(lineHeight) => onChange({ ...preferences, lineHeight })}
       />
       <ChoiceSection
         heading="Page colour"

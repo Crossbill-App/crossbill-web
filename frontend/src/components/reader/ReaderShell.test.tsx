@@ -93,6 +93,7 @@ test("the book is opened with the reader's appearance", async () => {
   await expect.poll(() => readers.length).toBe(1);
   expect(readers[0].openedWith[0].appearance).toEqual({
     fontSize: 1,
+    lineHeight: null,
     textAlign: null,
     columnCount: 1,
     // The light page is the app's own off-white rather than publisher white.
@@ -353,6 +354,14 @@ test('a size being typed reaches the book only once it is committed', async () =
   await userEvent.keyboard('{Enter}');
 
   expect(fontSizes()).toEqual([1.5]);
+});
+
+test('a line height chosen in the popover reaches the engine', async () => {
+  const screen = await anOpenAppearance();
+
+  await screen.getByRole('button', { name: 'Tight' }).click();
+
+  expect(readers[0].appearances.map((appearance) => appearance.lineHeight)).toEqual([1.2]);
 });
 
 test('a page colour chosen in the popover reaches the engine', async () => {

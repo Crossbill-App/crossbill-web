@@ -46,6 +46,8 @@ export interface OpenedEbook {
 export interface EbookAppearance {
   /** A multiplier on the publication's own font size; 1 is the book as its publisher set it. */
   fontSize: number;
+  /** A multiplier on the font size; `null` leaves the book's own spacing alone. */
+  lineHeight: number | null;
   /** `null` says nothing at all, leaving the book's own stylesheet in charge. */
   textAlign: 'start' | 'justify' | null;
   /** `null` fits as many columns as the width allows. */

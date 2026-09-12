@@ -9,6 +9,15 @@ export const READER_PAGE_COLOR_LABELS: Record<ReaderPageColor, string> = {
   dark: 'Dark',
 };
 
+/** How far apart the lines are set, `default` leaving the book's own spacing alone. */
+export const READER_LINE_HEIGHTS = ['tight', 'default', 'loose'] as const;
+type ReaderLineHeight = (typeof READER_LINE_HEIGHTS)[number];
+export const READER_LINE_HEIGHT_LABELS: Record<ReaderLineHeight, string> = {
+  tight: 'Tight',
+  default: 'Default',
+  loose: 'Loose',
+};
+
 /** How lines are set, `default` leaving the book's own stylesheet in charge. */
 export const READER_ALIGNMENTS = ['default', 'left', 'justified'] as const;
 type ReaderAlignment = (typeof READER_ALIGNMENTS)[number];
@@ -29,6 +38,7 @@ export const READER_COLUMN_LABELS: Record<ReaderColumns, string> = {
 export interface ReaderPreferences {
   pageColor: ReaderPageColor;
   fontSize: number;
+  lineHeight: ReaderLineHeight;
   alignment: ReaderAlignment;
   columns: ReaderColumns;
 }
@@ -36,8 +46,15 @@ export interface ReaderPreferences {
 export const DEFAULT_READER_PREFERENCES: ReaderPreferences = {
   pageColor: 'light',
   fontSize: 1,
+  lineHeight: 'default',
   alignment: 'default',
   columns: 'single',
+};
+
+const LINE_HEIGHTS: Record<ReaderLineHeight, EbookAppearance['lineHeight']> = {
+  tight: 1.2,
+  default: null,
+  loose: 1.8,
 };
 
 // `left` is `start`: in a right-to-left book the ragged edge belongs on the
@@ -60,6 +77,7 @@ export const toEbookAppearance = (
   const colors = readerPageColors(theme, preferences.pageColor);
   return {
     fontSize: preferences.fontSize,
+    lineHeight: LINE_HEIGHTS[preferences.lineHeight],
     textAlign: TEXT_ALIGNMENTS[preferences.alignment],
     columnCount: preferences.columns === 'single' ? 1 : null,
     pageBackgroundColor: colors.background,

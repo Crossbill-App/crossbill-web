@@ -52,12 +52,13 @@ const TEXT_ALIGNMENTS: Record<NonNullable<EbookAppearance['textAlign']>, TextAli
   justify: TextAlignment.justify,
 };
 
-// Five of `EpubPreferences`' forty-odd fields: every one set here is one the
+// Six of `EpubPreferences`' forty-odd fields: every one set here is one the
 // reader can no longer inherit from the book. `null` rather than omitted,
 // because the navigator merges and skips `undefined`, so an omission is no reset.
 const toEpubPreferences = (appearance: EbookAppearance): EpubPreferences =>
   new EpubPreferences({
     fontSize: appearance.fontSize,
+    lineHeight: appearance.lineHeight,
     textAlign: appearance.textAlign === null ? null : TEXT_ALIGNMENTS[appearance.textAlign],
     columnCount: appearance.columnCount,
     backgroundColor: appearance.pageBackgroundColor,

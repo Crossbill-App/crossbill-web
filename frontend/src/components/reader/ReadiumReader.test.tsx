@@ -18,6 +18,7 @@ const MANIFEST_URL = `${window.location.origin}/api/v1/readium/books/1/manifest.
 /** The reader's defaults as the seam carries them: the light page, at the book's own size. */
 const AN_APPEARANCE: EbookAppearance = {
   fontSize: 1,
+  lineHeight: null,
   textAlign: null,
   columnCount: 1,
   pageBackgroundColor: '#fafaf9',
@@ -101,6 +102,7 @@ test('opening with an appearance paints it into the book', async () => {
   expect(userProperty('textColor')).toBe(AN_APPEARANCE.pageTextColor);
   // The book's own stylesheet is still the one setting lines.
   expect(userProperty('textAlign')).toBe('');
+  expect(userProperty('lineHeight')).toBe('');
 });
 
 test('setAppearance reaches a book already on screen', async () => {
@@ -110,6 +112,7 @@ test('setAppearance reaches a book already on screen', async () => {
 
   await reader.setAppearance({
     fontSize: 1.5,
+    lineHeight: 1.8,
     textAlign: 'justify',
     columnCount: null,
     pageBackgroundColor: '#1c1917',
@@ -117,6 +120,7 @@ test('setAppearance reaches a book already on screen', async () => {
   });
 
   await expect.poll(() => userProperty('textAlign')).toBe('justify');
+  await expect.poll(() => userProperty('lineHeight')).toBe('1.8');
   await expect.poll(() => userProperty('backgroundColor')).toBe('#1c1917');
   await expect.poll(() => userProperty('textColor')).toBe('#f5f5f4');
   await expect.poll(() => userProperty('fontSize')).toBe('150%');
