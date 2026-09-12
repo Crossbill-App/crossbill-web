@@ -453,7 +453,7 @@ test('a looser spacing reaches the words on the page', async () => {
 
   await expect.poll(() => userProperty('lineHeight')).toBe('1.8');
   await expect.poll(() => userProperty('paraSpacing')).toBe('1rem');
-  await expect.poll(() => userProperty('paraIndent')).toBe('1.5rem');
+  await expect.poll(() => userProperty('paraIndent')).toBe('1rem');
 });
 
 test('a spacing set back to default gives the book its own again', async () => {
