@@ -1,3 +1,4 @@
+import { API_BASE_URL } from '@/api/base-url';
 import { BookCoverIcon } from '@/theme/Icons.tsx';
 import { Box, type SxProps, type Theme, useTheme } from '@mui/material';
 import { useState } from 'react';
@@ -29,12 +30,8 @@ export const BookCover = ({
   sx,
 }: BookCoverProps) => {
   const theme = useTheme();
-  const apiUrl =
-    import.meta.env.VITE_API_URL !== undefined
-      ? import.meta.env.VITE_API_URL
-      : 'http://localhost:8000';
 
-  const coverUrl = coverFile ? `${apiUrl}/api/v1/covers/${coverFile}` : null;
+  const coverUrl = coverFile ? `${API_BASE_URL}/api/v1/covers/${coverFile}` : null;
   const [imageLoaded, setImageLoaded] = useState(false);
 
   const numericHeight = typeof height === 'number' ? height : 200;
