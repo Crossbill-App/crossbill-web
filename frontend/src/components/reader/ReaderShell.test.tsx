@@ -80,6 +80,14 @@ test('the shell waits for the cookie before opening the book', async () => {
   await expect.element(screen.getByLabelText('Loading the book')).toBeVisible();
 });
 
+test('a book whose positions say nothing about progress still numbers its pages', async () => {
+  worker.use(...readiumApi());
+
+  const screen = await anOpenBook();
+
+  await expect.element(screen.getByText('Page 1 of 2', { exact: true })).toBeVisible();
+});
+
 test('a page turn asked for by the book is forwarded', async () => {
   worker.use(...readiumApi());
 

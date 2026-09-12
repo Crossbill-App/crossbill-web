@@ -33,7 +33,7 @@ const aReadableBook = () =>
 /** The book open at its first page, which is where every reading test starts. */
 const openTheBook = async () => {
   const screen = await renderApp({ path: '/book/1/read' });
-  await expect.element(screen.getByText('Page 1 of 2')).toBeVisible();
+  await expect.element(screen.getByText('Page 1 of 2 · 0%')).toBeVisible();
   return screen;
 };
 
@@ -118,10 +118,10 @@ test('the next button turns the page and the label follows', async () => {
   const screen = await openTheBook();
 
   await screen.getByRole('button', { name: 'Next page' }).click();
-  await expectPage(screen, 'Page 2 of 2');
+  await expectPage(screen, 'Page 2 of 2 · 50%');
 
   await screen.getByRole('button', { name: 'Previous page' }).click();
-  await expectPage(screen, 'Page 1 of 2');
+  await expectPage(screen, 'Page 1 of 2 · 0%');
 });
 
 test('the arrow keys turn the page', async () => {
@@ -131,10 +131,10 @@ test('the arrow keys turn the page', async () => {
   const screen = await openTheBook();
 
   await userEvent.keyboard('{ArrowRight}');
-  await expectPage(screen, 'Page 2 of 2');
+  await expectPage(screen, 'Page 2 of 2 · 50%');
 
   await userEvent.keyboard('{ArrowLeft}');
-  await expectPage(screen, 'Page 1 of 2');
+  await expectPage(screen, 'Page 1 of 2 · 0%');
 });
 
 test('an arrow key pressed before the book is on screen does not jam it', async () => {
@@ -153,9 +153,9 @@ test('an arrow key pressed before the book is on screen does not jam it', async 
   await expect.element(screen.getByLabelText('Loading the book')).toBeVisible();
   await userEvent.keyboard('{ArrowRight}');
 
-  await expectPage(screen, 'Page 1 of 2');
+  await expectPage(screen, 'Page 1 of 2 · 0%');
   await screen.getByRole('button', { name: 'Next page' }).click();
-  await expectPage(screen, 'Page 2 of 2');
+  await expectPage(screen, 'Page 2 of 2 · 50%');
 });
 
 test('a book with no EPUB explains there is nothing to read', async () => {
@@ -189,7 +189,7 @@ test('a book whose manifest cannot be read says so and offers a retry', async ()
   worker.use(...readiumApi());
   await screen.getByRole('button', { name: 'Try again' }).click();
 
-  await expectPage(screen, 'Page 1 of 2');
+  await expectPage(screen, 'Page 1 of 2 · 0%');
 });
 
 test('a lapsed session holds the book until it has been renewed', async () => {
@@ -265,7 +265,7 @@ test('the contents mark the chapter being read, and follow the reader out of it'
   await closeTheContents(screen);
 
   await screen.getByRole('button', { name: 'Next page' }).click();
-  await expectPage(screen, 'Page 2 of 2');
+  await expectPage(screen, 'Page 2 of 2 · 50%');
 
   const reopened = await openTheContents(screen);
   await expect
@@ -347,5 +347,5 @@ test('an arrow key with the contents open does not turn the page behind them', a
   // Settled rather than polled: a turn that got through would land a frame or
   // two later, and an immediate assertion would pass while it was in flight.
   await new Promise((resolve) => setTimeout(resolve, 1_200));
-  await expect.element(screen.getByText('Page 1 of 2')).toBeVisible();
+  await expect.element(screen.getByText('Page 1 of 2 · 0%')).toBeVisible();
 });

@@ -32,6 +32,13 @@ export interface ReaderShellProps {
 /** The width the page-turn buttons need beside the text on anything but a phone. */
 const PAGE_TURN_GUTTER = '48px';
 
+/** Readium's own page gutter is horizontal only, so the air above and below is ours to add. */
+const READING_SURFACE_INSET = 2;
+
+const pageLabel = (page: number, pageCount: number, progression: number | undefined) =>
+  `Page ${page} of ${pageCount}` +
+  (progression === undefined ? '' : ` · ${Math.round(progression * 100)}%`);
+
 const overlaySx: SxProps<Theme> = {
   position: 'fixed',
   inset: 0,
@@ -182,7 +189,7 @@ export const ReaderShell = ({
             </Typography>
             {book.pageCount > 0 && position !== undefined && (
               <Typography variant="body2" noWrap sx={{ color: 'text.secondary' }}>
-                Page {position} of {book.pageCount}
+                {pageLabel(position, book.pageCount, book.location?.locations.totalProgression)}
               </Typography>
             )}
           </Stack>
@@ -206,6 +213,7 @@ export const ReaderShell = ({
           sx={{
             height: '100%',
             px: { xs: 0, sm: PAGE_TURN_GUTTER },
+            py: READING_SURFACE_INSET,
             visibility: isOpen ? 'visible' : 'hidden',
           }}
         />
