@@ -9,6 +9,8 @@ export const ReaderPage = () => {
 
   return (
     <ReaderShell
+      key={bookId}
+      bookId={Number(bookId)}
       title={book?.title ?? ''}
       onClose={() => void navigate({ to: '/book/$bookId', params: { bookId: String(bookId) } })}
     />
