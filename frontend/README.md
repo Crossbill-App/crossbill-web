@@ -27,22 +27,35 @@ Modern React application for managing and viewing book highlights from KOReader.
 ```bash
 # Install dependencies
 npm install
-
-# Copy environment file
-cp .env.example .env
-
-# Update .env with your backend URL if different from default
-# VITE_API_URL=http://localhost:8000
 ```
+
+No `.env` is needed for the standard setup — see
+[Environment Variables](#environment-variables) if you want one.
 
 ### Development
 
 ```bash
+# Start the backend first (from the repo root)
+make dev-app
+
 # Start development server
 npm run dev
 
 # The app will be available at http://localhost:5173
 ```
+
+The dev server proxies `/api` to the backend on `http://localhost:8000`, so the
+app and the API share one origin — `http://localhost:5173`. Nothing in the
+frontend names the backend's host: the API client's base URL is empty and every
+request is relative to the page.
+
+That mirrors production, where FastAPI serves the built frontend and the API
+from the same app. It is a requirement rather than a nicety: the reader loads
+EPUB resources into iframes and scripts them from the parent, which a
+cross-origin document forbids.
+
+If your backend runs somewhere other than port 8000, change the proxy target in
+`vite.config.ts` rather than pointing the frontend across origins.
 
 ### Building
 
@@ -188,11 +201,33 @@ See [claude.md](./claude.md) for detailed development guidelines, including:
 
 ## Environment Variables
 
-Create a `.env` file based on `.env.example`:
+The app reads one variable, and works without it.
 
-```env
-VITE_API_URL=http://localhost:8000
+| Variable       | Default            | Effect                                                                                 |
+| -------------- | ------------------ | -------------------------------------------------------------------------------------- |
+| `VITE_API_URL` | _empty_ (relative) | Absolute origin to send API requests to, e.g. a deployed backend. Overrides the proxy. |
+
+Setting it is an escape hatch, not the normal path. Both development (via the
+`/api` proxy) and production (FastAPI serving the frontend) already put the API
+on the app's own origin, and `VITE_API_URL` takes it back off that origin —
+which breaks the reader's iframes and makes cookie-based token refresh depend on
+the backend's CORS list. Use it only to point a local frontend at a backend
+elsewhere.
+
+To set it, copy the template and uncomment the line:
+
+```bash
+cp .env.example .env
 ```
+
+The single place that decides is `src/api/base-url.ts`, which both the axios
+instance and the cover-image URLs read. The value is compiled into the bundle at
+**build** time: for `npm run dev` that is the moment the server starts, but for
+`npm run preview` the variable must be set when `npm run build` runs.
+
+Tests never see it. `vitest.config.ts` sets `envPrefix: []`, so no environment
+variable reaches `import.meta.env` during a test run, and `tests/setup.ts`
+throws if one does.
 
 ## Troubleshooting
 
