@@ -125,20 +125,6 @@ export const ReaderSettings = ({
         onChange={(fontSize) => onChange({ ...preferences, fontSize })}
       />
       <ChoiceSection
-        heading="Spacing"
-        options={READER_SPACINGS}
-        labels={READER_SPACING_LABELS}
-        value={preferences.spacing}
-        onSelect={(spacing) => onChange({ ...preferences, spacing })}
-      />
-      <ChoiceSection
-        heading="Page colour"
-        options={READER_PAGE_COLORS}
-        labels={READER_PAGE_COLOR_LABELS}
-        value={preferences.pageColor}
-        onSelect={(pageColor) => onChange({ ...preferences, pageColor })}
-      />
-      <ChoiceSection
         heading="Text alignment"
         options={READER_ALIGNMENTS}
         labels={READER_ALIGNMENT_LABELS}
@@ -146,11 +132,25 @@ export const ReaderSettings = ({
         onSelect={(alignment) => onChange({ ...preferences, alignment })}
       />
       <ChoiceSection
+        heading="Spacing"
+        options={READER_SPACINGS}
+        labels={READER_SPACING_LABELS}
+        value={preferences.spacing}
+        onSelect={(spacing) => onChange({ ...preferences, spacing })}
+      />
+      <ChoiceSection
         heading="Columns"
         options={READER_COLUMNS}
         labels={READER_COLUMN_LABELS}
         value={preferences.columns}
         onSelect={(columns) => onChange({ ...preferences, columns })}
+      />
+      <ChoiceSection
+        heading="Page colour"
+        options={READER_PAGE_COLORS}
+        labels={READER_PAGE_COLOR_LABELS}
+        value={preferences.pageColor}
+        onSelect={(pageColor) => onChange({ ...preferences, pageColor })}
       />
     </Stack>
   </Popover>
