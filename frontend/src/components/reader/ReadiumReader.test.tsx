@@ -19,6 +19,8 @@ const MANIFEST_URL = `${window.location.origin}/api/v1/readium/books/1/manifest.
 const AN_APPEARANCE: EbookAppearance = {
   fontSize: 1,
   lineHeight: null,
+  paragraphSpacing: null,
+  paragraphIndent: null,
   textAlign: null,
   columnCount: 1,
   pageBackgroundColor: '#fafaf9',
@@ -113,6 +115,8 @@ test('setAppearance reaches a book already on screen', async () => {
   await reader.setAppearance({
     fontSize: 1.5,
     lineHeight: 1.8,
+    paragraphSpacing: 1,
+    paragraphIndent: 1.5,
     textAlign: 'justify',
     columnCount: null,
     pageBackgroundColor: '#1c1917',
@@ -121,6 +125,8 @@ test('setAppearance reaches a book already on screen', async () => {
 
   await expect.poll(() => userProperty('textAlign')).toBe('justify');
   await expect.poll(() => userProperty('lineHeight')).toBe('1.8');
+  await expect.poll(() => userProperty('paraSpacing')).toBe('1rem');
+  await expect.poll(() => userProperty('paraIndent')).toBe('1.5rem');
   await expect.poll(() => userProperty('backgroundColor')).toBe('#1c1917');
   await expect.poll(() => userProperty('textColor')).toBe('#f5f5f4');
   await expect.poll(() => userProperty('fontSize')).toBe('150%');

@@ -94,6 +94,8 @@ test("the book is opened with the reader's appearance", async () => {
   expect(readers[0].openedWith[0].appearance).toEqual({
     fontSize: 1,
     lineHeight: null,
+    paragraphSpacing: null,
+    paragraphIndent: null,
     textAlign: null,
     columnCount: 1,
     // The light page is the app's own off-white rather than publisher white.
@@ -356,12 +358,18 @@ test('a size being typed reaches the book only once it is committed', async () =
   expect(fontSizes()).toEqual([1.5]);
 });
 
-test('a line height chosen in the popover reaches the engine', async () => {
+test('a spacing chosen in the popover reaches the engine', async () => {
   const screen = await anOpenAppearance();
 
   await screen.getByRole('button', { name: 'Tight' }).click();
 
-  expect(readers[0].appearances.map((appearance) => appearance.lineHeight)).toEqual([1.2]);
+  expect(readers[0].appearances).toHaveLength(1);
+  expect(readers[0].appearances[0]).toMatchObject({
+    lineHeight: 1.2,
+    // Tight squeezes the lines and leaves the paragraph breaks as the book set them.
+    paragraphSpacing: null,
+    paragraphIndent: null,
+  });
 });
 
 test('a page colour chosen in the popover reaches the engine', async () => {

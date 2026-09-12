@@ -4,10 +4,10 @@ import {
   READER_ALIGNMENTS,
   READER_COLUMN_LABELS,
   READER_COLUMNS,
-  READER_LINE_HEIGHT_LABELS,
-  READER_LINE_HEIGHTS,
   READER_PAGE_COLOR_LABELS,
   READER_PAGE_COLORS,
+  READER_SPACING_LABELS,
+  READER_SPACINGS,
   type ReaderPreferences,
 } from '@/components/reader/readerPreferences.ts';
 import { SectionTitle } from '@/components/typography/SectionTitle.tsx';
@@ -125,11 +125,11 @@ export const ReaderSettings = ({
         onChange={(fontSize) => onChange({ ...preferences, fontSize })}
       />
       <ChoiceSection
-        heading="Line height"
-        options={READER_LINE_HEIGHTS}
-        labels={READER_LINE_HEIGHT_LABELS}
-        value={preferences.lineHeight}
-        onSelect={(lineHeight) => onChange({ ...preferences, lineHeight })}
+        heading="Spacing"
+        options={READER_SPACINGS}
+        labels={READER_SPACING_LABELS}
+        value={preferences.spacing}
+        onSelect={(spacing) => onChange({ ...preferences, spacing })}
       />
       <ChoiceSection
         heading="Page colour"

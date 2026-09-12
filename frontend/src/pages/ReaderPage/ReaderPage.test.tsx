@@ -387,9 +387,9 @@ const aBookWithItsAppearanceOpen = async () => {
   return screen;
 };
 
-/** One line-height option, scoped past the alignment section's own "Default". */
-const lineHeightOption = (screen: Screen, name: string) =>
-  screen.getByRole('group', { name: 'Line height' }).getByRole('button', { name });
+/** One spacing option, scoped past the alignment section's own "Default". */
+const spacingOption = (screen: Screen, name: string) =>
+  screen.getByRole('group', { name: 'Spacing' }).getByRole('button', { name });
 
 /** The reader's own frame: the fixed overlay its chrome and the book sit in. */
 const readerFrame = (screen: Screen) => {
@@ -439,27 +439,33 @@ test('a justified alignment reaches the words on the page', async () => {
   await expect.poll(() => userProperty('textAlign')).toBe('justify');
 });
 
-test('a line height the reader chooses reaches the words on the page', async () => {
+test('a looser spacing reaches the words on the page', async () => {
   worker.use(...aReadableBook());
   worker.use(...readiumApi());
   const screen = await openTheBook();
   // The default says nothing at all, which is what leaves the book's own spacing.
   expect(userProperty('lineHeight')).toBe('');
+  expect(userProperty('paraSpacing')).toBe('');
+  expect(userProperty('paraIndent')).toBe('');
   await openTheAppearance(screen);
 
-  await lineHeightOption(screen, 'Loose').click();
+  await spacingOption(screen, 'Loose').click();
 
   await expect.poll(() => userProperty('lineHeight')).toBe('1.8');
+  await expect.poll(() => userProperty('paraSpacing')).toBe('1rem');
+  await expect.poll(() => userProperty('paraIndent')).toBe('1.5rem');
 });
 
-test('a line height set back to default gives the book its own spacing again', async () => {
+test('a spacing set back to default gives the book its own again', async () => {
   const screen = await aBookWithItsAppearanceOpen();
-  await lineHeightOption(screen, 'Loose').click();
+  await spacingOption(screen, 'Loose').click();
   await expect.poll(() => userProperty('lineHeight')).toBe('1.8');
 
-  await lineHeightOption(screen, 'Default').click();
+  await spacingOption(screen, 'Default').click();
 
   await expect.poll(() => userProperty('lineHeight')).toBe('');
+  await expect.poll(() => userProperty('paraSpacing')).toBe('');
+  await expect.poll(() => userProperty('paraIndent')).toBe('');
 });
 
 test('the automatic column count gives a wide page two columns', async () => {

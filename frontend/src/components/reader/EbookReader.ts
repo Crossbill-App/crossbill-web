@@ -48,6 +48,10 @@ export interface EbookAppearance {
   fontSize: number;
   /** A multiplier on the font size; `null` leaves the book's own spacing alone. */
   lineHeight: number | null;
+  /** The gap between paragraphs in rem; `null` leaves the book's own alone. */
+  paragraphSpacing: number | null;
+  /** The indent of a paragraph's first line in rem; `null` leaves the book's own alone. */
+  paragraphIndent: number | null;
   /** `null` says nothing at all, leaving the book's own stylesheet in charge. */
   textAlign: 'start' | 'justify' | null;
   /** `null` fits as many columns as the width allows. */

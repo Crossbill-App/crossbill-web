@@ -9,10 +9,10 @@ export const READER_PAGE_COLOR_LABELS: Record<ReaderPageColor, string> = {
   dark: 'Dark',
 };
 
-/** How far apart the lines are set, `default` leaving the book's own spacing alone. */
-export const READER_LINE_HEIGHTS = ['tight', 'default', 'loose'] as const;
-type ReaderLineHeight = (typeof READER_LINE_HEIGHTS)[number];
-export const READER_LINE_HEIGHT_LABELS: Record<ReaderLineHeight, string> = {
+/** How far apart the text is set, `default` leaving the book's own spacing alone. */
+export const READER_SPACINGS = ['tight', 'default', 'loose'] as const;
+type ReaderSpacing = (typeof READER_SPACINGS)[number];
+export const READER_SPACING_LABELS: Record<ReaderSpacing, string> = {
   tight: 'Tight',
   default: 'Default',
   loose: 'Loose',
@@ -38,7 +38,7 @@ export const READER_COLUMN_LABELS: Record<ReaderColumns, string> = {
 export interface ReaderPreferences {
   pageColor: ReaderPageColor;
   fontSize: number;
-  lineHeight: ReaderLineHeight;
+  spacing: ReaderSpacing;
   alignment: ReaderAlignment;
   columns: ReaderColumns;
 }
@@ -46,15 +46,20 @@ export interface ReaderPreferences {
 export const DEFAULT_READER_PREFERENCES: ReaderPreferences = {
   pageColor: 'light',
   fontSize: 1,
-  lineHeight: 'default',
+  spacing: 'default',
   alignment: 'default',
   columns: 'single',
 };
 
-const LINE_HEIGHTS: Record<ReaderLineHeight, EbookAppearance['lineHeight']> = {
-  tight: 1.2,
-  default: null,
-  loose: 1.8,
+// Tight leaves the paragraph breaks alone rather than closing them to 0: a book
+// that separates its paragraphs by spacing alone would run them together.
+const SPACINGS: Record<
+  ReaderSpacing,
+  Pick<EbookAppearance, 'lineHeight' | 'paragraphSpacing' | 'paragraphIndent'>
+> = {
+  tight: { lineHeight: 1.2, paragraphSpacing: null, paragraphIndent: null },
+  default: { lineHeight: null, paragraphSpacing: null, paragraphIndent: null },
+  loose: { lineHeight: 1.8, paragraphSpacing: 1, paragraphIndent: 1.5 },
 };
 
 // `left` is `start`: in a right-to-left book the ragged edge belongs on the
@@ -77,7 +82,7 @@ export const toEbookAppearance = (
   const colors = readerPageColors(theme, preferences.pageColor);
   return {
     fontSize: preferences.fontSize,
-    lineHeight: LINE_HEIGHTS[preferences.lineHeight],
+    ...SPACINGS[preferences.spacing],
     textAlign: TEXT_ALIGNMENTS[preferences.alignment],
     columnCount: preferences.columns === 'single' ? 1 : null,
     pageBackgroundColor: colors.background,
