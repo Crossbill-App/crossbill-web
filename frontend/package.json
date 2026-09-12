@@ -58,7 +58,7 @@
     "eslint-plugin-react-hooks": "^7.1.1",
     "eslint-plugin-react-refresh": "^0.5.3",
     "globals": "^17.0.0",
-    "jscpd": "^5.0.14",
+    "jscpd": "^5.1.2",
     "knip": "^6.31.0",
     "msw": "^2.15.0",
     "orval": "8.23.0",
