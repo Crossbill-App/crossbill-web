@@ -14,6 +14,11 @@ from src.application.reading.protocols.highlight_repository import (
 from src.application.reading.protocols.reading_session_repository import (
     ReadingSessionRepositoryProtocol,
 )
+from src.application.web_reader.protocols.position_anchor_service import (
+    PositionAnchorServiceProtocol,
+)
+from src.application.web_reader.publications import epub_content_hash
+from src.application.web_reader.session_endpoints import endpoint_xpoints, paired_by_session
 from src.config import get_settings
 from src.domain.common.exceptions import DomainError
 from src.domain.common.value_objects import (
@@ -44,6 +49,9 @@ class ReadingSessionUploadData:
     device_id: str | None = None
 
 
+type _SessionWithPositions = tuple[ReadingSessionUploadData, Position | None, Position | None]
+
+
 @dataclass
 class ReadingSessionUploadResult:
     """Result of upload operation."""
@@ -63,12 +71,14 @@ class ReadingSessionUploadUseCase:
         book_repository: BookRepositoryProtocol,
         highlight_repository: HighlightRepositoryProtocol,
         position_index_service: PositionIndexServiceProtocol,
+        position_anchor_service: PositionAnchorServiceProtocol,
         file_repository: FileRepositoryProtocol,
     ) -> None:
         self.session_repository = session_repository
         self.book_repository = book_repository
         self.highlight_repository = highlight_repository
         self.position_index_service = position_index_service
+        self._position_anchor_service = position_anchor_service
         self.file_repository = file_repository
 
         settings = get_settings()
@@ -91,6 +101,7 @@ class ReadingSessionUploadUseCase:
         5. Bulk creates via repository
         6. Links highlights to created sessions
         7. Commits transaction
+        8. Derives and stores a Readium Locator for both endpoints of each session
 
         Args:
             client_book_id: Client-provided book identifier
@@ -117,7 +128,8 @@ class ReadingSessionUploadUseCase:
             )
             raise BookNotFoundError(client_book_id)
 
-        # Build position index if EPUB
+        # The bytes outlive the index: the locators below are derived from them too
+        epub_content = None
         position_index = None
         if book.file_type == "epub" and book.ebook_file:
             epub_content = await self.file_repository.get_epub(book.ebook_file)
@@ -132,35 +144,9 @@ class ReadingSessionUploadUseCase:
                 await self.book_repository.save(book)
 
         # Resolve positions for all sessions upfront
-        sessions_with_positions: list[
-            tuple[ReadingSessionUploadData, Position | None, Position | None]
-        ] = [(s, *self._resolve_positions(s, position_index)) for s in sessions]
-
-        # Filter sessions where start and end are at the same position
-        initial_count = len(sessions_with_positions)
-        sessions_with_positions = [
-            (s, sp, ep)
-            for s, sp, ep in sessions_with_positions
-            if sp != ep  # Use positions when resolved
-            or (  # Fall back to raw comparison when positions not resolved
-                sp is None
-                and ep is None
-                and (s.start_xpoint != s.end_xpoint or s.start_page != s.end_page)
-            )
-        ]
-        filtered_same_points = initial_count - len(sessions_with_positions)
-        if filtered_same_points > 0:
-            logger.debug(
-                "filtered_sessions_with_same_start_end",
-                filtered_count=filtered_same_points,
-            )
-
-        # Filter out sessions shorter than minimum duration
-        sessions_with_positions = [
-            (s, sp, ep)
-            for s, sp, ep in sessions_with_positions
-            if (s.end_time - s.start_time).total_seconds() >= self.min_duration
-        ]
+        sessions_with_positions = self._worth_storing(
+            [(s, *self._resolve_positions(s, position_index)) for s in sessions]
+        )
 
         # Create domain entities
         domain_sessions: list[ReadingSession] = []
@@ -229,6 +215,9 @@ class ReadingSessionUploadUseCase:
                 session_count=len(result.created_sessions),
             )
 
+        # Step 8: one parse for the whole sync, covering both endpoints of every session
+        await self._store_locators(epub_content, result.created_sessions, book.id)
+
         # Last, so the stamp says the push landed rather than that it was attempted
         book.mark_as_synced()
         await self.book_repository.save(book)
@@ -247,6 +236,29 @@ class ReadingSessionUploadUseCase:
             linked_highlights_count=linked_count,
         )
 
+    def _worth_storing(self, sessions: list[_SessionWithPositions]) -> list[_SessionWithPositions]:
+        moved = [
+            (s, sp, ep)
+            for s, sp, ep in sessions
+            if sp != ep  # Use positions when resolved
+            or (  # Fall back to raw comparison when positions not resolved
+                sp is None
+                and ep is None
+                and (s.start_xpoint != s.end_xpoint or s.start_page != s.end_page)
+            )
+        ]
+        if filtered_same_points := len(sessions) - len(moved):
+            logger.debug(
+                "filtered_sessions_with_same_start_end",
+                filtered_count=filtered_same_points,
+            )
+
+        return [
+            (s, sp, ep)
+            for s, sp, ep in moved
+            if (s.end_time - s.start_time).total_seconds() >= self.min_duration
+        ]
+
     def _resolve_positions(
         self,
         session: ReadingSessionUploadData,
@@ -259,6 +271,38 @@ class ReadingSessionUploadUseCase:
                 position_index.resolve(session.end_xpoint),
             )
         return (None, None)
+
+    async def _store_locators(
+        self,
+        epub_content: bytes | None,
+        sessions: list[ReadingSession],
+        book_id: BookId,
+    ) -> None:
+        """Derive a caret Locator for both endpoints of every placed session and store them.
+
+        Contained on purpose: ``/reading_sessions/sync`` is plugin-only surface,
+        so a locator that will not derive is a null column, never a failed sync.
+        """
+        if not epub_content:
+            return
+
+        points = endpoint_xpoints(sessions)
+        if not points:
+            return
+
+        try:
+            locators = await self._position_anchor_service.locators_for_xpoints(
+                epub_content, points
+            )
+            await self.session_repository.bulk_update_locators(
+                paired_by_session(points, locators), epub_content_hash(epub_content)
+            )
+        except Exception:
+            logger.exception(
+                "reading_session_locator_derivation_failed",
+                book_id=book_id.value,
+                count=len(points) // 2,
+            )
 
     async def _link_highlights_to_sessions(
         self,

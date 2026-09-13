@@ -2,7 +2,6 @@
 
 # pyright: reportPrivateUsage=false
 
-import hashlib
 import logging
 import mimetypes
 import posixpath
@@ -21,6 +20,7 @@ from src.application.web_reader.publications import (
     PublicationMetadata,
     PublicationResource,
     TocEntry,
+    epub_content_hash,
 )
 from src.domain.library.exceptions import InvalidEbookError
 from src.infrastructure.common.zip_members import read_bounded_member
@@ -150,7 +150,7 @@ def read_publication(epub_content: bytes) -> ParsedPublication:
         reading_order=reading_order,
         resources=resources,
         toc=toc,
-        content_hash=hashlib.sha256(epub_content).hexdigest(),
+        content_hash=epub_content_hash(epub_content),
     )
 
 

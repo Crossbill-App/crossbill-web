@@ -1,9 +1,10 @@
 """SQLAlchemy ORM model for reading sessions."""
 
 from datetime import datetime as dt
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 from sqlalchemy import DateTime, ForeignKey, String, Text, UniqueConstraint, func
+from sqlalchemy.dialects.postgresql import JSONB as PG_JSONB
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from sqlalchemy.types import JSON
 
@@ -36,6 +37,13 @@ class ReadingSession(Base):
     end_page: Mapped[int | None] = mapped_column(nullable=True)
     start_position: Mapped[list[int] | None] = mapped_column(JSON, nullable=True)
     end_position: Mapped[list[int] | None] = mapped_column(JSON, nullable=True)
+    start_locator: Mapped[dict[str, Any] | None] = mapped_column(
+        JSON().with_variant(PG_JSONB, "postgresql"), nullable=True
+    )
+    end_locator: Mapped[dict[str, Any] | None] = mapped_column(
+        JSON().with_variant(PG_JSONB, "postgresql"), nullable=True
+    )
+    locator_source_hash: Mapped[str | None] = mapped_column(String(64), nullable=True)
     device_id: Mapped[str | None] = mapped_column(String(100), nullable=True)
     content_hash: Mapped[str] = mapped_column(
         String(64), nullable=False, index=True

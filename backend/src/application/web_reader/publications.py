@@ -14,8 +14,18 @@ name a resource the manifest also lists. What says where the publication is
 renders these values as a manifest.
 """
 
+import hashlib
 from dataclasses import dataclass
 from enum import StrEnum
+
+
+def epub_content_hash(content: bytes) -> str:
+    """The digest naming the EPUB a derived value was built from.
+
+    The same function answers ``book_publications.content_hash``, because
+    staleness is decided by comparing the two (ADR-0004, *Amendment 6*).
+    """
+    return hashlib.sha256(content).hexdigest()
 
 
 class PublicationLayout(StrEnum):

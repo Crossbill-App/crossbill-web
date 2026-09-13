@@ -44,6 +44,7 @@ class LibraryContainer(containers.DeclarativeContainer):
     epub_position_index_service = providers.Dependency()
     cover_image_service = providers.Dependency()
     publication_repository = providers.Dependency()
+    backfill_book_locators_use_case = providers.Dependency()
 
     # Read models: the query adapters (port implementations) plus the read use
     # cases that routers call, mirroring how commands are exposed.
@@ -63,6 +64,7 @@ class LibraryContainer(containers.DeclarativeContainer):
         session_repository=reading_session_repository,
         publication_parser=epub_parser_service,
         publication_repository=publication_repository,
+        backfill_book_locators_use_case=backfill_book_locators_use_case,
     )
     ebook_deletion_use_case = providers.Factory(
         EbookDeletionUseCase,

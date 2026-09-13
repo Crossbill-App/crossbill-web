@@ -1,5 +1,8 @@
 from dependency_injector import containers, providers
 
+from src.application.web_reader.commands.backfill_book_locators_use_case import (
+    BackfillBookLocatorsUseCase,
+)
 from src.application.web_reader.commands.start_publication_session_use_case import (
     StartPublicationSessionUseCase,
 )
@@ -22,6 +25,17 @@ class WebReaderContainer(containers.DeclarativeContainer):
     publication_parser = providers.Dependency()
     publication_resource_query = providers.Dependency()
     publication_token_service = providers.Dependency()
+    highlight_repository = providers.Dependency()
+    reading_session_repository = providers.Dependency()
+    position_anchor_service = providers.Dependency()
+
+    # Ingest rather than a read: driven by the library module's EPUB upload, and by #841's worker
+    backfill_book_locators_use_case = providers.Factory(
+        BackfillBookLocatorsUseCase,
+        highlight_repository=highlight_repository,
+        session_repository=reading_session_repository,
+        position_anchor_service=position_anchor_service,
+    )
 
     # Read models
     get_publication_use_case = providers.Factory(
