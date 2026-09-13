@@ -21,13 +21,11 @@ from src.domain.common.value_objects.ids import BookId, HighlightId, UserId
 class LocatorUnavailable(StrEnum):
     """Why a highlight has no locator, in terms a client can act on.
 
-    Attributes:
-        NO_EBOOK: The book has no stored publication. It cannot be opened in the
-            reader at all, so no highlight in it can be placed, and nothing is
-            wrong with any of them.
-        UNRESOLVED: This one highlight has no locator against the book's current
-            EPUB -- none was ever derived, or the stored one belongs to a file
-            the book no longer holds.
+    ``no_ebook`` is the book's problem: it has no stored publication, so it
+    cannot be opened in the reader at all and nothing is wrong with any of its
+    highlights. ``unresolved`` is this one highlight's -- no locator was ever
+    derived for it, or the stored one belongs to a file the book no longer
+    holds.
     """
 
     NO_EBOOK = "no_ebook"
