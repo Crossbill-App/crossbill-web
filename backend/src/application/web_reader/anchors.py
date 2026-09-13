@@ -14,7 +14,7 @@ adapter, and swapping the library out would not change this module.
 """
 
 from dataclasses import dataclass, field
-from enum import IntEnum
+from enum import IntEnum, StrEnum
 from typing import Any
 
 from src.domain.common.value_objects.xpoint import XPointRange
@@ -72,6 +72,14 @@ class AnchorConfidence(IntEnum):
     BOTH_CONTEXTS = 4
 
 
+class AnchorSource(StrEnum):
+    """What evidence a Locator supplied for finding its position."""
+
+    QUOTE = "quote"
+    ELEMENT = "element"
+    PROGRESSION = "progression"
+
+
 @dataclass(frozen=True)
 class LocatorText:
     """A Locator's text quote: the anchored text and what surrounds it.
@@ -101,10 +109,12 @@ class LocatorLocations:
             estimates reading progress rather than rendered layout.
         css_selector: A ``querySelector``-resolvable selector for the enclosing
             element. Serialized as ``cssSelector``.
+        fragments: Fragment identifiers naming enclosing elements.
     """
 
     progression: float | None = None
     css_selector: str | None = None
+    fragments: tuple[str, ...] = ()
 
     def to_dict(self) -> dict[str, object]:
         """Serialize to the Readium JSON shape, omitting unset fields."""
@@ -113,6 +123,8 @@ class LocatorLocations:
             out["progression"] = self.progression
         if self.css_selector is not None:
             out["cssSelector"] = self.css_selector
+        if self.fragments:
+            out["fragments"] = list(self.fragments)
         return out
 
 
@@ -158,6 +170,7 @@ class Locator:
             locations=LocatorLocations(
                 progression=locations.get("progression"),
                 css_selector=locations.get("cssSelector"),
+                fragments=tuple(locations.get("fragments", ())),
             ),
             text=LocatorText(
                 before=text.get("before"),
@@ -176,7 +189,10 @@ class AnchorMatch:
             stored, if the caller trusts the confidence.
         confidence: How much evidence backed the match. Nothing is filtered on
             it here; a caller that stores the range sets its own floor.
+        anchored_by: Which evidence placed the match. Set explicitly rather than
+            defaulted, so a caller cannot be handed a plausible lie.
     """
 
     xpoints: XPointRange
     confidence: AnchorConfidence
+    anchored_by: AnchorSource
