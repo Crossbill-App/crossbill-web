@@ -24,6 +24,23 @@ class ReadingSessionRepositoryProtocol(Protocol):
         self, book_id: BookId, user_id: UserId, limit: int, offset: int
     ) -> list[ReadingSession]: ...
 
+    async def find_by_id(
+        self, session_id: ReadingSessionId, user_id: UserId
+    ) -> ReadingSession | None:
+        """Return one of the user's sessions, or ``None`` if they have no such session."""
+        ...
+
+    async def save(self, session: ReadingSession) -> ReadingSession:
+        """Insert a session, or update the one it already is.
+
+        Returns the session with its real id, which the caller must use: the one
+        passed in keeps the placeholder, and saving that again inserts a second row.
+
+        Raises:
+            ReadingSessionNotFoundError: If the session names a row that is gone.
+        """
+        ...
+
     async def bulk_update_positions(
         self,
         position_updates: list[tuple[ReadingSessionId, Position, Position]],

@@ -2,16 +2,19 @@
 ReadingSession aggregate root.
 """
 
+from contextlib import suppress
 from dataclasses import dataclass, field
 from datetime import datetime
 
 from src.domain.common.aggregate_root import AggregateRoot
 from src.domain.common.exceptions import DomainError
+from src.domain.common.time import as_aware
 from src.domain.common.value_objects import (
     BookId,
     ContentHash,
     ReadingSessionId,
     UserId,
+    XPoint,
     XPointRange,
 )
 from src.domain.common.value_objects.position import Position
@@ -58,7 +61,9 @@ class ReadingSession(AggregateRoot[ReadingSessionId]):
 
     def __post_init__(self) -> None:
         """Validate invariants."""
-        if self.end_time < self.start_time:
+        # Read as instants, because a session extended in place carries an end time from
+        # the server's clock beside a start time the store handed back without a zone.
+        if as_aware(self.end_time) < as_aware(self.start_time):
             raise DomainError("End time must be after start time")
 
         if self.start_page is not None and self.end_page is not None:
@@ -117,3 +122,40 @@ class ReadingSession(AggregateRoot[ReadingSessionId]):
             device_id=device_id,
             _highlight_ids=[],
         )
+
+    def extend_to(
+        self,
+        moment: datetime,
+        xpoint: XPoint | None = None,
+        position: Position | None = None,
+        page: int | None = None,
+    ) -> None:
+        """Carry an ongoing session forward to where the reader now is.
+
+        The end time only ever moves forward: a write that overtook another can
+        offer an earlier moment, and taking it would shorten a session that really
+        did run that long. ``end_position`` becomes where the reader *is*, since
+        reading progress is read from it; the ranges keep the furthest reached,
+        which for the xpoints means the furthest chapter -- ``XPoint`` has no
+        ordering finer than that to refuse a backward move with.
+        """
+        if as_aware(moment) < as_aware(self.start_time):
+            raise DomainError("A reading session cannot be extended to before it started")
+
+        self.end_time = max(as_aware(self.end_time), as_aware(moment))
+
+        if position is not None:
+            self.end_position = position
+
+        if page is not None:
+            if self.start_page is None:
+                self.start_page = page
+            self.end_page = page if self.end_page is None else max(self.end_page, page)
+
+        if xpoint is not None and self.start_xpoint is not None:
+            # Ranged from the end rather than the start, so the refusal that leaves the
+            # range alone is "behind where the reader has already been" rather than the
+            # far weaker "behind where the sitting opened".
+            with suppress(ValueError):
+                reached = XPointRange(start=self.start_xpoint.end, end=xpoint)
+                self.start_xpoint = XPointRange(start=self.start_xpoint.start, end=reached.end)
