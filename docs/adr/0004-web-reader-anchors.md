@@ -941,10 +941,24 @@ rule, no content-hash cache key and no fan-out for an upload to remember.
 
 Amendment 5's own numbers are why a batch is enough where a cache was not.
 Parsing is ~1 ms, and the worst book converted in 533 ms warm against 531 ms
-cold: what the cache amortised was the cheap half, and a batch amortises exactly
-the same 1 ms across the same rows. The expensive half is per highlight,
-amortises against nothing, and leaves the read path by being stored rather than
-by being cached.
+cold: what the cache amortised was the cheap half, and a batch amortises the
+same across the same rows. The expensive half is per highlight, amortises
+against nothing, and leaves the read path by being stored rather than by being
+cached.
+
+**Measured again while building #828, and the batch is worth more than "~1 ms"
+suggests.** `EpubMap.from_bytes` is lazy: it reads the container and the package
+document in 0.3-1.0 ms and defers each spine document's lxml parse to
+`book.doc(n)`, which the map then holds. So a batch amortises both the archive
+open *and* every document parse its rows touch, where a per-row call would
+repeat both. Across the 11 EPUBs in `backend/book-files/epubs`, 40 paragraphs of
+one book convert 1.2x-6.5x faster batched than with a fresh map per row — worst
+case 104 ms unbatched against 19 ms. The spread is the rows' own doing: 40 rows
+spread evenly over a twenty-document book leave the batch parsing nearly a
+document per row, while rows clustered in a few documents amortise properly, and
+a whole book's rows — many more of them than it has documents — cluster. None of
+it changes the decision — it is the same conclusion with more margin — but "the
+cache amortised ~1 ms" understates what the seam is actually for.
 
 ### Null is a real answer
 
