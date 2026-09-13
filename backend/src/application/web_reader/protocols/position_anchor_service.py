@@ -1,19 +1,19 @@
-"""Port for deriving Readium Locators from the canonical stored xpointers."""
+"""Port between the canonical stored xpointers and the web reader's Locators."""
 
 from collections.abc import Hashable, Mapping
 from typing import Protocol
 
-from src.application.web_reader.anchors import Locator
+from src.application.web_reader.anchors import AnchorMatch, Locator
 from src.domain.common.value_objects.xpoint import XPoint, XPointRange
 
 
 class PositionAnchorServiceProtocol(Protocol):
-    """Derives a book's Readium Locators from its stored xpointers, a batch at a time.
+    """Converts a book's positions between stored xpointers and Readium Locators.
 
-    Every caller is an ingest loop over one book's rows and already holds the
-    EPUB bytes, so the unit of work is a mapping converted against a single
-    parse (ADR-0004, *Amendment 6*). A caller with one position passes a
-    one-entry mapping.
+    Deriving Locators, every caller is an ingest loop over one book's rows and
+    already holds the EPUB bytes, so the unit of work is a mapping converted
+    against a single parse (ADR-0004, *Amendment 6*). A caller with one position
+    passes a one-entry mapping.
 
     Keys are the caller's own and come back unchanged: a highlight id, or a
     ``(session_id, "start")`` pair so both ends of a session cost one parse.
@@ -45,5 +45,35 @@ class PositionAnchorServiceProtocol(Protocol):
 
         Raises:
             AnchorResolutionError: If the archive itself cannot be read.
+        """
+        ...
+
+    async def xpoint_range_for_locator(self, epub_content: bytes, locator: Locator) -> AnchorMatch:
+        """Resolve one browser-made Locator back to the canonical coordinates.
+
+        One at a time, not a batch: the write path converts the single selection
+        a reader just made. The match is **graded, not filtered** -- a caller
+        that stores the range must check ``confidence`` against a floor of its
+        own first (ADR-0004 §5).
+
+        Raises:
+            AnchorNotFoundError: If a readable EPUB does not hold the place the
+                Locator names -- no such resource, the quote nowhere to be
+                found, or no text to search by at all. That last is the ordinary
+                shape of a reading position, and synthesising a quote for one is
+                #830's.
+            AnchorResolutionError: If the EPUB itself cannot be read.
+        """
+        ...
+
+    def verify_locator(self, locator: Locator, expected_text: str) -> bool:
+        """Report whether a Locator's quote is the text that was stored.
+
+        Synchronous and EPUB-free: a Locator's ``text.highlight`` was read out of
+        the document when the Locator was built, so this is a comparison rather
+        than a second pass. Whitespace and soft hyphens do not count against a
+        match -- crengine keeps soft hyphens in its DOM text and strips them from
+        the highlight text it exports, so the two differ cosmetically on anything
+        hyphenated.
         """
         ...
