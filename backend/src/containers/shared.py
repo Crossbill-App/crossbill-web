@@ -88,6 +88,9 @@ from src.infrastructure.web_reader.repositories.publication_repository import (
 from src.infrastructure.web_reader.services.publication_token_service_adapter import (
     PublicationTokenServiceAdapter,
 )
+from src.infrastructure.web_reader.services.xpoint_cfi_position_anchor_service import (
+    XPointCfiPositionAnchorService,
+)
 
 
 def _create_s3_file_repository(settings: Any) -> S3FileRepository:  # noqa: ANN401
@@ -139,6 +142,7 @@ class SharedContainer(containers.DeclarativeContainer):
     # Infrastructure services (no db dependency)
     epub_parser_service = providers.Factory(EpubParserService)
     epub_position_index_service = providers.Factory(EpubPositionIndexService)
+    position_anchor_service = providers.Factory(XPointCfiPositionAnchorService)
     ebook_text_extraction_service = providers.Factory(EpubTextExtractionService)
     cover_image_service = providers.Factory(CoverImageService)
 

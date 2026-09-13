@@ -91,6 +91,7 @@ class ReadingContainer(containers.DeclarativeContainer):
     highlight_deduplication_service = providers.Dependency()
     label_resolution_service = providers.Dependency()
     epub_position_index_service = providers.Dependency()
+    position_anchor_service = providers.Dependency()
     ebook_text_extraction_service = providers.Dependency()
     ai_service = providers.Dependency()
     embedding_enqueuer = providers.Dependency()
@@ -142,6 +143,7 @@ class ReadingContainer(containers.DeclarativeContainer):
         chapter_repository=chapter_repository,
         deduplication_service=highlight_deduplication_service,
         position_index_service=epub_position_index_service,
+        position_anchor_service=position_anchor_service,
         file_repository=file_repository,
         highlight_style_repository=highlight_style_repository,
         embedding_enqueuer=embedding_enqueuer,

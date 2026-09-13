@@ -63,6 +63,7 @@ class RootContainer(containers.DeclarativeContainer):
         highlight_deduplication_service=shared.highlight_deduplication_service,
         label_resolution_service=shared.label_resolution_service,
         epub_position_index_service=shared.epub_position_index_service,
+        position_anchor_service=shared.position_anchor_service,
         ebook_text_extraction_service=shared.ebook_text_extraction_service,
         ai_service=shared.ai_service,
         book_statistics_query=shared.book_statistics_query,

@@ -6,6 +6,7 @@ Uses HighlightMapper internally for conversions.
 """
 
 import logging
+from collections.abc import Mapping
 from datetime import UTC, datetime
 
 from sqlalchemy import delete, select, update
@@ -14,6 +15,7 @@ from sqlalchemy.orm import joinedload, selectinload
 from sqlalchemy.orm.attributes import InstrumentedAttribute
 
 from src.application.reading.protocols.highlight_repository import DeviceEdit
+from src.application.web_reader.anchors import Locator
 from src.domain.common.value_objects import (
     BookId,
     ContentHash,
@@ -335,6 +337,36 @@ class HighlightRepository:
         )
         await self.db.commit()
         return len(placements)
+
+    async def bulk_update_locators(
+        self, locators: Mapping[HighlightId, Locator | None], source_hash: str
+    ) -> None:
+        """Write the derived Locator and its source digest onto stored highlights.
+
+        Alone among this class's writes, a failure here is rolled back before it
+        is re-raised: the caller carries on after one, and an uncleared failed
+        statement would fail its next one instead.
+        """
+        if not locators:
+            return
+
+        try:
+            await self.db.execute(
+                update(HighlightORM),
+                [
+                    {
+                        "id": highlight_id.value,
+                        "locator": locator.to_dict() if locator else None,
+                        "locator_confidence": None,
+                        "locator_source_hash": source_hash,
+                    }
+                    for highlight_id, locator in locators.items()
+                ],
+            )
+            await self.db.commit()
+        except Exception:
+            await self.db.rollback()
+            raise
 
     async def mark_removed_from_devices(
         self,

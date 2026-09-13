@@ -1,9 +1,19 @@
 """SQLAlchemy ORM model for highlights."""
 
 from datetime import datetime as dt
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
-from sqlalchemy import DateTime, ForeignKey, Index, String, Text, UniqueConstraint, func
+from sqlalchemy import (
+    DateTime,
+    ForeignKey,
+    Index,
+    SmallInteger,
+    String,
+    Text,
+    UniqueConstraint,
+    func,
+)
+from sqlalchemy.dialects.postgresql import JSONB as PG_JSONB
 from sqlalchemy.dialects.postgresql import TSVECTOR
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from sqlalchemy.types import JSON
@@ -45,6 +55,11 @@ class Highlight(Base):
     start_xpoint: Mapped[str | None] = mapped_column(Text, nullable=True)
     end_xpoint: Mapped[str | None] = mapped_column(Text, nullable=True)
     position: Mapped[list[int] | None] = mapped_column(JSON, nullable=True)
+    locator: Mapped[dict[str, Any] | None] = mapped_column(
+        JSON().with_variant(PG_JSONB, "postgresql"), nullable=True
+    )
+    locator_confidence: Mapped[int | None] = mapped_column(SmallInteger, nullable=True)
+    locator_source_hash: Mapped[str | None] = mapped_column(String(64), nullable=True)
     highlight_style_id: Mapped[int | None] = mapped_column(
         ForeignKey("highlight_styles.id", ondelete="SET NULL"), index=True, nullable=True
     )

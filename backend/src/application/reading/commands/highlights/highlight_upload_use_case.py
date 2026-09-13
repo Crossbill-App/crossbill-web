@@ -23,6 +23,10 @@ from src.application.reading.protocols.highlight_style_repository import (
 )
 from src.application.semantic.content_type import ContentType
 from src.application.semantic.protocols.embedding_enqueuer import EmbeddingEnqueuerProtocol
+from src.application.web_reader.protocols.position_anchor_service import (
+    PositionAnchorServiceProtocol,
+)
+from src.application.web_reader.publications import epub_content_hash
 from src.domain.common.value_objects import (
     BookId,
     ChapterId,
@@ -32,6 +36,8 @@ from src.domain.common.value_objects import (
     XPointRange,
 )
 from src.domain.common.value_objects.position import Position
+from src.domain.common.value_objects.position_index import PositionIndex
+from src.domain.library.entities.book import Book
 from src.domain.reading.entities.highlight import Highlight
 from src.domain.reading.exceptions import BookNotFoundError
 from src.domain.reading.services.deduplication_service import HighlightDeduplicationService
@@ -80,6 +86,7 @@ class HighlightUploadUseCase:
         chapter_repository: ChapterRepositoryProtocol,
         deduplication_service: HighlightDeduplicationService,
         position_index_service: PositionIndexServiceProtocol,
+        position_anchor_service: PositionAnchorServiceProtocol,
         file_repository: FileRepositoryProtocol,
         highlight_style_repository: HighlightStyleRepositoryProtocol,
         embedding_enqueuer: EmbeddingEnqueuerProtocol,
@@ -93,6 +100,7 @@ class HighlightUploadUseCase:
             chapter_repository: Repository for chapter lookup
             deduplication_service: Domain service for deduplication logic
             position_index_service: Service for building position indices from EPUBs
+            position_anchor_service: Service deriving Readium Locators from xpointers
             file_repository: Repository for file operations
             highlight_style_repository: Repository for highlight style persistence
             embedding_enqueuer: Seam for enqueuing embedding jobs for new highlights
@@ -102,6 +110,7 @@ class HighlightUploadUseCase:
         self.chapter_repository = chapter_repository
         self.deduplication_service = deduplication_service
         self.position_index_service = position_index_service
+        self._position_anchor_service = position_anchor_service
         self.file_repository = file_repository
         self.highlight_style_repository = highlight_style_repository
         self._embedding_enqueuer = embedding_enqueuer
@@ -127,6 +136,7 @@ class HighlightUploadUseCase:
         7. Applies the e-reader's newer note and style edits to skipped duplicates
         8. Fills in the xpoints and position of duplicates stored without them
         9. Bulk saves unique highlights
+        10. Derives and stores a Readium Locator for every highlight it placed
 
         Args:
             client_book_id: Book identifier from client
@@ -164,12 +174,7 @@ class HighlightUploadUseCase:
             removed_ids or [], user_id_vo, book_id
         )
 
-        # Build position index if EPUB
-        position_index = None
-        if book.file_type == "epub" and book.ebook_file:
-            epub_content = await self.file_repository.get_epub(book.ebook_file)
-            if epub_content:
-                position_index = self.position_index_service.build_position_index(epub_content)
+        epub_content, position_index = await self._read_epub(book)
 
         # Step 3: Batch fetch chapters by chapter_number
         chapter_numbers: set[int] = {
@@ -259,7 +264,9 @@ class HighlightUploadUseCase:
             user_id_vo, book_id, [duplicate.content_hash for duplicate in duplicates]
         )
         await self._sync_device_edits_of_duplicates(duplicates, stored_duplicates, book_id)
-        await self._fill_missing_positions_of_duplicates(duplicates, stored_duplicates, book_id)
+        placed = await self._fill_missing_positions_of_duplicates(
+            duplicates, stored_duplicates, book_id
+        )
 
         # Step 9: Bulk save unique highlights
         if unique:
@@ -270,6 +277,16 @@ class HighlightUploadUseCase:
                 user_id,
                 reference_id=str(book_id.value),
             )
+            placed.update(
+                {
+                    highlight.id: highlight.xpoints
+                    for highlight in saved
+                    if highlight.xpoints is not None
+                }
+            )
+
+        # Step 10: one parse for the whole sync, covering both sets of placed highlights
+        await self._store_locators(epub_content, placed, book_id)
 
         # Last, so the stamp says the push landed rather than that it was attempted
         book.mark_as_synced()
@@ -290,6 +307,17 @@ class HighlightUploadUseCase:
             skipped=len(duplicates),
             removed_from_devices=removed_count,
         )
+
+    async def _read_epub(self, book: Book) -> tuple[bytes | None, PositionIndex | None]:
+        """The book's EPUB bytes and the position index built from them."""
+        if book.file_type != "epub" or not book.ebook_file:
+            return None, None
+
+        epub_content = await self.file_repository.get_epub(book.ebook_file)
+        if not epub_content:
+            return None, None
+
+        return epub_content, self.position_index_service.build_position_index(epub_content)
 
     async def _remove_deleted_from_devices(
         self,
@@ -484,7 +512,7 @@ class HighlightUploadUseCase:
         duplicates: list[Highlight],
         stored: list[Highlight],
         book_id: BookId,
-    ) -> int:
+    ) -> dict[HighlightId, XPointRange]:
         """
         Give skipped duplicates the xpoints and position their stored row lacks.
 
@@ -504,7 +532,7 @@ class HighlightUploadUseCase:
             book_id: Book the upload belongs to
 
         Returns:
-            Number of stored highlights given xpoints
+            The xpoints this call placed, by highlight ID
         """
         incoming: dict[ContentHash, tuple[XPointRange, Position | None]] = {}
         for duplicate in duplicates:
@@ -524,4 +552,33 @@ class HighlightUploadUseCase:
         if filled:
             logger.info("highlight_positions_backfilled", book_id=book_id.value, count=filled)
 
-        return filled
+        return {highlight_id: xpoints for highlight_id, xpoints, _ in placements}
+
+    async def _store_locators(
+        self,
+        epub_content: bytes | None,
+        ranges: dict[HighlightId, XPointRange],
+        book_id: BookId,
+    ) -> None:
+        """Derive each placed highlight's Readium Locator and store it beside its xpointers.
+
+        Contained on purpose, as the publication index is: ``/highlights/sync``
+        is plugin-only surface, so a locator that will not derive is a null
+        column rather than a failed sync.
+        """
+        if not epub_content or not ranges:
+            return
+
+        try:
+            locators = await self._position_anchor_service.locators_for_xpoint_ranges(
+                epub_content, ranges
+            )
+            await self.highlight_repository.bulk_update_locators(
+                locators, epub_content_hash(epub_content)
+            )
+        except Exception:
+            logger.exception(
+                "highlight_locator_derivation_failed",
+                book_id=book_id.value,
+                count=len(ranges),
+            )
