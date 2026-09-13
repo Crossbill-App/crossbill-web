@@ -28,10 +28,15 @@ from src.application.web_reader.queries.get_publication_resource_use_case import
     GetPublicationResourceUseCase,
 )
 from src.application.web_reader.queries.get_publication_use_case import GetPublicationUseCase
+from src.application.web_reader.queries.get_resume_position_use_case import (
+    GetResumePositionUseCase,
+)
 from src.application.web_reader.queries.publication_positions import PublicationPosition
+from src.application.web_reader.queries.resume_position import ResumePosition
 from src.config import get_settings
 from src.core import container
 from src.domain.common.exceptions import AuthenticationError
+from src.domain.common.value_objects.ids import BookId
 from src.domain.identity import User
 from src.domain.web_reader.entities.web_reading_position import WebReadingPosition
 from src.infrastructure.common.di import inject_use_case
@@ -42,9 +47,10 @@ from src.infrastructure.reading.routers.reader_clock import reader_now
 from src.infrastructure.web_reader.dependencies import PublicationReader
 from src.infrastructure.web_reader.schemas.locator_builders import container_href, served_href
 from src.infrastructure.web_reader.schemas.reading_position_schemas import (
-    LocatorSchema,
+    BrowserLocatorSchema,
     ReadingPosition,
     ReadingPositionUpdate,
+    ResumePositionResponse,
 )
 from src.infrastructure.web_reader.schemas.readium_schemas import (
     POSITION_LIST_MEDIA_TYPE,
@@ -211,6 +217,59 @@ async def get_readium_positions(
     )
 
 
+@router.get(
+    "/books/{book_id}/reading-position",
+    response_model=ResumePositionResponse,
+    response_model_exclude_none=True,
+    status_code=status.HTTP_200_OK,
+)
+async def get_reading_position(
+    book_id: int,
+    current_user: Annotated[User, Depends(get_current_user)],
+    use_case: GetResumePositionUseCase = Depends(
+        inject_use_case(container.web_reader.get_resume_position_use_case)
+    ),
+) -> ResumePositionResponse:
+    """Get where the browser should open this book, whichever device was there last.
+
+    Not merely what the browser itself last stored: a reader who left off on their
+    e-reader is answered with that place instead, if they were there later. Both
+    places were stored when they were reached, so nothing is derived to answer
+    this and no EPUB is read.
+
+    Always an object, never 404 and never null: a book nobody has opened is an
+    ordinary state, and the reader has to be able to tell it apart from a place
+    that was lost when the EPUB was replaced.
+
+    Bearer-only, like the write: the publication cookie is a credential for a
+    book's files and stays one (#792).
+    """
+    resume = await use_case.get_resume_position(BookId(book_id), current_user.id)
+    return _resume_position(resume)
+
+
+def _resume_position(resume: ResumePosition) -> ResumePositionResponse:
+    """Render where to open a book, in the coordinates a navigator speaks.
+
+    The browser's own locator already speaks them and goes back as
+    ``BrowserLocatorSchema`` models it; a session's href is pointed at the serving URL.
+    """
+    locator: BrowserLocatorSchema | None = None
+    if resume.browser_locator is not None:
+        locator = BrowserLocatorSchema.model_validate(resume.browser_locator)
+    elif resume.device_locator is not None:
+        stored = resume.device_locator
+        locator = BrowserLocatorSchema.model_validate(
+            stored.to_dict() | {"href": served_href(stored.href)}
+        )
+    return ResumePositionResponse(
+        locator=locator,
+        source=resume.source,
+        unresolved=resume.unresolved,
+        recorded_at=resume.recorded_at,
+    )
+
+
 @router.put(
     "/books/{book_id}/reading-position",
     response_model=ReadingPosition,
@@ -263,7 +322,7 @@ async def put_reading_position(
 def _reading_position(stored: WebReadingPosition) -> ReadingPosition:
     """Render a stored position as the browser gets it back."""
     return ReadingPosition(
-        locator=LocatorSchema.model_validate(stored.locator),
+        locator=BrowserLocatorSchema.model_validate(stored.locator),
         xpoint=stored.xpoint.to_string(),
         position=PositionResponse(
             index=stored.position.index, char_index=stored.position.char_index
@@ -274,7 +333,7 @@ def _reading_position(stored: WebReadingPosition) -> ReadingPosition:
     )
 
 
-def _anchor_locator(locator: LocatorSchema) -> Locator:
+def _anchor_locator(locator: BrowserLocatorSchema) -> Locator:
     """Read a navigator's locator into the vocabulary the anchor port speaks.
 
     The href is the one translation that matters: every href a navigator ever saw came

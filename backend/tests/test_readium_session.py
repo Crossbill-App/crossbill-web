@@ -9,7 +9,7 @@ from datetime import UTC, datetime, timedelta
 
 import jwt
 import pytest
-from httpx import AsyncClient, Response
+from httpx import AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession
 from starlette import status
 
@@ -27,18 +27,7 @@ from src.infrastructure.web_reader.services.publication_token_service import (
     verify_publication_token,
 )
 from src.models import Book, User
-from tests.readium_helpers import another_users_book
-
-
-def session_url(book_id: int) -> str:
-    return f"/api/v1/readium/books/{book_id}/session"
-
-
-async def start_session(browser_client: AsyncClient, user_id: int, book_id: int) -> Response:
-    return await browser_client.post(
-        session_url(book_id),
-        headers={"Authorization": f"Bearer {create_access_token(user_id)}"},
-    )
+from tests.readium_helpers import another_users_book, session_url, start_session
 
 
 def _sign(claims: dict[str, object]) -> str:

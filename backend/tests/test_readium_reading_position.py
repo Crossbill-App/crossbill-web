@@ -29,8 +29,7 @@ from src.infrastructure.web_reader.services.publication_token_service import (
 )
 from src.main import app
 from tests.conftest import create_test_book
-from tests.readium_helpers import another_users_book, fixture_bytes
-from tests.test_readium_cookie_access import present
+from tests.readium_helpers import another_users_book, fixture_bytes, present
 from tests.test_readium_manifest import store_epub
 
 CH1_HREF = "resources/OEBPS/chapter1.xhtml"

@@ -13,10 +13,11 @@ from math import isfinite
 from pydantic import AliasChoices, BaseModel, ConfigDict, Field, field_validator
 
 from src.application.web_reader.queries.publication_positions import MAX_PUBLICATION_POSITIONS
+from src.application.web_reader.queries.resume_position import ResumeSource
 from src.infrastructure.common.schemas.position_schemas import PositionResponse
 
 
-class LocatorTextSchema(BaseModel):
+class BrowserLocatorTextSchema(BaseModel):
     """A Locator's ``text``: what is at the position, and what surrounds it."""
 
     before: str | None = None
@@ -24,7 +25,7 @@ class LocatorTextSchema(BaseModel):
     after: str | None = None
 
 
-class LocatorLocationsSchema(BaseModel):
+class BrowserLocatorLocationsSchema(BaseModel):
     """A Locator's ``locations``: the same place said in several ways.
 
     Every field is optional, because a navigator fills in only what its current view
@@ -86,7 +87,7 @@ class LocatorLocationsSchema(BaseModel):
         return None if off_list else value
 
 
-class LocatorSchema(BaseModel):
+class BrowserLocatorSchema(BaseModel):
     """A Readium Locator Object as a navigator produces and consumes one."""
 
     model_config = ConfigDict(populate_by_name=True)
@@ -94,14 +95,14 @@ class LocatorSchema(BaseModel):
     href: str = Field(..., description="The resource, as the manifest names it")
     type: str = Field(..., description="The resource's media type")
     title: str | None = None
-    locations: LocatorLocationsSchema = LocatorLocationsSchema()
-    text: LocatorTextSchema = LocatorTextSchema()
+    locations: BrowserLocatorLocationsSchema = BrowserLocatorLocationsSchema()
+    text: BrowserLocatorTextSchema = BrowserLocatorTextSchema()
 
 
 class ReadingPositionUpdate(BaseModel):
     """What the reader sends when they have moved."""
 
-    locator: LocatorSchema = Field(..., description="Where the reader now is")
+    locator: BrowserLocatorSchema = Field(..., description="Where the reader now is")
     recorded_at: dt = Field(
         ...,
         description=(
@@ -122,10 +123,45 @@ class ReadingPositionUpdate(BaseModel):
 class ReadingPosition(BaseModel):
     """Where a reader last was in a book, as the browser gets it back."""
 
-    locator: LocatorSchema = Field(..., description="The position, ready to navigate to")
+    locator: BrowserLocatorSchema = Field(..., description="The position, ready to navigate to")
     xpoint: str = Field(..., description="The same position in the format both readers agree on")
     position: PositionResponse | None = Field(
         None,
         description="The position in document order, or null when it could not be placed",
     )
     updated_at: dt = Field(..., description="When this position was recorded")
+
+
+class ResumePositionResponse(BaseModel):
+    """Where the web reader should open a book, whichever device was there last.
+
+    Read it as: navigate to ``locator`` if there is one; otherwise start at the
+    beginning, and say so if ``unresolved``.
+    """
+
+    locator: BrowserLocatorSchema | None = Field(
+        None,
+        description=(
+            "Where to open the book, in the coordinates the manifest publishes, "
+            "or null when there is nowhere to resume to"
+        ),
+    )
+    source: ResumeSource | None = Field(
+        None,
+        description=(
+            "Which reader the position came from -- 'web' for this browser's own "
+            "stored place, 'koreader' for the end of a session synced from an "
+            "e-reader. Null when the book has been read nowhere."
+        ),
+    )
+    unresolved: bool = Field(
+        False,
+        description=(
+            "Whether a place was recorded that cannot be placed in the EPUB this "
+            "server now holds -- typically the file has been replaced. The book "
+            "opens at the beginning and the reader is told their place was lost."
+        ),
+    )
+    recorded_at: dt | None = Field(
+        None, description="When the reader was at this position, by their own device's clock"
+    )

@@ -22,6 +22,9 @@ from src.application.web_reader.queries.get_publication_resource_use_case import
     GetPublicationResourceUseCase,
 )
 from src.application.web_reader.queries.get_publication_use_case import GetPublicationUseCase
+from src.application.web_reader.queries.get_resume_position_use_case import (
+    GetResumePositionUseCase,
+)
 
 
 class WebReaderContainer(containers.DeclarativeContainer):
@@ -34,6 +37,7 @@ class WebReaderContainer(containers.DeclarativeContainer):
     publication_parser = providers.Dependency()
     publication_resource_query = providers.Dependency()
     highlight_locator_query = providers.Dependency()
+    resume_position_query = providers.Dependency()
     publication_token_service = providers.Dependency()
     highlight_repository = providers.Dependency()
     reading_session_repository = providers.Dependency()
@@ -84,6 +88,10 @@ class WebReaderContainer(containers.DeclarativeContainer):
     get_highlight_locator_use_case = providers.Factory(
         GetHighlightLocatorUseCase,
         highlight_locator_query=highlight_locator_query,
+    )
+    get_resume_position_use_case = providers.Factory(
+        GetResumePositionUseCase,
+        resume_position_query=resume_position_query,
     )
     start_publication_session_use_case = providers.Factory(
         StartPublicationSessionUseCase,
