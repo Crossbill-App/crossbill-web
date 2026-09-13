@@ -79,6 +79,7 @@ from src.infrastructure.semantic.queries.search_hydration_query import SearchHyd
 from src.infrastructure.semantic.queries.semantic_search_query import SemanticSearchQuery
 from src.infrastructure.semantic.repositories.embedding_repository import EmbeddingRepository
 from src.infrastructure.tagging.repositories import TagRepository
+from src.infrastructure.web_reader.queries.highlight_locator_query import HighlightLocatorQuery
 from src.infrastructure.web_reader.queries.publication_resource_query import (
     PublicationResourceQuery,
 )
@@ -226,6 +227,7 @@ class SharedContainer(containers.DeclarativeContainer):
         db=db,
         file_repository=file_repository,
     )
+    highlight_locator_query = providers.Factory(HighlightLocatorQuery, db=db)
 
     # Learning repositories
     ai_chat_session_repository = providers.Factory(AIChatSessionRepository, db=db)

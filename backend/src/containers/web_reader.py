@@ -6,6 +6,9 @@ from src.application.web_reader.commands.backfill_book_locators_use_case import 
 from src.application.web_reader.commands.start_publication_session_use_case import (
     StartPublicationSessionUseCase,
 )
+from src.application.web_reader.queries.get_book_highlight_locators_use_case import (
+    GetBookHighlightLocatorsUseCase,
+)
 from src.application.web_reader.queries.get_publication_positions_use_case import (
     GetPublicationPositionsUseCase,
 )
@@ -24,6 +27,7 @@ class WebReaderContainer(containers.DeclarativeContainer):
     file_repository = providers.Dependency()
     publication_parser = providers.Dependency()
     publication_resource_query = providers.Dependency()
+    highlight_locator_query = providers.Dependency()
     publication_token_service = providers.Dependency()
     highlight_repository = providers.Dependency()
     reading_session_repository = providers.Dependency()
@@ -53,6 +57,10 @@ class WebReaderContainer(containers.DeclarativeContainer):
         GetPublicationResourceUseCase,
         publication_resource_query=publication_resource_query,
         get_publication_use_case=get_publication_use_case,
+    )
+    get_book_highlight_locators_use_case = providers.Factory(
+        GetBookHighlightLocatorsUseCase,
+        highlight_locator_query=highlight_locator_query,
     )
     start_publication_session_use_case = providers.Factory(
         StartPublicationSessionUseCase,

@@ -15,6 +15,7 @@ adapter, and swapping the library out would not change this module.
 
 from dataclasses import dataclass, field
 from enum import IntEnum
+from typing import Any
 
 from src.domain.common.value_objects.xpoint import XPointRange
 
@@ -141,6 +142,29 @@ class Locator:
         if text := self.text.to_dict():
             out["text"] = text
         return out
+
+    @classmethod
+    def from_dict(cls, payload: dict[str, Any]) -> "Locator":
+        """Read a Locator back from what :meth:`to_dict` wrote.
+
+        Everything but ``href`` and ``type`` is read with ``get``, because
+        ``to_dict`` leaves out whatever was unset.
+        """
+        locations: dict[str, Any] = payload.get("locations", {})
+        text: dict[str, Any] = payload.get("text", {})
+        return cls(
+            href=payload["href"],
+            type=payload["type"],
+            locations=LocatorLocations(
+                progression=locations.get("progression"),
+                css_selector=locations.get("cssSelector"),
+            ),
+            text=LocatorText(
+                before=text.get("before"),
+                highlight=text.get("highlight"),
+                after=text.get("after"),
+            ),
+        )
 
 
 @dataclass(frozen=True)
