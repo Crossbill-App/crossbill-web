@@ -30,6 +30,7 @@ from src.domain.common.exceptions import (
     EntityNotFoundError,
     ValidationError,
 )
+from src.domain.web_reader.exceptions import BookFileUnreadableError, UnresolvablePositionError
 from src.infrastructure.common.client_ip import client_ip, client_ip_from_scope, proxy_chain
 from src.infrastructure.common.openapi import operation_id
 from src.infrastructure.common.rate_limit import RateLimitMiddleware, limiter
@@ -364,6 +365,8 @@ DOMAIN_ERROR_STATUS_MAP: list[tuple[type[DomainError], int, str]] = [
     (AuthenticationError, 401, "authentication_error"),
     (AuthorizationError, 403, "authorization_error"),
     (BusinessRuleViolationError, 400, "bad_request"),
+    (UnresolvablePositionError, 422, "unprocessable_entity"),
+    (BookFileUnreadableError, 503, "service_unavailable"),
 ]
 
 SAFE_MESSAGES: dict[int, str] = {
@@ -372,7 +375,9 @@ SAFE_MESSAGES: dict[int, str] = {
     401: "Authentication failed.",
     403: "You do not have permission to perform this action.",
     409: "The resource already exists or conflicts with current state.",
+    422: "The request was understood but could not be applied to this resource.",
     500: "An unexpected error occurred.",
+    503: "The server cannot serve this request at the moment.",
 }
 
 

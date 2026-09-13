@@ -8,7 +8,7 @@ Uses ReadingSessionMapper internally for conversions.
 import logging
 from collections.abc import Mapping
 
-from sqlalchemy import func, select, update
+from sqlalchemy import func, literal, select, update
 from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -259,6 +259,24 @@ class ReadingSessionRepository:
         except Exception:
             await self.db.rollback()
             raise
+
+    async def record_locator(
+        self, session_id: ReadingSessionId, locator: Locator, source_hash: str
+    ) -> None:
+        """Write where a session has reached, seeding its start the first time."""
+        # Typed from the column: inside `coalesce` there is nothing for the driver to
+        # infer a JSON bind from, and a bare dict reaches SQLite as an unsupported type.
+        reached = literal(locator.to_dict(), ReadingSessionORM.start_locator.type)
+        await self.db.execute(
+            update(ReadingSessionORM)
+            .where(ReadingSessionORM.id == session_id.value)
+            .values(
+                start_locator=func.coalesce(ReadingSessionORM.start_locator, reached),
+                end_locator=reached,
+                locator_source_hash=source_hash,
+            )
+        )
+        await self.db.commit()
 
     async def link_highlights_to_sessions(
         self,

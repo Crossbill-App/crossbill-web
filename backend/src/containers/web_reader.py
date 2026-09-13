@@ -3,6 +3,9 @@ from dependency_injector import containers, providers
 from src.application.web_reader.commands.backfill_book_locators_use_case import (
     BackfillBookLocatorsUseCase,
 )
+from src.application.web_reader.commands.save_reading_position_use_case import (
+    SaveReadingPositionUseCase,
+)
 from src.application.web_reader.commands.start_publication_session_use_case import (
     StartPublicationSessionUseCase,
 )
@@ -35,6 +38,8 @@ class WebReaderContainer(containers.DeclarativeContainer):
     highlight_repository = providers.Dependency()
     reading_session_repository = providers.Dependency()
     position_anchor_service = providers.Dependency()
+    web_reading_position_repository = providers.Dependency()
+    position_index_service = providers.Dependency()
 
     # Ingest rather than a read: driven by the library module's EPUB upload, and by #841's worker
     backfill_book_locators_use_case = providers.Factory(
@@ -42,6 +47,17 @@ class WebReaderContainer(containers.DeclarativeContainer):
         highlight_repository=highlight_repository,
         session_repository=reading_session_repository,
         position_anchor_service=position_anchor_service,
+    )
+
+    # Commands
+    save_reading_position_use_case = providers.Factory(
+        SaveReadingPositionUseCase,
+        book_repository=book_repository,
+        position_repository=web_reading_position_repository,
+        session_repository=reading_session_repository,
+        position_anchor_service=position_anchor_service,
+        file_repository=file_repository,
+        position_index_service=position_index_service,
     )
 
     # Read models

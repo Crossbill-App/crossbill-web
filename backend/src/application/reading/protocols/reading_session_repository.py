@@ -58,6 +58,18 @@ class ReadingSessionRepositoryProtocol(Protocol):
         """
         ...
 
+    async def record_locator(
+        self, session_id: ReadingSessionId, locator: Locator, source_hash: str
+    ) -> None:
+        """Write where a session has reached, as the reader that is in it said it.
+
+        For a reader that reports its own Locators, so nothing is derived back
+        from the xpointer it was converted to. ``start_locator`` is filled only
+        while it is still empty: a session keeps the place it opened at while its
+        end follows the reader.
+        """
+        ...
+
     async def link_highlights_to_sessions(
         self,
         session_highlight_pairs: list[tuple[ReadingSessionId, HighlightId]],

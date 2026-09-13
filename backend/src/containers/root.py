@@ -98,6 +98,8 @@ class RootContainer(containers.DeclarativeContainer):
         highlight_repository=shared.highlight_repository,
         reading_session_repository=shared.reading_session_repository,
         position_anchor_service=shared.position_anchor_service,
+        web_reading_position_repository=shared.web_reading_position_repository,
+        position_index_service=shared.epub_position_index_service,
     )
 
     library = providers.Container(

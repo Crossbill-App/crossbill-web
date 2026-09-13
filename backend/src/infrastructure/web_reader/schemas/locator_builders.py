@@ -26,6 +26,15 @@ def served_href(container_href: str) -> str:
     return f"{RESOURCE_PATH_PREFIX}{container_href}"
 
 
+def container_href(href: str) -> str:
+    """Point a URL this API serves back at the path inside the EPUB container.
+
+    :func:`served_href` read backwards. An href carrying no such prefix passes
+    through unchanged, which is already a container path.
+    """
+    return href.removeprefix(RESOURCE_PATH_PREFIX)
+
+
 def served_locator_schema(locator: Locator) -> LocatorSchema:
     """Render a derived Locator with its href pointed at the resource endpoint."""
     return LocatorSchema(
