@@ -18,13 +18,13 @@ from src import models
 from src.application.web_reader.anchors import Locator, LocatorLocations, LocatorText
 from src.infrastructure.library.repositories.file_repository import FileRepository
 from src.infrastructure.library.services.epub_parser_service import EpubParserService
-from src.infrastructure.web_reader.services.publication_token_service import (
-    PUBLICATION_COOKIE_NAME,
-)
 from tests.conftest import create_test_highlight
-from tests.readium_helpers import another_users_book, parse_fixture, store_fixture
-from tests.test_readium_cookie_access import present
-from tests.test_readium_session import start_session
+from tests.readium_helpers import (
+    another_users_indexed_book,
+    hold_publication_cookie,
+    parse_fixture,
+    store_fixture,
+)
 
 MINIMAL_DIGEST = parse_fixture("minimal").content_hash
 OTHER_BOOK_DIGEST = parse_fixture("fixed_layout").content_hash
@@ -227,8 +227,7 @@ async def test_another_users_highlight_on_this_book_is_not_listed(
 async def test_another_users_book_is_not_found(
     client: AsyncClient, db_session: AsyncSession
 ) -> None:
-    theirs = await another_users_book(db_session)
-    await store_fixture(db_session, theirs, "minimal")
+    theirs = await another_users_indexed_book(db_session)
 
     response = await client.get(url(theirs.id))
 
@@ -241,12 +240,10 @@ async def test_the_publication_cookie_is_not_a_key_to_this_route(
     test_user: models.User,
     test_book: models.Book,
 ) -> None:
-    await store_fixture(db_session, test_book, "minimal")
-    minted = await start_session(browser_client, test_user.id, test_book.id)
-    # `present` plants the cookie under the whole API and under the host httpx's
-    # jar actually stores -- see its own `COOKIE_DOMAIN` note -- so what is under
-    # test is the refusal rather than the browser never offering it.
-    present(browser_client, minted.cookies[PUBLICATION_COOKIE_NAME])
+    # The cookie is planted under the whole API and under the host httpx's jar
+    # actually stores, so what is under test is the refusal rather than the
+    # browser never offering it.
+    await hold_publication_cookie(browser_client, db_session, test_user.id, test_book)
 
     response = await browser_client.get(url(test_book.id))
 
@@ -378,12 +375,10 @@ async def test_the_publication_cookie_is_not_a_key_to_one_highlights_locator(
     test_user: models.User,
     test_book: models.Book,
 ) -> None:
-    await store_fixture(db_session, test_book, "minimal")
+    await hold_publication_cookie(browser_client, db_session, test_user.id, test_book)
     highlight = await add_highlight(
         db_session, test_book, test_user.id, FIRST_QUOTE, FIRST_LOCATOR, MINIMAL_DIGEST
     )
-    minted = await start_session(browser_client, test_user.id, test_book.id)
-    present(browser_client, minted.cookies[PUBLICATION_COOKIE_NAME])
 
     response = await browser_client.get(highlight_url(highlight.id))
 

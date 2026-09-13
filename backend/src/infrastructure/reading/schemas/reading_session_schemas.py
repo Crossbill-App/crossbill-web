@@ -1,13 +1,23 @@
 """Pydantic schemas for Reading Session API request/response validation."""
 
+from datetime import UTC
 from datetime import datetime as dt
-from typing import TYPE_CHECKING, Self
+from typing import TYPE_CHECKING, Annotated, Self
 
-from pydantic import BaseModel, Field, model_validator
+from pydantic import AfterValidator, BaseModel, Field, model_validator
 
 if TYPE_CHECKING:
     # Import at runtime is handled below to avoid circular imports
     pass
+
+
+def _as_utc(value: dt) -> dt:
+    if value.tzinfo is None:
+        return value.replace(tzinfo=UTC)
+    return value.astimezone(UTC)
+
+
+_SyncDatetime = Annotated[dt, AfterValidator(_as_utc)]
 
 
 class ReadingSessionBase(BaseModel):
@@ -41,8 +51,8 @@ class ReadingSession(ReadingSessionBase):
 class ReadingSessionSyncItem(BaseModel):
     """Schema for a single reading session in the sync request."""
 
-    start_time: dt = Field(..., description="Session start timestamp")
-    end_time: dt = Field(..., description="Session end timestamp")
+    start_time: _SyncDatetime = Field(..., description="Session start timestamp")
+    end_time: _SyncDatetime = Field(..., description="Session end timestamp")
     start_xpoint: str | None = Field(None, description="Start position (xpoint string)")
     end_xpoint: str | None = Field(None, description="End position (xpoint string)")
     start_page: int | None = Field(None, ge=0, description="Start page number")

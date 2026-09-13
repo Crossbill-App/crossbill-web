@@ -83,8 +83,12 @@ from src.infrastructure.web_reader.queries.highlight_locator_query import Highli
 from src.infrastructure.web_reader.queries.publication_resource_query import (
     PublicationResourceQuery,
 )
+from src.infrastructure.web_reader.queries.resume_position_query import ResumePositionQuery
 from src.infrastructure.web_reader.repositories.publication_repository import (
     PublicationRepository,
+)
+from src.infrastructure.web_reader.repositories.web_reading_position_repository import (
+    WebReadingPositionRepository,
 )
 from src.infrastructure.web_reader.services.publication_token_service_adapter import (
     PublicationTokenServiceAdapter,
@@ -125,6 +129,7 @@ class SharedContainer(containers.DeclarativeContainer):
     chapter_digest_repository = providers.Factory(ChapterDigestRepository, db=db)
     highlight_style_repository = providers.Factory(HighlightStyleRepository, db=db)
     publication_repository = providers.Factory(PublicationRepository, db=db)
+    web_reading_position_repository = providers.Factory(WebReadingPositionRepository, db=db)
     file_repository = providers.Selector(
         providers.Callable(
             lambda settings: "s3" if settings.s3_enabled else "local", settings=settings
@@ -228,6 +233,7 @@ class SharedContainer(containers.DeclarativeContainer):
         file_repository=file_repository,
     )
     highlight_locator_query = providers.Factory(HighlightLocatorQuery, db=db)
+    resume_position_query = providers.Factory(ResumePositionQuery, db=db)
 
     # Learning repositories
     ai_chat_session_repository = providers.Factory(AIChatSessionRepository, db=db)

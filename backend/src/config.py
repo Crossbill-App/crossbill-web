@@ -162,6 +162,11 @@ class Settings(BaseSettings):
     # Reading sessions
     MINIMUM_READING_SESSION_DURATION: int = 120
 
+    # How long a browser sitting may go unheard from before the next write is a new
+    # one. Nothing closes a session in the background: it ends by not being extended,
+    # so a tab left open all night adds no reading time.
+    WEB_READING_SESSION_IDLE_SECONDS: int = 1800
+
     # AI configuration
     AI_PROVIDER: (
         Literal["ollama"]

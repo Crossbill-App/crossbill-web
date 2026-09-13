@@ -3,6 +3,9 @@ from dependency_injector import containers, providers
 from src.application.web_reader.commands.backfill_book_locators_use_case import (
     BackfillBookLocatorsUseCase,
 )
+from src.application.web_reader.commands.save_reading_position_use_case import (
+    SaveReadingPositionUseCase,
+)
 from src.application.web_reader.commands.start_publication_session_use_case import (
     StartPublicationSessionUseCase,
 )
@@ -19,6 +22,9 @@ from src.application.web_reader.queries.get_publication_resource_use_case import
     GetPublicationResourceUseCase,
 )
 from src.application.web_reader.queries.get_publication_use_case import GetPublicationUseCase
+from src.application.web_reader.queries.get_resume_position_use_case import (
+    GetResumePositionUseCase,
+)
 
 
 class WebReaderContainer(containers.DeclarativeContainer):
@@ -31,10 +37,13 @@ class WebReaderContainer(containers.DeclarativeContainer):
     publication_parser = providers.Dependency()
     publication_resource_query = providers.Dependency()
     highlight_locator_query = providers.Dependency()
+    resume_position_query = providers.Dependency()
     publication_token_service = providers.Dependency()
     highlight_repository = providers.Dependency()
     reading_session_repository = providers.Dependency()
     position_anchor_service = providers.Dependency()
+    web_reading_position_repository = providers.Dependency()
+    position_index_service = providers.Dependency()
 
     # Ingest rather than a read: driven by the library module's EPUB upload, and by #841's worker
     backfill_book_locators_use_case = providers.Factory(
@@ -42,6 +51,17 @@ class WebReaderContainer(containers.DeclarativeContainer):
         highlight_repository=highlight_repository,
         session_repository=reading_session_repository,
         position_anchor_service=position_anchor_service,
+    )
+
+    # Commands
+    save_reading_position_use_case = providers.Factory(
+        SaveReadingPositionUseCase,
+        book_repository=book_repository,
+        position_repository=web_reading_position_repository,
+        session_repository=reading_session_repository,
+        position_anchor_service=position_anchor_service,
+        file_repository=file_repository,
+        position_index_service=position_index_service,
     )
 
     # Read models
@@ -68,6 +88,10 @@ class WebReaderContainer(containers.DeclarativeContainer):
     get_highlight_locator_use_case = providers.Factory(
         GetHighlightLocatorUseCase,
         highlight_locator_query=highlight_locator_query,
+    )
+    get_resume_position_use_case = providers.Factory(
+        GetResumePositionUseCase,
+        resume_position_query=resume_position_query,
     )
     start_publication_session_use_case = providers.Factory(
         StartPublicationSessionUseCase,

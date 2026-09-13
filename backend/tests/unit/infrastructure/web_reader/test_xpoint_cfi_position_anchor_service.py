@@ -20,6 +20,7 @@ from src.application.web_reader.anchors import (
     AnchorConfidence,
     AnchorNotFoundError,
     AnchorResolutionError,
+    AnchorSource,
     Locator,
     LocatorLocations,
     LocatorText,
@@ -31,7 +32,18 @@ from src.domain.common.value_objects.xpoint import XPoint, XPointRange
 from src.infrastructure.web_reader.services.xpoint_cfi_position_anchor_service import (
     XPointCfiPositionAnchorService,
 )
+from tests.epub_builders import NAV_ITEM, build_epub, nav_document
 from tests.readium_helpers import fixture_bytes
+
+# A chapter laid out the way a publisher's tooling writes one: every element's text
+# begins after a newline and an indent, which is what a synthesised quote must skip.
+INDENTED_CHAPTER = (
+    '<?xml version="1.0" encoding="UTF-8"?>'
+    '<html xmlns="http://www.w3.org/1999/xhtml"><head><title>One</title></head>'
+    '<body>\n  <div id="body">\n    <h1>Chapter One</h1>\n'
+    "    <p>\n      The lantern went out at midnight.\n    </p>\n"
+    "    <p>\n      Nothing else in the house moved.\n    </p>\n  </div>\n</body></html>"
+)
 
 # The second of the two identical paragraphs in chapter one. A locator built
 # from it must name p[3], not p[1].
@@ -265,6 +277,21 @@ class TestReadiumJsonShape:
     def test_a_progression_at_the_start_of_a_resource_is_serialized(self) -> None:
         assert LocatorLocations(progression=0.0).to_dict() == {"progression": 0.0}
 
+    def test_browser_position_fields_round_trip_through_readium_json(self) -> None:
+        payload = {
+            "href": "OEBPS/chapter1.xhtml",
+            "type": "application/xhtml+xml",
+            "locations": {
+                "cssSelector": "#intro",
+                "fragments": ["#intro", "chapter-one"],
+            },
+        }
+
+        locator = Locator.from_dict(payload)
+
+        assert locator.locations.fragments == ("#intro", "chapter-one")
+        assert locator.to_dict() == payload
+
 
 class TestFailure:
     async def test_a_range_naming_a_missing_spine_item_is_none(
@@ -355,6 +382,7 @@ class TestLocatorToXPoint:
         assert match.xpoints.start.char_offset == 0
         assert match.xpoints.end.char_offset == 32
         assert match.confidence is AnchorConfidence.BOTH_CONTEXTS
+        assert match.anchored_by is AnchorSource.QUOTE
 
     async def test_a_range_ending_past_inline_markup_keeps_the_later_text_nodes_index(
         self, anchors: PositionAnchorServiceProtocol, epub: bytes
@@ -451,6 +479,123 @@ class TestLocatorToXPoint:
         assert alone.confidence is AnchorConfidence.HIGHLIGHT_ONLY
         assert approximate.confidence < alone.confidence < AnchorConfidence.ONE_CONTEXT
 
+    async def test_a_textless_locator_anchors_on_its_css_selector_before_its_fragment(
+        self, anchors: PositionAnchorServiceProtocol, epub: bytes
+    ) -> None:
+        locator = Locator(
+            href="OEBPS/chapter1.xhtml",
+            type="application/xhtml+xml",
+            locations=LocatorLocations(
+                css_selector="#intro > p:nth-child(4)", fragments=("#intro",)
+            ),
+        )
+
+        match = await anchors.xpoint_range_for_locator(epub, locator)
+
+        assert match.xpoints.start.xpath == "/body/div[1]/p[3]"
+        assert match.xpoints.start == match.xpoints.end
+        assert match.confidence is AnchorConfidence.HIGHLIGHT_ONLY
+        assert match.anchored_by is AnchorSource.ELEMENT
+
+    async def test_a_textless_locator_uses_its_fragment_when_the_selector_does_not_resolve(
+        self, anchors: PositionAnchorServiceProtocol, epub: bytes
+    ) -> None:
+        locator = Locator(
+            href="OEBPS/chapter1.xhtml",
+            type="application/xhtml+xml",
+            locations=LocatorLocations(css_selector="#missing", fragments=("#intro",)),
+        )
+
+        match = await anchors.xpoint_range_for_locator(epub, locator)
+
+        assert match.xpoints.start.xpath == "/body/div[1]/h1[1]"
+        assert match.xpoints.start == match.xpoints.end
+        assert match.confidence is AnchorConfidence.HIGHLIGHT_ONLY
+        assert match.anchored_by is AnchorSource.ELEMENT
+
+    async def test_a_textless_locator_uses_progression_when_it_names_no_element(
+        self,
+        anchors: PositionAnchorServiceProtocol,
+        epub: bytes,
+        parses: list[bytes],
+    ) -> None:
+        locator = Locator(
+            href="OEBPS/chapter2.xhtml",
+            type="application/xhtml+xml",
+            locations=LocatorLocations(progression=0.5),
+        )
+
+        match = await anchors.xpoint_range_for_locator(epub, locator)
+
+        assert match.xpoints.start.doc_fragment_index == 2
+        assert match.xpoints.start.xpath == "/body/div[1]/p[1]"
+        assert match.xpoints.start.char_offset == 32
+        assert match.xpoints.start == match.xpoints.end
+        assert match.confidence is AnchorConfidence.FUZZY
+        assert match.anchored_by is AnchorSource.PROGRESSION
+        assert parses == [epub]
+
+    async def test_a_progression_at_the_end_lands_in_the_last_paragraph(
+        self, anchors: PositionAnchorServiceProtocol, epub: bytes
+    ) -> None:
+        """Past the last text there is nothing following, so the last run places it."""
+        locator = Locator(
+            href="OEBPS/chapter2.xhtml",
+            type="application/xhtml+xml",
+            locations=LocatorLocations(progression=1.0),
+        )
+
+        match = await anchors.xpoint_range_for_locator(epub, locator)
+
+        assert match.xpoints.start.xpath == "/body/div[1]/p[2]"
+        assert match.anchored_by is AnchorSource.PROGRESSION
+
+    async def test_a_progression_below_zero_lands_where_the_resource_begins(
+        self, anchors: PositionAnchorServiceProtocol, epub: bytes
+    ) -> None:
+        """Unclamped it would index backwards from the end and resume at the wrong place."""
+        below = Locator(
+            href="OEBPS/chapter2.xhtml",
+            type="application/xhtml+xml",
+            locations=LocatorLocations(progression=-0.5),
+        )
+        start = Locator(
+            href="OEBPS/chapter2.xhtml",
+            type="application/xhtml+xml",
+            locations=LocatorLocations(progression=0.0),
+        )
+
+        match = await anchors.xpoint_range_for_locator(epub, below)
+
+        assert match.xpoints == (await anchors.xpoint_range_for_locator(epub, start)).xpoints
+        assert match.xpoints.start.xpath == "/body/div[1]/h1[1]"
+
+    async def test_a_textless_locator_anchors_past_the_markup_indenting_its_element(
+        self, anchors: PositionAnchorServiceProtocol
+    ) -> None:
+        """An element's text begins after the newline and spaces that lay it out."""
+        indented = build_epub(
+            manifest_items=(
+                f'{NAV_ITEM}<item id="c1" href="chapter1.xhtml"'
+                ' media-type="application/xhtml+xml"/>'
+            ),
+            spine='<itemref idref="c1"/>',
+            documents={
+                "nav.xhtml": nav_document('<li><a href="chapter1.xhtml">One</a></li>'),
+                "chapter1.xhtml": INDENTED_CHAPTER,
+            },
+        )
+        locator = Locator(
+            href="chapter1.xhtml",
+            type="application/xhtml+xml",
+            locations=LocatorLocations(css_selector="#body > p:nth-child(2)"),
+        )
+
+        match = await anchors.xpoint_range_for_locator(indented, locator)
+
+        assert match.xpoints.start.xpath == "/body/div[1]/p[1]"
+        assert match.anchored_by is AnchorSource.ELEMENT
+
 
 class TestLocatorToXPointFailure:
     async def test_a_locator_naming_no_resource_of_this_book_raises(
@@ -473,24 +618,50 @@ class TestLocatorToXPointFailure:
         with pytest.raises(AnchorNotFoundError, match="Cannot place locator"):
             await anchors.xpoint_range_for_locator(epub, absent)
 
-    async def test_a_locator_carrying_no_text_at_all_raises(
+    async def test_an_entirely_anchorless_locator_raises_not_found(
         self, anchors: PositionAnchorServiceProtocol, epub: bytes
     ) -> None:
-        """The ordinary shape of a reading position, which #830 anchors instead."""
         bare = Locator(href="OEBPS/chapter1.xhtml", type="application/xhtml+xml")
 
-        with pytest.raises(AnchorNotFoundError, match="carries no text"):
+        with pytest.raises(AnchorNotFoundError):
             await anchors.xpoint_range_for_locator(epub, bare)
 
-    async def test_a_locator_whose_text_is_only_whitespace_raises_without_a_parse(
+    async def test_whitespace_only_text_is_treated_as_an_anchorless_locator(
         self, anchors: PositionAnchorServiceProtocol, epub: bytes, parses: list[bytes]
     ) -> None:
         blank = chapter_one_locator(before="\n  ", highlight="   ", after=" ")
 
-        with pytest.raises(AnchorNotFoundError, match="carries no text"):
+        with pytest.raises(AnchorNotFoundError):
             await anchors.xpoint_range_for_locator(epub, blank)
 
-        assert parses == []
+        assert parses == [epub]
+
+    @pytest.mark.parametrize("progression", [float("nan"), float("inf"), float("-inf")])
+    async def test_a_non_finite_progression_anchors_nothing(
+        self, anchors: PositionAnchorServiceProtocol, epub: bytes, progression: float
+    ) -> None:
+        """Read as no evidence rather than clamped, which would resume at a place
+        the reader never was."""
+        locator = Locator(
+            href="OEBPS/chapter2.xhtml",
+            type="application/xhtml+xml",
+            locations=LocatorLocations(progression=progression),
+        )
+
+        with pytest.raises(AnchorNotFoundError):
+            await anchors.xpoint_range_for_locator(epub, locator)
+
+    async def test_a_textless_locator_naming_no_resource_raises_not_found(
+        self, anchors: PositionAnchorServiceProtocol, epub: bytes
+    ) -> None:
+        locator = Locator(
+            href="OEBPS/chapter9.xhtml",
+            type="application/xhtml+xml",
+            locations=LocatorLocations(progression=0.5),
+        )
+
+        with pytest.raises(AnchorNotFoundError):
+            await anchors.xpoint_range_for_locator(epub, locator)
 
     async def test_a_caller_catching_the_base_error_catches_a_missing_place_too(
         self, anchors: PositionAnchorServiceProtocol, epub: bytes
@@ -528,6 +699,21 @@ class TestLocatorToXPointFailure:
 
         with pytest.raises(AnchorResolutionError, match="Cannot read EPUB") as raised:
             await anchors.xpoint_range_for_locator(broken, quote)
+
+        assert type(raised.value) is AnchorResolutionError
+
+    async def test_a_textless_locator_in_a_damaged_document_is_the_books_failure(
+        self, anchors: PositionAnchorServiceProtocol, epub: bytes
+    ) -> None:
+        broken = with_corrupt_stream(epub, "OEBPS/chapter1.xhtml")
+        locator = Locator(
+            href="OEBPS/chapter1.xhtml",
+            type="application/xhtml+xml",
+            locations=LocatorLocations(progression=0.5),
+        )
+
+        with pytest.raises(AnchorResolutionError) as raised:
+            await anchors.xpoint_range_for_locator(broken, locator)
 
         assert type(raised.value) is AnchorResolutionError
 

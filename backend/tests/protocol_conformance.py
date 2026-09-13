@@ -62,6 +62,9 @@ from src.application.reflection.protocols.book_reflection_repository import (
     BookReflectionRepositoryProtocol,
 )
 from src.application.tagging.protocols.tag_repository import TagRepositoryProtocol
+from src.application.web_reader.protocols.web_reading_position_repository import (
+    WebReadingPositionRepositoryProtocol,
+)
 from src.domain.reading.services.library_reading_activity_calculator import (
     LibraryReadingActivityCalculator,
 )
@@ -118,6 +121,9 @@ from src.infrastructure.reflection.repositories.book_reflection_repository impor
     BookReflectionRepository,
 )
 from src.infrastructure.tagging.repositories import TagRepository
+from src.infrastructure.web_reader.repositories.web_reading_position_repository import (
+    WebReadingPositionRepository,
+)
 
 
 def repositories_satisfy_their_protocols(
@@ -167,6 +173,7 @@ def repositories_satisfy_their_protocols(
         LibraryReadingActivityCalculator(activity_calculator=ReadingActivityCalculator()),
         LibraryReadingStatsCalculator(),
     )
+    _web_reading_position: WebReadingPositionRepositoryProtocol = WebReadingPositionRepository(db)
 
 
 def ai_service_satisfies_its_protocols(db: AsyncSession) -> None:

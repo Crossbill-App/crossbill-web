@@ -9,15 +9,19 @@ import asyncio
 import zipfile
 import zlib
 from collections.abc import Callable, Hashable, Mapping
+from math import isfinite
 
 import structlog
 import xpoint_cfi
+from lxml.etree import _Element  # pyright: ignore[reportPrivateUsage]
+from xpoint_cfi import css_selector as xpoint_css
 
 from src.application.web_reader.anchors import (
     AnchorConfidence,
     AnchorMatch,
     AnchorNotFoundError,
     AnchorResolutionError,
+    AnchorSource,
     Locator,
     LocatorLocations,
     LocatorText,
@@ -29,6 +33,14 @@ logger = structlog.get_logger(__name__)
 # ``xpoint_cfi`` reads spine documents through ``zipfile`` as it goes, so a broken
 # archive surfaces here rather than at construction -- as ``read_bounded_member`` sees it too.
 UNREADABLE_ARCHIVE = (OSError, zipfile.BadZipFile, EOFError, zlib.error)
+
+POINT_CONTEXT_CHARS = 120
+
+_CONFIDENCE_CEILING = {
+    AnchorSource.QUOTE: AnchorConfidence.BOTH_CONTEXTS,
+    AnchorSource.ELEMENT: AnchorConfidence.HIGHLIGHT_ONLY,
+    AnchorSource.PROGRESSION: AnchorConfidence.FUZZY,
+}
 
 _CONFIDENCE_BY_LIBRARY_MEMBER = {
     xpoint_cfi.MatchConfidence.FUZZY: AnchorConfidence.FUZZY,
@@ -93,16 +105,10 @@ def _converted[K: Hashable, P](
 
 
 def _resolved(epub_content: bytes, locator: Locator) -> AnchorMatch:
-    text = locator.text
-    # Skips a parse that cannot succeed: the library anchors on normalized text, so this
-    # is the same emptiness it would refuse. #830 synthesises a quote for the shape instead.
-    quoted = (text.before, text.highlight, text.after)
-    if not any(xpoint_cfi.normalize_for_comparison(part or "") for part in quoted):
-        raise AnchorNotFoundError(f"Locator {locator.href!r} carries no text to anchor on")
-
     book = _parsed(epub_content)
     try:
-        match = xpoint_cfi.locator_to_xpoint_range(book, _to_library_locator(locator))
+        anchored, source = _anchored(book, locator)
+        match = xpoint_cfi.locator_to_xpoint_range(book, _to_library_locator(anchored))
     # A document that cannot be parsed fails every locator into it together, which is the
     # archive's failure rather than this Locator's; it must be caught before its base class.
     except (xpoint_cfi.EpubStructureError, *UNREADABLE_ARCHIVE) as exc:
@@ -114,8 +120,94 @@ def _resolved(epub_content: bytes, locator: Locator) -> AnchorMatch:
         xpoints=XPointRange.parse(
             match.xpoint_range.start.to_string(), match.xpoint_range.end.to_string()
         ),
-        confidence=_CONFIDENCE_BY_LIBRARY_MEMBER[match.confidence],
+        confidence=min(
+            _CONFIDENCE_BY_LIBRARY_MEMBER[match.confidence], _CONFIDENCE_CEILING[source]
+        ),
+        anchored_by=source,
     )
+
+
+def _anchored(book: xpoint_cfi.EpubMap, locator: Locator) -> tuple[Locator, AnchorSource]:
+    text = locator.text
+    quoted = (text.before, text.highlight, text.after)
+    if any(xpoint_cfi.normalize_for_comparison(part or "") for part in quoted):
+        return locator, AnchorSource.QUOTE
+
+    node = _document(book, locator.href)
+    element = _named_element(node, locator.locations)
+    if element is not None and (quote := _leading_run(element)):
+        return _anchoring_on(locator, LocatorText(after=quote)), AnchorSource.ELEMENT
+
+    if quote := _text_at_progression(node, locator.locations.progression):
+        return _anchoring_on(locator, quote), AnchorSource.PROGRESSION
+
+    raise AnchorNotFoundError(
+        f"Locator {locator.href!r} carries no usable text, element, or progression"
+    )
+
+
+def _document(book: xpoint_cfi.EpubMap, href: str) -> xpoint_cfi.NodeMap:
+    try:
+        spine_index = xpoint_cfi.locator._spine_index_for_href(  # pyright: ignore[reportPrivateUsage]
+            book, href
+        )
+    except xpoint_cfi.XpointCfiError as exc:
+        raise AnchorNotFoundError(f"Cannot place locator {href!r}: {exc}") from exc
+    return book.doc(spine_index)
+
+
+def _anchoring_on(locator: Locator, text: LocatorText) -> Locator:
+    return Locator(href=locator.href, type=locator.type, locations=locator.locations, text=text)
+
+
+def _named_element(node: xpoint_cfi.NodeMap, locations: LocatorLocations) -> _Element | None:
+    if locations.css_selector:
+        found = xpoint_css.resolve_selector(node.root, locations.css_selector)
+        if found is not None:
+            return found
+    for fragment in locations.fragments:
+        found = _element_by_id(node.root, fragment.lstrip("#"))
+        if found is not None:
+            return found
+    return None
+
+
+def _element_by_id(root: _Element, identifier: str) -> _Element | None:
+    if not identifier:
+        return None
+    return next((element for element in root.iter() if element.get("id") == identifier), None)
+
+
+def _leading_run(element: _Element) -> str | None:
+    # Leading whitespace is markup indentation the library's scope search will not find;
+    # trailing whitespace is real separator text that disambiguates the quote, so it stays.
+    for chunk in element.itertext():
+        text = str(chunk)
+        if text.strip():
+            return text.lstrip()[:POINT_CONTEXT_CHARS]
+    return None
+
+
+def _text_at_progression(node: xpoint_cfi.NodeMap, progression: float | None) -> LocatorText | None:
+    # Always ``after``, never ``before``: a point anchor carrying only ``before`` resolves to
+    # the start of the enclosing element whatever text it names, so the last run past the
+    # offset is what places the end of a resource -- one field, and one way to be wrong.
+    if progression is None or not isfinite(progression):
+        return None
+    full = node.extract_text(None, None)
+    if not full.strip():
+        return None
+    offset = round(min(1.0, max(0.0, progression)) * len(full))
+    run = _first_run(full[offset:]) or _last_run(full[:offset])
+    return LocatorText(after=run[:POINT_CONTEXT_CHARS]) if run else None
+
+
+def _first_run(text: str) -> str | None:
+    return next((run for run in text.split("\n") if run.strip()), None)
+
+
+def _last_run(text: str) -> str | None:
+    return next((run for run in reversed(text.split("\n")) if run.strip()), None)
 
 
 def _parsed(epub_content: bytes) -> xpoint_cfi.EpubMap:

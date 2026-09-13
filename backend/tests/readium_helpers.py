@@ -19,13 +19,18 @@ fixture on disk has.
 
 from pathlib import Path
 
+from httpx import AsyncClient, Response
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src import models
 from src.application.web_reader.publications import ParsedPublication
 from src.domain.common.value_objects import BookId
+from src.infrastructure.identity.services.token_service import create_access_token
 from src.infrastructure.library.services.epub_publication_parser import read_publication
 from src.infrastructure.web_reader.repositories.publication_repository import PublicationRepository
+from src.infrastructure.web_reader.services.publication_token_service import (
+    PUBLICATION_COOKIE_NAME,
+)
 from tests.conftest import create_test_book
 from tests.epub_builders import NAV_ITEM, nav_document
 from tests.epub_builders import build_epub as _build_epub
@@ -35,6 +40,11 @@ FIXTURES = Path(__file__).parent / "fixtures"
 POSITION_LIST_REL = "http://readium.org/position-list"
 POSITION_LIST_MEDIA_TYPE = "application/vnd.readium.position-list+json"
 
+# httpx's jar stores a single-label host with ".local" appended, so a cookie
+# planted under plain "test" is silently never sent -- and a test asserting a
+# refusal would be asserting that nothing was offered.
+COOKIE_DOMAIN = "test.local"
+
 
 def manifest_url(book_id: int) -> str:
     return f"/api/v1/readium/books/{book_id}/manifest.json"
@@ -42,6 +52,10 @@ def manifest_url(book_id: int) -> str:
 
 def positions_url(book_id: int) -> str:
     return f"/api/v1/readium/books/{book_id}/positions.json"
+
+
+def session_url(book_id: int) -> str:
+    return f"/api/v1/readium/books/{book_id}/session"
 
 
 def fixture_bytes(name: str) -> bytes:
@@ -99,3 +113,37 @@ async def another_users_book(db_session: AsyncSession) -> models.Book:
     return await create_test_book(
         db_session, user_id=intruder.id, title="Not Yours", author="Someone"
     )
+
+
+async def another_users_indexed_book(db_session: AsyncSession) -> models.Book:
+    """Another user's book with a publication stored, so only ownership can hide it."""
+    theirs = await another_users_book(db_session)
+    await store_fixture(db_session, theirs, "minimal")
+    return theirs
+
+
+async def start_session(browser_client: AsyncClient, user_id: int, book_id: int) -> Response:
+    return await browser_client.post(
+        session_url(book_id),
+        headers={"Authorization": f"Bearer {create_access_token(user_id)}"},
+    )
+
+
+def present(browser_client: AsyncClient, token: str) -> None:
+    """Put ``token`` in the jar under the whole API, replacing whatever is there.
+
+    The path is deliberately wider than the server's: what is under test is what
+    the server makes of a cookie presented where it does not belong, and a jar
+    honouring the cookie's own path would answer by never sending it.
+    """
+    browser_client.cookies.clear()
+    browser_client.cookies.set(PUBLICATION_COOKIE_NAME, token, domain=COOKIE_DOMAIN, path="/")
+
+
+async def hold_publication_cookie(
+    browser_client: AsyncClient, db_session: AsyncSession, user_id: int, book: models.Book
+) -> None:
+    """Give a browser client this book's publication cookie and no other credential."""
+    await store_fixture(db_session, book, "minimal")
+    minted = await start_session(browser_client, user_id, book.id)
+    present(browser_client, minted.cookies[PUBLICATION_COOKIE_NAME])

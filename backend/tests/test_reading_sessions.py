@@ -155,6 +155,54 @@ class TestUploadReadingSessions:
         assert session.start_xpoint == "/body/DocFragment[1]/body/div[1]/p[1]"
         assert session.end_xpoint == "/body/DocFragment[1]/body/div[1]/p[50]"
 
+    async def test_upload_naive_timestamps_as_utc(
+        self, plugin_client: AsyncClient, db_session: AsyncSession, test_book: models.Book
+    ) -> None:
+        response = await plugin_client.post(
+            "/api/v1/reading_sessions/sync",
+            json={
+                "client_book_id": "test-client-book-id",
+                "sessions": [
+                    {
+                        "start_time": "2024-01-15T10:00:00",
+                        "end_time": "2024-01-15T11:00:00",
+                        "start_page": 10,
+                        "end_page": 25,
+                    }
+                ],
+            },
+        )
+
+        assert response.status_code == status.HTTP_200_OK
+        result = await db_session.execute(select(models.ReadingSession))
+        session = result.scalar_one()
+        assert session.start_time.replace(tzinfo=UTC) == datetime(2024, 1, 15, 10, tzinfo=UTC)
+        assert session.end_time.replace(tzinfo=UTC) == datetime(2024, 1, 15, 11, tzinfo=UTC)
+
+    async def test_upload_offset_timestamps_normalized_to_utc(
+        self, plugin_client: AsyncClient, db_session: AsyncSession, test_book: models.Book
+    ) -> None:
+        response = await plugin_client.post(
+            "/api/v1/reading_sessions/sync",
+            json={
+                "client_book_id": "test-client-book-id",
+                "sessions": [
+                    {
+                        "start_time": "2024-01-15T10:00:00+02:00",
+                        "end_time": "2024-01-15T11:00:00+02:00",
+                        "start_page": 10,
+                        "end_page": 25,
+                    }
+                ],
+            },
+        )
+
+        assert response.status_code == status.HTTP_200_OK
+        result = await db_session.execute(select(models.ReadingSession))
+        session = result.scalar_one()
+        assert session.start_time.replace(tzinfo=UTC) == datetime(2024, 1, 15, 8, tzinfo=UTC)
+        assert session.end_time.replace(tzinfo=UTC) == datetime(2024, 1, 15, 9, tzinfo=UTC)
+
     async def test_upload_bulk_sessions_success(
         self, plugin_client: AsyncClient, db_session: AsyncSession, test_book: models.Book
     ) -> None:

@@ -59,9 +59,7 @@ class PositionAnchorServiceProtocol(Protocol):
         Raises:
             AnchorNotFoundError: If a readable EPUB does not hold the place the
                 Locator names -- no such resource, the quote nowhere to be
-                found, or no text to search by at all. That last is the ordinary
-                shape of a reading position, and synthesising a quote for one is
-                #830's.
+                found, or no usable text, element, or progression.
             AnchorResolutionError: If the EPUB itself cannot be read.
         """
         ...

@@ -24,6 +24,9 @@ import type {
   HTTPValidationError,
   PositionList,
   PublicationSession,
+  ReadingPosition,
+  ReadingPositionUpdate,
+  ResumePositionResponse,
   WebPublicationManifest,
 } from '../model';
 
@@ -369,6 +372,224 @@ export function useGetReadiumPositions<
   return withQueryKey(query, queryOptions.queryKey);
 }
 
+/**
+ * Get where the browser should open this book, whichever device was there last.
+ *
+ * Not merely what the browser itself last stored: a reader who left off on their
+ * e-reader is answered with that place instead, if they were there later. Both
+ * places were stored when they were reached, so nothing is derived to answer
+ * this and no EPUB is read.
+ *
+ * Always an object, never 404 and never null: a book nobody has opened is an
+ * ordinary state, and the reader has to be able to tell it apart from a place
+ * that was lost when the EPUB was replaced.
+ *
+ * Bearer-only, like the write: the publication cookie is a credential for a
+ * book's files and stays one (#792).
+ * @summary Get Reading Position
+ */
+export const getReadingPosition = (bookId: number, signal?: AbortSignal) => {
+  return axiosInstance<ResumePositionResponse>({
+    url: `/api/v1/readium/books/${bookId}/reading-position`,
+    method: 'GET',
+    signal,
+  });
+};
+
+export const getGetReadingPositionQueryKey = (bookId: number) => {
+  return [`/api/v1/readium/books/${bookId}/reading-position`] as const;
+};
+
+export const getGetReadingPositionQueryOptions = <
+  TData = Awaited<ReturnType<typeof getReadingPosition>>,
+  TError = HTTPValidationError,
+>(
+  bookId: number,
+  options?: {
+    query?: Partial<UseQueryOptions<Awaited<ReturnType<typeof getReadingPosition>>, TError, TData>>;
+  }
+) => {
+  const { query: queryOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getGetReadingPositionQueryKey(bookId);
+
+  const queryFn: QueryFunction<Awaited<ReturnType<typeof getReadingPosition>>> = ({ signal }) =>
+    getReadingPosition(bookId, signal);
+
+  return {
+    queryKey,
+    queryFn,
+    enabled: bookId !== null && bookId !== undefined,
+    ...queryOptions,
+  } as UseQueryOptions<Awaited<ReturnType<typeof getReadingPosition>>, TError, TData> & {
+    queryKey: DataTag<QueryKey, TData, TError>;
+  };
+};
+
+export type GetReadingPositionQueryResult = NonNullable<
+  Awaited<ReturnType<typeof getReadingPosition>>
+>;
+export type GetReadingPositionQueryError = HTTPValidationError;
+
+export function useGetReadingPosition<
+  TData = Awaited<ReturnType<typeof getReadingPosition>>,
+  TError = HTTPValidationError,
+>(
+  bookId: number,
+  options: {
+    query: Partial<UseQueryOptions<Awaited<ReturnType<typeof getReadingPosition>>, TError, TData>> &
+      Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getReadingPosition>>,
+          TError,
+          Awaited<ReturnType<typeof getReadingPosition>>
+        >,
+        'initialData'
+      >;
+  },
+  queryClient?: QueryClient
+): DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+export function useGetReadingPosition<
+  TData = Awaited<ReturnType<typeof getReadingPosition>>,
+  TError = HTTPValidationError,
+>(
+  bookId: number,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<Awaited<ReturnType<typeof getReadingPosition>>, TError, TData>
+    > &
+      Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getReadingPosition>>,
+          TError,
+          Awaited<ReturnType<typeof getReadingPosition>>
+        >,
+        'initialData'
+      >;
+  },
+  queryClient?: QueryClient
+): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+export function useGetReadingPosition<
+  TData = Awaited<ReturnType<typeof getReadingPosition>>,
+  TError = HTTPValidationError,
+>(
+  bookId: number,
+  options?: {
+    query?: Partial<UseQueryOptions<Awaited<ReturnType<typeof getReadingPosition>>, TError, TData>>;
+  },
+  queryClient?: QueryClient
+): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+/**
+ * @summary Get Reading Position
+ */
+
+export function useGetReadingPosition<
+  TData = Awaited<ReturnType<typeof getReadingPosition>>,
+  TError = HTTPValidationError,
+>(
+  bookId: number,
+  options?: {
+    query?: Partial<UseQueryOptions<Awaited<ReturnType<typeof getReadingPosition>>, TError, TData>>;
+  },
+  queryClient?: QueryClient
+): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+  const queryOptions = getGetReadingPositionQueryOptions(bookId, options);
+
+  const query = useQuery(queryOptions, queryClient) as UseQueryResult<TData, TError> & {
+    queryKey: DataTag<QueryKey, TData, TError>;
+  };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+/**
+ * Record where the reader has got to, and keep their reading session going.
+ *
+ * Bearer-only, though the publication cookie's path scope contains this route: the
+ * cookie is a read credential and stays one (#792). The position is converted to the
+ * canonical KOReader xpointer before anything is stored (ADR-0004 §2) and refused if
+ * the conversion is too weak to say where it is. It also extends -- or begins -- a
+ * real row in ``reading_sessions``, which is how browser reading reaches the progress
+ * bar and the reading statistics (ADR-0004, Amendment 3).
+ *
+ * A write saying nothing newer than what is stored is answered with what is stored
+ * rather than refused: the write a closing tab sends and the one a page turn sends
+ * race by design.
+ * @summary Put Reading Position
+ */
+export const putReadingPosition = (
+  bookId: number,
+  readingPositionUpdate: ReadingPositionUpdate,
+  signal?: AbortSignal
+) => {
+  return axiosInstance<ReadingPosition>({
+    url: `/api/v1/readium/books/${bookId}/reading-position`,
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    data: readingPositionUpdate,
+    signal,
+  });
+};
+
+export const getPutReadingPositionMutationOptions = <TError = void, TContext = unknown>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof putReadingPosition>>,
+    TError,
+    { bookId: number; data: ReadingPositionUpdate },
+    TContext
+  >;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof putReadingPosition>>,
+  TError,
+  { bookId: number; data: ReadingPositionUpdate },
+  TContext
+> => {
+  const mutationKey = ['putReadingPosition'];
+  const { mutation: mutationOptions } = options
+    ? options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey } };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof putReadingPosition>>,
+    { bookId: number; data: ReadingPositionUpdate }
+  > = (props) => {
+    const { bookId, data } = props ?? {};
+
+    return putReadingPosition(bookId, data);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type PutReadingPositionMutationResult = NonNullable<
+  Awaited<ReturnType<typeof putReadingPosition>>
+>;
+export type PutReadingPositionMutationBody = ReadingPositionUpdate;
+export type PutReadingPositionMutationError = void;
+
+/**
+ * @summary Put Reading Position
+ */
+export const usePutReadingPosition = <TError = void, TContext = unknown>(
+  options?: {
+    mutation?: UseMutationOptions<
+      Awaited<ReturnType<typeof putReadingPosition>>,
+      TError,
+      { bookId: number; data: ReadingPositionUpdate },
+      TContext
+    >;
+  },
+  queryClient?: QueryClient
+): UseMutationResult<
+  Awaited<ReturnType<typeof putReadingPosition>>,
+  TError,
+  { bookId: number; data: ReadingPositionUpdate },
+  TContext
+> => {
+  return useMutation(getPutReadingPositionMutationOptions(options), queryClient);
+};
 /**
  * Get one file of a book's publication, unchanged.
  *

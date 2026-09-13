@@ -22,14 +22,15 @@ from src.infrastructure.web_reader.services.publication_token_service import (
     create_publication_token,
 )
 from tests.conftest import create_test_book
-from tests.readium_helpers import fixture_bytes, manifest_url, positions_url, store_fixture
+from tests.readium_helpers import (
+    fixture_bytes,
+    manifest_url,
+    positions_url,
+    present,
+    start_session,
+    store_fixture,
+)
 from tests.test_readium_resources import CHAPTER_1, resource_url, store_indexed_epub
-from tests.test_readium_session import start_session
-
-# httpx's jar stores a single-label host with ".local" appended, so a cookie
-# planted under plain "test" is silently never sent -- and a test asserting a
-# refusal would be asserting that nothing was offered.
-COOKIE_DOMAIN = "test.local"
 
 ROUTE_URLS: list[Callable[[int], str]] = [
     manifest_url,
@@ -37,17 +38,6 @@ ROUTE_URLS: list[Callable[[int], str]] = [
     lambda book_id: resource_url(book_id, CHAPTER_1),
 ]
 ROUTE_NAMES = ["manifest", "positions", "resource"]
-
-
-def present(browser_client: AsyncClient, token: str) -> None:
-    """Put ``token`` in the jar under the whole API, replacing whatever is there.
-
-    The path is deliberately wider than the server's: what is under test is what
-    the server makes of a cookie presented where it does not belong, and a jar
-    honouring the cookie's own path would answer by never sending it.
-    """
-    browser_client.cookies.clear()
-    browser_client.cookies.set(PUBLICATION_COOKIE_NAME, token, domain=COOKIE_DOMAIN, path="/")
 
 
 def would_send(jar: Cookies, url: str) -> bool:
