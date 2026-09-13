@@ -193,6 +193,7 @@ class ReadingContainer(containers.DeclarativeContainer):
         book_repository=book_repository,
         highlight_repository=highlight_repository,
         position_index_service=epub_position_index_service,
+        position_anchor_service=position_anchor_service,
         file_repository=file_repository,
     )
     reading_session_query_use_case = providers.Factory(

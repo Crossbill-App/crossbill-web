@@ -6,12 +6,14 @@ Uses ReadingSessionMapper internally for conversions.
 """
 
 import logging
+from collections.abc import Mapping
 
 from sqlalchemy import func, select, update
 from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.application.reading.protocols.reading_session_repository import BulkCreateResult
+from src.application.web_reader.anchors import Locator
 from src.domain.common.value_objects import BookId, HighlightId, ReadingSessionId, UserId
 from src.domain.common.value_objects.position import Position
 from src.domain.reading.entities.reading_session import ReadingSession
@@ -191,6 +193,37 @@ class ReadingSessionRepository:
 
         await self.db.commit()
         return len(position_updates)
+
+    async def bulk_update_locators(
+        self,
+        locators: Mapping[ReadingSessionId, tuple[Locator | None, Locator | None]],
+        source_hash: str,
+    ) -> None:
+        """Write both endpoints' derived Locators and their source digest onto stored sessions.
+
+        Rolled back before it is re-raised: the caller carries on after a failure,
+        and an uncleared failed statement would abort the write that follows it.
+        """
+        if not locators:
+            return
+
+        try:
+            await self.db.execute(
+                update(ReadingSessionORM),
+                [
+                    {
+                        "id": session_id.value,
+                        "start_locator": start.to_dict() if start else None,
+                        "end_locator": end.to_dict() if end else None,
+                        "locator_source_hash": source_hash,
+                    }
+                    for session_id, (start, end) in locators.items()
+                ],
+            )
+            await self.db.commit()
+        except Exception:
+            await self.db.rollback()
+            raise
 
     async def link_highlights_to_sessions(
         self,

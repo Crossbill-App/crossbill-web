@@ -1,6 +1,8 @@
+from collections.abc import Mapping
 from dataclasses import dataclass
 from typing import Protocol
 
+from src.application.web_reader.anchors import Locator
 from src.domain.common.value_objects.ids import BookId, HighlightId, ReadingSessionId, UserId
 from src.domain.common.value_objects.position import Position
 from src.domain.reading import ReadingSession
@@ -26,6 +28,18 @@ class ReadingSessionRepositoryProtocol(Protocol):
         self,
         position_updates: list[tuple[ReadingSessionId, Position, Position]],
     ) -> int: ...
+
+    async def bulk_update_locators(
+        self,
+        locators: Mapping[ReadingSessionId, tuple[Locator | None, Locator | None]],
+        source_hash: str,
+    ) -> None:
+        """Write both endpoints' derived Locators and their source digest onto stored sessions.
+
+        The pair is (start, end); one digest covers the batch, since a sync
+        derives every session of one book against one EPUB.
+        """
+        ...
 
     async def link_highlights_to_sessions(
         self,
