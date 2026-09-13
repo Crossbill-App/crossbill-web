@@ -85,6 +85,20 @@ class RootContainer(containers.DeclarativeContainer):
         book_repository=shared.book_repository,
     )
 
+    # Declared before library, which uploads the EPUB that drives the locator backfill.
+    web_reader = providers.Container(
+        WebReaderContainer,
+        publication_repository=shared.publication_repository,
+        book_repository=shared.book_repository,
+        file_repository=shared.file_repository,
+        publication_parser=shared.epub_parser_service,
+        publication_resource_query=shared.publication_resource_query,
+        publication_token_service=shared.publication_token_service,
+        highlight_repository=shared.highlight_repository,
+        reading_session_repository=shared.reading_session_repository,
+        position_anchor_service=shared.position_anchor_service,
+    )
+
     library = providers.Container(
         LibraryContainer,
         book_repository=shared.book_repository,
@@ -98,16 +112,7 @@ class RootContainer(containers.DeclarativeContainer):
         publication_repository=shared.publication_repository,
         book_details_query=shared.book_details_query,
         book_list_query=shared.book_list_query,
-    )
-
-    web_reader = providers.Container(
-        WebReaderContainer,
-        publication_repository=shared.publication_repository,
-        book_repository=shared.book_repository,
-        file_repository=shared.file_repository,
-        publication_parser=shared.epub_parser_service,
-        publication_resource_query=shared.publication_resource_query,
-        publication_token_service=shared.publication_token_service,
+        backfill_book_locators_use_case=web_reader.backfill_book_locators_use_case,
     )
 
     learning = providers.Container(

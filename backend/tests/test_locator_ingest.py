@@ -1,11 +1,12 @@
-"""Tests for the ingest paths that derive a Readium Locator and store it.
+"""Tests for the three ingest paths that derive a Readium Locator and store it.
 
-The KOReader highlight and reading-session syncs derive one so far; the
-EPUB-upload backfill joins this file as it lands. A locator has no read route
-until R4.3 (#829), so every assertion here is against the stored row.
+The KOReader highlight sync, the reading-session sync, and an EPUB upload
+rewriting the whole book. A locator has no read route until R4.3 (#829), so
+every assertion here is against the stored row.
 
 The fixture book is ``tests/fixtures/minimal.epub``, and the xpointers below are
-the ones the adapter's own tests verified against it.
+the ones the adapter's own tests verified against it. ``fixed_layout.epub`` is
+the second book an upload can replace it with.
 """
 
 import hashlib
@@ -30,6 +31,8 @@ from tests.readium_helpers import fixture_bytes
 CLIENT_BOOK_ID = "locator-client-book"
 MINIMAL_EPUB = fixture_bytes("minimal")
 MINIMAL_EPUB_DIGEST = hashlib.sha256(MINIMAL_EPUB).hexdigest()
+REPLACEMENT_EPUB = fixture_bytes("fixed_layout")
+REPLACEMENT_DIGEST = hashlib.sha256(REPLACEMENT_EPUB).hexdigest()
 
 # The second of the two identical paragraphs of chapter one: #intro's children
 # are h1, p, p, p, p, so it is nth-child(4) rather than nth-child(2).
@@ -50,6 +53,16 @@ SESSION_START = "/body/DocFragment[1]/body/div/p[1]/text().0"
 SESSION_START_SELECTOR = "#intro > p:nth-child(2)"
 SESSION_END = "/body/DocFragment[2]/body/div/p[1]/text().0"
 SESSION_END_SELECTOR = "#second > p:nth-child(2)"
+
+# The first paragraph of each chapter is where the two fixture books overlap:
+# ``fixed_layout.epub`` places both of these xpointers too, in differently named
+# resources. A locator rewritten against it is therefore observable, where a null
+# one would only say the replacement could not place the position.
+REWRITTEN_TEXT = "The lantern"
+REWRITTEN_END = "/body/DocFragment[1]/body/div/p[1]/text().4"
+REPLACEMENT_SELECTOR = "body > div:nth-child(1) > p:nth-child(1)"
+REPLACEMENT_START_HREF = "page1.xhtml"
+REPLACEMENT_END_HREF = "page2.xhtml"
 
 # Three sessions that no two of share an endpoint, so a write that crossed one
 # session's key with another's would land a selector these assertions reject.
@@ -113,21 +126,26 @@ class _FailingAnchors(XPointCfiPositionAnchorService):
 
 
 class _CountingAnchors(XPointCfiPositionAnchorService):
-    """The real service, counting the forward conversions a sync asks it for."""
+    """The real service, counting the forward conversions it is asked for, by kind."""
 
     def __init__(self) -> None:
-        self.calls = 0
+        self.range_calls = 0
+        self.point_calls = 0
+
+    @property
+    def calls(self) -> int:
+        return self.range_calls + self.point_calls
 
     async def locators_for_xpoint_ranges[K: Hashable](
         self, epub_content: bytes, ranges: Mapping[K, XPointRange]
     ) -> dict[K, Locator | None]:
-        self.calls += 1
+        self.range_calls += 1
         return await super().locators_for_xpoint_ranges(epub_content, ranges)
 
     async def locators_for_xpoints[K: Hashable](
         self, epub_content: bytes, points: Mapping[K, XPoint]
     ) -> dict[K, Locator | None]:
-        self.calls += 1
+        self.point_calls += 1
         return await super().locators_for_xpoints(epub_content, points)
 
 
@@ -168,10 +186,10 @@ def highlight(text: str, start: str | None = None, end: str | None = None) -> di
     return payload
 
 
-async def upload_epub(plugin_client: AsyncClient) -> None:
+async def upload_epub(plugin_client: AsyncClient, content: bytes = MINIMAL_EPUB) -> None:
     response = await plugin_client.post(
         f"/api/v1/ereader/books/{CLIENT_BOOK_ID}/epub",
-        files={"epub": ("book.epub", MINIMAL_EPUB, "application/epub+zip")},
+        files={"epub": ("book.epub", content, "application/epub+zip")},
     )
     assert response.status_code == 200, response.text
 
@@ -496,3 +514,200 @@ async def test_an_endpoint_the_epub_cannot_place_is_stored_null_beside_one_that_
     assert row.start_locator["locations"]["cssSelector"] == SESSION_START_SELECTOR
     assert row.end_locator is None
     assert row.locator_source_hash == MINIMAL_EPUB_DIGEST
+
+
+async def test_an_uploaded_epub_places_every_highlight_the_book_already_had(
+    plugin_client: AsyncClient,
+    db_session: AsyncSession,
+    ereader_book: models.Book,
+    storage_dir: Path,
+) -> None:
+    await sync(plugin_client, [highlight(text, start, end) for text, start, end in FOUR_PLACEABLE])
+    assert (await stored(db_session, PLACEABLE_TEXT)).locator_source_hash is None
+
+    await upload_epub(plugin_client)
+
+    for text, _, _ in FOUR_PLACEABLE:
+        row = await stored(db_session, text)
+        assert row.locator is not None, text
+        # The quote the EPUB yielded, against the one the device sent: a locator
+        # written onto the wrong row would carry another paragraph's words.
+        assert row.locator["text"]["highlight"] == text
+        assert row.locator_source_hash == MINIMAL_EPUB_DIGEST
+
+
+async def test_an_uploaded_epub_places_both_endpoints_of_the_sessions_it_already_had(
+    plugin_client: AsyncClient,
+    db_session: AsyncSession,
+    ereader_book: models.Book,
+    storage_dir: Path,
+) -> None:
+    await sync_sessions(plugin_client, [reading_session("kobo-1")])
+    assert (await stored_session(db_session, "kobo-1")).locator_source_hash is None
+
+    await upload_epub(plugin_client)
+
+    row = await stored_session(db_session, "kobo-1")
+    assert row.start_locator is not None
+    assert row.start_locator["href"] == "OEBPS/chapter1.xhtml"
+    assert row.start_locator["locations"]["cssSelector"] == SESSION_START_SELECTOR
+    assert row.start_locator["text"]["highlight"] == ""
+    assert row.end_locator is not None
+    assert row.end_locator["href"] == "OEBPS/chapter2.xhtml"
+    assert row.end_locator["locations"]["cssSelector"] == SESSION_END_SELECTOR
+    assert row.locator_source_hash == MINIMAL_EPUB_DIGEST
+
+
+async def test_an_upload_leaves_another_users_rows_on_the_same_book_alone(
+    plugin_client: AsyncClient,
+    db_session: AsyncSession,
+    test_user: models.User,
+    ereader_book: models.Book,
+    storage_dir: Path,
+) -> None:
+    """The book id alone would reach this row; only the user filter holds it back."""
+    stranger = models.User(email="stranger-locators@test.com", hashed_password="x")
+    db_session.add(stranger)
+    await db_session.commit()
+    stranger_id = stranger.id
+    await create_test_highlight(
+        db_session=db_session,
+        book=ereader_book,
+        user_id=stranger_id,
+        text=PAGELESS_TEXT,
+        datetime_str="2024-01-15 14:30:22",
+        start_xpoint=PLACEABLE_START,
+        end_xpoint=PLACEABLE_END,
+    )
+    await sync(plugin_client, [highlight(PLACEABLE_TEXT, PLACEABLE_START, PLACEABLE_END)])
+
+    await upload_epub(plugin_client)
+
+    assert (await stored(db_session, PLACEABLE_TEXT)).locator_source_hash == MINIMAL_EPUB_DIGEST
+    theirs = await stored(db_session, PAGELESS_TEXT)
+    assert theirs.user_id == stranger_id
+    assert theirs.locator is None
+    assert theirs.locator_source_hash is None
+
+
+async def test_replacing_the_epub_rewrites_the_locators_against_the_new_file(
+    plugin_client: AsyncClient,
+    db_session: AsyncSession,
+    ereader_book: models.Book,
+    storage_dir: Path,
+) -> None:
+    await sync(plugin_client, [highlight(REWRITTEN_TEXT, SESSION_START, REWRITTEN_END)])
+    await sync_sessions(plugin_client, [reading_session("kobo-1")])
+    await upload_epub(plugin_client)
+    before = await stored(db_session, REWRITTEN_TEXT)
+    assert before.locator is not None
+    assert before.locator["href"] == "OEBPS/chapter1.xhtml"
+    assert before.locator_source_hash == MINIMAL_EPUB_DIGEST
+
+    await upload_epub(plugin_client, REPLACEMENT_EPUB)
+
+    row = await stored(db_session, REWRITTEN_TEXT)
+    assert row.locator is not None
+    assert row.locator["href"] == REPLACEMENT_START_HREF
+    assert row.locator["locations"]["cssSelector"] == REPLACEMENT_SELECTOR
+    assert row.locator["text"]["highlight"] == "One."
+    assert row.locator_source_hash == REPLACEMENT_DIGEST
+    session_row = await stored_session(db_session, "kobo-1")
+    assert session_row.start_locator is not None
+    assert session_row.start_locator["href"] == REPLACEMENT_START_HREF
+    assert session_row.end_locator is not None
+    assert session_row.end_locator["href"] == REPLACEMENT_END_HREF
+    assert session_row.locator_source_hash == REPLACEMENT_DIGEST
+
+
+async def test_an_upload_derives_once_per_kind_however_many_rows_there_are(
+    plugin_client: AsyncClient,
+    db_session: AsyncSession,
+    ereader_book: models.Book,
+    storage_dir: Path,
+    counting_anchors: _CountingAnchors,
+) -> None:
+    await sync(plugin_client, [highlight(text, start, end) for text, start, end in FOUR_PLACEABLE])
+    await sync_sessions(
+        plugin_client,
+        [reading_session(device, start, end) for device, start, end, _, _ in THREE_SPANS],
+    )
+    assert counting_anchors.calls == 0
+
+    await upload_epub(plugin_client)
+
+    assert counting_anchors.range_calls == 1
+    assert counting_anchors.point_calls == 1
+    for text, _, _ in FOUR_PLACEABLE:
+        assert (await stored(db_session, text)).locator is not None, text
+    for device, _, _, start_selector, end_selector in THREE_SPANS:
+        row = await stored_session(db_session, device)
+        assert row.start_locator is not None, device
+        assert row.start_locator["locations"]["cssSelector"] == start_selector
+        assert row.end_locator is not None, device
+        assert row.end_locator["locations"]["cssSelector"] == end_selector
+
+
+async def test_an_upload_whose_derivation_raises_still_succeeds(
+    plugin_client: AsyncClient,
+    db_session: AsyncSession,
+    ereader_book: models.Book,
+    storage_dir: Path,
+    broken_anchors: _FailingAnchors,
+) -> None:
+    await sync(plugin_client, [highlight(PLACEABLE_TEXT, PLACEABLE_START, PLACEABLE_END)])
+    await sync_sessions(plugin_client, [reading_session("kobo-1")])
+
+    await upload_epub(plugin_client)
+
+    row = await stored(db_session, PLACEABLE_TEXT)
+    assert row.position is not None
+    assert row.locator is None
+    assert row.locator_source_hash is None
+    session_row = await stored_session(db_session, "kobo-1")
+    assert session_row.start_locator is None
+    assert session_row.locator_source_hash is None
+
+
+async def test_an_upload_records_the_digest_it_could_not_place_a_row_against(
+    plugin_client: AsyncClient,
+    db_session: AsyncSession,
+    ereader_book: models.Book,
+    storage_dir: Path,
+) -> None:
+    # The hash without a locator is what R4.3 reads as "this file cannot place
+    # it", as against the next test's absent hash, which means nothing was tried.
+    await sync(plugin_client, [highlight(UNPLACEABLE_TEXT, UNPLACEABLE_START, UNPLACEABLE_END)])
+    await sync_sessions(
+        plugin_client,
+        [reading_session("kobo-1", start_xpoint=UNPLACEABLE_START, end_xpoint=UNPLACEABLE_END)],
+    )
+
+    await upload_epub(plugin_client)
+
+    row = await stored(db_session, UNPLACEABLE_TEXT)
+    assert row.locator is None
+    assert row.locator_source_hash == MINIMAL_EPUB_DIGEST
+    session_row = await stored_session(db_session, "kobo-1")
+    assert session_row.start_locator is None
+    assert session_row.end_locator is None
+    assert session_row.locator_source_hash == MINIMAL_EPUB_DIGEST
+
+
+async def test_an_upload_never_attempts_rows_that_have_no_xpoints(
+    plugin_client: AsyncClient,
+    db_session: AsyncSession,
+    ereader_book: models.Book,
+    storage_dir: Path,
+    counting_anchors: _CountingAnchors,
+) -> None:
+    await sync(plugin_client, [highlight(PAGELESS_TEXT)])
+    await sync_sessions(
+        plugin_client, [reading_session("kobo-1", start_xpoint=None, end_xpoint=None)]
+    )
+
+    await upload_epub(plugin_client)
+
+    assert counting_anchors.calls == 0
+    assert (await stored(db_session, PAGELESS_TEXT)).locator_source_hash is None
+    assert (await stored_session(db_session, "kobo-1")).locator_source_hash is None

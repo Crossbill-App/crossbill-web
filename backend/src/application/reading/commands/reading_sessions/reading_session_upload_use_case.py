@@ -18,13 +18,13 @@ from src.application.web_reader.protocols.position_anchor_service import (
     PositionAnchorServiceProtocol,
 )
 from src.application.web_reader.publications import epub_content_hash
+from src.application.web_reader.session_endpoints import endpoint_xpoints, paired_by_session
 from src.config import get_settings
 from src.domain.common.exceptions import DomainError
 from src.domain.common.value_objects import (
     BookId,
     ReadingSessionId,
     UserId,
-    XPoint,
     XPointRange,
 )
 from src.domain.common.value_objects.position import Position
@@ -286,16 +286,8 @@ class ReadingSessionUploadUseCase:
         if not epub_content:
             return
 
-        placed: list[ReadingSessionId] = []
-        points: dict[tuple[ReadingSessionId, str], XPoint] = {}
-        for session in sessions:
-            if not session.start_xpoint:
-                continue
-            placed.append(session.id)
-            points[(session.id, "start")] = session.start_xpoint.start
-            points[(session.id, "end")] = session.start_xpoint.end
-
-        if not placed:
+        points = endpoint_xpoints(sessions)
+        if not points:
             return
 
         try:
@@ -303,20 +295,13 @@ class ReadingSessionUploadUseCase:
                 epub_content, points
             )
             await self.session_repository.bulk_update_locators(
-                {
-                    session_id: (
-                        locators.get((session_id, "start")),
-                        locators.get((session_id, "end")),
-                    )
-                    for session_id in placed
-                },
-                epub_content_hash(epub_content),
+                paired_by_session(points, locators), epub_content_hash(epub_content)
             )
         except Exception:
             logger.exception(
                 "reading_session_locator_derivation_failed",
                 book_id=book_id.value,
-                count=len(placed),
+                count=len(points) // 2,
             )
 
     async def _link_highlights_to_sessions(

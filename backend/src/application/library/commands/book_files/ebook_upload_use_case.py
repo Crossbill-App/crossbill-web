@@ -13,6 +13,9 @@ from src.application.reading.protocols.highlight_repository import HighlightRepo
 from src.application.reading.protocols.reading_session_repository import (
     ReadingSessionRepositoryProtocol,
 )
+from src.application.web_reader.commands.backfill_book_locators_use_case import (
+    BackfillBookLocatorsUseCase,
+)
 from src.application.web_reader.protocols.publication_parser import PublicationParserProtocol
 from src.application.web_reader.protocols.publication_repository import (
     PublicationRepositoryProtocol,
@@ -42,6 +45,7 @@ class EbookUploadUseCase:
         session_repository: ReadingSessionRepositoryProtocol,
         publication_parser: PublicationParserProtocol,
         publication_repository: PublicationRepositoryProtocol,
+        backfill_book_locators_use_case: BackfillBookLocatorsUseCase,
     ) -> None:
         """
         Initialize use case with dependencies.
@@ -57,6 +61,7 @@ class EbookUploadUseCase:
             session_repository: Repository for reading session persistence
             publication_parser: Resolves an EPUB into the web reader's index
             publication_repository: Stores that index beside the book
+            backfill_book_locators_use_case: Rewrites the book's derived Locators
         """
         self.book_repository = book_repository
         self.chapter_repository = chapter_repository
@@ -68,6 +73,7 @@ class EbookUploadUseCase:
         self.session_repository = session_repository
         self.publication_parser = publication_parser
         self.publication_repository = publication_repository
+        self._backfill_book_locators_use_case = backfill_book_locators_use_case
 
     async def upload_ebook(
         self,
@@ -170,6 +176,12 @@ class EbookUploadUseCase:
 
         # Backfill positions for existing entities
         await self._backfill_positions(book.id, user_id, position_index)
+
+        # The file is what a locator was derived against, so a new one restates
+        # every locator of the book -- whether or not the publication index took.
+        await self._backfill_book_locators_use_case.backfill_book_locators(
+            book.id, user_id, content
+        )
 
     async def _derive_publication(self, book_id: BookId, file_name: str, content: bytes) -> None:
         """Store the web reader's index of the uploaded EPUB, or drop a stale one.
