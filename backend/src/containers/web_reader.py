@@ -9,6 +9,9 @@ from src.application.web_reader.commands.start_publication_session_use_case impo
 from src.application.web_reader.queries.get_book_highlight_locators_use_case import (
     GetBookHighlightLocatorsUseCase,
 )
+from src.application.web_reader.queries.get_highlight_locator_use_case import (
+    GetHighlightLocatorUseCase,
+)
 from src.application.web_reader.queries.get_publication_positions_use_case import (
     GetPublicationPositionsUseCase,
 )
@@ -60,6 +63,10 @@ class WebReaderContainer(containers.DeclarativeContainer):
     )
     get_book_highlight_locators_use_case = providers.Factory(
         GetBookHighlightLocatorsUseCase,
+        highlight_locator_query=highlight_locator_query,
+    )
+    get_highlight_locator_use_case = providers.Factory(
+        GetHighlightLocatorUseCase,
         highlight_locator_query=highlight_locator_query,
     )
     start_publication_session_use_case = providers.Factory(

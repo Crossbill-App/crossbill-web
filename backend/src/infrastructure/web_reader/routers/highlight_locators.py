@@ -13,9 +13,12 @@ from starlette import status
 from src.application.web_reader.queries.get_book_highlight_locators_use_case import (
     GetBookHighlightLocatorsUseCase,
 )
+from src.application.web_reader.queries.get_highlight_locator_use_case import (
+    GetHighlightLocatorUseCase,
+)
 from src.application.web_reader.queries.highlight_locators import HighlightLocatorView
 from src.core import container
-from src.domain.common.value_objects.ids import BookId
+from src.domain.common.value_objects.ids import BookId, HighlightId
 from src.domain.identity import User
 from src.infrastructure.common.di import inject_use_case
 from src.infrastructure.common.schemas.response_wrappers import CollectionResponse
@@ -54,6 +57,34 @@ async def get_book_highlight_locators(
     """
     views = await use_case.get_book_highlight_locators(BookId(book_id), current_user.id)
     return CollectionResponse(items=[_locator_response(view) for view in views])
+
+
+@router.get(
+    "/highlights/{highlight_id}/locator",
+    response_model=HighlightLocatorResponse,
+    response_model_exclude_none=True,
+    status_code=status.HTTP_200_OK,
+)
+async def get_highlight_locator(
+    highlight_id: int,
+    current_user: Annotated[User, Depends(get_current_user)],
+    use_case: GetHighlightLocatorUseCase = Depends(
+        inject_use_case(container.web_reader.get_highlight_locator_use_case)
+    ),
+) -> HighlightLocatorResponse:
+    """
+    Get where one highlight is in its book's EPUB, for opening the reader at it.
+
+    Either a locator or a reason there is none, on the same terms as the book's
+    whole list: the locator was derived when the highlight or the book's EPUB
+    was last synced, and is withheld once the book's EPUB no longer matches the
+    file it came from. Nothing is derived to answer this request.
+
+    A highlight that does not exist, has been deleted, or belongs to another
+    user, answers 404.
+    """
+    view = await use_case.get_highlight_locator(HighlightId(highlight_id), current_user.id)
+    return _locator_response(view)
 
 
 def _locator_response(view: HighlightLocatorView) -> HighlightLocatorResponse:

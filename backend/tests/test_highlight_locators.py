@@ -1,4 +1,4 @@
-"""The whole-book highlight-locator route (R4.3, #829).
+"""The highlight-locator routes -- a book's whole list and one highlight (R4.3, #829).
 
 Everything it answers with was written by R4.2's ingest, so every fixture here
 puts the locator columns in the state an ingest would have left them in and the
@@ -35,6 +35,10 @@ SECOND_QUOTE = "Morning arrived without ceremony"
 
 def url(book_id: int) -> str:
     return f"/api/v1/books/{book_id}/highlight-locators"
+
+
+def highlight_url(highlight_id: int) -> str:
+    return f"/api/v1/highlights/{highlight_id}/locator"
 
 
 def locator(href: str, quote: str, selector: str) -> Locator:
@@ -79,6 +83,12 @@ async def items(client: AsyncClient, book: models.Book) -> list[dict[str, Any]]:
     response = await client.get(url(book.id))
     assert response.status_code == status.HTTP_200_OK, response.text
     return response.json()["items"]
+
+
+async def answer_for(client: AsyncClient, highlight: models.Highlight) -> dict[str, Any]:
+    response = await client.get(highlight_url(highlight.id))
+    assert response.status_code == status.HTTP_200_OK, response.text
+    return response.json()
 
 
 @pytest.fixture
@@ -263,3 +273,118 @@ async def test_the_route_reads_no_epub_and_runs_no_parse(
     served = await items(client, indexed_book)
 
     assert served[0]["locator"]["href"] == "resources/OEBPS/chapter1.xhtml"
+
+
+async def test_one_highlights_locator_is_served_in_the_coordinates_the_manifest_publishes(
+    client: AsyncClient,
+    db_session: AsyncSession,
+    test_user: models.User,
+    indexed_book: models.Book,
+) -> None:
+    await add_highlight(
+        db_session, indexed_book, test_user.id, FIRST_QUOTE, FIRST_LOCATOR, MINIMAL_DIGEST
+    )
+    # The second highlight is the one read, so its id differs from its book's and
+    # a publication joined on the wrong one of the two finds nothing.
+    highlight = await add_highlight(
+        db_session, indexed_book, test_user.id, SECOND_QUOTE, SECOND_LOCATOR, MINIMAL_DIGEST
+    )
+
+    answer = await answer_for(client, highlight)
+
+    assert answer["highlight_id"] == highlight.id
+    assert "unavailable" not in answer
+    assert answer["locator"]["href"] == "resources/OEBPS/chapter2.xhtml"
+    assert answer["locator"]["type"] == "application/xhtml+xml"
+    assert answer["locator"]["locations"]["cssSelector"] == "#second > p:nth-child(2)"
+    assert answer["locator"]["locations"]["progression"] == 0.25
+    assert answer["locator"]["text"]["highlight"] == SECOND_QUOTE
+
+
+async def test_a_highlight_in_a_book_with_no_publication_answers_no_ebook(
+    client: AsyncClient,
+    db_session: AsyncSession,
+    test_user: models.User,
+    test_book: models.Book,
+) -> None:
+    highlight = await add_highlight(
+        db_session, test_book, test_user.id, FIRST_QUOTE, FIRST_LOCATOR, MINIMAL_DIGEST
+    )
+
+    answer = await answer_for(client, highlight)
+
+    assert answer["unavailable"] == "no_ebook"
+    assert "locator" not in answer
+
+
+async def test_one_locator_derived_from_another_epub_is_withheld_not_served(
+    client: AsyncClient,
+    db_session: AsyncSession,
+    test_user: models.User,
+    indexed_book: models.Book,
+) -> None:
+    highlight = await add_highlight(
+        db_session, indexed_book, test_user.id, FIRST_QUOTE, FIRST_LOCATOR, OTHER_BOOK_DIGEST
+    )
+
+    answer = await answer_for(client, highlight)
+
+    assert answer["unavailable"] == "unresolved"
+    assert "locator" not in answer
+
+
+async def test_a_deleted_highlight_is_not_found(
+    client: AsyncClient,
+    db_session: AsyncSession,
+    test_user: models.User,
+    indexed_book: models.Book,
+) -> None:
+    highlight = await add_highlight(
+        db_session,
+        indexed_book,
+        test_user.id,
+        FIRST_QUOTE,
+        FIRST_LOCATOR,
+        MINIMAL_DIGEST,
+        deleted=True,
+    )
+
+    response = await client.get(highlight_url(highlight.id))
+
+    assert response.status_code == status.HTTP_404_NOT_FOUND, response.text
+
+
+async def test_another_users_highlight_on_this_book_is_not_found(
+    client: AsyncClient,
+    db_session: AsyncSession,
+    indexed_book: models.Book,
+) -> None:
+    """A highlight carries its own user, and the id alone would reach this one."""
+    stranger = models.User(email="stranger-one-locator@test.com", hashed_password="x")
+    db_session.add(stranger)
+    await db_session.commit()
+    theirs = await add_highlight(
+        db_session, indexed_book, stranger.id, FIRST_QUOTE, FIRST_LOCATOR, MINIMAL_DIGEST
+    )
+
+    response = await client.get(highlight_url(theirs.id))
+
+    assert response.status_code == status.HTTP_404_NOT_FOUND, response.text
+
+
+async def test_the_publication_cookie_is_not_a_key_to_one_highlights_locator(
+    browser_client: AsyncClient,
+    db_session: AsyncSession,
+    test_user: models.User,
+    test_book: models.Book,
+) -> None:
+    await store_fixture(db_session, test_book, "minimal")
+    highlight = await add_highlight(
+        db_session, test_book, test_user.id, FIRST_QUOTE, FIRST_LOCATOR, MINIMAL_DIGEST
+    )
+    minted = await start_session(browser_client, test_user.id, test_book.id)
+    present(browser_client, minted.cookies[PUBLICATION_COOKIE_NAME])
+
+    response = await browser_client.get(highlight_url(highlight.id))
+
+    assert response.status_code == status.HTTP_401_UNAUTHORIZED, response.text

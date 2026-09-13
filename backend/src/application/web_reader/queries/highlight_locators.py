@@ -15,7 +15,7 @@ from enum import StrEnum
 from typing import Protocol
 
 from src.application.web_reader.anchors import Locator
-from src.domain.common.value_objects.ids import BookId, UserId
+from src.domain.common.value_objects.ids import BookId, HighlightId, UserId
 
 
 class LocatorUnavailable(StrEnum):
@@ -72,6 +72,18 @@ class BookHighlightLocators:
     highlights: tuple[StoredHighlightLocator, ...]
 
 
+@dataclass(frozen=True)
+class HighlightLocatorInBook:
+    """One highlight's stored locator, beside the digest it is judged against.
+
+    ``publication_hash`` is ``None`` when the book has no publication row --
+    distinct from the port answering ``None``, which means no such highlight.
+    """
+
+    publication_hash: str | None
+    highlight: StoredHighlightLocator
+
+
 class HighlightLocatorQueryProtocol(Protocol):
     """Port reading the locator columns and the publication digest beside them."""
 
@@ -79,6 +91,12 @@ class HighlightLocatorQueryProtocol(Protocol):
         self, book_id: BookId, user_id: UserId
     ) -> BookHighlightLocators | None:
         """Return the book's stored locators, or ``None`` if the user has no such book."""
+        ...
+
+    async def locator_for_highlight(
+        self, highlight_id: HighlightId, user_id: UserId
+    ) -> HighlightLocatorInBook | None:
+        """Return one highlight's stored locator, or ``None`` if the user has no live one."""
         ...
 
 
