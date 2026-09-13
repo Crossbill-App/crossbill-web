@@ -93,6 +93,7 @@ class RootContainer(containers.DeclarativeContainer):
         file_repository=shared.file_repository,
         publication_parser=shared.epub_parser_service,
         publication_resource_query=shared.publication_resource_query,
+        highlight_locator_query=shared.highlight_locator_query,
         publication_token_service=shared.publication_token_service,
         highlight_repository=shared.highlight_repository,
         reading_session_repository=shared.reading_session_repository,

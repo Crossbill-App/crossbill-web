@@ -4332,6 +4332,102 @@
         }
       }
     },
+    "/api/v1/books/{book_id}/highlight-locators": {
+      "get": {
+        "tags": [
+          "highlights"
+        ],
+        "summary": "Get Book Highlight Locators",
+        "description": "Get where every one of a book's live highlights is in its EPUB.\n\nOne entry per highlight, in id order, each carrying either a locator or a\nreason there is none -- so a reader can tell a highlight it must not draw\nfrom one it was never told about. Deleted highlights are simply absent.\n\nA locator here was derived when the highlight or the book's EPUB was last\nsynced, and is withheld once the book's EPUB no longer matches the file it\ncame from. Nothing is derived to answer this request.\n\nA book that does not exist, or belongs to another user, answers 404.",
+        "operationId": "get_book_highlight_locators",
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "book_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Book Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CollectionResponse_HighlightLocatorResponse_"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/highlights/{highlight_id}/locator": {
+      "get": {
+        "tags": [
+          "highlights"
+        ],
+        "summary": "Get Highlight Locator",
+        "description": "Get where one highlight is in its book's EPUB, for opening the reader at it.\n\nEither a locator or a reason there is none, on the same terms as the book's\nwhole list: the locator was derived when the highlight or the book's EPUB\nwas last synced, and is withheld once the book's EPUB no longer matches the\nfile it came from. Nothing is derived to answer this request.\n\nA highlight that does not exist, has been deleted, or belongs to another\nuser, answers 404.",
+        "operationId": "get_highlight_locator",
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "highlight_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Highlight Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HighlightLocatorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/semantic/backfill": {
       "post": {
         "tags": [
@@ -6048,6 +6144,22 @@
         ],
         "title": "CollectionResponse[HighlightLabelInBook]"
       },
+      "CollectionResponse_HighlightLocatorResponse_": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/HighlightLocatorResponse"
+            },
+            "type": "array",
+            "title": "Items"
+          }
+        },
+        "type": "object",
+        "required": [
+          "items"
+        ],
+        "title": "CollectionResponse[HighlightLocatorResponse]"
+      },
       "CollectionResponse_NoteWithLinks_": {
         "properties": {
           "items": {
@@ -7436,6 +7548,43 @@
         "title": "HighlightLabelUpdate",
         "description": "Schema for updating a highlight label."
       },
+      "HighlightLocatorResponse": {
+        "properties": {
+          "highlight_id": {
+            "type": "integer",
+            "title": "Highlight Id",
+            "description": "The highlight this answers for"
+          },
+          "locator": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/LocatorSchema"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The stored Readium locator, with hrefs in the same coordinates the manifest publishes. Absent whenever `unavailable` is present."
+          },
+          "unavailable": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/LocatorUnavailable"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Why there is no locator. Absent whenever `locator` is present."
+          }
+        },
+        "type": "object",
+        "required": [
+          "highlight_id"
+        ],
+        "title": "HighlightLocatorResponse",
+        "description": "Where one highlight is in the book's EPUB, or why that cannot be said."
+      },
       "HighlightResponseBase": {
         "properties": {
           "text": {
@@ -7983,6 +8132,111 @@
         ],
         "title": "LibraryStats",
         "description": "The year on the grid, said in numbers rather than squares.\n\nCounted over the same window as ``LibraryActivity``, but from the sessions:\na day that got through no pages is a day read with no square to show for it."
+      },
+      "LocatorLocationsSchema": {
+        "properties": {
+          "progression": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Progression"
+          },
+          "cssSelector": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cssselector"
+          }
+        },
+        "type": "object",
+        "title": "LocatorLocationsSchema",
+        "description": "A Locator's ``locations``: the ways a derivation can express the position."
+      },
+      "LocatorSchema": {
+        "properties": {
+          "href": {
+            "type": "string",
+            "title": "Href"
+          },
+          "type": {
+            "type": "string",
+            "title": "Type"
+          },
+          "locations": {
+            "$ref": "#/components/schemas/LocatorLocationsSchema"
+          },
+          "text": {
+            "$ref": "#/components/schemas/LocatorTextSchema"
+          }
+        },
+        "type": "object",
+        "required": [
+          "href",
+          "type",
+          "locations",
+          "text"
+        ],
+        "title": "LocatorSchema",
+        "description": "A Readium Locator naming one place in a publication."
+      },
+      "LocatorTextSchema": {
+        "properties": {
+          "before": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Before"
+          },
+          "highlight": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Highlight"
+          },
+          "after": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "After"
+          }
+        },
+        "type": "object",
+        "title": "LocatorTextSchema",
+        "description": "A Locator's ``text``: the anchored text and what surrounds it."
+      },
+      "LocatorUnavailable": {
+        "type": "string",
+        "enum": [
+          "no_ebook",
+          "unresolved"
+        ],
+        "title": "LocatorUnavailable",
+        "description": "Why a highlight has no locator, in terms a client can act on.\n\n``no_ebook`` is the book's problem: it has no stored publication, so it\ncannot be opened in the reader at all and nothing is wrong with any of its\nhighlights. ``unresolved`` is this one highlight's -- no locator was ever\nderived for it, or the stored one belongs to a file the book no longer\nholds."
       },
       "Note": {
         "properties": {
