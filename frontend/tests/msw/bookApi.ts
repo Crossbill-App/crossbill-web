@@ -4,6 +4,9 @@ import type {
   BookReadingStatistics,
   BookUpdateRequest,
   ChapterDigestResponse,
+  Highlight,
+  HighlightDeleteRequest,
+  HighlightDeleteResponse,
   NoteCreateRequest,
   NoteUpdateRequest,
   NoteWithLinks,
@@ -112,6 +115,27 @@ export function bookApi(initial: Partial<BookApiState> = {}) {
     }),
 
     http.delete('/api/v1/books/:bookId', () => new HttpResponse(null, { status: 204 })),
+
+    http.delete('/api/v1/books/:bookId/highlight', async ({ request }) => {
+      const { highlight_ids } = (await request.json()) as HighlightDeleteRequest;
+      const isDeleted = (highlight: Highlight) => highlight_ids.includes(highlight.id);
+      const deleted_count = state.book.chapters
+        .flatMap((chapter) => chapter.highlights)
+        .filter(isDeleted).length;
+      state.book = {
+        ...state.book,
+        chapters: state.book.chapters.map((chapter) => ({
+          ...chapter,
+          highlights: chapter.highlights.filter((highlight) => !isDeleted(highlight)),
+        })),
+      };
+
+      return HttpResponse.json({
+        success: true,
+        message: 'Highlights deleted',
+        deleted_count,
+      } satisfies HighlightDeleteResponse);
+    }),
 
     http.post('/api/v1/notes', async ({ request }) => {
       const body = (await request.json()) as NoteCreateRequest;

@@ -871,3 +871,18 @@ test('turning a page leaves the drawn highlights alone', async () => {
   await expect.element(screen.getByText('Page 2 of 2')).toBeVisible();
   expect(readers[0].decorations).toHaveLength(submissions);
 });
+
+test('activating a decoration asks to open its highlight', async () => {
+  worker.use(...readiumApi());
+  const opened: number[] = [];
+  const screen = await anOpenBook({}, { onOpenHighlight: (id) => opened.push(id) });
+
+  readers[0].activateDecoration('highlight-300');
+  expect(opened).toEqual([300]);
+
+  await screen.rerenderShell({ onOpenHighlight: (id) => opened.push(id * 10) });
+  readers[0].activateDecoration('highlight-300');
+
+  expect(opened).toEqual([300, 3000]);
+  expect(readers).toHaveLength(1);
+});

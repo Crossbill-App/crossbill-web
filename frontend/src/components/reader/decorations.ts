@@ -10,7 +10,13 @@ const TINT_OPACITY = 0.35;
 // else the engine would draw invisible, and it would still take a tap.
 const HEX_COLOR = /^#?[0-9a-f]{6}$/i;
 
-const decorationId = (highlightId: number) => `highlight-${highlightId}`;
+const DECORATION_ID_PREFIX = 'highlight-';
+
+const decorationId = (highlightId: number) => `${DECORATION_ID_PREFIX}${highlightId}`;
+
+/** The highlight a drawn decoration stands for. */
+export const highlightIdFrom = (decorationId: string): number =>
+  Number(decorationId.slice(DECORATION_ID_PREFIX.length));
 
 const toEbookLocation = (locator: LocatorSchema): EbookLocation => ({
   href: locator.href,

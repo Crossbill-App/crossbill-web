@@ -2,6 +2,9 @@ import { useCallback, useEffect, useRef } from 'react';
 
 let stack: symbol[] = [];
 
+/** Whether any dialog `CommonDialog` renders is open. */
+export const isAnyDialogOpen = () => stack.length > 0;
+
 /**
  * Registers an open dialog as the topmost one for as long as it stays open,
  * and reports whether it still is.

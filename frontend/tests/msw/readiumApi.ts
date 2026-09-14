@@ -96,9 +96,10 @@ export const readingPositionApi = (stored: ResumePositionResponse = nowhereToRes
  */
 export const highlightLocatorsApi = (
   items: HighlightLocatorResponse[] = [],
-  { delayMs }: { delayMs?: number } = {}
+  { delayMs, onRequest }: { delayMs?: number; onRequest?: () => void } = {}
 ) => [
   http.get(HIGHLIGHT_LOCATORS_PATH, async () => {
+    onRequest?.();
     // Guarded, because MSW's `delay()` with no argument is a random one.
     if (delayMs) await delay(delayMs);
     return HttpResponse.json({ items });

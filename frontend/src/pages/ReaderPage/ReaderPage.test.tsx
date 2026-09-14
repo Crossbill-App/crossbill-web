@@ -13,7 +13,7 @@ import {
   aResumePosition,
   nowhereToResume,
 } from '@tests/fixtures/publication';
-import { drawnOn } from '@tests/harness/paintedHighlights';
+import { drawnOn, drawnRanges } from '@tests/harness/paintedHighlights';
 import { renderApp } from '@tests/harness/renderApp';
 import { bookApi } from '@tests/msw/bookApi';
 import {
@@ -869,4 +869,134 @@ test('a book is opened with its highlights drawn on the page', async () => {
   await openTheBook();
 
   await expect.poll(() => drawnOn(document), { timeout: 5_000 }).toEqual(['p:rarest and purest']);
+});
+
+const PLACED_TEXT = 'Attention is the rarest and purest form of generosity.';
+const UNPLACED_TEXT = 'The map is not the territory.';
+
+/** Only 300 is placed, so a tap is unambiguous while the dialog still pages over both. */
+const aBookWithAPaintedHighlight = async ({
+  onLocatorsRequest,
+}: { onLocatorsRequest?: () => void } = {}) => {
+  const highlights = [
+    aHighlight({ id: 300, text: PLACED_TEXT }),
+    aHighlight({ id: 301, text: UNPLACED_TEXT }),
+  ];
+  worker.use(...bookApi({ book: aBookDetails({ chapters: [aChapter({ highlights })] }) }).handlers);
+  worker.use(...readiumApi());
+  worker.use(...highlightLocatorsApi([aHighlightLocator(300)], { onRequest: onLocatorsRequest }));
+  const screen = await openTheBook();
+  await expect.poll(() => drawnRanges(document), { timeout: 5_000 }).toHaveLength(1);
+  return screen;
+};
+
+const tapTheHighlight = async () => {
+  const [range] = drawnRanges(document);
+  const frame = [...document.querySelectorAll('iframe')].find((candidate) =>
+    candidate.contentDocument?.contains(range.startContainer)
+  )!;
+  const rect = range.getClientRects()[0];
+  await userEvent.click(frame, {
+    position: { x: rect.left + rect.width / 2, y: rect.top + rect.height / 2 },
+  });
+};
+
+const expectTheDialogShowing = (screen: Screen, text: string) =>
+  expect.element(screen.getByRole('dialog').getByText(text)).toBeVisible();
+
+const historyIndex = (screen: Screen) => screen.router.state.location.state.__TSR_index;
+
+const expectBackAtTheBook = async (screen: Screen, indexBeforeTheTap: number) => {
+  await expect.element(screen.getByRole('dialog')).not.toBeInTheDocument();
+  await expectTheReaderOpen(screen);
+  expect(screen.router.state.location.search).not.toHaveProperty('highlightId');
+  // Closed and gone from history too: an entry left behind reopens the dialog on the next back.
+  expect(historyIndex(screen)).toBe(indexBeforeTheTap);
+};
+
+test('tapping a highlight opens it', async () => {
+  const screen = await aBookWithAPaintedHighlight();
+
+  await tapTheHighlight();
+
+  await expectTheDialogShowing(screen, PLACED_TEXT);
+  expect(screen.router.state.location.search).toEqual({ highlightId: 300 });
+});
+
+test('closing a tapped highlight goes back to the book', async () => {
+  const screen = await aBookWithAPaintedHighlight();
+  const before = historyIndex(screen);
+  await tapTheHighlight();
+  await expectTheDialogShowing(screen, PLACED_TEXT);
+
+  await screen.getByRole('button', { name: 'Close dialog' }).click();
+
+  await expectBackAtTheBook(screen, before);
+});
+
+test('the back button closes a tapped highlight, not the book', async () => {
+  const screen = await aBookWithAPaintedHighlight();
+  const before = historyIndex(screen);
+  await tapTheHighlight();
+  await expectTheDialogShowing(screen, PLACED_TEXT);
+
+  window.history.back();
+
+  await expectBackAtTheBook(screen, before);
+});
+
+test('arrow keys page between highlights without turning the book underneath', async () => {
+  const screen = await aBookWithAPaintedHighlight();
+  await tapTheHighlight();
+  await expectTheDialogShowing(screen, PLACED_TEXT);
+
+  await userEvent.keyboard('{ArrowRight}');
+
+  await expectTheDialogShowing(screen, UNPLACED_TEXT);
+  await sleep(1_200);
+  await expect.element(screen.getByText('Page 1 of 2 · 0%')).toBeVisible();
+});
+
+test('an arrow key after paging to the last highlight does not turn the book underneath', async () => {
+  const screen = await aBookWithAPaintedHighlight();
+  await tapTheHighlight();
+  await expectTheDialogShowing(screen, PLACED_TEXT);
+  // The last highlight disables Next, and focus falls to the dialog's container,
+  // which Readium does not count as interactive, so it would turn the page.
+  await screen.getByRole('dialog').getByRole('button', { name: 'Next', exact: true }).click();
+  await expectTheDialogShowing(screen, UNPLACED_TEXT);
+
+  await userEvent.keyboard('{ArrowRight}');
+
+  await sleep(1_200);
+  await expect.element(screen.getByText('Page 1 of 2 · 0%')).toBeVisible();
+});
+
+test('deleting a highlight takes its mark off the page and fetches no locators again', async () => {
+  let locatorRequests = 0;
+  const screen = await aBookWithAPaintedHighlight({
+    onLocatorsRequest: () => (locatorRequests += 1),
+  });
+  await tapTheHighlight();
+  await expectTheDialogShowing(screen, PLACED_TEXT);
+
+  await screen.getByRole('button', { name: 'Delete highlight' }).click();
+  await expect.element(screen.getByText('Delete this highlight?')).toBeVisible();
+  await screen.getByRole('button', { name: 'Delete', exact: true }).click();
+
+  await expect.element(screen.getByRole('dialog')).not.toBeInTheDocument();
+  await expect.poll(() => drawnRanges(document)).toEqual([]);
+  expect(locatorRequests).toBe(1);
+});
+
+test('arrow keys turn the page again once the dialog is closed', async () => {
+  const screen = await aBookWithAPaintedHighlight();
+  await tapTheHighlight();
+  await expectTheDialogShowing(screen, PLACED_TEXT);
+  await screen.getByRole('button', { name: 'Close dialog' }).click();
+  await expect.element(screen.getByRole('dialog')).not.toBeInTheDocument();
+
+  await userEvent.keyboard('{ArrowRight}');
+
+  await expectPage(screen, 'Page 2 of 2 · 50%');
 });

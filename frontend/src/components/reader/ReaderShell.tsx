@@ -1,6 +1,7 @@
 import { API_BASE_URL } from '@/api/base-url.ts';
 import type { Highlight } from '@/api/generated/model';
 import { IconButtonWithTooltip } from '@/components/buttons/IconButtonWithTooltip.tsx';
+import { highlightIdFrom } from '@/components/reader/decorations.ts';
 import type { EbookTocEntry } from '@/components/reader/EbookReader.ts';
 import { ReaderLoading } from '@/components/reader/ReaderLoading.tsx';
 import { readerPageColors, toEbookAppearance } from '@/components/reader/readerPreferences.ts';
@@ -42,6 +43,8 @@ export interface ReaderShellProps {
   onClose: () => void;
   /** The book's highlights, `undefined` until the book-details query has answered. */
   highlights?: Highlight[];
+  /** A highlight the reader tapped on the page. */
+  onOpenHighlight?: (highlightId: number) => void;
   /** All four only for tests: a fake engine, and waits short enough to sit through. */
   createReader?: UseEbookReaderOptions['createReader'];
   bootTimeoutMs?: number;
@@ -147,6 +150,7 @@ export const ReaderShell = ({
   title,
   onClose,
   highlights,
+  onOpenHighlight,
   createReader,
   bootTimeoutMs,
   writeDebounceMs,
@@ -180,6 +184,7 @@ export const ReaderShell = ({
     createReader,
     bootTimeoutMs,
     onLocationReported: record,
+    onDecorationActivated: (id) => onOpenHighlight?.(highlightIdFrom(id)),
   });
 
   const { showSnackbar } = useSnackbar();

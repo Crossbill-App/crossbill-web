@@ -1,3 +1,4 @@
+import { isAnyDialogOpen } from '@/components/dialogs/dialogStack.ts';
 import {
   PublicationUnavailableError,
   type EbookAppearance,
@@ -38,6 +39,8 @@ export interface UseEbookReaderOptions {
   bootTimeoutMs?: number;
   /** Every place the book reports, `arriving` while it is still coming up. */
   onLocationReported?: (location: EbookLocation, arriving: boolean) => void;
+  /** The id of a decoration the reader tapped. */
+  onDecorationActivated?: (id: string) => void;
 }
 
 export interface EbookReaderState {
@@ -84,6 +87,7 @@ export const useEbookReader = ({
   createReader = aReadiumReader,
   bootTimeoutMs = BOOT_TIMEOUT_MS,
   onLocationReported,
+  onDecorationActivated,
 }: UseEbookReaderOptions): EbookReaderState => {
   const [outcome, setOutcome] = useState<EbookReaderOutcome | null>(null);
   const [pageCount, setPageCount] = useState(0);
@@ -111,6 +115,10 @@ export const useEbookReader = ({
   useEffect(() => {
     reportedRef.current = onLocationReported;
   }, [onLocationReported]);
+  const activatedRef = useRef(onDecorationActivated);
+  useEffect(() => {
+    activatedRef.current = onDecorationActivated;
+  }, [onDecorationActivated]);
   // And again, so that an answer arriving a second time cannot rebuild the
   // reader around it: where a book opens is settled when it opens. This effect
   // has to stay declared above the boot effect, which reads the ref on the very
@@ -149,10 +157,14 @@ export const useEbookReader = ({
         reportedRef.current?.(location, !isOpen);
       }),
       reader.onTocEntryChanged(setCurrentTocHref),
+      reader.onDecorationActivated((id) => activatedRef.current?.(id)),
       reader.onPageTurnRequested((direction) => {
         // Readium's pager sets a navigating flag it never clears when it has no
         // frames yet, so one key before the book is up kills every later turn.
         if (holdRef.current || !isOpen) return;
+        // Readium steps aside only while focus is on what it counts as interactive, and a
+        // dialog can drop focus to its own container, which it does not count.
+        if (isAnyDialogOpen()) return;
         void (direction === 'next' ? reader.next() : reader.previous());
       }),
     ];
