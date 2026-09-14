@@ -96,9 +96,15 @@ const fromLocation = (location: EbookLocation): Locator => {
     href: location.href,
     type: location.type,
     title: location.title,
-    // A flat own property rather than Readium's `otherLocations` map: a frame is
-    // handed a structured clone, whose Map fails the library's `instanceof` check.
-    locations: Object.assign(new LocatorLocations(locations), cssSelector ? { cssSelector } : {}),
+    // Spelled twice: a jump reads the `otherLocations` map, but a decoration reaches its
+    // frame as a structured clone, whose Map fails the library's `instanceof` check.
+    locations: Object.assign(
+      new LocatorLocations({
+        ...locations,
+        otherLocations: cssSelector ? new Map([['cssSelector', cssSelector]]) : undefined,
+      }),
+      cssSelector ? { cssSelector } : {}
+    ),
     text: location.text && new LocatorText(location.text),
   });
 };
