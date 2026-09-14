@@ -1,6 +1,7 @@
 import {
   PublicationUnavailableError,
   type EbookAppearance,
+  type EbookDecoration,
   type EbookLocation,
   type PageTurnDirection,
 } from '@/components/reader/EbookReader.ts';
@@ -65,7 +66,48 @@ const inChapterTwo = (locations: EbookLocation['locations']): EbookLocation => (
   locations,
 });
 
+const CHAPTER_TWO = 'resources/OEBPS/chapter2.xhtml';
+
+/** A highlight over a word the first chapter uses twice: in its heading, and in its text. */
+const A_HIGHLIGHT: EbookDecoration = {
+  id: 'highlight-7',
+  location: {
+    href: 'resources/OEBPS/chapter1.xhtml',
+    type: 'application/xhtml+xml',
+    locations: { cssSelector: 'p' },
+    text: { highlight: 'Attention' },
+  },
+  tint: '#f59e0b',
+  opacity: 0.35,
+};
+
 const frame = () => host.querySelector('iframe');
+
+/**
+ * The ranges the browser's own highlight painter holds inside the chapter's frame.
+ * Those with boxes only: a range with none is registered rather than painted.
+ */
+const drawnRanges = (): Range[] =>
+  [...host.querySelectorAll('iframe')]
+    .flatMap((candidate) => {
+      const realm = candidate.contentWindow as unknown as
+        { CSS?: { highlights?: Map<string, Iterable<Range>> } } | undefined;
+      return [...(realm?.CSS?.highlights?.values() ?? [])];
+    })
+    .flatMap((ranges) => [...ranges])
+    .filter((range) => range.getClientRects().length > 0);
+
+/** Each drawn range as the element it lies in and the words it covers. */
+const drawnOn = (): string[] =>
+  drawnRanges().map(
+    (range) => `${range.startContainer.parentElement?.tagName}:${range.toString()}`
+  );
+
+/** Where in the frame a reader would put their finger to hit that range. */
+const centreOf = (range: Range) => {
+  const rect = range.getClientRects()[0];
+  return { x: rect.left + rect.width / 2, y: rect.top + rect.height / 2 };
+};
 
 const frameText = () => frame()?.contentDocument?.body.textContent ?? '';
 
@@ -276,6 +318,54 @@ test('goTo rejects a location the book does not contain', async () => {
       locations: {},
     })
   ).rejects.toThrow();
+});
+
+test('a decoration in a chapter the reader has not reached is drawn when they get there', async () => {
+  worker.use(...readiumApi());
+
+  reader.applyDecorations([
+    { ...A_HIGHLIGHT, location: { ...A_HIGHLIGHT.location, href: CHAPTER_TWO } },
+  ]);
+  await openTheBook();
+  await expect.poll(drawnOn).toEqual([]);
+
+  await reader.next();
+
+  await expect.poll(drawnOn).toEqual(['p:Attention']);
+});
+
+test('a decoration applied after the book is on screen is drawn too', async () => {
+  worker.use(...readiumApi());
+  await openTheBook();
+  await expect.poll(frameText).toContain('On Attention');
+
+  reader.applyDecorations([A_HIGHLIGHT]);
+
+  await expect.poll(drawnOn).toEqual(['p:Attention']);
+});
+
+test('tapping a decoration reports its id', async () => {
+  worker.use(...readiumApi());
+  const activated: string[] = [];
+  reader.onDecorationActivated((id) => activated.push(id));
+  reader.applyDecorations([A_HIGHLIGHT]);
+  await openTheBook();
+  await expect.poll(drawnOn).toEqual(['p:Attention']);
+
+  await userEvent.click(frame()!, { position: centreOf(drawnRanges()[0]) });
+
+  await expect.poll(() => activated).toEqual([A_HIGHLIGHT.id]);
+});
+
+test('applying an empty set removes what was drawn', async () => {
+  worker.use(...readiumApi());
+  reader.applyDecorations([A_HIGHLIGHT]);
+  await openTheBook();
+  await expect.poll(drawnOn).toEqual(['p:Attention']);
+
+  reader.applyDecorations([]);
+
+  await expect.poll(drawnRanges).toEqual([]);
 });
 
 test('a manifest that claims another origin still has its chapters resolve against ours', async () => {

@@ -19,7 +19,20 @@ export interface EbookLocation {
     progression?: number;
     totalProgression?: number;
     fragments?: string[];
+    /** A querySelector-resolvable selector for the enclosing element. */
+    cssSelector?: string;
   };
+  /** The quoted words and their surroundings, which is what places a range rather than a page. */
+  text?: { before?: string; highlight?: string; after?: string };
+}
+
+/** A range of the book drawn in a colour of its own. */
+export interface EbookDecoration {
+  id: string;
+  location: EbookLocation;
+  /** Six-digit hex, with the hash. */
+  tint: string;
+  opacity: number;
 }
 
 /** One heading of the book's table of contents. */
@@ -97,6 +110,10 @@ export interface EbookReader {
   next(): Promise<void>;
   previous(): Promise<void>;
   goTo(location: EbookLocation): Promise<void>;
+  /** Replaces every decoration this reader draws. Safe before the book is on screen. */
+  applyDecorations(decorations: EbookDecoration[]): void;
+  /** A reader tapped one of the decorations, by its id. */
+  onDecorationActivated(listener: (id: string) => void): () => void;
   onLocationChanged(listener: (location: EbookLocation) => void): () => void;
   onPageTurnRequested(listener: (direction: PageTurnDirection) => void): () => void;
   /** The reader has moved into a different contents entry; `OpenedEbook.tocHref` is the first. */

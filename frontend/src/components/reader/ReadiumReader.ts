@@ -1,6 +1,7 @@
 import {
   PublicationUnavailableError,
   type EbookAppearance,
+  type EbookDecoration,
   type EbookLocation,
   type EbookReader,
   type EbookTocEntry,
@@ -10,9 +11,11 @@ import {
 } from '@/components/reader/EbookReader.ts';
 import { sanitizeResponse } from '@/components/reader/sanitizeResponse.ts';
 import {
+  DecorationStyleType,
   EpubNavigator,
   EpubPreferences,
   TextAlignment,
+  type Decoration,
   type EpubNavigatorListeners,
   type IKeyboardPeripheralsConfig,
 } from '@readium/navigator';
@@ -20,6 +23,7 @@ import {
   HttpFetcher,
   Locator,
   LocatorLocations,
+  LocatorText,
   Manifest,
   Publication,
   type Link,
@@ -30,6 +34,10 @@ import { findLast } from 'lodash';
 const DESTROY_TIMEOUT_MS = 2000;
 
 const CONTAINER_MARKER = 'data-ebook-reader';
+
+// Readium keys decorations by group, replacing a whole group at a time and
+// telling an observer only about its own, so the highlights own one name.
+const DECORATION_GROUP = 'crossbill-highlights';
 
 // Readium appends its frames with no dimensions at all, so every one of them
 // would render at the browser's default 300x150 box. Only the reflowable pool
@@ -82,13 +90,38 @@ const toLocation = (locator: Locator): EbookLocation => ({
 
 // Built rather than deserialized: `Locator.deserialize` refuses a location
 // whose media type is empty, which is what a contents entry usually carries.
-const fromLocation = (location: EbookLocation): Locator =>
-  new Locator({
+const fromLocation = (location: EbookLocation): Locator => {
+  const { cssSelector, ...locations } = location.locations;
+  return new Locator({
     href: location.href,
     type: location.type,
     title: location.title,
-    locations: new LocatorLocations(location.locations),
+    // A flat own property rather than Readium's `otherLocations` map: a frame is
+    // handed a structured clone, whose Map fails the library's `instanceof` check.
+    locations: Object.assign(new LocatorLocations(locations), cssSelector ? { cssSelector } : {}),
+    text: location.text && new LocatorText(location.text),
   });
+};
+
+// Hand-rolled rather than MUI's `alpha`, which agrees with it on every colour
+// the seam admits: the engine speaks Readium and lodash, not the UI toolkit.
+const toRgba = (tint: string, opacity: number): string => {
+  const hex = tint.replace('#', '');
+  const channels = [0, 2, 4].map((offset) => parseInt(hex.slice(offset, offset + 2), 16));
+  return `rgba(${channels.join(', ')}, ${opacity})`;
+};
+
+const toDecoration = (decoration: EbookDecoration): Decoration => ({
+  id: decoration.id,
+  locator: fromLocation(decoration.location),
+  style: {
+    type: DecorationStyleType.Highlight,
+    tint: toRgba(decoration.tint, decoration.opacity),
+    // Readium's contrast pass darkens a tint to 3:1 against the page, which for
+    // a wash the text sits on drives it towards 1:1 against the words instead.
+    enforceContrast: false,
+  },
+});
 
 /**
  * Where in this publication's own position list a locator lands, or `null` when
@@ -162,7 +195,9 @@ export class ReadiumReader implements EbookReader {
   private readonly locationListeners = new Set<(location: EbookLocation) => void>();
   private readonly pageTurnListeners = new Set<(direction: PageTurnDirection) => void>();
   private readonly tocEntryListeners = new Set<(href: string | null) => void>();
+  private readonly decorationListeners = new Set<(id: string) => void>();
   private readonly destruction = new AbortController();
+  private decorations: EbookDecoration[] = [];
   private navigator: EpubNavigator | undefined;
   private wrapper: HTMLDivElement | undefined;
   private isOpened = false;
@@ -205,6 +240,16 @@ export class ReadiumReader implements EbookReader {
       }
     );
     this.navigator = navigator;
+    // A group is activatable only for an observer that handles activation, so a
+    // stub here would leave every decoration in the book inert.
+    navigator.registerDecorationObserver(DECORATION_GROUP, {
+      onDecorationActivated: ({ decoration }) => {
+        this.notify(this.decorationListeners, decoration.id);
+        return true;
+      },
+    });
+    // Whatever was handed over before the navigator existed.
+    this.applyDecorations(this.decorations);
 
     await navigator.load();
     // The frame pool lays out from measurements that are final only once the
@@ -245,6 +290,15 @@ export class ReadiumReader implements EbookReader {
     if (!arrived) throw new Error('That location does not name a place in this book.');
   }
 
+  applyDecorations(decorations: EbookDecoration[]): void {
+    this.decorations = decorations;
+    this.navigator?.applyDecorations(decorations.map(toDecoration), DECORATION_GROUP);
+  }
+
+  onDecorationActivated(listener: (id: string) => void): () => void {
+    return this.subscribe(this.decorationListeners, listener);
+  }
+
   onLocationChanged(listener: (location: EbookLocation) => void): () => void {
     return this.subscribe(this.locationListeners, listener);
   }
@@ -281,6 +335,7 @@ export class ReadiumReader implements EbookReader {
     this.locationListeners.clear();
     this.pageTurnListeners.clear();
     this.tocEntryListeners.clear();
+    this.decorationListeners.clear();
   }
 
   /** The wrapper Readium's ResizeObserver may keep, and the container it draws into. */
