@@ -3,7 +3,6 @@ import { aBookDetails, aChapter, aHighlight } from '@tests/fixtures/book';
 import { aNote } from '@tests/fixtures/notes';
 import { renderApp } from '@tests/harness/renderApp';
 import { bookApi } from '@tests/msw/bookApi';
-import { readiumApi } from '@tests/msw/readiumApi';
 import { worker } from '@tests/msw/worker';
 import { http, HttpResponse } from 'msw';
 import { expect, test, vi } from 'vitest';
@@ -473,18 +472,11 @@ test("a highlight's dialog offers to open it in the reader", async () => {
     .toHaveAttribute('href', '/book/1/read?highlightId=301');
 });
 
-test("a card's reader link is not part of the card's button, and following it opens the reader", async () => {
+test("a card's reader link is not part of the card's button", async () => {
   worker.use(...bookApi({ book: aBookWithTwoHighlights() }).handlers);
-  worker.use(...readiumApi());
 
   const screen = await renderApp({ path: '/book/1/highlights' });
   const link = readerLinksInTheList(screen).first();
   await expect.element(link).toBeVisible();
   expect(link.element().closest('button')).toBeNull();
-
-  await link.click();
-
-  await expect.element(screen.getByText('Page 1 of 2 · 0%')).toBeVisible();
-  expect(screen.router.state.location.pathname).toBe('/book/1/read');
-  expect(screen.router.state.location.search).toEqual({ highlightId: 301 });
 });

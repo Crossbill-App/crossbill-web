@@ -860,14 +860,24 @@ test('coming back to the tab leaves the reader where they were reading', async (
   await expectPage(screen, 'Page 2 of 2 · 50%');
 });
 
-const aJumpToAPassage = async () => {
-  worker.use(...aReadableBook());
+const PLACED_TEXT = 'Attention is the rarest and purest form of generosity.';
+const UNPLACED_TEXT = 'The map is not the territory.';
+
+const aBookMarkedAtThePassage = () => {
+  const highlights = [aHighlight({ id: 302, text: PLACED_TEXT })];
+  worker.use(...bookApi({ book: aBookDetails({ chapters: [aChapter({ highlights })] }) }).handlers);
   worker.use(...readiumApi({ positions: aDetailedPositionList() }));
   const resume = readingPositionApi(aResumePosition());
   worker.use(...resume.handlers);
+  worker.use(...highlightLocatorsApi([aPassage(302)]));
   worker.use(...highlightLocatorApi([aPassage(302)]));
+  return resume.writes;
+};
+
+const aJumpToAPassage = async () => {
+  const writes = aBookMarkedAtThePassage();
   const screen = await renderApp({ path: '/book/1/read?highlightId=302' });
-  return { screen, writes: resume.writes };
+  return { screen, writes };
 };
 
 // The page readout cannot tell: opening at the progression alone lands a page short
@@ -912,9 +922,6 @@ test('a book is opened with its highlights drawn on the page', async () => {
 
   await expect.poll(() => drawnOn(document), { timeout: 5_000 }).toEqual(['p:rarest and purest']);
 });
-
-const PLACED_TEXT = 'Attention is the rarest and purest form of generosity.';
-const UNPLACED_TEXT = 'The map is not the territory.';
 
 /** Only 300 is placed, so a tap is unambiguous while the dialog still pages over both. */
 const aBookWithAPaintedHighlight = async ({
@@ -1053,4 +1060,78 @@ test('arrow keys turn the page again once the dialog is closed', async () => {
   await userEvent.keyboard('{ArrowRight}');
 
   await expectPage(screen, 'Page 2 of 2 · 50%');
+});
+
+const aJumpFromTheHighlightsPage = async () => {
+  aBookMarkedAtThePassage();
+  const screen = await renderApp({ path: '/book/1/highlights' });
+  const cardLink = screen
+    .getByRole('list', { name: 'Highlights in Chapter One' })
+    .getByRole('link', { name: 'Open in reader' });
+  await expect.element(cardLink).toBeVisible();
+  return { screen, cardLink };
+};
+
+const everShowsADialog = () => {
+  let shown = false;
+  const observer = new MutationObserver((records) => {
+    shown ||= records.some((record) =>
+      [...record.addedNodes].some(
+        (node) =>
+          node instanceof Element &&
+          (node.matches('[role="dialog"]') || node.querySelector('[role="dialog"]') !== null)
+      )
+    );
+  });
+  observer.observe(document.body, { childList: true, subtree: true });
+  return () => {
+    observer.disconnect();
+    return shown;
+  };
+};
+
+test('opening the reader at a highlight lands on the passage with nothing over it', async () => {
+  // From the highlights page, so the book's highlights are already known when the reader mounts.
+  const { cardLink } = await aJumpFromTheHighlightsPage();
+  const shownADialog = everShowsADialog();
+
+  await cardLink.click();
+  await expectThePassageOnThePage();
+
+  await sleep(500);
+  expect(shownADialog()).toBe(false);
+});
+
+test('arriving takes the highlight back out of the address', async () => {
+  const { screen } = await aJumpToAPassage();
+  await expectThePassageOnThePage();
+
+  await expect.poll(() => screen.router.state.location.search).toEqual({});
+});
+
+test('tapping the highlight the reader arrived at opens it, and Back closes it', async () => {
+  const { screen } = await aJumpToAPassage();
+  await expectThePassageOnThePage();
+  await expect.poll(() => drawnRanges(document), { timeout: 5_000 }).toHaveLength(1);
+  const before = historyIndex(screen);
+
+  await tapTheHighlight();
+  await expectTheDialogShowing(screen, PLACED_TEXT);
+  window.history.back();
+
+  await expectBackAtTheBook(screen, before);
+  await expectThePassageOnThePage();
+});
+
+test('Back from a jump leaves the reader in one step', async () => {
+  const { screen, cardLink } = await aJumpFromTheHighlightsPage();
+  await cardLink.click();
+  await expectThePassageOnThePage();
+
+  window.history.back();
+
+  await expect
+    .poll(() => screen.router.state.location.pathname, { timeout: 5_000 })
+    .toBe('/book/1/highlights');
+  await expect.element(cardLink).toBeVisible();
 });
