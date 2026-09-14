@@ -10,13 +10,16 @@ import {
   aDetailedPositionList,
   aHighlightLocator,
   aManifest,
+  aPassage,
   aResumePosition,
   nowhereToResume,
+  PASSAGE_SELECTOR,
 } from '@tests/fixtures/publication';
 import { drawnOn, drawnRanges } from '@tests/harness/paintedHighlights';
 import { renderApp } from '@tests/harness/renderApp';
 import { bookApi } from '@tests/msw/bookApi';
 import {
+  highlightLocatorApi,
   highlightLocatorsApi,
   noPublication,
   readingPositionApi,
@@ -855,6 +858,45 @@ test('coming back to the tab leaves the reader where they were reading', async (
   // second time must not put the reader back at the page they started from.
   await sleep(500);
   await expectPage(screen, 'Page 2 of 2 · 50%');
+});
+
+const aJumpToAPassage = async () => {
+  worker.use(...aReadableBook());
+  worker.use(...readiumApi({ positions: aDetailedPositionList() }));
+  const resume = readingPositionApi(aResumePosition());
+  worker.use(...resume.handlers);
+  worker.use(...highlightLocatorApi([aPassage(302)]));
+  const screen = await renderApp({ path: '/book/1/read?highlightId=302' });
+  return { screen, writes: resume.writes };
+};
+
+// The page readout cannot tell: opening at the progression alone lands a page short
+// of the passage and reports the same position.
+const isThePassageOnThePage = () =>
+  [...document.querySelectorAll('iframe')].some((frame) => {
+    const paragraph = frame.contentDocument?.querySelector(PASSAGE_SELECTOR);
+    if (!paragraph || frame.style.visibility === 'hidden') return false;
+    const { left } = paragraph.getBoundingClientRect();
+    return left >= 0 && left < frame.getBoundingClientRect().width;
+  });
+
+const expectThePassageOnThePage = () =>
+  expect.poll(isThePassageOnThePage, { timeout: 10_000 }).toBe(true);
+
+test('a jump lands on the page holding the passage', async () => {
+  await aJumpToAPassage();
+
+  await expectThePassageOnThePage();
+});
+
+test('jumping to a highlight writes no reading position', { timeout: 60_000 }, async () => {
+  const { writes } = await aJumpToAPassage();
+  await expectThePassageOnThePage();
+
+  // Past the five-second debounce with room to spare.
+  await sleep(8_000);
+
+  expect(writes).toEqual([]);
 });
 
 test('a book is opened with its highlights drawn on the page', async () => {

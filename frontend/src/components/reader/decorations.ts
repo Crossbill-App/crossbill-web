@@ -18,7 +18,8 @@ const decorationId = (highlightId: number) => `${DECORATION_ID_PREFIX}${highligh
 export const highlightIdFrom = (decorationId: string): number =>
   Number(decorationId.slice(DECORATION_ID_PREFIX.length));
 
-const toEbookLocation = (locator: LocatorSchema): EbookLocation => ({
+/** A highlight's locator in the engine's terms. */
+export const toEbookLocation = (locator: LocatorSchema): EbookLocation => ({
   href: locator.href,
   type: locator.type,
   locations: {

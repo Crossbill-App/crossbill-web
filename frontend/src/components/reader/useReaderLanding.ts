@@ -1,17 +1,23 @@
 /**
- * Where one book should open: the place the reader last got to, on whatever
- * device they were reading.
+ * Where one book should open: the highlight this open is a jump to, or else the
+ * place the reader last got to, on whatever device they were reading.
  *
  * The reconciliation against this publication's own position list belongs to
  * the engine (`ReadiumReader.landingFor`); this only fetches the answer and
  * holds it still.
  */
-import type { BrowserLocatorSchema, ResumePositionResponse } from '@/api/generated/model';
+import { useGetHighlightLocator } from '@/api/generated/highlights/highlights.ts';
+import type {
+  BrowserLocatorSchema,
+  HighlightLocatorResponse,
+  ResumePositionResponse,
+} from '@/api/generated/model';
 import { useGetReadingPosition } from '@/api/generated/readium/readium.ts';
+import { toEbookLocation } from '@/components/reader/decorations.ts';
 import type { EbookLocation } from '@/components/reader/EbookReader.ts';
 import { useState } from 'react';
 
-/** Where the reader left off is a fact about *them*, not about this tab. */
+/** Where a book opens is asked afresh on every open, never taken from this tab's cache. */
 const LANDING_QUERY = {
   // Opening at the beginning is the failure mode, which is the wrong place to
   // spend a retry budget when the book is what the reader came for.
@@ -35,7 +41,7 @@ interface ReaderLanding {
 }
 
 /** The API's locator in the engine's terms, whose absences are `undefined`. */
-const toEbookLocation = (stored: BrowserLocatorSchema): EbookLocation => ({
+const fromBrowserLocator = (stored: BrowserLocatorSchema): EbookLocation => ({
   href: stored.href,
   type: stored.type,
   title: stored.title ?? undefined,
@@ -52,17 +58,37 @@ const toEbookLocation = (stored: BrowserLocatorSchema): EbookLocation => ({
 // query that errored arrives here too, as neither.
 const landingFrom = (stored: ResumePositionResponse | undefined): ReaderLanding =>
   stored?.locator
-    ? { locator: toEbookLocation(stored.locator), lost: false }
+    ? { locator: fromBrowserLocator(stored.locator), lost: false }
     : { locator: null, lost: stored?.unresolved === true };
+
+const jumpFrom = (placed: HighlightLocatorResponse | undefined): ReaderLanding => ({
+  locator: placed?.locator ? toEbookLocation(placed.locator) : null,
+  lost: false,
+});
 
 /**
  * Where this book should open, or `undefined` until the answer is in — which
  * the caller must wait for rather than boot without, because a navigator takes
  * its initial position once, at construction.
  */
-export const useReaderLanding = (bookId: number): ReaderLanding | undefined => {
-  const resume = useGetReadingPosition(bookId, { query: LANDING_QUERY });
-  const answer = resume.isPending ? undefined : landingFrom(resume.data);
+export const useReaderLanding = (
+  bookId: number,
+  target: number | null
+): ReaderLanding | undefined => {
+  const resume = useGetReadingPosition(bookId, {
+    query: { ...LANDING_QUERY, enabled: target === null },
+  });
+  const jump = useGetHighlightLocator(target ?? 0, {
+    query: { ...LANDING_QUERY, enabled: target !== null },
+  });
+  const answer =
+    target === null
+      ? resume.isPending
+        ? undefined
+        : landingFrom(resume.data)
+      : jump.isPending
+        ? undefined
+        : jumpFrom(jump.data);
 
   // Latched during render rather than in an effect, which would let the
   // un-latched answer reach the boot first. The query behind it is live, and a

@@ -3,13 +3,14 @@ import { useGetTags } from '@/api/generated/tags/tags.ts';
 import { ReaderShell } from '@/components/reader/ReaderShell.tsx';
 import { HighlightViewDialog } from '@/pages/BookPage/Highlights/HighlightViewDialog';
 import { useHighlightDialog } from '@/pages/BookPage/Highlights/hooks/useHighlightDialog.ts';
-import { useNavigate, useParams } from '@tanstack/react-router';
+import { useNavigate, useParams, useSearch } from '@tanstack/react-router';
 import { keyBy } from 'lodash';
 import { useMemo } from 'react';
 
 export const ReaderPage = () => {
   const { bookId } = useParams({ strict: false });
   const navigate = useNavigate();
+  const { highlightId } = useSearch({ from: '/book_/$bookId/read' });
   const { data: book } = useGetBookDetails(Number(bookId));
   const { data: tagsResponse } = useGetTags(Number(bookId));
   // A new array every render would be a new set of decorations every render.
@@ -29,6 +30,7 @@ export const ReaderPage = () => {
         title={book?.title ?? ''}
         highlights={highlights}
         onOpenHighlight={highlightDialog.open}
+        highlightId={highlightId}
         onClose={() => void navigate({ to: '/book/$bookId', params: { bookId: String(bookId) } })}
       />
       {highlightDialog.activeItem && (

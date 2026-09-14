@@ -16,12 +16,18 @@ import { FakeEbookReader, aFakeLocation } from '@tests/fakes/FakeEbookReader';
 import { aHighlight } from '@tests/fixtures/book';
 import {
   aHighlightLocator,
+  aPassage,
   aResumePosition,
   anUnplacedHighlight,
   nowhereToResume,
 } from '@tests/fixtures/publication';
 import { pendingQueryClients } from '@tests/harness/renderApp';
-import { highlightLocatorsApi, readingPositionApi, readiumApi } from '@tests/msw/readiumApi';
+import {
+  highlightLocatorApi,
+  highlightLocatorsApi,
+  readingPositionApi,
+  readiumApi,
+} from '@tests/msw/readiumApi';
 import { worker } from '@tests/msw/worker';
 import { HttpResponse, delay, http } from 'msw';
 import { afterEach, beforeEach, expect, test } from 'vitest';
@@ -702,14 +708,19 @@ test('the book is opened at the place the reader left off', async () => {
   });
 });
 
-test('a landing the navigator refuses is retried once, without it', async () => {
-  const screen = await aResumedBook();
-
+/** The navigator refusing the place it was offered, and the retry opening without one. */
+const refuseTheLanding = async () => {
   readers[0].rejectOpen();
-
   await expect.poll(() => readers.length).toBe(2);
   expect(readers[1].openedWith[0].initialLocation).toBeUndefined();
   readers[1].resolveOpen();
+};
+
+test('a landing the navigator refuses is retried once, without it', async () => {
+  const screen = await aResumedBook();
+
+  await refuseTheLanding();
+
   await expect.element(screen.getByText('Page 1 of 2')).toBeVisible();
   // The place is gone either way, so the reader is owed the same sentence as if
   // it had never been found.
@@ -729,6 +740,107 @@ test('a second refusal is a real failure, not a third attempt', async () => {
     .element(screen.getByText('The book could not be opened. Please try again later.'))
     .toBeVisible();
   expect(readers).toHaveLength(2);
+});
+
+const THE_PASSAGE = aPassage(300).locator;
+
+/** The shell opened at highlight 300, with a place to resume from also on offer. */
+const aJump = async (locators: HighlightLocatorResponse[] = [aPassage(300)]) => {
+  worker.use(...readiumApi());
+  worker.use(...readingPositionApi(aResumePosition()).handlers);
+  let resumeRequests = 0;
+  // Answering nothing passes the request on to the handler that answers it.
+  worker.use(
+    http.get(POSITION_PATH, () => {
+      resumeRequests += 1;
+    })
+  );
+  worker.use(...highlightLocatorApi(locators));
+  const screen = await renderShell({ highlightId: 300 });
+  await expect.poll(() => readers.length).toBe(1);
+  return { screen, resumeRequests: () => resumeRequests };
+};
+
+const expectOnScreen = (screen: Screen) =>
+  expect
+    .element(screen.getByRole('button', { name: 'Contents' }), { timeout: 5_000 })
+    .toBeEnabled();
+
+/** Given the time an apology would take to appear, so its absence means something. */
+const expectNoApology = async (screen: Screen) => {
+  await sleep(300);
+  expect(screen.getByRole('alert').query()).toBeNull();
+};
+
+test('a jump opens the book at the highlight, not at the place the reader left off', async () => {
+  const { resumeRequests } = await aJump();
+
+  expect(readers[0].openedWith[0].initialLocation).toEqual(THE_PASSAGE);
+  expect(resumeRequests()).toBe(0);
+});
+
+test('the book is not shown until the move to the highlight has finished', async () => {
+  const { screen } = await aJump();
+  let arrive!: () => void;
+  readers[0].goToOutcome = new Promise((resolve) => (arrive = resolve));
+
+  readers[0].resolveOpen({ landedAt: 'requested' });
+  await expect.poll(() => readers[0].goToCalls).toEqual([THE_PASSAGE]);
+  readers[0].reportLocation(aFakeLocation(2));
+  await sleep(300);
+  await expect.element(screen.getByRole('button', { name: 'Contents' })).toBeDisabled();
+
+  arrive();
+
+  await expectOnScreen(screen);
+  await expect.element(screen.getByText('Page 2 of 2')).toBeVisible();
+});
+
+test('a move to the highlight that never finishes still shows the book', async () => {
+  const { screen } = await aJump();
+  readers[0].goToOutcome = new Promise(() => {});
+
+  readers[0].resolveOpen({ landedAt: 'requested' });
+
+  await expectOnScreen(screen);
+});
+
+test('a highlight id that changes while the book is on its way does not move it', async () => {
+  worker.use(...readiumApi());
+  worker.use(...highlightLocatorApi([aPassage(300), aHighlightLocator(301)], { delayMs: 300 }));
+  const screen = await renderShell({ highlightId: 300 });
+
+  await screen.rerenderShell({ highlightId: 301 });
+  await expect.poll(() => readers.length).toBe(1);
+  readers[0].resolveOpen({ landedAt: 'requested' });
+  await expectOnScreen(screen);
+
+  expect(readers).toHaveLength(1);
+  expect(readers[0].openedWith[0].initialLocation).toEqual(THE_PASSAGE);
+  expect(readers[0].goToCalls).toEqual([THE_PASSAGE]);
+});
+
+test('a jump the navigator refuses is retried without it, and says nothing of a lost place', async () => {
+  const { screen } = await aJump();
+
+  await refuseTheLanding();
+
+  await expectOnScreen(screen);
+  expect(readers[1].goToCalls).toEqual([]);
+  await expectNoApology(screen);
+});
+
+test.each([
+  ['a highlight the server could not place', [anUnplacedHighlight(300)]],
+  ['a highlight that no longer exists', []],
+])('%s opens the book at the start, and says nothing', async (_, locators) => {
+  const { screen } = await aJump(locators);
+
+  expect(readers[0].openedWith[0].initialLocation).toBeUndefined();
+  readers[0].resolveOpen();
+  await expectOnScreen(screen);
+  expect(readers[0].goToCalls).toEqual([]);
+  await expectNoApology(screen);
 });
 
 /**

@@ -26,6 +26,8 @@ export class FakeEbookReader implements EbookReader {
   readonly goToCalls: EbookLocation[] = [];
   /** One entry per call, so a test can assert on the set and on how often it was submitted. */
   readonly decorations: EbookDecoration[][] = [];
+  /** What every `goTo` returns, so a test can hold one pending. */
+  goToOutcome: Promise<void> = Promise.resolve();
   nextCalls = 0;
   previousCalls = 0;
   destroyed = false;
@@ -107,7 +109,7 @@ export class FakeEbookReader implements EbookReader {
 
   goTo(location: EbookLocation): Promise<void> {
     this.goToCalls.push(location);
-    return Promise.resolve();
+    return this.goToOutcome;
   }
 
   applyDecorations(decorations: EbookDecoration[]): void {

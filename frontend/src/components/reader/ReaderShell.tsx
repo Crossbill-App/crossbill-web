@@ -45,6 +45,8 @@ export interface ReaderShellProps {
   highlights?: Highlight[];
   /** A highlight the reader tapped on the page. */
   onOpenHighlight?: (highlightId: number) => void;
+  /** The highlight to open the book at; only its value at mount counts. */
+  highlightId?: number;
   /** All four only for tests: a fake engine, and waits short enough to sit through. */
   createReader?: UseEbookReaderOptions['createReader'];
   bootTimeoutMs?: number;
@@ -151,6 +153,7 @@ export const ReaderShell = ({
   onClose,
   highlights,
   onOpenHighlight,
+  highlightId,
   createReader,
   bootTimeoutMs,
   writeDebounceMs,
@@ -169,7 +172,9 @@ export const ReaderShell = ({
   // again on every render, which is not a cost the engine skips.
   const appearance = useMemo(() => toEbookAppearance(theme, preferences), [theme, preferences]);
   const { record } = useReadingPositionWriter(bookId, { writeDebounceMs, heartbeatMs });
-  const landing = useReaderLanding(bookId);
+  // Latched, so that nothing done to the address after the book opens can move it.
+  const [target] = useState(highlightId ?? null);
+  const landing = useReaderLanding(bookId, target);
   const decorations = useHighlightDecorations(bookId, highlights);
   const book = useEbookReader({
     host,
@@ -185,12 +190,14 @@ export const ReaderShell = ({
     bootTimeoutMs,
     onLocationReported: record,
     onDecorationActivated: (id) => onOpenHighlight?.(highlightIdFrom(id)),
+    // Opening at a locator lands by its progression, which can be a page short of its words.
+    finishLanding: target === null ? undefined : () => landing?.locator ?? null,
   });
 
   const { showSnackbar } = useSnackbar();
   const apologised = useRef(false);
   useEffect(() => {
-    if (apologised.current || book.status !== 'open' || !landing) return;
+    if (apologised.current || book.status !== 'open' || !landing || target !== null) return;
     // `'start'` with a place still on offer covers both remaining failures: a
     // locator this edition cannot place, and one the navigator refused outright
     // and which the retry therefore stopped offering.
@@ -198,7 +205,7 @@ export const ReaderShell = ({
     if (!lost) return;
     apologised.current = true;
     showSnackbar(LOST_THE_BOOKMARK, 'info');
-  }, [book.status, book.landedAt, landing, showSnackbar]);
+  }, [book.status, book.landedAt, landing, target, showSnackbar]);
 
   if (sessionStatus === 'error') {
     return (
