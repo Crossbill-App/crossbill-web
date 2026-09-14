@@ -1,8 +1,17 @@
-import type { WebPublicationManifest } from '@/api/generated/model';
+import type {
+  PositionList,
+  ResumePositionResponse,
+  WebPublicationManifest,
+} from '@/api/generated/model';
 import { READER_PREFERENCES_KEY } from '@/components/reader/readerPreferenceStorage.ts';
 import { theme } from '@/theme/theme.ts';
 import { aBookDetails } from '@tests/fixtures/book';
-import { aManifest } from '@tests/fixtures/publication';
+import {
+  aDetailedPositionList,
+  aManifest,
+  aResumePosition,
+  nowhereToResume,
+} from '@tests/fixtures/publication';
 import { renderApp } from '@tests/harness/renderApp';
 import { bookApi } from '@tests/msw/bookApi';
 import { noPublication, readingPositionApi, readiumApi } from '@tests/msw/readiumApi';
@@ -98,6 +107,7 @@ test('closing the reader leads to the book page', async () => {
 
 test('a session that cannot be started reports it and offers the way back', async () => {
   worker.use(...aReadableBook());
+  worker.use(...readiumApi());
   worker.use(http.post(SESSION_PATH, () => new HttpResponse(null, { status: 500 })));
 
   const screen = await renderApp({ path: '/book/1/read' });
@@ -207,7 +217,7 @@ test('a book with no EPUB explains there is nothing to read', async () => {
 
 test('a book whose manifest cannot be read says so and offers a retry', async () => {
   worker.use(...aReadableBook());
-  worker.use(http.post(SESSION_PATH, () => HttpResponse.json({ expires_in: 900 })));
+  worker.use(...readiumApi());
   worker.use(http.get(MANIFEST_PATH, () => new HttpResponse(null, { status: 500 })));
 
   const screen = await renderApp({ path: '/book/1/read' });
@@ -663,4 +673,179 @@ test('the departing write carries the access token', { timeout: 40_000 }, async 
   // without this the reading session is never closed.
   await expect.poll(() => requests.length).toBe(1);
   expect(requests[0].headers.get('Authorization')).toBe('Bearer test-access-token');
+});
+
+/**
+ * A book reopened in the browser starts where the reader left off, whichever
+ * device they were last reading on, and says so once when it cannot.
+ */
+const LOST_THE_BOOKMARK = "Couldn't restore your last position, so the book opened at the start.";
+
+const aBookResumingAt = async (stored: ResumePositionResponse, positions?: PositionList) => {
+  worker.use(...aReadableBook());
+  worker.use(...readiumApi(positions ? { positions } : {}));
+  const resume = readingPositionApi(stored);
+  worker.use(...resume.handlers);
+  const screen = await renderApp({ path: '/book/1/read' });
+  return { screen, writes: resume.writes };
+};
+
+/**
+ * The reader half-way through the second chapter, on a list that numbers that
+ * chapter in three. Against `aPositionList` the head of the chapter and the
+ * middle of it are both "Page 2 of 2", so a landing that lost its progression
+ * would read the same as one that kept it.
+ */
+const expectHalfwayThroughChapterTwo = (screen: Screen) =>
+  expect.element(screen.getByText(/^Page 3 of 4/), { timeout: 10_000 }).toBeVisible();
+
+/** The reader somewhere in the second chapter, which is never where a book opens. */
+const expectChapterTwo = (screen: Screen) =>
+  expect.element(screen.getByText(/^Page 2 of 2/), { timeout: 10_000 }).toBeVisible();
+
+const expectTheApology = (screen: Screen) =>
+  expect.element(screen.getByRole('alert').filter({ hasText: LOST_THE_BOOKMARK })).toBeVisible();
+
+test('a book opens where the reader left off', { timeout: 40_000 }, async () => {
+  const { screen } = await aBookResumingAt(aResumePosition(), aDetailedPositionList());
+
+  await expectHalfwayThroughChapterTwo(screen);
+});
+
+test('a place the e-reader recorded opens the same way', { timeout: 40_000 }, async () => {
+  // A place derived from an xpointer carries no position number: the server
+  // computes a progression against the EPUB and leaves the position list to
+  // whoever holds one.
+  const { screen } = await aBookResumingAt(
+    aResumePosition({
+      source: 'koreader',
+      locator: {
+        href: 'resources/OEBPS/chapter2.xhtml',
+        type: 'application/xhtml+xml',
+        locations: { progression: 0.5 },
+      },
+    }),
+    aDetailedPositionList()
+  );
+
+  await expectHalfwayThroughChapterTwo(screen);
+});
+
+test('restoring a position writes nothing back', { timeout: 60_000 }, async () => {
+  const { screen, writes } = await aBookResumingAt(aResumePosition());
+  await expectChapterTwo(screen);
+
+  // Past the five-second debounce with room to spare: where the book opened is
+  // where the reader already was, and writing it back would credit them with a
+  // sitting for the act of opening a book.
+  await sleep(8_000);
+
+  expect(writes).toEqual([]);
+});
+
+test('reading on within the restored position is still written', { timeout: 60_000 }, async () => {
+  const { screen, writes } = await aBookResumingAt(aResumePosition());
+  await expectChapterTwo(screen);
+
+  await screen.getByRole('button', { name: 'Next page' }).click();
+
+  await expect.poll(() => writes.length, { timeout: 15_000 }).toBe(1);
+  // Past where they were put back, rather than merely in the same chapter: the
+  // resume already had them here, so only the progression is news.
+  expect(writes[0].locator.locations?.progression).toBeGreaterThan(0.5);
+  expect(writes[0].closing).toBe(false);
+});
+
+test('a place that could not be found says so, and the book still opens', async () => {
+  const { screen } = await aBookResumingAt({ ...nowhereToResume(), unresolved: true });
+
+  await expectPage(screen, 'Page 1 of 2 · 0%');
+  await expectTheApology(screen);
+});
+
+test('a place in a chapter the book no longer has costs a bookmark, not the book', async () => {
+  const { screen } = await aBookResumingAt(
+    aResumePosition({
+      locator: {
+        href: 'resources/OEBPS/chapter9.xhtml',
+        type: 'application/xhtml+xml',
+        locations: { position: 9, progression: 0.5 },
+      },
+    })
+  );
+
+  await expectPage(screen, 'Page 1 of 2 · 0%');
+  await expectTheApology(screen);
+});
+
+test(
+  'a book reopened in the same tab honours where another device left off',
+  { timeout: 60_000 },
+  async () => {
+    worker.use(...aReadableBook());
+    worker.use(...readiumApi({ positions: aDetailedPositionList() }));
+    let stored: ResumePositionResponse = nowhereToResume();
+    worker.use(http.get(POSITION_PATH, () => HttpResponse.json(stored)));
+
+    const screen = await renderApp({ path: '/book/1/read' });
+    await expectPage(screen, 'Page 1 of 4 · 0%');
+    await screen.getByRole('button', { name: 'Close reader' }).click();
+    await expect.element(screen.getByRole('heading', { name: 'Ada Lovelace' })).toBeVisible();
+
+    // The reader carries on elsewhere while the book is shut here.
+    stored = aResumePosition();
+    await screen.getByRole('link', { name: 'Read', exact: true }).click();
+
+    // The answer this tab already has is the stale one, and it comes back as
+    // settled data rather than as pending, so a cache that outlived the first
+    // open would be latched before the refetch could land.
+    await expectHalfwayThroughChapterTwo(screen);
+  }
+);
+
+test(
+  'a book that would not load keeps the reader their place for the retry',
+  { timeout: 60_000 },
+  async () => {
+    worker.use(...aReadableBook());
+    worker.use(...readiumApi({ positions: aDetailedPositionList() }));
+    worker.use(...readingPositionApi(aResumePosition()).handlers);
+    worker.use(
+      http.get(MANIFEST_PATH, () => new HttpResponse(null, { status: 503 }), { once: true })
+    );
+
+    const screen = await renderApp({ path: '/book/1/read' });
+    await expect
+      .element(screen.getByText('The book could not be opened. Please try again later.'))
+      .toBeVisible();
+
+    await screen.getByRole('button', { name: 'Try again' }).click();
+
+    // The publication is fetched before a landing is looked at, so a manifest
+    // that blipped says nothing about the place — dropping it here would cost a
+    // bookmark for the network's mistake, and apologise for it too.
+    await expectHalfwayThroughChapterTwo(screen);
+  }
+);
+
+test('a book nobody has read opens at the start and says nothing', async () => {
+  const { screen } = await aBookResumingAt(nowhereToResume());
+
+  await expectPage(screen, 'Page 1 of 2 · 0%');
+  await expect.element(screen.getByRole('alert')).not.toBeInTheDocument();
+});
+
+test('coming back to the tab leaves the reader where they were reading', async () => {
+  const { screen } = await aBookResumingAt(nowhereToResume());
+  await expectPage(screen, 'Page 1 of 2 · 0%');
+  await screen.getByRole('button', { name: 'Next page' }).click();
+  await expectPage(screen, 'Page 2 of 2 · 50%');
+
+  window.dispatchEvent(new Event('focus'));
+  document.dispatchEvent(new Event('visibilitychange'));
+
+  // Where a book opens is settled the moment it opens: an answer arriving a
+  // second time must not put the reader back at the page they started from.
+  await sleep(500);
+  await expectPage(screen, 'Page 2 of 2 · 50%');
 });

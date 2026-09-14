@@ -2,10 +2,11 @@ import type {
   PositionList,
   ReadingPosition,
   ReadingPositionUpdate,
+  ResumePositionResponse,
   WebPublicationManifest,
 } from '@/api/generated/model';
 import { http, HttpResponse } from 'msw';
-import { aManifest, aPositionList } from '../fixtures/publication';
+import { aManifest, aPositionList, nowhereToResume } from '../fixtures/publication';
 
 const MANIFEST_PATH = '/api/v1/readium/books/:bookId/manifest.json';
 const POSITIONS_PATH = '/api/v1/readium/books/:bookId/positions.json';
@@ -63,15 +64,16 @@ const RESOURCES: Record<string, { body: string; type: string } | undefined> = {
 };
 
 /**
- * The reading-position endpoint, remembering every write.
+ * The reading-position endpoint: what the reader resumes from, and every write.
  *
  * The reader writes debounced and again on the way out, so a test asserts on
  * `writes` rather than on a spy: what matters is what reached the server.
  * Register these after `readiumApi()`, which MSW resolves newest first.
  */
-export const readingPositionApi = () => {
+export const readingPositionApi = (stored: ResumePositionResponse = nowhereToResume()) => {
   const writes: ReadingPositionUpdate[] = [];
   const handlers = [
+    http.get(POSITION_PATH, () => HttpResponse.json(stored)),
     http.put(POSITION_PATH, async ({ request }) => {
       const update = (await request.json()) as ReadingPositionUpdate;
       writes.push(update);
@@ -122,9 +124,10 @@ export const readiumApi = ({
     onRequest(request);
     return HttpResponse.json(positions ?? aPositionList());
   }),
-  // An open reader writes where it is, so every test that opens one meets these
-  // whether or not it is about them. `readingPositionApi` is the version that
-  // remembers what was written.
+  // An open reader asks where to resume and writes where it gets to, so every
+  // test that opens one meets these whether or not it is about them.
+  // `readingPositionApi` is the version with a place to resume from and a
+  // memory of what was written.
   ...readingPositionApi().handlers,
   http.get(RESOURCE_PATH, ({ request, params }) => {
     onRequest(request);
@@ -145,4 +148,6 @@ export const readiumApi = ({
 export const noPublication = [
   http.post(SESSION_PATH, () => HttpResponse.json({ expires_in: 900 })),
   http.get(MANIFEST_PATH, () => new HttpResponse(null, { status: 404 })),
+  // The shell asks where to resume before it learns there is nothing to open.
+  ...readingPositionApi().handlers,
 ];

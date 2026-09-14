@@ -1,4 +1,8 @@
-import type { PositionList, WebPublicationManifest } from '@/api/generated/model';
+import type {
+  PositionList,
+  ResumePositionResponse,
+  WebPublicationManifest,
+} from '@/api/generated/model';
 
 const manifestHref = (bookId = 1) =>
   `${window.location.origin}/api/v1/readium/books/${bookId}/manifest.json`;
@@ -58,6 +62,34 @@ export const aPositionList = (overrides: Partial<PositionList> = {}): PositionLi
       locations: { position: 2, progression: 0, totalProgression: 0.5 },
     },
   ],
+  ...overrides,
+});
+
+/** The answer for a book nobody has opened anywhere, which is not a lost place. */
+export const nowhereToResume = (): ResumePositionResponse => ({
+  locator: null,
+  source: null,
+  unresolved: false,
+  recorded_at: null,
+});
+
+/**
+ * A place part-way through the second chapter of `aManifest`'s publication.
+ *
+ * Deliberately not where the book would open on its own, so that a test seeing
+ * chapter two is seeing a place restored rather than a default.
+ */
+export const aResumePosition = (
+  overrides: Partial<ResumePositionResponse> = {}
+): ResumePositionResponse => ({
+  locator: {
+    href: 'resources/OEBPS/chapter2.xhtml',
+    type: 'application/xhtml+xml',
+    locations: { position: 2, progression: 0.5, totalProgression: 0.75 },
+  },
+  source: 'web',
+  unresolved: false,
+  recorded_at: '2026-09-01T19:30:00Z',
   ...overrides,
 });
 

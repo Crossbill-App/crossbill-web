@@ -1,10 +1,14 @@
 import type { EbookTocEntry, OpenedEbook } from '@/components/reader/EbookReader.ts';
 import { READER_PREFERENCES_KEY } from '@/components/reader/readerPreferenceStorage.ts';
 import { ReaderShell, type ReaderShellProps } from '@/components/reader/ReaderShell.tsx';
+import { SnackbarProvider } from '@/context/SnackbarContext.tsx';
 import { theme } from '@/theme/theme.ts';
 import { ThemeProvider } from '@mui/material/styles';
 import { fontSizeRangeConfig } from '@readium/navigator';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { FakeEbookReader, aFakeLocation } from '@tests/fakes/FakeEbookReader';
+import { aResumePosition, nowhereToResume } from '@tests/fixtures/publication';
+import { pendingQueryClients } from '@tests/harness/renderApp';
 import { readingPositionApi, readiumApi } from '@tests/msw/readiumApi';
 import { worker } from '@tests/msw/worker';
 import { HttpResponse, delay, http } from 'msw';
@@ -14,6 +18,7 @@ import { page, userEvent } from 'vitest/browser';
 
 const SESSION_PATH = '/api/v1/readium/books/:bookId/session';
 const RESOURCE_PATH = '/api/v1/readium/books/:bookId/resources/*';
+const POSITION_PATH = '/api/v1/readium/books/:bookId/reading-position';
 const MANIFEST_URL = `${window.location.origin}/api/v1/readium/books/1/manifest.json`;
 
 /** Narrower than the `sm` breakpoint the reader lays itself out against. */
@@ -61,18 +66,27 @@ const aSlowSession = (ms: number) =>
 
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
-const renderShell = async (props: Partial<ReaderShellProps> = {}) =>
-  await render(
-    <ThemeProvider theme={theme}>
-      <ReaderShell
-        bookId={1}
-        title="The Pragmatic Reader"
-        onClose={() => {}}
-        createReader={createReader}
-        {...props}
-      />
-    </ThemeProvider>
+const renderShell = async (props: Partial<ReaderShellProps> = {}) => {
+  // The shell asks the server where to resume and apologises when it cannot, so
+  // it needs the two providers the app mounts it under.
+  const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+  pendingQueryClients.push(queryClient);
+  return await render(
+    <QueryClientProvider client={queryClient}>
+      <ThemeProvider theme={theme}>
+        <SnackbarProvider>
+          <ReaderShell
+            bookId={1}
+            title="The Pragmatic Reader"
+            onClose={() => {}}
+            createReader={createReader}
+            {...props}
+          />
+        </SnackbarProvider>
+      </ThemeProvider>
+    </QueryClientProvider>
   );
+};
 
 type Screen = Awaited<ReturnType<typeof renderShell>>;
 
@@ -105,6 +119,7 @@ const expectReconnecting = (screen: Screen) =>
   expect.element(screen.getByText('Reconnecting…')).toBeVisible();
 
 test('the shell waits for the cookie before opening the book', async () => {
+  worker.use(...readiumApi());
   worker.use(aSlowSession(500));
 
   const screen = await renderShell();
@@ -620,6 +635,82 @@ test('a book opened and closed again without being read writes nothing', async (
 
   await sleep(300);
   expect(writes).toEqual([]);
+});
+
+/**
+ * A book reopened in the browser starts where the reader left off, on whatever
+ * device they were last reading. Where a place cannot be restored the book
+ * still opens, and says so once.
+ */
+const LOST_THE_BOOKMARK = "Couldn't restore your last position, so the book opened at the start.";
+
+const aSlowResumeAnswer = (ms: number) =>
+  http.get(POSITION_PATH, async () => {
+    await delay(ms);
+    return HttpResponse.json(nowhereToResume());
+  });
+
+/** The shell over a place stored part-way through the book's second chapter. */
+const aResumedBook = async () => {
+  worker.use(...readiumApi());
+  worker.use(...readingPositionApi(aResumePosition()).handlers);
+  const screen = await renderShell();
+  await expect.poll(() => readers.length).toBe(1);
+  return screen;
+};
+
+test('the book is not opened until the resume answer is in', async () => {
+  worker.use(...readiumApi());
+  worker.use(aSlowResumeAnswer(500));
+
+  const screen = await renderShell();
+
+  // The cookie is minted long before the answer, and a navigator takes its
+  // initial position once, at construction.
+  await sleep(250);
+  expect(readers).toHaveLength(0);
+  await expect.element(screen.getByLabelText('Loading the book')).toBeVisible();
+
+  await expect.poll(() => readers.length).toBe(1);
+});
+
+test('the book is opened at the place the reader left off', async () => {
+  await aResumedBook();
+
+  expect(readers[0].openedWith[0].initialLocation).toEqual({
+    href: 'resources/OEBPS/chapter2.xhtml',
+    type: 'application/xhtml+xml',
+    locations: { position: 2, progression: 0.5, totalProgression: 0.75 },
+  });
+});
+
+test('a landing the navigator refuses is retried once, without it', async () => {
+  const screen = await aResumedBook();
+
+  readers[0].rejectOpen();
+
+  await expect.poll(() => readers.length).toBe(2);
+  expect(readers[1].openedWith[0].initialLocation).toBeUndefined();
+  readers[1].resolveOpen();
+  await expect.element(screen.getByText('Page 1 of 2')).toBeVisible();
+  // The place is gone either way, so the reader is owed the same sentence as if
+  // it had never been found.
+  await expect
+    .element(screen.getByRole('alert').filter({ hasText: LOST_THE_BOOKMARK }))
+    .toBeVisible();
+});
+
+test('a second refusal is a real failure, not a third attempt', async () => {
+  const screen = await aResumedBook();
+  readers[0].rejectOpen();
+  await expect.poll(() => readers.length).toBe(2);
+
+  readers[1].rejectOpen();
+
+  await expect
+    .element(screen.getByText('The book could not be opened. Please try again later.'))
+    .toBeVisible();
+  expect(readers).toHaveLength(2);
 });
 
 /**

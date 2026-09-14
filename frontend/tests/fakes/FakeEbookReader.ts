@@ -31,6 +31,7 @@ export class FakeEbookReader implements EbookReader {
   private readonly pageTurnListeners = new Set<(direction: PageTurnDirection) => void>();
   private readonly tocEntryListeners = new Set<(href: string | null) => void>();
   private settle: ((opened: OpenedEbook) => void) | undefined;
+  private refuse: ((reason: Error) => void) | undefined;
   private isOpened = false;
 
   async open(
@@ -43,6 +44,7 @@ export class FakeEbookReader implements EbookReader {
     this.openedWith.push({ manifestUrl, appearance, initialLocation });
     return await new Promise<OpenedEbook>((resolve, reject) => {
       this.settle = resolve;
+      this.refuse = reject;
       // The interface's contract, and the only way a boot watchdog can reach an
       // open that is going nowhere.
       signal?.addEventListener('abort', () => reject(signal.reason), { once: true });
@@ -61,6 +63,11 @@ export class FakeEbookReader implements EbookReader {
       fontSizeRange: [0.6, 2],
       ...opened,
     });
+  }
+
+  /** The engine refusing to open the book, as a navigator given a bad place does. */
+  rejectOpen(reason = new Error('The book would not open.')): void {
+    this.refuse?.(reason);
   }
 
   requestPageTurn(direction: PageTurnDirection): void {
