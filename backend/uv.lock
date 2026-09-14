@@ -655,6 +655,7 @@ dependencies = [
     { name = "structlog-sentry" },
     { name = "tzdata" },
     { name = "uvicorn", extra = ["standard"] },
+    { name = "xpoint-cfi" },
 ]
 
 [package.dev-dependencies]
@@ -668,7 +669,6 @@ dev = [
     { name = "pytest" },
     { name = "pytest-asyncio" },
     { name = "ruff" },
-    { name = "xpoint-cfi" },
 ]
 
 [package.metadata]
@@ -697,6 +697,7 @@ requires-dist = [
     { name = "structlog-sentry", specifier = ">=2.2.1" },
     { name = "tzdata", specifier = ">=2025.3" },
     { name = "uvicorn", extras = ["standard"], specifier = ">=0.44.0,<0.53.0" },
+    { name = "xpoint-cfi", git = "https://github.com/Crossbill-App/xpoint-cfi.git?tag=v0.1.0" },
 ]
 
 [package.metadata.requires-dev]
@@ -710,7 +711,6 @@ dev = [
     { name = "pytest", specifier = ">=9.0.3" },
     { name = "pytest-asyncio", specifier = ">=1.2.0" },
     { name = "ruff", specifier = ">=0.14.4" },
-    { name = "xpoint-cfi", git = "https://github.com/Crossbill-App/xpoint-cfi.git?tag=v0.1.0" },
 ]
 
 [[package]]

@@ -33,6 +33,10 @@ dependencies = [
   # falls on. Carried explicitly so the zone database ships with the app
   # rather than depending on what the runtime image happens to install.
   "tzdata>=2025.3",
+  # Pinned to a git tag; see [tool.uv.sources] at the end of this file. A
+  # runtime dependency since R4.1: the anchor service imports it at module
+  # scope and the container wires that service up, so it is loaded at startup.
+  "xpoint-cfi",
 ]
 
 [dependency-groups]
@@ -46,10 +50,6 @@ dev = [
   "aiosqlite>=0.22.1",
   "import-linter>=2.11",
   "mutmut>=3.6.0",
-  # Pinned to a git tag; see [tool.uv.sources] at the end of this file. A dev
-  # dependency because nothing this app serves imports it yet -- only the test
-  # holding the manifest's hrefs to the ones a highlight's Locator will name.
-  "xpoint-cfi",
 ]
 
 [build-system]
