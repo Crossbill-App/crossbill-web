@@ -60,3 +60,31 @@ export const aPositionList = (overrides: Partial<PositionList> = {}): PositionLi
   ],
   ...overrides,
 });
+
+/**
+ * A position list where the second chapter is several positions rather than one.
+ *
+ * Against one position per resource, "the last entry at or before a progression"
+ * and "the only entry" are the same answer, so the arithmetic is untestable.
+ * Chapter two is the split one because it is the chapter served as many pages;
+ * chapter one stays whole, so a test can tell the resources apart by page number.
+ */
+export const aDetailedPositionList = (): PositionList => ({
+  total: 4,
+  positions: [
+    {
+      href: 'resources/OEBPS/chapter1.xhtml',
+      type: 'application/xhtml+xml',
+      locations: { position: 1, progression: 0, totalProgression: 0 },
+    },
+    ...[0, 1, 2].map((index) => ({
+      href: 'resources/OEBPS/chapter2.xhtml',
+      type: 'application/xhtml+xml',
+      locations: {
+        position: index + 2,
+        progression: index / 3,
+        totalProgression: 0.25 + index / 4,
+      },
+    })),
+  ],
+});

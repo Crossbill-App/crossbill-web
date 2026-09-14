@@ -38,6 +38,9 @@ export interface OpenedEbook {
   /** The contents entry the book opened at, or null where none covers it. */
   tocHref: string | null;
   location: EbookLocation;
+  /** Whether the place asked for named a resource this publication has; `'start'`
+   * says the book opened at its beginning instead, and is what an apology hangs on. */
+  landedAt: 'requested' | 'start';
   /** The range the engine honours for `EbookAppearance.fontSize`; any value inside it is legal. */
   fontSizeRange: [number, number];
 }
@@ -78,6 +81,8 @@ export interface OpenEbookOptions {
   /** Handed to the engine at construction, so the book opens at the right size
    * rather than reflowing a tick after it appears. */
   appearance: EbookAppearance;
+  /** Where the book should open; absent opens it at the beginning. */
+  initialLocation?: EbookLocation;
   /** The caller's cancellation — an unmount, a remount, a boot watchdog — which
    * every await inside observes, composed with the reader's own destruction. */
   signal?: AbortSignal;

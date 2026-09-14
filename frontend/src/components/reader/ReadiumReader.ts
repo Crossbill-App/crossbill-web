@@ -25,6 +25,7 @@ import {
   type Link,
   type TimelineItem,
 } from '@readium/shared';
+import { findLast } from 'lodash';
 
 const DESTROY_TIMEOUT_MS = 2000;
 
@@ -89,6 +90,36 @@ const fromLocation = (location: EbookLocation): Locator =>
     locations: new LocatorLocations(location.locations),
   });
 
+/**
+ * Where in this publication's own position list a locator lands, or `null` when
+ * it names a resource the publication has not got.
+ *
+ * The navigator resolves an initial position by looking `locations.position` up
+ * in the list it was built with and throws when it finds no match — and neither
+ * a position number another browser wrote nor the absent one a KOReader-derived
+ * locator carries can be trusted to index the list this publication has today.
+ */
+const landingFor = (target: Locator, positions: Locator[]): Locator | null => {
+  const inResource = positions.filter((entry) => entry.href === target.href);
+  if (inResource.length === 0) return null;
+  const progression = target.locations.progression;
+  const entry =
+    findLast(
+      inResource,
+      (candidate) => (candidate.locations.progression ?? 0) <= (progression ?? 0)
+    ) ?? inResource[0];
+  // The target is what is returned, wearing the entry's numbers rather than the
+  // other way round: the progression is what places the reader within the
+  // resource, while the position only has to index the list without throwing.
+  // The covering entry is picked so that the pair agrees anyway — which is what
+  // the navigator computes for itself the moment a frame reports back, and what
+  // it is left holding if one never does.
+  return target.copyWithLocations({
+    position: entry.locations.position,
+    totalProgression: entry.locations.totalProgression,
+  });
+};
+
 const tocEntriesFrom = (links: Link[]): EbookTocEntry[] =>
   links.map((link) => ({
     href: link.href,
@@ -139,7 +170,10 @@ export class ReadiumReader implements EbookReader {
 
   constructor(private readonly host: HTMLElement) {}
 
-  async open(manifestUrl: string, { appearance, signal }: OpenEbookOptions): Promise<OpenedEbook> {
+  async open(
+    manifestUrl: string,
+    { appearance, initialLocation, signal }: OpenEbookOptions
+  ): Promise<OpenedEbook> {
     signal?.throwIfAborted();
     if (this.isOpened) throw new Error('A reader opens one book; build another one.');
     this.isOpened = true;
@@ -156,12 +190,14 @@ export class ReadiumReader implements EbookReader {
     await whenSized(this.host, this.until(signal));
     await this.checkpoint(signal);
 
+    const landing = initialLocation ? landingFor(fromLocation(initialLocation), positions) : null;
+
     const navigator = new EpubNavigator(
       this.mountContainer(),
       publication,
       this.navigatorListeners(),
       positions,
-      undefined,
+      landing ?? undefined,
       {
         preferences: toEpubPreferences(appearance),
         defaults: {},
@@ -182,6 +218,7 @@ export class ReadiumReader implements EbookReader {
       toc: tocEntriesFrom(publication.toc?.items ?? []),
       tocHref: this.tocEntryHrefFor(navigator.timeline.locate(navigator.currentLocator)),
       location: toLocation(navigator.currentLocator),
+      landedAt: landing ? 'requested' : 'start',
       // Asked of the navigator's own editor rather than copied from the library's
       // `fontSizeRangeConfig`: a second copy of those numbers drifts on an upgrade.
       fontSizeRange: navigator.preferencesEditor.fontSize.supportedRange,

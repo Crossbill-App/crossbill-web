@@ -14,12 +14,12 @@ const RESOURCE_PATH = '/api/v1/readium/books/:bookId/resources/*';
 const POSITION_PATH = '/api/v1/readium/books/:bookId/reading-position';
 
 /** A chapter as an EPUB actually ships one: XHTML, with its own namespace. */
-const chapterDocument = (title: string) =>
+const chapterDocument = (title: string, paragraphs = 1) =>
   `<?xml version="1.0" encoding="utf-8"?>
 <!DOCTYPE html>
 <html xmlns="http://www.w3.org/1999/xhtml">
   <head><title>${title}</title></head>
-  <body><h1>${title}</h1><p>Attention is the rarest and purest form of generosity.</p></body>
+  <body><h1>${title}</h1>${'<p>Attention is the rarest and purest form of generosity.</p>'.repeat(paragraphs)}</body>
 </html>`;
 
 /**
@@ -48,7 +48,13 @@ const hostileChapter = () =>
 /** The files `aManifest` names, keyed by the path the resource route receives. */
 const RESOURCES: Record<string, { body: string; type: string } | undefined> = {
   'OEBPS/chapter1.xhtml': { body: chapterDocument('On Attention'), type: 'application/xhtml+xml' },
-  'OEBPS/chapter2.xhtml': { body: chapterDocument('On Memory'), type: 'application/xhtml+xml' },
+  // Long enough to paginate into many columns, so a test can open the book
+  // part-way through a chapter rather than only at the head of one. Safe for
+  // every other test because nothing here turns more than one page into it.
+  'OEBPS/chapter2.xhtml': {
+    body: chapterDocument('On Memory', 240),
+    type: 'application/xhtml+xml',
+  },
   'OEBPS/style.css': { body: 'body { margin: 0; }', type: 'text/css' },
   'OEBPS/evil.js': {
     body: "parent.document.body.setAttribute('data-pwned', 'external-script')",

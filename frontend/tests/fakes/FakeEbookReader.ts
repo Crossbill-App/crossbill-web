@@ -16,7 +16,11 @@ export const aFakeLocation = (position: number): EbookLocation => ({
 
 /** An `EbookReader` whose open the test settles and whose events the test fires. */
 export class FakeEbookReader implements EbookReader {
-  readonly openedWith: { manifestUrl: string; appearance: EbookAppearance }[] = [];
+  readonly openedWith: {
+    manifestUrl: string;
+    appearance: EbookAppearance;
+    initialLocation?: EbookLocation;
+  }[] = [];
   readonly appearances: EbookAppearance[] = [];
   readonly goToCalls: EbookLocation[] = [];
   nextCalls = 0;
@@ -29,11 +33,14 @@ export class FakeEbookReader implements EbookReader {
   private settle: ((opened: OpenedEbook) => void) | undefined;
   private isOpened = false;
 
-  async open(manifestUrl: string, { appearance, signal }: OpenEbookOptions): Promise<OpenedEbook> {
+  async open(
+    manifestUrl: string,
+    { appearance, initialLocation, signal }: OpenEbookOptions
+  ): Promise<OpenedEbook> {
     signal?.throwIfAborted();
     if (this.isOpened) throw new Error('A reader opens one book; build another one.');
     this.isOpened = true;
-    this.openedWith.push({ manifestUrl, appearance });
+    this.openedWith.push({ manifestUrl, appearance, initialLocation });
     return await new Promise<OpenedEbook>((resolve, reject) => {
       this.settle = resolve;
       // The interface's contract, and the only way a boot watchdog can reach an
@@ -48,6 +55,7 @@ export class FakeEbookReader implements EbookReader {
       toc: [],
       tocHref: null,
       location: aFakeLocation(1),
+      landedAt: 'start',
       // Deliberately not the engine's own [0.7, 4], so a test about the
       // stepper's limits proves the range crossed the seam.
       fontSizeRange: [0.6, 2],

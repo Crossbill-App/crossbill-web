@@ -1,11 +1,12 @@
 import {
   PublicationUnavailableError,
   type EbookAppearance,
+  type EbookLocation,
   type PageTurnDirection,
 } from '@/components/reader/EbookReader.ts';
 import { ReadiumReader } from '@/components/reader/ReadiumReader.ts';
 import { fontSizeRangeConfig } from '@readium/navigator';
-import { aManifest, aPositionList } from '@tests/fixtures/publication';
+import { aDetailedPositionList, aManifest, aPositionList } from '@tests/fixtures/publication';
 import { noPublication, readiumApi } from '@tests/msw/readiumApi';
 import { worker } from '@tests/msw/worker';
 import { http, HttpResponse } from 'msw';
@@ -53,9 +54,25 @@ const recordEvents = () => {
 const openTheBook = (signal?: AbortSignal) =>
   reader.open(MANIFEST_URL, { appearance: AN_APPEARANCE, signal });
 
+/** The book opened at a place, the way a resume hands one over. */
+const openTheBookAt = (initialLocation: EbookLocation) =>
+  reader.open(MANIFEST_URL, { appearance: AN_APPEARANCE, initialLocation });
+
+/** A place in the book's second chapter, which `aDetailedPositionList` splits in three. */
+const inChapterTwo = (locations: EbookLocation['locations']): EbookLocation => ({
+  href: 'resources/OEBPS/chapter2.xhtml',
+  type: 'application/xhtml+xml',
+  locations,
+});
+
 const frame = () => host.querySelector('iframe');
 
 const frameText = () => frame()?.contentDocument?.body.textContent ?? '';
+
+/** The chapter on screen: Readium keeps the neighbouring one loaded and hidden. */
+const visibleFrameText = () =>
+  [...host.querySelectorAll('iframe')].find((candidate) => candidate.style.visibility !== 'hidden')
+    ?.contentDocument?.body.textContent ?? '';
 
 /** What ReadiumCSS has written into the chapter for one of its user settings. */
 const userProperty = (name: string) =>
@@ -81,9 +98,70 @@ test('opens the book at its first page and names its chapters', async () => {
 
   expect(opened.pageCount).toBe(2);
   expect(opened.location.locations.position).toBe(1);
+  expect(opened.landedAt).toBe('start');
   expect(opened.toc.map((entry) => entry.title)).toEqual(['On Attention', 'Part two']);
   expect(opened.toc[1].children.map((entry) => entry.title)).toEqual(['On Memory']);
   expect(frame()).not.toBeNull();
+});
+
+test('a book opened at a stored position opens there', async () => {
+  worker.use(...readiumApi());
+
+  const opened = await openTheBookAt(aPositionList().positions[1]);
+
+  expect(opened.landedAt).toBe('requested');
+  expect(opened.location.locations.position).toBe(2);
+  await expect.poll(visibleFrameText).toContain('On Memory');
+});
+
+test('a position number this publication does not have still opens at the right place', async () => {
+  worker.use(...readiumApi({ positions: aDetailedPositionList() }));
+
+  const opened = await openTheBookAt(
+    inChapterTwo({ position: 99, progression: 0.5, totalProgression: 0.5 })
+  );
+
+  expect(opened.landedAt).toBe('requested');
+  expect(opened.location.locations.position).toBe(3);
+  await expect.poll(visibleFrameText).toContain('On Memory');
+});
+
+test('a locator carrying no position at all opens at its resource', async () => {
+  worker.use(...readiumApi({ positions: aDetailedPositionList() }));
+
+  const opened = await openTheBookAt(inChapterTwo({}));
+
+  expect(opened.landedAt).toBe('requested');
+  // The head of the resource: nothing in the locator says where inside it to go.
+  expect(opened.location.locations.position).toBe(2);
+  await expect.poll(visibleFrameText).toContain('On Memory');
+});
+
+test('a progression inside a split resource opens at the position covering it', async () => {
+  worker.use(...readiumApi({ positions: aDetailedPositionList() }));
+
+  const opened = await openTheBookAt(inChapterTwo({ progression: 0.5 }));
+
+  expect(opened.landedAt).toBe('requested');
+  // Not 2, which is where the resource begins.
+  expect(opened.location.locations.position).toBe(3);
+  // A position is a third of this chapter, so only the progression tells landing
+  // part-way through it from landing at the top of the third that covers it.
+  expect(opened.location.locations.progression).toBeGreaterThan(1 / 3);
+});
+
+test('a place in a resource this publication has not got opens the book at the start', async () => {
+  worker.use(...readiumApi());
+
+  const opened = await openTheBookAt({
+    href: 'resources/OEBPS/nowhere.xhtml',
+    type: 'application/xhtml+xml',
+    locations: { position: 1, progression: 0 },
+  });
+
+  expect(opened.landedAt).toBe('start');
+  expect(opened.location.locations.position).toBe(1);
+  await expect.poll(visibleFrameText).toContain('On Attention');
 });
 
 test("the book reports the font-size range the engine's own editor honours", async () => {
