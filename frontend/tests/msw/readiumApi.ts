@@ -1,4 +1,9 @@
-import type { PositionList, WebPublicationManifest } from '@/api/generated/model';
+import type {
+  PositionList,
+  ReadingPosition,
+  ReadingPositionUpdate,
+  WebPublicationManifest,
+} from '@/api/generated/model';
 import { http, HttpResponse } from 'msw';
 import { aManifest, aPositionList } from '../fixtures/publication';
 
@@ -6,6 +11,7 @@ const MANIFEST_PATH = '/api/v1/readium/books/:bookId/manifest.json';
 const POSITIONS_PATH = '/api/v1/readium/books/:bookId/positions.json';
 const SESSION_PATH = '/api/v1/readium/books/:bookId/session';
 const RESOURCE_PATH = '/api/v1/readium/books/:bookId/resources/*';
+const POSITION_PATH = '/api/v1/readium/books/:bookId/reading-position';
 
 /** A chapter as an EPUB actually ships one: XHTML, with its own namespace. */
 const chapterDocument = (title: string) =>
@@ -50,6 +56,30 @@ const RESOURCES: Record<string, { body: string; type: string } | undefined> = {
   },
 };
 
+/**
+ * The reading-position endpoint, remembering every write.
+ *
+ * The reader writes debounced and again on the way out, so a test asserts on
+ * `writes` rather than on a spy: what matters is what reached the server.
+ * Register these after `readiumApi()`, which MSW resolves newest first.
+ */
+export const readingPositionApi = () => {
+  const writes: ReadingPositionUpdate[] = [];
+  const handlers = [
+    http.put(POSITION_PATH, async ({ request }) => {
+      const update = (await request.json()) as ReadingPositionUpdate;
+      writes.push(update);
+      return HttpResponse.json({
+        locator: update.locator,
+        xpoint: '/body/DocFragment[1]/body/div[1]/p[1]',
+        position: { index: 1, char_index: 0 },
+        updated_at: update.recorded_at,
+      } satisfies ReadingPosition);
+    }),
+  ];
+  return { handlers, writes };
+};
+
 interface ReadiumApiOptions {
   manifest?: WebPublicationManifest;
   positions?: PositionList;
@@ -86,6 +116,10 @@ export const readiumApi = ({
     onRequest(request);
     return HttpResponse.json(positions ?? aPositionList());
   }),
+  // An open reader writes where it is, so every test that opens one meets these
+  // whether or not it is about them. `readingPositionApi` is the version that
+  // remembers what was written.
+  ...readingPositionApi().handlers,
   http.get(RESOURCE_PATH, ({ request, params }) => {
     onRequest(request);
     const path = String(params[0]);

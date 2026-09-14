@@ -8,6 +8,7 @@ import { TocDrawer } from '@/components/reader/TocDrawer.tsx';
 import { useEbookReader, type UseEbookReaderOptions } from '@/components/reader/useEbookReader.ts';
 import { useReaderPreferences } from '@/components/reader/useReaderPreferences.ts';
 import { useReaderSession } from '@/components/reader/useReaderSession.ts';
+import { useReadingPositionWriter } from '@/components/reader/useReadingPositionWriter.ts';
 import { useBodyScrollLock } from '@/hooks/useBodyScrollLock.ts';
 import {
   ChapterListIcon,
@@ -35,9 +36,11 @@ export interface ReaderShellProps {
   bookId: number;
   title: string;
   onClose: () => void;
-  /** Both only for tests: a fake engine, and a watchdog short enough to wait for. */
+  /** All four only for tests: a fake engine, and waits short enough to sit through. */
   createReader?: UseEbookReaderOptions['createReader'];
   bootTimeoutMs?: number;
+  writeDebounceMs?: number;
+  heartbeatMs?: number;
 }
 
 /** The width the page-turn buttons need beside the text on anything but a phone. */
@@ -136,6 +139,8 @@ export const ReaderShell = ({
   onClose,
   createReader,
   bootTimeoutMs,
+  writeDebounceMs,
+  heartbeatMs,
 }: ReaderShellProps) => {
   // A fixed overlay never scrolls the body, which is what arms pull-to-refresh.
   useBodyScrollLock(true);
@@ -149,6 +154,7 @@ export const ReaderShell = ({
   // A new object every render would submit the same appearance to the engine
   // again on every render, which is not a cost the engine skips.
   const appearance = useMemo(() => toEbookAppearance(theme, preferences), [theme, preferences]);
+  const { record } = useReadingPositionWriter(bookId, { writeDebounceMs, heartbeatMs });
   const book = useEbookReader({
     host,
     manifestUrl: manifestUrlFor(bookId),
@@ -157,6 +163,7 @@ export const ReaderShell = ({
     appearance,
     createReader,
     bootTimeoutMs,
+    onLocationReported: record,
   });
 
   if (sessionStatus === 'error') {

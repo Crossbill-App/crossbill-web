@@ -31,6 +31,8 @@ export interface UseEbookReaderOptions {
   /** Must be referentially stable: an inline arrow rebuilds the reader every render. */
   createReader?: (host: HTMLElement) => EbookReader;
   bootTimeoutMs?: number;
+  /** Every place the book reports, `arriving` while it is still coming up. */
+  onLocationReported?: (location: EbookLocation, arriving: boolean) => void;
 }
 
 export interface EbookReaderState {
@@ -67,6 +69,7 @@ export const useEbookReader = ({
   appearance,
   createReader = aReadiumReader,
   bootTimeoutMs = BOOT_TIMEOUT_MS,
+  onLocationReported,
 }: UseEbookReaderOptions): EbookReaderState => {
   const [outcome, setOutcome] = useState<EbookReaderOutcome | null>(null);
   const [pageCount, setPageCount] = useState(0);
@@ -88,6 +91,11 @@ export const useEbookReader = ({
     appearanceRef.current = appearance;
   }, [appearance]);
   const appliedRef = useRef<EbookAppearance | null>(null);
+  // The same again, so a caller that rebinds its callback never rebuilds the reader.
+  const reportedRef = useRef(onLocationReported);
+  useEffect(() => {
+    reportedRef.current = onLocationReported;
+  }, [onLocationReported]);
 
   useEffect(() => {
     const element = host.current;
@@ -99,7 +107,11 @@ export const useEbookReader = ({
     const signal = AbortSignal.any([cancel.signal, AbortSignal.timeout(bootTimeoutMs)]);
     let isOpen = false;
     const unsubscribes = [
-      reader.onLocationChanged(setLocation),
+      reader.onLocationChanged((location) => {
+        setLocation(location);
+        // Nothing a book reports before it has finished arriving is a move.
+        reportedRef.current?.(location, !isOpen);
+      }),
       reader.onTocEntryChanged(setCurrentTocHref),
       reader.onPageTurnRequested((direction) => {
         // Readium's pager sets a navigating flag it never clears when it has no
@@ -111,6 +123,9 @@ export const useEbookReader = ({
 
     const onOpened = (opened: OpenedEbook) => {
       if (cancel.signal.aborted) return;
+      // The place the book settled on may never have been reported as a change,
+      // so this is the only report a writer has to seed itself with.
+      reportedRef.current?.(opened.location, true);
       isOpen = true;
       setPageCount(opened.pageCount);
       setLocation(opened.location);

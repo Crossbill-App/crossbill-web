@@ -5,15 +5,17 @@ import { aBookDetails } from '@tests/fixtures/book';
 import { aManifest } from '@tests/fixtures/publication';
 import { renderApp } from '@tests/harness/renderApp';
 import { bookApi } from '@tests/msw/bookApi';
-import { noPublication, readiumApi } from '@tests/msw/readiumApi';
+import { noPublication, readingPositionApi, readiumApi } from '@tests/msw/readiumApi';
 import { worker } from '@tests/msw/worker';
 import { delay, http, HttpResponse } from 'msw';
-import { expect, test } from 'vitest';
+import { afterEach, expect, test } from 'vitest';
+import { cleanup } from 'vitest-browser-react';
 import { userEvent } from 'vitest/browser';
 
 const MANIFEST_PATH = '/api/v1/readium/books/:bookId/manifest.json';
 const SESSION_PATH = '/api/v1/readium/books/:bookId/session';
 const RESOURCE_PATH = '/api/v1/readium/books/:bookId/resources/*';
+const POSITION_PATH = '/api/v1/readium/books/:bookId/reading-position';
 
 const elementUnderTheAppBar = () => {
   const { left, top, width, height } = document.querySelector('header')!.getBoundingClientRect();
@@ -41,6 +43,16 @@ const openTheBook = async () => {
 
 const expectPage = (screen: Screen, label: string) =>
   expect.element(screen.getByText(label), { timeout: 5_000 }).toBeVisible();
+
+const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+
+afterEach(async () => {
+  // Unmounted here rather than by the global teardown: the reader writes where
+  // it left the reader on its way out, and that write has to land on this
+  // test's handlers rather than on the next test's.
+  cleanup();
+  await sleep(100);
+});
 
 test('the book header offers to open the book in the reader', async () => {
   worker.use(...aReadableBook());
@@ -576,4 +588,79 @@ test('an appearance of values we do not offer opens the book on the defaults', a
 
   await expect.poll(() => userProperty('backgroundColor')).toBe(theme.palette.background.default);
   expect(userProperty('colCount')).toBe('1');
+});
+
+/**
+ * The reader's place is written back so that both readers agree where it is,
+ * and so that reading in the browser reaches the reading statistics.
+ *
+ * These tests wait out the real debounce rather than faking the clock: the
+ * navigator's own boot is a chain of timers and animation frames, and a fake
+ * clock would be testing the mock's scheduler rather than the reader.
+ */
+const aBookRecordingPositions = async () => {
+  worker.use(...aReadableBook());
+  worker.use(...readiumApi());
+  const positions = readingPositionApi();
+  worker.use(...positions.handlers);
+  const requests: Request[] = [];
+  // Answering nothing passes the write on to the handler that stores it.
+  worker.use(
+    http.put(POSITION_PATH, ({ request }) => {
+      requests.push(request);
+    })
+  );
+  const screen = await openTheBook();
+  return { screen, writes: positions.writes, requests };
+};
+
+/** A page read and the reader closed again, well inside the write debounce. */
+const readAPageAndLeave = async (screen: Screen) => {
+  await screen.getByRole('button', { name: 'Next page' }).click();
+  await expectPage(screen, 'Page 2 of 2 · 50%');
+
+  await screen.getByRole('button', { name: 'Close reader' }).click();
+  await expect.element(screen.getByRole('heading', { name: 'Ada Lovelace' })).toBeVisible();
+};
+
+test(
+  'turning a page in the reader records where the reader got to',
+  { timeout: 40_000 },
+  async () => {
+    const { screen, writes } = await aBookRecordingPositions();
+    // Nothing yet: where the book opened is where the reader already was.
+    expect(writes).toHaveLength(0);
+
+    await screen.getByRole('button', { name: 'Next page' }).click();
+    await expectPage(screen, 'Page 2 of 2 · 50%');
+
+    await expect.poll(() => writes.length, { timeout: 15_000 }).toBe(1);
+    expect(writes[0].locator.href).toBe('resources/OEBPS/chapter2.xhtml');
+    expect(writes[0].closing).toBe(false);
+  }
+);
+
+test(
+  'closing the reader writes the last position and closes the session',
+  { timeout: 40_000 },
+  async () => {
+    const { screen, writes } = await aBookRecordingPositions();
+
+    await readAPageAndLeave(screen);
+
+    await expect.poll(() => writes.length).toBe(1);
+    expect(writes[0].locator.href).toBe('resources/OEBPS/chapter2.xhtml');
+    expect(writes[0].closing).toBe(true);
+  }
+);
+
+test('the departing write carries the access token', { timeout: 40_000 }, async () => {
+  const { screen, requests } = await aBookRecordingPositions();
+
+  await readAPageAndLeave(screen);
+
+  // A Bearer-only route, and a `fetch` sends no interceptor's header for us:
+  // without this the reading session is never closed.
+  await expect.poll(() => requests.length).toBe(1);
+  expect(requests[0].headers.get('Authorization')).toBe('Bearer test-access-token');
 });

@@ -59,6 +59,10 @@ export class FakeEbookReader implements EbookReader {
     for (const listener of [...this.pageTurnListeners]) listener(direction);
   }
 
+  reportLocation(location: EbookLocation): void {
+    for (const listener of [...this.locationListeners]) listener(location);
+  }
+
   reportTocEntry(href: string | null): void {
     for (const listener of [...this.tocEntryListeners]) listener(href);
   }
