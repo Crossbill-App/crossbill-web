@@ -1,4 +1,8 @@
-import type { Highlight, HighlightLocatorResponse } from '@/api/generated/model';
+import type {
+  ChapterWithHighlights,
+  Highlight,
+  HighlightLocatorResponse,
+} from '@/api/generated/model';
 import type {
   EbookDecoration,
   EbookTocEntry,
@@ -13,7 +17,7 @@ import { ThemeProvider } from '@mui/material/styles';
 import { fontSizeRangeConfig } from '@readium/navigator';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { FakeEbookReader, aFakeLocation } from '@tests/fakes/FakeEbookReader';
-import { aHighlight } from '@tests/fixtures/book';
+import { aBookDetails, aChapter, aHighlight } from '@tests/fixtures/book';
 import {
   aHighlightLocator,
   aPassage,
@@ -22,6 +26,7 @@ import {
   nowhereToResume,
 } from '@tests/fixtures/publication';
 import { pendingQueryClients } from '@tests/harness/renderApp';
+import { bookApi } from '@tests/msw/bookApi';
 import {
   highlightLocatorApi,
   highlightLocatorsApi,
@@ -709,11 +714,11 @@ test('the book is opened at the place the reader left off', async () => {
 });
 
 /** The navigator refusing the place it was offered, and the retry opening without one. */
-const refuseTheLanding = async () => {
+const refuseTheLanding = async (retried: Partial<OpenedEbook> = {}) => {
   readers[0].rejectOpen();
   await expect.poll(() => readers.length).toBe(2);
   expect(readers[1].openedWith[0].initialLocation).toBeUndefined();
-  readers[1].resolveOpen();
+  readers[1].resolveOpen(retried);
 };
 
 test('a landing the navigator refuses is retried once, without it', async () => {
@@ -744,10 +749,28 @@ test('a second refusal is a real failure, not a third attempt', async () => {
 
 const THE_PASSAGE = aPassage(300).locator;
 
+const BOOK_DETAILS_PATH = '/api/v1/books/:bookId';
+
+/** A chapter of the book holding highlight 300. */
+const theChapterOf300 = (overrides: Partial<ChapterWithHighlights> = {}) =>
+  aChapter({ highlights: [aHighlight({ id: 300 })], ...overrides });
+
 /** The shell opened at highlight 300, with a place to resume from also on offer. */
-const aJump = async (locators: HighlightLocatorResponse[] = [aPassage(300)]) => {
+const aJump = async (
+  locators: HighlightLocatorResponse[] = [aPassage(300)],
+  chapters: ChapterWithHighlights[] = [theChapterOf300({ name: 'On Memory' })],
+  { detailsDelayMs = 0 } = {}
+) => {
   worker.use(...readiumApi());
   worker.use(...readingPositionApi(aResumePosition()).handlers);
+  worker.use(...bookApi({ book: aBookDetails({ chapters }) }).handlers);
+  if (detailsDelayMs) {
+    worker.use(
+      http.get(BOOK_DETAILS_PATH, async () => {
+        await delay(detailsDelayMs);
+      })
+    );
+  }
   let resumeRequests = 0;
   // Answering nothing passes the request on to the handler that answers it.
   worker.use(
@@ -770,6 +793,23 @@ const expectOnScreen = (screen: Screen) =>
 const expectNoApology = async (screen: Screen) => {
   await sleep(300);
   expect(screen.getByRole('alert').query()).toBeNull();
+};
+
+const MISSED_THE_HIGHLIGHT =
+  "Couldn't find this highlight's exact place, so the book opened at the start of its chapter.";
+const MISSED_THE_CHAPTER_TOO =
+  "Couldn't find this highlight's place, so the book opened at the start.";
+
+const expectToBeTold = (screen: Screen, message: string) =>
+  expect.element(screen.getByRole('alert').filter({ hasText: message })).toBeVisible();
+
+const THE_START_OF_ON_MEMORY = { href: A_TOC[1].href, type: '', locations: {} };
+
+/** The latest reader gone on to the start of On Memory, and the reader told it is the chapter. */
+const expectTheChapterFallback = async (screen: Screen) => {
+  await expectOnScreen(screen);
+  expect(readers[readers.length - 1].goToCalls).toEqual([THE_START_OF_ON_MEMORY]);
+  await expectToBeTold(screen, MISSED_THE_HIGHLIGHT);
 };
 
 test('a jump opens the book at the highlight, not at the place the reader left off', async () => {
@@ -805,8 +845,19 @@ test('a move to the highlight that never finishes still shows the book', async (
   await expectOnScreen(screen);
 });
 
+test('a jump that lands on its passage says nothing', async () => {
+  const { screen } = await aJump();
+
+  readers[0].resolveOpen({ toc: A_TOC, landedAt: 'requested' });
+
+  await expectOnScreen(screen);
+  expect(readers[0].goToCalls).toEqual([THE_PASSAGE]);
+  await expectNoApology(screen);
+});
+
 test('a highlight id that changes while the book is on its way does not move it', async () => {
   worker.use(...readiumApi());
+  worker.use(...bookApi().handlers);
   worker.use(...highlightLocatorApi([aPassage(300), aHighlightLocator(301)], { delayMs: 300 }));
   const screen = await renderShell({ highlightId: 300 });
 
@@ -820,27 +871,166 @@ test('a highlight id that changes while the book is on its way does not move it'
   expect(readers[0].goToCalls).toEqual([THE_PASSAGE]);
 });
 
-test('a jump the navigator refuses is retried without it, and says nothing of a lost place', async () => {
+test('a jump the navigator refused falls back to the chapter, and says so', async () => {
   const { screen } = await aJump();
 
-  await refuseTheLanding();
+  await refuseTheLanding({ toc: A_TOC });
 
-  await expectOnScreen(screen);
-  expect(readers[1].goToCalls).toEqual([]);
-  await expectNoApology(screen);
+  await expectTheChapterFallback(screen);
 });
 
 test.each([
   ['a highlight the server could not place', [anUnplacedHighlight(300)]],
   ['a highlight that no longer exists', []],
-])('%s opens the book at the start, and says nothing', async (_, locators) => {
+])('%s opens its chapter, and says so', async (_, locators) => {
   const { screen } = await aJump(locators);
 
   expect(readers[0].openedWith[0].initialLocation).toBeUndefined();
-  readers[0].resolveOpen();
+  readers[0].resolveOpen({ toc: A_TOC });
+
+  await expectTheChapterFallback(screen);
+});
+
+test("a highlight whose chapter this edition's contents do not name opens at the start, and says so", async () => {
+  const { screen } = await aJump(
+    [anUnplacedHighlight(300)],
+    [theChapterOf300({ name: 'On Forgetting' })]
+  );
+
+  readers[0].resolveOpen({ toc: A_TOC });
+
   await expectOnScreen(screen);
   expect(readers[0].goToCalls).toEqual([]);
-  await expectNoApology(screen);
+  await expectToBeTold(screen, MISSED_THE_CHAPTER_TOO);
+});
+
+test("a jump waits for the book's chapters before opening", async () => {
+  const { screen } = await aJump([anUnplacedHighlight(300)], undefined, { detailsDelayMs: 500 });
+
+  readers[0].resolveOpen({ toc: A_TOC });
+
+  await expectTheChapterFallback(screen);
+});
+
+test('a locator that names only a resource is reported as landing on the chapter', async () => {
+  const { screen } = await aJump([
+    {
+      highlight_id: 300,
+      locator: { href: A_TOC[1].href, type: 'application/xhtml+xml', locations: {}, text: {} },
+    },
+  ]);
+
+  readers[0].resolveOpen({ toc: A_TOC, landedAt: 'requested' });
+
+  await expectOnScreen(screen);
+  expect(readers[0].goToCalls).toEqual([]);
+  await expectToBeTold(screen, MISSED_THE_HIGHLIGHT);
+});
+
+test('a locator whose resource this edition lacks falls back to the chapter', async () => {
+  const { screen } = await aJump();
+
+  readers[0].resolveOpen({ toc: A_TOC, landedAt: 'start' });
+
+  await expectTheChapterFallback(screen);
+});
+
+const anIntroduction = (href: string): EbookTocEntry => ({
+  href,
+  type: 'application/xhtml+xml',
+  title: 'Introduction',
+  children: [],
+});
+
+/** Two parts, each opening with an introduction, under headings that link nowhere. */
+const A_TOC_OF_PARTS: EbookTocEntry[] = [
+  { href: '#', type: '', title: 'Part one', children: [anIntroduction('part1/intro.xhtml')] },
+  { href: '#', type: '', title: 'Part two', children: [anIntroduction('part2/intro.xhtml')] },
+];
+
+test('a repeated chapter title falls back to the right one of them', async () => {
+  // Numbered against their ids, so an order by id would pick the first part's.
+  const { screen } = await aJump(
+    [anUnplacedHighlight(300)],
+    [
+      theChapterOf300({ id: 10, name: 'Introduction', chapter_number: 3 }),
+      aChapter({ id: 20, name: 'Introduction', chapter_number: 1 }),
+      aChapter({ id: 30, name: 'On Attention', chapter_number: 2 }),
+    ]
+  );
+
+  readers[0].resolveOpen({ toc: A_TOC_OF_PARTS });
+
+  await expectOnScreen(screen);
+  expect(readers[0].goToCalls).toEqual([
+    { href: 'part2/intro.xhtml', type: 'application/xhtml+xml', locations: {} },
+  ]);
+  await expectToBeTold(screen, MISSED_THE_HIGHLIGHT);
+});
+
+test('an ambiguous chapter title falls back to the start instead of guessing', async () => {
+  const { screen } = await aJump(
+    [anUnplacedHighlight(300)],
+    [theChapterOf300({ name: 'Introduction' })]
+  );
+
+  readers[0].resolveOpen({ toc: A_TOC_OF_PARTS });
+
+  await expectOnScreen(screen);
+  expect(readers[0].goToCalls).toEqual([]);
+  await expectToBeTold(screen, MISSED_THE_CHAPTER_TOO);
+});
+
+test('a chapter title the contents name once is the fallback, however often the book repeats it', async () => {
+  const { screen } = await aJump(
+    [anUnplacedHighlight(300)],
+    [
+      aChapter({ id: 10, name: 'On Memory', chapter_number: 1 }),
+      theChapterOf300({ id: 20, name: 'On Memory', chapter_number: 2 }),
+    ]
+  );
+
+  readers[0].resolveOpen({ toc: A_TOC });
+
+  await expectTheChapterFallback(screen);
+});
+
+test('a chapter title differing only in spacing and case still matches', async () => {
+  const { screen } = await aJump(
+    [anUnplacedHighlight(300)],
+    [theChapterOf300({ name: '  on MEMORY\n' })]
+  );
+
+  readers[0].resolveOpen({ toc: A_TOC });
+
+  await expectTheChapterFallback(screen);
+});
+
+test('a heading that links nowhere is never the fallback', async () => {
+  const { screen } = await aJump();
+
+  readers[0].resolveOpen({
+    toc: [{ href: '#', type: '', title: 'On Memory', children: [A_TOC[1]] }],
+  });
+
+  await expectTheChapterFallback(screen);
+});
+
+test('an ordinary open never asks for the book details', async () => {
+  worker.use(...readiumApi());
+  let detailsRequests = 0;
+  worker.use(
+    http.get(BOOK_DETAILS_PATH, () => {
+      detailsRequests += 1;
+      return HttpResponse.json(aBookDetails());
+    })
+  );
+
+  const screen = await anOpenBook();
+
+  await expectOnScreen(screen);
+  await sleep(300);
+  expect(detailsRequests).toBe(0);
 });
 
 /**

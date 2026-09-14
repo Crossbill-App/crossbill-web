@@ -6,8 +6,10 @@
  * the engine (`ReadiumReader.landingFor`); this only fetches the answer and
  * holds it still.
  */
+import { useGetBookDetails } from '@/api/generated/books/books.ts';
 import { useGetHighlightLocator } from '@/api/generated/highlights/highlights.ts';
 import type {
+  BookDetails,
   BrowserLocatorSchema,
   HighlightLocatorResponse,
   ResumePositionResponse,
@@ -15,7 +17,8 @@ import type {
 import { useGetReadingPosition } from '@/api/generated/readium/readium.ts';
 import { toEbookLocation } from '@/components/reader/decorations.ts';
 import type { EbookLocation } from '@/components/reader/EbookReader.ts';
-import { useState } from 'react';
+import { chapterHintFor, type ChapterHint } from '@/components/reader/jumpFallback.ts';
+import { useCallback, useState } from 'react';
 
 /** Where a book opens is asked afresh on every open, never taken from this tab's cache. */
 const LANDING_QUERY = {
@@ -38,6 +41,8 @@ interface ReaderLanding {
   locator: EbookLocation | null;
   /** Whether a place exists that the server could not place in this EPUB. */
   lost: boolean;
+  /** For a jump, the chapter to fall back to where the passage cannot be reached. */
+  chapter: ChapterHint | null;
 }
 
 /** The API's locator in the engine's terms, whose absences are `undefined`. */
@@ -58,12 +63,16 @@ const fromBrowserLocator = (stored: BrowserLocatorSchema): EbookLocation => ({
 // query that errored arrives here too, as neither.
 const landingFrom = (stored: ResumePositionResponse | undefined): ReaderLanding =>
   stored?.locator
-    ? { locator: fromBrowserLocator(stored.locator), lost: false }
-    : { locator: null, lost: stored?.unresolved === true };
+    ? { locator: fromBrowserLocator(stored.locator), lost: false, chapter: null }
+    : { locator: null, lost: stored?.unresolved === true, chapter: null };
 
-const jumpFrom = (placed: HighlightLocatorResponse | undefined): ReaderLanding => ({
+const jumpFrom = (
+  placed: HighlightLocatorResponse | undefined,
+  chapter: ChapterHint | null | undefined
+): ReaderLanding => ({
   locator: placed?.locator ? toEbookLocation(placed.locator) : null,
   lost: false,
+  chapter: chapter ?? null,
 });
 
 /**
@@ -81,14 +90,23 @@ export const useReaderLanding = (
   const jump = useGetHighlightLocator(target ?? 0, {
     query: { ...LANDING_QUERY, enabled: target !== null },
   });
+  // Narrowed, so the refetch every highlight edit sets off re-renders nothing here.
+  const selectChapter = useCallback(
+    (details: BookDetails) => (target === null ? null : chapterHintFor(details.chapters, target)),
+    [target]
+  );
+  // The same cache entry the page reads, so a jump from the book's own pages waits for nothing.
+  const details = useGetBookDetails(bookId, {
+    query: { enabled: target !== null, select: selectChapter },
+  });
   const answer =
     target === null
       ? resume.isPending
         ? undefined
         : landingFrom(resume.data)
-      : jump.isPending
+      : jump.isPending || details.isPending
         ? undefined
-        : jumpFrom(jump.data);
+        : jumpFrom(jump.data, details.data);
 
   // Latched during render rather than in an effect, which would let the
   // un-latched answer reach the boot first. The query behind it is live, and a

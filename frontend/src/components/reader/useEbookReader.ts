@@ -155,9 +155,7 @@ export const useEbookReader = ({
     const reader = createReader(element);
     readerRef.current = reader;
     reader.applyDecorations(decorationsRef.current);
-    // Read once per attempt: a retry after a refusal offers nothing, and finishes nothing.
-    const isRetryAfterRefusal = refusedRef.current;
-    const offered = isRetryAfterRefusal ? null : initialLocationRef.current;
+    const offered = refusedRef.current ? null : initialLocationRef.current;
     const cancel = new AbortController();
     // Read through a call: TypeScript would carry a check's narrowing across an await.
     const isCancelled = () => cancel.signal.aborted;
@@ -193,7 +191,7 @@ export const useEbookReader = ({
       setCurrentTocHref(opened.tocHref);
       setFontSizeRange(opened.fontSizeRange);
       setLandedAt(opened.landedAt);
-      const destination = isRetryAfterRefusal ? null : finishLandingRef.current?.(opened);
+      const destination = finishLandingRef.current?.(opened);
       if (destination) {
         // A move that never finishes still owes the reader the book, where it opened.
         let timeout: ReturnType<typeof setTimeout> | undefined;

@@ -10,6 +10,7 @@ import {
   aDetailedPositionList,
   aHighlightLocator,
   aManifest,
+  anUnplacedHighlight,
   aPassage,
   aResumePosition,
   nowhereToResume,
@@ -897,6 +898,46 @@ test('a jump lands on the page holding the passage', async () => {
   await aJumpToAPassage();
 
   await expectThePassageOnThePage();
+});
+
+/** A jump to highlight 302, which the server cannot place, made in a chapter of this name. */
+const aJumpToAnUnplacedHighlightIn = async (chapterName: string) => {
+  const highlights = [aHighlight({ id: 302 })];
+  worker.use(
+    ...bookApi({
+      book: aBookDetails({ chapters: [aChapter({ name: chapterName, highlights })] }),
+    }).handlers
+  );
+  worker.use(...readiumApi());
+  worker.use(...highlightLocatorApi([anUnplacedHighlight(302)]));
+  return await renderApp({ path: '/book/1/read?highlightId=302' });
+};
+
+test('a highlight that cannot be placed opens its chapter, and says so', async () => {
+  const screen = await aJumpToAnUnplacedHighlightIn('On Memory');
+
+  await expectPage(screen, 'Page 2 of 2 · 50%');
+  await expect
+    .element(
+      screen.getByRole('alert').filter({
+        hasText:
+          "Couldn't find this highlight's exact place, so the book opened at the start of its chapter.",
+      })
+    )
+    .toBeVisible();
+});
+
+test('a highlight whose chapter is not in this edition opens at the start, and says so', async () => {
+  const screen = await aJumpToAnUnplacedHighlightIn('On Forgetting');
+
+  await expectPage(screen, 'Page 1 of 2 · 0%');
+  await expect
+    .element(
+      screen.getByRole('alert').filter({
+        hasText: "Couldn't find this highlight's place, so the book opened at the start.",
+      })
+    )
+    .toBeVisible();
 });
 
 test('jumping to a highlight writes no reading position', { timeout: 60_000 }, async () => {

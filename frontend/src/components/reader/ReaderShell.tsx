@@ -3,6 +3,11 @@ import type { Highlight } from '@/api/generated/model';
 import { IconButtonWithTooltip } from '@/components/buttons/IconButtonWithTooltip.tsx';
 import { highlightIdFrom } from '@/components/reader/decorations.ts';
 import type { EbookTocEntry } from '@/components/reader/EbookReader.ts';
+import {
+  landingOfAJump,
+  tocEntryLocation,
+  type MissedJump,
+} from '@/components/reader/jumpFallback.ts';
 import { ReaderLoading } from '@/components/reader/ReaderLoading.tsx';
 import { readerPageColors, toEbookAppearance } from '@/components/reader/readerPreferences.ts';
 import { ReaderSettings } from '@/components/reader/ReaderSettings.tsx';
@@ -56,6 +61,13 @@ export interface ReaderShellProps {
 
 /** Said once, over the open book, for a place that could not be restored. */
 const LOST_THE_BOOKMARK = "Couldn't restore your last position, so the book opened at the start.";
+
+/** Said once, over the open book, for a highlight whose passage could not be reached. */
+const MISSED_JUMP_APOLOGIES: Record<MissedJump, string> = {
+  chapter:
+    "Couldn't find this highlight's exact place, so the book opened at the start of its chapter.",
+  start: "Couldn't find this highlight's place, so the book opened at the start.",
+};
 
 /** The width the page-turn buttons need beside the text on anything but a phone. */
 const PAGE_TURN_GUTTER = '48px';
@@ -176,6 +188,7 @@ export const ReaderShell = ({
   const [target] = useState(highlightId ?? null);
   const landing = useReaderLanding(bookId, target);
   const decorations = useHighlightDecorations(bookId, highlights);
+  const missedJump = useRef<MissedJump | null>(null);
   const book = useEbookReader({
     host,
     manifestUrl: manifestUrlFor(bookId),
@@ -190,21 +203,35 @@ export const ReaderShell = ({
     bootTimeoutMs,
     onLocationReported: record,
     onDecorationActivated: (id) => onOpenHighlight?.(highlightIdFrom(id)),
-    // Opening at a locator lands by its progression, which can be a page short of its words.
-    finishLanding: target === null ? undefined : () => landing?.locator ?? null,
+    // On to the passage, which opening at its locator can leave a page short of, or else to
+    // its chapter; what was missed is kept for the apology once the book is on screen.
+    finishLanding:
+      target === null
+        ? undefined
+        : (opened) => {
+            const jump = landingOfAJump(landing?.locator ?? null, opened, landing?.chapter ?? null);
+            missedJump.current = jump.missed;
+            return jump.destination;
+          },
   });
 
   const { showSnackbar } = useSnackbar();
   const apologised = useRef(false);
   useEffect(() => {
-    if (apologised.current || book.status !== 'open' || !landing || target !== null) return;
+    if (apologised.current || book.status !== 'open' || !landing) return;
     // `'start'` with a place still on offer covers both remaining failures: a
     // locator this edition cannot place, and one the navigator refused outright
     // and which the retry therefore stopped offering.
     const lost = landing.lost || (landing.locator !== null && book.landedAt === 'start');
-    if (!lost) return;
+    const message =
+      target === null
+        ? lost
+          ? LOST_THE_BOOKMARK
+          : null
+        : missedJump.current && MISSED_JUMP_APOLOGIES[missedJump.current];
+    if (!message) return;
     apologised.current = true;
-    showSnackbar(LOST_THE_BOOKMARK, 'info');
+    showSnackbar(message, 'info');
   }, [book.status, book.landedAt, landing, target, showSnackbar]);
 
   if (sessionStatus === 'error') {
@@ -243,7 +270,7 @@ export const ReaderShell = ({
 
   const goToTocEntry = (entry: EbookTocEntry) => {
     setIsTocOpen(false);
-    book.goTo({ href: entry.href, type: entry.type, locations: {} });
+    book.goTo(tocEntryLocation(entry));
   };
 
   return (
