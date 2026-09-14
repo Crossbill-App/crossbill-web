@@ -3,6 +3,7 @@ import { aBookDetails, aChapter, aHighlight } from '@tests/fixtures/book';
 import { aNote } from '@tests/fixtures/notes';
 import { renderApp } from '@tests/harness/renderApp';
 import { bookApi } from '@tests/msw/bookApi';
+import { readiumApi } from '@tests/msw/readiumApi';
 import { worker } from '@tests/msw/worker';
 import { http, HttpResponse } from 'msw';
 import { expect, test, vi } from 'vitest';
@@ -429,4 +430,61 @@ test('the header count follows the filter while the stats strip keeps the total'
 
   // The pair the reader compares: 1 shown here, 3 in the book (ADR-0003).
   await expect.element(screen.getByText('3 highlights', { exact: true })).toBeVisible();
+});
+
+const readerLinksInTheList = (screen: Screen) =>
+  screen
+    .getByRole('list', { name: 'Highlights in Chapter One' })
+    .getByRole('link', { name: 'Open in reader' });
+
+const aBookWithTwoHighlights = () =>
+  aBookDetails({
+    chapters: [
+      aChapter({
+        highlights: [
+          aHighlight({ id: 301, text: 'The map is not the territory.' }),
+          aHighlight({ id: 302, text: 'Attention is the rarest form of generosity.' }),
+        ],
+      }),
+    ],
+  });
+
+test('each highlight on the page offers to open it in the reader', async () => {
+  worker.use(...bookApi({ book: aBookWithTwoHighlights() }).handlers);
+
+  const screen = await renderApp({ path: '/book/1/highlights' });
+
+  const links = readerLinksInTheList(screen);
+  await expect.element(links.nth(1)).toBeVisible();
+  expect(links.elements().map((link) => link.getAttribute('href'))).toEqual([
+    '/book/1/read?highlightId=301',
+    '/book/1/read?highlightId=302',
+  ]);
+});
+
+test("a highlight's dialog offers to open it in the reader", async () => {
+  worker.use(...bookApi({ book: aBookWithTwoHighlights() }).handlers);
+
+  const screen = await renderApp({ path: '/book/1/highlights' });
+  await screen.getByText('The map is not the territory.').click();
+
+  await expect
+    .element(screen.getByRole('dialog').getByRole('link', { name: 'Open in reader' }))
+    .toHaveAttribute('href', '/book/1/read?highlightId=301');
+});
+
+test("a card's reader link is not part of the card's button, and following it opens the reader", async () => {
+  worker.use(...bookApi({ book: aBookWithTwoHighlights() }).handlers);
+  worker.use(...readiumApi());
+
+  const screen = await renderApp({ path: '/book/1/highlights' });
+  const link = readerLinksInTheList(screen).first();
+  await expect.element(link).toBeVisible();
+  expect(link.element().closest('button')).toBeNull();
+
+  await link.click();
+
+  await expect.element(screen.getByText('Page 1 of 2 · 0%')).toBeVisible();
+  expect(screen.router.state.location.pathname).toBe('/book/1/read');
+  expect(screen.router.state.location.search).toEqual({ highlightId: 301 });
 });

@@ -61,7 +61,7 @@ export const NoteTabs = ({
                     label="Remove link to this highlight"
                     disabled={disabled}
                     onClick={() => onUnlinkHighlight(highlight.id)}
-                    sx={{ position: 'absolute', top: 8, right: 8 }}
+                    sx={{ position: 'absolute', bottom: 8, right: 8 }}
                   />
                 )}
               </Box>

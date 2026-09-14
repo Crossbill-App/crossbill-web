@@ -2,6 +2,7 @@ import type { Bookmark, Highlight } from '@/api/generated/model';
 import { HoverableCardActionArea } from '@/components/cards/HoverableCardActionArea';
 import { MetadataRow } from '@/components/cards/MetadataRow.tsx';
 import { CountWithIcon } from '@/components/CountWithIcon.tsx';
+import { OpenInReaderButton } from '@/components/reader/OpenInReaderButton.tsx';
 import { TagChipList } from '@/components/TagChipList.tsx';
 import { LabelIndicator } from '@/pages/BookPage/common/LabelIndicator.tsx';
 import { NotOnDeviceChip } from '@/pages/BookPage/common/NotOnDeviceChip.tsx';
@@ -17,6 +18,17 @@ import { formatDate } from '@/utils/date.ts';
 import { buildPreviewText } from '@/utils/highlightPreview.ts';
 import { Box, Typography } from '@mui/material';
 import { memo, useMemo } from 'react';
+
+// Kept whether or not the reader action renders, so previews wrap the same everywhere.
+const CORNER_ACTION_GUTTER = 6.5;
+
+const readerActionSx = {
+  position: 'absolute',
+  top: 8,
+  right: 8,
+  color: 'text.secondary',
+  '& svg': { fontSize: ICON_SIZE.ui },
+} as const;
 
 export interface HighlightCardProps {
   highlight: Highlight;
@@ -106,37 +118,48 @@ export const HighlightCard = memo(function HighlightCard({
   };
 
   return (
-    <HoverableCardActionArea
-      id={`highlight-${highlight.id}`}
-      onClick={handleOpenModal}
-      sx={{
-        py: 3.5,
-        px: 2.5,
-      }}
-    >
-      <Box sx={{ flex: 1, minWidth: 0 }}>
-        <Box sx={{ display: 'flex', alignItems: 'start', gap: 1.5, mb: 2 }}>
-          <HighlightsIcon
-            sx={{
-              fontSize: ICON_SIZE.prominent,
-              color: 'primary.main',
-              flexShrink: 0,
-              mt: 0.3,
-              opacity: 0.7,
-            }}
-          />
-          <Typography
-            variant="body1"
-            sx={{
-              color: 'text.primary',
-            }}
-          >
-            {previewText}
-          </Typography>
-        </Box>
+    // The card is a button, and a link inside a button is invalid HTML.
+    <Box sx={{ position: 'relative' }}>
+      <HoverableCardActionArea
+        id={`highlight-${highlight.id}`}
+        onClick={handleOpenModal}
+        sx={{
+          py: 3.5,
+          pl: 2.5,
+          pr: CORNER_ACTION_GUTTER,
+        }}
+      >
+        <Box sx={{ flex: 1, minWidth: 0 }}>
+          <Box sx={{ display: 'flex', alignItems: 'start', gap: 1.5, mb: 2 }}>
+            <HighlightsIcon
+              sx={{
+                fontSize: ICON_SIZE.prominent,
+                color: 'primary.main',
+                flexShrink: 0,
+                mt: 0.3,
+                opacity: 0.7,
+              }}
+            />
+            <Typography
+              variant="body1"
+              sx={{
+                color: 'text.primary',
+              }}
+            >
+              {previewText}
+            </Typography>
+          </Box>
 
-        <Footer highlight={highlight} bookmark={bookmark} noteCount={noteCount} />
-      </Box>
-    </HoverableCardActionArea>
+          <Footer highlight={highlight} bookmark={bookmark} noteCount={noteCount} />
+        </Box>
+      </HoverableCardActionArea>
+
+      <OpenInReaderButton
+        bookId={highlight.book_id}
+        highlightId={highlight.id}
+        size="small"
+        sx={readerActionSx}
+      />
+    </Box>
   );
 });

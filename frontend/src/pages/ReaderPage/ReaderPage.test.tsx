@@ -923,6 +923,18 @@ test('tapping a highlight opens it', async () => {
   expect(screen.router.state.location.search).toEqual({ highlightId: 300 });
 });
 
+test('a highlight opened in the reader offers no way into the reader', async () => {
+  const screen = await aBookWithAPaintedHighlight();
+
+  await tapTheHighlight();
+
+  const dialog = screen.getByRole('dialog');
+  await expect
+    .element(dialog.getByRole('button', { name: 'Copy link to highlight' }))
+    .toBeVisible();
+  expect(dialog.getByRole('link', { name: 'Open in reader' }).query()).toBeNull();
+});
+
 test('closing a tapped highlight goes back to the book', async () => {
   const screen = await aBookWithAPaintedHighlight();
   const before = historyIndex(screen);
