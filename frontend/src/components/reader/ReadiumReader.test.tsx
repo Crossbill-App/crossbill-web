@@ -8,6 +8,7 @@ import {
 import { ReadiumReader } from '@/components/reader/ReadiumReader.ts';
 import { fontSizeRangeConfig } from '@readium/navigator';
 import { aDetailedPositionList, aManifest, aPositionList } from '@tests/fixtures/publication';
+import { drawnOn, drawnRanges } from '@tests/harness/paintedHighlights';
 import { noPublication, readiumApi } from '@tests/msw/readiumApi';
 import { worker } from '@tests/msw/worker';
 import { http, HttpResponse } from 'msw';
@@ -82,26 +83,6 @@ const A_HIGHLIGHT: EbookDecoration = {
 };
 
 const frame = () => host.querySelector('iframe');
-
-/**
- * The ranges the browser's own highlight painter holds inside the chapter's frame.
- * Those with boxes only: a range with none is registered rather than painted.
- */
-const drawnRanges = (): Range[] =>
-  [...host.querySelectorAll('iframe')]
-    .flatMap((candidate) => {
-      const realm = candidate.contentWindow as unknown as
-        { CSS?: { highlights?: Map<string, Iterable<Range>> } } | undefined;
-      return [...(realm?.CSS?.highlights?.values() ?? [])];
-    })
-    .flatMap((ranges) => [...ranges])
-    .filter((range) => range.getClientRects().length > 0);
-
-/** Each drawn range as the element it lies in and the words it covers. */
-const drawnOn = (): string[] =>
-  drawnRanges().map(
-    (range) => `${range.startContainer.parentElement?.tagName}:${range.toString()}`
-  );
 
 /** Where in the frame a reader would put their finger to hit that range. */
 const centreOf = (range: Range) => {
@@ -327,11 +308,11 @@ test('a decoration in a chapter the reader has not reached is drawn when they ge
     { ...A_HIGHLIGHT, location: { ...A_HIGHLIGHT.location, href: CHAPTER_TWO } },
   ]);
   await openTheBook();
-  await expect.poll(drawnOn).toEqual([]);
+  await expect.poll(() => drawnOn(host)).toEqual([]);
 
   await reader.next();
 
-  await expect.poll(drawnOn).toEqual(['p:Attention']);
+  await expect.poll(() => drawnOn(host)).toEqual(['p:Attention']);
 });
 
 test('a decoration applied after the book is on screen is drawn too', async () => {
@@ -341,7 +322,7 @@ test('a decoration applied after the book is on screen is drawn too', async () =
 
   reader.applyDecorations([A_HIGHLIGHT]);
 
-  await expect.poll(drawnOn).toEqual(['p:Attention']);
+  await expect.poll(() => drawnOn(host)).toEqual(['p:Attention']);
 });
 
 test('tapping a decoration reports its id', async () => {
@@ -350,9 +331,9 @@ test('tapping a decoration reports its id', async () => {
   reader.onDecorationActivated((id) => activated.push(id));
   reader.applyDecorations([A_HIGHLIGHT]);
   await openTheBook();
-  await expect.poll(drawnOn).toEqual(['p:Attention']);
+  await expect.poll(() => drawnOn(host)).toEqual(['p:Attention']);
 
-  await userEvent.click(frame()!, { position: centreOf(drawnRanges()[0]) });
+  await userEvent.click(frame()!, { position: centreOf(drawnRanges(host)[0]) });
 
   await expect.poll(() => activated).toEqual([A_HIGHLIGHT.id]);
 });
@@ -361,11 +342,11 @@ test('applying an empty set removes what was drawn', async () => {
   worker.use(...readiumApi());
   reader.applyDecorations([A_HIGHLIGHT]);
   await openTheBook();
-  await expect.poll(drawnOn).toEqual(['p:Attention']);
+  await expect.poll(() => drawnOn(host)).toEqual(['p:Attention']);
 
   reader.applyDecorations([]);
 
-  await expect.poll(drawnRanges).toEqual([]);
+  await expect.poll(() => drawnRanges(host)).toEqual([]);
 });
 
 test('a manifest that claims another origin still has its chapters resolve against ours', async () => {

@@ -1,6 +1,7 @@
 import {
   PublicationUnavailableError,
   type EbookAppearance,
+  type EbookDecoration,
   type EbookLocation,
   type EbookReader,
   type EbookTocEntry,
@@ -30,6 +31,8 @@ export interface UseEbookReaderOptions {
   appearance: EbookAppearance;
   /** Where the book should open; `null` opens it at the beginning. */
   initialLocation?: EbookLocation | null;
+  /** What to draw over the book; a new array is submitted to the engine, so keep it stable. */
+  decorations: EbookDecoration[];
   /** Must be referentially stable: an inline arrow rebuilds the reader every render. */
   createReader?: (host: HTMLElement) => EbookReader;
   bootTimeoutMs?: number;
@@ -77,6 +80,7 @@ export const useEbookReader = ({
   holdPageTurns,
   appearance,
   initialLocation,
+  decorations,
   createReader = aReadiumReader,
   bootTimeoutMs = BOOT_TIMEOUT_MS,
   onLocationReported,
@@ -115,6 +119,13 @@ export const useEbookReader = ({
   useEffect(() => {
     initialLocationRef.current = initialLocation;
   }, [initialLocation]);
+  // A new set is drawn by the reader already on screen rather than a rebuilt one. Above
+  // the boot effect, so a render that starts a boot hands the new reader the current set once.
+  const decorationsRef = useRef(decorations);
+  useEffect(() => {
+    decorationsRef.current = decorations;
+    readerRef.current?.applyDecorations(decorations);
+  }, [decorations]);
   // Whether a place has already been refused once. Never reset: the second
   // attempt offers nothing that could be rejected, so a second failure is real.
   const refusedRef = useRef(false);
@@ -125,6 +136,7 @@ export const useEbookReader = ({
 
     const reader = createReader(element);
     readerRef.current = reader;
+    reader.applyDecorations(decorationsRef.current);
     // Read once per attempt: a retry after a refusal offers nothing.
     const offered = refusedRef.current ? null : initialLocationRef.current;
     const cancel = new AbortController();

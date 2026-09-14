@@ -5,16 +5,23 @@ import type {
 } from '@/api/generated/model';
 import { READER_PREFERENCES_KEY } from '@/components/reader/readerPreferenceStorage.ts';
 import { theme } from '@/theme/theme.ts';
-import { aBookDetails } from '@tests/fixtures/book';
+import { aBookDetails, aChapter, aHighlight } from '@tests/fixtures/book';
 import {
   aDetailedPositionList,
+  aHighlightLocator,
   aManifest,
   aResumePosition,
   nowhereToResume,
 } from '@tests/fixtures/publication';
+import { drawnOn } from '@tests/harness/paintedHighlights';
 import { renderApp } from '@tests/harness/renderApp';
 import { bookApi } from '@tests/msw/bookApi';
-import { noPublication, readingPositionApi, readiumApi } from '@tests/msw/readiumApi';
+import {
+  highlightLocatorsApi,
+  noPublication,
+  readingPositionApi,
+  readiumApi,
+} from '@tests/msw/readiumApi';
 import { worker } from '@tests/msw/worker';
 import { delay, http, HttpResponse } from 'msw';
 import { afterEach, expect, test } from 'vitest';
@@ -848,4 +855,18 @@ test('coming back to the tab leaves the reader where they were reading', async (
   // second time must not put the reader back at the page they started from.
   await sleep(500);
   await expectPage(screen, 'Page 2 of 2 · 50%');
+});
+
+test('a book is opened with its highlights drawn on the page', async () => {
+  const highlight = aHighlight({ id: 300, label: { ui_color: '#F59E0B' } });
+  worker.use(
+    ...bookApi({ book: aBookDetails({ chapters: [aChapter({ highlights: [highlight] })] }) })
+      .handlers
+  );
+  worker.use(...readiumApi());
+  worker.use(...highlightLocatorsApi([aHighlightLocator(300)]));
+
+  await openTheBook();
+
+  await expect.poll(() => drawnOn(document), { timeout: 5_000 }).toEqual(['p:rarest and purest']);
 });
