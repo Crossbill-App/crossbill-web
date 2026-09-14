@@ -28,9 +28,13 @@ export interface UseEbookReaderOptions {
   holdPageTurns: boolean;
   /** How the page should look; the book opens on it. */
   appearance: EbookAppearance;
+  /** Where the book should open; `null` opens it at the beginning. */
+  initialLocation?: EbookLocation | null;
   /** Must be referentially stable: an inline arrow rebuilds the reader every render. */
   createReader?: (host: HTMLElement) => EbookReader;
   bootTimeoutMs?: number;
+  /** Every place the book reports, `arriving` while it is still coming up. */
+  onLocationReported?: (location: EbookLocation, arriving: boolean) => void;
 }
 
 export interface EbookReaderState {
@@ -40,6 +44,8 @@ export interface EbookReaderState {
   toc: EbookTocEntry[];
   /** The contents entry covering where the reader is, or null where none does. */
   currentTocHref: string | null;
+  /** Whether the book opened where it was asked to; null until one is on screen. */
+  landedAt: OpenedEbook['landedAt'] | null;
   /** Null until a book is on screen: only an engine with one can report it. */
   fontSizeRange: [number, number] | null;
   next: () => void;
@@ -56,6 +62,11 @@ const outcomeOfFailure = (error: unknown): EbookReaderOutcome => {
   return 'error';
 };
 
+/** Whether the place the book was given could be what stopped it opening. */
+const couldBeTheLanding = (error: unknown): boolean =>
+  !(error instanceof PublicationUnavailableError) &&
+  !(error instanceof DOMException && error.name === 'TimeoutError');
+
 const NO_TOC: EbookTocEntry[] = [];
 
 /** One book opened into a host element, and where the reader is in it. */
@@ -65,14 +76,17 @@ export const useEbookReader = ({
   enabled,
   holdPageTurns,
   appearance,
+  initialLocation,
   createReader = aReadiumReader,
   bootTimeoutMs = BOOT_TIMEOUT_MS,
+  onLocationReported,
 }: UseEbookReaderOptions): EbookReaderState => {
   const [outcome, setOutcome] = useState<EbookReaderOutcome | null>(null);
   const [pageCount, setPageCount] = useState(0);
   const [location, setLocation] = useState<EbookLocation | null>(null);
   const [toc, setToc] = useState<EbookTocEntry[]>(NO_TOC);
   const [currentTocHref, setCurrentTocHref] = useState<string | null>(null);
+  const [landedAt, setLandedAt] = useState<OpenedEbook['landedAt'] | null>(null);
   const [fontSizeRange, setFontSizeRange] = useState<[number, number] | null>(null);
   const [attempt, setAttempt] = useState(0);
   const readerRef = useRef<EbookReader | null>(null);
@@ -88,6 +102,22 @@ export const useEbookReader = ({
     appearanceRef.current = appearance;
   }, [appearance]);
   const appliedRef = useRef<EbookAppearance | null>(null);
+  // The same again, so a caller that rebinds its callback never rebuilds the reader.
+  const reportedRef = useRef(onLocationReported);
+  useEffect(() => {
+    reportedRef.current = onLocationReported;
+  }, [onLocationReported]);
+  // And again, so that an answer arriving a second time cannot rebuild the
+  // reader around it: where a book opens is settled when it opens. This effect
+  // has to stay declared above the boot effect, which reads the ref on the very
+  // render where `enabled` turns true — the initial value is still null then.
+  const initialLocationRef = useRef(initialLocation);
+  useEffect(() => {
+    initialLocationRef.current = initialLocation;
+  }, [initialLocation]);
+  // Whether a place has already been refused once. Never reset: the second
+  // attempt offers nothing that could be rejected, so a second failure is real.
+  const refusedRef = useRef(false);
 
   useEffect(() => {
     const element = host.current;
@@ -95,11 +125,17 @@ export const useEbookReader = ({
 
     const reader = createReader(element);
     readerRef.current = reader;
+    // Read once per attempt: a retry after a refusal offers nothing.
+    const offered = refusedRef.current ? null : initialLocationRef.current;
     const cancel = new AbortController();
     const signal = AbortSignal.any([cancel.signal, AbortSignal.timeout(bootTimeoutMs)]);
     let isOpen = false;
     const unsubscribes = [
-      reader.onLocationChanged(setLocation),
+      reader.onLocationChanged((location) => {
+        setLocation(location);
+        // Nothing a book reports before it has finished arriving is a move.
+        reportedRef.current?.(location, !isOpen);
+      }),
       reader.onTocEntryChanged(setCurrentTocHref),
       reader.onPageTurnRequested((direction) => {
         // Readium's pager sets a navigating flag it never clears when it has no
@@ -111,17 +147,31 @@ export const useEbookReader = ({
 
     const onOpened = (opened: OpenedEbook) => {
       if (cancel.signal.aborted) return;
+      // The place the book settled on may never have been reported as a change,
+      // so this is the only report a writer has to seed itself with.
+      reportedRef.current?.(opened.location, true);
       isOpen = true;
       setPageCount(opened.pageCount);
       setLocation(opened.location);
       setToc(opened.toc);
       setCurrentTocHref(opened.tocHref);
       setFontSizeRange(opened.fontSizeRange);
+      setLandedAt(opened.landedAt);
       setOutcome('open');
     };
     const onFailed = (error: unknown) => {
       // The one rejection that means nothing: this effect was cleaned up.
       if (cancel.signal.aborted) return;
+      // A book that would not open at the reader's place may still open at its
+      // beginning, and losing a bookmark must not cost them the book. Only for
+      // a failure that could be the landing, though: the publication is fetched
+      // and the watchdog armed before a landing is so much as looked at, so
+      // retrying those would double the wait and blame the bookmark for it.
+      if (offered && !refusedRef.current && couldBeTheLanding(error)) {
+        refusedRef.current = true;
+        setAttempt((count) => count + 1);
+        return;
+      }
       setOutcome(outcomeOfFailure(error));
     };
 
@@ -131,7 +181,11 @@ export const useEbookReader = ({
       signal.addEventListener('abort', () => reject(signal.reason as Error), { once: true });
     });
     appliedRef.current = appearanceRef.current;
-    const opening = reader.open(manifestUrl, { appearance: appearanceRef.current, signal });
+    const opening = reader.open(manifestUrl, {
+      appearance: appearanceRef.current,
+      initialLocation: offered ?? undefined,
+      signal,
+    });
     Promise.race([opening, abortedFirst]).then(onOpened, onFailed);
 
     return () => {
@@ -159,6 +213,7 @@ export const useEbookReader = ({
     setToc(NO_TOC);
     setCurrentTocHref(null);
     setFontSizeRange(null);
+    setLandedAt(null);
     setAttempt((count) => count + 1);
   }, []);
 
@@ -180,6 +235,7 @@ export const useEbookReader = ({
     location,
     toc,
     currentTocHref,
+    landedAt,
     fontSizeRange,
     next,
     previous,

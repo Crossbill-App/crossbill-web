@@ -1,19 +1,24 @@
 import type { EbookTocEntry, OpenedEbook } from '@/components/reader/EbookReader.ts';
 import { READER_PREFERENCES_KEY } from '@/components/reader/readerPreferenceStorage.ts';
 import { ReaderShell, type ReaderShellProps } from '@/components/reader/ReaderShell.tsx';
+import { SnackbarProvider } from '@/context/SnackbarContext.tsx';
 import { theme } from '@/theme/theme.ts';
 import { ThemeProvider } from '@mui/material/styles';
 import { fontSizeRangeConfig } from '@readium/navigator';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { FakeEbookReader, aFakeLocation } from '@tests/fakes/FakeEbookReader';
-import { readiumApi } from '@tests/msw/readiumApi';
+import { aResumePosition, nowhereToResume } from '@tests/fixtures/publication';
+import { pendingQueryClients } from '@tests/harness/renderApp';
+import { readingPositionApi, readiumApi } from '@tests/msw/readiumApi';
 import { worker } from '@tests/msw/worker';
 import { HttpResponse, delay, http } from 'msw';
 import { afterEach, beforeEach, expect, test } from 'vitest';
-import { render } from 'vitest-browser-react';
+import { cleanup, render } from 'vitest-browser-react';
 import { page, userEvent } from 'vitest/browser';
 
 const SESSION_PATH = '/api/v1/readium/books/:bookId/session';
 const RESOURCE_PATH = '/api/v1/readium/books/:bookId/resources/*';
+const POSITION_PATH = '/api/v1/readium/books/:bookId/reading-position';
 const MANIFEST_URL = `${window.location.origin}/api/v1/readium/books/1/manifest.json`;
 
 /** Narrower than the `sm` breakpoint the reader lays itself out against. */
@@ -35,8 +40,23 @@ beforeEach(() => {
 });
 
 afterEach(async () => {
+  // Unmounted here rather than by the global teardown: the shell writes where
+  // the reader was on its way out, and that write has to land on this test's
+  // handlers rather than on the next test's.
+  cleanup();
+  await sleep(100);
+  showTheTab();
   await page.viewport(DEFAULT_VIEWPORT.width, DEFAULT_VIEWPORT.height);
 });
+
+/** Going to another tab, which nothing in a browser lets a test do for real. */
+const setVisibility = (state: DocumentVisibilityState) => {
+  Object.defineProperty(document, 'visibilityState', { value: state, configurable: true });
+  document.dispatchEvent(new Event('visibilitychange'));
+};
+
+const hideTheTab = () => setVisibility('hidden');
+const showTheTab = () => setVisibility('visible');
 
 const aSlowSession = (ms: number) =>
   http.post(SESSION_PATH, async () => {
@@ -46,18 +66,27 @@ const aSlowSession = (ms: number) =>
 
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
-const renderShell = async (props: Partial<ReaderShellProps> = {}) =>
-  await render(
-    <ThemeProvider theme={theme}>
-      <ReaderShell
-        bookId={1}
-        title="The Pragmatic Reader"
-        onClose={() => {}}
-        createReader={createReader}
-        {...props}
-      />
-    </ThemeProvider>
+const renderShell = async (props: Partial<ReaderShellProps> = {}) => {
+  // The shell asks the server where to resume and apologises when it cannot, so
+  // it needs the two providers the app mounts it under.
+  const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+  pendingQueryClients.push(queryClient);
+  return await render(
+    <QueryClientProvider client={queryClient}>
+      <ThemeProvider theme={theme}>
+        <SnackbarProvider>
+          <ReaderShell
+            bookId={1}
+            title="The Pragmatic Reader"
+            onClose={() => {}}
+            createReader={createReader}
+            {...props}
+          />
+        </SnackbarProvider>
+      </ThemeProvider>
+    </QueryClientProvider>
   );
+};
 
 type Screen = Awaited<ReturnType<typeof renderShell>>;
 
@@ -75,8 +104,11 @@ const A_TOC: EbookTocEntry[] = [
 const aBookWithContents = (): Partial<OpenedEbook> => ({ toc: A_TOC, tocHref: A_TOC[0].href });
 
 /** The shell with the book on screen at its first page. */
-const anOpenBook = async (opened: Partial<OpenedEbook> = {}) => {
-  const screen = await renderShell();
+const anOpenBook = async (
+  opened: Partial<OpenedEbook> = {},
+  props: Partial<ReaderShellProps> = {}
+) => {
+  const screen = await renderShell(props);
   await expect.poll(() => readers.length).toBe(1);
   readers[0].resolveOpen(opened);
   await expect.element(screen.getByText('Page 1 of 2')).toBeVisible();
@@ -87,6 +119,7 @@ const expectReconnecting = (screen: Screen) =>
   expect.element(screen.getByText('Reconnecting…')).toBeVisible();
 
 test('the shell waits for the cookie before opening the book', async () => {
+  worker.use(...readiumApi());
   worker.use(aSlowSession(500));
 
   const screen = await renderShell();
@@ -484,6 +517,200 @@ test('closing the shell destroys the reader', async () => {
   screen.unmount();
 
   await expect.poll(() => readers[0].destroyed).toBe(true);
+});
+
+/**
+ * Where the reader gets to is written back, so that the two readers agree and
+ * so that reading in the browser reaches the reading statistics. The real waits
+ * are five seconds and ten minutes; these tests shorten both.
+ */
+const A_QUICK_WRITE = { writeDebounceMs: 50, heartbeatMs: 60_000 };
+
+/** Long enough that only a flush, never the debounce, can have sent a write. */
+const NO_WRITE_YET = { writeDebounceMs: 30_000, heartbeatMs: 60_000 };
+
+/** The shell open over position handlers that remember what the reader wrote. */
+const aBookRecordingPositions = async (timings = A_QUICK_WRITE) => {
+  worker.use(...readiumApi());
+  const positions = readingPositionApi();
+  worker.use(...positions.handlers);
+  const screen = await anOpenBook({}, timings);
+  return { screen, writes: positions.writes };
+};
+
+test('turning a page writes the new position, once the reader settles', async () => {
+  const { writes } = await aBookRecordingPositions();
+
+  readers[0].reportLocation(aFakeLocation(2));
+
+  await expect.poll(() => writes.length).toBe(1);
+  expect(writes[0].locator.href).toBe('resources/OEBPS/chapter2.xhtml');
+  expect(writes[0].locator.locations?.position).toBe(2);
+  expect(writes[0].closing).toBe(false);
+});
+
+test('a run of page turns is written once, and only once it has stopped', async () => {
+  const { writes } = await aBookRecordingPositions({ writeDebounceMs: 1_000, heartbeatMs: 60_000 });
+
+  readers[0].reportLocation(aFakeLocation(2));
+  await sleep(700);
+  readers[0].reportLocation(aFakeLocation(1));
+
+  // Past the first turn's own deadline: a reader still turning pages has not
+  // settled anywhere, so the wait starts again rather than running out.
+  await sleep(550);
+  expect(writes).toEqual([]);
+  await expect.poll(() => writes.length).toBe(1);
+  expect(writes[0].locator.locations?.position).toBe(1);
+});
+
+test('a beat that writes a move still waiting leaves nothing waiting', async () => {
+  // A debounce long enough that only the beat can have sent this move; hiding
+  // the tab then stops the beats, so a second write could only be a stale one.
+  const { writes } = await aBookRecordingPositions({ writeDebounceMs: 30_000, heartbeatMs: 250 });
+
+  readers[0].reportLocation(aFakeLocation(2));
+  await expect.poll(() => writes.length).toBe(1);
+  hideTheTab();
+
+  await sleep(300);
+  expect(writes).toHaveLength(1);
+});
+
+test('a reader who has not moved writes nothing at all', async () => {
+  const { writes } = await aBookRecordingPositions();
+
+  // A preference change, a resize and a re-render all re-announce the same place.
+  readers[0].reportLocation(aFakeLocation(1));
+
+  await sleep(300);
+  expect(writes).toEqual([]);
+});
+
+test('the position the book opened at is never written', async () => {
+  const { writes } = await aBookRecordingPositions();
+
+  await sleep(300);
+
+  expect(writes).toEqual([]);
+});
+
+test('a reader who stays on one page is still recorded', async () => {
+  const { writes } = await aBookRecordingPositions({ writeDebounceMs: 50, heartbeatMs: 300 });
+
+  await expect.poll(() => writes.length).toBeGreaterThan(0);
+  expect(writes[0].locator.locations?.position).toBe(1);
+  expect(writes[0].closing).toBe(false);
+  // The observation's own moment rather than the beat's: the reader is still
+  // here, not somewhere new.
+  expect(Date.parse(writes[0].recorded_at)).toBeLessThanOrEqual(Date.now() - 300);
+});
+
+test('a hidden tab writes what is pending and leaves the session open', async () => {
+  const { writes } = await aBookRecordingPositions(NO_WRITE_YET);
+  readers[0].reportLocation(aFakeLocation(2));
+
+  hideTheTab();
+
+  await expect.poll(() => writes.length).toBe(1);
+  expect(writes[0].locator.locations?.position).toBe(2);
+  expect(writes[0].closing).toBe(false);
+});
+
+test('closing the reader writes the last position and ends the session', async () => {
+  const { screen, writes } = await aBookRecordingPositions(NO_WRITE_YET);
+  readers[0].reportLocation(aFakeLocation(2));
+
+  screen.unmount();
+
+  await expect.poll(() => writes.length).toBe(1);
+  expect(writes[0].locator.locations?.position).toBe(2);
+  expect(writes[0].closing).toBe(true);
+});
+
+test('a book opened and closed again without being read writes nothing', async () => {
+  const { screen, writes } = await aBookRecordingPositions();
+
+  screen.unmount();
+
+  await sleep(300);
+  expect(writes).toEqual([]);
+});
+
+/**
+ * A book reopened in the browser starts where the reader left off, on whatever
+ * device they were last reading. Where a place cannot be restored the book
+ * still opens, and says so once.
+ */
+const LOST_THE_BOOKMARK = "Couldn't restore your last position, so the book opened at the start.";
+
+const aSlowResumeAnswer = (ms: number) =>
+  http.get(POSITION_PATH, async () => {
+    await delay(ms);
+    return HttpResponse.json(nowhereToResume());
+  });
+
+/** The shell over a place stored part-way through the book's second chapter. */
+const aResumedBook = async () => {
+  worker.use(...readiumApi());
+  worker.use(...readingPositionApi(aResumePosition()).handlers);
+  const screen = await renderShell();
+  await expect.poll(() => readers.length).toBe(1);
+  return screen;
+};
+
+test('the book is not opened until the resume answer is in', async () => {
+  worker.use(...readiumApi());
+  worker.use(aSlowResumeAnswer(500));
+
+  const screen = await renderShell();
+
+  // The cookie is minted long before the answer, and a navigator takes its
+  // initial position once, at construction.
+  await sleep(250);
+  expect(readers).toHaveLength(0);
+  await expect.element(screen.getByLabelText('Loading the book')).toBeVisible();
+
+  await expect.poll(() => readers.length).toBe(1);
+});
+
+test('the book is opened at the place the reader left off', async () => {
+  await aResumedBook();
+
+  expect(readers[0].openedWith[0].initialLocation).toEqual({
+    href: 'resources/OEBPS/chapter2.xhtml',
+    type: 'application/xhtml+xml',
+    locations: { position: 2, progression: 0.5, totalProgression: 0.75 },
+  });
+});
+
+test('a landing the navigator refuses is retried once, without it', async () => {
+  const screen = await aResumedBook();
+
+  readers[0].rejectOpen();
+
+  await expect.poll(() => readers.length).toBe(2);
+  expect(readers[1].openedWith[0].initialLocation).toBeUndefined();
+  readers[1].resolveOpen();
+  await expect.element(screen.getByText('Page 1 of 2')).toBeVisible();
+  // The place is gone either way, so the reader is owed the same sentence as if
+  // it had never been found.
+  await expect
+    .element(screen.getByRole('alert').filter({ hasText: LOST_THE_BOOKMARK }))
+    .toBeVisible();
+});
+
+test('a second refusal is a real failure, not a third attempt', async () => {
+  const screen = await aResumedBook();
+  readers[0].rejectOpen();
+  await expect.poll(() => readers.length).toBe(2);
+
+  readers[1].rejectOpen();
+
+  await expect
+    .element(screen.getByText('The book could not be opened. Please try again later.'))
+    .toBeVisible();
+  expect(readers).toHaveLength(2);
 });
 
 /**

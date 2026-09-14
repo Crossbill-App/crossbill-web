@@ -6,8 +6,11 @@ import { readerPageColors, toEbookAppearance } from '@/components/reader/readerP
 import { ReaderSettings } from '@/components/reader/ReaderSettings.tsx';
 import { TocDrawer } from '@/components/reader/TocDrawer.tsx';
 import { useEbookReader, type UseEbookReaderOptions } from '@/components/reader/useEbookReader.ts';
+import { useReaderLanding } from '@/components/reader/useReaderLanding.ts';
 import { useReaderPreferences } from '@/components/reader/useReaderPreferences.ts';
 import { useReaderSession } from '@/components/reader/useReaderSession.ts';
+import { useReadingPositionWriter } from '@/components/reader/useReadingPositionWriter.ts';
+import { useSnackbar } from '@/context/SnackbarContext.tsx';
 import { useBodyScrollLock } from '@/hooks/useBodyScrollLock.ts';
 import {
   ChapterListIcon,
@@ -29,16 +32,21 @@ import {
   type SxProps,
   type Theme,
 } from '@mui/material';
-import { useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 
 export interface ReaderShellProps {
   bookId: number;
   title: string;
   onClose: () => void;
-  /** Both only for tests: a fake engine, and a watchdog short enough to wait for. */
+  /** All four only for tests: a fake engine, and waits short enough to sit through. */
   createReader?: UseEbookReaderOptions['createReader'];
   bootTimeoutMs?: number;
+  writeDebounceMs?: number;
+  heartbeatMs?: number;
 }
+
+/** Said once, over the open book, for a place that could not be restored. */
+const LOST_THE_BOOKMARK = "Couldn't restore your last position, so the book opened at the start.";
 
 /** The width the page-turn buttons need beside the text on anything but a phone. */
 const PAGE_TURN_GUTTER = '48px';
@@ -136,6 +144,8 @@ export const ReaderShell = ({
   onClose,
   createReader,
   bootTimeoutMs,
+  writeDebounceMs,
+  heartbeatMs,
 }: ReaderShellProps) => {
   // A fixed overlay never scrolls the body, which is what arms pull-to-refresh.
   useBodyScrollLock(true);
@@ -149,15 +159,34 @@ export const ReaderShell = ({
   // A new object every render would submit the same appearance to the engine
   // again on every render, which is not a cost the engine skips.
   const appearance = useMemo(() => toEbookAppearance(theme, preferences), [theme, preferences]);
+  const { record } = useReadingPositionWriter(bookId, { writeDebounceMs, heartbeatMs });
+  const landing = useReaderLanding(bookId);
   const book = useEbookReader({
     host,
     manifestUrl: manifestUrlFor(bookId),
-    enabled: sessionStatus === 'ready',
+    // A navigator takes its initial position once, at construction, so the book
+    // waits for the answer rather than opening somewhere and being corrected.
+    enabled: sessionStatus === 'ready' && landing !== undefined,
     holdPageTurns: isRenewing,
     appearance,
+    initialLocation: landing?.locator ?? null,
     createReader,
     bootTimeoutMs,
+    onLocationReported: record,
   });
+
+  const { showSnackbar } = useSnackbar();
+  const apologised = useRef(false);
+  useEffect(() => {
+    if (apologised.current || book.status !== 'open' || !landing) return;
+    // `'start'` with a place still on offer covers both remaining failures: a
+    // locator this edition cannot place, and one the navigator refused outright
+    // and which the retry therefore stopped offering.
+    const lost = landing.lost || (landing.locator !== null && book.landedAt === 'start');
+    if (!lost) return;
+    apologised.current = true;
+    showSnackbar(LOST_THE_BOOKMARK, 'info');
+  }, [book.status, book.landedAt, landing, showSnackbar]);
 
   if (sessionStatus === 'error') {
     return (

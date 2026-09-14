@@ -1,19 +1,26 @@
-import type { PositionList, WebPublicationManifest } from '@/api/generated/model';
+import type {
+  PositionList,
+  ReadingPosition,
+  ReadingPositionUpdate,
+  ResumePositionResponse,
+  WebPublicationManifest,
+} from '@/api/generated/model';
 import { http, HttpResponse } from 'msw';
-import { aManifest, aPositionList } from '../fixtures/publication';
+import { aManifest, aPositionList, nowhereToResume } from '../fixtures/publication';
 
 const MANIFEST_PATH = '/api/v1/readium/books/:bookId/manifest.json';
 const POSITIONS_PATH = '/api/v1/readium/books/:bookId/positions.json';
 const SESSION_PATH = '/api/v1/readium/books/:bookId/session';
 const RESOURCE_PATH = '/api/v1/readium/books/:bookId/resources/*';
+const POSITION_PATH = '/api/v1/readium/books/:bookId/reading-position';
 
 /** A chapter as an EPUB actually ships one: XHTML, with its own namespace. */
-const chapterDocument = (title: string) =>
+const chapterDocument = (title: string, paragraphs = 1) =>
   `<?xml version="1.0" encoding="utf-8"?>
 <!DOCTYPE html>
 <html xmlns="http://www.w3.org/1999/xhtml">
   <head><title>${title}</title></head>
-  <body><h1>${title}</h1><p>Attention is the rarest and purest form of generosity.</p></body>
+  <body><h1>${title}</h1>${'<p>Attention is the rarest and purest form of generosity.</p>'.repeat(paragraphs)}</body>
 </html>`;
 
 /**
@@ -42,12 +49,43 @@ const hostileChapter = () =>
 /** The files `aManifest` names, keyed by the path the resource route receives. */
 const RESOURCES: Record<string, { body: string; type: string } | undefined> = {
   'OEBPS/chapter1.xhtml': { body: chapterDocument('On Attention'), type: 'application/xhtml+xml' },
-  'OEBPS/chapter2.xhtml': { body: chapterDocument('On Memory'), type: 'application/xhtml+xml' },
+  // Long enough to paginate into many columns, so a test can open the book
+  // part-way through a chapter rather than only at the head of one. Safe for
+  // every other test because nothing here turns more than one page into it.
+  'OEBPS/chapter2.xhtml': {
+    body: chapterDocument('On Memory', 240),
+    type: 'application/xhtml+xml',
+  },
   'OEBPS/style.css': { body: 'body { margin: 0; }', type: 'text/css' },
   'OEBPS/evil.js': {
     body: "parent.document.body.setAttribute('data-pwned', 'external-script')",
     type: 'text/javascript',
   },
+};
+
+/**
+ * The reading-position endpoint: what the reader resumes from, and every write.
+ *
+ * The reader writes debounced and again on the way out, so a test asserts on
+ * `writes` rather than on a spy: what matters is what reached the server.
+ * Register these after `readiumApi()`, which MSW resolves newest first.
+ */
+export const readingPositionApi = (stored: ResumePositionResponse = nowhereToResume()) => {
+  const writes: ReadingPositionUpdate[] = [];
+  const handlers = [
+    http.get(POSITION_PATH, () => HttpResponse.json(stored)),
+    http.put(POSITION_PATH, async ({ request }) => {
+      const update = (await request.json()) as ReadingPositionUpdate;
+      writes.push(update);
+      return HttpResponse.json({
+        locator: update.locator,
+        xpoint: '/body/DocFragment[1]/body/div[1]/p[1]',
+        position: { index: 1, char_index: 0 },
+        updated_at: update.recorded_at,
+      } satisfies ReadingPosition);
+    }),
+  ];
+  return { handlers, writes };
 };
 
 interface ReadiumApiOptions {
@@ -86,6 +124,11 @@ export const readiumApi = ({
     onRequest(request);
     return HttpResponse.json(positions ?? aPositionList());
   }),
+  // An open reader asks where to resume and writes where it gets to, so every
+  // test that opens one meets these whether or not it is about them.
+  // `readingPositionApi` is the version with a place to resume from and a
+  // memory of what was written.
+  ...readingPositionApi().handlers,
   http.get(RESOURCE_PATH, ({ request, params }) => {
     onRequest(request);
     const path = String(params[0]);
@@ -105,4 +148,6 @@ export const readiumApi = ({
 export const noPublication = [
   http.post(SESSION_PATH, () => HttpResponse.json({ expires_in: 900 })),
   http.get(MANIFEST_PATH, () => new HttpResponse(null, { status: 404 })),
+  // The shell asks where to resume before it learns there is nothing to open.
+  ...readingPositionApi().handlers,
 ];
