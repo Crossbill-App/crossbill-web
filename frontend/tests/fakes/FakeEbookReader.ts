@@ -1,5 +1,6 @@
 import type {
   EbookAppearance,
+  EbookDecoration,
   EbookLocation,
   EbookReader,
   OpenEbookOptions,
@@ -23,6 +24,8 @@ export class FakeEbookReader implements EbookReader {
   }[] = [];
   readonly appearances: EbookAppearance[] = [];
   readonly goToCalls: EbookLocation[] = [];
+  /** One entry per call, so a test can assert on the set and on how often it was submitted. */
+  readonly decorations: EbookDecoration[][] = [];
   nextCalls = 0;
   previousCalls = 0;
   destroyed = false;
@@ -30,6 +33,7 @@ export class FakeEbookReader implements EbookReader {
   private readonly locationListeners = new Set<(location: EbookLocation) => void>();
   private readonly pageTurnListeners = new Set<(direction: PageTurnDirection) => void>();
   private readonly tocEntryListeners = new Set<(href: string | null) => void>();
+  private readonly decorationListeners = new Set<(id: string) => void>();
   private settle: ((opened: OpenedEbook) => void) | undefined;
   private refuse: ((reason: Error) => void) | undefined;
   private isOpened = false;
@@ -82,6 +86,10 @@ export class FakeEbookReader implements EbookReader {
     for (const listener of [...this.tocEntryListeners]) listener(href);
   }
 
+  activateDecoration(id: string): void {
+    for (const listener of [...this.decorationListeners]) listener(id);
+  }
+
   setAppearance(appearance: EbookAppearance): Promise<void> {
     this.appearances.push(appearance);
     return Promise.resolve();
@@ -100,6 +108,15 @@ export class FakeEbookReader implements EbookReader {
   goTo(location: EbookLocation): Promise<void> {
     this.goToCalls.push(location);
     return Promise.resolve();
+  }
+
+  applyDecorations(decorations: EbookDecoration[]): void {
+    this.decorations.push(decorations);
+  }
+
+  onDecorationActivated(listener: (id: string) => void): () => void {
+    this.decorationListeners.add(listener);
+    return () => this.decorationListeners.delete(listener);
   }
 
   onLocationChanged(listener: (location: EbookLocation) => void): () => void {

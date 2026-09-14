@@ -1,4 +1,5 @@
 import type {
+  HighlightLocatorResponse,
   PositionList,
   ResumePositionResponse,
   WebPublicationManifest,
@@ -119,4 +120,22 @@ export const aDetailedPositionList = (): PositionList => ({
       },
     })),
   ],
+});
+
+/** A highlight the server placed over the quoted words of chapter one's paragraph. */
+export const aHighlightLocator = (highlightId: number): HighlightLocatorResponse => ({
+  highlight_id: highlightId,
+  locator: {
+    href: 'resources/OEBPS/chapter1.xhtml',
+    type: 'application/xhtml+xml',
+    locations: { progression: 0, cssSelector: 'p' },
+    text: { highlight: 'rarest and purest' },
+  },
+});
+
+/** A highlight the server could not find anywhere in the EPUB. */
+export const anUnplacedHighlight = (highlightId: number): HighlightLocatorResponse => ({
+  highlight_id: highlightId,
+  locator: null,
+  unavailable: 'unresolved',
 });

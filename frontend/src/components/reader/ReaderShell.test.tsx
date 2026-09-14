@@ -1,15 +1,27 @@
-import type { EbookTocEntry, OpenedEbook } from '@/components/reader/EbookReader.ts';
+import type { Highlight, HighlightLocatorResponse } from '@/api/generated/model';
+import type {
+  EbookDecoration,
+  EbookTocEntry,
+  OpenedEbook,
+} from '@/components/reader/EbookReader.ts';
 import { READER_PREFERENCES_KEY } from '@/components/reader/readerPreferenceStorage.ts';
 import { ReaderShell, type ReaderShellProps } from '@/components/reader/ReaderShell.tsx';
 import { SnackbarProvider } from '@/context/SnackbarContext.tsx';
 import { theme } from '@/theme/theme.ts';
+import { DEFAULT_LABEL_COLOR } from '@/utils/colorUtils.ts';
 import { ThemeProvider } from '@mui/material/styles';
 import { fontSizeRangeConfig } from '@readium/navigator';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { FakeEbookReader, aFakeLocation } from '@tests/fakes/FakeEbookReader';
-import { aResumePosition, nowhereToResume } from '@tests/fixtures/publication';
+import { aHighlight } from '@tests/fixtures/book';
+import {
+  aHighlightLocator,
+  aResumePosition,
+  anUnplacedHighlight,
+  nowhereToResume,
+} from '@tests/fixtures/publication';
 import { pendingQueryClients } from '@tests/harness/renderApp';
-import { readingPositionApi, readiumApi } from '@tests/msw/readiumApi';
+import { highlightLocatorsApi, readingPositionApi, readiumApi } from '@tests/msw/readiumApi';
 import { worker } from '@tests/msw/worker';
 import { HttpResponse, delay, http } from 'msw';
 import { afterEach, beforeEach, expect, test } from 'vitest';
@@ -66,26 +78,32 @@ const aSlowSession = (ms: number) =>
 
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
+// The shell asks the server where to resume and apologises when it cannot, so
+// it needs the two providers the app mounts it under.
+const shellUnder = (queryClient: QueryClient, props: Partial<ReaderShellProps>) => (
+  <QueryClientProvider client={queryClient}>
+    <ThemeProvider theme={theme}>
+      <SnackbarProvider>
+        <ReaderShell
+          bookId={1}
+          title="The Pragmatic Reader"
+          onClose={() => {}}
+          createReader={createReader}
+          {...props}
+        />
+      </SnackbarProvider>
+    </ThemeProvider>
+  </QueryClientProvider>
+);
+
 const renderShell = async (props: Partial<ReaderShellProps> = {}) => {
-  // The shell asks the server where to resume and apologises when it cannot, so
-  // it needs the two providers the app mounts it under.
   const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   pendingQueryClients.push(queryClient);
-  return await render(
-    <QueryClientProvider client={queryClient}>
-      <ThemeProvider theme={theme}>
-        <SnackbarProvider>
-          <ReaderShell
-            bookId={1}
-            title="The Pragmatic Reader"
-            onClose={() => {}}
-            createReader={createReader}
-            {...props}
-          />
-        </SnackbarProvider>
-      </ThemeProvider>
-    </QueryClientProvider>
-  );
+  const screen = await render(shellUnder(queryClient, props));
+  return Object.assign(screen, {
+    rerenderShell: (next: Partial<ReaderShellProps>) =>
+      screen.rerender(shellUnder(queryClient, next)),
+  });
 };
 
 type Screen = Awaited<ReturnType<typeof renderShell>>;
@@ -737,4 +755,134 @@ test('the page-turn buttons stand aside on a phone and come back on a wider scre
 
   await expect.element(screen.getByRole('button', { name: 'Next page' })).toBeVisible();
   await expect.element(screen.getByRole('button', { name: 'Previous page' })).toBeVisible();
+});
+
+/**
+ * A book's highlights are drawn on its pages wherever the server could place
+ * them, in the colour of their labels.
+ */
+const aYellowHighlight = () => aHighlight({ id: 300, label: { ui_color: '#F59E0B' } });
+
+/** The shell open over a book whose highlights the server answers for with these places. */
+const aBookWithHighlights = async (
+  highlights: Highlight[],
+  locators: HighlightLocatorResponse[] = highlights.map((highlight) =>
+    aHighlightLocator(highlight.id)
+  )
+) => {
+  worker.use(...readiumApi());
+  worker.use(...highlightLocatorsApi(locators));
+  return await anOpenBook({}, { highlights });
+};
+
+/** The set the engine was last given. */
+const lastSubmitted = (): EbookDecoration[] | undefined => {
+  const { decorations } = readers[0];
+  return decorations[decorations.length - 1];
+};
+
+const drawnTints = () => lastSubmitted()?.map((decoration) => decoration.tint);
+
+const drawnIds = () => lastSubmitted()?.map((decoration) => decoration.id);
+
+test("a highlight is drawn at its place, in its label's colour", async () => {
+  await aBookWithHighlights([aYellowHighlight()]);
+
+  await expect.poll(lastSubmitted).toEqual([
+    {
+      id: 'highlight-300',
+      location: {
+        href: 'resources/OEBPS/chapter1.xhtml',
+        type: 'application/xhtml+xml',
+        locations: { progression: 0, cssSelector: 'p' },
+        text: { highlight: 'rarest and purest' },
+      },
+      tint: '#F59E0B',
+      opacity: 0.35,
+    },
+  ]);
+});
+
+test('a highlight with no label is drawn in the default colour', async () => {
+  await aBookWithHighlights([aHighlight({ id: 300 })]);
+
+  await expect.poll(drawnTints).toEqual([DEFAULT_LABEL_COLOR]);
+});
+
+test('a label colour stored without its hash is still drawn in it', async () => {
+  await aBookWithHighlights([aHighlight({ id: 300, label: { ui_color: 'F59E0B' } })]);
+
+  await expect.poll(drawnTints).toEqual(['#F59E0B']);
+});
+
+test('a label colour that is not six hex digits is drawn in the default', async () => {
+  // Shorthand a person editing by hand would write, and a colour to any browser,
+  // but not to the engine, which reads its channels two digits at a time.
+  await aBookWithHighlights([aHighlight({ id: 300, label: { ui_color: '#fa0' } })]);
+
+  await expect.poll(drawnTints).toEqual([DEFAULT_LABEL_COLOR]);
+});
+
+test('a highlight the server could not place is not drawn, and the one beside it is', async () => {
+  await aBookWithHighlights(
+    [aYellowHighlight(), aHighlight({ id: 301 })],
+    [aHighlightLocator(300), anUnplacedHighlight(301)]
+  );
+
+  await expect.poll(drawnIds).toEqual(['highlight-300']);
+});
+
+test('a place listed for a highlight the book no longer has is not drawn', async () => {
+  await aBookWithHighlights([aYellowHighlight()], [aHighlightLocator(300), aHighlightLocator(301)]);
+
+  await expect.poll(drawnIds).toEqual(['highlight-300']);
+});
+
+test('the book is on screen before its highlights are placed', async () => {
+  worker.use(...readiumApi());
+  worker.use(...highlightLocatorsApi([aHighlightLocator(300)], { delayMs: 1_500 }));
+
+  await anOpenBook({}, { highlights: [aYellowHighlight()] });
+  expect(lastSubmitted()).toEqual([]);
+
+  await expect.poll(drawnIds, { timeout: 3_000 }).toEqual(['highlight-300']);
+  expect(readers).toHaveLength(1);
+});
+
+test('a highlight whose label changes is redrawn by the same reader', async () => {
+  const screen = await aBookWithHighlights([aYellowHighlight()]);
+  await expect.poll(drawnTints).toEqual(['#F59E0B']);
+
+  await screen.rerenderShell({
+    highlights: [aHighlight({ id: 300, label: { ui_color: '#3B82F6' } })],
+  });
+
+  await expect.poll(drawnTints).toEqual(['#3B82F6']);
+  expect(readers).toHaveLength(1);
+});
+
+test('turning a page leaves the drawn highlights alone', async () => {
+  const screen = await aBookWithHighlights([aYellowHighlight()]);
+  await expect.poll(drawnIds).toEqual(['highlight-300']);
+  const submissions = readers[0].decorations.length;
+
+  readers[0].reportLocation(aFakeLocation(2));
+
+  await expect.element(screen.getByText('Page 2 of 2')).toBeVisible();
+  expect(readers[0].decorations).toHaveLength(submissions);
+});
+
+test('activating a decoration asks to open its highlight', async () => {
+  worker.use(...readiumApi());
+  const opened: number[] = [];
+  const screen = await anOpenBook({}, { onOpenHighlight: (id) => opened.push(id) });
+
+  readers[0].activateDecoration('highlight-300');
+  expect(opened).toEqual([300]);
+
+  await screen.rerenderShell({ onOpenHighlight: (id) => opened.push(id * 10) });
+  readers[0].activateDecoration('highlight-300');
+
+  expect(opened).toEqual([300, 3000]);
+  expect(readers).toHaveLength(1);
 });

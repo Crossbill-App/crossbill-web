@@ -15,6 +15,9 @@ export interface ColorOption {
   name: string;
 }
 
+/** The colour of a highlight whose label names none, or none that can be drawn. */
+export const DEFAULT_LABEL_COLOR = '#6B7280';
+
 export const LABEL_COLORS: readonly ColorOption[] = [
   { value: '#F59E0B', name: 'Yellow' }, // KOReader
   { value: '#F97316', name: 'Orange' }, // KOReader
@@ -28,6 +31,6 @@ export const LABEL_COLORS: readonly ColorOption[] = [
   { value: '#10B981', name: 'Green' }, // KOReader
   { value: '#84CC16', name: 'Olive' }, // KOReader
   { value: '#059669', name: 'Emerald' },
-  { value: '#6B7280', name: 'Gray' }, // KOReader
+  { value: DEFAULT_LABEL_COLOR, name: 'Gray' }, // KOReader
   { value: '#475569', name: 'Slate' },
 ];

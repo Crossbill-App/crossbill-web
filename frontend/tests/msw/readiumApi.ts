@@ -1,11 +1,12 @@
 import type {
+  HighlightLocatorResponse,
   PositionList,
   ReadingPosition,
   ReadingPositionUpdate,
   ResumePositionResponse,
   WebPublicationManifest,
 } from '@/api/generated/model';
-import { http, HttpResponse } from 'msw';
+import { delay, http, HttpResponse } from 'msw';
 import { aManifest, aPositionList, nowhereToResume } from '../fixtures/publication';
 
 const MANIFEST_PATH = '/api/v1/readium/books/:bookId/manifest.json';
@@ -13,6 +14,7 @@ const POSITIONS_PATH = '/api/v1/readium/books/:bookId/positions.json';
 const SESSION_PATH = '/api/v1/readium/books/:bookId/session';
 const RESOURCE_PATH = '/api/v1/readium/books/:bookId/resources/*';
 const POSITION_PATH = '/api/v1/readium/books/:bookId/reading-position';
+const HIGHLIGHT_LOCATORS_PATH = '/api/v1/books/:bookId/highlight-locators';
 
 /** A chapter as an EPUB actually ships one: XHTML, with its own namespace. */
 const chapterDocument = (title: string, paragraphs = 1) =>
@@ -88,6 +90,22 @@ export const readingPositionApi = (stored: ResumePositionResponse = nowhereToRes
   return { handlers, writes };
 };
 
+/**
+ * Where the book's highlights are in its EPUB. Register these after `readiumApi()`,
+ * which MSW resolves newest first.
+ */
+export const highlightLocatorsApi = (
+  items: HighlightLocatorResponse[] = [],
+  { delayMs, onRequest }: { delayMs?: number; onRequest?: () => void } = {}
+) => [
+  http.get(HIGHLIGHT_LOCATORS_PATH, async () => {
+    onRequest?.();
+    // Guarded, because MSW's `delay()` with no argument is a random one.
+    if (delayMs) await delay(delayMs);
+    return HttpResponse.json({ items });
+  }),
+];
+
 interface ReadiumApiOptions {
   manifest?: WebPublicationManifest;
   positions?: PositionList;
@@ -129,6 +147,9 @@ export const readiumApi = ({
   // `readingPositionApi` is the version with a place to resume from and a
   // memory of what was written.
   ...readingPositionApi().handlers,
+  // And it asks where the book's highlights are, whether or not the test is about
+  // them; `highlightLocatorsApi` with items is the version that has some.
+  ...highlightLocatorsApi(),
   http.get(RESOURCE_PATH, ({ request, params }) => {
     onRequest(request);
     const path = String(params[0]);
@@ -148,6 +169,8 @@ export const readiumApi = ({
 export const noPublication = [
   http.post(SESSION_PATH, () => HttpResponse.json({ expires_in: 900 })),
   http.get(MANIFEST_PATH, () => new HttpResponse(null, { status: 404 })),
-  // The shell asks where to resume before it learns there is nothing to open.
+  // The shell asks where to resume, and where the highlights are, before it learns
+  // there is nothing to open.
   ...readingPositionApi().handlers,
+  ...highlightLocatorsApi(),
 ];

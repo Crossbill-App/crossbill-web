@@ -1,11 +1,14 @@
 import { API_BASE_URL } from '@/api/base-url.ts';
+import type { Highlight } from '@/api/generated/model';
 import { IconButtonWithTooltip } from '@/components/buttons/IconButtonWithTooltip.tsx';
+import { highlightIdFrom } from '@/components/reader/decorations.ts';
 import type { EbookTocEntry } from '@/components/reader/EbookReader.ts';
 import { ReaderLoading } from '@/components/reader/ReaderLoading.tsx';
 import { readerPageColors, toEbookAppearance } from '@/components/reader/readerPreferences.ts';
 import { ReaderSettings } from '@/components/reader/ReaderSettings.tsx';
 import { TocDrawer } from '@/components/reader/TocDrawer.tsx';
 import { useEbookReader, type UseEbookReaderOptions } from '@/components/reader/useEbookReader.ts';
+import { useHighlightDecorations } from '@/components/reader/useHighlightDecorations.ts';
 import { useReaderLanding } from '@/components/reader/useReaderLanding.ts';
 import { useReaderPreferences } from '@/components/reader/useReaderPreferences.ts';
 import { useReaderSession } from '@/components/reader/useReaderSession.ts';
@@ -38,6 +41,10 @@ export interface ReaderShellProps {
   bookId: number;
   title: string;
   onClose: () => void;
+  /** The book's highlights, `undefined` until the book-details query has answered. */
+  highlights?: Highlight[];
+  /** A highlight the reader tapped on the page. */
+  onOpenHighlight?: (highlightId: number) => void;
   /** All four only for tests: a fake engine, and waits short enough to sit through. */
   createReader?: UseEbookReaderOptions['createReader'];
   bootTimeoutMs?: number;
@@ -142,6 +149,8 @@ export const ReaderShell = ({
   bookId,
   title,
   onClose,
+  highlights,
+  onOpenHighlight,
   createReader,
   bootTimeoutMs,
   writeDebounceMs,
@@ -161,6 +170,7 @@ export const ReaderShell = ({
   const appearance = useMemo(() => toEbookAppearance(theme, preferences), [theme, preferences]);
   const { record } = useReadingPositionWriter(bookId, { writeDebounceMs, heartbeatMs });
   const landing = useReaderLanding(bookId);
+  const decorations = useHighlightDecorations(bookId, highlights);
   const book = useEbookReader({
     host,
     manifestUrl: manifestUrlFor(bookId),
@@ -170,9 +180,11 @@ export const ReaderShell = ({
     holdPageTurns: isRenewing,
     appearance,
     initialLocation: landing?.locator ?? null,
+    decorations,
     createReader,
     bootTimeoutMs,
     onLocationReported: record,
+    onDecorationActivated: (id) => onOpenHighlight?.(highlightIdFrom(id)),
   });
 
   const { showSnackbar } = useSnackbar();
