@@ -31,6 +31,10 @@ WORKDIR /app
 RUN apt-get update && apt-get install -y --no-install-recommends \
   curl \
   gcc \
+  # uv shells out to git for the xpoint-cfi dependency, which is pinned to a
+  # tag rather than published to PyPI; without it the build fails with
+  # "Git executable not found".
+  git \
   libc6-dev \
   libffi-dev \
   && rm -rf /var/lib/apt/lists/*
