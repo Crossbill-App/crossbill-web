@@ -5,6 +5,7 @@ import {
   type EbookDecoration,
   type EbookLocation,
   type EbookReader,
+  type EbookSelection,
   type EbookTocEntry,
   type OpenedEbook,
 } from '@/components/reader/EbookReader.ts';
@@ -59,9 +60,11 @@ export interface EbookReaderState {
   landedAt: OpenedEbook['landedAt'] | null;
   /** Null until a book is on screen: only an engine with one can report it. */
   fontSizeRange: [number, number] | null;
+  selection: EbookSelection | null;
   next: () => void;
   previous: () => void;
   goTo: (location: EbookLocation) => void;
+  clearSelection: () => void;
   retry: () => void;
 }
 
@@ -102,6 +105,7 @@ export const useEbookReader = ({
   const [currentTocHref, setCurrentTocHref] = useState<string | null>(null);
   const [landedAt, setLandedAt] = useState<OpenedEbook['landedAt'] | null>(null);
   const [fontSizeRange, setFontSizeRange] = useState<[number, number] | null>(null);
+  const [selection, setSelection] = useState<EbookSelection | null>(null);
   const [attempt, setAttempt] = useState(0);
   const readerRef = useRef<EbookReader | null>(null);
   // Through a ref, so a hold that starts mid-book never rebuilds the reader.
@@ -166,7 +170,10 @@ export const useEbookReader = ({
         setLocation(location);
         // Nothing a book reports before it has finished arriving is a move.
         reportedRef.current?.(location, !isOpen);
+        // Any report, a reflow included, leaves the selection's rectangle behind.
+        reader.clearSelection();
       }),
+      reader.onSelectionChanged(setSelection),
       reader.onTocEntryChanged(setCurrentTocHref),
       reader.onDecorationActivated((id) => activatedRef.current?.(id)),
       reader.onPageTurnRequested((direction) => {
@@ -252,6 +259,7 @@ export const useEbookReader = ({
     (destination: EbookLocation) => void readerRef.current?.goTo(destination),
     []
   );
+  const clearSelection = useCallback(() => readerRef.current?.clearSelection(), []);
   // Both, and in one go: the host is unmounted behind the message this is
   // offered on, and has to be back in the tree before the new attempt looks for it.
   const retry = useCallback(() => {
@@ -285,9 +293,11 @@ export const useEbookReader = ({
     currentTocHref,
     landedAt,
     fontSizeRange,
+    selection,
     next,
     previous,
     goTo,
+    clearSelection,
     retry,
   };
 };

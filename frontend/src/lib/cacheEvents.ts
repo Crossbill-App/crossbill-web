@@ -132,6 +132,10 @@ export const useCacheEvents = () => {
        */
       refreshRequested: () => queryClient.invalidateQueries(),
 
+      /** A highlight was made. The promise settles once the book's details have refetched. */
+      highlightCreated: (bookId: number) =>
+        queryClient.invalidateQueries({ queryKey: getGetBookDetailsQueryKey(bookId) }),
+
       /** A highlight label was renamed or recoloured. Book details embeds labels. */
       highlightLabelsChanged: (bookId: number) =>
         invalidate(getGetBookDetailsQueryKey(bookId), getGetBookHighlightLabelsQueryKey(bookId)),

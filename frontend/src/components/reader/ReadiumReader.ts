@@ -327,6 +327,15 @@ export class ReadiumReader implements EbookReader {
     return this.subscribe(this.selectionListeners, listener);
   }
 
+  clearSelection(): void {
+    for (const frame of this.host.querySelectorAll('iframe')) {
+      frame.contentWindow?.getSelection()?.removeAllRanges();
+    }
+    // Now, not once `selectionchange` settles: the same words selected again
+    // before then would be swallowed as a repeat.
+    this.reportSelection(null);
+  }
+
   onLocationChanged(listener: (location: EbookLocation) => void): () => void {
     return this.subscribe(this.locationListeners, listener);
   }

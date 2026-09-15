@@ -10,7 +10,11 @@ import { ReadiumReader } from '@/components/reader/ReadiumReader.ts';
 import { fontSizeRangeConfig } from '@readium/navigator';
 import { aDetailedPositionList, aManifest, aPositionList } from '@tests/fixtures/publication';
 import { drawnOn, drawnRanges } from '@tests/harness/paintedHighlights';
-import { rangeOver, select } from '@tests/harness/textSelection';
+import {
+  adjustSelectionInBook as adjustSelectionIn,
+  selectInBook as selectIn,
+  visibleFrame as visibleFrameIn,
+} from '@tests/harness/textSelection';
 import { noPublication, readiumApi } from '@tests/msw/readiumApi';
 import { worker } from '@tests/msw/worker';
 import { http, HttpResponse } from 'msw';
@@ -98,23 +102,13 @@ const centreOf = (range: Range) => {
 
 const frameText = () => frame()?.contentDocument?.body.textContent ?? '';
 
-/** The chapter on screen: Readium keeps the neighbouring one loaded and hidden. */
-const visibleFrame = () =>
-  [...host.querySelectorAll('iframe')].find((candidate) => candidate.style.visibility !== 'hidden');
+const visibleFrame = () => visibleFrameIn(host);
 
 const visibleFrameText = () => visibleFrame()?.contentDocument?.body.textContent ?? '';
 
-/** A selection changing under no pointer, the way a touch handle or a keyboard moves one. */
-const adjustSelectionInBook = (phrase: string) => {
-  const chapter = visibleFrame()!.contentDocument!;
-  select(chapter, rangeOver(chapter, phrase));
-};
+const adjustSelectionInBook = (phrase: string) => adjustSelectionIn(host, phrase);
 
-/** A reader dragging over words in the chapter on screen, and letting go. */
-const selectInBook = (phrase: string) => {
-  adjustSelectionInBook(phrase);
-  visibleFrame()!.contentDocument!.dispatchEvent(new PointerEvent('pointerup', { bubbles: true }));
-};
+const selectInBook = (phrase: string) => selectIn(host, phrase);
 
 /** Longer than the engine gives a changing selection to settle. */
 const afterTheSelectionSettles = () => new Promise((resolve) => setTimeout(resolve, 400));
@@ -428,13 +422,19 @@ test('a selection is reported against the chapter it was made in, not the one th
   expect(recorded.selections[0]?.location.href).toBe(CHAPTER_TWO);
 });
 
-test('a selection dragged out after the pointer went up is reported at its new extent', async () => {
+/** The book at its first chapter with `phrase` selected, and that selection already heard. */
+const theBookWithWordsSelected = async (phrase: string) => {
   worker.use(...readiumApi());
   await openTheBook();
   await expect.poll(visibleFrameText).toContain('On Attention');
   const recorded = recordEvents();
-  selectInBook('rarest');
+  selectInBook(phrase);
   await expect.poll(() => recorded.selections).toHaveLength(1);
+  return recorded;
+};
+
+test('a selection dragged out after the pointer went up is reported at its new extent', async () => {
+  const recorded = await theBookWithWordsSelected('rarest');
 
   // What a touch handle does: the range grows with no pointer event to say so.
   adjustSelectionInBook('rarest and purest');
@@ -456,12 +456,7 @@ test('the pointer going up and the selection settling report one passage between
 });
 
 test('letting a selection go is reported once, and tapping on is not reported at all', async () => {
-  worker.use(...readiumApi());
-  await openTheBook();
-  await expect.poll(visibleFrameText).toContain('On Attention');
-  const recorded = recordEvents();
-  selectInBook('generosity');
-  await expect.poll(() => recorded.selections).toHaveLength(1);
+  const recorded = await theBookWithWordsSelected('generosity');
 
   tapTheBook();
   await expect.poll(() => recorded.selections).toHaveLength(2);
@@ -469,6 +464,18 @@ test('letting a selection go is reported once, and tapping on is not reported at
 
   tapTheBook();
   tapTheBook();
+  expect(recorded.selections).toHaveLength(2);
+});
+
+test('clearSelection empties the selection in the book and reports it let go', async () => {
+  const recorded = await theBookWithWordsSelected('generosity');
+
+  reader.clearSelection();
+
+  expect(recorded.selections).toHaveLength(2);
+  expect(recorded.selections[1]).toBeNull();
+  expect(visibleFrame()!.contentDocument!.getSelection()?.rangeCount).toBe(0);
+  await afterTheSelectionSettles();
   expect(recorded.selections).toHaveLength(2);
 });
 
