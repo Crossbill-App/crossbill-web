@@ -428,13 +428,19 @@ test('a selection is reported against the chapter it was made in, not the one th
   expect(recorded.selections[0]?.location.href).toBe(CHAPTER_TWO);
 });
 
-test('a selection dragged out after the pointer went up is reported at its new extent', async () => {
+/** The book at its first chapter with `phrase` selected, and that selection already heard. */
+const theBookWithWordsSelected = async (phrase: string) => {
   worker.use(...readiumApi());
   await openTheBook();
   await expect.poll(visibleFrameText).toContain('On Attention');
   const recorded = recordEvents();
-  selectInBook('rarest');
+  selectInBook(phrase);
   await expect.poll(() => recorded.selections).toHaveLength(1);
+  return recorded;
+};
+
+test('a selection dragged out after the pointer went up is reported at its new extent', async () => {
+  const recorded = await theBookWithWordsSelected('rarest');
 
   // What a touch handle does: the range grows with no pointer event to say so.
   adjustSelectionInBook('rarest and purest');
@@ -456,12 +462,7 @@ test('the pointer going up and the selection settling report one passage between
 });
 
 test('letting a selection go is reported once, and tapping on is not reported at all', async () => {
-  worker.use(...readiumApi());
-  await openTheBook();
-  await expect.poll(visibleFrameText).toContain('On Attention');
-  const recorded = recordEvents();
-  selectInBook('generosity');
-  await expect.poll(() => recorded.selections).toHaveLength(1);
+  const recorded = await theBookWithWordsSelected('generosity');
 
   tapTheBook();
   await expect.poll(() => recorded.selections).toHaveLength(2);
@@ -469,6 +470,18 @@ test('letting a selection go is reported once, and tapping on is not reported at
 
   tapTheBook();
   tapTheBook();
+  expect(recorded.selections).toHaveLength(2);
+});
+
+test('clearSelection empties the selection in the book and reports it let go', async () => {
+  const recorded = await theBookWithWordsSelected('generosity');
+
+  reader.clearSelection();
+
+  expect(recorded.selections).toHaveLength(2);
+  expect(recorded.selections[1]).toBeNull();
+  expect(visibleFrame()!.contentDocument!.getSelection()?.rangeCount).toBe(0);
+  await afterTheSelectionSettles();
   expect(recorded.selections).toHaveLength(2);
 });
 

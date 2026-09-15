@@ -138,6 +138,8 @@ export interface EbookReader {
   onDecorationActivated(listener: (id: string) => void): () => void;
   /** What the reader has selected in the book, and `null` once they let it go. */
   onSelectionChanged(listener: (selection: EbookSelection | null) => void): () => void;
+  /** Lets go of whatever the reader has selected in the book, and reports it let go. */
+  clearSelection(): void;
   onLocationChanged(listener: (location: EbookLocation) => void): () => void;
   onPageTurnRequested(listener: (direction: PageTurnDirection) => void): () => void;
   /** The reader has moved into a different contents entry; `OpenedEbook.tocHref` is the first. */

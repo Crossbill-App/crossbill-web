@@ -11,6 +11,7 @@ import {
 import { ReaderLoading } from '@/components/reader/ReaderLoading.tsx';
 import { readerPageColors, toEbookAppearance } from '@/components/reader/readerPreferences.ts';
 import { ReaderSettings } from '@/components/reader/ReaderSettings.tsx';
+import { SelectionPopover } from '@/components/reader/SelectionPopover.tsx';
 import { TocDrawer } from '@/components/reader/TocDrawer.tsx';
 import { useEbookReader, type UseEbookReaderOptions } from '@/components/reader/useEbookReader.ts';
 import { useHighlightDecorations } from '@/components/reader/useHighlightDecorations.ts';
@@ -372,6 +373,8 @@ export const ReaderShell = ({
           fontSizeRange={book.fontSizeRange}
         />
       )}
+
+      <SelectionPopover selection={book.selection} onCancel={book.clearSelection} />
     </Box>
   );
 };

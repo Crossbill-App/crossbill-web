@@ -1188,3 +1188,74 @@ test('activating a decoration asks to open its highlight', async () => {
   expect(opened).toEqual([300, 3000]);
   expect(readers).toHaveLength(1);
 });
+
+/** Words well inside the viewport, so the popover has room below them. */
+const A_SELECTION = {
+  location: { ...aFakeLocation(1), text: { highlight: 'rarest and purest' } },
+  rect: { x: 400, y: 300, width: 200, height: 20 },
+};
+
+const theSelectionToolbar = () => page.getByRole('toolbar', { name: 'Selected text' });
+
+test('a selection in the book shows the popover below it', async () => {
+  worker.use(...readiumApi());
+  await anOpenBook();
+
+  readers[0].select(A_SELECTION);
+
+  await expect.element(theSelectionToolbar()).toBeVisible();
+  const selectionBottom = A_SELECTION.rect.y + A_SELECTION.rect.height;
+  await expect
+    .poll(() => theSelectionToolbar().element().getBoundingClientRect().top)
+    .toBeGreaterThanOrEqual(selectionBottom);
+  const { x, y, width, height } = theSelectionToolbar().element().getBoundingClientRect();
+  const onTop = document.elementFromPoint(x + width / 2, y + height / 2);
+  expect(theSelectionToolbar().element().contains(onTop)).toBe(true);
+});
+
+/** The shell with the book on screen and the popover up over a selection in it. */
+const aBookWithASelection = async () => {
+  worker.use(...readiumApi());
+  const screen = await anOpenBook();
+  readers[0].select(A_SELECTION);
+  await expect.element(theSelectionToolbar()).toBeVisible();
+  return screen;
+};
+
+const pressCancel = () => theSelectionToolbar().getByRole('button', { name: 'Cancel' }).click();
+
+test('pressing on the popover leaves focus where it was', async () => {
+  const screen = await aBookWithASelection();
+  const focused = screen.getByRole('button', { name: 'Close reader' }).element() as HTMLElement;
+  focused.focus();
+
+  await pressCancel();
+
+  expect(document.activeElement).toBe(focused);
+});
+
+test('cancel lets the selection go', async () => {
+  await aBookWithASelection();
+
+  await pressCancel();
+
+  expect(readers[0].clearSelectionCalls).toBe(1);
+  await expect.element(theSelectionToolbar()).not.toBeInTheDocument();
+});
+
+test('a selection let go in the book closes the popover', async () => {
+  await aBookWithASelection();
+
+  readers[0].select(null);
+
+  await expect.element(theSelectionToolbar()).not.toBeInTheDocument();
+});
+
+test('a page turn while something is selected lets it go', async () => {
+  await aBookWithASelection();
+
+  readers[0].reportLocation(aFakeLocation(2));
+
+  expect(readers[0].clearSelectionCalls).toBe(1);
+  await expect.element(theSelectionToolbar()).not.toBeInTheDocument();
+});
