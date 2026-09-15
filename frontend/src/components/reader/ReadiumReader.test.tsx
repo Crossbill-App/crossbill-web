@@ -104,12 +104,20 @@ const visibleFrame = () =>
 
 const visibleFrameText = () => visibleFrame()?.contentDocument?.body.textContent ?? '';
 
-/** A reader dragging over words in the chapter on screen, and letting go. */
-const selectInBook = (phrase: string) => {
+/** A selection changing under no pointer, the way a touch handle or a keyboard moves one. */
+const adjustSelectionInBook = (phrase: string) => {
   const chapter = visibleFrame()!.contentDocument!;
   select(chapter, rangeOver(chapter, phrase));
-  chapter.dispatchEvent(new PointerEvent('pointerup', { bubbles: true }));
 };
+
+/** A reader dragging over words in the chapter on screen, and letting go. */
+const selectInBook = (phrase: string) => {
+  adjustSelectionInBook(phrase);
+  visibleFrame()!.contentDocument!.dispatchEvent(new PointerEvent('pointerup', { bubbles: true }));
+};
+
+/** Longer than the engine gives a changing selection to settle. */
+const afterTheSelectionSettles = () => new Promise((resolve) => setTimeout(resolve, 400));
 
 /** The same gesture over nothing, which is what dropping a selection is. */
 const tapTheBook = () => {
@@ -418,6 +426,33 @@ test('a selection is reported against the chapter it was made in, not the one th
 
   await expect.poll(() => recorded.selections).toHaveLength(1);
   expect(recorded.selections[0]?.location.href).toBe(CHAPTER_TWO);
+});
+
+test('a selection dragged out after the pointer went up is reported at its new extent', async () => {
+  worker.use(...readiumApi());
+  await openTheBook();
+  await expect.poll(visibleFrameText).toContain('On Attention');
+  const recorded = recordEvents();
+  selectInBook('rarest');
+  await expect.poll(() => recorded.selections).toHaveLength(1);
+
+  // What a touch handle does: the range grows with no pointer event to say so.
+  adjustSelectionInBook('rarest and purest');
+
+  await expect.poll(() => recorded.selections).toHaveLength(2);
+  expect(recorded.selections[1]?.location.text?.highlight).toBe('rarest and purest');
+});
+
+test('the pointer going up and the selection settling report one passage between them', async () => {
+  worker.use(...readiumApi());
+  await openTheBook();
+  await expect.poll(visibleFrameText).toContain('On Attention');
+  const recorded = recordEvents();
+
+  selectInBook('rarest and purest');
+  await afterTheSelectionSettles();
+
+  expect(recorded.selections).toHaveLength(1);
 });
 
 test('letting a selection go is reported once, and tapping on is not reported at all', async () => {

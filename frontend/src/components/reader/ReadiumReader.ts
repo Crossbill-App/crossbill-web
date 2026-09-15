@@ -32,9 +32,17 @@ import {
   type Link,
   type TimelineItem,
 } from '@readium/shared';
-import { findLast } from 'lodash';
+import { debounce, findLast } from 'lodash';
 
 const DESTROY_TIMEOUT_MS = 2000;
+
+/**
+ * How long a changing selection is given to settle before it is reported.
+ *
+ * A drag fires `selectionchange` on every character it crosses, and a touch
+ * handle keeps firing it for as long as a finger is on it.
+ */
+const SELECTION_SETTLE_MS = 200;
 
 const CONTAINER_MARKER = 'data-ebook-reader';
 
@@ -210,8 +218,8 @@ export class ReadiumReader implements EbookReader {
   /** Each resource of the publication by the URL its frame is built around. */
   private readonly resources = new Map<string, EbookResource>();
   private decorations: EbookDecoration[] = [];
-  /** Whether anything is selected, so that letting a selection go is reported once. */
-  private hasSelection = false;
+  /** The last selection reported, as its own JSON, so the same one is not reported twice. */
+  private reportedSelection: string | null = null;
   private navigator: EpubNavigator | undefined;
   private wrapper: HTMLDivElement | undefined;
   private isOpened = false;
@@ -403,18 +411,36 @@ export class ReadiumReader implements EbookReader {
     }
   }
 
-  /** Reports what is selected in one frame of the book, every time a pointer goes up in it. */
+  /** Reports what is selected in one frame of the book, whenever that changes. */
   private watchSelection(frame: Window): void {
-    frame.document.addEventListener('pointerup', () => {
+    const report = () => {
       if (this.isDestroyed) return;
       const resource = this.resources.get(frame.document.baseURI);
-      const selection = resource ? this.selectionIn(frame, resource) : null;
-      // Every tap in the book ends with nothing selected, and a reader who has
-      // selected nothing has not let anything go.
-      if (!selection && !this.hasSelection) return;
-      this.hasSelection = selection !== null;
-      this.notify(this.selectionListeners, selection);
-    });
+      this.reportSelection(resource ? this.selectionIn(frame, resource) : null);
+    };
+    // A mouse is done the moment it is let go, and waiting out the settling
+    // delay below to say so would leave the reader looking at selected words
+    // and no way to act on them.
+    frame.document.addEventListener('pointerup', report);
+    // Because the pointer going up is not the end of every selection: a touch
+    // handle moves the range after it, and a keyboard selection never involves
+    // a pointer at all.
+    frame.document.addEventListener('selectionchange', debounce(report, SELECTION_SETTLE_MS));
+  }
+
+  /**
+   * One report per passage.
+   *
+   * The two events above overlap by design — a mouse drag settles under both —
+   * and every tap in the book ends with nothing selected, which is not news to
+   * a reader who had selected nothing. Keyed on the location alone: a reflow
+   * that moves the same words is not a new selection.
+   */
+  private reportSelection(selection: EbookSelection | null): void {
+    const key = selection && JSON.stringify(selection.location);
+    if (key === this.reportedSelection) return;
+    this.reportedSelection = key;
+    this.notify(this.selectionListeners, selection);
   }
 
   private selectionIn(frame: Window, resource: EbookResource): EbookSelection | null {
