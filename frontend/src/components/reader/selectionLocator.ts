@@ -9,11 +9,10 @@
  *
  * Whitespace is collapsed on the way out. A chapter's source carries the
  * indentation of its markup between elements, and none of that is text anyone
- * reading the book can see; a quote carrying it would be looked for in a text
- * extraction that never had it. That the collapsing matches what `xpoint-cfi`
- * extracts is reasoned rather than verified, and is the open question of
- * ADR-0004 *Amendment 7*: #751 resolves the first browser-made locator against
- * a real EPUB, and settles it.
+ * reading the book can see, so collapsing keeps the context's few characters
+ * for words. `xpoint-cfi` collapses both sides of its own comparison, and
+ * resolves a quote whether or not a break between blocks reads as a space;
+ * ADR-0004 *Amendment 8* records the check.
  */
 import type { EbookLocation } from '@/components/reader/EbookReader.ts';
 

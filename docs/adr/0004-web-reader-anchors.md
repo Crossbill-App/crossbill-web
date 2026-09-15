@@ -219,12 +219,10 @@ have been.
 
 ## Pending
 
-**One question.** Whether the whitespace the browser normalises out of a quote
-is whitespace `xpoint-cfi` also normalises out, opened by *Amendment 8* and
-stated with its alternatives and its deadline in that amendment's *Open*
-section. The one question *Amendment 6* opened — whether a reverse conversion
+Nothing. The one question *Amendment 6* opened — whether a reverse conversion
 that fails verification should stay a rejected write — is settled by
-*Amendment 7*: it should, and M4.2 (#751) implements it as a 422.
+*Amendment 7*: it should, and M4.2 (#751) implements it as a 422. The
+whitespace question *Amendment 8* opened is settled in that amendment.
 
 ## Consequences
 
@@ -1131,21 +1129,43 @@ This costs longer selectors in documents with few ids. That is the cheaper
 failure: a selector that is merely verbose still resolves, and a selector the
 far end cannot read anchors a highlight nowhere.
 
-### Open: whether a collapsed quote matches what the EPUB extraction holds
+### Settled: a collapsed quote is the text `xpoint-cfi` matches
+
+*Opened and settled 2026-09-15, checked against `xpoint-cfi` v0.1.0 and fixed in
+v0.1.1.*
 
 The helper collapses runs of whitespace to single spaces in `text.before`,
-`text.highlight` and `text.after`, on the reasoning that a chapter's source
-carries its markup indentation and no reader ever sees it. **This is not
-verified against `xpoint-cfi`.** The library's own `_first_run` / `_last_run`
-helpers split extracted text on `\n`, which suggests its text model keeps
-newlines between runs; whether `locator_to_xpoint_range` normalises before
-matching, or searches verbatim, is not established here. The same doubt covers
-the context length: the browser sends 40 characters either side where a derived
-locator carries up to `POINT_CONTEXT_CHARS` (120), which is harmless if matching
-turns on the context *abutting* the quote rather than on its length.
+`text.highlight` and `text.after`. The library compares the same way:
+`locator_to_xpoint_range` hands the quote to `find_quote`, which runs the
+resource text through `normalize_with_map` and the quote and both contexts
+through `normalize_for_comparison`. Each collapses whitespace, turns no-break
+spaces into spaces, and drops soft hyphens and zero-width characters, so
+collapsing in the browser is harmless rather than required.
 
-The alternatives are to send the quote closer to the library's extracted form,
-or to normalise on the backend at the point of matching. **This amendment does
-not settle it.** M4.2 (#751) is the first ticket to resolve a browser-made
-locator against a real EPUB and is where it has to be answered; if collapsing is
-wrong, the fix is in this helper and is small.
+Context length does not matter either. A context confirms a match by ending
+where the quote starts, or starting where it ends, checked with
+`endswith`/`startswith` in both directions, so 40 characters confirms as well as
+more; the library's own derived locators carry 40. `POINT_CONTEXT_CHARS` (120)
+and the `_first_run`/`_last_run` helpers this section first cited belong to the
+backend adapter (`xpoint_cfi_position_anchor_service.py`), where they build
+fallback anchors from an element or a `progression`, and play no part in
+matching a quote.
+
+The check did find a difference in *what the text is*. The library puts a
+newline between consecutive block elements whether or not the markup has
+whitespace there, following KOReader's highlight export; a DOM has no text
+between `</p><p>`, so `Range.toString()` puts nothing. In an EPUB shipped
+without indentation a selection read `here.Second` where the library held
+`here.\nSecond`: a quote crossing the break came back `FUZZY`, a character off
+at each end, and a context crossing it confirmed nothing.
+
+**That is the library's convention to absorb, not every browser client's to
+imitate.** v0.1.1 retries a match weaker than `BOTH_CONTEXTS` over the resource
+text without its block separators — the text a DOM holds — and keeps the
+stronger match. The helper keeps plain `Range.toString()` and drops only U+FEFF,
+which JavaScript's `\s` treats as whitespace and the library deletes.
+
+Measured by replaying about 7,150 random browser-style selections through
+`locator_to_xpoint_range` across the library's 13 test books: v0.1.0 placed
+7,124 at `BOTH_CONTEXTS` and 3 on the wrong text, all at block breaks; v0.1.1
+places 7,135 and none on the wrong text.
