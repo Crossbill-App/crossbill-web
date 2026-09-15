@@ -325,6 +325,10 @@ export class ReadiumReader implements EbookReader {
     const abandoned = this.navigator;
     this.navigator = undefined;
     if (abandoned) {
+      // React has usually removed the host by now, and Readium hides a frame still
+      // in a container by awaiting a reply the dead frame never sends: its observers
+      // outlive it and its blobs are never revoked. A frame out of the page it just drops.
+      this.wrapper?.querySelectorAll('iframe').forEach((frame) => frame.remove());
       // A destroy can hang for the same reason a load did; give it a moment,
       // then let it go.
       let timeout: ReturnType<typeof setTimeout> | undefined;
