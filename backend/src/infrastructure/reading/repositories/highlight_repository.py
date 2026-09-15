@@ -15,7 +15,7 @@ from sqlalchemy.orm import joinedload, selectinload
 from sqlalchemy.orm.attributes import InstrumentedAttribute
 
 from src.application.reading.protocols.highlight_repository import DeviceEdit
-from src.application.web_reader.anchors import Locator
+from src.application.web_reader.anchors import AnchorConfidence, Locator
 from src.domain.common.value_objects import (
     BookId,
     ContentHash,
@@ -197,6 +197,34 @@ class HighlightRepository:
         # Convert back to value objects
         return {ContentHash(hash_str) for hash_str in existing}
 
+    async def find_by_content_hash(
+        self, user_id: UserId, book_id: BookId, content_hash: ContentHash
+    ) -> Highlight | None:
+        """
+        Load the one highlight of a book carrying this content hash, in any state.
+
+        Soft-deleted and device-withheld rows are included: the unique
+        constraint over (user_id, book_id, content_hash) means a writer that
+        finds one has no second row it could create beside it, so it has to see
+        the ones a reader has since deleted as well.
+
+        Args:
+            user_id: User to load for
+            book_id: Book containing the highlight
+            content_hash: The hash to match
+
+        Returns:
+            The matching Highlight domain entity, or None if the book has none
+        """
+        stmt = select(HighlightORM).where(
+            HighlightORM.user_id == user_id.value,
+            HighlightORM.book_id == book_id.value,
+            HighlightORM.content_hash == content_hash.value,
+        )
+        result = await self.db.execute(stmt)
+        orm = result.scalars().one_or_none()
+        return self.mapper.to_domain(orm) if orm else None
+
     async def find_reconcilable_by_content_hashes(
         self, user_id: UserId, book_id: BookId, hashes: list[ContentHash]
     ) -> list[Highlight]:
@@ -367,6 +395,25 @@ class HighlightRepository:
         except Exception:
             await self.db.rollback()
             raise
+
+    async def record_locator(
+        self,
+        highlight_id: HighlightId,
+        locator: Locator,
+        confidence: AnchorConfidence,
+        source_hash: str,
+    ) -> None:
+        """Write the Locator a browser reported for one highlight, with its grade."""
+        await self.db.execute(
+            update(HighlightORM)
+            .where(HighlightORM.id == highlight_id.value)
+            .values(
+                locator=locator.to_dict(),
+                locator_confidence=int(confidence),
+                locator_source_hash=source_hash,
+            )
+        )
+        await self.db.commit()
 
     async def mark_removed_from_devices(
         self,
