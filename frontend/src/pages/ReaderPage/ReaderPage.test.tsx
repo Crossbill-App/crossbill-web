@@ -74,16 +74,6 @@ afterEach(async () => {
   await sleep(100);
 });
 
-test('the book header offers to open the book in the reader', async () => {
-  worker.use(...aReadableBook());
-  worker.use(...readiumApi());
-
-  const screen = await renderApp({ path: '/book/1' });
-  await screen.getByRole('link', { name: 'Open in reader' }).click();
-
-  await expectTheReaderOpen(screen);
-});
-
 test('the book navigation offers to read the book', async () => {
   worker.use(...aReadableBook());
   worker.use(...readiumApi());

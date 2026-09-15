@@ -1,7 +1,6 @@
 import type { BookDetails } from '@/api/generated/model';
 import { BookCover } from '@/components/BookCover.tsx';
 import { IconButtonWithTooltip } from '@/components/buttons/IconButtonWithTooltip.tsx';
-import { OpenInReaderButton } from '@/components/reader/OpenInReaderButton.tsx';
 import { ReadingStageChip } from '@/pages/BookPage/Reflection/ReadingStageChip.tsx';
 import { ManageIcon } from '@/theme/Icons.tsx';
 import { Box, LinearProgress, Tooltip, Typography } from '@mui/material';
@@ -107,7 +106,6 @@ export const BookTitle = ({ book }: BookTitleProps) => {
               size="small"
               sx={titleActionSx}
             />
-            <OpenInReaderButton bookId={book.id} size="small" sx={titleActionSx} />
           </Typography>
 
           <Typography
