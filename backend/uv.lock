@@ -697,7 +697,7 @@ requires-dist = [
     { name = "structlog-sentry", specifier = ">=2.2.1" },
     { name = "tzdata", specifier = ">=2025.3" },
     { name = "uvicorn", extras = ["standard"], specifier = ">=0.44.0,<0.53.0" },
-    { name = "xpoint-cfi", git = "https://github.com/Crossbill-App/xpoint-cfi.git?tag=v0.1.0" },
+    { name = "xpoint-cfi", git = "https://github.com/Crossbill-App/xpoint-cfi.git?tag=v0.1.1" },
 ]
 
 [package.metadata.requires-dev]
@@ -4272,8 +4272,8 @@ wheels = [
 
 [[package]]
 name = "xpoint-cfi"
-version = "0.1.0"
-source = { git = "https://github.com/Crossbill-App/xpoint-cfi.git?tag=v0.1.0#f6dc91fa175e18f226b827d25979ffbc4533fb78" }
+version = "0.1.1"
+source = { git = "https://github.com/Crossbill-App/xpoint-cfi.git?tag=v0.1.1#ffcd80f85e15f791360c146939b7cffd7aafc718" }
 dependencies = [
     { name = "lxml" },
 ]

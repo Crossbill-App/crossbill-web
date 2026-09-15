@@ -35,6 +35,28 @@ export interface EbookDecoration {
   opacity: number;
 }
 
+/** Where something is on the reader's screen, in the coordinates of the page the reader is on. */
+export interface EbookRect {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+}
+
+/**
+ * A passage the reader has selected in the book.
+ *
+ * The location is anchored well enough for another reader to find the same
+ * words -- a selector for the element holding them, the quote, and the text on
+ * either side -- which is what makes a selection into a highlight another
+ * client can place. The rectangle is where those words are on screen, so
+ * something can be put beside them.
+ */
+export interface EbookSelection {
+  location: EbookLocation;
+  rect: EbookRect;
+}
+
 /** One heading of the book's table of contents. */
 export interface EbookTocEntry {
   href: string;
@@ -114,6 +136,8 @@ export interface EbookReader {
   applyDecorations(decorations: EbookDecoration[]): void;
   /** A reader tapped one of the decorations, by its id. */
   onDecorationActivated(listener: (id: string) => void): () => void;
+  /** What the reader has selected in the book, and `null` once they let it go. */
+  onSelectionChanged(listener: (selection: EbookSelection | null) => void): () => void;
   onLocationChanged(listener: (location: EbookLocation) => void): () => void;
   onPageTurnRequested(listener: (direction: PageTurnDirection) => void): () => void;
   /** The reader has moved into a different contents entry; `OpenedEbook.tocHref` is the first. */

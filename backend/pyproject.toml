@@ -240,4 +240,4 @@ timeout_multiplier = 3.0
 # Readium locators (ADR-0004). It is not on PyPI, so it is pinned to a release
 # tag here; bumping it is a deliberate two-repo change, never a range.
 [tool.uv.sources]
-xpoint-cfi = { git = "https://github.com/Crossbill-App/xpoint-cfi.git", tag = "v0.1.0" }
+xpoint-cfi = { git = "https://github.com/Crossbill-App/xpoint-cfi.git", tag = "v0.1.1" }
