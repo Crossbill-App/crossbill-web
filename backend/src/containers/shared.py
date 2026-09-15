@@ -1,6 +1,3 @@
-from typing import Any
-
-import boto3
 from dependency_injector import containers, providers
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -37,7 +34,9 @@ from src.infrastructure.library.queries.book_list_query import BookListQuery
 from src.infrastructure.library.repositories import BookRepository
 from src.infrastructure.library.repositories.chapter_repository import ChapterRepository
 from src.infrastructure.library.repositories.file_repository import FileRepository
-from src.infrastructure.library.repositories.s3_file_repository import S3FileRepository
+from src.infrastructure.library.repositories.file_repository_factory import (
+    build_s3_file_repository,
+)
 from src.infrastructure.library.services.cover_image_service import CoverImageService
 from src.infrastructure.library.services.epub_parser_service import EpubParserService
 from src.infrastructure.library.services.epub_position_index_service import (
@@ -98,18 +97,6 @@ from src.infrastructure.web_reader.services.xpoint_cfi_position_anchor_service i
 )
 
 
-def _create_s3_file_repository(settings: Any) -> S3FileRepository:  # noqa: ANN401
-    """Create an S3FileRepository with a configured boto3 client."""
-    client = boto3.client(
-        "s3",
-        endpoint_url=settings.S3_ENDPOINT_URL,
-        aws_access_key_id=settings.S3_ACCESS_KEY_ID,
-        aws_secret_access_key=settings.S3_SECRET_ACCESS_KEY,
-        region_name=settings.S3_REGION,
-    )
-    return S3FileRepository(s3_client=client, bucket_name=settings.S3_BUCKET_NAME)
-
-
 class SharedContainer(containers.DeclarativeContainer):
     """Shared repositories, infrastructure services, and domain services."""
 
@@ -135,7 +122,7 @@ class SharedContainer(containers.DeclarativeContainer):
             lambda settings: "s3" if settings.s3_enabled else "local", settings=settings
         ),
         s3=providers.Singleton(
-            _create_s3_file_repository,
+            build_s3_file_repository,
             settings=settings,
         ),
         local=providers.Factory(FileRepository),

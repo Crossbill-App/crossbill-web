@@ -8,7 +8,6 @@ For embedded mode (in-process with FastAPI), use create_embedded_worker().
 import signal
 from typing import ClassVar
 
-import boto3
 import structlog
 from saq import Queue, Worker
 from saq.types import Context, SettingsDict
@@ -27,8 +26,7 @@ from src.infrastructure.jobs.tasks.embedding_task_handler import EmbeddingTaskHa
 from src.infrastructure.jobs.tasks.job_lifecycle_handler import JobLifecycleHandler
 from src.infrastructure.library.repositories import BookRepository
 from src.infrastructure.library.repositories.chapter_repository import ChapterRepository
-from src.infrastructure.library.repositories.file_repository import FileRepository
-from src.infrastructure.library.repositories.s3_file_repository import S3FileRepository
+from src.infrastructure.library.repositories.file_repository_factory import build_file_repository
 from src.infrastructure.library.services.epub_text_extraction_service import (
     EpubTextExtractionService,
 )
@@ -62,21 +60,6 @@ def _get_queue() -> Queue:
     return _queue
 
 
-def _build_file_repo() -> S3FileRepository | FileRepository:
-    """Build the appropriate file repository based on config."""
-    settings = _get_app_settings()
-    if settings.s3_enabled:
-        client = boto3.client(
-            "s3",
-            endpoint_url=settings.S3_ENDPOINT_URL,
-            aws_access_key_id=settings.S3_ACCESS_KEY_ID,
-            aws_secret_access_key=settings.S3_SECRET_ACCESS_KEY,
-            region_name=settings.S3_REGION,
-        )
-        return S3FileRepository(s3_client=client, bucket_name=settings.S3_BUCKET_NAME)  # type: ignore[arg-type]
-    return FileRepository()
-
-
 def _build_embedding_enqueuer(db: AsyncSession) -> EmbeddingEnqueuerProtocol:
     """Build an EmbeddingEnqueuer wired onto the worker's own SAQ queue.
 
@@ -106,7 +89,7 @@ def _build_digest_handler(db: AsyncSession) -> DigestTaskHandler:
         chapter_repo=ChapterRepository(db=db),
         text_extraction_service=EpubTextExtractionService(),
         book_repo=BookRepository(db=db),
-        file_repo=_build_file_repo(),
+        file_repo=build_file_repository(_get_app_settings()),
         ai_digest_service=AIService(usage_repository=AIUsageRepository(db=db)),
         embedding_enqueuer=_build_embedding_enqueuer(db),
     )

@@ -58,13 +58,17 @@ class XPointCfiPositionAnchorService:
         self, epub_content: bytes, ranges: Mapping[K, XPointRange]
     ) -> dict[K, Locator | None]:
         """Derive a Locator per range, or ``None`` where that range does not resolve."""
-        return await asyncio.to_thread(range_locators, epub_content, ranges)
+        if not ranges:
+            return {}
+        return await asyncio.to_thread(_converted, epub_content, ranges, _range_to_locator)
 
     async def locators_for_xpoints[K: Hashable](
         self, epub_content: bytes, points: Mapping[K, XPoint]
     ) -> dict[K, Locator | None]:
         """Derive a caret Locator per position, or ``None`` where one does not resolve."""
-        return await asyncio.to_thread(point_locators, epub_content, points)
+        if not points:
+            return {}
+        return await asyncio.to_thread(_converted, epub_content, points, _point_to_locator)
 
     async def xpoint_range_for_locator(self, epub_content: bytes, locator: Locator) -> AnchorMatch:
         """Resolve one browser-made Locator back to the canonical coordinates."""
@@ -74,28 +78,6 @@ class XPointCfiPositionAnchorService:
         """Report whether a Locator's quote is the text that was stored."""
         normalize = xpoint_cfi.normalize_for_comparison
         return normalize(locator.text.highlight or "") == normalize(expected_text)
-
-
-def range_locators[K: Hashable](
-    epub_content: bytes, ranges: Mapping[K, XPointRange]
-) -> dict[K, Locator | None]:
-    """Derive a Locator per range, on the calling thread.
-
-    The synchronous way in, for a caller with no event loop to hand the work to
-    -- an Alembic migration. Everything in a request goes through the service.
-    """
-    if not ranges:
-        return {}
-    return _converted(epub_content, ranges, _range_to_locator)
-
-
-def point_locators[K: Hashable](
-    epub_content: bytes, points: Mapping[K, XPoint]
-) -> dict[K, Locator | None]:
-    """Derive a caret Locator per position, on the calling thread."""
-    if not points:
-        return {}
-    return _converted(epub_content, points, _point_to_locator)
 
 
 def _converted[K: Hashable, P](
