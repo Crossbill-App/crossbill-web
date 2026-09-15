@@ -48,6 +48,16 @@ class BookRepository:
 
         return self.mapper.to_domain(orm_model)
 
+    async def find_all_with_ebook_file(self) -> list[Book]:
+        """List every book with a stored EPUB, in id order, across all users.
+
+        The one listing here that no user owns: it exists for the one-off
+        Readium backfill, which fills a backlog on behalf of everybody.
+        """
+        stmt = select(BookORM).where(BookORM.ebook_file.is_not(None)).order_by(BookORM.id)
+        result = await self.db.execute(stmt)
+        return [self.mapper.to_domain(orm_model) for orm_model in result.scalars()]
+
     async def save(self, book: Book) -> Book:
         """Persist book to database."""
         if book.id.value == 0:

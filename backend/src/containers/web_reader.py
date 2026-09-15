@@ -3,6 +3,9 @@ from dependency_injector import containers, providers
 from src.application.web_reader.commands.backfill_book_locators_use_case import (
     BackfillBookLocatorsUseCase,
 )
+from src.application.web_reader.commands.backfill_readium_rows_use_case import (
+    BackfillReadiumRowsUseCase,
+)
 from src.application.web_reader.commands.save_reading_position_use_case import (
     SaveReadingPositionUseCase,
 )
@@ -45,12 +48,22 @@ class WebReaderContainer(containers.DeclarativeContainer):
     web_reading_position_repository = providers.Dependency()
     position_index_service = providers.Dependency()
 
-    # Ingest rather than a read: driven by the library module's EPUB upload, and by #841's worker
+    # Ingest rather than a read: driven by the library module's EPUB upload and by #841's backfill
     backfill_book_locators_use_case = providers.Factory(
         BackfillBookLocatorsUseCase,
         highlight_repository=highlight_repository,
         session_repository=reading_session_repository,
         position_anchor_service=position_anchor_service,
+    )
+    # No request reaches this one: migration 076 runs it through its own
+    # composition root. Declared here so the composition is stated in one place.
+    backfill_readium_rows_use_case = providers.Factory(
+        BackfillReadiumRowsUseCase,
+        book_repository=book_repository,
+        file_repository=file_repository,
+        publication_parser=publication_parser,
+        publication_repository=publication_repository,
+        backfill_book_locators_use_case=backfill_book_locators_use_case,
     )
 
     # Commands
