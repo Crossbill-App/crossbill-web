@@ -10,7 +10,10 @@
  * Whitespace is collapsed on the way out. A chapter's source carries the
  * indentation of its markup between elements, and none of that is text anyone
  * reading the book can see; a quote carrying it would be looked for in a text
- * extraction that never had it.
+ * extraction that never had it. That the collapsing matches what `xpoint-cfi`
+ * extracts is reasoned rather than verified, and is the open question of
+ * ADR-0004 *Amendment 7*: #751 resolves the first browser-made locator against
+ * a real EPUB, and settles it.
  */
 import type { EbookLocation } from '@/components/reader/EbookReader.ts';
 
@@ -57,8 +60,8 @@ const plainIdOf = (element: Element): string | null => {
  * `body` at the root and `tag:nth-child(n)` for every step below it — rather
  * than the wider one Readium's own injected generator emits. Both ends of the
  * round trip have to agree on a selector: the backend resolves these against a
- * parsed EPUB rather than with `querySelector` (ADR-0004 §2), and this is the
- * shape its resolver is exercised with.
+ * parsed EPUB rather than with `querySelector`, and this is the shape its
+ * resolver is exercised with. ADR-0004 *Amendment 8* has the reasoning.
  */
 const selectorSteps = (element: Element): string[] => {
   const id = plainIdOf(element);
