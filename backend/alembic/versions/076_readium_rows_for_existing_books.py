@@ -17,8 +17,10 @@ xpointer, and neither can be restated in SQL or in a few lines of Python.
 Failure policy: a book whose file is missing, whose archive is unreadable, or
 whose xpointers do not parse is logged and skipped, and the run carries on --
 that is one book's data being wrong, and the deploy must not hinge on it. A
-database error is not contained: it says the schema or the connection is not
-what this migration assumed, and it is allowed to fail the upgrade loudly.
+database error, or a file store that errors rather than answering "not there"
+(an S3 refusal or timeout, a local I/O fault), is not contained: it says the
+deployment is not what this migration assumed, and it is allowed to fail the
+upgrade loudly rather than mark 076 applied with books silently left behind.
 
 Revision ID: 076
 Revises: 075
@@ -113,10 +115,8 @@ _UPDATE_SESSION = (
     )
 )
 
-# A session's endpoints are derived in one call and written back to two columns,
-# so they are keyed apart and rejoined the way ``session_endpoints`` does it for
-# the ingest paths -- spelled out here because a migration is frozen against the
-# code it shipped with.
+# Keyed apart and rejoined as ``session_endpoints`` does it, restated so this
+# migration stays frozen.
 _START = "start"
 _END = "end"
 
@@ -185,8 +185,6 @@ def _backfill_book(
     try:
         _store_publication(connection, book_id, file_name, content, source_hash)
         summary.publications_stored += 1
-    # A statement that fails says the schema or the connection is not what this
-    # migration assumed, which is no book's data problem: it fails the upgrade.
     except SQLAlchemyError:
         raise
     except Exception:

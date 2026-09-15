@@ -271,7 +271,7 @@ async def test_a_book_whose_file_is_not_an_epub_is_counted_failed_and_left_alone
     assert summary.publications_stored == 1
 
 
-async def test_deleted_xpointless_and_fileless_rows_are_never_placed(
+async def test_deleted_xpointless_malformed_and_fileless_rows_are_never_placed(
     db_session: AsyncSession, test_user: models.User, book: models.Book
 ) -> None:
     deleted = await xpointed_highlight(
@@ -284,12 +284,15 @@ async def test_deleted_xpointless_and_fileless_rows_are_never_placed(
     xpointless = await xpointed_highlight(
         db_session, book, test_user.id, text="No xpoints at all", start=None, end=None
     )
+    malformed = await xpointed_highlight(
+        db_session, book, test_user.id, text="Malformed xpointer", start="garbage", end="garbage"
+    )
     fileless_book = await book_with_epub(db_session, test_user.id, "No File", ebook_file=None)
     on_fileless = await xpointed_highlight(db_session, fileless_book, test_user.id)
 
     summary = await run_backfill(db_session, {EPUB_FILE: MINIMAL_EPUB})
 
-    for untouched_id in (deleted.id, xpointless.id, on_fileless.id):
+    for untouched_id in (deleted.id, xpointless.id, malformed.id, on_fileless.id):
         row = await stored_highlight(db_session, untouched_id)
         assert row.locator is None
         assert row.locator_source_hash is None
