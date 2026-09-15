@@ -23,6 +23,7 @@ import { useMutation, useQuery } from '@tanstack/react-query';
 import type {
   BookHighlightSearchResponse,
   CollectionResponseHighlightLocatorResponse,
+  CreatedHighlightResponse,
   HTTPValidationError,
   HighlightDeleteRequest,
   HighlightDeleteResponse,
@@ -30,6 +31,7 @@ import type {
   HighlightSyncRequest,
   HighlightSyncResponse,
   SearchBookHighlightsParams,
+  SelectionHighlightCreate,
 } from '../model';
 
 import { axiosInstance } from '../../axios-instance.ts';
@@ -391,6 +393,97 @@ export function useSearchBookHighlights<
   return withQueryKey(query, queryOptions.queryKey);
 }
 
+/**
+ * Store a passage the reader selected in the browser.
+ *
+ * The selection is converted to the canonical KOReader xpointers before anything
+ * is stored (ADR-0004 §2) and refused with 422 if the book does not hold the
+ * selected text, or holds it in so many places that which one was meant cannot be
+ * said. What is stored is an ordinary highlight, so it reaches the e-reader
+ * through the sync that already exists and shows up in every view that renders
+ * one.
+ *
+ * The same passage marked twice is one highlight: a selection whose text the book
+ * already holds answers **200** with the stored highlight instead of 201, and one
+ * the reader had deleted comes back rather than being stored again. That stored
+ * highlight may sit at another occurrence of the same words, so a reader that
+ * needs to draw it should ask ``GET /highlights/{id}/locator`` where it is rather
+ * than assume it is where this selection was.
+ * @summary Create Highlight
+ */
+export const createHighlight = (
+  bookId: number,
+  selectionHighlightCreate: SelectionHighlightCreate,
+  signal?: AbortSignal
+) => {
+  return axiosInstance<CreatedHighlightResponse>({
+    url: `/api/v1/books/${bookId}/highlights`,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    data: selectionHighlightCreate,
+    signal,
+  });
+};
+
+export const getCreateHighlightMutationOptions = <TError = void, TContext = unknown>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof createHighlight>>,
+    TError,
+    { bookId: number; data: SelectionHighlightCreate },
+    TContext
+  >;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof createHighlight>>,
+  TError,
+  { bookId: number; data: SelectionHighlightCreate },
+  TContext
+> => {
+  const mutationKey = ['createHighlight'];
+  const { mutation: mutationOptions } = options
+    ? options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey } };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof createHighlight>>,
+    { bookId: number; data: SelectionHighlightCreate }
+  > = (props) => {
+    const { bookId, data } = props ?? {};
+
+    return createHighlight(bookId, data);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type CreateHighlightMutationResult = NonNullable<
+  Awaited<ReturnType<typeof createHighlight>>
+>;
+export type CreateHighlightMutationBody = SelectionHighlightCreate;
+export type CreateHighlightMutationError = void;
+
+/**
+ * @summary Create Highlight
+ */
+export const useCreateHighlight = <TError = void, TContext = unknown>(
+  options?: {
+    mutation?: UseMutationOptions<
+      Awaited<ReturnType<typeof createHighlight>>,
+      TError,
+      { bookId: number; data: SelectionHighlightCreate },
+      TContext
+    >;
+  },
+  queryClient?: QueryClient
+): UseMutationResult<
+  Awaited<ReturnType<typeof createHighlight>>,
+  TError,
+  { bookId: number; data: SelectionHighlightCreate },
+  TContext
+> => {
+  return useMutation(getCreateHighlightMutationOptions(options), queryClient);
+};
 /**
  * Soft delete highlights from a book.
  *

@@ -2,6 +2,7 @@ from dependency_injector import containers, providers
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.application.reading.services.label_resolution_service import LabelResolutionService
+from src.domain.library.services.chapter_position_resolver import ChapterPositionResolver
 from src.domain.reading.services.deduplication_service import HighlightDeduplicationService
 from src.domain.reading.services.highlight_style_resolver import HighlightStyleResolver
 from src.domain.reading.services.library_reading_activity_calculator import (
@@ -148,6 +149,7 @@ class SharedContainer(containers.DeclarativeContainer):
 
     # Domain services
     highlight_deduplication_service = providers.Factory(HighlightDeduplicationService)
+    chapter_position_resolver = providers.Factory(ChapterPositionResolver)
     highlight_style_resolver = providers.Factory(HighlightStyleResolver)
     reading_activity_calculator = providers.Factory(ReadingActivityCalculator)
     reading_statistics_calculator = providers.Factory(

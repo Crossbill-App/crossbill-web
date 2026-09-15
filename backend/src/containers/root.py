@@ -101,6 +101,10 @@ class RootContainer(containers.DeclarativeContainer):
         position_anchor_service=shared.position_anchor_service,
         web_reading_position_repository=shared.web_reading_position_repository,
         position_index_service=shared.epub_position_index_service,
+        chapter_repository=shared.chapter_repository,
+        highlight_style_repository=shared.highlight_style_repository,
+        chapter_position_resolver=shared.chapter_position_resolver,
+        embedding_enqueuer=embedding_enqueuer,
     )
 
     library = providers.Container(

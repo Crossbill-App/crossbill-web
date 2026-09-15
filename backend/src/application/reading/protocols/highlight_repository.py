@@ -3,7 +3,7 @@ from dataclasses import dataclass
 from datetime import datetime as dt
 from typing import Protocol
 
-from src.application.web_reader.anchors import Locator
+from src.application.web_reader.anchors import AnchorConfidence, Locator
 from src.domain.common.value_objects import ContentHash, XPointRange
 from src.domain.common.value_objects.ids import (
     BookId,
@@ -48,6 +48,20 @@ class HighlightRepositoryProtocol(Protocol):
         self, user_id: UserId, book_id: BookId, hashes: list[ContentHash]
     ) -> set[ContentHash]: ...
 
+    async def find_by_content_hash(
+        self, user_id: UserId, book_id: BookId, content_hash: ContentHash
+    ) -> Highlight | None:
+        """Load the one highlight of a book carrying this content hash, whatever its state.
+
+        Soft-deleted and device-withheld highlights are included, unlike
+        :meth:`find_reconcilable_by_content_hashes`. A unique constraint over
+        ``(user_id, book_id, content_hash)`` makes any matching row *the* row
+        the same text can be stored as, so a writer that means to dedupe has to
+        see the ones a reader has since deleted too -- there is no second row
+        for it to create beside them.
+        """
+        ...
+
     async def find_reconcilable_by_content_hashes(
         self, user_id: UserId, book_id: BookId, hashes: list[ContentHash]
     ) -> list[Highlight]:
@@ -83,6 +97,23 @@ class HighlightRepositoryProtocol(Protocol):
         self, locators: Mapping[HighlightId, Locator | None], source_hash: str
     ) -> None:
         """Write the derived Locator and its source digest onto stored highlights."""
+        ...
+
+    async def record_locator(
+        self,
+        highlight_id: HighlightId,
+        locator: Locator,
+        confidence: AnchorConfidence,
+        source_hash: str,
+    ) -> None:
+        """Write the Locator a browser reported, with the grade it resolved at.
+
+        For a highlight the browser made, where the Locator is the input and the
+        xpointer beside it is what was derived (ADR-0004, *Amendment 6*), so
+        nothing is derived back from that xpointer. The grade is the reverse
+        conversion's own confidence -- what ``locator_confidence`` was added for
+        and the forward path has none of, leaving it null.
+        """
         ...
 
     async def mark_removed_from_devices(
