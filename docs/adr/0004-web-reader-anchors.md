@@ -347,9 +347,27 @@ and it has to know in order to re-post before it does.
   ship builds one.
 - **Flags** are the refresh cookie's, for the same reasons: `httpOnly`,
   `Secure` unless `COOKIE_SECURE` says otherwise (which is what lets a
-  plain-http development server work), `SameSite=Strict` — the reader and the
-  API are the same site, so the navigator's own loads carry it while nothing
-  off-site can make a browser spend it.
+  plain-http development server work).
+
+  `SameSite` is **not** the refresh cookie's. *Corrected 2026-09-15 (#838),
+  against what R1 shipped.* `Strict` was chosen on the reasoning that "the
+  reader and the API are the same site", which is true of every request the app
+  makes and false of the ones this cookie exists for. A chapter's own images,
+  stylesheets and fonts are asked for by the `blob:` document Readium builds,
+  and **WebKit counts that document cross-site**: under `Strict` — and under
+  `Lax`, which is no better — Safari sends no cookie at all, so every image in
+  every book 401s and the reader draws a broken image where the page should be.
+  Chromium counts the same document same-site, which is why only Safari ever
+  showed it and why Chromium-only tests could not.
+
+  The cookie is therefore `SameSite=None`, falling back to `Lax` where
+  `COOKIE_SECURE` is off, because `None` without `Secure` is a cookie the
+  browser rejects outright rather than merely withholds. What `None` costs is
+  bounded by what the cookie already is: every route it authenticates is a GET
+  of one book's files, path-scoped and expiring with the access token that
+  minted it, so a cross-site embed can spend it only for a response it cannot
+  read for want of CORS. `PUT .../reading-position` is Bearer-only and stays
+  that way.
 - **TTL** is the publication token's own lifetime **as a ceiling, capped by what
   is left of the access token actually being spent** — the cookie's `exp` is the
   earlier of the two, and `Max-Age` and `expires_in` are that real number. The
