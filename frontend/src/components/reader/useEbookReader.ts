@@ -14,6 +14,9 @@ import { useCallback, useEffect, useRef, useState, type RefObject } from 'react'
 /** How long a book has to appear before the reader is told it never will. */
 const BOOT_TIMEOUT_MS = 15_000;
 
+/** How long finishing a landing may hold the page back before the book is shown where it opened. */
+const FINISH_LANDING_TIMEOUT_MS = 3_000;
+
 /** How an attempt at a book ended. */
 type EbookReaderOutcome = 'open' | 'missing' | 'error' | 'timeout';
 
@@ -41,6 +44,8 @@ export interface UseEbookReaderOptions {
   onLocationReported?: (location: EbookLocation, arriving: boolean) => void;
   /** The id of a decoration the reader tapped. */
   onDecorationActivated?: (id: string) => void;
+  /** Where to move the book once it has opened, before it is shown; `null` shows it where it opened. */
+  finishLanding?: (opened: OpenedEbook) => EbookLocation | null;
 }
 
 export interface EbookReaderState {
@@ -88,6 +93,7 @@ export const useEbookReader = ({
   bootTimeoutMs = BOOT_TIMEOUT_MS,
   onLocationReported,
   onDecorationActivated,
+  finishLanding,
 }: UseEbookReaderOptions): EbookReaderState => {
   const [outcome, setOutcome] = useState<EbookReaderOutcome | null>(null);
   const [pageCount, setPageCount] = useState(0);
@@ -119,6 +125,10 @@ export const useEbookReader = ({
   useEffect(() => {
     activatedRef.current = onDecorationActivated;
   }, [onDecorationActivated]);
+  const finishLandingRef = useRef(finishLanding);
+  useEffect(() => {
+    finishLandingRef.current = finishLanding;
+  }, [finishLanding]);
   // And again, so that an answer arriving a second time cannot rebuild the
   // reader around it: where a book opens is settled when it opens. This effect
   // has to stay declared above the boot effect, which reads the ref on the very
@@ -145,9 +155,10 @@ export const useEbookReader = ({
     const reader = createReader(element);
     readerRef.current = reader;
     reader.applyDecorations(decorationsRef.current);
-    // Read once per attempt: a retry after a refusal offers nothing.
     const offered = refusedRef.current ? null : initialLocationRef.current;
     const cancel = new AbortController();
+    // Read through a call: TypeScript would carry a check's narrowing across an await.
+    const isCancelled = () => cancel.signal.aborted;
     const signal = AbortSignal.any([cancel.signal, AbortSignal.timeout(bootTimeoutMs)]);
     let isOpen = false;
     const unsubscribes = [
@@ -169,23 +180,36 @@ export const useEbookReader = ({
       }),
     ];
 
-    const onOpened = (opened: OpenedEbook) => {
-      if (cancel.signal.aborted) return;
+    const onOpened = async (opened: OpenedEbook) => {
+      if (isCancelled()) return;
       // The place the book settled on may never have been reported as a change,
       // so this is the only report a writer has to seed itself with.
       reportedRef.current?.(opened.location, true);
-      isOpen = true;
       setPageCount(opened.pageCount);
       setLocation(opened.location);
       setToc(opened.toc);
       setCurrentTocHref(opened.tocHref);
       setFontSizeRange(opened.fontSizeRange);
       setLandedAt(opened.landedAt);
+      const destination = finishLandingRef.current?.(opened);
+      if (destination) {
+        // A move that never finishes still owes the reader the book, where it opened.
+        let timeout: ReturnType<typeof setTimeout> | undefined;
+        await Promise.race([
+          reader.goTo(destination).catch(() => {}),
+          new Promise((resolve) => {
+            timeout = setTimeout(resolve, FINISH_LANDING_TIMEOUT_MS);
+          }),
+        ]);
+        clearTimeout(timeout);
+        if (isCancelled()) return;
+      }
+      isOpen = true;
       setOutcome('open');
     };
     const onFailed = (error: unknown) => {
       // The one rejection that means nothing: this effect was cleaned up.
-      if (cancel.signal.aborted) return;
+      if (isCancelled()) return;
       // A book that would not open at the reader's place may still open at its
       // beginning, and losing a bookmark must not cost them the book. Only for
       // a failure that could be the landing, though: the publication is fetched

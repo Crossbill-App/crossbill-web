@@ -133,6 +133,20 @@ export const aHighlightLocator = (highlightId: number): HighlightLocatorResponse
   },
 });
 
+/** Which of chapter two's 240 identical paragraphs `aPassage` is in. */
+export const PASSAGE_SELECTOR = 'body > p:nth-of-type(200)';
+
+/** A highlight deep in chapter two, placed as the server places one: a selector and a quote, no position. */
+export const aPassage = (highlightId: number): HighlightLocatorResponse => ({
+  highlight_id: highlightId,
+  locator: {
+    href: 'resources/OEBPS/chapter2.xhtml',
+    type: 'application/xhtml+xml',
+    locations: { progression: 0.83, cssSelector: PASSAGE_SELECTOR },
+    text: { highlight: 'rarest and purest' },
+  },
+});
+
 /** A highlight the server could not find anywhere in the EPUB. */
 export const anUnplacedHighlight = (highlightId: number): HighlightLocatorResponse => ({
   highlight_id: highlightId,

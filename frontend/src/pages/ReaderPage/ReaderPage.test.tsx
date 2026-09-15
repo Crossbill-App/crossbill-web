@@ -10,13 +10,17 @@ import {
   aDetailedPositionList,
   aHighlightLocator,
   aManifest,
+  anUnplacedHighlight,
+  aPassage,
   aResumePosition,
   nowhereToResume,
+  PASSAGE_SELECTOR,
 } from '@tests/fixtures/publication';
 import { drawnOn, drawnRanges } from '@tests/harness/paintedHighlights';
 import { renderApp } from '@tests/harness/renderApp';
 import { bookApi } from '@tests/msw/bookApi';
 import {
+  highlightLocatorApi,
   highlightLocatorsApi,
   noPublication,
   readingPositionApi,
@@ -857,6 +861,95 @@ test('coming back to the tab leaves the reader where they were reading', async (
   await expectPage(screen, 'Page 2 of 2 · 50%');
 });
 
+const PLACED_TEXT = 'Attention is the rarest and purest form of generosity.';
+const UNPLACED_TEXT = 'The map is not the territory.';
+
+const aBookMarkedAtThePassage = () => {
+  const highlights = [aHighlight({ id: 302, text: PLACED_TEXT })];
+  worker.use(...bookApi({ book: aBookDetails({ chapters: [aChapter({ highlights })] }) }).handlers);
+  worker.use(...readiumApi({ positions: aDetailedPositionList() }));
+  const resume = readingPositionApi(aResumePosition());
+  worker.use(...resume.handlers);
+  worker.use(...highlightLocatorsApi([aPassage(302)]));
+  worker.use(...highlightLocatorApi([aPassage(302)]));
+  return resume.writes;
+};
+
+const aJumpToAPassage = async () => {
+  const writes = aBookMarkedAtThePassage();
+  const screen = await renderApp({ path: '/book/1/read?highlightId=302' });
+  return { screen, writes };
+};
+
+// The page readout cannot tell: opening at the progression alone lands a page short
+// of the passage and reports the same position.
+const isThePassageOnThePage = () =>
+  [...document.querySelectorAll('iframe')].some((frame) => {
+    const paragraph = frame.contentDocument?.querySelector(PASSAGE_SELECTOR);
+    if (!paragraph || frame.style.visibility === 'hidden') return false;
+    const { left } = paragraph.getBoundingClientRect();
+    return left >= 0 && left < frame.getBoundingClientRect().width;
+  });
+
+const expectThePassageOnThePage = () =>
+  expect.poll(isThePassageOnThePage, { timeout: 10_000 }).toBe(true);
+
+test('a jump lands on the page holding the passage', async () => {
+  await aJumpToAPassage();
+
+  await expectThePassageOnThePage();
+});
+
+/** A jump to highlight 302, which the server cannot place, made in a chapter of this name. */
+const aJumpToAnUnplacedHighlightIn = async (chapterName: string) => {
+  const highlights = [aHighlight({ id: 302 })];
+  worker.use(
+    ...bookApi({
+      book: aBookDetails({ chapters: [aChapter({ name: chapterName, highlights })] }),
+    }).handlers
+  );
+  worker.use(...readiumApi());
+  worker.use(...highlightLocatorApi([anUnplacedHighlight(302)]));
+  return await renderApp({ path: '/book/1/read?highlightId=302' });
+};
+
+test('a highlight that cannot be placed opens its chapter, and says so', async () => {
+  const screen = await aJumpToAnUnplacedHighlightIn('On Memory');
+
+  await expectPage(screen, 'Page 2 of 2 · 50%');
+  await expect
+    .element(
+      screen.getByRole('alert').filter({
+        hasText:
+          "Couldn't find this highlight's exact place, so the book opened at the start of its chapter.",
+      })
+    )
+    .toBeVisible();
+});
+
+test('a highlight whose chapter is not in this edition opens at the start, and says so', async () => {
+  const screen = await aJumpToAnUnplacedHighlightIn('On Forgetting');
+
+  await expectPage(screen, 'Page 1 of 2 · 0%');
+  await expect
+    .element(
+      screen.getByRole('alert').filter({
+        hasText: "Couldn't find this highlight's place, so the book opened at the start.",
+      })
+    )
+    .toBeVisible();
+});
+
+test('jumping to a highlight writes no reading position', { timeout: 60_000 }, async () => {
+  const { writes } = await aJumpToAPassage();
+  await expectThePassageOnThePage();
+
+  // Past the five-second debounce with room to spare.
+  await sleep(8_000);
+
+  expect(writes).toEqual([]);
+});
+
 test('a book is opened with its highlights drawn on the page', async () => {
   const highlight = aHighlight({ id: 300, label: { ui_color: '#F59E0B' } });
   worker.use(
@@ -870,9 +963,6 @@ test('a book is opened with its highlights drawn on the page', async () => {
 
   await expect.poll(() => drawnOn(document), { timeout: 5_000 }).toEqual(['p:rarest and purest']);
 });
-
-const PLACED_TEXT = 'Attention is the rarest and purest form of generosity.';
-const UNPLACED_TEXT = 'The map is not the territory.';
 
 /** Only 300 is placed, so a tap is unambiguous while the dialog still pages over both. */
 const aBookWithAPaintedHighlight = async ({
@@ -921,6 +1011,18 @@ test('tapping a highlight opens it', async () => {
 
   await expectTheDialogShowing(screen, PLACED_TEXT);
   expect(screen.router.state.location.search).toEqual({ highlightId: 300 });
+});
+
+test('a highlight opened in the reader offers no way into the reader', async () => {
+  const screen = await aBookWithAPaintedHighlight();
+
+  await tapTheHighlight();
+
+  const dialog = screen.getByRole('dialog');
+  await expect
+    .element(dialog.getByRole('button', { name: 'Copy link to highlight' }))
+    .toBeVisible();
+  expect(dialog.getByRole('link', { name: 'Open in reader' }).query()).toBeNull();
 });
 
 test('closing a tapped highlight goes back to the book', async () => {
@@ -999,4 +1101,25 @@ test('arrow keys turn the page again once the dialog is closed', async () => {
   await userEvent.keyboard('{ArrowRight}');
 
   await expectPage(screen, 'Page 2 of 2 · 50%');
+});
+
+test('arriving takes the highlight back out of the address', async () => {
+  const { screen } = await aJumpToAPassage();
+  await expectThePassageOnThePage();
+
+  await expect.poll(() => screen.router.state.location.search).toEqual({});
+});
+
+test('tapping the highlight the reader arrived at opens it, and Back closes it', async () => {
+  const { screen } = await aJumpToAPassage();
+  await expectThePassageOnThePage();
+  await expect.poll(() => drawnRanges(document), { timeout: 5_000 }).toHaveLength(1);
+  const before = historyIndex(screen);
+
+  await tapTheHighlight();
+  await expectTheDialogShowing(screen, PLACED_TEXT);
+  window.history.back();
+
+  await expectBackAtTheBook(screen, before);
+  await expectThePassageOnThePage();
 });

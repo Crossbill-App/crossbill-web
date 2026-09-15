@@ -106,12 +106,13 @@ export const HighlightCard = memo(function HighlightCard({
   };
 
   return (
+    // The card is a button, and a link inside a button is invalid HTML.
     <HoverableCardActionArea
       id={`highlight-${highlight.id}`}
       onClick={handleOpenModal}
       sx={{
         py: 3.5,
-        px: 2.5,
+        pl: 2.5,
       }}
     >
       <Box sx={{ flex: 1, minWidth: 0 }}>

@@ -288,6 +288,21 @@ test('goTo lands on the location it is given', async () => {
   await expect.poll(() => recorded.positions).toContain(2);
 });
 
+test('goTo with a quote lands on its words inside the element the selector names, not on their first occurrence', async () => {
+  worker.use(...readiumApi());
+  await openTheBook();
+  const progressions: (number | undefined)[] = [];
+  reader.onLocationChanged((location) => progressions.push(location.locations.progression));
+
+  await reader.goTo({
+    ...inChapterTwo({ cssSelector: 'body > p:nth-of-type(200)' }),
+    text: { highlight: 'rarest and purest' },
+  });
+
+  // The page holding paragraph 200 of 240 reports 0.89; the quote's first occurrence, 0.
+  await expect.poll(() => progressions[progressions.length - 1]).toBeGreaterThan(0.5);
+});
+
 test('goTo rejects a location the book does not contain', async () => {
   worker.use(...readiumApi());
   await openTheBook();

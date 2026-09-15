@@ -15,6 +15,7 @@ const SESSION_PATH = '/api/v1/readium/books/:bookId/session';
 const RESOURCE_PATH = '/api/v1/readium/books/:bookId/resources/*';
 const POSITION_PATH = '/api/v1/readium/books/:bookId/reading-position';
 const HIGHLIGHT_LOCATORS_PATH = '/api/v1/books/:bookId/highlight-locators';
+const HIGHLIGHT_LOCATOR_PATH = '/api/v1/highlights/:highlightId/locator';
 
 /** A chapter as an EPUB actually ships one: XHTML, with its own namespace. */
 const chapterDocument = (title: string, paragraphs = 1) =>
@@ -106,6 +107,22 @@ export const highlightLocatorsApi = (
   }),
 ];
 
+/**
+ * Where each of these highlights is, one at a time; any other id 404s, as a deleted
+ * highlight does. Register these after `readiumApi()`, which MSW resolves newest first.
+ */
+export const highlightLocatorApi = (
+  items: HighlightLocatorResponse[],
+  { delayMs }: { delayMs?: number } = {}
+) => [
+  http.get(HIGHLIGHT_LOCATOR_PATH, async ({ params }) => {
+    const highlightId = Number(params.highlightId);
+    if (delayMs) await delay(delayMs);
+    const item = items.find((candidate) => candidate.highlight_id === highlightId);
+    return item ? HttpResponse.json(item) : new HttpResponse(null, { status: 404 });
+  }),
+];
+
 interface ReadiumApiOptions {
   manifest?: WebPublicationManifest;
   positions?: PositionList;
@@ -150,6 +167,8 @@ export const readiumApi = ({
   // And it asks where the book's highlights are, whether or not the test is about
   // them; `highlightLocatorsApi` with items is the version that has some.
   ...highlightLocatorsApi(),
+  // A link into the reader at a highlight asks where that one is; unanswered, it opens at the start.
+  ...highlightLocatorApi([]),
   http.get(RESOURCE_PATH, ({ request, params }) => {
     onRequest(request);
     const path = String(params[0]);

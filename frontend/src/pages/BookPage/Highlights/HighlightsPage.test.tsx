@@ -430,3 +430,26 @@ test('the header count follows the filter while the stats strip keeps the total'
   // The pair the reader compares: 1 shown here, 3 in the book (ADR-0003).
   await expect.element(screen.getByText('3 highlights', { exact: true })).toBeVisible();
 });
+
+const aBookWithTwoHighlights = () =>
+  aBookDetails({
+    chapters: [
+      aChapter({
+        highlights: [
+          aHighlight({ id: 301, text: 'The map is not the territory.' }),
+          aHighlight({ id: 302, text: 'Attention is the rarest form of generosity.' }),
+        ],
+      }),
+    ],
+  });
+
+test("a highlight's dialog offers to open it in the reader", async () => {
+  worker.use(...bookApi({ book: aBookWithTwoHighlights() }).handlers);
+
+  const screen = await renderApp({ path: '/book/1/highlights' });
+  await screen.getByText('The map is not the territory.').click();
+
+  await expect
+    .element(screen.getByRole('dialog').getByRole('link', { name: 'Open in reader' }))
+    .toHaveAttribute('href', '/book/1/read?highlightId=301');
+});
