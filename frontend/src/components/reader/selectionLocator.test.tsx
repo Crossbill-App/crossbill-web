@@ -82,6 +82,17 @@ test('a selection across two paragraphs names what holds them both', () => {
   expect(location?.text?.highlight).toBe('purest form of generosity. The same words');
 });
 
+test('a zero-width no-break space inside a word does not split it', () => {
+  const doc = new DOMParser().parseFromString(
+    `<html xmlns="http://www.w3.org/1999/xhtml"><body><p>An ex\uFEFFample word.</p></body></html>`,
+    'application/xhtml+xml'
+  );
+
+  const location = selectionLocation(rangeOver(doc, 'ex\uFEFFample'), CHAPTER);
+
+  expect(location?.text?.highlight).toBe('example');
+});
+
 test('whitespace the reader dragged over joins the context rather than the quote', () => {
   const doc = chapter();
 

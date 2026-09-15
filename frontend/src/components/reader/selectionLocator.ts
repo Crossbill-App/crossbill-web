@@ -34,7 +34,8 @@ export interface EbookResource {
   type: string;
 }
 
-const collapse = (text: string): string => text.replace(/\s+/g, ' ');
+/** U+FEFF is whitespace to `\s`, but a character `xpoint-cfi` deletes rather than reads as a space. */
+const collapse = (text: string): string => text.replace(/\uFEFF/g, '').replace(/\s+/g, ' ');
 
 const indexIn = (parent: Element, child: Element): number =>
   [...parent.children].indexOf(child) + 1;
