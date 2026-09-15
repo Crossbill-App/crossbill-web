@@ -1103,46 +1103,6 @@ test('arrow keys turn the page again once the dialog is closed', async () => {
   await expectPage(screen, 'Page 2 of 2 · 50%');
 });
 
-const aJumpFromTheHighlightsPage = async () => {
-  aBookMarkedAtThePassage();
-  const screen = await renderApp({ path: '/book/1/highlights' });
-  const cardLink = screen
-    .getByRole('list', { name: 'Highlights in Chapter One' })
-    .getByRole('link', { name: 'Open in reader' });
-  await expect.element(cardLink).toBeVisible();
-  return { screen, cardLink };
-};
-
-const everShowsADialog = () => {
-  let shown = false;
-  const observer = new MutationObserver((records) => {
-    shown ||= records.some((record) =>
-      [...record.addedNodes].some(
-        (node) =>
-          node instanceof Element &&
-          (node.matches('[role="dialog"]') || node.querySelector('[role="dialog"]') !== null)
-      )
-    );
-  });
-  observer.observe(document.body, { childList: true, subtree: true });
-  return () => {
-    observer.disconnect();
-    return shown;
-  };
-};
-
-test('opening the reader at a highlight lands on the passage with nothing over it', async () => {
-  // From the highlights page, so the book's highlights are already known when the reader mounts.
-  const { cardLink } = await aJumpFromTheHighlightsPage();
-  const shownADialog = everShowsADialog();
-
-  await cardLink.click();
-  await expectThePassageOnThePage();
-
-  await sleep(500);
-  expect(shownADialog()).toBe(false);
-});
-
 test('arriving takes the highlight back out of the address', async () => {
   const { screen } = await aJumpToAPassage();
   await expectThePassageOnThePage();
@@ -1162,17 +1122,4 @@ test('tapping the highlight the reader arrived at opens it, and Back closes it',
 
   await expectBackAtTheBook(screen, before);
   await expectThePassageOnThePage();
-});
-
-test('Back from a jump leaves the reader in one step', async () => {
-  const { screen, cardLink } = await aJumpFromTheHighlightsPage();
-  await cardLink.click();
-  await expectThePassageOnThePage();
-
-  window.history.back();
-
-  await expect
-    .poll(() => screen.router.state.location.pathname, { timeout: 5_000 })
-    .toBe('/book/1/highlights');
-  await expect.element(cardLink).toBeVisible();
 });

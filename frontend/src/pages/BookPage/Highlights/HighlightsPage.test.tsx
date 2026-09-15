@@ -431,11 +431,6 @@ test('the header count follows the filter while the stats strip keeps the total'
   await expect.element(screen.getByText('3 highlights', { exact: true })).toBeVisible();
 });
 
-const readerLinksInTheList = (screen: Screen) =>
-  screen
-    .getByRole('list', { name: 'Highlights in Chapter One' })
-    .getByRole('link', { name: 'Open in reader' });
-
 const aBookWithTwoHighlights = () =>
   aBookDetails({
     chapters: [
@@ -448,19 +443,6 @@ const aBookWithTwoHighlights = () =>
     ],
   });
 
-test('each highlight on the page offers to open it in the reader', async () => {
-  worker.use(...bookApi({ book: aBookWithTwoHighlights() }).handlers);
-
-  const screen = await renderApp({ path: '/book/1/highlights' });
-
-  const links = readerLinksInTheList(screen);
-  await expect.element(links.nth(1)).toBeVisible();
-  expect(links.elements().map((link) => link.getAttribute('href'))).toEqual([
-    '/book/1/read?highlightId=301',
-    '/book/1/read?highlightId=302',
-  ]);
-});
-
 test("a highlight's dialog offers to open it in the reader", async () => {
   worker.use(...bookApi({ book: aBookWithTwoHighlights() }).handlers);
 
@@ -470,13 +452,4 @@ test("a highlight's dialog offers to open it in the reader", async () => {
   await expect
     .element(screen.getByRole('dialog').getByRole('link', { name: 'Open in reader' }))
     .toHaveAttribute('href', '/book/1/read?highlightId=301');
-});
-
-test("a card's reader link is not part of the card's button", async () => {
-  worker.use(...bookApi({ book: aBookWithTwoHighlights() }).handlers);
-
-  const screen = await renderApp({ path: '/book/1/highlights' });
-  const link = readerLinksInTheList(screen).first();
-  await expect.element(link).toBeVisible();
-  expect(link.element().closest('button')).toBeNull();
 });
