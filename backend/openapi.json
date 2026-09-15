@@ -1009,6 +1009,68 @@
             }
           }
         }
+      },
+      "post": {
+        "tags": [
+          "highlights"
+        ],
+        "summary": "Create Highlight",
+        "description": "Store a passage the reader selected in the browser.\n\nThe selection is converted to the canonical KOReader xpointers before anything\nis stored (ADR-0004 \u00a72) and refused with 422 if the book does not hold the\nselected text, or holds it in so many places that which one was meant cannot be\nsaid. What is stored is an ordinary highlight, so it reaches the e-reader\nthrough the sync that already exists and shows up in every view that renders\none.\n\nThe same passage marked twice is one highlight: a selection whose text the book\nalready holds answers **200** with the stored highlight instead of 201, and one\nthe reader had deleted comes back rather than being stored again. That stored\nhighlight may sit at another occurrence of the same words, so a reader that\nneeds to draw it should ask ``GET /highlights/{id}/locator`` where it is rather\nthan assume it is where this selection was.",
+        "operationId": "create_highlight",
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "book_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Book Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SelectionHighlightCreate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CreatedHighlightResponse"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "The book already held this passage; the stored highlight is returned.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CreatedHighlightResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "The selected text is not in this book, or is in too many places."
+          },
+          "503": {
+            "description": "The book's stored file cannot be read, so nothing can be placed in it."
+          }
+        }
       }
     },
     "/api/v1/books/{book_id}/highlight": {
@@ -6487,6 +6549,97 @@
         ],
         "title": "CreateChatSessionResponse"
       },
+      "CreatedHighlightResponse": {
+        "properties": {
+          "id": {
+            "type": "integer",
+            "title": "Id",
+            "description": "The highlight, for drawing it and for editing it later"
+          },
+          "book_id": {
+            "type": "integer",
+            "title": "Book Id"
+          },
+          "chapter_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Chapter Id",
+            "description": "The chapter whose range holds it, if the book's chapters are placed"
+          },
+          "text": {
+            "type": "string",
+            "title": "Text",
+            "description": "The selected text, as it is stored"
+          },
+          "note": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Note"
+          },
+          "highlight_style_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Highlight Style Id"
+          },
+          "start_xpoint": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Start Xpoint",
+            "description": "Where the passage starts, in the format both readers agree on. Null only for a highlight stored before an e-reader sent its coordinates."
+          },
+          "end_xpoint": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "End Xpoint",
+            "description": "Where it ends, on the same terms"
+          },
+          "datetime": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Datetime",
+            "description": "When the highlight was made, as a wall clock with no offset -- the same convention an e-reader's own timestamp arrives in."
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "book_id",
+          "text",
+          "datetime"
+        ],
+        "title": "CreatedHighlightResponse",
+        "description": "The highlight that is now stored for the selected passage."
+      },
       "DigestAnswerUpdate": {
         "properties": {
           "question_index": {
@@ -9904,6 +10057,44 @@
         ],
         "title": "SearchBookRef",
         "description": "A book a search result belongs to."
+      },
+      "SelectionHighlightCreate": {
+        "properties": {
+          "locator": {
+            "$ref": "#/components/schemas/BrowserLocatorSchema",
+            "description": "What the reader selected. Unlike the reading position's locator this one must quote its `text.highlight`: that is the selected text, and it is both what gets anchored in the book and what gets stored as the highlight."
+          },
+          "note": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Note",
+            "description": "What the reader wrote about the passage. Stored as the highlight's device-side note, which is the one an e-reader shows and edits."
+          },
+          "highlight_style_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Highlight Style Id",
+            "description": "The label to file this highlight under -- one of the book's own, as `GET /books/{book_id}/highlight-labels` lists them."
+          }
+        },
+        "type": "object",
+        "required": [
+          "locator"
+        ],
+        "title": "SelectionHighlightCreate",
+        "description": "What the reader sends when they have highlighted a passage.\n\nNamed for the selection rather than for the highlight because the KOReader\nsync's own upload item is already ``HighlightCreate``, and two schemas of\nthat name would leave every generated client calling both by their full\nmodule paths."
       },
       "SendChatMessageRequest": {
         "properties": {
