@@ -9,11 +9,14 @@ and each of them naming a file differently is exactly the bug that would surface
 much later as a highlight rendering nowhere.
 """
 
-from src.application.web_reader.anchors import Locator
+from src.application.web_reader.anchors import Locator, LocatorLocations, LocatorText
 from src.infrastructure.web_reader.schemas.locator_schemas import (
     LocatorLocationsSchema,
     LocatorSchema,
     LocatorTextSchema,
+)
+from src.infrastructure.web_reader.schemas.reading_position_schemas import (
+    BrowserLocatorSchema,
 )
 
 # Where the resource endpoint sits under a book's publication routes. Every
@@ -45,6 +48,33 @@ def served_locator_schema(locator: Locator) -> LocatorSchema:
             css_selector=locator.locations.css_selector,
         ),
         text=LocatorTextSchema(
+            before=locator.text.before,
+            highlight=locator.text.highlight,
+            after=locator.text.after,
+        ),
+    )
+
+
+def anchor_locator(locator: BrowserLocatorSchema) -> Locator:
+    """Read a navigator's locator into the vocabulary the anchor port speaks.
+
+    The href is the one translation that matters: every href a navigator ever saw came
+    out of the manifest or the position list, so it names this endpoint's URL for a
+    file rather than the file's path inside the container -- and the container path is
+    what a conversion against the EPUB resolves.
+
+    Takes the input locator of any write the browser makes, a reading position or a
+    selection, since a selection is that same document with its quote required.
+    """
+    return Locator(
+        href=container_href(locator.href),
+        type=locator.type,
+        locations=LocatorLocations(
+            progression=locator.locations.progression,
+            css_selector=locator.locations.css_selector,
+            fragments=tuple(locator.locations.fragments or ()),
+        ),
+        text=LocatorText(
             before=locator.text.before,
             highlight=locator.text.highlight,
             after=locator.text.after,

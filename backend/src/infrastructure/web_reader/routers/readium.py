@@ -8,7 +8,6 @@ from fastapi import APIRouter, Depends, Request, Response
 from fastapi.responses import JSONResponse
 from starlette import status
 
-from src.application.web_reader.anchors import Locator, LocatorLocations, LocatorText
 from src.application.web_reader.commands.save_reading_position_use_case import (
     SaveReadingPositionUseCase,
 )
@@ -45,7 +44,7 @@ from src.infrastructure.identity import AuthenticatedCaller, get_authenticated_c
 from src.infrastructure.identity.dependencies import get_current_user
 from src.infrastructure.reading.routers.reader_clock import reader_now
 from src.infrastructure.web_reader.dependencies import PublicationReader
-from src.infrastructure.web_reader.schemas.locator_builders import container_href, served_href
+from src.infrastructure.web_reader.schemas.locator_builders import anchor_locator, served_href
 from src.infrastructure.web_reader.schemas.reading_position_schemas import (
     BrowserLocatorSchema,
     ReadingPosition,
@@ -334,7 +333,7 @@ async def put_reading_position(
     stored = await use_case.save_reading_position(
         book_id=book_id,
         user_id=current_user.id.value,
-        locator=_anchor_locator(update.locator),
+        locator=anchor_locator(update.locator),
         stored_locator=update.locator.model_dump(mode="json", by_alias=True, exclude_none=True),
         recorded_at=update.recorded_at,
         now=now,
@@ -355,30 +354,6 @@ def _reading_position(stored: WebReadingPosition) -> ReadingPosition:
         if stored.position
         else None,
         updated_at=stored.updated_at,
-    )
-
-
-def _anchor_locator(locator: BrowserLocatorSchema) -> Locator:
-    """Read a navigator's locator into the vocabulary the anchor port speaks.
-
-    The href is the one translation that matters: every href a navigator ever saw came
-    out of the manifest or the position list, so it names this endpoint's URL for a
-    file rather than the file's path inside the container -- and the container path is
-    what a conversion against the EPUB resolves.
-    """
-    return Locator(
-        href=container_href(locator.href),
-        type=locator.type,
-        locations=LocatorLocations(
-            progression=locator.locations.progression,
-            css_selector=locator.locations.css_selector,
-            fragments=tuple(locator.locations.fragments or ()),
-        ),
-        text=LocatorText(
-            before=locator.text.before,
-            highlight=locator.text.highlight,
-            after=locator.text.after,
-        ),
     )
 
 

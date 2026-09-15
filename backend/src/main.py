@@ -74,6 +74,7 @@ from src.infrastructure.tagging.routers import tags as tagging_tags
 from src.infrastructure.web_reader.routers import (
     highlight_locators as web_reader_highlight_locators,
 )
+from src.infrastructure.web_reader.routers import highlights as web_reader_highlights
 from src.infrastructure.web_reader.routers import readium as web_reader_readium
 
 settings = get_settings()
@@ -486,6 +487,7 @@ app.include_router(reflection_router.router, prefix=settings.API_V1_PREFIX)
 # Web reader
 app.include_router(web_reader_readium.router, prefix=settings.API_V1_PREFIX)
 app.include_router(web_reader_highlight_locators.router, prefix=settings.API_V1_PREFIX)
+app.include_router(web_reader_highlights.router, prefix=settings.API_V1_PREFIX)
 
 # Semantic search
 app.include_router(semantic_router.router, prefix=settings.API_V1_PREFIX)
