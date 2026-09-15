@@ -3,11 +3,12 @@ import { Button, Paper, Popper, Stack } from '@mui/material';
 
 export interface SelectionPopoverProps {
   selection: EbookSelection | null;
+  onHighlight: () => void;
   onCancel: () => void;
 }
 
 /** What can be done with the words selected in the book, below them. */
-export const SelectionPopover = ({ selection, onCancel }: SelectionPopoverProps) => {
+export const SelectionPopover = ({ selection, onHighlight, onCancel }: SelectionPopoverProps) => {
   const rect = selection?.rect;
   const anchor = rect && { getBoundingClientRect: () => DOMRect.fromRect(rect) };
 
@@ -22,6 +23,7 @@ export const SelectionPopover = ({ selection, onCancel }: SelectionPopoverProps)
     >
       <Paper elevation={8} onMouseDown={(event) => event.preventDefault()} sx={{ mt: 1, p: 0.5 }}>
         <Stack role="toolbar" aria-label="Selected text" direction="row" spacing={0.5}>
+          <Button onClick={onHighlight}>Highlight</Button>
           <Button onClick={onCancel}>Cancel</Button>
         </Stack>
       </Paper>

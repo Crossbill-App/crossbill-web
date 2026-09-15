@@ -10,7 +10,11 @@ import { ReadiumReader } from '@/components/reader/ReadiumReader.ts';
 import { fontSizeRangeConfig } from '@readium/navigator';
 import { aDetailedPositionList, aManifest, aPositionList } from '@tests/fixtures/publication';
 import { drawnOn, drawnRanges } from '@tests/harness/paintedHighlights';
-import { rangeOver, select } from '@tests/harness/textSelection';
+import {
+  adjustSelectionInBook as adjustSelectionIn,
+  selectInBook as selectIn,
+  visibleFrame as visibleFrameIn,
+} from '@tests/harness/textSelection';
 import { noPublication, readiumApi } from '@tests/msw/readiumApi';
 import { worker } from '@tests/msw/worker';
 import { http, HttpResponse } from 'msw';
@@ -98,23 +102,13 @@ const centreOf = (range: Range) => {
 
 const frameText = () => frame()?.contentDocument?.body.textContent ?? '';
 
-/** The chapter on screen: Readium keeps the neighbouring one loaded and hidden. */
-const visibleFrame = () =>
-  [...host.querySelectorAll('iframe')].find((candidate) => candidate.style.visibility !== 'hidden');
+const visibleFrame = () => visibleFrameIn(host);
 
 const visibleFrameText = () => visibleFrame()?.contentDocument?.body.textContent ?? '';
 
-/** A selection changing under no pointer, the way a touch handle or a keyboard moves one. */
-const adjustSelectionInBook = (phrase: string) => {
-  const chapter = visibleFrame()!.contentDocument!;
-  select(chapter, rangeOver(chapter, phrase));
-};
+const adjustSelectionInBook = (phrase: string) => adjustSelectionIn(host, phrase);
 
-/** A reader dragging over words in the chapter on screen, and letting go. */
-const selectInBook = (phrase: string) => {
-  adjustSelectionInBook(phrase);
-  visibleFrame()!.contentDocument!.dispatchEvent(new PointerEvent('pointerup', { bubbles: true }));
-};
+const selectInBook = (phrase: string) => selectIn(host, phrase);
 
 /** Longer than the engine gives a changing selection to settle. */
 const afterTheSelectionSettles = () => new Promise((resolve) => setTimeout(resolve, 400));

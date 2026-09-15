@@ -34,8 +34,26 @@ export const rangeFromTo = (doc: Document, from: string, to: string): Range => {
 };
 
 /** Leaves `range` selected in the window the document belongs to. */
-export const select = (doc: Document, range: Range): void => {
+const select = (doc: Document, range: Range): void => {
   const selection = doc.getSelection();
   selection?.removeAllRanges();
   selection?.addRange(range);
+};
+
+/** The chapter on screen under `root`: Readium keeps the neighbouring one loaded and hidden. */
+export const visibleFrame = (root: ParentNode) =>
+  [...root.querySelectorAll('iframe')].find((candidate) => candidate.style.visibility !== 'hidden');
+
+/** A selection changing under no pointer, the way a touch handle or a keyboard moves one. */
+export const adjustSelectionInBook = (root: ParentNode, phrase: string) => {
+  const chapter = visibleFrame(root)!.contentDocument!;
+  select(chapter, rangeOver(chapter, phrase));
+};
+
+/** A reader dragging over words in the chapter on screen, and letting go. */
+export const selectInBook = (root: ParentNode, phrase: string) => {
+  adjustSelectionInBook(root, phrase);
+  visibleFrame(root)!.contentDocument!.dispatchEvent(
+    new PointerEvent('pointerup', { bubbles: true })
+  );
 };

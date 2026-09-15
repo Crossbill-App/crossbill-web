@@ -1,3 +1,4 @@
+import { useGetBookDetails } from '@/api/generated/books/books.ts';
 import type {
   ChapterWithHighlights,
   Highlight,
@@ -28,6 +29,7 @@ import {
 import { pendingQueryClients } from '@tests/harness/renderApp';
 import { bookApi } from '@tests/msw/bookApi';
 import {
+  highlightCreationApi,
   highlightLocatorApi,
   highlightLocatorsApi,
   readingPositionApi,
@@ -35,6 +37,7 @@ import {
 } from '@tests/msw/readiumApi';
 import { worker } from '@tests/msw/worker';
 import { HttpResponse, delay, http } from 'msw';
+import { useMemo } from 'react';
 import { afterEach, beforeEach, expect, test } from 'vitest';
 import { cleanup, render } from 'vitest-browser-react';
 import { page, userEvent } from 'vitest/browser';
@@ -91,11 +94,15 @@ const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
 // The shell asks the server where to resume and apologises when it cannot, so
 // it needs the two providers the app mounts it under.
-const shellUnder = (queryClient: QueryClient, props: Partial<ReaderShellProps>) => (
+const shellUnder = (
+  queryClient: QueryClient,
+  props: Partial<ReaderShellProps>,
+  Shell: typeof ReaderShell = ReaderShell
+) => (
   <QueryClientProvider client={queryClient}>
     <ThemeProvider theme={theme}>
       <SnackbarProvider>
-        <ReaderShell
+        <Shell
           bookId={1}
           title="The Pragmatic Reader"
           onClose={() => {}}
@@ -107,13 +114,13 @@ const shellUnder = (queryClient: QueryClient, props: Partial<ReaderShellProps>) 
   </QueryClientProvider>
 );
 
-const renderShell = async (props: Partial<ReaderShellProps> = {}) => {
+const renderShell = async (props: Partial<ReaderShellProps> = {}, Shell = ReaderShell) => {
   const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   pendingQueryClients.push(queryClient);
-  const screen = await render(shellUnder(queryClient, props));
+  const screen = await render(shellUnder(queryClient, props, Shell));
   return Object.assign(screen, {
     rerenderShell: (next: Partial<ReaderShellProps>) =>
-      screen.rerender(shellUnder(queryClient, next)),
+      screen.rerender(shellUnder(queryClient, next, Shell)),
   });
 };
 
@@ -1214,9 +1221,9 @@ test('a selection in the book shows the popover below it', async () => {
 });
 
 /** The shell with the book on screen and the popover up over a selection in it. */
-const aBookWithASelection = async () => {
+const aBookWithASelection = async (props: Partial<ReaderShellProps> = {}) => {
   worker.use(...readiumApi());
-  const screen = await anOpenBook();
+  const screen = await anOpenBook({}, props);
   readers[0].select(A_SELECTION);
   await expect.element(theSelectionToolbar()).toBeVisible();
   return screen;
@@ -1258,4 +1265,144 @@ test('a page turn while something is selected lets it go', async () => {
 
   expect(readers[0].clearSelectionCalls).toBe(1);
   await expect.element(theSelectionToolbar()).not.toBeInTheDocument();
+});
+
+const pressHighlight = () =>
+  theSelectionToolbar().getByRole('button', { name: 'Highlight' }).click();
+
+const standIns = () =>
+  (lastSubmitted() ?? []).filter((decoration) => decoration.id.startsWith('selection-'));
+
+const standInWords = () => standIns().map((decoration) => decoration.location.text?.highlight);
+
+test('pressing Highlight lets go of the selection and draws it at once', async () => {
+  worker.use(...highlightCreationApi([{ status: 500, delayMs: 300 }]).handlers);
+  await aBookWithASelection();
+
+  await pressHighlight();
+
+  expect(readers[0].clearSelectionCalls).toBe(1);
+  await expect.element(theSelectionToolbar()).not.toBeInTheDocument();
+  await expect.poll(standIns).toEqual([
+    {
+      id: 'selection-1',
+      location: A_SELECTION.location,
+      tint: DEFAULT_LABEL_COLOR,
+      opacity: 0.35,
+    },
+  ]);
+});
+
+test.each([
+  [503, "The book's file couldn't be read, so the highlight wasn't saved."],
+  [500, 'Failed to save the highlight. Please try again.'],
+])('a highlight the server answers %i to is taken back, and says why', async (status, message) => {
+  worker.use(...highlightCreationApi([{ status, delayMs: 300 }]).handlers);
+  const screen = await aBookWithASelection();
+
+  await pressHighlight();
+
+  await expect.poll(standInWords).toEqual(['rarest and purest']);
+  await expectToBeTold(screen, message);
+  await expect.poll(standInWords).toEqual([]);
+});
+
+test('tapping a highlight still being saved opens nothing', async () => {
+  worker.use(...highlightCreationApi([{ status: 500, delayMs: 300 }]).handlers);
+  const opened: number[] = [];
+  await aBookWithASelection({ onOpenHighlight: (id) => opened.push(id) });
+  await pressHighlight();
+  await expect.poll(() => standIns().length).toBe(1);
+
+  readers[0].activateDecoration(standIns()[0].id);
+
+  expect(opened).toEqual([]);
+  await expect.poll(standIns).toEqual([]);
+});
+
+test('two highlights made before either is answered are each settled on their own', async () => {
+  worker.use(
+    ...highlightCreationApi([
+      { status: 422, delayMs: 200 },
+      { id: 400, delayMs: 800 },
+    ]).handlers
+  );
+  const screen = await aBookWithASelection();
+  worker.use(...highlightLocatorApi([aHighlightLocator(400)]));
+  await pressHighlight();
+  readers[0].select({
+    ...A_SELECTION,
+    location: { ...aFakeLocation(1), text: { highlight: 'form of generosity' } },
+  });
+  await pressHighlight();
+  await expect.poll(standInWords).toEqual(['rarest and purest', 'form of generosity']);
+
+  await expectToBeTold(screen, 'Try selecting a little more text.');
+  expect(standInWords()).toEqual(['form of generosity']);
+
+  await expect.poll(standInWords).toEqual([]);
+  expect(screen.getByRole('alert').filter({ hasText: 'Failed' }).query()).toBeNull();
+});
+
+test('a saved highlight the server cannot place raises no error', async () => {
+  worker.use(...highlightCreationApi([{ id: 400, delayMs: 300 }]).handlers);
+  const screen = await aBookWithASelection();
+  worker.use(...highlightLocatorApi([]));
+  await pressHighlight();
+  await expect.poll(() => standIns().length).toBe(1);
+
+  await expect.poll(standIns).toEqual([]);
+  expect(screen.getByRole('alert').elements()).toEqual([]);
+});
+
+/** The shell as the reader page mounts it, drawing the highlights the book's details hold. */
+const ShellOverTheDetails = (props: ReaderShellProps) => {
+  const { data } = useGetBookDetails(props.bookId);
+  const highlights = useMemo(() => data?.chapters.flatMap((chapter) => chapter.highlights), [data]);
+  return <ReaderShell {...props} highlights={highlights} />;
+};
+
+/** Highlight 400 stored and placed when made, over the handlers given, with a selection up. */
+const aSelectionOverTheDetails = async (...handlers: Parameters<typeof worker.use>) => {
+  worker.use(...readiumApi());
+  const details = bookApi();
+  worker.use(...details.handlers);
+  worker.use(...highlightLocatorApi([aHighlightLocator(400)]));
+  const storeIt = (id: number) => {
+    details.state.book = aBookDetails({
+      chapters: [aChapter({ highlights: [aHighlight({ id })] })],
+    });
+  };
+  worker.use(...highlightCreationApi([{ id: 400 }], { onCreated: storeIt }).handlers);
+  worker.use(...handlers);
+  await renderShell({}, ShellOverTheDetails);
+  await expect.poll(() => readers.length).toBe(1);
+  readers[0].resolveOpen();
+  readers[0].select(A_SELECTION);
+};
+
+test('a saved highlight takes over from what was drawn for it with nothing missing between', async () => {
+  // Late, so a stand-in let go before the details are in leaves sets with nothing drawn.
+  await aSelectionOverTheDetails(
+    http.get(BOOK_DETAILS_PATH, () => delay(300).then(() => undefined))
+  );
+  const submittedBefore = readers[0].decorations.length;
+
+  await pressHighlight();
+
+  await expect.poll(drawnIds).toEqual(['highlight-400']);
+  const handedOver = readers[0].decorations.slice(submittedBefore);
+  const drawsNeither = handedOver.filter(
+    (set) => !set.some(({ id }) => id === 'highlight-400' || id.startsWith('selection-'))
+  );
+  expect(handedOver.length).toBeGreaterThan(1);
+  expect(drawsNeither).toEqual([]);
+});
+
+test('a highlight made while the placed highlights are still loading is drawn', async () => {
+  await aSelectionOverTheDetails(...highlightLocatorsApi([], { delayMs: 1_500 }));
+
+  await pressHighlight();
+
+  await expect.poll(drawnIds, { timeout: 5_000 }).toContain('highlight-400');
 });

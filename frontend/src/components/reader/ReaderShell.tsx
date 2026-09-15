@@ -14,6 +14,7 @@ import { ReaderSettings } from '@/components/reader/ReaderSettings.tsx';
 import { SelectionPopover } from '@/components/reader/SelectionPopover.tsx';
 import { TocDrawer } from '@/components/reader/TocDrawer.tsx';
 import { useEbookReader, type UseEbookReaderOptions } from '@/components/reader/useEbookReader.ts';
+import { useHighlightCreation } from '@/components/reader/useHighlightCreation.ts';
 import { useHighlightDecorations } from '@/components/reader/useHighlightDecorations.ts';
 import { useReaderLanding } from '@/components/reader/useReaderLanding.ts';
 import { useReaderPreferences } from '@/components/reader/useReaderPreferences.ts';
@@ -188,7 +189,12 @@ export const ReaderShell = ({
   // Latched, so that nothing done to the address after the book opens can move it.
   const [target] = useState(highlightId ?? null);
   const landing = useReaderLanding(bookId, target);
-  const decorations = useHighlightDecorations(bookId, highlights);
+  const placedHighlights = useHighlightDecorations(bookId, highlights);
+  const creation = useHighlightCreation(bookId);
+  const decorations = useMemo(
+    () => [...placedHighlights, ...creation.standIns],
+    [placedHighlights, creation.standIns]
+  );
   const missedJump = useRef<MissedJump | null>(null);
   const book = useEbookReader({
     host,
@@ -203,7 +209,10 @@ export const ReaderShell = ({
     createReader,
     bootTimeoutMs,
     onLocationReported: record,
-    onDecorationActivated: (id) => onOpenHighlight?.(highlightIdFrom(id)),
+    onDecorationActivated: (id) => {
+      const tapped = highlightIdFrom(id);
+      if (tapped !== null) onOpenHighlight?.(tapped);
+    },
     // On to the passage, which opening at its locator can leave a page short of, or else to
     // its chapter; what was missed is kept for the apology once the book is on screen.
     finishLanding:
@@ -268,6 +277,12 @@ export const ReaderShell = ({
   const isOpen = book.status === 'open';
   const pageTurnsDisabled = isRenewing || !isOpen;
   const position = book.location?.locations.position;
+
+  const highlightSelection = () => {
+    const location = book.selection?.location;
+    book.clearSelection();
+    if (location) creation.create(location);
+  };
 
   const goToTocEntry = (entry: EbookTocEntry) => {
     setIsTocOpen(false);
@@ -374,7 +389,11 @@ export const ReaderShell = ({
         />
       )}
 
-      <SelectionPopover selection={book.selection} onCancel={book.clearSelection} />
+      <SelectionPopover
+        selection={book.selection}
+        onHighlight={highlightSelection}
+        onCancel={book.clearSelection}
+      />
     </Box>
   );
 };
