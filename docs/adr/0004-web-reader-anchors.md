@@ -2,7 +2,8 @@
 
 - **Status:** Accepted
 - **Date:** 2026-09-07
-- **Amended:** 2026-09-13 — *Amendment 6* reverses §4
+- **Amended:** 2026-09-13 — *Amendment 6* reverses §4; 2026-09-15 — *Amendment 7*
+  settles what that amendment left open
 - **Applies to:** `backend/`, `frontend/`, and the `xpoint-cfi` library
 - **Resolves:** #730 (M0.1, part of the web reader epic #729)
 - **Ground truth verified:** 2026-09-06
@@ -211,16 +212,16 @@ have been.
 - **Trusting a conversion without verification**, even for the reverse
   direction. A browser selection converting to an xpointer whose text does not
   match what the reader selected is a failed write, not a stored guess.
-  *Amendment 6* reopens what that should cost the reader, not the verification.
+  *Amendment 6* reopened what that should cost the reader, not the verification;
+  *Amendment 7* closes it, leaving this rule as written.
 - **Changing the KOReader sync contract.** The plugin-only surface stays as it
   is, so no `koreader-plugin` minimum bump comes out of this ADR.
 
 ## Pending
 
-**One question, opened by *Amendment 6*** — whether a reverse conversion that
-fails verification should stay a rejected write — is stated with its
-alternatives and its deadline in that amendment's *Open* section. Nothing else
-is open.
+Nothing. The one question *Amendment 6* opened — whether a reverse conversion
+that fails verification should stay a rejected write — is settled by
+*Amendment 7*: it should, and M4.2 (#751) implements it as a 422.
 
 ## Consequences
 
@@ -1023,6 +1024,9 @@ canonical column. **This amendment does not settle it.** The rejection stands
 provisionally, #830 implements it and is asked to make it easy to find, and it
 must be settled before M4 (#749) ships.
 
+> **Settled by *Amendment 7* (2026-09-15).** The rejection stands, at a floor of
+> a quote matched in exactly one place, and #751 implements it as a 422.
+
 ### Which tickets carry this
 
 | Ticket | What it lands |
@@ -1030,3 +1034,58 @@ must be settled before M4 (#749) ships.
 | #828 (R4.1) | The anchor port and its `xpoint-cfi` adapter, batch-shaped, storing nothing; this amendment |
 | #839 (R4.2) | The locator columns, their `locator_source_hash`, and the backfill |
 | #830 (R4.4) | The one route that still converts at write time |
+
+## Amendment 7: a failed reverse conversion stays a rejected write
+
+- **Date:** 2026-09-15
+- **Resolves:** the question *Amendment 6* left open, in time for M4 (#749)
+- **Carried by:** #751 (M4.2), the first ticket that writes a browser-made highlight
+
+*Amendment 6* asked whether a browser selection whose conversion cannot be
+trusted should still be refused, now that refusing costs the reader a highlight
+they just made rather than a sync a retry. **It should. The rejection stands,
+and M4.2 implements it as a 422.**
+
+### Why the alternatives are worse than the loss they avoid
+
+Both alternatives *Amendment 6* named put the failure somewhere the reader
+cannot see it, which is the trade §1 and §5 exist to refuse:
+
+- **A locator with a null xpointer** is a highlight that exists on the web and
+  nowhere else. Its author would find out when KOReader next opened the book and
+  the passage was not marked — long after the page they made it on was closed,
+  and with nothing to act on.
+- **A low-confidence xpointer, marked as such**, puts a guess in the canonical
+  column. Everything downstream reads that column without asking how it got
+  there: the e-reader draws it, chapter attribution files it, the position
+  orders it. One flag would have to be honoured in every one of those places
+  forever.
+
+A refusal costs one selection, now, on a page still showing the text — the one
+moment the reader can do something about it, by selecting again.
+
+### What it costs in practice, and why that is small
+
+The floor is a **quote matched in exactly one place** (`HIGHLIGHT_ONLY`), and a
+selection arrives with the context the same EPUB gave the browser moments
+earlier, so a correct one normally comes back at `BOTH_CONTEXTS` — or
+`ONE_CONTEXT` where it abuts the edge of its resource. What the floor refuses is
+`AMBIGUOUS`, the same words several times over with neither context settling
+which, and `FUZZY`, words not in the resource as written. Both would anchor the
+highlight over text the reader never selected.
+
+A selection anchored on an element or a progression rather than a quote is
+refused whatever its grade: those are how a *reading position* survives a page
+turn that names nothing (*Amendment 3*), and a highlight that quotes nothing has
+no passage to be.
+
+Note the asymmetry this leaves, and that it is deliberate. A reading position
+takes an approximate anchor because refusing one would refuse to record reading
+at all; a highlight does not, because a highlight is a claim about *these words*
+and a reader who loses one knows immediately.
+
+### Not adopted here
+
+Nothing about a **stored** locator changes: #839's columns, their source hash
+and the null-is-a-real-answer rule stand as *Amendment 6* wrote them. This
+settles only what happens when the conversion at write time will not carry.
