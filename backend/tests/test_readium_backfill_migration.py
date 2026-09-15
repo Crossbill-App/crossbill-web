@@ -11,19 +11,24 @@ which is where they were checked against ``minimal.epub``.
 
 import hashlib
 import importlib.util
-from collections.abc import Hashable, Mapping
+import logging
+from collections.abc import Callable, Hashable, Mapping
 from datetime import UTC, datetime
 from pathlib import Path
 from types import ModuleType
 from typing import Any
 
 import pytest
+import sqlalchemy as sa
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src import models
 from src.application.web_reader.anchors import Locator
 from src.domain.common.value_objects.xpoint import XPoint, XPointRange
+from src.infrastructure.web_reader.services import (
+    xpoint_cfi_position_anchor_service as anchor_adapter,
+)
 from tests.conftest import (
     create_test_book,
     create_test_highlight,
@@ -74,10 +79,20 @@ async def run_backfill(db_session: AsyncSession, files: dict[str, bytes]) -> Any
     """Run the migration core over ``files``, a file store keyed by EPUB file name."""
     connection = await db_session.connection()
     summary = await connection.run_sync(
-        lambda sync_connection: migration.backfill_readium_rows(sync_connection, files.get)
+        lambda sync_connection: migration.backfill_readium_rows(
+            sync_connection, files.get, migration._app_code()
+        )
     )
     await db_session.commit()
     return summary
+
+
+async def run_migration(db_session: AsyncSession) -> Any:  # noqa: ANN401
+    """Run ``upgrade``'s own entry point, which picks its app code and file store itself."""
+    connection = await db_session.connection()
+    result = await connection.run_sync(migration.run)
+    await db_session.commit()
+    return result
 
 
 async def book_with_epub(
@@ -336,8 +351,8 @@ async def test_each_book_is_derived_once_per_kind_however_many_rows_it_has(
     db_session: AsyncSession, test_user: models.User, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     calls = {"ranges": 0, "points": 0}
-    real_ranges = migration.range_locators
-    real_points = migration.point_locators
+    real_ranges = anchor_adapter.range_locators
+    real_points = anchor_adapter.point_locators
 
     def counting_ranges[K: Hashable](
         epub_content: bytes, ranges: Mapping[K, XPointRange]
@@ -351,8 +366,10 @@ async def test_each_book_is_derived_once_per_kind_however_many_rows_it_has(
         calls["points"] += 1
         return real_points(epub_content, points)
 
-    monkeypatch.setattr(migration, "range_locators", counting_ranges)
-    monkeypatch.setattr(migration, "point_locators", counting_points)
+    # The migration imports these when it runs, so the adapter module is where a
+    # stand-in has to sit for ``_app_code`` to pick it up.
+    monkeypatch.setattr(anchor_adapter, "range_locators", counting_ranges)
+    monkeypatch.setattr(anchor_adapter, "point_locators", counting_points)
 
     sessions: list[tuple[models.ReadingSession, str, str]] = []
     for title in ("First", "Second"):
@@ -403,3 +420,131 @@ async def test_another_users_highlight_on_the_same_book_is_placed_too(
     assert row.locator is not None
     assert row.locator["locations"]["cssSelector"] == PLACEABLE_SELECTOR
     assert row.locator_source_hash == MINIMAL_DIGEST
+
+
+SKIP_LOGGER = "alembic.readium_backfill"
+
+# Each is a name on the migration module and what a refactor of the app code, or
+# a deployment the migration cannot read, makes calling it do.
+BROKEN = {
+    "an import the application no longer answers": ("_app_code", ImportError("renamed")),
+    "an attribute a refactor moved": ("_app_code", AttributeError("moved")),
+    "a file store that cannot be built": ("_epub_reader", RuntimeError("no bucket")),
+}
+
+
+def raising(failure: Exception) -> Callable[..., Any]:
+    def raise_it(*_args: object, **_kwargs: object) -> Any:  # noqa: ANN401
+        raise failure
+
+    return raise_it
+
+
+async def assert_nothing_was_derived(
+    db_session: AsyncSession, book: models.Book, highlight: models.Highlight
+) -> None:
+    row = await stored_highlight(db_session, highlight.id)
+    assert row.locator is None
+    assert row.locator_source_hash is None
+    assert await stored_publication(db_session, book.id) is None
+
+
+def assert_one_skip_logged(caplog: pytest.LogCaptureFixture) -> None:
+    records = [record for record in caplog.records if record.name == SKIP_LOGGER]
+    assert len(records) == 1
+    assert "skipped" in records[0].getMessage()
+    assert records[0].levelno >= logging.WARNING
+
+
+@pytest.mark.parametrize(("attribute", "failure"), BROKEN.values(), ids=BROKEN.keys())
+async def test_a_failure_before_the_first_book_skips_the_run_and_leaves_every_row_alone(
+    db_session: AsyncSession,
+    test_user: models.User,
+    book: models.Book,
+    monkeypatch: pytest.MonkeyPatch,
+    caplog: pytest.LogCaptureFixture,
+    attribute: str,
+    failure: Exception,
+) -> None:
+    highlight = await xpointed_highlight(db_session, book, test_user.id)
+    monkeypatch.setattr(migration, attribute, raising(failure))
+
+    with caplog.at_level(logging.WARNING, logger=SKIP_LOGGER):
+        assert await run_migration(db_session) is None
+
+    await assert_nothing_was_derived(db_session, book, highlight)
+    assert_one_skip_logged(caplog)
+
+
+async def test_a_database_error_partway_takes_back_what_the_run_had_written(
+    db_session: AsyncSession,
+    test_user: models.User,
+    book: models.Book,
+    monkeypatch: pytest.MonkeyPatch,
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    # The first book is derived in full before the second one faults, so what the
+    # savepoint rolls back is a run that had already written rows.
+    highlight = await xpointed_highlight(db_session, book, test_user.id)
+    await book_with_epub(db_session, test_user.id, "Faulting", "faulting.epub")
+    running: list[sa.Connection] = []
+
+    def read_epub(file_name: str) -> bytes | None:
+        if file_name == "faulting.epub":
+            running[0].execute(sa.text("SELECT * FROM no_such_table"))
+        return MINIMAL_EPUB
+
+    monkeypatch.setattr(migration, "_epub_reader", lambda: read_epub)
+
+    def run_recording_the_connection(sync_connection: sa.Connection) -> Any:  # noqa: ANN401
+        running.append(sync_connection)
+        return migration.run(sync_connection)
+
+    with caplog.at_level(logging.WARNING, logger=SKIP_LOGGER):
+        assert await (await db_session.connection()).run_sync(run_recording_the_connection) is None
+    await db_session.commit()
+
+    await assert_nothing_was_derived(db_session, book, highlight)
+    assert_one_skip_logged(caplog)
+
+
+async def test_a_database_error_inside_a_book_ends_the_run_rather_than_the_book(
+    db_session: AsyncSession,
+    test_user: models.User,
+    book: models.Book,
+    monkeypatch: pytest.MonkeyPatch,
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    # Two books: were the failing statement contained per book, the second would
+    # still be derived, the run would finish, and the log would say so.
+    highlight = await xpointed_highlight(db_session, book, test_user.id)
+    second = await book_with_epub(db_session, test_user.id, "Second", "second.epub")
+    on_second = await xpointed_highlight(db_session, second, test_user.id)
+
+    def store_publication(connection: sa.Connection, *_: object) -> None:
+        connection.execute(sa.text("SELECT * FROM no_such_table"))
+
+    monkeypatch.setattr(migration, "_store_publication", store_publication)
+    monkeypatch.setattr(
+        migration,
+        "_epub_reader",
+        lambda: {EPUB_FILE: MINIMAL_EPUB, "second.epub": MINIMAL_EPUB}.get,
+    )
+
+    with caplog.at_level(logging.WARNING, logger=SKIP_LOGGER):
+        assert await (await db_session.connection()).run_sync(migration.run) is None
+    await db_session.commit()
+
+    await assert_nothing_was_derived(db_session, book, highlight)
+    await assert_nothing_was_derived(db_session, second, on_second)
+    assert_one_skip_logged(caplog)
+
+
+def test_no_application_code_is_imported_at_module_level() -> None:
+    # Alembic imports every file under ``versions`` to build its revision graph.
+    imported_from_app = [
+        name
+        for name, value in vars(migration).items()
+        if str(getattr(value, "__module__", "") or "").startswith("src")
+    ]
+    assert imported_from_app == []

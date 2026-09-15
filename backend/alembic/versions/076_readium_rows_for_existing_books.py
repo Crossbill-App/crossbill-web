@@ -12,25 +12,33 @@ preserve and no staleness rule to get wrong.
 Unlike 037, the only other data migration here, this one imports application
 code rather than reimplementing it: the publication index is what the EPUB
 parser makes of the archive and a locator is what ``xpoint-cfi`` makes of an
-xpointer, and neither can be restated in SQL or in a few lines of Python.
+xpointer, and neither can be restated in SQL or in a few lines of Python. That
+code is imported inside ``_app_code()`` rather than at module level, because
+Alembic loads every file in ``alembic/versions`` to build its revision graph:
+a top-level ``from src...`` that a later refactor invalidates would break every
+``alembic upgrade`` on every database, forever.
 
-Failure policy: a book whose file is missing, whose archive is unreadable, or
-whose xpointers do not parse is logged and skipped, and the run carries on --
-that is one book's data being wrong, and the deploy must not hinge on it. A
-database error, or a file store that errors rather than answering "not there"
-(an S3 refusal or timeout, a local I/O fault), is not contained: it says the
-deployment is not what this migration assumed, and it is allowed to fail the
-upgrade loudly rather than mark 076 applied with books silently left behind.
+Failure policy: nothing here is worth a failed deploy. Everything this migration
+derives can be derived again -- a book with no publication index opens in the
+web reader with one derived on the spot, and its highlights and reading sessions
+gain locators on their next KOReader sync or EPUB upload -- so ``run`` catches
+whatever comes out of the backfill, logs it and skips, and a fresh database
+simply has no books to backfill. The savepoint it holds is what keeps a failed
+statement from aborting Alembic's own transaction on PostgreSQL: whatever the
+run wrote is rolled back to it, and the upgrade goes on to record 076 as
+applied. Within a run, a book whose file is missing, whose archive is unreadable
+or whose xpointers do not parse is logged and skipped, so one book's bad data
+does not cost the others theirs.
 
 Revision ID: 076
 Revises: 075
 """
 
 import logging
-from collections.abc import Callable, Sequence
+from collections.abc import Callable, Mapping, Sequence
 from dataclasses import dataclass
 from datetime import UTC, datetime
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 import boto3
 import sqlalchemy as sa
@@ -38,17 +46,10 @@ from sqlalchemy.dialects import postgresql
 from sqlalchemy.exc import SQLAlchemyError
 
 from alembic import op
-from src.application.web_reader.anchors import Locator
-from src.application.web_reader.publications import epub_content_hash
-from src.config import EPUBS_DIR, get_settings
-from src.domain.common.exceptions import XPointParseError
-from src.domain.common.value_objects.xpoint import XPoint, XPointRange
-from src.infrastructure.library.services.epub_publication_parser import read_publication
-from src.infrastructure.web_reader.mappers.publication_json import publication_to_json
-from src.infrastructure.web_reader.services.xpoint_cfi_position_anchor_service import (
-    point_locators,
-    range_locators,
-)
+
+if TYPE_CHECKING:
+    from src.application.web_reader.anchors import Locator
+    from src.domain.common.value_objects.xpoint import XPoint, XPointRange
 
 revision: str = "076"
 down_revision: str | Sequence[str] | None = "075"
@@ -139,18 +140,53 @@ class ReadiumBackfillSummary:
     books_failed: int = 0
 
 
+# Application types are quoted inside the annotations rather than around them:
+# Alembic loads a version file without registering it in ``sys.modules``, where
+# ``dataclasses`` cannot resolve a field annotated with a string of its own.
+@dataclass(frozen=True)
+class _Derivation:
+    """The application code one run derives with, looked up once so the run is one import."""
+
+    content_hash: Callable[[bytes], str]
+    publication_json: Callable[[bytes], dict[str, Any]]
+    range_locators: Callable[[bytes, Mapping[int, "XPointRange"]], dict[int, "Locator | None"]]
+    point_locators: Callable[
+        [bytes, Mapping[_Endpoint, "XPoint"]], dict[_Endpoint, "Locator | None"]
+    ]
+    parse_range: Callable[[str, str], "XPointRange"]
+    parse_error: type[Exception]
+
+
 def upgrade() -> None:
     """Store a publication index and locators for every book that has an EPUB."""
-    summary = backfill_readium_rows(op.get_bind(), _epub_reader())
-    logger.info("Readium backfill finished: %s", summary)
+    run(op.get_bind())
 
 
 def downgrade() -> None:
     """No-op: derived data, dropped with its columns by 074's and 073's downgrades."""
 
 
+def run(connection: sa.Connection) -> ReadiumBackfillSummary | None:
+    """Back every book up to date, or log what stopped it and leave them as they were."""
+    try:
+        with connection.begin_nested():
+            summary = backfill_readium_rows(connection, _epub_reader(), _app_code())
+    except Exception:
+        logger.exception(
+            "Readium backfill skipped: a book opens in the web reader with its manifest "
+            "derived on first open, and its highlights and reading sessions gain locators "
+            "on their next KOReader sync or EPUB upload"
+        )
+        return None
+
+    logger.info("Readium backfill finished: %s", summary)
+    return summary
+
+
 def backfill_readium_rows(
-    connection: sa.Connection, read_epub: Callable[[str], bytes | None]
+    connection: sa.Connection,
+    read_epub: Callable[[str], bytes | None],
+    code: _Derivation,
 ) -> ReadiumBackfillSummary:
     """Fill in the publication index and the locators of every book with an EPUB."""
     summary = ReadiumBackfillSummary()
@@ -167,7 +203,7 @@ def backfill_readium_rows(
             logger.warning("Book %s: no EPUB stored as %r, skipping", book_id, file_name)
             summary.epubs_missing += 1
             continue
-        _backfill_book(connection, book_id, file_name, content, summary)
+        _backfill_book(connection, book_id, file_name, content, code, summary)
 
     return summary
 
@@ -177,14 +213,17 @@ def _backfill_book(
     book_id: int,
     file_name: str,
     content: bytes,
+    code: _Derivation,
     summary: ReadiumBackfillSummary,
 ) -> None:
-    source_hash = epub_content_hash(content)
+    source_hash = code.content_hash(content)
     failed = False
 
     try:
-        _store_publication(connection, book_id, file_name, content, source_hash)
+        _store_publication(connection, book_id, file_name, content, source_hash, code)
         summary.publications_stored += 1
+    # A failed statement has already aborted the transaction on PostgreSQL, so it
+    # goes straight to ``run``: contained here, every later book would fail too.
     except SQLAlchemyError:
         raise
     except Exception:
@@ -194,8 +233,8 @@ def _backfill_book(
     # Contained apart from the publication, as the upload path contains them: an
     # archive this parser rejects may still place positions, and the reverse.
     try:
-        highlights = _place_highlights(connection, book_id, content, source_hash)
-        sessions = _place_sessions(connection, book_id, content, source_hash)
+        highlights = _place_highlights(connection, book_id, content, source_hash, code)
+        sessions = _place_sessions(connection, book_id, content, source_hash, code)
     except SQLAlchemyError:
         raise
     except Exception:
@@ -210,13 +249,17 @@ def _backfill_book(
 
 
 def _store_publication(
-    connection: sa.Connection, book_id: int, file_name: str, content: bytes, source_hash: str
+    connection: sa.Connection,
+    book_id: int,
+    file_name: str,
+    content: bytes,
+    source_hash: str,
+    code: _Derivation,
 ) -> None:
-    publication = publication_to_json(read_publication(content))
     values = {
         "file_name": file_name,
         "content_hash": source_hash,
-        "publication": publication,
+        "publication": code.publication_json(content),
         "derived_at": datetime.now(UTC),
     }
     stored = connection.execute(
@@ -233,7 +276,7 @@ def _store_publication(
 
 
 def _place_highlights(
-    connection: sa.Connection, book_id: int, content: bytes, source_hash: str
+    connection: sa.Connection, book_id: int, content: bytes, source_hash: str, code: _Derivation
 ) -> int:
     # No user filter: the rows point at this book's file whoever owns them, and
     # each is its owner's to read (R4.2 leaves them where an upload found them).
@@ -248,13 +291,13 @@ def _place_highlights(
 
     ranges: dict[int, XPointRange] = {}
     for row_id, start, end in rows:
-        span = _parsed_span(book_id, row_id, start, end)
+        span = _parsed_span(book_id, row_id, start, end, code)
         if span is not None:
             ranges[row_id] = span
     if not ranges:
         return 0
 
-    locators = range_locators(content, ranges)
+    locators = code.range_locators(content, ranges)
     connection.execute(
         _UPDATE_HIGHLIGHT,
         [
@@ -266,7 +309,7 @@ def _place_highlights(
 
 
 def _place_sessions(
-    connection: sa.Connection, book_id: int, content: bytes, source_hash: str
+    connection: sa.Connection, book_id: int, content: bytes, source_hash: str, code: _Derivation
 ) -> int:
     rows = connection.execute(
         sa.select(
@@ -282,14 +325,14 @@ def _place_sessions(
 
     points: dict[_Endpoint, XPoint] = {}
     for row_id, start, end in rows:
-        span = _parsed_span(book_id, row_id, start, end)
+        span = _parsed_span(book_id, row_id, start, end, code)
         if span is not None:
             points[(row_id, _START)] = span.start
             points[(row_id, _END)] = span.end
     if not points:
         return 0
 
-    locators = point_locators(content, points)
+    locators = code.point_locators(content, points)
     # Keyed off what was asked for rather than what came back, so a session
     # neither of whose endpoints placed still records the digest they failed on.
     placed = {
@@ -311,20 +354,50 @@ def _place_sessions(
     return sum(1 for start, end in placed.values() if start is not None or end is not None)
 
 
-def _parsed_span(book_id: int, row_id: int, start: str, end: str) -> XPointRange | None:
+def _parsed_span(
+    book_id: int, row_id: int, start: str, end: str, code: _Derivation
+) -> "XPointRange | None":
     try:
-        return XPointRange.parse(start, end)
-    except (XPointParseError, ValueError) as exc:
+        return code.parse_range(start, end)
+    except (code.parse_error, ValueError) as exc:
         logger.warning("Book %s: row %s has an unusable xpointer (%s)", book_id, row_id, exc)
         return None
 
 
-def _payload(locator: Locator | None) -> dict[str, object] | None:
+def _payload(locator: "Locator | None") -> dict[str, object] | None:
     return locator.to_dict() if locator is not None else None
+
+
+def _app_code() -> _Derivation:
+    """Look up the application code this migration derives with, importing it as late as possible."""
+    from src.application.web_reader.publications import epub_content_hash  # noqa: PLC0415
+    from src.domain.common.exceptions import XPointParseError  # noqa: PLC0415
+    from src.domain.common.value_objects.xpoint import XPointRange  # noqa: PLC0415
+    from src.infrastructure.library.services.epub_publication_parser import (  # noqa: PLC0415
+        read_publication,
+    )
+    from src.infrastructure.web_reader.mappers.publication_json import (  # noqa: PLC0415
+        publication_to_json,
+    )
+    from src.infrastructure.web_reader.services.xpoint_cfi_position_anchor_service import (  # noqa: PLC0415
+        point_locators,
+        range_locators,
+    )
+
+    return _Derivation(
+        content_hash=epub_content_hash,
+        publication_json=lambda content: publication_to_json(read_publication(content)),
+        range_locators=range_locators,
+        point_locators=point_locators,
+        parse_range=XPointRange.parse,
+        parse_error=XPointParseError,
+    )
 
 
 def _epub_reader() -> Callable[[str], bytes | None]:
     """Read an EPUB from wherever this deployment keeps them, as the app's repositories do."""
+    from src.config import get_settings  # noqa: PLC0415
+
     settings = get_settings()
     if not settings.s3_enabled:
         return _local_epub
@@ -350,5 +423,7 @@ def _epub_reader() -> Callable[[str], bytes | None]:
 
 
 def _local_epub(file_name: str) -> bytes | None:
+    from src.config import EPUBS_DIR  # noqa: PLC0415
+
     path = EPUBS_DIR / file_name
     return path.read_bytes() if path.is_file() else None
