@@ -4,12 +4,15 @@ import {
   type EbookDecoration,
   type EbookLocation,
   type EbookReader,
+  type EbookRect,
+  type EbookSelection,
   type EbookTocEntry,
   type OpenEbookOptions,
   type OpenedEbook,
   type PageTurnDirection,
 } from '@/components/reader/EbookReader.ts';
 import { sanitizeResponse } from '@/components/reader/sanitizeResponse.ts';
+import { selectionLocation, type EbookResource } from '@/components/reader/selectionLocator.ts';
 import {
   DecorationStyleType,
   EpubNavigator,
@@ -202,8 +205,13 @@ export class ReadiumReader implements EbookReader {
   private readonly pageTurnListeners = new Set<(direction: PageTurnDirection) => void>();
   private readonly tocEntryListeners = new Set<(href: string | null) => void>();
   private readonly decorationListeners = new Set<(id: string) => void>();
+  private readonly selectionListeners = new Set<(selection: EbookSelection | null) => void>();
   private readonly destruction = new AbortController();
+  /** Each resource of the publication by the URL its frame is built around. */
+  private readonly resources = new Map<string, EbookResource>();
   private decorations: EbookDecoration[] = [];
+  /** Whether anything is selected, so that letting a selection go is reported once. */
+  private hasSelection = false;
   private navigator: EpubNavigator | undefined;
   private wrapper: HTMLDivElement | undefined;
   private isOpened = false;
@@ -221,6 +229,8 @@ export class ReadiumReader implements EbookReader {
 
     const publication = await this.publicationFrom(manifestUrl, signal);
     await this.checkpoint(signal);
+
+    this.mapResources(publication);
 
     // A book with no position list is still readable; it just has no page numbers.
     const positions = await publication.positionsFromManifest().catch(() => []);
@@ -305,6 +315,10 @@ export class ReadiumReader implements EbookReader {
     return this.subscribe(this.decorationListeners, listener);
   }
 
+  onSelectionChanged(listener: (selection: EbookSelection | null) => void): () => void {
+    return this.subscribe(this.selectionListeners, listener);
+  }
+
   onLocationChanged(listener: (location: EbookLocation) => void): () => void {
     return this.subscribe(this.locationListeners, listener);
   }
@@ -346,6 +360,7 @@ export class ReadiumReader implements EbookReader {
     this.pageTurnListeners.clear();
     this.tocEntryListeners.clear();
     this.decorationListeners.clear();
+    this.selectionListeners.clear();
   }
 
   /** The wrapper Readium's ResizeObserver may keep, and the container it draws into. */
@@ -369,6 +384,59 @@ export class ReadiumReader implements EbookReader {
     this.host.appendChild(wrapper);
 
     return container;
+  }
+
+  /**
+   * Each reading-order resource under the URL its frame will be built around.
+   *
+   * Which resource a selection is in cannot be read off the frame it was made
+   * in: the navigator loads every chapter from a blob URL, and the only thing
+   * naming the original is the `<base href>` it writes into the document, which
+   * is the resource's own URL. Asking the navigator where it currently is
+   * instead would answer for the frame on screen rather than the one the
+   * pointer went up in, and the two part company around a page turn.
+   */
+  private mapResources(publication: Publication): void {
+    for (const link of publication.readingOrder.items) {
+      const url = link.toURL(publication.baseURL);
+      if (url) this.resources.set(url, { href: link.href, type: link.type ?? '' });
+    }
+  }
+
+  /** Reports what is selected in one frame of the book, every time a pointer goes up in it. */
+  private watchSelection(frame: Window): void {
+    frame.document.addEventListener('pointerup', () => {
+      if (this.isDestroyed) return;
+      const resource = this.resources.get(frame.document.baseURI);
+      const selection = resource ? this.selectionIn(frame, resource) : null;
+      // Every tap in the book ends with nothing selected, and a reader who has
+      // selected nothing has not let anything go.
+      if (!selection && !this.hasSelection) return;
+      this.hasSelection = selection !== null;
+      this.notify(this.selectionListeners, selection);
+    });
+  }
+
+  private selectionIn(frame: Window, resource: EbookResource): EbookSelection | null {
+    const selected = frame.getSelection();
+    if (!selected || selected.rangeCount === 0) return null;
+    const range = selected.getRangeAt(0);
+    const location = selectionLocation(range, resource);
+    return location && { location, rect: this.onScreen(frame, range) };
+  }
+
+  /** A range inside a frame, in the coordinates of the page the reader is on. */
+  private onScreen(frame: Window, range: Range): EbookRect {
+    const rect = range.getBoundingClientRect();
+    const origin = [...this.host.querySelectorAll('iframe')]
+      .find((candidate) => candidate.contentWindow === frame)
+      ?.getBoundingClientRect();
+    return {
+      x: rect.x + (origin?.x ?? 0),
+      y: rect.y + (origin?.y ?? 0),
+      width: rect.width,
+      height: rect.height,
+    };
   }
 
   private async publicationFrom(manifestUrl: string, signal?: AbortSignal): Promise<Publication> {
@@ -395,7 +463,7 @@ export class ReadiumReader implements EbookReader {
 
   private navigatorListeners(): EpubNavigatorListeners {
     return {
-      frameLoaded: () => {},
+      frameLoaded: (frame) => this.watchSelection(frame),
       positionChanged: (locator) => this.notify(this.locationListeners, toLocation(locator)),
       timelineItemChanged: (item) =>
         this.notify(this.tocEntryListeners, this.tocEntryHrefFor(item)),
@@ -408,6 +476,8 @@ export class ReadiumReader implements EbookReader {
       scroll: () => {},
       customEvent: () => {},
       handleLocator: () => false,
+      // Ignored in favour of `watchSelection`: this one reports the words and a
+      // rectangle, and says nothing about where in the book they are.
       textSelected: () => {},
       contentProtection: () => {},
       contextMenu: () => {},

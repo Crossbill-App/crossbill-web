@@ -3,12 +3,14 @@ import {
   type EbookAppearance,
   type EbookDecoration,
   type EbookLocation,
+  type EbookSelection,
   type PageTurnDirection,
 } from '@/components/reader/EbookReader.ts';
 import { ReadiumReader } from '@/components/reader/ReadiumReader.ts';
 import { fontSizeRangeConfig } from '@readium/navigator';
 import { aDetailedPositionList, aManifest, aPositionList } from '@tests/fixtures/publication';
 import { drawnOn, drawnRanges } from '@tests/harness/paintedHighlights';
+import { rangeOver, select } from '@tests/harness/textSelection';
 import { noPublication, readiumApi } from '@tests/msw/readiumApi';
 import { worker } from '@tests/msw/worker';
 import { http, HttpResponse } from 'msw';
@@ -37,17 +39,21 @@ const recordEvents = () => {
   const positions: (number | undefined)[] = [];
   const turns: PageTurnDirection[] = [];
   const tocHrefs: (string | null)[] = [];
+  const selections: (EbookSelection | null)[] = [];
   reader.onLocationChanged((location) => positions.push(location.locations.position));
   reader.onPageTurnRequested((direction) => turns.push(direction));
   reader.onTocEntryChanged((href) => tocHrefs.push(href));
+  reader.onSelectionChanged((selection) => selections.push(selection));
   return {
     positions,
     turns,
     tocHrefs,
+    selections,
     clear: () => {
       positions.length = 0;
       turns.length = 0;
       tocHrefs.length = 0;
+      selections.length = 0;
     },
   };
 };
@@ -93,9 +99,24 @@ const centreOf = (range: Range) => {
 const frameText = () => frame()?.contentDocument?.body.textContent ?? '';
 
 /** The chapter on screen: Readium keeps the neighbouring one loaded and hidden. */
-const visibleFrameText = () =>
-  [...host.querySelectorAll('iframe')].find((candidate) => candidate.style.visibility !== 'hidden')
-    ?.contentDocument?.body.textContent ?? '';
+const visibleFrame = () =>
+  [...host.querySelectorAll('iframe')].find((candidate) => candidate.style.visibility !== 'hidden');
+
+const visibleFrameText = () => visibleFrame()?.contentDocument?.body.textContent ?? '';
+
+/** A reader dragging over words in the chapter on screen, and letting go. */
+const selectInBook = (phrase: string) => {
+  const chapter = visibleFrame()!.contentDocument!;
+  select(chapter, rangeOver(chapter, phrase));
+  chapter.dispatchEvent(new PointerEvent('pointerup', { bubbles: true }));
+};
+
+/** The same gesture over nothing, which is what dropping a selection is. */
+const tapTheBook = () => {
+  const chapter = visibleFrame()!.contentDocument!;
+  chapter.getSelection()?.removeAllRanges();
+  chapter.dispatchEvent(new PointerEvent('pointerup', { bubbles: true }));
+};
 
 /** What ReadiumCSS has written into the chapter for one of its user settings. */
 const userProperty = (name: string) =>
@@ -362,6 +383,58 @@ test('applying an empty set removes what was drawn', async () => {
   reader.applyDecorations([]);
 
   await expect.poll(() => drawnRanges(host)).toEqual([]);
+});
+
+test('selecting words in the book reports where in the book they are', async () => {
+  worker.use(...readiumApi());
+  await openTheBook();
+  await expect.poll(visibleFrameText).toContain('On Attention');
+  const recorded = recordEvents();
+
+  selectInBook('rarest and purest');
+
+  await expect.poll(() => recorded.selections).toHaveLength(1);
+  const selected = recorded.selections[0];
+  expect(selected?.location.href).toBe('resources/OEBPS/chapter1.xhtml');
+  expect(selected?.location.text?.highlight).toBe('rarest and purest');
+  expect(selected?.location.text?.before).toContain('Attention is the ');
+  // The words are in the chapter's only paragraph, and the selector reaches it.
+  const selector = selected?.location.locations.cssSelector;
+  expect(selector).toBe('body > p:nth-child(2)');
+  expect(visibleFrame()!.contentDocument!.querySelector(selector ?? '')?.tagName).toBe('p');
+  // Somewhere on the page, so a popover has something to sit beside.
+  expect(selected?.rect.width).toBeGreaterThan(0);
+  expect(selected?.rect.height).toBeGreaterThan(0);
+});
+
+test('a selection is reported against the chapter it was made in, not the one the book opened at', async () => {
+  worker.use(...readiumApi());
+  await openTheBook();
+  await reader.next();
+  await expect.poll(visibleFrameText).toContain('On Memory');
+  const recorded = recordEvents();
+
+  selectInBook('rarest and purest');
+
+  await expect.poll(() => recorded.selections).toHaveLength(1);
+  expect(recorded.selections[0]?.location.href).toBe(CHAPTER_TWO);
+});
+
+test('letting a selection go is reported once, and tapping on is not reported at all', async () => {
+  worker.use(...readiumApi());
+  await openTheBook();
+  await expect.poll(visibleFrameText).toContain('On Attention');
+  const recorded = recordEvents();
+  selectInBook('generosity');
+  await expect.poll(() => recorded.selections).toHaveLength(1);
+
+  tapTheBook();
+  await expect.poll(() => recorded.selections).toHaveLength(2);
+  expect(recorded.selections[1]).toBeNull();
+
+  tapTheBook();
+  tapTheBook();
+  expect(recorded.selections).toHaveLength(2);
 });
 
 test('a manifest that claims another origin still has its chapters resolve against ours', async () => {

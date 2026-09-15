@@ -3,6 +3,7 @@ import type {
   EbookDecoration,
   EbookLocation,
   EbookReader,
+  EbookSelection,
   OpenEbookOptions,
   OpenedEbook,
   PageTurnDirection,
@@ -36,6 +37,7 @@ export class FakeEbookReader implements EbookReader {
   private readonly pageTurnListeners = new Set<(direction: PageTurnDirection) => void>();
   private readonly tocEntryListeners = new Set<(href: string | null) => void>();
   private readonly decorationListeners = new Set<(id: string) => void>();
+  private readonly selectionListeners = new Set<(selection: EbookSelection | null) => void>();
   private settle: ((opened: OpenedEbook) => void) | undefined;
   private refuse: ((reason: Error) => void) | undefined;
   private isOpened = false;
@@ -119,6 +121,11 @@ export class FakeEbookReader implements EbookReader {
   onDecorationActivated(listener: (id: string) => void): () => void {
     this.decorationListeners.add(listener);
     return () => this.decorationListeners.delete(listener);
+  }
+
+  onSelectionChanged(listener: (selection: EbookSelection | null) => void): () => void {
+    this.selectionListeners.add(listener);
+    return () => this.selectionListeners.delete(listener);
   }
 
   onLocationChanged(listener: (location: EbookLocation) => void): () => void {
