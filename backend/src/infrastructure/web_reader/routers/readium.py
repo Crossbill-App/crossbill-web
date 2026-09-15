@@ -2,7 +2,7 @@
 
 import re
 from datetime import datetime
-from typing import Annotated
+from typing import Annotated, Literal
 
 from fastapi import APIRouter, Depends, Request, Response
 from fastapi.responses import JSONResponse
@@ -121,12 +121,37 @@ def set_publication_cookie(response: Response, book_id: int, token: PublicationT
         value=token.value,
         httponly=True,
         secure=settings.COOKIE_SECURE,
-        samesite="strict",
+        samesite=_publication_cookie_samesite(settings.COOKIE_SECURE),
         # The path is the scoping: a browser sends this cookie only to the routes
         # under it, so one book's credential never reaches another's.
         path=f"{settings.API_V1_PREFIX}/readium/books/{book_id}/",
         max_age=token.expires_in,
     )
+
+
+def _publication_cookie_samesite(cookie_secure: bool) -> Literal["none", "lax"]:
+    """Pick the widest ``SameSite`` the deployment's scheme allows (#838).
+
+    ``none`` is not a relaxation of same-site policy here, it is the only value
+    that works at all: the requests this cookie exists for are a chapter's own
+    images, stylesheets and fonts, asked for by a ``blob:`` document Readium
+    builds, and WebKit treats that document as cross-site. Under ``strict`` --
+    and under ``lax``, which is no better -- Safari sends no cookie, the book's
+    own cover 401s, and the reader draws a broken image where the page should
+    be. Chromium counts the same document same-site, which is why nothing but
+    Safari ever showed it.
+
+    Every route the cookie authenticates is a GET of one book's files, scoped by
+    path and expiring with the access token that minted it, so a cookie a
+    cross-site embed can spend buys a response it cannot read for want of CORS.
+    The write, ``PUT .../reading-position``, is Bearer-only and stays that way.
+
+    ``none`` requires ``Secure`` (RFC 6265bis §5.5), so a plain-http development
+    server would have the cookie rejected outright rather than merely withheld.
+    There it falls back to ``lax``, which is what it can have: Safari cannot read
+    an illustrated book against plain http, and every other browser can.
+    """
+    return "none" if cookie_secure else "lax"
 
 
 @router.post(

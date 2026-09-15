@@ -13,6 +13,7 @@ from httpx import AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession
 from starlette import status
 
+from src.config import get_settings
 from src.infrastructure.identity.services import token_service
 from src.infrastructure.identity.services.token_service import create_access_token
 from src.infrastructure.web_reader.services import publication_token_service
@@ -49,9 +50,41 @@ class TestStartingAPublicationSession:
         assert set_cookie.startswith(f"{PUBLICATION_COOKIE_NAME}=")
         assert "HttpOnly" in set_cookie
         assert "Secure" in set_cookie
-        assert "SameSite=strict" in set_cookie
         # The path is what keeps one book's cookie out of another book's routes.
         assert f"Path=/api/v1/readium/books/{test_book.id}/" in set_cookie
+
+    async def test_the_cookie_reaches_a_chapters_own_images_on_webkit(
+        self, browser_client: AsyncClient, test_user: User, test_book: Book
+    ) -> None:
+        """#838: WebKit calls Readium's ``blob:`` frame cross-site.
+
+        ``SameSite=none`` is the only value Safari will send from there, so a
+        stricter one is not a tightening -- it is every image, stylesheet and
+        font in every book failing to load.
+        """
+        response = await start_session(browser_client, test_user.id, test_book.id)
+
+        assert "SameSite=none" in response.headers["set-cookie"]
+
+    async def test_a_plain_http_server_gets_a_samesite_a_browser_will_accept(
+        self,
+        browser_client: AsyncClient,
+        test_user: User,
+        test_book: Book,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        """``SameSite=none`` without ``Secure`` is a cookie a browser drops on the floor.
+
+        A development server on plain http therefore keeps ``lax`` -- which costs
+        it Safari, and nothing else.
+        """
+        monkeypatch.setattr(get_settings(), "COOKIE_SECURE", False)
+
+        response = await start_session(browser_client, test_user.id, test_book.id)
+
+        set_cookie = response.headers["set-cookie"]
+        assert "SameSite=lax" in set_cookie
+        assert "Secure" not in set_cookie
 
     async def test_the_cookie_names_the_caller_and_the_book_asked_for(
         self, browser_client: AsyncClient, test_user: User, test_book: Book
