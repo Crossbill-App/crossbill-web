@@ -479,6 +479,69 @@ test('clearSelection empties the selection in the book and reports it let go', a
   expect(recorded.selections).toHaveLength(2);
 });
 
+/** One finger on the page, at a point along the axis a swipe travels. */
+const aFingerAt = (target: EventTarget, x: number) =>
+  new Touch({ identifier: 1, target, clientX: x, clientY: 200 });
+
+/** A finger dragged leftwards across the chapter, which is how a page is turned on a phone. */
+const dragAcrossTheBook = () => {
+  const chapter = visibleFrame()!.contentDocument!;
+  const touch = (type: string, x?: number) =>
+    chapter.dispatchEvent(
+      new TouchEvent(type, {
+        bubbles: true,
+        touches: x === undefined ? [] : [aFingerAt(chapter.body, x)],
+      })
+    );
+  touch('touchstart', 400);
+  touch('touchmove', 300);
+  touch('touchmove', 200);
+  touch('touchend');
+};
+
+const selectedText = () => visibleFrame()!.contentDocument!.getSelection()?.toString() ?? '';
+
+test('a touch drag over selected words leaves the selection standing', async () => {
+  const recorded = await theBookWithWordsSelected('rarest and purest');
+
+  dragAcrossTheBook();
+
+  await afterTheSelectionSettles();
+  expect(selectedText()).toBe('rarest and purest');
+  expect(recorded.selections).toHaveLength(1);
+  expect(recorded.positions).toEqual([]);
+});
+
+test('a touch drag with nothing selected still reaches the page turner', async () => {
+  worker.use(...readiumApi());
+  await openTheBook();
+  await expect.poll(visibleFrameText).toContain('On Attention');
+  const recorded = recordEvents();
+
+  dragAcrossTheBook();
+
+  await expect.poll(() => recorded.positions.length).toBeGreaterThan(0);
+});
+
+test('letting the selection go hands touch back to the page turner', async () => {
+  const recorded = await theBookWithWordsSelected('rarest and purest');
+  reader.clearSelection();
+
+  dragAcrossTheBook();
+
+  await expect.poll(() => recorded.positions.length).toBeGreaterThan(0);
+});
+
+test('the caret a tap leaves behind hands touch back too', async () => {
+  const recorded = await theBookWithWordsSelected('rarest and purest');
+  // What a tap in the book leaves: a range still there, with nothing in it.
+  visibleFrame()!.contentDocument!.getSelection()!.collapseToStart();
+
+  dragAcrossTheBook();
+
+  await expect.poll(() => recorded.positions.length).toBeGreaterThan(0);
+});
+
 test('a manifest that claims another origin still has its chapters resolve against ours', async () => {
   worker.use(
     ...readiumApi({
