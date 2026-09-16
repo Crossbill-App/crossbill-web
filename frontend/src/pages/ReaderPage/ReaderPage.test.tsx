@@ -18,7 +18,14 @@ import {
 } from '@tests/fixtures/publication';
 import { drawnOn, drawnRanges } from '@tests/harness/paintedHighlights';
 import { renderApp } from '@tests/harness/renderApp';
-import { selectInBook } from '@tests/harness/textSelection';
+import {
+  endOf,
+  paragraphsOnThePage,
+  rangeOver,
+  selectInBook,
+  tapAt,
+  visibleFrame,
+} from '@tests/harness/textSelection';
 import { bookApi } from '@tests/msw/bookApi';
 import type { HighlightCreationAnswer } from '@tests/msw/readiumApi';
 import {
@@ -1117,8 +1124,8 @@ test('tapping the highlight the reader arrived at opens it, and Back closes it',
   await expectThePassageOnThePage();
 });
 
-/** Highlight pressed over "rarest and purest", on a server that stores and places highlight 400. */
-const aHighlightPressed = async (answer: HighlightCreationAnswer) => {
+/** The reader open on a server that stores highlight 400 and places it. */
+const aBookThatStoresHighlights = async (answer: HighlightCreationAnswer) => {
   const details = bookApi({ book: aBookDetails({ chapters: [aChapter()] }) });
   worker.use(...details.handlers);
   worker.use(...readiumApi());
@@ -1135,17 +1142,26 @@ const aHighlightPressed = async (answer: HighlightCreationAnswer) => {
   });
   worker.use(...creation.handlers);
   const screen = await openTheBook();
-  selectInBook(document, 'rarest and purest');
-  await screen
-    .getByRole('toolbar', { name: 'Selected text' })
-    .getByRole('button', { name: 'Highlight' })
-    .click();
   return {
     screen,
     bodies: creation.bodies,
     created,
     locatorListRequests: () => locatorListRequests,
   };
+};
+
+const pressHighlight = (screen: Screen) =>
+  screen
+    .getByRole('toolbar', { name: 'Selected text' })
+    .getByRole('button', { name: 'Highlight' })
+    .click();
+
+/** Highlight pressed over "rarest and purest" on the page the book opens at. */
+const aHighlightPressed = async (answer: HighlightCreationAnswer) => {
+  const opened = await aBookThatStoresHighlights(answer);
+  selectInBook(document, 'rarest and purest');
+  await pressHighlight(opened.screen);
+  return opened;
 };
 
 test('a highlight is drawn before the server answers, from the words selected', async () => {
@@ -1183,4 +1199,28 @@ test('a highlight the server cannot place is taken off the page, and asks for mo
     .element(screen.getByRole('alert').filter({ hasText: 'Try selecting a little more text.' }))
     .toBeVisible();
   await expect.poll(() => drawnRanges(document)).toEqual([]);
+});
+
+test('a passage extended across a page turn is highlighted from its first words to the tapped ones', async () => {
+  const { screen, bodies } = await aBookThatStoresHighlights({ id: 400 });
+  // The second chapter is the one long enough to run over several pages.
+  await screen.getByRole('button', { name: 'Next page' }).click();
+  await expectPage(screen, 'Page 2 of 2 · 50%');
+  const chapter = visibleFrame(document)!.contentDocument!;
+  const anchor = paragraphsOnThePage(chapter)[0];
+  selectInBook(document, 'rarest and purest', anchor);
+  await screen
+    .getByRole('toolbar', { name: 'Selected text' })
+    .getByRole('button', { name: 'Extend' })
+    .click();
+
+  await screen.getByRole('button', { name: 'Next page' }).click();
+  await expect.poll(() => paragraphsOnThePage(chapter)[0]).toBeGreaterThan(anchor);
+  tapAt(chapter, endOf(rangeOver(chapter, 'generosity', paragraphsOnThePage(chapter)[0])));
+  await pressHighlight(screen);
+
+  await expect.poll(() => bodies).toHaveLength(1);
+  const quote = bodies[0].locator.text?.highlight ?? '';
+  expect(quote.startsWith('rarest and purest')).toBe(true);
+  expect(quote.endsWith('generosity')).toBe(true);
 });

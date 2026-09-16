@@ -32,8 +32,11 @@ export class FakeEbookReader implements EbookReader {
   nextCalls = 0;
   previousCalls = 0;
   clearSelectionCalls = 0;
+  startSelectionExtensionCalls = 0;
+  cancelSelectionExtensionCalls = 0;
   destroyed = false;
 
+  private readonly extensionRefusedListeners = new Set<() => void>();
   private readonly locationListeners = new Set<(location: EbookLocation) => void>();
   private readonly pageTurnListeners = new Set<(direction: PageTurnDirection) => void>();
   private readonly tocEntryListeners = new Set<(href: string | null) => void>();
@@ -136,6 +139,26 @@ export class FakeEbookReader implements EbookReader {
   clearSelection(): void {
     this.clearSelectionCalls += 1;
     this.select(null);
+  }
+
+  /** Lets the selection go, as the engine does when an extension starts. */
+  startSelectionExtension(): void {
+    this.startSelectionExtensionCalls += 1;
+    this.select(null);
+  }
+
+  cancelSelectionExtension(): void {
+    this.cancelSelectionExtensionCalls += 1;
+  }
+
+  onSelectionExtensionRefused(listener: () => void): () => void {
+    this.extensionRefusedListeners.add(listener);
+    return () => this.extensionRefusedListeners.delete(listener);
+  }
+
+  /** A tap the engine could not extend the selection with. */
+  refuseSelectionExtension(): void {
+    for (const listener of [...this.extensionRefusedListeners]) listener();
   }
 
   onLocationChanged(listener: (location: EbookLocation) => void): () => void {

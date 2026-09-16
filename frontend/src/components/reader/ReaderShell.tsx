@@ -1,8 +1,8 @@
 import { API_BASE_URL } from '@/api/base-url.ts';
 import type { Highlight } from '@/api/generated/model';
 import { IconButtonWithTooltip } from '@/components/buttons/IconButtonWithTooltip.tsx';
-import { highlightIdFrom } from '@/components/reader/decorations.ts';
-import type { EbookTocEntry } from '@/components/reader/EbookReader.ts';
+import { heldPassageDecoration, highlightIdFrom } from '@/components/reader/decorations.ts';
+import type { EbookLocation, EbookTocEntry } from '@/components/reader/EbookReader.ts';
 import {
   landingOfAJump,
   tocEntryLocation,
@@ -22,6 +22,7 @@ import { useReaderSession } from '@/components/reader/useReaderSession.ts';
 import { useReadingPositionWriter } from '@/components/reader/useReadingPositionWriter.ts';
 import { useSnackbar } from '@/context/SnackbarContext.tsx';
 import { useBodyScrollLock } from '@/hooks/useBodyScrollLock.ts';
+import { useResetOnChange } from '@/hooks/useResetOnChange.ts';
 import {
   ChapterListIcon,
   CloseIcon,
@@ -70,6 +71,9 @@ const MISSED_JUMP_APOLOGIES: Record<MissedJump, string> = {
     "Couldn't find this highlight's exact place, so the book opened at the start of its chapter.",
   start: "Couldn't find this highlight's place, so the book opened at the start.",
 };
+
+/** Said over the open book for a tap that landed in a chapter the passage cannot reach. */
+const ONE_CHAPTER_ONLY = 'A highlight has to stay inside one chapter.';
 
 /** The width the page-turn buttons need beside the text on anything but a phone. */
 const PAGE_TURN_GUTTER = '48px';
@@ -122,6 +126,37 @@ const PageTurnButton = ({ edge, onClick, disabled }: PageTurnButtonProps) => (
       <NextPageIcon sx={{ fontSize: ICON_SIZE.prominent }} />
     )}
   </IconButton>
+);
+
+interface ExtensionBarProps {
+  colors: ReturnType<typeof readerPageColors>;
+  onCancel: () => void;
+}
+
+/** What to do while the far end of a passage is awaited, in the page's own colours. */
+const ExtensionBar = ({ colors, onCancel }: ExtensionBarProps) => (
+  <Stack
+    role="group"
+    aria-label="Extending the highlight"
+    direction="row"
+    spacing={1}
+    sx={{
+      alignItems: 'center',
+      px: 1.5,
+      py: 0.5,
+      borderRadius: 1,
+      border: 1,
+      borderColor: alpha(colors.text, 0.12),
+      boxShadow: (t) => t.shadows[2],
+      backgroundColor: colors.background,
+      color: colors.text,
+    }}
+  >
+    <Typography variant="body2">Tap where the highlight ends</Typography>
+    <Button size="small" color="inherit" onClick={onCancel}>
+      Cancel
+    </Button>
+  </Stack>
 );
 
 interface ReaderMessageProps {
@@ -191,11 +226,21 @@ export const ReaderShell = ({
   const landing = useReaderLanding(bookId, target);
   const placedHighlights = useHighlightDecorations(bookId, highlights);
   const creation = useHighlightCreation(bookId);
+  // Drawn by the reader itself: a passage the browser has stopped showing as selected
+  // would otherwise sit under the popover with nothing marking its words.
+  const [heldPassage, setHeldPassage] = useState<EbookLocation | null>(null);
   const decorations = useMemo(
-    () => [...placedHighlights, ...creation.standIns],
-    [placedHighlights, creation.standIns]
+    () => [
+      ...placedHighlights,
+      ...creation.standIns,
+      ...(heldPassage ? [heldPassageDecoration(heldPassage)] : []),
+    ],
+    [placedHighlights, creation.standIns, heldPassage]
   );
   const missedJump = useRef<MissedJump | null>(null);
+  const { showSnackbar } = useSnackbar();
+  // Whether a tap is awaited to say where the passage being extended ends.
+  const [isExtending, setIsExtending] = useState(false);
   const book = useEbookReader({
     host,
     manifestUrl: manifestUrlFor(bookId),
@@ -213,6 +258,8 @@ export const ReaderShell = ({
       const tapped = highlightIdFrom(id);
       if (tapped !== null) onOpenHighlight?.(tapped);
     },
+    // The engine keeps the remembered start, so the bar stays up for a tap in its chapter.
+    onSelectionExtensionRefused: () => showSnackbar(ONE_CHAPTER_ONLY, 'info'),
     // On to the passage, which opening at its locator can leave a page short of, or else to
     // its chapter; what was missed is kept for the apology once the book is on screen.
     finishLanding:
@@ -225,7 +272,6 @@ export const ReaderShell = ({
           },
   });
 
-  const { showSnackbar } = useSnackbar();
   const apologised = useRef(false);
   useEffect(() => {
     if (apologised.current || book.status !== 'open' || !landing) return;
@@ -243,6 +289,12 @@ export const ReaderShell = ({
     apologised.current = true;
     showSnackbar(message, 'info');
   }, [book.status, book.landedAt, landing, target, showSnackbar]);
+
+  // A selection while a tap is awaited is the extended passage arriving.
+  useResetOnChange([book.selection], () => {
+    if (book.selection) setIsExtending(false);
+    setHeldPassage(book.selection?.shownAsSelected === false ? book.selection.location : null);
+  });
 
   if (sessionStatus === 'error') {
     return (
@@ -282,6 +334,16 @@ export const ReaderShell = ({
     const location = book.selection?.location;
     book.clearSelection();
     if (location) creation.create(location);
+  };
+
+  const extendSelection = () => {
+    book.startSelectionExtension();
+    setIsExtending(true);
+  };
+
+  const stopExtending = () => {
+    book.cancelSelectionExtension();
+    setIsExtending(false);
   };
 
   const goToTocEntry = (entry: EbookTocEntry) => {
@@ -352,6 +414,25 @@ export const ReaderShell = ({
 
         {!isOpen && <ReaderLoading />}
 
+        {/* Mounted for as long as the book is, because a live region appearing
+            together with its words announces nothing. At the top: the sides belong
+            to the page-turn buttons and the bottom to a phone's own callout. */}
+        {isOpen && (
+          <Box
+            aria-live="polite"
+            sx={{
+              position: 'absolute',
+              top: (t) => t.spacing(1),
+              left: '50%',
+              transform: 'translateX(-50%)',
+              maxWidth: '100%',
+              zIndex: 2,
+            }}
+          >
+            {isExtending && <ExtensionBar colors={pageColors} onCancel={stopExtending} />}
+          </Box>
+        )}
+
         {/* Mounted for as long as the book is: a live region that appears
             together with its text announces nothing. */}
         {isOpen && (
@@ -392,6 +473,7 @@ export const ReaderShell = ({
       <SelectionPopover
         selection={book.selection}
         onHighlight={highlightSelection}
+        onExtend={extendSelection}
         onCancel={book.clearSelection}
       />
     </Box>

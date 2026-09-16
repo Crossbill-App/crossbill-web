@@ -1200,6 +1200,7 @@ test('activating a decoration asks to open its highlight', async () => {
 const A_SELECTION = {
   location: { ...aFakeLocation(1), text: { highlight: 'rarest and purest' } },
   rect: { x: 400, y: 300, width: 200, height: 20 },
+  shownAsSelected: true,
 };
 
 const theSelectionToolbar = () => page.getByRole('toolbar', { name: 'Selected text' });
@@ -1353,6 +1354,88 @@ test('a saved highlight the server cannot place raises no error', async () => {
 
   await expect.poll(standIns).toEqual([]);
   expect(screen.getByRole('alert').elements()).toEqual([]);
+});
+
+const pressExtend = () => theSelectionToolbar().getByRole('button', { name: 'Extend' }).click();
+
+const theExtensionBar = () => page.getByRole('group', { name: 'Extending the highlight' });
+
+/** The book with the words selected carried over to a tap yet to come. */
+const aSelectionBeingExtended = async () => {
+  const screen = await aBookWithASelection();
+  await pressExtend();
+  await expect.element(theExtensionBar()).toBeVisible();
+  return screen;
+};
+
+test('Extend asks the engine for one and says what to do next', async () => {
+  await aBookWithASelection();
+
+  await pressExtend();
+
+  expect(readers[0].startSelectionExtensionCalls).toBe(1);
+  await expect.element(theExtensionBar()).toHaveTextContent('Tap where the highlight ends');
+  await expect.element(theSelectionToolbar()).not.toBeInTheDocument();
+});
+
+test('the way out of an extension lets the engine forget where the passage started', async () => {
+  await aSelectionBeingExtended();
+
+  await theExtensionBar().getByRole('button', { name: 'Cancel' }).click();
+
+  expect(readers[0].cancelSelectionExtensionCalls).toBe(1);
+  await expect.element(theExtensionBar()).not.toBeInTheDocument();
+});
+
+test('the passage an extension ends on comes back under the popover', async () => {
+  worker.use(...highlightCreationApi([{ status: 500, delayMs: 300 }]).handlers);
+  await aSelectionBeingExtended();
+
+  readers[0].select({
+    ...A_SELECTION,
+    location: { ...aFakeLocation(1), text: { highlight: 'rarest and purest form of generosity' } },
+  });
+
+  await expect.element(theExtensionBar()).not.toBeInTheDocument();
+  await expect.element(theSelectionToolbar()).toBeVisible();
+  await pressHighlight();
+
+  await expect.poll(standInWords).toEqual(['rarest and purest form of generosity']);
+});
+
+test('a tap the engine cannot extend says a highlight stays inside one chapter', async () => {
+  const screen = await aSelectionBeingExtended();
+
+  readers[0].refuseSelectionExtension();
+
+  await expectToBeTold(screen, 'A highlight has to stay inside one chapter.');
+  await expect.element(theExtensionBar()).toBeVisible();
+});
+
+test('closing the reader while an extension waits leaves nothing behind', async () => {
+  const screen = await aSelectionBeingExtended();
+
+  screen.unmount();
+
+  expect(theExtensionBar().query()).toBeNull();
+  expect(readers[0].cancelSelectionExtensionCalls).toBe(0);
+  await expect.poll(() => readers[0].destroyed).toBe(true);
+});
+
+test('a passage the browser no longer shows as selected is drawn, and Highlight stores it', async () => {
+  worker.use(...highlightCreationApi([{ status: 500, delayMs: 300 }]).handlers);
+  await aBookWithASelection();
+
+  readers[0].select({ ...A_SELECTION, shownAsSelected: false });
+
+  await expect.poll(drawnIds).toEqual(['held-passage']);
+  await expect.element(theSelectionToolbar()).toBeVisible();
+
+  await pressHighlight();
+
+  expect(readers[0].clearSelectionCalls).toBe(1);
+  await expect.poll(standInWords).toEqual(['rarest and purest']);
+  await expect.poll(drawnIds).toEqual(['selection-1']);
 });
 
 /** The shell as the reader page mounts it, drawing the highlights the book's details hold. */

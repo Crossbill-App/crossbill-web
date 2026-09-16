@@ -45,14 +45,54 @@ export const visibleFrame = (root: ParentNode) =>
   [...root.querySelectorAll('iframe')].find((candidate) => candidate.style.visibility !== 'hidden');
 
 /** A selection changing under no pointer, the way a touch handle or a keyboard moves one. */
-export const adjustSelectionInBook = (root: ParentNode, phrase: string) => {
+export const adjustSelectionInBook = (root: ParentNode, phrase: string, occurrence = 1) => {
   const chapter = visibleFrame(root)!.contentDocument!;
-  select(chapter, rangeOver(chapter, phrase));
+  select(chapter, rangeOver(chapter, phrase, occurrence));
+};
+
+/** A tap in a chapter, at a point in that chapter's own coordinates. */
+export const tapAt = (chapter: Document, point: { x: number; y: number }) =>
+  // On the element under the point, as a real tap lands: a listener on the document
+  // that stops the event then keeps it from the rest of the document, as it would.
+  (chapter.elementFromPoint(point.x, point.y) ?? chapter).dispatchEvent(
+    new PointerEvent('pointerup', { bubbles: true, clientX: point.x, clientY: point.y })
+  );
+
+/** Where a reader would tap to put the caret before a range's first character. */
+export const startOf = (range: Range) => {
+  const rect = range.getClientRects()[0];
+  return { x: rect.left + 1, y: rect.top + rect.height / 2 };
+};
+
+/** Where a reader would tap to put the caret after a range's last character. */
+export const endOf = (range: Range) => {
+  const rects = range.getClientRects();
+  const rect = rects[rects.length - 1];
+  return { x: rect.right - 1, y: rect.top + rect.height / 2 };
+};
+
+/**
+ * Which of the chapter's identical paragraphs are on the page, by their number.
+ *
+ * Each paragraph holds the chapter's sentence once, so a paragraph's number is
+ * also which occurrence of any of its words `rangeOver` should be asked for.
+ */
+export const paragraphsOnThePage = (chapter: Document): number[] => {
+  const view = chapter.defaultView!;
+  return [...chapter.querySelectorAll('p')].flatMap((paragraph, index) => {
+    const rect = paragraph.getBoundingClientRect();
+    const onThePage =
+      rect.left >= 0 &&
+      rect.right <= view.innerWidth &&
+      rect.top >= 0 &&
+      rect.bottom <= view.innerHeight;
+    return onThePage ? [index + 1] : [];
+  });
 };
 
 /** A reader dragging over words in the chapter on screen, and letting go. */
-export const selectInBook = (root: ParentNode, phrase: string) => {
-  adjustSelectionInBook(root, phrase);
+export const selectInBook = (root: ParentNode, phrase: string, occurrence = 1) => {
+  adjustSelectionInBook(root, phrase, occurrence);
   visibleFrame(root)!.contentDocument!.dispatchEvent(
     new PointerEvent('pointerup', { bubbles: true })
   );

@@ -28,6 +28,14 @@ export const standInDecoration = (sequence: number, location: EbookLocation): Eb
   opacity: TINT_OPACITY,
 });
 
+/** A passage the engine holds on to, drawn because the browser has stopped showing it selected. */
+export const heldPassageDecoration = (location: EbookLocation): EbookDecoration => ({
+  id: 'held-passage',
+  location,
+  tint: DEFAULT_LABEL_COLOR,
+  opacity: TINT_OPACITY,
+});
+
 /** A highlight's locator in the engine's terms. */
 export const toEbookLocation = (locator: LocatorSchema): EbookLocation => ({
   href: locator.href,
