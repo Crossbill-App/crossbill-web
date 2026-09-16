@@ -3,7 +3,7 @@ import type { Highlight } from '@/api/generated/model';
 import { IconButtonWithTooltip } from '@/components/buttons/IconButtonWithTooltip.tsx';
 import { isAnyDialogOpen } from '@/components/dialogs/dialogStack.ts';
 import { heldPassageDecoration, highlightIdFrom } from '@/components/reader/decorations.ts';
-import type { EbookLocation, EbookTocEntry } from '@/components/reader/EbookReader.ts';
+import type { EbookTocEntry } from '@/components/reader/EbookReader.ts';
 import { landingOfAJump, tocEntryLocation } from '@/components/reader/jumpFallback.ts';
 import { ReaderLoading } from '@/components/reader/ReaderLoading.tsx';
 import { readerPageColors, toEbookAppearance } from '@/components/reader/readerPreferences.ts';
@@ -18,9 +18,9 @@ import { useReaderLanding } from '@/components/reader/useReaderLanding.ts';
 import { useReaderPreferences } from '@/components/reader/useReaderPreferences.ts';
 import { useReaderSession } from '@/components/reader/useReaderSession.ts';
 import { useReadingPositionWriter } from '@/components/reader/useReadingPositionWriter.ts';
+import { useSelectionWorkflow } from '@/components/reader/useSelectionWorkflow.ts';
 import { useSnackbar } from '@/context/SnackbarContext.tsx';
 import { useBodyScrollLock } from '@/hooks/useBodyScrollLock.ts';
-import { useResetOnChange } from '@/hooks/useResetOnChange.ts';
 import {
   ChapterListIcon,
   CloseIcon,
@@ -214,20 +214,7 @@ export const ReaderShell = ({
   const landing = useReaderLanding(bookId, target);
   const placedHighlights = useHighlightDecorations(bookId, highlights);
   const creation = useHighlightCreation(bookId);
-  // Drawn by the reader itself: a passage the browser has stopped showing as selected
-  // would otherwise sit under the popover with nothing marking its words.
-  const [heldPassage, setHeldPassage] = useState<EbookLocation | null>(null);
-  const decorations = useMemo(
-    () => [
-      ...placedHighlights,
-      ...creation.standIns,
-      ...(heldPassage ? [heldPassageDecoration(heldPassage)] : []),
-    ],
-    [placedHighlights, creation.standIns, heldPassage]
-  );
   const { showSnackbar } = useSnackbar();
-  // Whether a tap is awaited to say where the passage being extended ends.
-  const [isExtending, setIsExtending] = useState(false);
   const book = useEbookReader({
     host,
     manifestUrl: manifestUrlFor(bookId),
@@ -262,6 +249,15 @@ export const ReaderShell = ({
             landingOfAJump(landing?.locator ?? null, opened, landing?.chapter ?? null).destination,
   });
 
+  const workflow = useSelectionWorkflow(book, creation);
+  const decorations = useMemo(
+    () => [
+      ...placedHighlights,
+      ...creation.standIns,
+      ...(workflow.heldPassage ? [heldPassageDecoration(workflow.heldPassage)] : []),
+    ],
+    [placedHighlights, creation.standIns, workflow.heldPassage]
+  );
   // Pushed to whichever reader is on screen, the one it opened with or a retry's.
   const applyDecorations = book.applyDecorations;
   useEffect(() => applyDecorations(decorations), [applyDecorations, decorations]);
@@ -281,12 +277,6 @@ export const ReaderShell = ({
   }, [fontSizeRange, preferences.fontSize, setPreferences]);
 
   useLandingApology(book, landing, target);
-
-  // A selection while a tap is awaited is the extended passage arriving.
-  useResetOnChange([book.selection], () => {
-    if (book.selection) setIsExtending(false);
-    setHeldPassage(book.selection?.shownAsSelected === false ? book.selection.location : null);
-  });
 
   if (sessionStatus === 'error') {
     return (
@@ -321,22 +311,6 @@ export const ReaderShell = ({
   const isOpen = book.status === 'open';
   const pageTurnsDisabled = isRenewing || !isOpen;
   const position = book.location?.locations.position;
-
-  const highlightSelection = () => {
-    const location = book.selection?.location;
-    book.clearSelection();
-    if (location) creation.create(location);
-  };
-
-  const extendSelection = () => {
-    book.startSelectionExtension();
-    setIsExtending(true);
-  };
-
-  const stopExtending = () => {
-    book.cancelSelectionExtension();
-    setIsExtending(false);
-  };
 
   const goToTocEntry = (entry: EbookTocEntry) => {
     setIsTocOpen(false);
@@ -421,7 +395,9 @@ export const ReaderShell = ({
               zIndex: 2,
             }}
           >
-            {isExtending && <ExtensionBar colors={pageColors} onCancel={stopExtending} />}
+            {workflow.isExtending && (
+              <ExtensionBar colors={pageColors} onCancel={workflow.stopExtending} />
+            )}
           </Box>
         )}
 
@@ -464,8 +440,8 @@ export const ReaderShell = ({
 
       <SelectionPopover
         selection={book.selection}
-        onHighlight={highlightSelection}
-        onExtend={extendSelection}
+        onHighlight={workflow.highlight}
+        onExtend={workflow.extend}
         onCancel={book.clearSelection}
       />
     </Box>
