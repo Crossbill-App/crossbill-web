@@ -84,6 +84,8 @@ const couldBeTheLanding = (error: unknown): boolean =>
   !(error instanceof PublicationUnavailableError) &&
   !(error instanceof DOMException && error.name === 'TimeoutError');
 
+/** One array before a book opens, so that a consumer holding `toc` as a prop or a
+ * dependency is not handed a new one every render. */
 const NO_TOC: EbookTocEntry[] = [];
 
 /** One book opened into a host element, and where the reader is in it. */
@@ -103,12 +105,12 @@ export const useEbookReader = ({
   finishLanding,
 }: UseEbookReaderOptions): EbookReaderState => {
   const [outcome, setOutcome] = useState<EbookReaderOutcome | null>(null);
-  const [pageCount, setPageCount] = useState(0);
+  // Everything the book said as it opened, kept as the one value it arrived as.
+  // Where the reader is moves on from it, so location and the contents entry are
+  // seeded from it and then live on their own.
+  const [opened, setOpened] = useState<OpenedEbook | null>(null);
   const [location, setLocation] = useState<EbookLocation | null>(null);
-  const [toc, setToc] = useState<EbookTocEntry[]>(NO_TOC);
   const [currentTocHref, setCurrentTocHref] = useState<string | null>(null);
-  const [landedAt, setLandedAt] = useState<OpenedEbook['landedAt'] | null>(null);
-  const [fontSizeRange, setFontSizeRange] = useState<[number, number] | null>(null);
   const [selection, setSelection] = useState<EbookSelection | null>(null);
   const [attempt, setAttempt] = useState(0);
   const readerRef = useRef<EbookReader | null>(null);
@@ -179,12 +181,9 @@ export const useEbookReader = ({
       // The place the book settled on may never have been reported as a change,
       // so this is the only report a writer has to seed itself with.
       reportLocation(opened.location, true);
-      setPageCount(opened.pageCount);
+      setOpened(opened);
       setLocation(opened.location);
-      setToc(opened.toc);
       setCurrentTocHref(opened.tocHref);
-      setFontSizeRange(opened.fontSizeRange);
-      setLandedAt(opened.landedAt);
       const destination = finishTheLanding(opened);
       if (destination) {
         // A move that never finishes still owes the reader the book, where it opened.
@@ -260,11 +259,8 @@ export const useEbookReader = ({
   const retry = useCallback(() => {
     setOutcome(null);
     // Nothing from the last attempt survives into the new one.
-    setPageCount(0);
-    setToc(NO_TOC);
+    setOpened(null);
     setCurrentTocHref(null);
-    setFontSizeRange(null);
-    setLandedAt(null);
     setAttempt((count) => count + 1);
   }, []);
 
@@ -282,12 +278,12 @@ export const useEbookReader = ({
 
   return {
     status,
-    pageCount,
+    pageCount: opened?.pageCount ?? 0,
     location,
-    toc,
+    toc: opened?.toc ?? NO_TOC,
     currentTocHref,
-    landedAt,
-    fontSizeRange,
+    landedAt: opened?.landedAt ?? null,
+    fontSizeRange: opened?.fontSizeRange ?? null,
     selection,
     next,
     previous,
