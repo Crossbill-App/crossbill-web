@@ -36,7 +36,7 @@ const LANDING_QUERY = {
   refetchOnWindowFocus: false,
 } as const;
 
-interface ReaderLanding {
+export interface ReaderLanding {
   /** Where to open the book, or `null` to start at the beginning. */
   locator: EbookLocation | null;
   /** Whether a place exists that the server could not place in this EPUB. */

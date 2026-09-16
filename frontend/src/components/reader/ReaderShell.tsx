@@ -4,11 +4,7 @@ import { IconButtonWithTooltip } from '@/components/buttons/IconButtonWithToolti
 import { isAnyDialogOpen } from '@/components/dialogs/dialogStack.ts';
 import { heldPassageDecoration, highlightIdFrom } from '@/components/reader/decorations.ts';
 import type { EbookLocation, EbookTocEntry } from '@/components/reader/EbookReader.ts';
-import {
-  landingOfAJump,
-  tocEntryLocation,
-  type MissedJump,
-} from '@/components/reader/jumpFallback.ts';
+import { landingOfAJump, tocEntryLocation } from '@/components/reader/jumpFallback.ts';
 import { ReaderLoading } from '@/components/reader/ReaderLoading.tsx';
 import { readerPageColors, toEbookAppearance } from '@/components/reader/readerPreferences.ts';
 import { ReaderSettings } from '@/components/reader/ReaderSettings.tsx';
@@ -17,6 +13,7 @@ import { TocDrawer } from '@/components/reader/TocDrawer.tsx';
 import { useEbookReader, type UseEbookReaderOptions } from '@/components/reader/useEbookReader.ts';
 import { useHighlightCreation } from '@/components/reader/useHighlightCreation.ts';
 import { useHighlightDecorations } from '@/components/reader/useHighlightDecorations.ts';
+import { useLandingApology } from '@/components/reader/useLandingApology.ts';
 import { useReaderLanding } from '@/components/reader/useReaderLanding.ts';
 import { useReaderPreferences } from '@/components/reader/useReaderPreferences.ts';
 import { useReaderSession } from '@/components/reader/useReaderSession.ts';
@@ -62,16 +59,6 @@ export interface ReaderShellProps {
   writeDebounceMs?: number;
   heartbeatMs?: number;
 }
-
-/** Said once, over the open book, for a place that could not be restored. */
-const LOST_THE_BOOKMARK = "Couldn't restore your last position, so the book opened at the start.";
-
-/** Said once, over the open book, for a highlight whose passage could not be reached. */
-const MISSED_JUMP_APOLOGIES: Record<MissedJump, string> = {
-  chapter:
-    "Couldn't find this highlight's exact place, so the book opened at the start of its chapter.",
-  start: "Couldn't find this highlight's place, so the book opened at the start.",
-};
 
 /** Said over the open book for a tap that landed in a chapter the passage cannot reach. */
 const ONE_CHAPTER_ONLY = 'A highlight has to stay inside one chapter.';
@@ -238,7 +225,6 @@ export const ReaderShell = ({
     ],
     [placedHighlights, creation.standIns, heldPassage]
   );
-  const missedJump = useRef<MissedJump | null>(null);
   const { showSnackbar } = useSnackbar();
   // Whether a tap is awaited to say where the passage being extended ends.
   const [isExtending, setIsExtending] = useState(false);
@@ -266,15 +252,12 @@ export const ReaderShell = ({
     // The engine keeps the remembered start, so the bar stays up for a tap in its chapter.
     onSelectionExtensionRefused: () => showSnackbar(ONE_CHAPTER_ONLY, 'info'),
     // On to the passage, which opening at its locator can leave a page short of, or else to
-    // its chapter; what was missed is kept for the apology once the book is on screen.
+    // its chapter.
     finishLanding:
       target === null
         ? undefined
-        : (opened) => {
-            const jump = landingOfAJump(landing?.locator ?? null, opened, landing?.chapter ?? null);
-            missedJump.current = jump.missed;
-            return jump.destination;
-          },
+        : (opened) =>
+            landingOfAJump(landing?.locator ?? null, opened, landing?.chapter ?? null).destination,
   });
 
   // The preference store no longer knows the engine's range, so a size stored
@@ -291,23 +274,7 @@ export const ReaderShell = ({
     }
   }, [fontSizeRange, preferences.fontSize, setPreferences]);
 
-  const apologised = useRef(false);
-  useEffect(() => {
-    if (apologised.current || book.status !== 'open' || !landing) return;
-    // `'start'` with a place still on offer covers both remaining failures: a
-    // locator this edition cannot place, and one the navigator refused outright
-    // and which the retry therefore stopped offering.
-    const lost = landing.lost || (landing.locator !== null && book.landedAt === 'start');
-    const message =
-      target === null
-        ? lost
-          ? LOST_THE_BOOKMARK
-          : null
-        : missedJump.current && MISSED_JUMP_APOLOGIES[missedJump.current];
-    if (!message) return;
-    apologised.current = true;
-    showSnackbar(message, 'info');
-  }, [book.status, book.landedAt, landing, target, showSnackbar]);
+  useLandingApology(book, landing, target);
 
   // A selection while a tap is awaited is the extended passage arriving.
   useResetOnChange([book.selection], () => {
