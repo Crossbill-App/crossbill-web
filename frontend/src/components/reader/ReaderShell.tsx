@@ -241,7 +241,6 @@ export const ReaderShell = ({
     canTurnPage: () => !isRenewing && !isAnyDialogOpen(),
     appearance,
     initialLocation: landing?.locator ?? null,
-    decorations,
     createReader,
     bootTimeoutMs,
     on: {
@@ -262,6 +261,10 @@ export const ReaderShell = ({
         : (opened) =>
             landingOfAJump(landing?.locator ?? null, opened, landing?.chapter ?? null).destination,
   });
+
+  // Pushed to whichever reader is on screen, the one it opened with or a retry's.
+  const applyDecorations = book.applyDecorations;
+  useEffect(() => applyDecorations(decorations), [applyDecorations, decorations]);
 
   // The preference store no longer knows the engine's range, so a size stored
   // outside it — which happens only when the range changed between versions —

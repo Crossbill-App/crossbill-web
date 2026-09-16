@@ -47,8 +47,6 @@ export interface UseEbookReaderOptions {
   appearance: EbookAppearance;
   /** Where the book should open; `null` opens it at the beginning. */
   initialLocation?: EbookLocation | null;
-  /** What to draw over the book; a new array is submitted to the engine, so keep it stable. */
-  decorations: EbookDecoration[];
   /** Must be referentially stable: an inline arrow rebuilds the reader every render. */
   createReader?: (host: HTMLElement) => EbookReader;
   bootTimeoutMs?: number;
@@ -74,6 +72,9 @@ export interface EbookReaderState {
   previous: () => void;
   goTo: (location: EbookLocation) => void;
   clearSelection: () => void;
+  /** Replaces what the reader draws over the book; remembered, so a reader rebuilt
+   * by a retry is handed the current set. */
+  applyDecorations: (decorations: EbookDecoration[]) => void;
   startSelectionExtension: () => void;
   cancelSelectionExtension: () => void;
   retry: () => void;
@@ -104,7 +105,6 @@ export const useEbookReader = ({
   canTurnPage,
   appearance,
   initialLocation,
-  decorations,
   createReader = aReadiumReader,
   bootTimeoutMs = BOOT_TIMEOUT_MS,
   on,
@@ -135,13 +135,9 @@ export const useEbookReader = ({
   const finishTheLanding = useEffectEvent((opened: OpenedEbook) => finishLanding?.(opened));
   const openingOptions = useEffectEvent(() => ({ appearance, initialLocation }));
   const appliedRef = useRef<EbookAppearance | null>(null);
-  // A new set is drawn by the reader already on screen rather than a rebuilt one. Above
-  // the boot effect, so a render that starts a boot hands the new reader the current set once.
-  const decorationsRef = useRef(decorations);
-  useEffect(() => {
-    decorationsRef.current = decorations;
-    readerRef.current?.applyDecorations(decorations);
-  }, [decorations]);
+  // What the reader draws over the book, kept here so that a reader built later has
+  // something to be handed: the set belongs to the book, not to one reader of it.
+  const decorationsRef = useRef<EbookDecoration[]>([]);
   // Whether a place has already been refused once. Never reset: the second
   // attempt offers nothing that could be rejected, so a second failure is real.
   const refusedRef = useRef(false);
@@ -153,6 +149,7 @@ export const useEbookReader = ({
     const { appearance: openingAppearance, initialLocation: openingLocation } = openingOptions();
     const reader = createReader(element);
     readerRef.current = reader;
+    // Whatever was handed over before this reader existed, or to the reader before it.
     reader.applyDecorations(decorationsRef.current);
     const offered = refusedRef.current ? null : openingLocation;
     const cancel = new AbortController();
@@ -252,6 +249,10 @@ export const useEbookReader = ({
     []
   );
   const clearSelection = useCallback(() => readerRef.current?.clearSelection(), []);
+  const applyDecorations = useCallback((decorations: EbookDecoration[]) => {
+    decorationsRef.current = decorations;
+    readerRef.current?.applyDecorations(decorations);
+  }, []);
   const startSelectionExtension = useCallback(
     () => readerRef.current?.startSelectionExtension(),
     []
@@ -295,6 +296,7 @@ export const useEbookReader = ({
     previous,
     goTo,
     clearSelection,
+    applyDecorations,
     startSelectionExtension,
     cancelSelectionExtension,
     retry,
