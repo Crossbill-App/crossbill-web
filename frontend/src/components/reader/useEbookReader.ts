@@ -45,6 +45,8 @@ export interface UseEbookReaderOptions {
   onLocationReported?: (location: EbookLocation, arriving: boolean) => void;
   /** The id of a decoration the reader tapped. */
   onDecorationActivated?: (id: string) => void;
+  /** A tap that could not extend the selection, the remembered start still standing. */
+  onSelectionExtensionRefused?: () => void;
   /** Where to move the book once it has opened, before it is shown; `null` shows it where it opened. */
   finishLanding?: (opened: OpenedEbook) => EbookLocation | null;
 }
@@ -65,6 +67,8 @@ export interface EbookReaderState {
   previous: () => void;
   goTo: (location: EbookLocation) => void;
   clearSelection: () => void;
+  startSelectionExtension: () => void;
+  cancelSelectionExtension: () => void;
   retry: () => void;
 }
 
@@ -96,6 +100,7 @@ export const useEbookReader = ({
   bootTimeoutMs = BOOT_TIMEOUT_MS,
   onLocationReported,
   onDecorationActivated,
+  onSelectionExtensionRefused,
   finishLanding,
 }: UseEbookReaderOptions): EbookReaderState => {
   const [outcome, setOutcome] = useState<EbookReaderOutcome | null>(null);
@@ -129,6 +134,10 @@ export const useEbookReader = ({
   useEffect(() => {
     activatedRef.current = onDecorationActivated;
   }, [onDecorationActivated]);
+  const extensionRefusedRef = useRef(onSelectionExtensionRefused);
+  useEffect(() => {
+    extensionRefusedRef.current = onSelectionExtensionRefused;
+  }, [onSelectionExtensionRefused]);
   const finishLandingRef = useRef(finishLanding);
   useEffect(() => {
     finishLandingRef.current = finishLanding;
@@ -176,6 +185,7 @@ export const useEbookReader = ({
       reader.onSelectionChanged(setSelection),
       reader.onTocEntryChanged(setCurrentTocHref),
       reader.onDecorationActivated((id) => activatedRef.current?.(id)),
+      reader.onSelectionExtensionRefused(() => extensionRefusedRef.current?.()),
       reader.onPageTurnRequested((direction) => {
         // Readium's pager sets a navigating flag it never clears when it has no
         // frames yet, so one key before the book is up kills every later turn.
@@ -260,6 +270,14 @@ export const useEbookReader = ({
     []
   );
   const clearSelection = useCallback(() => readerRef.current?.clearSelection(), []);
+  const startSelectionExtension = useCallback(
+    () => readerRef.current?.startSelectionExtension(),
+    []
+  );
+  const cancelSelectionExtension = useCallback(
+    () => readerRef.current?.cancelSelectionExtension(),
+    []
+  );
   // Both, and in one go: the host is unmounted behind the message this is
   // offered on, and has to be back in the tree before the new attempt looks for it.
   const retry = useCallback(() => {
@@ -298,6 +316,8 @@ export const useEbookReader = ({
     previous,
     goTo,
     clearSelection,
+    startSelectionExtension,
+    cancelSelectionExtension,
     retry,
   };
 };

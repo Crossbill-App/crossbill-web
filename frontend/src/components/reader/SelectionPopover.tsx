@@ -4,11 +4,18 @@ import { Button, Paper, Popper, Stack } from '@mui/material';
 export interface SelectionPopoverProps {
   selection: EbookSelection | null;
   onHighlight: () => void;
+  /** Carries the selection on to a word tapped later, over as many pages as it takes. */
+  onExtend: () => void;
   onCancel: () => void;
 }
 
 /** What can be done with the words selected in the book, below them. */
-export const SelectionPopover = ({ selection, onHighlight, onCancel }: SelectionPopoverProps) => {
+export const SelectionPopover = ({
+  selection,
+  onHighlight,
+  onExtend,
+  onCancel,
+}: SelectionPopoverProps) => {
   const rect = selection?.rect;
   const anchor = rect && { getBoundingClientRect: () => DOMRect.fromRect(rect) };
 
@@ -24,6 +31,7 @@ export const SelectionPopover = ({ selection, onHighlight, onCancel }: Selection
       <Paper elevation={8} onMouseDown={(event) => event.preventDefault()} sx={{ mt: 1, p: 0.5 }}>
         <Stack role="toolbar" aria-label="Selected text" direction="row" spacing={0.5}>
           <Button onClick={onHighlight}>Highlight</Button>
+          <Button onClick={onExtend}>Extend</Button>
           <Button onClick={onCancel}>Cancel</Button>
         </Stack>
       </Paper>
