@@ -1,28 +1,37 @@
 import { useGetBookDetails } from '@/api/generated/books/books.ts';
 import { isAnyDialogOpen } from '@/components/dialogs/dialogStack.ts';
-import { heldPassageDecoration, highlightIdFrom } from '@/components/reader/decorations.ts';
-import type { EbookTocEntry } from '@/components/reader/EbookReader.ts';
-import { ExtensionBar } from '@/components/reader/ExtensionBar.tsx';
-import { landingOfAJump } from '@/components/reader/jumpFallback.ts';
-import { ReaderMessage } from '@/components/reader/ReaderMessage.tsx';
-import { overlaySx } from '@/components/reader/readerOverlay.ts';
-import { readerPageColors, toEbookAppearance } from '@/components/reader/readerPreferences.ts';
-import { ReaderSettings } from '@/components/reader/ReaderSettings.tsx';
-import { ReaderToolbar } from '@/components/reader/ReaderToolbar.tsx';
-import { ReadingSurface } from '@/components/reader/ReadingSurface.tsx';
-import { manifestUrl } from '@/components/reader/readiumUrls.ts';
-import { SelectionPopover } from '@/components/reader/SelectionPopover.tsx';
+import { manifestUrl } from '@/components/reader/api/readiumUrls.ts';
+import { ExtensionBar } from '@/components/reader/chrome/ExtensionBar.tsx';
+import { ReaderMessage } from '@/components/reader/chrome/ReaderMessage.tsx';
+import { overlaySx } from '@/components/reader/chrome/readerOverlay.ts';
+import { ReaderToolbar } from '@/components/reader/chrome/ReaderToolbar.tsx';
+import { ReadingSurface } from '@/components/reader/chrome/ReadingSurface.tsx';
+import { SelectionPopover } from '@/components/reader/chrome/SelectionPopover.tsx';
+import { TocDrawer } from '@/components/reader/chrome/TocDrawer.tsx';
+import type { EbookTocEntry } from '@/components/reader/engine/EbookReader.ts';
+import {
+  heldPassageDecoration,
+  highlightIdFrom,
+} from '@/components/reader/highlights/decorations.ts';
+import { useHighlightCreation } from '@/components/reader/highlights/useHighlightCreation.ts';
+import { useHighlightDecorations } from '@/components/reader/highlights/useHighlightDecorations.ts';
+import { useSelectionWorkflow } from '@/components/reader/highlights/useSelectionWorkflow.ts';
+import { landingOfAJump } from '@/components/reader/opening/jumpFallback.ts';
+import {
+  useEbookReader,
+  type UseEbookReaderOptions,
+} from '@/components/reader/opening/useEbookReader.ts';
+import { useLandingApology } from '@/components/reader/opening/useLandingApology.ts';
+import { useReaderLanding } from '@/components/reader/opening/useReaderLanding.ts';
+import { useReaderSession } from '@/components/reader/opening/useReaderSession.ts';
+import { useReadingPositionWriter } from '@/components/reader/position/useReadingPositionWriter.ts';
+import {
+  readerPageColors,
+  toEbookAppearance,
+} from '@/components/reader/preferences/readerPreferences.ts';
+import { ReaderSettings } from '@/components/reader/preferences/ReaderSettings.tsx';
+import { useReaderPreferences } from '@/components/reader/preferences/useReaderPreferences.ts';
 import { tocEntryLocation } from '@/components/reader/toc.ts';
-import { TocDrawer } from '@/components/reader/TocDrawer.tsx';
-import { useEbookReader, type UseEbookReaderOptions } from '@/components/reader/useEbookReader.ts';
-import { useHighlightCreation } from '@/components/reader/useHighlightCreation.ts';
-import { useHighlightDecorations } from '@/components/reader/useHighlightDecorations.ts';
-import { useLandingApology } from '@/components/reader/useLandingApology.ts';
-import { useReaderLanding } from '@/components/reader/useReaderLanding.ts';
-import { useReaderPreferences } from '@/components/reader/useReaderPreferences.ts';
-import { useReaderSession } from '@/components/reader/useReaderSession.ts';
-import { useReadingPositionWriter } from '@/components/reader/useReadingPositionWriter.ts';
-import { useSelectionWorkflow } from '@/components/reader/useSelectionWorkflow.ts';
 import { useSnackbar } from '@/context/SnackbarContext.tsx';
 import { useBodyScrollLock } from '@/hooks/useBodyScrollLock.ts';
 import { Box, useTheme } from '@mui/material';

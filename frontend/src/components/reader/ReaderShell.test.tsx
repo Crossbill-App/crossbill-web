@@ -8,8 +8,8 @@ import type {
   EbookDecoration,
   EbookTocEntry,
   OpenedEbook,
-} from '@/components/reader/EbookReader.ts';
-import { READER_PREFERENCES_KEY } from '@/components/reader/readerPreferenceStorage.ts';
+} from '@/components/reader/engine/EbookReader.ts';
+import { READER_PREFERENCES_KEY } from '@/components/reader/preferences/readerPreferenceStorage.ts';
 import {
   ReaderShell,
   type ReaderShellProps,

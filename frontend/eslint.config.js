@@ -98,12 +98,7 @@ export default tseslint.config(
     // restricted too, deliberately: the seam exists so that its own types, not
     // the engine's, are what cross it.
     files: ['src/**/*.{ts,tsx}'],
-    ignores: [
-      'src/components/reader/ReadiumReader.ts',
-      'src/components/reader/readiumConversions.ts',
-      'src/components/reader/readiumLanding.ts',
-      'src/**/*.test.tsx',
-    ],
+    ignores: ['src/components/reader/engine/**', 'src/**/*.test.tsx'],
     rules: {
       '@typescript-eslint/no-restricted-imports': [
         'error',
@@ -112,7 +107,7 @@ export default tseslint.config(
             {
               group: ['@readium/*'],
               message:
-                'Only the engine adapter speaks Readium. Everything else goes through the EbookReader seam in @/components/reader/EbookReader.ts.',
+                'Only the engine adapter speaks Readium. Everything else goes through the EbookReader seam in @/components/reader/engine/EbookReader.ts.',
             },
           ],
         },

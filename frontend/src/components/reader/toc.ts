@@ -1,7 +1,7 @@
 /**
  * The book's contents as both the drawer and the jump fallback read them.
  */
-import type { EbookLocation, EbookTocEntry } from '@/components/reader/EbookReader.ts';
+import type { EbookLocation, EbookTocEntry } from '@/components/reader/engine/EbookReader.ts';
 
 /** The href a manifest gives a heading that groups chapters and links nowhere — a part title, say. */
 const UNLINKED_HREF = '#';

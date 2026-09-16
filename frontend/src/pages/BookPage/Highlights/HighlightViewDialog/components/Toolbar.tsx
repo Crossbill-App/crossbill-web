@@ -1,8 +1,8 @@
 import { useCreateBookmark, useDeleteBookmark } from '@/api/generated/bookmarks/bookmarks.ts';
 import type { Bookmark } from '@/api/generated/model';
 import { IconButtonWithTooltip } from '@/components/buttons/IconButtonWithTooltip.tsx';
+import { OpenInReaderButton } from '@/components/buttons/OpenInReaderButton.tsx';
 import { DialogToolbar } from '@/components/dialogs/DialogToolbar.tsx';
-import { OpenInReaderButton } from '@/components/reader/OpenInReaderButton.tsx';
 import { useMutationErrorHandler } from '@/hooks/useMutationErrorHandler.ts';
 import { useCacheEvents } from '@/lib/cacheEvents.ts';
 import {
