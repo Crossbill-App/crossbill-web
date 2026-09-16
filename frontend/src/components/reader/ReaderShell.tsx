@@ -1,4 +1,4 @@
-import type { Highlight } from '@/api/generated/model';
+import { useGetBookDetails } from '@/api/generated/books/books.ts';
 import { isAnyDialogOpen } from '@/components/dialogs/dialogStack.ts';
 import { heldPassageDecoration, highlightIdFrom } from '@/components/reader/decorations.ts';
 import type { EbookTocEntry } from '@/components/reader/EbookReader.ts';
@@ -28,21 +28,22 @@ import { useBodyScrollLock } from '@/hooks/useBodyScrollLock.ts';
 import { Box, useTheme } from '@mui/material';
 import { useEffect, useMemo, useRef, useState } from 'react';
 
-export interface ReaderShellProps {
-  bookId: number;
-  title: string;
-  onClose: () => void;
-  /** The book's highlights, `undefined` until the book-details query has answered. */
-  highlights?: Highlight[];
-  /** A highlight the reader tapped on the page. */
-  onOpenHighlight?: (highlightId: number) => void;
-  /** The highlight to open the book at; only its value at mount counts. */
-  highlightId?: number;
-  /** All four only for tests: a fake engine, and waits short enough to sit through. */
+/** All four only for tests: a fake engine, and waits short enough to sit through. */
+export interface ReaderTestKnobs {
   createReader?: UseEbookReaderOptions['createReader'];
   bootTimeoutMs?: number;
   writeDebounceMs?: number;
   heartbeatMs?: number;
+}
+
+export interface ReaderShellProps {
+  bookId: number;
+  onClose: () => void;
+  /** A highlight the reader tapped on the page. */
+  onOpenHighlight?: (highlightId: number) => void;
+  /** The highlight to open the book at; only its value at mount counts. */
+  highlightId?: number;
+  testing?: ReaderTestKnobs;
 }
 
 /** Said over the open book for a tap that landed in a chapter the passage cannot reach. */
@@ -51,19 +52,21 @@ const ONE_CHAPTER_ONLY = 'A highlight has to stay inside one chapter.';
 /** The reader's full-viewport frame: a title bar, a way out, and the book. */
 export const ReaderShell = ({
   bookId,
-  title,
   onClose,
-  highlights,
   onOpenHighlight,
   highlightId,
-  createReader,
-  bootTimeoutMs,
-  writeDebounceMs,
-  heartbeatMs,
+  testing: { createReader, bootTimeoutMs, writeDebounceMs, heartbeatMs } = {},
 }: ReaderShellProps) => {
   // A fixed overlay never scrolls the body, which is what arms pull-to-refresh.
   useBodyScrollLock(true);
   const { status: sessionStatus, isRenewing } = useReaderSession(bookId);
+  const { data: details } = useGetBookDetails(bookId);
+  const title = details?.title ?? '';
+  // A new array every render would be a new set of decorations every render.
+  const highlights = useMemo(
+    () => details?.chapters.flatMap((chapter) => chapter.highlights),
+    [details]
+  );
   const host = useRef<HTMLDivElement | null>(null);
   const [isTocOpen, setIsTocOpen] = useState(false);
   const [preferences, setPreferences] = useReaderPreferences();
@@ -76,7 +79,7 @@ export const ReaderShell = ({
   const { seed, moved } = useReadingPositionWriter(bookId, { writeDebounceMs, heartbeatMs });
   // Latched, so that nothing done to the address after the book opens can move it.
   const [target] = useState(highlightId ?? null);
-  const landing = useReaderLanding(bookId, target);
+  const landing = useReaderLanding(bookId, target, details?.chapters);
   const placedHighlights = useHighlightDecorations(bookId, highlights);
   const creation = useHighlightCreation(bookId);
   const { showSnackbar } = useSnackbar();

@@ -1,4 +1,4 @@
-import { useGetBookDetails } from '@/api/generated/books/books.ts';
+import { getGetBookDetailsQueryKey } from '@/api/generated/books/books.ts';
 import type {
   ChapterWithHighlights,
   Highlight,
@@ -10,7 +10,11 @@ import type {
   OpenedEbook,
 } from '@/components/reader/EbookReader.ts';
 import { READER_PREFERENCES_KEY } from '@/components/reader/readerPreferenceStorage.ts';
-import { ReaderShell, type ReaderShellProps } from '@/components/reader/ReaderShell.tsx';
+import {
+  ReaderShell,
+  type ReaderShellProps,
+  type ReaderTestKnobs,
+} from '@/components/reader/ReaderShell.tsx';
 import { SnackbarProvider } from '@/context/SnackbarContext.tsx';
 import { theme } from '@/theme/theme.ts';
 import { DEFAULT_LABEL_COLOR } from '@/utils/colorUtils.ts';
@@ -36,7 +40,6 @@ import {
 } from '@tests/msw/readiumApi';
 import { worker } from '@tests/msw/worker';
 import { HttpResponse, delay, http } from 'msw';
-import { useMemo } from 'react';
 import { afterEach, beforeEach, expect, test } from 'vitest';
 import { cleanup, render } from 'vitest-browser-react';
 import { page, userEvent } from 'vitest/browser';
@@ -62,6 +65,10 @@ const createReader = () => {
 
 beforeEach(() => {
   readers.length = 0;
+  // The shell reads the book's details for its title and its highlights, so
+  // every test needs a book whether or not it is about one. A test with
+  // something to say about the book registers its own handlers over these.
+  worker.use(...bookApi().handlers);
 });
 
 afterEach(async () => {
@@ -96,30 +103,30 @@ const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 const shellUnder = (
   queryClient: QueryClient,
   props: Partial<ReaderShellProps>,
-  Shell: typeof ReaderShell = ReaderShell
+  knobs: ReaderTestKnobs
 ) => (
   <QueryClientProvider client={queryClient}>
     <ThemeProvider theme={theme}>
       <SnackbarProvider>
-        <Shell
+        <ReaderShell
           bookId={1}
-          title="The Pragmatic Reader"
           onClose={() => {}}
-          createReader={createReader}
           {...props}
+          testing={{ createReader, ...knobs }}
         />
       </SnackbarProvider>
     </ThemeProvider>
   </QueryClientProvider>
 );
 
-const renderShell = async (props: Partial<ReaderShellProps> = {}, Shell = ReaderShell) => {
+const renderShell = async (props: Partial<ReaderShellProps> = {}, knobs: ReaderTestKnobs = {}) => {
   const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   pendingQueryClients.push(queryClient);
-  const screen = await render(shellUnder(queryClient, props, Shell));
+  const screen = await render(shellUnder(queryClient, props, knobs));
   return Object.assign(screen, {
+    queryClient,
     rerenderShell: (next: Partial<ReaderShellProps>) =>
-      screen.rerender(shellUnder(queryClient, next, Shell)),
+      screen.rerender(shellUnder(queryClient, next, knobs)),
   });
 };
 
@@ -141,9 +148,10 @@ const aBookWithContents = (): Partial<OpenedEbook> => ({ toc: A_TOC, tocHref: A_
 /** The shell with the book on screen at its first page. */
 const anOpenBook = async (
   opened: Partial<OpenedEbook> = {},
-  props: Partial<ReaderShellProps> = {}
+  props: Partial<ReaderShellProps> = {},
+  knobs: ReaderTestKnobs = {}
 ) => {
-  const screen = await renderShell(props);
+  const screen = await renderShell(props, knobs);
   await expect.poll(() => readers.length).toBe(1);
   readers[0].resolveOpen(opened);
   await expect.element(screen.getByText('Page 1 of 2')).toBeVisible();
@@ -229,7 +237,7 @@ test('a page turn asked for while the cookie is being renewed is dropped', async
 test('a book that never appears times out and can be retried', async () => {
   worker.use(...readiumApi());
 
-  const screen = await renderShell({ bootTimeoutMs: 300 });
+  const screen = await renderShell({}, { bootTimeoutMs: 300 });
 
   await expect
     .element(screen.getByText('This book could not be opened in the reader.'))
@@ -251,7 +259,7 @@ test('a book whose chapters never arrive times out and can be retried', async ()
   worker.use(...readiumApi());
   worker.use(http.get(RESOURCE_PATH, () => delay('infinite')));
 
-  const screen = await renderShell({ createReader: undefined, bootTimeoutMs: 500 });
+  const screen = await renderShell({}, { createReader: undefined, bootTimeoutMs: 500 });
 
   await expect
     .element(screen.getByText('This book could not be opened in the reader.'), { timeout: 3_000 })
@@ -583,7 +591,7 @@ const aBookRecordingPositions = async (timings = A_QUICK_WRITE) => {
   worker.use(...readiumApi());
   const positions = readingPositionApi();
   worker.use(...positions.handlers);
-  const screen = await anOpenBook({}, timings);
+  const screen = await anOpenBook({}, {}, timings);
   return { screen, writes: positions.writes };
 };
 
@@ -1036,23 +1044,6 @@ test('a heading that links nowhere is never the fallback', async () => {
   await expectTheChapterFallback(screen);
 });
 
-test('an ordinary open never asks for the book details', async () => {
-  worker.use(...readiumApi());
-  let detailsRequests = 0;
-  worker.use(
-    http.get(BOOK_DETAILS_PATH, () => {
-      detailsRequests += 1;
-      return HttpResponse.json(aBookDetails());
-    })
-  );
-
-  const screen = await anOpenBook();
-
-  await expectOnScreen(screen);
-  await sleep(300);
-  expect(detailsRequests).toBe(0);
-});
-
 /**
  * On a phone the two arrow gutters were most of the screen and the book was a
  * strip down the middle, while the buttons themselves sat over the page they
@@ -1085,6 +1076,10 @@ test('the page-turn buttons stand aside on a phone and come back on a wider scre
  */
 const aYellowHighlight = () => aHighlight({ id: 300, label: { ui_color: '#F59E0B' } });
 
+/** The book's details with these highlights in its one chapter. */
+const aBookHolding = (highlights: Highlight[]) =>
+  bookApi({ book: aBookDetails({ chapters: [aChapter({ highlights })] }) });
+
 /** The shell open over a book whose highlights the server answers for with these places. */
 const aBookWithHighlights = async (
   highlights: Highlight[],
@@ -1094,7 +1089,8 @@ const aBookWithHighlights = async (
 ) => {
   worker.use(...readiumApi());
   worker.use(...highlightLocatorsApi(locators));
-  return await anOpenBook({}, { highlights });
+  worker.use(...aBookHolding(highlights).handlers);
+  return await anOpenBook();
 };
 
 /** The set the engine was last given. */
@@ -1163,8 +1159,9 @@ test('a place listed for a highlight the book no longer has is not drawn', async
 test('the book is on screen before its highlights are placed', async () => {
   worker.use(...readiumApi());
   worker.use(...highlightLocatorsApi([aHighlightLocator(300)], { delayMs: 1_500 }));
+  worker.use(...aBookHolding([aYellowHighlight()]).handlers);
 
-  await anOpenBook({}, { highlights: [aYellowHighlight()] });
+  await anOpenBook();
   expect(lastSubmitted()).toEqual([]);
 
   await expect.poll(drawnIds, { timeout: 3_000 }).toEqual(['highlight-300']);
@@ -1172,12 +1169,22 @@ test('the book is on screen before its highlights are placed', async () => {
 });
 
 test('a highlight whose label changes is redrawn by the same reader', async () => {
-  const screen = await aBookWithHighlights([aYellowHighlight()]);
+  worker.use(...readiumApi());
+  worker.use(...highlightLocatorsApi([aHighlightLocator(300)]));
+  worker.use(...aBookHolding([aYellowHighlight()]).handlers);
+  const screen = await anOpenBook();
   await expect.poll(drawnTints).toEqual(['#F59E0B']);
 
-  await screen.rerenderShell({
-    highlights: [aHighlight({ id: 300, label: { ui_color: '#3B82F6' } })],
-  });
+  // A relabelling done elsewhere in the app ends with the book's details
+  // refetched into the cache, and the cache is what reaches the open reader.
+  screen.queryClient.setQueryData(
+    getGetBookDetailsQueryKey(1),
+    aBookDetails({
+      chapters: [
+        aChapter({ highlights: [aHighlight({ id: 300, label: { ui_color: '#3B82F6' } })] }),
+      ],
+    })
+  );
 
   await expect.poll(drawnTints).toEqual(['#3B82F6']);
   expect(readers).toHaveLength(1);
@@ -1451,13 +1458,6 @@ test('a passage the browser no longer shows as selected is drawn, and Highlight 
   await expect.poll(drawnIds).toEqual(['selection-1']);
 });
 
-/** The shell as the reader page mounts it, drawing the highlights the book's details hold. */
-const ShellOverTheDetails = (props: ReaderShellProps) => {
-  const { data } = useGetBookDetails(props.bookId);
-  const highlights = useMemo(() => data?.chapters.flatMap((chapter) => chapter.highlights), [data]);
-  return <ReaderShell {...props} highlights={highlights} />;
-};
-
 /** Highlight 400 stored and placed when made, over the handlers given, with a selection up. */
 const aSelectionOverTheDetails = async (...handlers: Parameters<typeof worker.use>) => {
   worker.use(...readiumApi());
@@ -1471,7 +1471,7 @@ const aSelectionOverTheDetails = async (...handlers: Parameters<typeof worker.us
   };
   worker.use(...highlightCreationApi([{ id: 400 }], { onCreated: storeIt }).handlers);
   worker.use(...handlers);
-  await renderShell({}, ShellOverTheDetails);
+  await renderShell();
   await expect.poll(() => readers.length).toBe(1);
   readers[0].resolveOpen();
   readers[0].select(A_SELECTION);
