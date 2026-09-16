@@ -6,6 +6,8 @@ import { heldPassageDecoration, highlightIdFrom } from '@/components/reader/deco
 import type { EbookTocEntry } from '@/components/reader/EbookReader.ts';
 import { landingOfAJump, tocEntryLocation } from '@/components/reader/jumpFallback.ts';
 import { ReaderLoading } from '@/components/reader/ReaderLoading.tsx';
+import { ReaderMessage } from '@/components/reader/ReaderMessage.tsx';
+import { overlaySx } from '@/components/reader/readerOverlay.ts';
 import { readerPageColors, toEbookAppearance } from '@/components/reader/readerPreferences.ts';
 import { ReaderSettings } from '@/components/reader/ReaderSettings.tsx';
 import { SelectionPopover } from '@/components/reader/SelectionPopover.tsx';
@@ -38,8 +40,6 @@ import {
   Toolbar,
   Typography,
   useTheme,
-  type SxProps,
-  type Theme,
 } from '@mui/material';
 import { useEffect, useMemo, useRef, useState } from 'react';
 
@@ -72,14 +72,6 @@ const READING_SURFACE_INSET = 2;
 const pageLabel = (page: number, pageCount: number, progression: number | undefined) =>
   `Page ${page} of ${pageCount}` +
   (progression === undefined ? '' : ` · ${Math.round(progression * 100)}%`);
-
-const overlaySx: SxProps<Theme> = {
-  position: 'fixed',
-  inset: 0,
-  zIndex: (t) => t.zIndex.appBar + 1,
-  display: 'flex',
-  flexDirection: 'column',
-};
 
 const manifestUrlFor = (bookId: number) =>
   new URL(`${API_BASE_URL}/api/v1/readium/books/${bookId}/manifest.json`, window.location.origin)
@@ -145,42 +137,6 @@ const ExtensionBar = ({ colors, onCancel }: ExtensionBarProps) => (
       Cancel
     </Button>
   </Stack>
-);
-
-interface ReaderMessageProps {
-  children: string;
-  onClose: () => void;
-  /** Offered only where trying again could plausibly work. */
-  onRetry?: () => void;
-}
-
-const ReaderMessage = ({ children, onClose, onRetry }: ReaderMessageProps) => (
-  <Box sx={{ ...overlaySx, backgroundColor: 'background.default', color: 'text.primary' }}>
-    <Box
-      sx={{
-        flex: 1,
-        display: 'flex',
-        flexDirection: 'column',
-        alignItems: 'center',
-        justifyContent: 'center',
-        gap: 2,
-        p: 3,
-        textAlign: 'center',
-      }}
-    >
-      <Typography>{children}</Typography>
-      <Stack direction="row" spacing={2}>
-        <Button variant="outlined" onClick={onClose}>
-          Back to book
-        </Button>
-        {onRetry && (
-          <Button variant="contained" onClick={onRetry}>
-            Try again
-          </Button>
-        )}
-      </Stack>
-    </Box>
-  </Box>
 );
 
 /** The reader's full-viewport frame: a title bar, a way out, and the book. */
