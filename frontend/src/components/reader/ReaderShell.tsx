@@ -1,6 +1,7 @@
 import { API_BASE_URL } from '@/api/base-url.ts';
 import type { Highlight } from '@/api/generated/model';
 import { IconButtonWithTooltip } from '@/components/buttons/IconButtonWithTooltip.tsx';
+import { isAnyDialogOpen } from '@/components/dialogs/dialogStack.ts';
 import { heldPassageDecoration, highlightIdFrom } from '@/components/reader/decorations.ts';
 import type { EbookLocation, EbookTocEntry } from '@/components/reader/EbookReader.ts';
 import {
@@ -247,7 +248,11 @@ export const ReaderShell = ({
     // A navigator takes its initial position once, at construction, so the book
     // waits for the answer rather than opening somewhere and being corrected.
     enabled: sessionStatus === 'ready' && landing !== undefined,
-    holdPageTurns: isRenewing,
+    // Held while a lapsed cookie is being replaced: a page fetched with a dead
+    // credential comes back blank. Held too while a dialog is up, because Readium
+    // steps aside only while focus is on what it counts as interactive, and a
+    // dialog can drop focus to its own container, which it does not count.
+    canTurnPage: () => !isRenewing && !isAnyDialogOpen(),
     appearance,
     initialLocation: landing?.locator ?? null,
     decorations,

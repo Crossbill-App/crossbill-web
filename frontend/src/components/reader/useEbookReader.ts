@@ -1,4 +1,3 @@
-import { isAnyDialogOpen } from '@/components/dialogs/dialogStack.ts';
 import {
   PublicationUnavailableError,
   type EbookAppearance,
@@ -29,9 +28,9 @@ export interface UseEbookReaderOptions {
   manifestUrl: string;
   /** False until the publication cookie exists; nothing is fetched before then. */
   enabled: boolean;
-  /** True while a lapsed cookie is being replaced: a page fetched with a dead
-   * credential comes back blank. */
-  holdPageTurns: boolean;
+  /** Asked on every page-turn request the engine reports, at that moment; the
+   * turn happens only when it answers true. */
+  canTurnPage: () => boolean;
   /** How the page should look; the book opens on it. */
   appearance: EbookAppearance;
   /** Where the book should open; `null` opens it at the beginning. */
@@ -92,7 +91,7 @@ export const useEbookReader = ({
   host,
   manifestUrl,
   enabled,
-  holdPageTurns,
+  canTurnPage,
   appearance,
   initialLocation,
   decorations,
@@ -113,11 +112,11 @@ export const useEbookReader = ({
   const [selection, setSelection] = useState<EbookSelection | null>(null);
   const [attempt, setAttempt] = useState(0);
   const readerRef = useRef<EbookReader | null>(null);
-  // Through a ref, so a hold that starts mid-book never rebuilds the reader.
-  const holdRef = useRef(holdPageTurns);
+  // Through a ref, so a policy that changes mid-book never rebuilds the reader.
+  const canTurnPageRef = useRef(canTurnPage);
   useEffect(() => {
-    holdRef.current = holdPageTurns;
-  }, [holdPageTurns]);
+    canTurnPageRef.current = canTurnPage;
+  }, [canTurnPage]);
   // The same, so that changing the appearance never rebuilds the reader; a
   // retry then opens on the current one rather than the one from mount.
   const appearanceRef = useRef(appearance);
@@ -189,10 +188,8 @@ export const useEbookReader = ({
       reader.onPageTurnRequested((direction) => {
         // Readium's pager sets a navigating flag it never clears when it has no
         // frames yet, so one key before the book is up kills every later turn.
-        if (holdRef.current || !isOpen) return;
-        // Readium steps aside only while focus is on what it counts as interactive, and a
-        // dialog can drop focus to its own container, which it does not count.
-        if (isAnyDialogOpen()) return;
+        if (!isOpen) return;
+        if (!canTurnPageRef.current()) return;
         void (direction === 'next' ? reader.next() : reader.previous());
       }),
     ];
