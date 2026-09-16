@@ -55,6 +55,9 @@ export interface EbookRect {
 export interface EbookSelection {
   location: EbookLocation;
   rect: EbookRect;
+  /** Whether the browser is still showing these words as selected; false for a passage
+   * the engine is holding on to after the browser let go of it on its own. */
+  shownAsSelected: boolean;
 }
 
 /** One heading of the book's table of contents. */
@@ -140,6 +143,12 @@ export interface EbookReader {
   onSelectionChanged(listener: (selection: EbookSelection | null) => void): () => void;
   /** Lets go of whatever the reader has selected in the book, and reports it let go. */
   clearSelection(): void;
+  /** Remembers where the selection starts and lets it go, for the next tap to extend. */
+  startSelectionExtension(): void;
+  /** Forgets a remembered start, leaving the next tap in the book to do what it always does. */
+  cancelSelectionExtension(): void;
+  /** A tap that could not extend the selection, which today means one in another chapter. */
+  onSelectionExtensionRefused(listener: () => void): () => void;
   onLocationChanged(listener: (location: EbookLocation) => void): () => void;
   onPageTurnRequested(listener: (direction: PageTurnDirection) => void): () => void;
   /** The reader has moved into a different contents entry; `OpenedEbook.tocHref` is the first. */

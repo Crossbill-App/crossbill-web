@@ -11,6 +11,7 @@ import {
   type OpenedEbook,
   type PageTurnDirection,
 } from '@/components/reader/EbookReader.ts';
+import { listenerSet } from '@/components/reader/listeners.ts';
 import { sanitizeResponse } from '@/components/reader/sanitizeResponse.ts';
 import { selectionLocation, type EbookResource } from '@/components/reader/selectionLocator.ts';
 import {
@@ -43,6 +44,9 @@ const DESTROY_TIMEOUT_MS = 2000;
  * handle keeps firing it for as long as a finger is on it.
  */
 const SELECTION_SETTLE_MS = 200;
+
+/** How far a finger may travel and still have meant a tap rather than a swipe. */
+const TAP_SLOP_PX = 10;
 
 const CONTAINER_MARKER = 'data-ebook-reader';
 
@@ -170,6 +174,88 @@ const landingFor = (target: Locator, positions: Locator[]): Locator | null => {
   });
 };
 
+/** Which event asked for a report: only the reader's own tap can let a held passage go. */
+type ReportSource = 'tap' | 'settled';
+
+/** A place in a chapter, as a tap or a selection boundary names one. */
+interface CaretPoint {
+  node: Node;
+  offset: number;
+}
+
+/** A passage the engine is holding on to, with the point a further extension runs from. */
+interface HeldPassage {
+  selection: EbookSelection;
+  start: CaretPoint;
+}
+
+// Optional because a browser has one of the two: `caretPositionFromPoint` is the
+// standard, and WebKit still ships only the older `caretRangeFromPoint`.
+type CaretFinder = Partial<Pick<Document, 'caretPositionFromPoint' | 'caretRangeFromPoint'>>;
+
+/** Where in a document a point on screen lands, or `null` where nothing does. */
+const caretAt = (document: CaretFinder, x: number, y: number): CaretPoint | null => {
+  const position = document.caretPositionFromPoint?.(x, y);
+  if (position) return { node: position.offsetNode, offset: position.offset };
+  const range = document.caretRangeFromPoint?.(x, y);
+  return range ? { node: range.startContainer, offset: range.startOffset } : null;
+};
+
+// Letters and digits alone, so a word ends before the punctuation stuck to it: a rule
+// this small is worth more here than a segmenter, which no two engines agree on.
+const WORD_CHARACTER = /[\p{L}\p{N}]/u;
+
+/** Whether a boundary has word on both sides of it, which is where a tap lands inside one. */
+const isInsideWord = (text: string, offset: number): boolean =>
+  WORD_CHARACTER.test(text[offset - 1] ?? '') && WORD_CHARACTER.test(text[offset] ?? '');
+
+/**
+ * A boundary a tap left inside a word, moved out to that word's edge.
+ *
+ * `step` is -1 for a range's start and 1 for its end; a boundary already on an edge,
+ * or in anything but text, stays where it is rather than being guessed at.
+ */
+const wordEdgeAt = (point: CaretPoint, step: -1 | 1): CaretPoint => {
+  const text = point.node.nodeType === Node.TEXT_NODE ? (point.node as Text).data : null;
+  if (text === null || !isInsideWord(text, point.offset)) return point;
+  let offset = point.offset;
+  // Backwards reads the character before the boundary, forwards the one at it.
+  while (WORD_CHARACTER.test(text[step < 0 ? offset - 1 : offset] ?? '')) offset += step;
+  return { node: point.node, offset };
+};
+
+/** The anchor and a caret as one range, running forwards whichever of them the reader tapped. */
+const rangeBetween = (anchor: CaretPoint, caret: CaretPoint): Range | null => {
+  const chapter = anchor.node.ownerDocument;
+  if (!chapter) return null;
+  const range = chapter.createRange();
+  range.setStart(anchor.node, anchor.offset);
+  if (range.comparePoint(caret.node, caret.offset) < 0) range.setStart(caret.node, caret.offset);
+  else range.setEnd(caret.node, caret.offset);
+  // Both ends, because a tap resolves to a character position and either end of the
+  // range may be the one it set.
+  const start = wordEdgeAt({ node: range.startContainer, offset: range.startOffset }, -1);
+  const end = wordEdgeAt({ node: range.endContainer, offset: range.endOffset }, 1);
+  range.setStart(start.node, start.offset);
+  range.setEnd(end.node, end.offset);
+  return range;
+};
+
+const isOnScreen = (frame: Window, rect: DOMRect): boolean =>
+  rect.right > 0 && rect.left < frame.innerWidth && rect.bottom > 0 && rect.top < frame.innerHeight;
+
+/** A page is a column, so the bounding box of a range spanning several of them covers
+ * every page it crosses, and anything placed beside that box misses the page on screen. */
+const visibleRect = (frame: Window, range: Range): DOMRect => {
+  const rects = [...range.getClientRects()].filter((rect) => isOnScreen(frame, rect));
+  if (rects.length === 0) return range.getBoundingClientRect();
+  const left = Math.min(...rects.map((rect) => rect.left));
+  const top = Math.min(...rects.map((rect) => rect.top));
+  const right = Math.max(...rects.map((rect) => rect.right));
+  const bottom = Math.max(...rects.map((rect) => rect.bottom));
+  return new DOMRect(left, top, right - left, bottom - top);
+};
+
 const tocEntriesFrom = (links: Link[]): EbookTocEntry[] =>
   links.map((link) => ({
     href: link.href,
@@ -209,17 +295,23 @@ const whenSized = (element: HTMLElement, signal: AbortSignal) =>
 
 /** The reader engine on `@readium/navigator`'s `EpubNavigator`. Single-use. */
 export class ReadiumReader implements EbookReader {
-  private readonly locationListeners = new Set<(location: EbookLocation) => void>();
-  private readonly pageTurnListeners = new Set<(direction: PageTurnDirection) => void>();
-  private readonly tocEntryListeners = new Set<(href: string | null) => void>();
-  private readonly decorationListeners = new Set<(id: string) => void>();
-  private readonly selectionListeners = new Set<(selection: EbookSelection | null) => void>();
+  private readonly locationListeners = listenerSet<EbookLocation>();
+  private readonly pageTurnListeners = listenerSet<PageTurnDirection>();
+  private readonly tocEntryListeners = listenerSet<string | null>();
+  private readonly decorationListeners = listenerSet<string>();
+  private readonly selectionListeners = listenerSet<EbookSelection | null>();
+  private readonly extensionRefusedListeners = listenerSet<void>();
   private readonly destruction = new AbortController();
   /** Each resource of the publication by the URL its frame is built around. */
   private readonly resources = new Map<string, EbookResource>();
   private decorations: EbookDecoration[] = [];
   /** The last selection reported, as its own JSON, so the same one is not reported twice. */
   private reportedSelection: string | null = null;
+  /** Where the selection being extended starts; `null` while none is being extended. */
+  private extensionAnchor: CaretPoint | null = null;
+  /** The passage an extension ended on, kept so that the browser alone cannot take it away. */
+  private heldPassage: HeldPassage | null = null;
+  private swallowNextClick = false;
   private navigator: EpubNavigator | undefined;
   private wrapper: HTMLDivElement | undefined;
   private isOpened = false;
@@ -268,7 +360,7 @@ export class ReadiumReader implements EbookReader {
     // stub here would leave every decoration in the book inert.
     navigator.registerDecorationObserver(DECORATION_GROUP, {
       onDecorationActivated: ({ decoration }) => {
-        this.notify(this.decorationListeners, decoration.id);
+        this.decorationListeners.notify(decoration.id);
         return true;
       },
     });
@@ -320,32 +412,55 @@ export class ReadiumReader implements EbookReader {
   }
 
   onDecorationActivated(listener: (id: string) => void): () => void {
-    return this.subscribe(this.decorationListeners, listener);
+    return this.decorationListeners.add(listener);
   }
 
   onSelectionChanged(listener: (selection: EbookSelection | null) => void): () => void {
-    return this.subscribe(this.selectionListeners, listener);
+    return this.selectionListeners.add(listener);
   }
 
   clearSelection(): void {
     for (const frame of this.host.querySelectorAll('iframe')) {
       frame.contentWindow?.getSelection()?.removeAllRanges();
     }
+    this.heldPassage = null;
     // Now, not once `selectionchange` settles: the same words selected again
     // before then would be swallowed as a repeat.
     this.reportSelection(null);
   }
 
+  startSelectionExtension(): void {
+    for (const frame of this.host.querySelectorAll('iframe')) {
+      const selection = frame.contentDocument?.getSelection();
+      if (!selection || selection.rangeCount === 0 || selection.isCollapsed) continue;
+      const { startContainer, startOffset } = selection.getRangeAt(0);
+      selection.removeAllRanges();
+      this.extendFrom({ node: startContainer, offset: startOffset });
+      return;
+    }
+    // A browser showing nothing is not a reader who selected nothing: on iOS the
+    // passage being held is the only record of where the words they see start.
+    if (this.heldPassage) this.extendFrom(this.heldPassage.start);
+  }
+
+  cancelSelectionExtension(): void {
+    this.extensionAnchor = null;
+  }
+
+  onSelectionExtensionRefused(listener: () => void): () => void {
+    return this.extensionRefusedListeners.add(listener);
+  }
+
   onLocationChanged(listener: (location: EbookLocation) => void): () => void {
-    return this.subscribe(this.locationListeners, listener);
+    return this.locationListeners.add(listener);
   }
 
   onPageTurnRequested(listener: (direction: PageTurnDirection) => void): () => void {
-    return this.subscribe(this.pageTurnListeners, listener);
+    return this.pageTurnListeners.add(listener);
   }
 
   onTocEntryChanged(listener: (href: string | null) => void): () => void {
-    return this.subscribe(this.tocEntryListeners, listener);
+    return this.tocEntryListeners.add(listener);
   }
 
   async destroy(): Promise<void> {
@@ -373,6 +488,9 @@ export class ReadiumReader implements EbookReader {
     }
     this.wrapper?.remove();
     this.wrapper = undefined;
+    this.extensionAnchor = null;
+    this.heldPassage = null;
+    this.extensionRefusedListeners.clear();
     this.locationListeners.clear();
     this.pageTurnListeners.clear();
     this.tocEntryListeners.clear();
@@ -422,32 +540,138 @@ export class ReadiumReader implements EbookReader {
 
   /** Reports what is selected in one frame of the book, whenever that changes. */
   private watchSelection(frame: Window): void {
-    const report = () => {
-      if (this.isDestroyed) return;
-      const resource = this.resources.get(frame.document.baseURI);
-      this.reportSelection(resource ? this.selectionIn(frame, resource) : null);
-    };
     // A mouse is done the moment it is let go, and waiting out the settling
     // delay below to say so would leave the reader looking at selected words
     // and no way to act on them.
-    frame.document.addEventListener('pointerup', report);
+    frame.document.addEventListener('pointerup', () => this.reportSelectionIn(frame, 'tap'));
     // Because the pointer going up is not the end of every selection: a touch
     // handle moves the range after it, and a keyboard selection never involves
     // a pointer at all.
-    frame.document.addEventListener('selectionchange', debounce(report, SELECTION_SETTLE_MS));
+    frame.document.addEventListener(
+      'selectionchange',
+      debounce(() => this.reportSelectionIn(frame, 'settled'), SELECTION_SETTLE_MS)
+    );
+  }
+
+  /** What one frame of the book has selected, as the resource that frame is showing. */
+  private selectionFound(frame: Window): EbookSelection | null {
+    const resource = this.resources.get(frame.document.baseURI);
+    return resource ? this.selectionIn(frame, resource) : null;
+  }
+
+  /** Reports what a frame has selected, which a passage being held outlives. */
+  private reportSelectionIn(frame: Window, source: ReportSource): void {
+    if (this.isDestroyed) return;
+    const found = this.selectionFound(frame);
+    // WebKit collapses a selection the engine made itself, which arrives here as
+    // nothing being selected: a passage is let go of by a tap, never by the browser.
+    if (!found && source === 'settled' && this.heldPassage) {
+      this.reportSelection({ ...this.heldPassage.selection, shownAsSelected: false });
+      return;
+    }
+    // A selection found while an extension waits is a swipe's doing, not the reader's:
+    // the tap that ends the passage arrives through `watchExtension` instead.
+    if (found && this.extensionAnchor) {
+      frame.getSelection()?.removeAllRanges();
+      return;
+    }
+    this.heldPassage = null;
+    this.reportSelection(found);
+  }
+
+  /** Awaits the tap that ends a passage starting here, with nothing selected meanwhile. */
+  private extendFrom(start: CaretPoint): void {
+    this.extensionAnchor = start;
+    this.heldPassage = null;
+    // Let go now rather than on `selectionchange`: nothing may hold the reader's
+    // gestures back while they are turning pages towards the end of the passage.
+    this.reportSelection(null);
+  }
+
+  /** Makes the next tap in a frame the far end of the selection being extended. */
+  private watchExtension(frame: Window): void {
+    // Readium activates a decoration from a pointerup listener on this document, so a
+    // tap the extension has taken has to be stopped here, before it travels on.
+    const spend = (event: PointerEvent) => {
+      this.swallowNextClick = true;
+      event.stopPropagation();
+    };
+    let pressedAt: { x: number; y: number } | null = null;
+    const extend = (event: PointerEvent) => {
+      const anchor = this.extensionAnchor;
+      if (!anchor) return;
+      // A finger lifting after a swipe says where the page turn ended, not where the
+      // passage does, and a swipe is how the reader reaches the page they want.
+      const travelled =
+        pressedAt && Math.hypot(event.clientX - pressedAt.x, event.clientY - pressedAt.y);
+      if (travelled !== null && travelled > TAP_SLOP_PX) return;
+      // Every tap while an extension waits is the extension's, wherever it lands.
+      spend(event);
+      if (frame.document !== anchor.node.ownerDocument) {
+        // The anchor is kept: the reader can turn back to its chapter and tap again.
+        this.extensionRefusedListeners.notify(undefined);
+        return;
+      }
+      const caret = caretAt(frame.document, event.clientX, event.clientY);
+      const range = caret && rangeBetween(anchor, caret);
+      // Extend mode stays on: a tap picking no words is a miss, not a passage.
+      if (!range || range.collapsed) return;
+      const selection = frame.getSelection();
+      selection?.removeAllRanges();
+      selection?.addRange(range);
+      this.extensionAnchor = null;
+      const passage = this.selectionFound(frame);
+      // Held, because the words are shown as selected by a browser that need not keep
+      // showing them: WebKit collapses a selection nobody dragged.
+      this.heldPassage = passage && {
+        selection: passage,
+        start: { node: range.startContainer, offset: range.startOffset },
+      };
+      this.reportSelection(passage);
+    };
+    const swallow = (event: MouseEvent) => {
+      if (!this.swallowNextClick) return;
+      this.swallowNextClick = false;
+      // That tap is spent on the extension: it must not also follow a link in the
+      // book or reach anything else of the book's own that listens for a click.
+      event.stopPropagation();
+      event.preventDefault();
+    };
+    frame.document.addEventListener('pointerup', extend, { capture: true });
+    frame.document.addEventListener('click', swallow, { capture: true });
+    // A gesture beginning says the last one's click is never coming, and a swallow
+    // left standing would eat this one instead.
+    frame.document.addEventListener(
+      'pointerdown',
+      (event: PointerEvent) => {
+        this.swallowNextClick = false;
+        pressedAt = { x: event.clientX, y: event.clientY };
+      },
+      { capture: true }
+    );
   }
 
   /** Keeps a touch gesture over selected words away from Readium's snapper. */
   private keepTouchFromTheSnapper(frame: Window): void {
     // The snapper listens on the frame's window in the bubble phase, so the document
     // hears first: its first move deselects, and its end reports a swipe.
-    const holdBack = (event: TouchEvent) => {
+    const holdsWords = () => {
       const selection = frame.getSelection();
-      if (!selection || selection.rangeCount === 0 || selection.isCollapsed) return;
-      // Never `preventDefault`: the browser's own selection handles ride on the default.
-      event.stopPropagation();
+      return !!selection && selection.rangeCount > 0 && !selection.isCollapsed;
     };
-    for (const type of ['touchstart', 'touchmove', 'touchend'] as const) {
+    let letThrough = false;
+    const holdBack = (event: TouchEvent) => {
+      // An extension waiting is the reader turning pages towards the end of the passage,
+      // so nothing is held back: the selection a swipe leaves is dropped when reported.
+      const hold = !this.extensionAnchor && holdsWords();
+      // The snapper runs a state machine over the three events: one it has already begun
+      // is stranded part-turned unless it hears an end.
+      if (hold && letThrough) frame.dispatchEvent(new TouchEvent('touchend'));
+      // Never `preventDefault`: the browser's own selection handles ride on the default.
+      if (hold) event.stopPropagation();
+      letThrough = !hold && event.type !== 'touchend' && event.type !== 'touchcancel';
+    };
+    for (const type of ['touchstart', 'touchmove', 'touchend', 'touchcancel'] as const) {
       frame.document.addEventListener(type, holdBack, { capture: true });
     }
   }
@@ -457,14 +681,15 @@ export class ReadiumReader implements EbookReader {
    *
    * The two events above overlap by design — a mouse drag settles under both —
    * and every tap in the book ends with nothing selected, which is not news to
-   * a reader who had selected nothing. Keyed on the location alone: a reflow
-   * that moves the same words is not a new selection.
+   * a reader who had selected nothing. Keyed on the location and on whether the
+   * browser is showing it: a reflow that moves the same words is not a new
+   * selection, while the browser dropping them is news the UI has to act on.
    */
   private reportSelection(selection: EbookSelection | null): void {
-    const key = selection && JSON.stringify(selection.location);
+    const key = selection && JSON.stringify([selection.location, selection.shownAsSelected]);
     if (key === this.reportedSelection) return;
     this.reportedSelection = key;
-    this.notify(this.selectionListeners, selection);
+    this.selectionListeners.notify(selection);
   }
 
   private selectionIn(frame: Window, resource: EbookResource): EbookSelection | null {
@@ -472,12 +697,12 @@ export class ReadiumReader implements EbookReader {
     if (!selected || selected.rangeCount === 0) return null;
     const range = selected.getRangeAt(0);
     const location = selectionLocation(range, resource);
-    return location && { location, rect: this.onScreen(frame, range) };
+    return location && { location, rect: this.onScreen(frame, range), shownAsSelected: true };
   }
 
   /** A range inside a frame, in the coordinates of the page the reader is on. */
   private onScreen(frame: Window, range: Range): EbookRect {
-    const rect = range.getBoundingClientRect();
+    const rect = visibleRect(frame, range);
     const origin = [...this.host.querySelectorAll('iframe')]
       .find((candidate) => candidate.contentWindow === frame)
       ?.getBoundingClientRect();
@@ -514,12 +739,12 @@ export class ReadiumReader implements EbookReader {
   private navigatorListeners(): EpubNavigatorListeners {
     return {
       frameLoaded: (frame) => {
+        this.watchExtension(frame);
         this.watchSelection(frame);
         this.keepTouchFromTheSnapper(frame);
       },
-      positionChanged: (locator) => this.notify(this.locationListeners, toLocation(locator)),
-      timelineItemChanged: (item) =>
-        this.notify(this.tocEntryListeners, this.tocEntryHrefFor(item)),
+      positionChanged: (locator) => this.locationListeners.notify(toLocation(locator)),
+      timelineItemChanged: (item) => this.tocEntryListeners.notify(this.tocEntryHrefFor(item)),
       // Claimed so Readium's own quarter-screen pager does not turn pages
       // behind the UI's back.
       tap: () => true,
@@ -535,8 +760,8 @@ export class ReadiumReader implements EbookReader {
       contentProtection: () => {},
       contextMenu: () => {},
       peripheral: (event) => {
-        if (event.type === 'next_page') this.notify(this.pageTurnListeners, 'next');
-        if (event.type === 'previous_page') this.notify(this.pageTurnListeners, 'previous');
+        if (event.type === 'next_page') this.pageTurnListeners.notify('next');
+        if (event.type === 'previous_page') this.pageTurnListeners.notify('previous');
       },
     };
   }
@@ -557,21 +782,6 @@ export class ReadiumReader implements EbookReader {
     // a book without the place asked for.
     if (!navigator) return Promise.resolve(true);
     return new Promise((resolve) => command(navigator, resolve));
-  }
-
-  private subscribe<T>(listeners: Set<(value: T) => void>, listener: (value: T) => void) {
-    listeners.add(listener);
-    return () => listeners.delete(listener);
-  }
-
-  private notify<T>(listeners: Set<(value: T) => void>, value: T): void {
-    for (const listener of [...listeners]) {
-      try {
-        listener(value);
-      } catch {
-        // A subscriber that throws must not reject Readium's in-flight navigation.
-      }
-    }
   }
 
   /** The caller's signal and this reader's own destruction, as one. */

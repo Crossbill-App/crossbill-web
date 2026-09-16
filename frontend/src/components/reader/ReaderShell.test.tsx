@@ -1200,6 +1200,7 @@ test('activating a decoration asks to open its highlight', async () => {
 const A_SELECTION = {
   location: { ...aFakeLocation(1), text: { highlight: 'rarest and purest' } },
   rect: { x: 400, y: 300, width: 200, height: 20 },
+  shownAsSelected: true,
 };
 
 const theSelectionToolbar = () => page.getByRole('toolbar', { name: 'Selected text' });

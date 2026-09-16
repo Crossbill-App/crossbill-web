@@ -12,7 +12,12 @@ import { aDetailedPositionList, aManifest, aPositionList } from '@tests/fixtures
 import { drawnOn, drawnRanges } from '@tests/harness/paintedHighlights';
 import {
   adjustSelectionInBook as adjustSelectionIn,
+  endOf,
+  paragraphsOnThePage,
+  rangeOver,
   selectInBook as selectIn,
+  startOf,
+  tapAt,
   visibleFrame as visibleFrameIn,
 } from '@tests/harness/textSelection';
 import { noPublication, readiumApi } from '@tests/msw/readiumApi';
@@ -108,7 +113,7 @@ const visibleFrameText = () => visibleFrame()?.contentDocument?.body.textContent
 
 const adjustSelectionInBook = (phrase: string) => adjustSelectionIn(host, phrase);
 
-const selectInBook = (phrase: string) => selectIn(host, phrase);
+const selectInBook = (phrase: string, occurrence = 1) => selectIn(host, phrase, occurrence);
 
 /** Longer than the engine gives a changing selection to settle. */
 const afterTheSelectionSettles = () => new Promise((resolve) => setTimeout(resolve, 400));
@@ -363,13 +368,19 @@ test('a decoration applied after the book is on screen is drawn too', async () =
   await expect.poll(() => drawnOn(host)).toEqual(['p:Attention']);
 });
 
-test('tapping a decoration reports its id', async () => {
+/** The book with the highlight drawn over its words, and the ids of those tapped. */
+const theBookWithAHighlightDrawn = async () => {
   worker.use(...readiumApi());
   const activated: string[] = [];
   reader.onDecorationActivated((id) => activated.push(id));
   reader.applyDecorations([A_HIGHLIGHT]);
   await openTheBook();
   await expect.poll(() => drawnOn(host)).toEqual(['p:Attention']);
+  return activated;
+};
+
+test('tapping a decoration reports its id', async () => {
+  const activated = await theBookWithAHighlightDrawn();
 
   await userEvent.click(frame()!, { position: centreOf(drawnRanges(host)[0]) });
 
@@ -479,6 +490,24 @@ test('clearSelection empties the selection in the book and reports it let go', a
   expect(recorded.selections).toHaveLength(2);
 });
 
+test('a listener let go of mid-report still hears the selection being reported', async () => {
+  worker.use(...readiumApi());
+  await openTheBook();
+  await expect.poll(visibleFrameText).toContain('On Attention');
+  const heard: string[] = [];
+  // What an unmount does: one subscriber going away takes another with it.
+  let dropTheSecond = () => {};
+  reader.onSelectionChanged(() => {
+    heard.push('first');
+    dropTheSecond();
+  });
+  dropTheSecond = reader.onSelectionChanged(() => heard.push('second'));
+
+  selectInBook('rarest');
+
+  await expect.poll(() => heard).toEqual(['first', 'second']);
+});
+
 /** One finger on the page, at a point along the axis a swipe travels. */
 const aFingerAt = (target: EventTarget, x: number) =>
   new Touch({ identifier: 1, target, clientX: x, clientY: 200 });
@@ -540,6 +569,302 @@ test('the caret a tap leaves behind hands touch back too', async () => {
   dragAcrossTheBook();
 
   await expect.poll(() => recorded.positions.length).toBeGreaterThan(0);
+});
+
+/** The chapter the reader is looking at, which is where every tap below lands. */
+const chapterOnScreen = () => visibleFrame()!.contentDocument!;
+
+/** Words selected on one page of the second chapter and extended onto the next one. */
+const aPassageAcrossTwoPages = async () => {
+  worker.use(...readiumApi());
+  await openTheBook();
+  // The second chapter is the one long enough to be many pages.
+  await reader.next();
+  await expect.poll(visibleFrameText).toContain('On Memory');
+  const recorded = recordEvents();
+  const chapter = chapterOnScreen();
+  const anchor = paragraphsOnThePage(chapter)[0];
+  selectInBook('rarest', anchor);
+  await expect.poll(() => recorded.selections).toHaveLength(1);
+
+  reader.startSelectionExtension();
+  await reader.next();
+  await expect.poll(() => paragraphsOnThePage(chapter)[0]).toBeGreaterThan(anchor);
+  tapAt(chapter, endOf(rangeOver(chapter, 'generosity', paragraphsOnThePage(chapter)[0])));
+
+  await expect.poll(() => recorded.selections).toHaveLength(3);
+  return recorded.selections[2];
+};
+
+/** The book with a passage extended onto a tapped word, which is what the engine holds. */
+const aPassageExtended = async (upTo = 'generosity') => {
+  const recorded = await theBookWithWordsSelected('rarest');
+  const chapter = chapterOnScreen();
+  reader.startSelectionExtension();
+  tapAt(chapter, endOf(rangeOver(chapter, upTo)));
+  await expect.poll(() => recorded.selections).toHaveLength(3);
+  return recorded;
+};
+
+test('a selection extended to a word further down the page runs from one to the other', async () => {
+  const recorded = await aPassageExtended();
+
+  expect(recorded.selections[2]?.location.text?.highlight).toBe(
+    'rarest and purest form of generosity'
+  );
+});
+
+test('a selection extended after a page turn reaches the words tapped on the new page', async () => {
+  const selected = await aPassageAcrossTwoPages();
+
+  expect(selected?.location.href).toBe(CHAPTER_TWO);
+  const quote = selected?.location.text?.highlight ?? '';
+  expect(quote.startsWith('rarest and purest')).toBe(true);
+  expect(quote.endsWith('generosity')).toBe(true);
+});
+
+test('a selection spanning two pages is reported at the part of it on screen', async () => {
+  const selected = await aPassageAcrossTwoPages();
+
+  const page = host.getBoundingClientRect();
+  expect(selected?.rect.x).toBeGreaterThanOrEqual(page.x);
+  expect((selected?.rect.x ?? 0) + (selected?.rect.width ?? 0)).toBeLessThanOrEqual(
+    page.x + page.width
+  );
+});
+
+test('starting an extension lets the selection go', async () => {
+  const recorded = await theBookWithWordsSelected('rarest and purest');
+
+  reader.startSelectionExtension();
+
+  expect(chapterOnScreen().getSelection()?.rangeCount).toBe(0);
+  expect(recorded.selections).toHaveLength(2);
+  expect(recorded.selections[1]).toBeNull();
+});
+
+test('a tap before where the selection starts is reported as a quote reading forwards', async () => {
+  const recorded = await theBookWithWordsSelected('purest form');
+  const chapter = chapterOnScreen();
+  reader.startSelectionExtension();
+
+  // The second time the chapter says it: the first is in the heading.
+  tapAt(chapter, startOf(rangeOver(chapter, 'Attention', 2)));
+
+  await expect.poll(() => recorded.selections).toHaveLength(3);
+  expect(recorded.selections[2]?.location.text?.highlight).toBe('Attention is the rarest and');
+});
+
+test('a tap in another chapter is refused, and the words are still there to extend', async () => {
+  const recorded = await theBookWithWordsSelected('rarest and purest');
+  let refusals = 0;
+  reader.onSelectionExtensionRefused(() => (refusals += 1));
+  reader.startSelectionExtension();
+
+  await reader.next();
+  await expect.poll(visibleFrameText).toContain('On Memory');
+  const elsewhere = chapterOnScreen();
+  tapAt(elsewhere, endOf(rangeOver(elsewhere, 'generosity')));
+
+  await expect.poll(() => refusals).toBe(1);
+  expect(recorded.selections).toHaveLength(2);
+
+  await reader.previous();
+  await expect.poll(visibleFrameText).toContain('On Attention');
+  const chapter = chapterOnScreen();
+  tapAt(chapter, endOf(rangeOver(chapter, 'form')));
+
+  await expect.poll(() => recorded.selections).toHaveLength(3);
+  expect(recorded.selections[2]?.location.text?.highlight).toBe('rarest and purest form');
+});
+
+test('a cancelled extension leaves a tap reporting nothing', async () => {
+  const recorded = await theBookWithWordsSelected('rarest');
+  const chapter = chapterOnScreen();
+  reader.startSelectionExtension();
+
+  reader.cancelSelectionExtension();
+  tapAt(chapter, endOf(rangeOver(chapter, 'generosity')));
+
+  await afterTheSelectionSettles();
+  expect(recorded.selections).toHaveLength(2);
+  expect(selectedText()).toBe('');
+});
+
+test('the tap that ends an extension never reaches the book as a click', async () => {
+  const recorded = await theBookWithWordsSelected('rarest');
+  const chapter = chapterOnScreen();
+  // What a link in the book, or a footnote of its own making, would be listening for.
+  const clicks: string[] = [];
+  chapter.addEventListener('click', () => clicks.push('click'));
+  reader.startSelectionExtension();
+
+  await userEvent.click(frame()!, { position: endOf(rangeOver(chapter, 'generosity')) });
+
+  await expect.poll(() => recorded.selections).toHaveLength(3);
+  expect(clicks).toEqual([]);
+});
+
+test('the tap that ends an extension does not activate the decoration it lands on', async () => {
+  const activated = await theBookWithAHighlightDrawn();
+  const recorded = recordEvents();
+  selectInBook('generosity');
+  await expect.poll(() => recorded.selections).toHaveLength(1);
+  reader.startSelectionExtension();
+
+  await userEvent.click(frame()!, { position: centreOf(drawnRanges(host)[0]) });
+
+  await expect.poll(() => recorded.selections).toHaveLength(3);
+  expect(activated).toEqual([]);
+});
+
+test('a tap that extends nothing leaves the decoration under it alone', async () => {
+  const activated = await theBookWithAHighlightDrawn();
+  const recorded = recordEvents();
+  // The words the highlight is drawn over, so the tap below lands on both at once.
+  selectInBook('Attention', 2);
+  await expect.poll(() => recorded.selections).toHaveLength(1);
+  reader.startSelectionExtension();
+
+  // Back onto where the passage starts, which picks no words at all.
+  await userEvent.click(frame()!, { position: startOf(drawnRanges(host)[0]) });
+
+  await afterTheSelectionSettles();
+  expect(activated).toEqual([]);
+});
+
+/** WebKit taking back a selection the engine made of its own accord. */
+const theBrowserDropsTheSelection = async () => {
+  chapterOnScreen().getSelection()?.removeAllRanges();
+  await afterTheSelectionSettles();
+};
+
+/** The browser saying the selection changed again, with nothing selected. */
+const theSelectionSettlesAgain = async () => {
+  chapterOnScreen().dispatchEvent(new Event('selectionchange'));
+  await afterTheSelectionSettles();
+};
+
+test('a passage the browser takes back on its own is reported again, no longer shown as selected', async () => {
+  const recorded = await aPassageExtended();
+  expect(recorded.selections[2]?.shownAsSelected).toBe(true);
+
+  await theBrowserDropsTheSelection();
+
+  expect(recorded.selections).toHaveLength(4);
+  expect(recorded.selections[3]?.location.text?.highlight).toBe(
+    'rarest and purest form of generosity'
+  );
+  expect(recorded.selections[3]?.shownAsSelected).toBe(false);
+});
+
+test('the passage the browser took back is reported once, however often the selection settles', async () => {
+  const recorded = await aPassageExtended();
+  await theBrowserDropsTheSelection();
+  expect(recorded.selections).toHaveLength(4);
+
+  await theSelectionSettlesAgain();
+
+  expect(recorded.selections).toHaveLength(4);
+});
+
+test('a tap after the browser took the passage back lets it go', async () => {
+  const recorded = await aPassageExtended();
+  await theBrowserDropsTheSelection();
+
+  tapTheBook();
+
+  await expect.poll(() => recorded.selections).toHaveLength(5);
+  expect(recorded.selections[4]).toBeNull();
+});
+
+test('a new selection replaces the passage being held', async () => {
+  const recorded = await aPassageExtended();
+  await theBrowserDropsTheSelection();
+
+  selectInBook('generosity');
+
+  await expect.poll(() => recorded.selections).toHaveLength(5);
+  expect(recorded.selections[4]?.location.text?.highlight).toBe('generosity');
+  expect(recorded.selections[4]?.shownAsSelected).toBe(true);
+});
+
+test('clearSelection lets go of a passage being held for good', async () => {
+  const recorded = await aPassageExtended();
+  await theBrowserDropsTheSelection();
+
+  reader.clearSelection();
+
+  expect(recorded.selections).toHaveLength(5);
+  expect(recorded.selections[4]).toBeNull();
+  await theSelectionSettlesAgain();
+  expect(recorded.selections).toHaveLength(5);
+});
+
+test('a selection the reader dragged is let go when the browser drops it', async () => {
+  const recorded = await theBookWithWordsSelected('rarest and purest');
+
+  await theBrowserDropsTheSelection();
+
+  expect(recorded.selections).toHaveLength(2);
+  expect(recorded.selections[1]).toBeNull();
+});
+
+/** The selection the UI is left showing. */
+const lastReported = (selections: (EbookSelection | null)[]) => selections[selections.length - 1];
+
+/** The reader pressing Extend and tapping the last word of the chapter's sentence. */
+const extendOntoGenerosity = async () => {
+  const chapter = chapterOnScreen();
+  reader.startSelectionExtension();
+  tapAt(chapter, endOf(rangeOver(chapter, 'generosity')));
+  await afterTheSelectionSettles();
+};
+
+test('a passage the browser took back is extended on from where it started', async () => {
+  const recorded = await aPassageExtended('purest');
+  await theBrowserDropsTheSelection();
+
+  await extendOntoGenerosity();
+
+  expect(lastReported(recorded.selections)?.location.text?.highlight).toBe(
+    'rarest and purest form of generosity'
+  );
+});
+
+test('a tap that let the held passage go leaves the next extension anchored on nothing', async () => {
+  const recorded = await aPassageExtended();
+  await theBrowserDropsTheSelection();
+  tapTheBook();
+  await expect.poll(() => recorded.selections).toHaveLength(5);
+
+  await extendOntoGenerosity();
+
+  expect(recorded.selections).toHaveLength(5);
+  expect(lastReported(recorded.selections)).toBeNull();
+});
+
+test('clearSelection leaves the next extension anchored on nothing', async () => {
+  const recorded = await aPassageExtended();
+  await theBrowserDropsTheSelection();
+  reader.clearSelection();
+
+  await extendOntoGenerosity();
+
+  expect(recorded.selections).toHaveLength(5);
+  expect(lastReported(recorded.selections)).toBeNull();
+});
+
+test('words dragged while a passage is held are what the next extension runs from', async () => {
+  const recorded = await aPassageExtended();
+  await theBrowserDropsTheSelection();
+
+  adjustSelectionInBook('purest');
+  await extendOntoGenerosity();
+
+  expect(lastReported(recorded.selections)?.location.text?.highlight).toBe(
+    'purest form of generosity'
+  );
 });
 
 test('a manifest that claims another origin still has its chapters resolve against ours', async () => {
