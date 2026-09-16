@@ -3,13 +3,14 @@ import type { Highlight } from '@/api/generated/model';
 import { isAnyDialogOpen } from '@/components/dialogs/dialogStack.ts';
 import { heldPassageDecoration, highlightIdFrom } from '@/components/reader/decorations.ts';
 import type { EbookTocEntry } from '@/components/reader/EbookReader.ts';
+import { ExtensionBar } from '@/components/reader/ExtensionBar.tsx';
 import { landingOfAJump, tocEntryLocation } from '@/components/reader/jumpFallback.ts';
-import { ReaderLoading } from '@/components/reader/ReaderLoading.tsx';
 import { ReaderMessage } from '@/components/reader/ReaderMessage.tsx';
 import { overlaySx } from '@/components/reader/readerOverlay.ts';
 import { readerPageColors, toEbookAppearance } from '@/components/reader/readerPreferences.ts';
 import { ReaderSettings } from '@/components/reader/ReaderSettings.tsx';
 import { ReaderToolbar } from '@/components/reader/ReaderToolbar.tsx';
+import { ReadingSurface } from '@/components/reader/ReadingSurface.tsx';
 import { SelectionPopover } from '@/components/reader/SelectionPopover.tsx';
 import { TocDrawer } from '@/components/reader/TocDrawer.tsx';
 import { useEbookReader, type UseEbookReaderOptions } from '@/components/reader/useEbookReader.ts';
@@ -23,9 +24,7 @@ import { useReadingPositionWriter } from '@/components/reader/useReadingPosition
 import { useSelectionWorkflow } from '@/components/reader/useSelectionWorkflow.ts';
 import { useSnackbar } from '@/context/SnackbarContext.tsx';
 import { useBodyScrollLock } from '@/hooks/useBodyScrollLock.ts';
-import { NextPageIcon, PreviousPageIcon } from '@/theme/Icons.tsx';
-import { ICON_SIZE } from '@/theme/iconSizes.ts';
-import { alpha, Box, Button, IconButton, Stack, Typography, useTheme } from '@mui/material';
+import { Box, useTheme } from '@mui/material';
 import { useEffect, useMemo, useRef, useState } from 'react';
 
 export interface ReaderShellProps {
@@ -48,77 +47,9 @@ export interface ReaderShellProps {
 /** Said over the open book for a tap that landed in a chapter the passage cannot reach. */
 const ONE_CHAPTER_ONLY = 'A highlight has to stay inside one chapter.';
 
-/** The width the page-turn buttons need beside the text on anything but a phone. */
-const PAGE_TURN_GUTTER = '48px';
-
-/** Readium's own page gutter is horizontal only, so the air above and below is ours to add. */
-const READING_SURFACE_INSET = 2;
-
 const manifestUrlFor = (bookId: number) =>
   new URL(`${API_BASE_URL}/api/v1/readium/books/${bookId}/manifest.json`, window.location.origin)
     .href;
-
-interface PageTurnButtonProps {
-  edge: 'left' | 'right';
-  onClick: () => void;
-  disabled: boolean;
-}
-
-const PageTurnButton = ({ edge, onClick, disabled }: PageTurnButtonProps) => (
-  <IconButton
-    onClick={onClick}
-    disabled={disabled}
-    color="inherit"
-    aria-label={edge === 'left' ? 'Previous page' : 'Next page'}
-    sx={{
-      position: 'absolute',
-      top: '50%',
-      transform: 'translateY(-50%)',
-      [edge]: 4,
-      zIndex: 1,
-      // Gone on a phone, where they cover the page they turn and swiping is
-      // the gesture at hand; the gutter they need goes with them.
-      display: { xs: 'none', sm: 'inline-flex' },
-    }}
-  >
-    {edge === 'left' ? (
-      <PreviousPageIcon sx={{ fontSize: ICON_SIZE.prominent }} />
-    ) : (
-      <NextPageIcon sx={{ fontSize: ICON_SIZE.prominent }} />
-    )}
-  </IconButton>
-);
-
-interface ExtensionBarProps {
-  colors: ReturnType<typeof readerPageColors>;
-  onCancel: () => void;
-}
-
-/** What to do while the far end of a passage is awaited, in the page's own colours. */
-const ExtensionBar = ({ colors, onCancel }: ExtensionBarProps) => (
-  <Stack
-    role="group"
-    aria-label="Extending the highlight"
-    direction="row"
-    spacing={1}
-    sx={{
-      alignItems: 'center',
-      px: 1.5,
-      py: 0.5,
-      borderRadius: 1,
-      border: 1,
-      borderColor: alpha(colors.text, 0.12),
-      boxShadow: (t) => t.shadows[2],
-      backgroundColor: colors.background,
-      color: colors.text,
-    }}
-  >
-    <Typography variant="body2">Tap where the highlight ends</Typography>
-    <Button size="small" color="inherit" onClick={onCancel}>
-      Cancel
-    </Button>
-  </Stack>
-);
 
 /** The reader's full-viewport frame: a title bar, a way out, and the book. */
 export const ReaderShell = ({
@@ -246,7 +177,6 @@ export const ReaderShell = ({
   }
 
   const isOpen = book.status === 'open';
-  const pageTurnsDisabled = isRenewing || !isOpen;
   const position = book.location?.locations.position;
 
   const goToTocEntry = (entry: EbookTocEntry) => {
@@ -275,63 +205,19 @@ export const ReaderShell = ({
         onClose={onClose}
       />
 
-      <Box sx={{ flex: 1, minHeight: 0, position: 'relative' }}>
-        <PageTurnButton edge="left" onClick={book.previous} disabled={pageTurnsDisabled} />
-        <PageTurnButton edge="right" onClick={book.next} disabled={pageTurnsDisabled} />
-
-        {/* Hidden rather than unmounted: the engine measures this box to lay
-            the book out, and a box that is not there has no size to measure. */}
-        <Box
-          ref={host}
-          sx={{
-            height: '100%',
-            px: { xs: 0, sm: PAGE_TURN_GUTTER },
-            py: READING_SURFACE_INSET,
-            visibility: isOpen ? 'visible' : 'hidden',
-          }}
-        />
-
-        {!isOpen && <ReaderLoading />}
-
-        {/* Mounted for as long as the book is, because a live region appearing
-            together with its words announces nothing. At the top: the sides belong
-            to the page-turn buttons and the bottom to a phone's own callout. */}
-        {isOpen && (
-          <Box
-            aria-live="polite"
-            sx={{
-              position: 'absolute',
-              top: (t) => t.spacing(1),
-              left: '50%',
-              transform: 'translateX(-50%)',
-              maxWidth: '100%',
-              zIndex: 2,
-            }}
-          >
-            {workflow.isExtending && (
-              <ExtensionBar colors={pageColors} onCancel={workflow.stopExtending} />
-            )}
-          </Box>
-        )}
-
-        {/* Mounted for as long as the book is: a live region that appears
-            together with its text announces nothing. */}
-        {isOpen && (
-          <Stack
-            aria-live="polite"
-            sx={{
-              position: 'absolute',
-              inset: 0,
-              alignItems: 'center',
-              justifyContent: 'center',
-              pointerEvents: isRenewing ? 'auto' : 'none',
-              ...(isRenewing && { backgroundColor: pageColors.background, opacity: 0.9 }),
-            }}
-          >
-            {isRenewing && <Typography variant="body2">Reconnecting…</Typography>}
-          </Stack>
-        )}
-      </Box>
+      <ReadingSurface
+        host={host}
+        isOpen={isOpen}
+        isRenewing={isRenewing}
+        colors={pageColors}
+        onNext={book.next}
+        onPrevious={book.previous}
+        notice={
+          workflow.isExtending && (
+            <ExtensionBar colors={pageColors} onCancel={workflow.stopExtending} />
+          )
+        }
+      />
 
       <TocDrawer
         open={isTocOpen}
@@ -352,7 +238,7 @@ export const ReaderShell = ({
       )}
 
       <SelectionPopover
-        selection={book.selection}
+        rect={book.selection?.rect ?? null}
         onHighlight={workflow.highlight}
         onExtend={workflow.extend}
         onCancel={book.clearSelection}

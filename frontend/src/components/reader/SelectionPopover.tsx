@@ -1,8 +1,9 @@
-import type { EbookSelection } from '@/components/reader/EbookReader.ts';
+import type { EbookRect } from '@/components/reader/EbookReader.ts';
 import { Button, Paper, Popper, Stack, useMediaQuery, useTheme } from '@mui/material';
 
 export interface SelectionPopoverProps {
-  selection: EbookSelection | null;
+  /** Where the selected words sit on screen, `null` when nothing is selected. */
+  rect: EbookRect | null;
   onHighlight: () => void;
   /** Carries the selection on to a word tapped later, over as many pages as it takes. */
   onExtend: () => void;
@@ -16,7 +17,7 @@ const GAP_PX = 8;
 // and its arrow -- and offers no way to place it or ask where it went.
 const PHONE_GAP_PX = 60;
 
-type SelectionActionsProps = Omit<SelectionPopoverProps, 'selection'>;
+type SelectionActionsProps = Omit<SelectionPopoverProps, 'rect'>;
 
 const SelectionActions = ({ onHighlight, onExtend, onCancel }: SelectionActionsProps) => (
   // Never takes focus: away from the book's frame, the browser stops showing the selection.
@@ -29,11 +30,10 @@ const SelectionActions = ({ onHighlight, onExtend, onCancel }: SelectionActionsP
   </Paper>
 );
 
-/** What can be done with the words selected in the book, below them. */
-export const SelectionPopover = ({ selection, ...actions }: SelectionPopoverProps) => {
+/** What can be done with the words selected in the book, below the rectangle they fill. */
+export const SelectionPopover = ({ rect, ...actions }: SelectionPopoverProps) => {
   const theme = useTheme();
   const isPhone = useMediaQuery(theme.breakpoints.down('sm'));
-  const rect = selection?.rect;
 
   if (!rect) return null;
 
