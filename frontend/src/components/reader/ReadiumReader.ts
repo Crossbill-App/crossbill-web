@@ -327,6 +327,15 @@ export class ReadiumReader implements EbookReader {
     return this.subscribe(this.selectionListeners, listener);
   }
 
+  clearSelection(): void {
+    for (const frame of this.host.querySelectorAll('iframe')) {
+      frame.contentWindow?.getSelection()?.removeAllRanges();
+    }
+    // Now, not once `selectionchange` settles: the same words selected again
+    // before then would be swallowed as a repeat.
+    this.reportSelection(null);
+  }
+
   onLocationChanged(listener: (location: EbookLocation) => void): () => void {
     return this.subscribe(this.locationListeners, listener);
   }
@@ -428,6 +437,21 @@ export class ReadiumReader implements EbookReader {
     frame.document.addEventListener('selectionchange', debounce(report, SELECTION_SETTLE_MS));
   }
 
+  /** Keeps a touch gesture over selected words away from Readium's snapper. */
+  private keepTouchFromTheSnapper(frame: Window): void {
+    // The snapper listens on the frame's window in the bubble phase, so the document
+    // hears first: its first move deselects, and its end reports a swipe.
+    const holdBack = (event: TouchEvent) => {
+      const selection = frame.getSelection();
+      if (!selection || selection.rangeCount === 0 || selection.isCollapsed) return;
+      // Never `preventDefault`: the browser's own selection handles ride on the default.
+      event.stopPropagation();
+    };
+    for (const type of ['touchstart', 'touchmove', 'touchend'] as const) {
+      frame.document.addEventListener(type, holdBack, { capture: true });
+    }
+  }
+
   /**
    * One report per passage.
    *
@@ -489,7 +513,10 @@ export class ReadiumReader implements EbookReader {
 
   private navigatorListeners(): EpubNavigatorListeners {
     return {
-      frameLoaded: (frame) => this.watchSelection(frame),
+      frameLoaded: (frame) => {
+        this.watchSelection(frame);
+        this.keepTouchFromTheSnapper(frame);
+      },
       positionChanged: (locator) => this.notify(this.locationListeners, toLocation(locator)),
       timelineItemChanged: (item) =>
         this.notify(this.tocEntryListeners, this.tocEntryHrefFor(item)),

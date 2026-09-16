@@ -10,7 +10,11 @@ import { ReadiumReader } from '@/components/reader/ReadiumReader.ts';
 import { fontSizeRangeConfig } from '@readium/navigator';
 import { aDetailedPositionList, aManifest, aPositionList } from '@tests/fixtures/publication';
 import { drawnOn, drawnRanges } from '@tests/harness/paintedHighlights';
-import { rangeOver, select } from '@tests/harness/textSelection';
+import {
+  adjustSelectionInBook as adjustSelectionIn,
+  selectInBook as selectIn,
+  visibleFrame as visibleFrameIn,
+} from '@tests/harness/textSelection';
 import { noPublication, readiumApi } from '@tests/msw/readiumApi';
 import { worker } from '@tests/msw/worker';
 import { http, HttpResponse } from 'msw';
@@ -98,23 +102,13 @@ const centreOf = (range: Range) => {
 
 const frameText = () => frame()?.contentDocument?.body.textContent ?? '';
 
-/** The chapter on screen: Readium keeps the neighbouring one loaded and hidden. */
-const visibleFrame = () =>
-  [...host.querySelectorAll('iframe')].find((candidate) => candidate.style.visibility !== 'hidden');
+const visibleFrame = () => visibleFrameIn(host);
 
 const visibleFrameText = () => visibleFrame()?.contentDocument?.body.textContent ?? '';
 
-/** A selection changing under no pointer, the way a touch handle or a keyboard moves one. */
-const adjustSelectionInBook = (phrase: string) => {
-  const chapter = visibleFrame()!.contentDocument!;
-  select(chapter, rangeOver(chapter, phrase));
-};
+const adjustSelectionInBook = (phrase: string) => adjustSelectionIn(host, phrase);
 
-/** A reader dragging over words in the chapter on screen, and letting go. */
-const selectInBook = (phrase: string) => {
-  adjustSelectionInBook(phrase);
-  visibleFrame()!.contentDocument!.dispatchEvent(new PointerEvent('pointerup', { bubbles: true }));
-};
+const selectInBook = (phrase: string) => selectIn(host, phrase);
 
 /** Longer than the engine gives a changing selection to settle. */
 const afterTheSelectionSettles = () => new Promise((resolve) => setTimeout(resolve, 400));
@@ -428,13 +422,19 @@ test('a selection is reported against the chapter it was made in, not the one th
   expect(recorded.selections[0]?.location.href).toBe(CHAPTER_TWO);
 });
 
-test('a selection dragged out after the pointer went up is reported at its new extent', async () => {
+/** The book at its first chapter with `phrase` selected, and that selection already heard. */
+const theBookWithWordsSelected = async (phrase: string) => {
   worker.use(...readiumApi());
   await openTheBook();
   await expect.poll(visibleFrameText).toContain('On Attention');
   const recorded = recordEvents();
-  selectInBook('rarest');
+  selectInBook(phrase);
   await expect.poll(() => recorded.selections).toHaveLength(1);
+  return recorded;
+};
+
+test('a selection dragged out after the pointer went up is reported at its new extent', async () => {
+  const recorded = await theBookWithWordsSelected('rarest');
 
   // What a touch handle does: the range grows with no pointer event to say so.
   adjustSelectionInBook('rarest and purest');
@@ -456,12 +456,7 @@ test('the pointer going up and the selection settling report one passage between
 });
 
 test('letting a selection go is reported once, and tapping on is not reported at all', async () => {
-  worker.use(...readiumApi());
-  await openTheBook();
-  await expect.poll(visibleFrameText).toContain('On Attention');
-  const recorded = recordEvents();
-  selectInBook('generosity');
-  await expect.poll(() => recorded.selections).toHaveLength(1);
+  const recorded = await theBookWithWordsSelected('generosity');
 
   tapTheBook();
   await expect.poll(() => recorded.selections).toHaveLength(2);
@@ -470,6 +465,81 @@ test('letting a selection go is reported once, and tapping on is not reported at
   tapTheBook();
   tapTheBook();
   expect(recorded.selections).toHaveLength(2);
+});
+
+test('clearSelection empties the selection in the book and reports it let go', async () => {
+  const recorded = await theBookWithWordsSelected('generosity');
+
+  reader.clearSelection();
+
+  expect(recorded.selections).toHaveLength(2);
+  expect(recorded.selections[1]).toBeNull();
+  expect(visibleFrame()!.contentDocument!.getSelection()?.rangeCount).toBe(0);
+  await afterTheSelectionSettles();
+  expect(recorded.selections).toHaveLength(2);
+});
+
+/** One finger on the page, at a point along the axis a swipe travels. */
+const aFingerAt = (target: EventTarget, x: number) =>
+  new Touch({ identifier: 1, target, clientX: x, clientY: 200 });
+
+/** A finger dragged leftwards across the chapter, which is how a page is turned on a phone. */
+const dragAcrossTheBook = () => {
+  const chapter = visibleFrame()!.contentDocument!;
+  const touch = (type: string, x?: number) =>
+    chapter.dispatchEvent(
+      new TouchEvent(type, {
+        bubbles: true,
+        touches: x === undefined ? [] : [aFingerAt(chapter.body, x)],
+      })
+    );
+  touch('touchstart', 400);
+  touch('touchmove', 300);
+  touch('touchmove', 200);
+  touch('touchend');
+};
+
+const selectedText = () => visibleFrame()!.contentDocument!.getSelection()?.toString() ?? '';
+
+test('a touch drag over selected words leaves the selection standing', async () => {
+  const recorded = await theBookWithWordsSelected('rarest and purest');
+
+  dragAcrossTheBook();
+
+  await afterTheSelectionSettles();
+  expect(selectedText()).toBe('rarest and purest');
+  expect(recorded.selections).toHaveLength(1);
+  expect(recorded.positions).toEqual([]);
+});
+
+test('a touch drag with nothing selected still reaches the page turner', async () => {
+  worker.use(...readiumApi());
+  await openTheBook();
+  await expect.poll(visibleFrameText).toContain('On Attention');
+  const recorded = recordEvents();
+
+  dragAcrossTheBook();
+
+  await expect.poll(() => recorded.positions.length).toBeGreaterThan(0);
+});
+
+test('letting the selection go hands touch back to the page turner', async () => {
+  const recorded = await theBookWithWordsSelected('rarest and purest');
+  reader.clearSelection();
+
+  dragAcrossTheBook();
+
+  await expect.poll(() => recorded.positions.length).toBeGreaterThan(0);
+});
+
+test('the caret a tap leaves behind hands touch back too', async () => {
+  const recorded = await theBookWithWordsSelected('rarest and purest');
+  // What a tap in the book leaves: a range still there, with nothing in it.
+  visibleFrame()!.contentDocument!.getSelection()!.collapseToStart();
+
+  dragAcrossTheBook();
+
+  await expect.poll(() => recorded.positions.length).toBeGreaterThan(0);
 });
 
 test('a manifest that claims another origin still has its chapters resolve against ours', async () => {

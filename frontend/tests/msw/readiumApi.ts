@@ -1,9 +1,11 @@
 import type {
+  CreatedHighlightResponse,
   HighlightLocatorResponse,
   PositionList,
   ReadingPosition,
   ReadingPositionUpdate,
   ResumePositionResponse,
+  SelectionHighlightCreate,
   WebPublicationManifest,
 } from '@/api/generated/model';
 import { delay, http, HttpResponse } from 'msw';
@@ -16,6 +18,7 @@ const RESOURCE_PATH = '/api/v1/readium/books/:bookId/resources/*';
 const POSITION_PATH = '/api/v1/readium/books/:bookId/reading-position';
 const HIGHLIGHT_LOCATORS_PATH = '/api/v1/books/:bookId/highlight-locators';
 const HIGHLIGHT_LOCATOR_PATH = '/api/v1/highlights/:highlightId/locator';
+const HIGHLIGHTS_PATH = '/api/v1/books/:bookId/highlights';
 
 /** A chapter as an EPUB actually ships one: XHTML, with its own namespace. */
 const chapterDocument = (title: string, paragraphs = 1) =>
@@ -122,6 +125,44 @@ export const highlightLocatorApi = (
     return item ? HttpResponse.json(item) : new HttpResponse(null, { status: 404 });
   }),
 ];
+
+export interface HighlightCreationAnswer {
+  status?: number;
+  id?: number;
+  delayMs?: number;
+}
+
+/** Register these after `readiumApi()`, which MSW resolves newest first. */
+export const highlightCreationApi = (
+  answers: HighlightCreationAnswer[],
+  { onCreated }: { onCreated?: (id: number) => void } = {}
+) => {
+  const bodies: SelectionHighlightCreate[] = [];
+  const handlers = [
+    http.post(HIGHLIGHTS_PATH, async ({ request, params }) => {
+      const body = (await request.json()) as SelectionHighlightCreate;
+      const {
+        status = 201,
+        id = 400,
+        delayMs,
+      } = answers[Math.min(bodies.length, answers.length - 1)];
+      bodies.push(body);
+      if (delayMs) await delay(delayMs);
+      if (status >= 400) return new HttpResponse(null, { status });
+      onCreated?.(id);
+      return HttpResponse.json(
+        {
+          id,
+          book_id: Number(params.bookId),
+          text: body.locator.text?.highlight ?? '',
+          datetime: '2026-09-15 12:00:00',
+        } satisfies CreatedHighlightResponse,
+        { status }
+      );
+    }),
+  ];
+  return { handlers, bodies };
+};
 
 interface ReadiumApiOptions {
   manifest?: WebPublicationManifest;

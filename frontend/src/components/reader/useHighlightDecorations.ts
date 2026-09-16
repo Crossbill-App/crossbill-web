@@ -4,7 +4,7 @@ import { highlightDecorations } from '@/components/reader/decorations.ts';
 import type { EbookDecoration } from '@/components/reader/EbookReader.ts';
 import { useMemo } from 'react';
 
-const LOCATORS_QUERY = {
+export const LOCATORS_QUERY = {
   // Only a replaced EPUB moves a locator, so a focus refetch would place the whole book
   // again for nothing; and a failure leaves the book unmarked, which is still the book.
   retry: false,

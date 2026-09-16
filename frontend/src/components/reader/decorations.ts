@@ -10,13 +10,23 @@ const TINT_OPACITY = 0.35;
 // else the engine would draw invisible, and it would still take a tap.
 const HEX_COLOR = /^#?[0-9a-f]{6}$/i;
 
-const DECORATION_ID_PREFIX = 'highlight-';
+const decorationId = (highlightId: number) => `highlight-${highlightId}`;
 
-const decorationId = (highlightId: number) => `${DECORATION_ID_PREFIX}${highlightId}`;
+const HIGHLIGHT_DECORATION_ID = /^highlight-(\d+)$/;
 
-/** The highlight a drawn decoration stands for. */
-export const highlightIdFrom = (decorationId: string): number =>
-  Number(decorationId.slice(DECORATION_ID_PREFIX.length));
+/** The highlight a drawn decoration stands for, or `null` for one that stands for none. */
+export const highlightIdFrom = (decorationId: string): number | null => {
+  const match = HIGHLIGHT_DECORATION_ID.exec(decorationId);
+  return match ? Number(match[1]) : null;
+};
+
+/** A passage drawn as a highlight while the server is still storing it. */
+export const standInDecoration = (sequence: number, location: EbookLocation): EbookDecoration => ({
+  id: `selection-${sequence}`,
+  location,
+  tint: DEFAULT_LABEL_COLOR,
+  opacity: TINT_OPACITY,
+});
 
 /** A highlight's locator in the engine's terms. */
 export const toEbookLocation = (locator: LocatorSchema): EbookLocation => ({

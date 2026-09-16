@@ -18,8 +18,11 @@ import {
 } from '@tests/fixtures/publication';
 import { drawnOn, drawnRanges } from '@tests/harness/paintedHighlights';
 import { renderApp } from '@tests/harness/renderApp';
+import { selectInBook } from '@tests/harness/textSelection';
 import { bookApi } from '@tests/msw/bookApi';
+import type { HighlightCreationAnswer } from '@tests/msw/readiumApi';
 import {
+  highlightCreationApi,
   highlightLocatorApi,
   highlightLocatorsApi,
   noPublication,
@@ -1112,4 +1115,72 @@ test('tapping the highlight the reader arrived at opens it, and Back closes it',
 
   await expectBackAtTheBook(screen, before);
   await expectThePassageOnThePage();
+});
+
+/** Highlight pressed over "rarest and purest", on a server that stores and places highlight 400. */
+const aHighlightPressed = async (answer: HighlightCreationAnswer) => {
+  const details = bookApi({ book: aBookDetails({ chapters: [aChapter()] }) });
+  worker.use(...details.handlers);
+  worker.use(...readiumApi());
+  let locatorListRequests = 0;
+  worker.use(...highlightLocatorsApi([], { onRequest: () => (locatorListRequests += 1) }));
+  worker.use(...highlightLocatorApi([aHighlightLocator(400)]));
+  const created: number[] = [];
+  const creation = highlightCreationApi([answer], {
+    onCreated: (id) => {
+      created.push(id);
+      const highlights = [aHighlight({ id, text: PLACED_TEXT })];
+      details.state.book = aBookDetails({ chapters: [aChapter({ highlights })] });
+    },
+  });
+  worker.use(...creation.handlers);
+  const screen = await openTheBook();
+  selectInBook(document, 'rarest and purest');
+  await screen
+    .getByRole('toolbar', { name: 'Selected text' })
+    .getByRole('button', { name: 'Highlight' })
+    .click();
+  return {
+    screen,
+    bodies: creation.bodies,
+    created,
+    locatorListRequests: () => locatorListRequests,
+  };
+};
+
+test('a highlight is drawn before the server answers, from the words selected', async () => {
+  const { bodies, created } = await aHighlightPressed({ delayMs: 1_500 });
+
+  await expect.poll(() => drawnOn(document)).toEqual(['p:rarest and purest']);
+  expect(created).toEqual([]);
+  await expect.poll(() => bodies).toHaveLength(1);
+  expect(bodies[0].locator.text?.highlight).toBe('rarest and purest');
+  expect(bodies[0].locator.locations?.cssSelector).toBeTruthy();
+  await expect.poll(() => created, { timeout: 5_000 }).toEqual([400]);
+});
+
+test('a saved highlight is drawn once, and tapping it opens it', async () => {
+  const { screen, created, locatorListRequests } = await aHighlightPressed({ id: 400 });
+  await expect.poll(() => created).toEqual([400]);
+  await expect.poll(() => screen.queryClient.isFetching()).toBe(0);
+
+  await expect
+    .poll(async () => {
+      await tapTheHighlight();
+      return screen.getByRole('dialog').query() !== null;
+    })
+    .toBe(true);
+  await expectTheDialogShowing(screen, PLACED_TEXT);
+  await expect.poll(() => drawnRanges(document)).toHaveLength(1);
+  expect(locatorListRequests()).toBe(1);
+});
+
+test('a highlight the server cannot place is taken off the page, and asks for more text', async () => {
+  const { screen } = await aHighlightPressed({ status: 422, delayMs: 300 });
+  await expect.poll(() => drawnRanges(document)).toHaveLength(1);
+
+  await expect
+    .element(screen.getByRole('alert').filter({ hasText: 'Try selecting a little more text.' }))
+    .toBeVisible();
+  await expect.poll(() => drawnRanges(document)).toEqual([]);
 });

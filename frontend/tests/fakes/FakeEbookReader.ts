@@ -31,6 +31,7 @@ export class FakeEbookReader implements EbookReader {
   goToOutcome: Promise<void> = Promise.resolve();
   nextCalls = 0;
   previousCalls = 0;
+  clearSelectionCalls = 0;
   destroyed = false;
 
   private readonly locationListeners = new Set<(location: EbookLocation) => void>();
@@ -94,6 +95,10 @@ export class FakeEbookReader implements EbookReader {
     for (const listener of [...this.decorationListeners]) listener(id);
   }
 
+  select(selection: EbookSelection | null): void {
+    for (const listener of [...this.selectionListeners]) listener(selection);
+  }
+
   setAppearance(appearance: EbookAppearance): Promise<void> {
     this.appearances.push(appearance);
     return Promise.resolve();
@@ -126,6 +131,11 @@ export class FakeEbookReader implements EbookReader {
   onSelectionChanged(listener: (selection: EbookSelection | null) => void): () => void {
     this.selectionListeners.add(listener);
     return () => this.selectionListeners.delete(listener);
+  }
+
+  clearSelection(): void {
+    this.clearSelectionCalls += 1;
+    this.select(null);
   }
 
   onLocationChanged(listener: (location: EbookLocation) => void): () => void {
