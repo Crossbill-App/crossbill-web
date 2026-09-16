@@ -272,6 +272,20 @@ export const ReaderShell = ({
           },
   });
 
+  // The preference store no longer knows the engine's range, so a size stored
+  // outside it — which happens only when the range changed between versions —
+  // is corrected here, where the engine has said what it honours, at the cost
+  // of one reflow in that rare case.
+  const fontSizeRange = book.fontSizeRange;
+  useEffect(() => {
+    if (!fontSizeRange) return;
+    const [min, max] = fontSizeRange;
+    const honoured = Math.min(Math.max(preferences.fontSize, min), max);
+    if (honoured !== preferences.fontSize) {
+      setPreferences((current) => ({ ...current, fontSize: honoured }));
+    }
+  }, [fontSizeRange, preferences.fontSize, setPreferences]);
+
   const apologised = useRef(false);
   useEffect(() => {
     if (apologised.current || book.status !== 'open' || !landing) return;
@@ -460,13 +474,13 @@ export const ReaderShell = ({
         currentHref={book.currentTocHref}
       />
 
-      {book.fontSizeRange && (
+      {fontSizeRange && (
         <ReaderSettings
           anchorEl={appearanceAnchor}
           onClose={() => setAppearanceAnchor(null)}
           preferences={preferences}
           onChange={setPreferences}
-          fontSizeRange={book.fontSizeRange}
+          fontSizeRange={fontSizeRange}
         />
       )}
 

@@ -15,7 +15,6 @@ import { SnackbarProvider } from '@/context/SnackbarContext.tsx';
 import { theme } from '@/theme/theme.ts';
 import { DEFAULT_LABEL_COLOR } from '@/utils/colorUtils.ts';
 import { ThemeProvider } from '@mui/material/styles';
-import { fontSizeRangeConfig } from '@readium/navigator';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { FakeEbookReader, aFakeLocation } from '@tests/fakes/FakeEbookReader';
 import { aBookDetails, aChapter, aHighlight } from '@tests/fixtures/book';
@@ -502,14 +501,28 @@ test('the book is opened with the appearance left in storage', async () => {
   });
 });
 
-test("a stored font size past the engine's range opens inside it", async () => {
+test("a stored font size past the engine's range is pulled back into it", async () => {
   worker.use(...readiumApi());
   seedPreferences({ ...A_STORED_APPEARANCE, fontSize: 12 });
 
   await renderShell();
 
   await expect.poll(() => readers.length).toBe(1);
-  expect(readers[0].openedWith[0].appearance.fontSize).toBe(fontSizeRangeConfig.range[1]);
+  // The store no longer knows the range, so the book opens on what was written
+  // down and the engine's own answer corrects it.
+  expect(readers[0].openedWith[0].appearance.fontSize).toBe(12);
+  readers[0].resolveOpen();
+  await expect.poll(() => readers[0].appearances.map((one) => one.fontSize)).toEqual([2]);
+});
+
+test("a stored font size inside the engine's range is left where it is", async () => {
+  worker.use(...readiumApi());
+  seedPreferences(A_STORED_APPEARANCE);
+
+  await anOpenBook();
+
+  expect(readers[0].openedWith[0].appearance.fontSize).toBe(1.5);
+  expect(readers[0].appearances).toEqual([]);
 });
 
 test('a setting chosen in the popover is written down', async () => {
