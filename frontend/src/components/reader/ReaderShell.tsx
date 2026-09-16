@@ -1,6 +1,5 @@
 import { API_BASE_URL } from '@/api/base-url.ts';
 import type { Highlight } from '@/api/generated/model';
-import { IconButtonWithTooltip } from '@/components/buttons/IconButtonWithTooltip.tsx';
 import { isAnyDialogOpen } from '@/components/dialogs/dialogStack.ts';
 import { heldPassageDecoration, highlightIdFrom } from '@/components/reader/decorations.ts';
 import type { EbookTocEntry } from '@/components/reader/EbookReader.ts';
@@ -10,6 +9,7 @@ import { ReaderMessage } from '@/components/reader/ReaderMessage.tsx';
 import { overlaySx } from '@/components/reader/readerOverlay.ts';
 import { readerPageColors, toEbookAppearance } from '@/components/reader/readerPreferences.ts';
 import { ReaderSettings } from '@/components/reader/ReaderSettings.tsx';
+import { ReaderToolbar } from '@/components/reader/ReaderToolbar.tsx';
 import { SelectionPopover } from '@/components/reader/SelectionPopover.tsx';
 import { TocDrawer } from '@/components/reader/TocDrawer.tsx';
 import { useEbookReader, type UseEbookReaderOptions } from '@/components/reader/useEbookReader.ts';
@@ -23,24 +23,9 @@ import { useReadingPositionWriter } from '@/components/reader/useReadingPosition
 import { useSelectionWorkflow } from '@/components/reader/useSelectionWorkflow.ts';
 import { useSnackbar } from '@/context/SnackbarContext.tsx';
 import { useBodyScrollLock } from '@/hooks/useBodyScrollLock.ts';
-import {
-  ChapterListIcon,
-  CloseIcon,
-  NextPageIcon,
-  PaletteIcon,
-  PreviousPageIcon,
-} from '@/theme/Icons.tsx';
+import { NextPageIcon, PreviousPageIcon } from '@/theme/Icons.tsx';
 import { ICON_SIZE } from '@/theme/iconSizes.ts';
-import {
-  alpha,
-  Box,
-  Button,
-  IconButton,
-  Stack,
-  Toolbar,
-  Typography,
-  useTheme,
-} from '@mui/material';
+import { alpha, Box, Button, IconButton, Stack, Typography, useTheme } from '@mui/material';
 import { useEffect, useMemo, useRef, useState } from 'react';
 
 export interface ReaderShellProps {
@@ -68,10 +53,6 @@ const PAGE_TURN_GUTTER = '48px';
 
 /** Readium's own page gutter is horizontal only, so the air above and below is ours to add. */
 const READING_SURFACE_INSET = 2;
-
-const pageLabel = (page: number, pageCount: number, progression: number | undefined) =>
-  `Page ${page} of ${pageCount}` +
-  (progression === undefined ? '' : ` · ${Math.round(progression * 100)}%`);
 
 const manifestUrlFor = (bookId: number) =>
   new URL(`${API_BASE_URL}/api/v1/readium/books/${bookId}/manifest.json`, window.location.origin)
@@ -282,41 +263,17 @@ export const ReaderShell = ({
         transition: (t) => t.transitions.create(['background-color', 'color']),
       }}
     >
-      <Box sx={{ borderBottom: 1, borderColor: alpha(pageColors.text, 0.12) }}>
-        <Toolbar variant="dense" sx={{ gap: 1 }}>
-          <IconButtonWithTooltip
-            label="Contents"
-            onClick={() => setIsTocOpen(true)}
-            disabled={!isOpen}
-            edge="start"
-            icon={<ChapterListIcon sx={{ fontSize: ICON_SIZE.ui }} />}
-          />
-          <Stack sx={{ flex: 1, minWidth: 0 }}>
-            <Typography variant="h6" component="h1" noWrap>
-              {title}
-            </Typography>
-            {book.pageCount > 0 && position !== undefined && (
-              // 0.7 of the page's own text, which is 6.3:1 on the light page
-              // and 8.4:1 on the dark one; body text needs 4.5:1.
-              <Typography variant="body2" noWrap sx={{ color: alpha(pageColors.text, 0.7) }}>
-                {pageLabel(position, book.pageCount, book.location?.locations.totalProgression)}
-              </Typography>
-            )}
-          </Stack>
-          <IconButtonWithTooltip
-            label="Appearance"
-            onClick={(event) => setAppearanceAnchor(event.currentTarget)}
-            disabled={!isOpen}
-            icon={<PaletteIcon sx={{ fontSize: ICON_SIZE.ui }} />}
-          />
-          <IconButtonWithTooltip
-            label="Close reader"
-            onClick={onClose}
-            edge="end"
-            icon={<CloseIcon sx={{ fontSize: ICON_SIZE.ui }} />}
-          />
-        </Toolbar>
-      </Box>
+      <ReaderToolbar
+        title={title}
+        page={position}
+        pageCount={book.pageCount}
+        progression={book.location?.locations.totalProgression}
+        isOpen={isOpen}
+        colors={pageColors}
+        onOpenContents={() => setIsTocOpen(true)}
+        onOpenAppearance={setAppearanceAnchor}
+        onClose={onClose}
+      />
 
       <Box sx={{ flex: 1, minHeight: 0, position: 'relative' }}>
         <PageTurnButton edge="left" onClick={book.previous} disabled={pageTurnsDisabled} />
