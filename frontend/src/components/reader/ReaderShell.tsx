@@ -1,4 +1,3 @@
-import { API_BASE_URL } from '@/api/base-url.ts';
 import type { Highlight } from '@/api/generated/model';
 import { isAnyDialogOpen } from '@/components/dialogs/dialogStack.ts';
 import { heldPassageDecoration, highlightIdFrom } from '@/components/reader/decorations.ts';
@@ -11,6 +10,7 @@ import { readerPageColors, toEbookAppearance } from '@/components/reader/readerP
 import { ReaderSettings } from '@/components/reader/ReaderSettings.tsx';
 import { ReaderToolbar } from '@/components/reader/ReaderToolbar.tsx';
 import { ReadingSurface } from '@/components/reader/ReadingSurface.tsx';
+import { manifestUrl } from '@/components/reader/readiumUrls.ts';
 import { SelectionPopover } from '@/components/reader/SelectionPopover.tsx';
 import { tocEntryLocation } from '@/components/reader/toc.ts';
 import { TocDrawer } from '@/components/reader/TocDrawer.tsx';
@@ -48,10 +48,6 @@ export interface ReaderShellProps {
 /** Said over the open book for a tap that landed in a chapter the passage cannot reach. */
 const ONE_CHAPTER_ONLY = 'A highlight has to stay inside one chapter.';
 
-const manifestUrlFor = (bookId: number) =>
-  new URL(`${API_BASE_URL}/api/v1/readium/books/${bookId}/manifest.json`, window.location.origin)
-    .href;
-
 /** The reader's full-viewport frame: a title bar, a way out, and the book. */
 export const ReaderShell = ({
   bookId,
@@ -86,7 +82,7 @@ export const ReaderShell = ({
   const { showSnackbar } = useSnackbar();
   const book = useEbookReader({
     host,
-    manifestUrl: manifestUrlFor(bookId),
+    manifestUrl: manifestUrl(bookId),
     // A navigator takes its initial position once, at construction, so the book
     // waits for the answer rather than opening somewhere and being corrected.
     enabled: sessionStatus === 'ready' && landing !== undefined,

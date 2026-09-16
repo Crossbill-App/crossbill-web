@@ -10,12 +10,12 @@
  * Nothing here resets when `bookId` changes: the shell is keyed by book, so a
  * different book is a different component with its own state.
  */
-import { API_BASE_URL } from '@/api/base-url.ts';
 import type { BrowserLocatorSchema, ReadingPositionUpdate } from '@/api/generated/model';
 import { putReadingPosition } from '@/api/generated/readium/readium.ts';
 import { getAccessToken } from '@/api/token-manager.ts';
 import { toBrowserLocator } from '@/components/reader/apiLocators.ts';
 import type { EbookLocation } from '@/components/reader/EbookReader.ts';
+import { readingPositionUrl } from '@/components/reader/readiumUrls.ts';
 import { useCallback, useEffect, useRef } from 'react';
 
 // A page turn is not a decision to stop reading, and someone flicking through a
@@ -37,10 +37,6 @@ interface Observation {
   locator: BrowserLocatorSchema;
   at: string;
 }
-
-const positionUrl = (bookId: number) =>
-  new URL(`${API_BASE_URL}/api/v1/readium/books/${bookId}/reading-position`, window.location.origin)
-    .href;
 
 const update = ({ locator, at }: Observation, closing: boolean): ReadingPositionUpdate => ({
   locator,
@@ -80,7 +76,7 @@ export const useReadingPositionWriter = (
       // `keepalive` is the only kind of request a page is allowed to leave
       // behind, and the route is Bearer-only, so the token goes on by hand.
       const token = getAccessToken();
-      void fetch(positionUrl(bookId), {
+      void fetch(readingPositionUrl(bookId), {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
