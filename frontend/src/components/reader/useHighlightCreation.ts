@@ -10,7 +10,7 @@ import type {
 } from '@/api/generated/model';
 import { standInDecoration } from '@/components/reader/decorations.ts';
 import type { EbookDecoration, EbookLocation } from '@/components/reader/EbookReader.ts';
-import { LOCATORS_QUERY } from '@/components/reader/useHighlightDecorations.ts';
+import { LOCATORS_QUERY } from '@/components/reader/highlightLocatorsQuery.ts';
 import { useSnackbar } from '@/context/SnackbarContext.tsx';
 import { useMutationErrorHandler } from '@/hooks/useMutationErrorHandler.ts';
 import { useCacheEvents } from '@/lib/cacheEvents.ts';

@@ -2,15 +2,8 @@ import { useGetBookHighlightLocators } from '@/api/generated/highlights/highligh
 import type { Highlight } from '@/api/generated/model';
 import { highlightDecorations } from '@/components/reader/decorations.ts';
 import type { EbookDecoration } from '@/components/reader/EbookReader.ts';
+import { LOCATORS_QUERY } from '@/components/reader/highlightLocatorsQuery.ts';
 import { useMemo } from 'react';
-
-export const LOCATORS_QUERY = {
-  // Only a replaced EPUB moves a locator, so a focus refetch would place the whole book
-  // again for nothing; and a failure leaves the book unmarked, which is still the book.
-  retry: false,
-  refetchOnWindowFocus: false,
-  staleTime: Infinity,
-} as const;
 
 /** The decorations for one book's highlights, the same array for as long as neither input changes. */
 export const useHighlightDecorations = (
