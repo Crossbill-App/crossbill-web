@@ -1,4 +1,5 @@
 import type { EbookTocEntry } from '@/components/reader/EbookReader.ts';
+import { isNavigable } from '@/components/reader/toc.ts';
 import { SectionTitle } from '@/components/typography/SectionTitle.tsx';
 import { CloseIcon } from '@/theme/Icons.tsx';
 import { ICON_SIZE } from '@/theme/iconSizes.ts';
@@ -13,9 +14,6 @@ import {
   Typography,
 } from '@mui/material';
 import { Fragment, useCallback } from 'react';
-
-/** The href a manifest gives a heading that links nowhere — a part title, say. */
-const UNLINKED_HREF = '#';
 
 /** How far one level of nesting indents a chapter under its parent. */
 const INDENT_PER_LEVEL = 2;
@@ -41,13 +39,13 @@ interface TocEntriesProps {
 const TocEntries = ({ entries, depth, onSelect, currentHref, currentRef }: TocEntriesProps) => (
   <>
     {entries.map((entry, index) => {
-      const isNavigable = entry.href !== UNLINKED_HREF;
+      const navigable = isNavigable(entry);
       const isCurrent = entry.href === currentHref;
       return (
         <Fragment key={`${entry.href}-${index}`}>
           <ListItemButton
             ref={isCurrent ? currentRef : undefined}
-            disabled={!isNavigable}
+            disabled={!navigable}
             selected={isCurrent}
             aria-current={isCurrent ? 'location' : undefined}
             onClick={() => onSelect(entry)}
