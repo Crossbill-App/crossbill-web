@@ -10,12 +10,11 @@ import { useGetBookDetails } from '@/api/generated/books/books.ts';
 import { useGetHighlightLocator } from '@/api/generated/highlights/highlights.ts';
 import type {
   BookDetails,
-  BrowserLocatorSchema,
   HighlightLocatorResponse,
   ResumePositionResponse,
 } from '@/api/generated/model';
 import { useGetReadingPosition } from '@/api/generated/readium/readium.ts';
-import { toEbookLocation } from '@/components/reader/decorations.ts';
+import { fromBrowserLocator, fromLocatorSchema } from '@/components/reader/apiLocators.ts';
 import type { EbookLocation } from '@/components/reader/EbookReader.ts';
 import { chapterHintFor, type ChapterHint } from '@/components/reader/jumpFallback.ts';
 import { useCallback, useState } from 'react';
@@ -45,19 +44,6 @@ export interface ReaderLanding {
   chapter: ChapterHint | null;
 }
 
-/** The API's locator in the engine's terms, whose absences are `undefined`. */
-const fromBrowserLocator = (stored: BrowserLocatorSchema): EbookLocation => ({
-  href: stored.href,
-  type: stored.type,
-  title: stored.title ?? undefined,
-  locations: {
-    position: stored.locations?.position ?? undefined,
-    progression: stored.locations?.progression ?? undefined,
-    totalProgression: stored.locations?.totalProgression ?? undefined,
-    fragments: stored.locations?.fragments ?? undefined,
-  },
-});
-
 // No locator is either a place the server could not put anywhere in the EPUB it
 // now holds, or an ordinary book nobody has read, which is not worth a word. A
 // query that errored arrives here too, as neither.
@@ -70,7 +56,7 @@ const jumpFrom = (
   placed: HighlightLocatorResponse | undefined,
   chapter: ChapterHint | null | undefined
 ): ReaderLanding => ({
-  locator: placed?.locator ? toEbookLocation(placed.locator) : null,
+  locator: placed?.locator ? fromLocatorSchema(placed.locator) : null,
   lost: false,
   chapter: chapter ?? null,
 });

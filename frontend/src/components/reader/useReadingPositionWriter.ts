@@ -14,6 +14,7 @@ import { API_BASE_URL } from '@/api/base-url.ts';
 import type { BrowserLocatorSchema, ReadingPositionUpdate } from '@/api/generated/model';
 import { putReadingPosition } from '@/api/generated/readium/readium.ts';
 import { getAccessToken } from '@/api/token-manager.ts';
+import { toBrowserLocator } from '@/components/reader/apiLocators.ts';
 import type { EbookLocation } from '@/components/reader/EbookReader.ts';
 import { useCallback, useEffect, useRef } from 'react';
 
@@ -40,20 +41,6 @@ interface Observation {
 const positionUrl = (bookId: number) =>
   new URL(`${API_BASE_URL}/api/v1/readium/books/${bookId}/reading-position`, window.location.origin)
     .href;
-
-// The serialised JSON is also the "has this moved?" key, so an engine that
-// reports no fragments one tick and an empty array the next must not read as a move.
-const serialise = ({ href, type, title, locations }: EbookLocation): BrowserLocatorSchema => ({
-  href,
-  type,
-  title,
-  locations: {
-    position: locations.position,
-    progression: locations.progression,
-    totalProgression: locations.totalProgression,
-    fragments: locations.fragments?.length ? locations.fragments : undefined,
-  },
-});
 
 const update = ({ locator, at }: Observation, closing: boolean): ReadingPositionUpdate => ({
   locator,
@@ -163,7 +150,7 @@ export const useReadingPositionWriter = (
 
   /** Where the reader already is: remembered, written down nowhere. */
   const seed = useCallback((location: EbookLocation) => {
-    const locator = serialise(location);
+    const locator = toBrowserLocator(location);
     writtenRef.current = JSON.stringify(locator);
     latestRef.current = { locator, at: new Date().toISOString() };
     // Nothing is written for opening a book, but staying in one is reading:
@@ -179,7 +166,7 @@ export const useReadingPositionWriter = (
         seed(location);
         return;
       }
-      const locator = serialise(location);
+      const locator = toBrowserLocator(location);
       const key = JSON.stringify(locator);
       if (key === writtenRef.current) return;
 
