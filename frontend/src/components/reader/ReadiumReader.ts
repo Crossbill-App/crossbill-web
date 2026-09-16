@@ -1,4 +1,10 @@
 import {
+  caretAt,
+  rangeBetween,
+  visibleRect,
+  type CaretPoint,
+} from '@/components/reader/caretRange.ts';
+import {
   PublicationUnavailableError,
   type EbookAppearance,
   type EbookDecoration,
@@ -6,34 +12,25 @@ import {
   type EbookReader,
   type EbookRect,
   type EbookSelection,
-  type EbookTocEntry,
   type OpenEbookOptions,
   type OpenedEbook,
   type PageTurnDirection,
 } from '@/components/reader/EbookReader.ts';
 import { listenerSet } from '@/components/reader/listeners.ts';
+import {
+  PAGE_TURN_KEYS,
+  fromLocation,
+  toDecoration,
+  toEpubPreferences,
+  toLocation,
+  tocEntriesFrom,
+} from '@/components/reader/readiumConversions.ts';
+import { landingFor } from '@/components/reader/readiumLanding.ts';
 import { sanitizeResponse } from '@/components/reader/sanitizeResponse.ts';
 import { selectionLocation, type EbookResource } from '@/components/reader/selectionLocator.ts';
-import {
-  DecorationStyleType,
-  EpubNavigator,
-  EpubPreferences,
-  TextAlignment,
-  type Decoration,
-  type EpubNavigatorListeners,
-  type IKeyboardPeripheralsConfig,
-} from '@readium/navigator';
-import {
-  HttpFetcher,
-  Locator,
-  LocatorLocations,
-  LocatorText,
-  Manifest,
-  Publication,
-  type Link,
-  type TimelineItem,
-} from '@readium/shared';
-import { debounce, findLast } from 'lodash';
+import { EpubNavigator, type EpubNavigatorListeners } from '@readium/navigator';
+import { HttpFetcher, Manifest, Publication, type TimelineItem } from '@readium/shared';
+import { debounce } from 'lodash';
 
 const DESTROY_TIMEOUT_MS = 2000;
 
@@ -65,204 +62,14 @@ const FRAME_STYLE = `[${CONTAINER_MARKER}] > .readium-navigator-iframe {
   border: none;
 }`;
 
-/** ArrowRight and ArrowLeft, by the legacy key codes Readium's matcher compares. */
-const PAGE_TURN_KEYS: IKeyboardPeripheralsConfig = [
-  { type: 'next_page', keyCombos: [{ keyCode: 39, suppressOnInteractiveElement: true }] },
-  { type: 'previous_page', keyCombos: [{ keyCode: 37, suppressOnInteractiveElement: true }] },
-];
-
-const TEXT_ALIGNMENTS: Record<NonNullable<EbookAppearance['textAlign']>, TextAlignment> = {
-  start: TextAlignment.start,
-  justify: TextAlignment.justify,
-};
-
-// Eight of `EpubPreferences`' forty-odd fields: every one set here is one the
-// reader can no longer inherit from the book. `null` rather than omitted,
-// because the navigator merges and skips `undefined`, so an omission is no reset.
-const toEpubPreferences = (appearance: EbookAppearance): EpubPreferences =>
-  new EpubPreferences({
-    fontSize: appearance.fontSize,
-    lineHeight: appearance.lineHeight,
-    paragraphSpacing: appearance.paragraphSpacing,
-    paragraphIndent: appearance.paragraphIndent,
-    textAlign: appearance.textAlign === null ? null : TEXT_ALIGNMENTS[appearance.textAlign],
-    columnCount: appearance.columnCount,
-    backgroundColor: appearance.pageBackgroundColor,
-    textColor: appearance.pageTextColor,
-  });
-
-const toLocation = (locator: Locator): EbookLocation => ({
-  href: locator.href,
-  type: locator.type,
-  title: locator.title,
-  locations: {
-    position: locator.locations.position,
-    progression: locator.locations.progression,
-    totalProgression: locator.locations.totalProgression,
-    fragments: locator.locations.fragments,
-  },
-});
-
-// Built rather than deserialized: `Locator.deserialize` refuses a location
-// whose media type is empty, which is what a contents entry usually carries.
-const fromLocation = (location: EbookLocation): Locator => {
-  const { cssSelector, ...locations } = location.locations;
-  return new Locator({
-    href: location.href,
-    type: location.type,
-    title: location.title,
-    // Spelled twice: a jump reads the `otherLocations` map, but a decoration reaches its
-    // frame as a structured clone, whose Map fails the library's `instanceof` check.
-    locations: Object.assign(
-      new LocatorLocations({
-        ...locations,
-        otherLocations: cssSelector ? new Map([['cssSelector', cssSelector]]) : undefined,
-      }),
-      cssSelector ? { cssSelector } : {}
-    ),
-    text: location.text && new LocatorText(location.text),
-  });
-};
-
-// Hand-rolled rather than MUI's `alpha`, which agrees with it on every colour
-// the seam admits: the engine speaks Readium and lodash, not the UI toolkit.
-const toRgba = (tint: string, opacity: number): string => {
-  const hex = tint.replace('#', '');
-  const channels = [0, 2, 4].map((offset) => parseInt(hex.slice(offset, offset + 2), 16));
-  return `rgba(${channels.join(', ')}, ${opacity})`;
-};
-
-const toDecoration = (decoration: EbookDecoration): Decoration => ({
-  id: decoration.id,
-  locator: fromLocation(decoration.location),
-  style: {
-    type: DecorationStyleType.Highlight,
-    tint: toRgba(decoration.tint, decoration.opacity),
-    // Readium's contrast pass darkens a tint to 3:1 against the page, which for
-    // a wash the text sits on drives it towards 1:1 against the words instead.
-    enforceContrast: false,
-  },
-});
-
-/**
- * Where in this publication's own position list a locator lands, or `null` when
- * it names a resource the publication has not got.
- *
- * The navigator resolves an initial position by looking `locations.position` up
- * in the list it was built with and throws when it finds no match — and neither
- * a position number another browser wrote nor the absent one a KOReader-derived
- * locator carries can be trusted to index the list this publication has today.
- */
-const landingFor = (target: Locator, positions: Locator[]): Locator | null => {
-  const inResource = positions.filter((entry) => entry.href === target.href);
-  if (inResource.length === 0) return null;
-  const progression = target.locations.progression;
-  const entry =
-    findLast(
-      inResource,
-      (candidate) => (candidate.locations.progression ?? 0) <= (progression ?? 0)
-    ) ?? inResource[0];
-  // The target is what is returned, wearing the entry's numbers rather than the
-  // other way round: the progression is what places the reader within the
-  // resource, while the position only has to index the list without throwing.
-  // The covering entry is picked so that the pair agrees anyway — which is what
-  // the navigator computes for itself the moment a frame reports back, and what
-  // it is left holding if one never does.
-  return target.copyWithLocations({
-    position: entry.locations.position,
-    totalProgression: entry.locations.totalProgression,
-  });
-};
-
 /** Which event asked for a report: only the reader's own tap can let a held passage go. */
 type ReportSource = 'tap' | 'settled';
-
-/** A place in a chapter, as a tap or a selection boundary names one. */
-interface CaretPoint {
-  node: Node;
-  offset: number;
-}
 
 /** A passage the engine is holding on to, with the point a further extension runs from. */
 interface HeldPassage {
   selection: EbookSelection;
   start: CaretPoint;
 }
-
-// Optional because a browser has one of the two: `caretPositionFromPoint` is the
-// standard, and WebKit still ships only the older `caretRangeFromPoint`.
-type CaretFinder = Partial<Pick<Document, 'caretPositionFromPoint' | 'caretRangeFromPoint'>>;
-
-/** Where in a document a point on screen lands, or `null` where nothing does. */
-const caretAt = (document: CaretFinder, x: number, y: number): CaretPoint | null => {
-  const position = document.caretPositionFromPoint?.(x, y);
-  if (position) return { node: position.offsetNode, offset: position.offset };
-  const range = document.caretRangeFromPoint?.(x, y);
-  return range ? { node: range.startContainer, offset: range.startOffset } : null;
-};
-
-// Letters and digits alone, so a word ends before the punctuation stuck to it: a rule
-// this small is worth more here than a segmenter, which no two engines agree on.
-const WORD_CHARACTER = /[\p{L}\p{N}]/u;
-
-/** Whether a boundary has word on both sides of it, which is where a tap lands inside one. */
-const isInsideWord = (text: string, offset: number): boolean =>
-  WORD_CHARACTER.test(text[offset - 1] ?? '') && WORD_CHARACTER.test(text[offset] ?? '');
-
-/**
- * A boundary a tap left inside a word, moved out to that word's edge.
- *
- * `step` is -1 for a range's start and 1 for its end; a boundary already on an edge,
- * or in anything but text, stays where it is rather than being guessed at.
- */
-const wordEdgeAt = (point: CaretPoint, step: -1 | 1): CaretPoint => {
-  const text = point.node.nodeType === Node.TEXT_NODE ? (point.node as Text).data : null;
-  if (text === null || !isInsideWord(text, point.offset)) return point;
-  let offset = point.offset;
-  // Backwards reads the character before the boundary, forwards the one at it.
-  while (WORD_CHARACTER.test(text[step < 0 ? offset - 1 : offset] ?? '')) offset += step;
-  return { node: point.node, offset };
-};
-
-/** The anchor and a caret as one range, running forwards whichever of them the reader tapped. */
-const rangeBetween = (anchor: CaretPoint, caret: CaretPoint): Range | null => {
-  const chapter = anchor.node.ownerDocument;
-  if (!chapter) return null;
-  const range = chapter.createRange();
-  range.setStart(anchor.node, anchor.offset);
-  if (range.comparePoint(caret.node, caret.offset) < 0) range.setStart(caret.node, caret.offset);
-  else range.setEnd(caret.node, caret.offset);
-  // Both ends, because a tap resolves to a character position and either end of the
-  // range may be the one it set.
-  const start = wordEdgeAt({ node: range.startContainer, offset: range.startOffset }, -1);
-  const end = wordEdgeAt({ node: range.endContainer, offset: range.endOffset }, 1);
-  range.setStart(start.node, start.offset);
-  range.setEnd(end.node, end.offset);
-  return range;
-};
-
-const isOnScreen = (frame: Window, rect: DOMRect): boolean =>
-  rect.right > 0 && rect.left < frame.innerWidth && rect.bottom > 0 && rect.top < frame.innerHeight;
-
-/** A page is a column, so the bounding box of a range spanning several of them covers
- * every page it crosses, and anything placed beside that box misses the page on screen. */
-const visibleRect = (frame: Window, range: Range): DOMRect => {
-  const rects = [...range.getClientRects()].filter((rect) => isOnScreen(frame, rect));
-  if (rects.length === 0) return range.getBoundingClientRect();
-  const left = Math.min(...rects.map((rect) => rect.left));
-  const top = Math.min(...rects.map((rect) => rect.top));
-  const right = Math.max(...rects.map((rect) => rect.right));
-  const bottom = Math.max(...rects.map((rect) => rect.bottom));
-  return new DOMRect(left, top, right - left, bottom - top);
-};
-
-const tocEntriesFrom = (links: Link[]): EbookTocEntry[] =>
-  links.map((link) => ({
-    href: link.href,
-    type: link.type ?? '',
-    title: link.title ?? '',
-    children: tocEntriesFrom(link.children?.items ?? []),
-  }));
 
 const whenSized = (element: HTMLElement, signal: AbortSignal) =>
   new Promise<void>((resolve, reject) => {

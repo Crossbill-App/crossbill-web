@@ -9,8 +9,9 @@
  * than a turn: the UI decides whether to act on it.
  *
  * The seam holds in both directions. Nothing above this file imports
- * `@readium/*` -- ESLint enforces it, and only the engine adapter and its tests
- * are exempt -- so the types here, not the engine's, are what the UI works in.
+ * `@readium/*` -- ESLint enforces it, and only the engine adapter, its own
+ * modules and tests are exempt -- so the types here, not the engine's, are what
+ * the UI works in.
  * The engine below imports nothing from the UI, the API client or the app's
  * contexts, which is what lets it be swapped or moved to another origin.
  */
