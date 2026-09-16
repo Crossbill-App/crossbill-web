@@ -312,6 +312,8 @@ export class ReadiumReader implements EbookReader {
   /** The passage an extension ended on, kept so that the browser alone cannot take it away. */
   private heldPassage: HeldPassage | null = null;
   private swallowNextClick = false;
+  /** Whether a finger or button is still down on the book, mid-selection. */
+  private isPressed = false;
   private navigator: EpubNavigator | undefined;
   private wrapper: HTMLDivElement | undefined;
   private isOpened = false;
@@ -517,6 +519,14 @@ export class ReadiumReader implements EbookReader {
     container.appendChild(frameStyle);
     wrapper.appendChild(container);
     this.host.appendChild(wrapper);
+    // A handle dragged past the edge of the book is let go of out here, where the
+    // frame hears nothing: without this the press would never read as over.
+    for (const type of ['pointerup', 'pointercancel'] as const) {
+      this.host.ownerDocument.addEventListener(type, () => (this.isPressed = false), {
+        capture: true,
+        signal: this.destruction.signal,
+      });
+    }
 
     return container;
   }
@@ -543,13 +553,22 @@ export class ReadiumReader implements EbookReader {
     // A mouse is done the moment it is let go, and waiting out the settling
     // delay below to say so would leave the reader looking at selected words
     // and no way to act on them.
+    frame.document.addEventListener('pointerdown', () => (this.isPressed = true), {
+      capture: true,
+    });
+    for (const type of ['pointerup', 'pointercancel'] as const) {
+      frame.document.addEventListener(type, () => (this.isPressed = false), { capture: true });
+    }
     frame.document.addEventListener('pointerup', () => this.reportSelectionIn(frame, 'tap'));
     // Because the pointer going up is not the end of every selection: a touch
     // handle moves the range after it, and a keyboard selection never involves
-    // a pointer at all.
+    // a pointer at all. Not while the finger is still down, though: words offered
+    // mid-drag cover the ones the reader is dragging towards.
     frame.document.addEventListener(
       'selectionchange',
-      debounce(() => this.reportSelectionIn(frame, 'settled'), SELECTION_SETTLE_MS)
+      debounce(() => {
+        if (!this.isPressed) this.reportSelectionIn(frame, 'settled');
+      }, SELECTION_SETTLE_MS)
     );
   }
 
