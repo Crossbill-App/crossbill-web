@@ -208,7 +208,7 @@ export const ReaderShell = ({
   // A new object every render would submit the same appearance to the engine
   // again on every render, which is not a cost the engine skips.
   const appearance = useMemo(() => toEbookAppearance(theme, preferences), [theme, preferences]);
-  const { record } = useReadingPositionWriter(bookId, { writeDebounceMs, heartbeatMs });
+  const { seed, moved } = useReadingPositionWriter(bookId, { writeDebounceMs, heartbeatMs });
   // Latched, so that nothing done to the address after the book opens can move it.
   const [target] = useState(highlightId ?? null);
   const landing = useReaderLanding(bookId, target);
@@ -244,13 +244,16 @@ export const ReaderShell = ({
     decorations,
     createReader,
     bootTimeoutMs,
-    onLocationReported: record,
-    onDecorationActivated: (id) => {
-      const tapped = highlightIdFrom(id);
-      if (tapped !== null) onOpenHighlight?.(tapped);
+    on: {
+      arrivedAt: seed,
+      movedTo: moved,
+      decorationActivated: (id) => {
+        const tapped = highlightIdFrom(id);
+        if (tapped !== null) onOpenHighlight?.(tapped);
+      },
+      // The engine keeps the remembered start, so the bar stays up for a tap in its chapter.
+      selectionExtensionRefused: () => showSnackbar(ONE_CHAPTER_ONLY, 'info'),
     },
-    // The engine keeps the remembered start, so the bar stays up for a tap in its chapter.
-    onSelectionExtensionRefused: () => showSnackbar(ONE_CHAPTER_ONLY, 'info'),
     // On to the passage, which opening at its locator can leave a page short of, or else to
     // its chapter.
     finishLanding:

@@ -1,10 +1,11 @@
 /**
  * Writes down where the reader is in one book while the reader is open.
  *
- * Hand `record` every location the book reports, saying whether the book is
- * still arriving, and it decides what is worth sending. A failed write is
- * swallowed: the reader is reading, the next page turn tries again, and the
- * position lost by saying nothing is the one still in front of them.
+ * Hand `seed` every place the book reports while it is still coming up, and
+ * `moved` every place it reports afterwards, and it decides what is worth
+ * sending. A failed write is swallowed: the reader is reading, the next page
+ * turn tries again, and the position lost by saying nothing is the one still in
+ * front of them.
  *
  * Nothing here resets when `bookId` changes: the shell is keyed by book, so a
  * different book is a different component with its own state.
@@ -160,32 +161,37 @@ export const useReadingPositionWriter = (
     };
   }, [send, sendPending, close, heartbeatMs]);
 
-  const record = useCallback(
-    (location: EbookLocation, arriving: boolean) => {
-      const locator = serialise(location);
-      const key = JSON.stringify(locator);
-      const observed: Observation = { locator, at: new Date().toISOString() };
+  /** Where the reader already is: remembered, written down nowhere. */
+  const seed = useCallback((location: EbookLocation) => {
+    const locator = serialise(location);
+    writtenRef.current = JSON.stringify(locator);
+    latestRef.current = { locator, at: new Date().toISOString() };
+    // Nothing is written for opening a book, but staying in one is reading:
+    // the heartbeat's clock starts here.
+    spokeAtRef.current = Date.now();
+  }, []);
 
-      // Either way the reader is where they already were. `writtenRef` is its own
-      // condition so the invariant survives a caller that gets the bracket wrong.
-      if (arriving || writtenRef.current === null) {
-        writtenRef.current = key;
-        latestRef.current = observed;
-        // Nothing is written for opening a book, but staying in one is reading:
-        // the heartbeat's clock starts here.
-        spokeAtRef.current = Date.now();
+  /** Where the reader has moved to: written down once the moving stops. */
+  const moved = useCallback(
+    (location: EbookLocation) => {
+      // A move reported before any seed is where the reader already was, not a move.
+      if (writtenRef.current === null) {
+        seed(location);
         return;
       }
+      const locator = serialise(location);
+      const key = JSON.stringify(locator);
       if (key === writtenRef.current) return;
 
+      const observed: Observation = { locator, at: new Date().toISOString() };
       writtenRef.current = key;
       latestRef.current = observed;
       pendingRef.current = observed;
       clearTimeout(timerRef.current);
       timerRef.current = setTimeout(() => sendPending(false), writeDebounceMs);
     },
-    [sendPending, writeDebounceMs]
+    [seed, sendPending, writeDebounceMs]
   );
 
-  return { record };
+  return { seed, moved };
 };

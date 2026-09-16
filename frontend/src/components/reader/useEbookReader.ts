@@ -23,6 +23,18 @@ type EbookReaderOutcome = 'open' | 'missing' | 'error' | 'timeout';
 /** Whether the book is on screen, on its way there, or out of reach and why. */
 type EbookReaderStatus = 'idle' | 'opening' | EbookReaderOutcome;
 
+/** What a book on screen reports, as one group of listeners. */
+interface EbookReaderListeners {
+  /** Every place the book reports while it is still coming up; the last one is where it opened. */
+  arrivedAt?: (location: EbookLocation) => void;
+  /** A place the book reports once it is on screen. */
+  movedTo?: (location: EbookLocation) => void;
+  /** The id of a decoration the reader tapped. */
+  decorationActivated?: (id: string) => void;
+  /** A tap that could not extend the selection, the remembered start still standing. */
+  selectionExtensionRefused?: () => void;
+}
+
 export interface UseEbookReaderOptions {
   host: RefObject<HTMLElement | null>;
   manifestUrl: string;
@@ -40,12 +52,8 @@ export interface UseEbookReaderOptions {
   /** Must be referentially stable: an inline arrow rebuilds the reader every render. */
   createReader?: (host: HTMLElement) => EbookReader;
   bootTimeoutMs?: number;
-  /** Every place the book reports, `arriving` while it is still coming up. */
-  onLocationReported?: (location: EbookLocation, arriving: boolean) => void;
-  /** The id of a decoration the reader tapped. */
-  onDecorationActivated?: (id: string) => void;
-  /** A tap that could not extend the selection, the remembered start still standing. */
-  onSelectionExtensionRefused?: () => void;
+  /** Who to tell about what the reader does with the book. */
+  on?: EbookReaderListeners;
   /** Where to move the book once it has opened, before it is shown; `null` shows it where it opened. */
   finishLanding?: (opened: OpenedEbook) => EbookLocation | null;
 }
@@ -99,9 +107,7 @@ export const useEbookReader = ({
   decorations,
   createReader = aReadiumReader,
   bootTimeoutMs = BOOT_TIMEOUT_MS,
-  onLocationReported,
-  onDecorationActivated,
-  onSelectionExtensionRefused,
+  on,
   finishLanding,
 }: UseEbookReaderOptions): EbookReaderState => {
   const [outcome, setOutcome] = useState<EbookReaderOutcome | null>(null);
@@ -122,11 +128,10 @@ export const useEbookReader = ({
   // opens, and an answer arriving a second time cannot rebuild the reader around
   // it, while a retry opens on the current pair rather than the one from mount.
   const mayTurnPage = useEffectEvent(() => canTurnPage());
-  const reportLocation = useEffectEvent((location: EbookLocation, arriving: boolean) =>
-    onLocationReported?.(location, arriving)
-  );
-  const activateDecoration = useEffectEvent((id: string) => onDecorationActivated?.(id));
-  const refuseExtension = useEffectEvent(() => onSelectionExtensionRefused?.());
+  const reportArrival = useEffectEvent((location: EbookLocation) => on?.arrivedAt?.(location));
+  const reportMove = useEffectEvent((location: EbookLocation) => on?.movedTo?.(location));
+  const activateDecoration = useEffectEvent((id: string) => on?.decorationActivated?.(id));
+  const refuseExtension = useEffectEvent(() => on?.selectionExtensionRefused?.());
   const finishTheLanding = useEffectEvent((opened: OpenedEbook) => finishLanding?.(opened));
   const openingOptions = useEffectEvent(() => ({ appearance, initialLocation }));
   const appliedRef = useRef<EbookAppearance | null>(null);
@@ -159,7 +164,8 @@ export const useEbookReader = ({
       reader.onLocationChanged((location) => {
         setLocation(location);
         // Nothing a book reports before it has finished arriving is a move.
-        reportLocation(location, !isOpen);
+        if (isOpen) reportMove(location);
+        else reportArrival(location);
         // Any report, a reflow included, leaves the selection's rectangle behind.
         reader.clearSelection();
       }),
@@ -180,7 +186,7 @@ export const useEbookReader = ({
       if (isCancelled()) return;
       // The place the book settled on may never have been reported as a change,
       // so this is the only report a writer has to seed itself with.
-      reportLocation(opened.location, true);
+      reportArrival(opened.location);
       setOpened(opened);
       setLocation(opened.location);
       setCurrentTocHref(opened.tocHref);
