@@ -1,4 +1,4 @@
-import type { EbookAppearance } from '@/components/reader/EbookReader.ts';
+import type { EbookAppearance } from '@/components/reader/engine/EbookReader.ts';
 import type { Theme } from '@mui/material/styles';
 
 /** The page colours the reader can choose between. */

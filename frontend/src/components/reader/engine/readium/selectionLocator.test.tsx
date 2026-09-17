@@ -1,4 +1,7 @@
-import { selectionLocation, type EbookResource } from '@/components/reader/selectionLocator.ts';
+import {
+  selectionLocation,
+  type EbookResource,
+} from '@/components/reader/engine/readium/selectionLocator.ts';
 import { rangeFromTo, rangeOver } from '@tests/harness/textSelection';
 import { expect, test } from 'vitest';
 

@@ -3,7 +3,7 @@ import type {
   ResumePositionResponse,
   WebPublicationManifest,
 } from '@/api/generated/model';
-import { READER_PREFERENCES_KEY } from '@/components/reader/readerPreferenceStorage.ts';
+import { READER_PREFERENCES_KEY } from '@/components/reader/preferences/readerPreferenceStorage.ts';
 import { theme } from '@/theme/theme.ts';
 import { aBookDetails, aChapter, aHighlight } from '@tests/fixtures/book';
 import {

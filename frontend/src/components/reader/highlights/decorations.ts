@@ -1,5 +1,6 @@
-import type { Highlight, HighlightLocatorResponse, LocatorSchema } from '@/api/generated/model';
-import type { EbookDecoration, EbookLocation } from '@/components/reader/EbookReader.ts';
+import type { Highlight, HighlightLocatorResponse } from '@/api/generated/model';
+import { fromLocatorSchema } from '@/components/reader/api/apiLocators.ts';
+import type { EbookDecoration, EbookLocation } from '@/components/reader/engine/EbookReader.ts';
 import { DEFAULT_LABEL_COLOR } from '@/utils/colorUtils.ts';
 
 // The label palette is saturated enough to carry a chip, and at full strength
@@ -36,21 +37,6 @@ export const heldPassageDecoration = (location: EbookLocation): EbookDecoration 
   opacity: TINT_OPACITY,
 });
 
-/** A highlight's locator in the engine's terms. */
-export const toEbookLocation = (locator: LocatorSchema): EbookLocation => ({
-  href: locator.href,
-  type: locator.type,
-  locations: {
-    progression: locator.locations.progression ?? undefined,
-    cssSelector: locator.locations.cssSelector ?? undefined,
-  },
-  text: {
-    before: locator.text.before ?? undefined,
-    highlight: locator.text.highlight ?? undefined,
-    after: locator.text.after ?? undefined,
-  },
-});
-
 const tintFor = (highlight: Highlight): string => {
   const color = highlight.label?.ui_color;
   return color && HEX_COLOR.test(color) ? `#${color.replace('#', '')}` : DEFAULT_LABEL_COLOR;
@@ -70,7 +56,7 @@ export const highlightDecorations = (
     return [
       {
         id: decorationId(highlight_id),
-        location: toEbookLocation(locator),
+        location: fromLocatorSchema(locator),
         tint: tintFor(highlight),
         opacity: TINT_OPACITY,
       },

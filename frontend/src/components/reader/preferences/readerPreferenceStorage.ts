@@ -5,8 +5,7 @@ import {
   READER_PAGE_COLORS,
   READER_SPACINGS,
   type ReaderPreferences,
-} from '@/components/reader/readerPreferences.ts';
-import { fontSizeRangeConfig } from '@readium/navigator';
+} from '@/components/reader/preferences/readerPreferences.ts';
 
 /** Where the reader's appearance is remembered: one key for the whole library. */
 export const READER_PREFERENCES_KEY = 'crossbill.reader.preferences';
@@ -33,13 +32,13 @@ const storedRecord = (): Partial<StoredPreferences> | null => {
 const offered = <T extends string>(options: readonly T[], value: unknown, fallback: T): T =>
   options.find((option) => option === value) ?? fallback;
 
-const storedFontSize = (value: unknown): number => {
-  if (typeof value !== 'number' || !Number.isFinite(value)) {
-    return DEFAULT_READER_PREFERENCES.fontSize;
-  }
-  const [min, max] = fontSizeRangeConfig.range;
-  return Math.min(Math.max(value, min), max);
-};
+// Any size a reader could plausibly have chosen is taken as written: which
+// sizes the engine honours is the engine's to say, and it says so once the
+// book is open, above this layer.
+const storedFontSize = (value: unknown): number =>
+  typeof value === 'number' && Number.isFinite(value) && value > 0
+    ? value
+    : DEFAULT_READER_PREFERENCES.fontSize;
 
 /**
  * The reader's remembered appearance, or the defaults wherever it cannot be read.

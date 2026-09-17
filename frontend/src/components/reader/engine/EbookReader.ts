@@ -7,6 +7,12 @@
  * uploader (#807). `onPageTurnRequested` is the contract that an arrow key
  * pressed anywhere while the reader is open reaches the UI as a request rather
  * than a turn: the UI decides whether to act on it.
+ *
+ * The seam holds in both directions. Nothing above this file imports
+ * `@readium/*` -- ESLint enforces it, and only `engine/` and tests are exempt
+ * -- so the types here, not the engine's, are what the UI works in.
+ * The engine below imports nothing from the UI, the API client or the app's
+ * contexts, which is what lets it be swapped or moved to another origin.
  */
 
 /** Where the reader is in the book, as JSON that can cross a postMessage boundary. */

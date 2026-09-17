@@ -1,4 +1,7 @@
-import { useReaderSession, type ReaderSession } from '@/components/reader/useReaderSession.ts';
+import {
+  useReaderSession,
+  type ReaderSession,
+} from '@/components/reader/opening/useReaderSession.ts';
 import { worker } from '@tests/msw/worker';
 import { http, HttpResponse } from 'msw';
 import { useEffect } from 'react';

@@ -8,9 +8,9 @@ import type {
   CollectionResponseHighlightLocatorResponse,
   HighlightLocatorResponse,
 } from '@/api/generated/model';
-import { standInDecoration } from '@/components/reader/decorations.ts';
-import type { EbookDecoration, EbookLocation } from '@/components/reader/EbookReader.ts';
-import { LOCATORS_QUERY } from '@/components/reader/useHighlightDecorations.ts';
+import type { EbookDecoration, EbookLocation } from '@/components/reader/engine/EbookReader.ts';
+import { standInDecoration } from '@/components/reader/highlights/decorations.ts';
+import { LOCATORS_QUERY } from '@/components/reader/highlights/highlightLocatorsQuery.ts';
 import { useSnackbar } from '@/context/SnackbarContext.tsx';
 import { useMutationErrorHandler } from '@/hooks/useMutationErrorHandler.ts';
 import { useCacheEvents } from '@/lib/cacheEvents.ts';

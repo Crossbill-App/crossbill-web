@@ -1,4 +1,4 @@
-import { sanitizeResponse } from '@/components/reader/sanitizeResponse.ts';
+import { sanitizeResponse } from '@/components/reader/engine/readium/sanitizeResponse.ts';
 import { expect, test } from 'vitest';
 
 const A_HOSTILE_CHAPTER = `<?xml version="1.0" encoding="utf-8"?>

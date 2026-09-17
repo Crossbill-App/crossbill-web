@@ -2,7 +2,7 @@ import {
   DEFAULT_READER_PREFERENCES,
   READER_SPACINGS,
   toEbookAppearance,
-} from '@/components/reader/readerPreferences.ts';
+} from '@/components/reader/preferences/readerPreferences.ts';
 import { theme } from '@/theme/theme.ts';
 import {
   lineHeightRangeConfig,

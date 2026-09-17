@@ -1,8 +1,8 @@
 import {
   loadReaderPreferences,
   saveReaderPreferences,
-} from '@/components/reader/readerPreferenceStorage.ts';
-import type { ReaderPreferences } from '@/components/reader/readerPreferences.ts';
+} from '@/components/reader/preferences/readerPreferenceStorage.ts';
+import type { ReaderPreferences } from '@/components/reader/preferences/readerPreferences.ts';
 import { useEffect, useState, type Dispatch, type SetStateAction } from 'react';
 
 /** The reader's appearance, read during the first render and written down as it changes. */

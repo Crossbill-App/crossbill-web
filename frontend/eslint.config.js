@@ -89,5 +89,29 @@ export default tseslint.config(
         },
       ],
     },
+  },
+  {
+    // Readium stays below the engine seam. The adapter and its own modules are
+    // what translate between the engine and the EbookReader interface; letting a
+    // hook or a component reach past them for a `Locator` would put Readium's
+    // types back in the UI and make a second engine impossible. Types are
+    // restricted too, deliberately: the seam exists so that its own types, not
+    // the engine's, are what cross it.
+    files: ['src/**/*.{ts,tsx}'],
+    ignores: ['src/components/reader/engine/**', 'src/**/*.test.tsx'],
+    rules: {
+      '@typescript-eslint/no-restricted-imports': [
+        'error',
+        {
+          patterns: [
+            {
+              group: ['@readium/*'],
+              message:
+                'Only the engine adapter speaks Readium. Everything else goes through the EbookReader seam in @/components/reader/engine/EbookReader.ts.',
+            },
+          ],
+        },
+      ],
+    },
   }
 );

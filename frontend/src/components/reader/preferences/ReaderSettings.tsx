@@ -9,7 +9,7 @@ import {
   READER_SPACING_LABELS,
   READER_SPACINGS,
   type ReaderPreferences,
-} from '@/components/reader/readerPreferences.ts';
+} from '@/components/reader/preferences/readerPreferences.ts';
 import { SectionTitle } from '@/components/typography/SectionTitle.tsx';
 import { LargerTextIcon, SmallerTextIcon } from '@/theme/Icons.tsx';
 import { ICON_SIZE } from '@/theme/iconSizes.ts';

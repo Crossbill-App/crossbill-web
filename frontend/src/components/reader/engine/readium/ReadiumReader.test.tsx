@@ -5,8 +5,8 @@ import {
   type EbookLocation,
   type EbookSelection,
   type PageTurnDirection,
-} from '@/components/reader/EbookReader.ts';
-import { ReadiumReader } from '@/components/reader/ReadiumReader.ts';
+} from '@/components/reader/engine/EbookReader.ts';
+import { ReadiumReader } from '@/components/reader/engine/readium/ReadiumReader.ts';
 import { fontSizeRangeConfig } from '@readium/navigator';
 import { aDetailedPositionList, aManifest, aPositionList } from '@tests/fixtures/publication';
 import { drawnOn, drawnRanges } from '@tests/harness/paintedHighlights';

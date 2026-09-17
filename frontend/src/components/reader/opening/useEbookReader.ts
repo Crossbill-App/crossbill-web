@@ -1,4 +1,3 @@
-import { isAnyDialogOpen } from '@/components/dialogs/dialogStack.ts';
 import {
   PublicationUnavailableError,
   type EbookAppearance,
@@ -8,9 +7,9 @@ import {
   type EbookSelection,
   type EbookTocEntry,
   type OpenedEbook,
-} from '@/components/reader/EbookReader.ts';
-import { ReadiumReader } from '@/components/reader/ReadiumReader.ts';
-import { useCallback, useEffect, useRef, useState, type RefObject } from 'react';
+} from '@/components/reader/engine/EbookReader.ts';
+import { ReadiumReader } from '@/components/reader/engine/readium/ReadiumReader.ts';
+import { useCallback, useEffect, useEffectEvent, useRef, useState, type RefObject } from 'react';
 
 /** How long a book has to appear before the reader is told it never will. */
 const BOOT_TIMEOUT_MS = 15_000;
@@ -24,29 +23,35 @@ type EbookReaderOutcome = 'open' | 'missing' | 'error' | 'timeout';
 /** Whether the book is on screen, on its way there, or out of reach and why. */
 type EbookReaderStatus = 'idle' | 'opening' | EbookReaderOutcome;
 
+/** What a book on screen reports, as one group of listeners. */
+interface EbookReaderListeners {
+  /** Every place the book reports while it is still coming up; the last one is where it opened. */
+  arrivedAt?: (location: EbookLocation) => void;
+  /** A place the book reports once it is on screen. */
+  movedTo?: (location: EbookLocation) => void;
+  /** The id of a decoration the reader tapped. */
+  decorationActivated?: (id: string) => void;
+  /** A tap that could not extend the selection, the remembered start still standing. */
+  selectionExtensionRefused?: () => void;
+}
+
 export interface UseEbookReaderOptions {
   host: RefObject<HTMLElement | null>;
   manifestUrl: string;
   /** False until the publication cookie exists; nothing is fetched before then. */
   enabled: boolean;
-  /** True while a lapsed cookie is being replaced: a page fetched with a dead
-   * credential comes back blank. */
-  holdPageTurns: boolean;
+  /** Asked on every page-turn request the engine reports, at that moment; the
+   * turn happens only when it answers true. */
+  canTurnPage: () => boolean;
   /** How the page should look; the book opens on it. */
   appearance: EbookAppearance;
   /** Where the book should open; `null` opens it at the beginning. */
   initialLocation?: EbookLocation | null;
-  /** What to draw over the book; a new array is submitted to the engine, so keep it stable. */
-  decorations: EbookDecoration[];
   /** Must be referentially stable: an inline arrow rebuilds the reader every render. */
   createReader?: (host: HTMLElement) => EbookReader;
   bootTimeoutMs?: number;
-  /** Every place the book reports, `arriving` while it is still coming up. */
-  onLocationReported?: (location: EbookLocation, arriving: boolean) => void;
-  /** The id of a decoration the reader tapped. */
-  onDecorationActivated?: (id: string) => void;
-  /** A tap that could not extend the selection, the remembered start still standing. */
-  onSelectionExtensionRefused?: () => void;
+  /** Who to tell about what the reader does with the book. */
+  on?: EbookReaderListeners;
   /** Where to move the book once it has opened, before it is shown; `null` shows it where it opened. */
   finishLanding?: (opened: OpenedEbook) => EbookLocation | null;
 }
@@ -67,6 +72,9 @@ export interface EbookReaderState {
   previous: () => void;
   goTo: (location: EbookLocation) => void;
   clearSelection: () => void;
+  /** Replaces what the reader draws over the book; remembered, so a reader rebuilt
+   * by a retry is handed the current set. */
+  applyDecorations: (decorations: EbookDecoration[]) => void;
   startSelectionExtension: () => void;
   cancelSelectionExtension: () => void;
   retry: () => void;
@@ -85,6 +93,8 @@ const couldBeTheLanding = (error: unknown): boolean =>
   !(error instanceof PublicationUnavailableError) &&
   !(error instanceof DOMException && error.name === 'TimeoutError');
 
+/** One array before a book opens, so that a consumer holding `toc` as a prop or a
+ * dependency is not handed a new one every render. */
 const NO_TOC: EbookTocEntry[] = [];
 
 /** One book opened into a host element, and where the reader is in it. */
@@ -92,71 +102,42 @@ export const useEbookReader = ({
   host,
   manifestUrl,
   enabled,
-  holdPageTurns,
+  canTurnPage,
   appearance,
   initialLocation,
-  decorations,
   createReader = aReadiumReader,
   bootTimeoutMs = BOOT_TIMEOUT_MS,
-  onLocationReported,
-  onDecorationActivated,
-  onSelectionExtensionRefused,
+  on,
   finishLanding,
 }: UseEbookReaderOptions): EbookReaderState => {
   const [outcome, setOutcome] = useState<EbookReaderOutcome | null>(null);
-  const [pageCount, setPageCount] = useState(0);
+  // Everything the book said as it opened, kept as the one value it arrived as.
+  // Where the reader is moves on from it, so location and the contents entry are
+  // seeded from it and then live on their own.
+  const [opened, setOpened] = useState<OpenedEbook | null>(null);
   const [location, setLocation] = useState<EbookLocation | null>(null);
-  const [toc, setToc] = useState<EbookTocEntry[]>(NO_TOC);
   const [currentTocHref, setCurrentTocHref] = useState<string | null>(null);
-  const [landedAt, setLandedAt] = useState<OpenedEbook['landedAt'] | null>(null);
-  const [fontSizeRange, setFontSizeRange] = useState<[number, number] | null>(null);
   const [selection, setSelection] = useState<EbookSelection | null>(null);
   const [attempt, setAttempt] = useState(0);
   const readerRef = useRef<EbookReader | null>(null);
-  // Through a ref, so a hold that starts mid-book never rebuilds the reader.
-  const holdRef = useRef(holdPageTurns);
-  useEffect(() => {
-    holdRef.current = holdPageTurns;
-  }, [holdPageTurns]);
-  // The same, so that changing the appearance never rebuilds the reader; a
-  // retry then opens on the current one rather than the one from mount.
-  const appearanceRef = useRef(appearance);
-  useEffect(() => {
-    appearanceRef.current = appearance;
-  }, [appearance]);
+  // Effect events rather than dependencies, so that the boot effect depends only
+  // on what genuinely warrants rebuilding the reader: each of these is read at
+  // the moment it is used, so a caller that rebinds a callback and a policy that
+  // changes mid-book leave the book on screen alone. The same holds for the two
+  // the book opens on — where a book opens and how it looks are settled when it
+  // opens, and an answer arriving a second time cannot rebuild the reader around
+  // it, while a retry opens on the current pair rather than the one from mount.
+  const mayTurnPage = useEffectEvent(() => canTurnPage());
+  const reportArrival = useEffectEvent((location: EbookLocation) => on?.arrivedAt?.(location));
+  const reportMove = useEffectEvent((location: EbookLocation) => on?.movedTo?.(location));
+  const activateDecoration = useEffectEvent((id: string) => on?.decorationActivated?.(id));
+  const refuseExtension = useEffectEvent(() => on?.selectionExtensionRefused?.());
+  const finishTheLanding = useEffectEvent((opened: OpenedEbook) => finishLanding?.(opened));
+  const openingOptions = useEffectEvent(() => ({ appearance, initialLocation }));
   const appliedRef = useRef<EbookAppearance | null>(null);
-  // The same again, so a caller that rebinds its callback never rebuilds the reader.
-  const reportedRef = useRef(onLocationReported);
-  useEffect(() => {
-    reportedRef.current = onLocationReported;
-  }, [onLocationReported]);
-  const activatedRef = useRef(onDecorationActivated);
-  useEffect(() => {
-    activatedRef.current = onDecorationActivated;
-  }, [onDecorationActivated]);
-  const extensionRefusedRef = useRef(onSelectionExtensionRefused);
-  useEffect(() => {
-    extensionRefusedRef.current = onSelectionExtensionRefused;
-  }, [onSelectionExtensionRefused]);
-  const finishLandingRef = useRef(finishLanding);
-  useEffect(() => {
-    finishLandingRef.current = finishLanding;
-  }, [finishLanding]);
-  // And again, so that an answer arriving a second time cannot rebuild the
-  // reader around it: where a book opens is settled when it opens. This effect
-  // has to stay declared above the boot effect, which reads the ref on the very
-  // render where `enabled` turns true — the initial value is still null then.
-  const initialLocationRef = useRef(initialLocation);
-  useEffect(() => {
-    initialLocationRef.current = initialLocation;
-  }, [initialLocation]);
-  // A new set is drawn by the reader already on screen rather than a rebuilt one. Above
-  // the boot effect, so a render that starts a boot hands the new reader the current set once.
-  const decorationsRef = useRef(decorations);
-  useEffect(() => {
-    decorationsRef.current = decorations;
-    readerRef.current?.applyDecorations(decorations);
-  }, [decorations]);
+  // What the reader draws over the book, kept here so that a reader built later has
+  // something to be handed: the set belongs to the book, not to one reader of it.
+  const decorationsRef = useRef<EbookDecoration[]>([]);
   // Whether a place has already been refused once. Never reset: the second
   // attempt offers nothing that could be rejected, so a second failure is real.
   const refusedRef = useRef(false);
@@ -165,10 +146,12 @@ export const useEbookReader = ({
     const element = host.current;
     if (!enabled || !element) return;
 
+    const { appearance: openingAppearance, initialLocation: openingLocation } = openingOptions();
     const reader = createReader(element);
     readerRef.current = reader;
+    // Whatever was handed over before this reader existed, or to the reader before it.
     reader.applyDecorations(decorationsRef.current);
-    const offered = refusedRef.current ? null : initialLocationRef.current;
+    const offered = refusedRef.current ? null : openingLocation;
     const cancel = new AbortController();
     // Read through a call: TypeScript would carry a check's narrowing across an await.
     const isCancelled = () => cancel.signal.aborted;
@@ -178,21 +161,20 @@ export const useEbookReader = ({
       reader.onLocationChanged((location) => {
         setLocation(location);
         // Nothing a book reports before it has finished arriving is a move.
-        reportedRef.current?.(location, !isOpen);
+        if (isOpen) reportMove(location);
+        else reportArrival(location);
         // Any report, a reflow included, leaves the selection's rectangle behind.
         reader.clearSelection();
       }),
       reader.onSelectionChanged(setSelection),
       reader.onTocEntryChanged(setCurrentTocHref),
-      reader.onDecorationActivated((id) => activatedRef.current?.(id)),
-      reader.onSelectionExtensionRefused(() => extensionRefusedRef.current?.()),
+      reader.onDecorationActivated((id) => activateDecoration(id)),
+      reader.onSelectionExtensionRefused(() => refuseExtension()),
       reader.onPageTurnRequested((direction) => {
         // Readium's pager sets a navigating flag it never clears when it has no
         // frames yet, so one key before the book is up kills every later turn.
-        if (holdRef.current || !isOpen) return;
-        // Readium steps aside only while focus is on what it counts as interactive, and a
-        // dialog can drop focus to its own container, which it does not count.
-        if (isAnyDialogOpen()) return;
+        if (!isOpen) return;
+        if (!mayTurnPage()) return;
         void (direction === 'next' ? reader.next() : reader.previous());
       }),
     ];
@@ -201,14 +183,11 @@ export const useEbookReader = ({
       if (isCancelled()) return;
       // The place the book settled on may never have been reported as a change,
       // so this is the only report a writer has to seed itself with.
-      reportedRef.current?.(opened.location, true);
-      setPageCount(opened.pageCount);
+      reportArrival(opened.location);
+      setOpened(opened);
       setLocation(opened.location);
-      setToc(opened.toc);
       setCurrentTocHref(opened.tocHref);
-      setFontSizeRange(opened.fontSizeRange);
-      setLandedAt(opened.landedAt);
-      const destination = finishLandingRef.current?.(opened);
+      const destination = finishTheLanding(opened);
       if (destination) {
         // A move that never finishes still owes the reader the book, where it opened.
         let timeout: ReturnType<typeof setTimeout> | undefined;
@@ -245,9 +224,9 @@ export const useEbookReader = ({
     const abortedFirst = new Promise<never>((_, reject) => {
       signal.addEventListener('abort', () => reject(signal.reason as Error), { once: true });
     });
-    appliedRef.current = appearanceRef.current;
+    appliedRef.current = openingAppearance;
     const opening = reader.open(manifestUrl, {
-      appearance: appearanceRef.current,
+      appearance: openingAppearance,
       initialLocation: offered ?? undefined,
       signal,
     });
@@ -270,6 +249,10 @@ export const useEbookReader = ({
     []
   );
   const clearSelection = useCallback(() => readerRef.current?.clearSelection(), []);
+  const applyDecorations = useCallback((decorations: EbookDecoration[]) => {
+    decorationsRef.current = decorations;
+    readerRef.current?.applyDecorations(decorations);
+  }, []);
   const startSelectionExtension = useCallback(
     () => readerRef.current?.startSelectionExtension(),
     []
@@ -283,11 +266,8 @@ export const useEbookReader = ({
   const retry = useCallback(() => {
     setOutcome(null);
     // Nothing from the last attempt survives into the new one.
-    setPageCount(0);
-    setToc(NO_TOC);
+    setOpened(null);
     setCurrentTocHref(null);
-    setFontSizeRange(null);
-    setLandedAt(null);
     setAttempt((count) => count + 1);
   }, []);
 
@@ -305,17 +285,18 @@ export const useEbookReader = ({
 
   return {
     status,
-    pageCount,
+    pageCount: opened?.pageCount ?? 0,
     location,
-    toc,
+    toc: opened?.toc ?? NO_TOC,
     currentTocHref,
-    landedAt,
-    fontSizeRange,
+    landedAt: opened?.landedAt ?? null,
+    fontSizeRange: opened?.fontSizeRange ?? null,
     selection,
     next,
     previous,
     goTo,
     clearSelection,
+    applyDecorations,
     startSelectionExtension,
     cancelSelectionExtension,
     retry,

@@ -1,19 +1,21 @@
 /**
  * Writes down where the reader is in one book while the reader is open.
  *
- * Hand `record` every location the book reports, saying whether the book is
- * still arriving, and it decides what is worth sending. A failed write is
- * swallowed: the reader is reading, the next page turn tries again, and the
- * position lost by saying nothing is the one still in front of them.
+ * Hand `seed` every place the book reports while it is still coming up, and
+ * `moved` every place it reports afterwards, and it decides what is worth
+ * sending. A failed write is swallowed: the reader is reading, the next page
+ * turn tries again, and the position lost by saying nothing is the one still in
+ * front of them.
  *
  * Nothing here resets when `bookId` changes: the shell is keyed by book, so a
  * different book is a different component with its own state.
  */
-import { API_BASE_URL } from '@/api/base-url.ts';
 import type { BrowserLocatorSchema, ReadingPositionUpdate } from '@/api/generated/model';
 import { putReadingPosition } from '@/api/generated/readium/readium.ts';
 import { getAccessToken } from '@/api/token-manager.ts';
-import type { EbookLocation } from '@/components/reader/EbookReader.ts';
+import { toBrowserLocator } from '@/components/reader/api/apiLocators.ts';
+import { readingPositionUrl } from '@/components/reader/api/readiumUrls.ts';
+import type { EbookLocation } from '@/components/reader/engine/EbookReader.ts';
 import { useCallback, useEffect, useRef } from 'react';
 
 // A page turn is not a decision to stop reading, and someone flicking through a
@@ -35,24 +37,6 @@ interface Observation {
   locator: BrowserLocatorSchema;
   at: string;
 }
-
-const positionUrl = (bookId: number) =>
-  new URL(`${API_BASE_URL}/api/v1/readium/books/${bookId}/reading-position`, window.location.origin)
-    .href;
-
-// The serialised JSON is also the "has this moved?" key, so an engine that
-// reports no fragments one tick and an empty array the next must not read as a move.
-const serialise = ({ href, type, title, locations }: EbookLocation): BrowserLocatorSchema => ({
-  href,
-  type,
-  title,
-  locations: {
-    position: locations.position,
-    progression: locations.progression,
-    totalProgression: locations.totalProgression,
-    fragments: locations.fragments?.length ? locations.fragments : undefined,
-  },
-});
 
 const update = ({ locator, at }: Observation, closing: boolean): ReadingPositionUpdate => ({
   locator,
@@ -92,7 +76,7 @@ export const useReadingPositionWriter = (
       // `keepalive` is the only kind of request a page is allowed to leave
       // behind, and the route is Bearer-only, so the token goes on by hand.
       const token = getAccessToken();
-      void fetch(positionUrl(bookId), {
+      void fetch(readingPositionUrl(bookId), {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
@@ -160,32 +144,37 @@ export const useReadingPositionWriter = (
     };
   }, [send, sendPending, close, heartbeatMs]);
 
-  const record = useCallback(
-    (location: EbookLocation, arriving: boolean) => {
-      const locator = serialise(location);
-      const key = JSON.stringify(locator);
-      const observed: Observation = { locator, at: new Date().toISOString() };
+  /** Where the reader already is: remembered, written down nowhere. */
+  const seed = useCallback((location: EbookLocation) => {
+    const locator = toBrowserLocator(location);
+    writtenRef.current = JSON.stringify(locator);
+    latestRef.current = { locator, at: new Date().toISOString() };
+    // Nothing is written for opening a book, but staying in one is reading:
+    // the heartbeat's clock starts here.
+    spokeAtRef.current = Date.now();
+  }, []);
 
-      // Either way the reader is where they already were. `writtenRef` is its own
-      // condition so the invariant survives a caller that gets the bracket wrong.
-      if (arriving || writtenRef.current === null) {
-        writtenRef.current = key;
-        latestRef.current = observed;
-        // Nothing is written for opening a book, but staying in one is reading:
-        // the heartbeat's clock starts here.
-        spokeAtRef.current = Date.now();
+  /** Where the reader has moved to: written down once the moving stops. */
+  const moved = useCallback(
+    (location: EbookLocation) => {
+      // A move reported before any seed is where the reader already was, not a move.
+      if (writtenRef.current === null) {
+        seed(location);
         return;
       }
+      const locator = toBrowserLocator(location);
+      const key = JSON.stringify(locator);
       if (key === writtenRef.current) return;
 
+      const observed: Observation = { locator, at: new Date().toISOString() };
       writtenRef.current = key;
       latestRef.current = observed;
       pendingRef.current = observed;
       clearTimeout(timerRef.current);
       timerRef.current = setTimeout(() => sendPending(false), writeDebounceMs);
     },
-    [sendPending, writeDebounceMs]
+    [seed, sendPending, writeDebounceMs]
   );
 
-  return { record };
+  return { seed, moved };
 };

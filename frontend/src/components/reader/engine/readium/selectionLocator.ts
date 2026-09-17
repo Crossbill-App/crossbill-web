@@ -14,7 +14,7 @@
  * resolves a quote whether or not a break between blocks reads as a space;
  * ADR-0004 *Amendment 8* records the check.
  */
-import type { EbookLocation } from '@/components/reader/EbookReader.ts';
+import type { EbookLocation } from '@/components/reader/engine/EbookReader.ts';
 
 /**
  * How much text either side of the quote is kept.

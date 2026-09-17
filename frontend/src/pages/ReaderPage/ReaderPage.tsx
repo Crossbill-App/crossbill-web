@@ -15,7 +15,6 @@ export const ReaderPage = () => {
   const arrival = useArrivalAtAHighlight(highlightId);
   const { data: book } = useGetBookDetails(Number(bookId));
   const { data: tagsResponse } = useGetTags(Number(bookId));
-  // A new array every render would be a new set of decorations every render.
   const highlights = useMemo(() => book?.chapters.flatMap((chapter) => chapter.highlights), [book]);
   const bookmarksByHighlightId = useMemo(
     () => keyBy(book?.bookmarks ?? [], 'highlight_id'),
@@ -29,8 +28,6 @@ export const ReaderPage = () => {
       <ReaderShell
         key={bookId}
         bookId={Number(bookId)}
-        title={book?.title ?? ''}
-        highlights={highlights}
         onOpenHighlight={highlightDialog.open}
         highlightId={arrival}
         onClose={() => void navigate({ to: '/book/$bookId', params: { bookId: String(bookId) } })}

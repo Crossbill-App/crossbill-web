@@ -1,5 +1,10 @@
 import type { ChapterWithHighlights } from '@/api/generated/model';
-import type { EbookLocation, EbookTocEntry, OpenedEbook } from '@/components/reader/EbookReader.ts';
+import type {
+  EbookLocation,
+  EbookTocEntry,
+  OpenedEbook,
+} from '@/components/reader/engine/EbookReader.ts';
+import { flattenToc, isNavigable, tocEntryLocation } from '@/components/reader/toc.ts';
 
 /** Where a jump that could not reach its passage went instead. */
 export type MissedJump = 'chapter' | 'start';
@@ -17,9 +22,6 @@ interface JumpLanding {
   missed: MissedJump | null;
 }
 
-// A heading that groups chapters and links nowhere.
-const UNLINKED_HREF = '#';
-
 // The database and the manifest both copied the title out of the EPUB, and
 // neither kept its spacing exactly.
 const comparableTitle = (title: string) => title.replace(/\s+/g, ' ').trim().toLowerCase();
@@ -28,22 +30,12 @@ const byBookOrder = (a: ChapterWithHighlights, b: ChapterWithHighlights) =>
   (a.chapter_number ?? Number.MAX_SAFE_INTEGER) - (b.chapter_number ?? Number.MAX_SAFE_INTEGER) ||
   a.id - b.id;
 
-const flatten = (entries: EbookTocEntry[]): EbookTocEntry[] =>
-  entries.flatMap((entry) => [entry, ...flatten(entry.children)]);
-
 // A locator with none of these still opens, at the top of its resource, which
 // looks exactly like arriving at the passage.
 const placesWithinResource = ({ locations, text }: EbookLocation) =>
   locations.progression !== undefined ||
   locations.cssSelector !== undefined ||
   text?.highlight !== undefined;
-
-/** The contents entry as a place to go to, fragment and all. */
-export const tocEntryLocation = (entry: EbookTocEntry): EbookLocation => ({
-  href: entry.href,
-  type: entry.type,
-  locations: {},
-});
 
 /** The chapter holding a highlight, or null where it sits in none or in one without a title. */
 export const chapterHintFor = (
@@ -62,8 +54,8 @@ export const chapterHintFor = (
 
 const chapterEntry = (toc: EbookTocEntry[], hint: ChapterHint | null) => {
   if (!hint) return undefined;
-  const matches = flatten(toc).filter(
-    (entry) => entry.href !== UNLINKED_HREF && comparableTitle(entry.title) === hint.title
+  const matches = flattenToc(toc).filter(
+    (entry) => isNavigable(entry) && comparableTitle(entry.title) === hint.title
   );
   if (matches.length === 1) return matches[0];
   // Several pair up by order only where both sides count the same number of them.

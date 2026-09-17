@@ -7,7 +7,7 @@ import type {
   OpenEbookOptions,
   OpenedEbook,
   PageTurnDirection,
-} from '@/components/reader/EbookReader.ts';
+} from '@/components/reader/engine/EbookReader.ts';
 
 /** A place in the two-chapter book the other fixtures describe. */
 export const aFakeLocation = (position: number): EbookLocation => ({
