@@ -5,24 +5,28 @@
  */
 import { landingOfAJump, type MissedJump } from '@/components/reader/opening/jumpFallback.ts';
 import type { EbookReaderState } from '@/components/reader/opening/useEbookReader.ts';
-import type { ReaderLanding } from '@/components/reader/opening/useReaderLanding.ts';
+import type { ReaderLanding, ReaderTarget } from '@/components/reader/opening/useReaderLanding.ts';
 import { useSnackbar } from '@/context/SnackbarContext.tsx';
 import { useEffect, useRef } from 'react';
 
 /** Said once, over the open book, for a place that could not be restored. */
 const LOST_THE_BOOKMARK = "Couldn't restore your last position, so the book opened at the start.";
 
-/** Said once, over the open book, for a highlight whose passage could not be reached. */
-const MISSED_JUMP_APOLOGIES: Record<MissedJump, string> = {
-  chapter:
-    "Couldn't find this highlight's exact place, so the book opened at the start of its chapter.",
-  start: "Couldn't find this highlight's place, so the book opened at the start.",
+/** What each kind of jump owes the reader where it could not reach where it was sent. */
+const MISSED_JUMP_APOLOGIES: Record<ReaderTarget['kind'], Partial<Record<MissedJump, string>>> = {
+  highlight: {
+    chapter:
+      "Couldn't find this highlight's exact place, so the book opened at the start of its chapter.",
+    start: "Couldn't find this highlight's place, so the book opened at the start.",
+  },
+  // A chapter jump that landed on the chapter arrived; only the start is a miss.
+  chapter: { start: "Couldn't find this chapter in the book, so it opened at the start." },
 };
 
 export const useLandingApology = (
   book: Pick<EbookReaderState, 'status' | 'landedAt' | 'toc'>,
   landing: ReaderLanding | undefined,
-  target: number | null
+  target: ReaderTarget | null
 ): void => {
   const { showSnackbar } = useSnackbar();
   const apologised = useRef(false);
@@ -43,7 +47,11 @@ export const useLandingApology = (
             landing.chapter
           ).missed;
     const message =
-      target === null ? (lost ? LOST_THE_BOOKMARK : null) : missed && MISSED_JUMP_APOLOGIES[missed];
+      target === null
+        ? lost
+          ? LOST_THE_BOOKMARK
+          : null
+        : missed && MISSED_JUMP_APOLOGIES[target.kind][missed];
     if (!message) return;
     apologised.current = true;
     showSnackbar(message, 'info');

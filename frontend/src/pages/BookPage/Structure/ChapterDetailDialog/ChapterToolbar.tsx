@@ -1,6 +1,7 @@
 import { useGenerateChapterDigest } from '@/api/generated/digest/digest';
 import { AIActionButton } from '@/components/buttons/AIActionButton.tsx';
 import { IconButtonWithTooltip } from '@/components/buttons/IconButtonWithTooltip.tsx';
+import { OpenInReaderButton } from '@/components/buttons/OpenInReaderButton.tsx';
 import { ConfirmationDialog } from '@/components/dialogs/ConfirmationDialog.tsx';
 import { DialogToolbar } from '@/components/dialogs/DialogToolbar.tsx';
 import { AIFeature } from '@/components/features/AIFeature.tsx';
@@ -62,6 +63,7 @@ export const ChapterToolbar = ({ chapterId, bookId, hasSummary }: ChapterToolbar
   return (
     <>
       <DialogToolbar>
+        <OpenInReaderButton bookId={bookId} chapterId={chapterId} />
         <IconButtonWithTooltip
           label="Copy link to chapter"
           onClick={() => void handleCopyLink()}

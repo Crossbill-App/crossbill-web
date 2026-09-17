@@ -1110,6 +1110,19 @@ test('arriving takes the highlight back out of the address', async () => {
   await expect.poll(() => screen.router.state.location.search).toEqual({});
 });
 
+test('a chapter in the address opens the book there, and is taken back out of it', async () => {
+  worker.use(
+    ...bookApi({ book: aBookDetails({ chapters: [aChapter({ id: 11, name: 'On Memory' })] }) })
+      .handlers
+  );
+  worker.use(...readiumApi());
+
+  const screen = await renderApp({ path: '/book/1/read?chapterId=11' });
+
+  await expectChapterTwo(screen);
+  await expect.poll(() => screen.router.state.location.search).toEqual({});
+});
+
 test('tapping the highlight the reader arrived at opens it, and Back closes it', async () => {
   const { screen } = await aJumpToAPassage();
   await expectThePassageOnThePage();
