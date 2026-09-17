@@ -1,10 +1,15 @@
+import { LabelChip } from '@/components/highlights/LabelChip.tsx';
 import type { EbookRect } from '@/components/reader/engine/EbookReader.ts';
-import { Button, Paper, Popper, Stack, useMediaQuery, useTheme } from '@mui/material';
+import type { HighlightColor } from '@/components/reader/highlights/highlightPalette.ts';
+import { Box, Button, Paper, Popper, Stack, useMediaQuery, useTheme } from '@mui/material';
 
 export interface SelectionPopoverProps {
   /** Where the selected words sit on screen, `null` when nothing is selected. */
   rect: EbookRect | null;
-  onHighlight: () => void;
+  /** The colours a highlight can be made in, offered one tap each. */
+  palette: HighlightColor[];
+  /** A colour makes the highlight in it; none makes an unlabelled one. */
+  onHighlight: (color?: HighlightColor) => void;
   /** Carries the selection on to a word tapped later, over as many pages as it takes. */
   onExtend: () => void;
   onCancel: () => void;
@@ -17,15 +22,36 @@ const GAP_PX = 8;
 // and its arrow -- and offers no way to place it or ask where it went.
 const PHONE_GAP_PX = 60;
 
+// Narrow enough that the nine colours wrap into rows rather than one long strip
+// reaching past the edge of a phone, which has no way to scroll a popper.
+const MAX_WIDTH_PX = 320;
+
 type SelectionActionsProps = Omit<SelectionPopoverProps, 'rect'>;
 
-const SelectionActions = ({ onHighlight, onExtend, onCancel }: SelectionActionsProps) => (
+const SelectionActions = ({ palette, onHighlight, onExtend, onCancel }: SelectionActionsProps) => (
   // Never takes focus: away from the book's frame, the browser stops showing the selection.
-  <Paper elevation={8} onMouseDown={(event) => event.preventDefault()} sx={{ p: 0.5 }}>
-    <Stack role="toolbar" aria-label="Selected text" direction="row" spacing={0.5}>
-      <Button onClick={onHighlight}>Highlight</Button>
-      <Button onClick={onExtend}>Extend</Button>
-      <Button onClick={onCancel}>Cancel</Button>
+  <Paper
+    elevation={8}
+    onMouseDown={(event) => event.preventDefault()}
+    sx={{ p: 0.5, maxWidth: MAX_WIDTH_PX }}
+  >
+    <Stack role="toolbar" aria-label="Selected text" spacing={0.5}>
+      <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
+        {palette.map((color) => (
+          <LabelChip
+            key={color.device_color}
+            name={color.name}
+            color={color.tint}
+            size="small"
+            onClick={() => onHighlight(color)}
+          />
+        ))}
+      </Box>
+      <Stack direction="row" spacing={0.5}>
+        <Button onClick={() => onHighlight()}>Highlight</Button>
+        <Button onClick={onExtend}>Extend</Button>
+        <Button onClick={onCancel}>Cancel</Button>
+      </Stack>
     </Stack>
   </Paper>
 );

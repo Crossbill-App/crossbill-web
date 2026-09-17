@@ -2,6 +2,7 @@ import { getGetBookDetailsQueryKey } from '@/api/generated/books/books.ts';
 import type {
   ChapterWithHighlights,
   Highlight,
+  HighlightLabelInBook,
   HighlightLocatorResponse,
 } from '@/api/generated/model';
 import type {
@@ -1297,7 +1298,8 @@ const standIns = () =>
 const standInWords = () => standIns().map((decoration) => decoration.location.text?.highlight);
 
 test('pressing Highlight lets go of the selection and draws it at once', async () => {
-  worker.use(...highlightCreationApi([{ status: 500, delayMs: 300 }]).handlers);
+  const { handlers, bodies } = highlightCreationApi([{ status: 500, delayMs: 300 }]);
+  worker.use(...handlers);
   await aBookWithASelection();
 
   await pressHighlight();
@@ -1312,6 +1314,115 @@ test('pressing Highlight lets go of the selection and draws it at once', async (
       opacity: 0.35,
     },
   ]);
+  await expect.poll(() => bodies.length).toBe(1);
+  expect(bodies[0].device_color).toBeUndefined();
+});
+
+/** The nine colours KOReader offers, in the order the popover puts them in. */
+const KOREADER_COLORS = [
+  'Yellow',
+  'Orange',
+  'Red',
+  'Purple',
+  'Blue',
+  'Cyan',
+  'Green',
+  'Olive',
+  'Gray',
+];
+
+const aColor = (name: string) => theSelectionToolbar().getByRole('button', { name });
+
+/** The book's labels, over `bookApi`'s empty list, which MSW resolves newest first. */
+const bookLabels = (...items: Partial<HighlightLabelInBook>[]) =>
+  http.get('/api/v1/books/:bookId/highlight-labels', () =>
+    HttpResponse.json({
+      items: items.map((item, index) => ({
+        id: 10 + index,
+        label_source: 'book',
+        highlight_count: 3,
+        ...item,
+      })),
+    })
+  );
+
+const toolbarButtonNames = () =>
+  Array.from(
+    theSelectionToolbar().element().querySelectorAll('button, [role="button"]'),
+    (button) => button.textContent.trim()
+  );
+
+test('the popover offers the nine colours by name, before its buttons', async () => {
+  await aBookWithASelection();
+
+  await expect
+    .poll(toolbarButtonNames)
+    .toEqual([...KOREADER_COLORS, 'Highlight', 'Extend', 'Cancel']);
+});
+
+test('a colour the book has labelled wears the label', async () => {
+  worker.use(
+    bookLabels({
+      device_color: 'yellow',
+      device_style: 'lighten',
+      label: 'Important',
+      ui_color: '#ff0000',
+    })
+  );
+  await aBookWithASelection();
+
+  await expect.element(aColor('Important')).toBeVisible();
+  expect(aColor('Yellow').query()).toBeNull();
+});
+
+test("a label on another drawer of a colour is not that colour's", async () => {
+  worker.use(
+    bookLabels(
+      { device_color: 'yellow', device_style: 'underscore', label: 'Vocabulary' },
+      // Its own colour's label, so the list is known to have arrived.
+      { device_color: 'blue', device_style: 'lighten', label: 'Later' }
+    )
+  );
+  await aBookWithASelection();
+
+  await expect.element(aColor('Later')).toBeVisible();
+  await expect.element(aColor('Yellow')).toBeVisible();
+  expect(aColor('Vocabulary').query()).toBeNull();
+});
+
+const standInTints = () => standIns().map((decoration) => decoration.tint);
+
+test('tapping a colour lets go of the selection, stores it and draws it in that hue', async () => {
+  const { handlers, bodies } = highlightCreationApi([{ status: 500, delayMs: 300 }]);
+  worker.use(...handlers);
+  await aBookWithASelection();
+
+  await aColor('Yellow').click();
+
+  expect(readers[0].clearSelectionCalls).toBe(1);
+  await expect.poll(standInTints).toEqual(['#F59E0B']);
+  await expect.poll(() => bodies.length).toBe(1);
+  expect(bodies[0].device_color).toBe('yellow');
+});
+
+test("tapping a labelled colour draws the label's own colour", async () => {
+  const { handlers, bodies } = highlightCreationApi([{ status: 500, delayMs: 300 }]);
+  worker.use(
+    ...handlers,
+    bookLabels({
+      device_color: 'yellow',
+      device_style: 'lighten',
+      label: 'Important',
+      ui_color: '#ff0000',
+    })
+  );
+  await aBookWithASelection();
+
+  await aColor('Important').click();
+
+  await expect.poll(standInTints).toEqual(['#ff0000']);
+  await expect.poll(() => bodies.length).toBe(1);
+  expect(bodies[0].device_color).toBe('yellow');
 });
 
 test.each([

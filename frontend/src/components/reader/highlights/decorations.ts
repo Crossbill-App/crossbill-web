@@ -1,15 +1,11 @@
 import type { Highlight, HighlightLocatorResponse } from '@/api/generated/model';
 import { fromLocatorSchema } from '@/components/reader/api/apiLocators.ts';
 import type { EbookDecoration, EbookLocation } from '@/components/reader/engine/EbookReader.ts';
-import { DEFAULT_LABEL_COLOR } from '@/utils/colorUtils.ts';
+import { DEFAULT_LABEL_COLOR, hexTint } from '@/utils/colorUtils.ts';
 
 // The label palette is saturated enough to carry a chip, and at full strength
 // over a paragraph it is a wall rather than a highlight.
 const TINT_OPACITY = 0.35;
-
-// The API stores any string, so a colour set by hand may lack its hash; anything
-// else the engine would draw invisible, and it would still take a tap.
-const HEX_COLOR = /^#?[0-9a-f]{6}$/i;
 
 const decorationId = (highlightId: number) => `highlight-${highlightId}`;
 
@@ -22,10 +18,14 @@ export const highlightIdFrom = (decorationId: string): number | null => {
 };
 
 /** A passage drawn as a highlight while the server is still storing it. */
-export const standInDecoration = (sequence: number, location: EbookLocation): EbookDecoration => ({
+export const standInDecoration = (
+  sequence: number,
+  location: EbookLocation,
+  tint = DEFAULT_LABEL_COLOR
+): EbookDecoration => ({
   id: `selection-${sequence}`,
   location,
-  tint: DEFAULT_LABEL_COLOR,
+  tint,
   opacity: TINT_OPACITY,
 });
 
@@ -37,10 +37,8 @@ export const heldPassageDecoration = (location: EbookLocation): EbookDecoration 
   opacity: TINT_OPACITY,
 });
 
-const tintFor = (highlight: Highlight): string => {
-  const color = highlight.label?.ui_color;
-  return color && HEX_COLOR.test(color) ? `#${color.replace('#', '')}` : DEFAULT_LABEL_COLOR;
-};
+const tintFor = (highlight: Highlight): string =>
+  hexTint(highlight.label?.ui_color, DEFAULT_LABEL_COLOR);
 
 /** One book's highlights as the reader draws them: those the server placed, in their labels' colours. */
 export const highlightDecorations = (

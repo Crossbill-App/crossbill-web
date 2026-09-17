@@ -1,4 +1,5 @@
 import { useGetBookDetails } from '@/api/generated/books/books.ts';
+import { useGetBookHighlightLabels } from '@/api/generated/highlight-labels/highlight-labels.ts';
 import { isAnyDialogOpen } from '@/components/dialogs/dialogStack.ts';
 import { manifestUrl } from '@/components/reader/api/readiumUrls.ts';
 import { ExtensionBar } from '@/components/reader/chrome/ExtensionBar.tsx';
@@ -13,6 +14,7 @@ import {
   heldPassageDecoration,
   highlightIdFrom,
 } from '@/components/reader/highlights/decorations.ts';
+import { paletteFor } from '@/components/reader/highlights/highlightPalette.ts';
 import { useHighlightCreation } from '@/components/reader/highlights/useHighlightCreation.ts';
 import { useHighlightDecorations } from '@/components/reader/highlights/useHighlightDecorations.ts';
 import { useSelectionWorkflow } from '@/components/reader/highlights/useSelectionWorkflow.ts';
@@ -76,6 +78,8 @@ export const ReaderShell = ({
     () => details?.chapters.flatMap((chapter) => chapter.highlights),
     [details]
   );
+  const { data: labels } = useGetBookHighlightLabels(bookId);
+  const palette = paletteFor(labels?.items ?? []);
   const host = useRef<HTMLDivElement | null>(null);
   const [isTocOpen, setIsTocOpen] = useState(false);
   const [preferences, setPreferences] = useReaderPreferences();
@@ -248,6 +252,7 @@ export const ReaderShell = ({
 
       <SelectionPopover
         rect={book.selection?.rect ?? null}
+        palette={palette}
         onHighlight={workflow.highlight}
         onExtend={workflow.extend}
         onCancel={book.clearSelection}
