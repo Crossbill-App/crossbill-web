@@ -3,6 +3,7 @@ import { createFileRoute } from '@tanstack/react-router';
 
 type ReaderSearch = {
   highlightId?: number;
+  chapterId?: number;
 };
 
 // `book_` keeps this a sibling of `/book/$bookId` rather than a child, so the
@@ -11,5 +12,6 @@ export const Route = createFileRoute('/book_/$bookId/read')({
   component: ReaderPage,
   validateSearch: (search: Record<string, unknown>): ReaderSearch => ({
     highlightId: (search.highlightId as number | undefined) || undefined,
+    chapterId: (search.chapterId as number | undefined) || undefined,
   }),
 });

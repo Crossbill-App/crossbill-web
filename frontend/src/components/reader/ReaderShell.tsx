@@ -22,7 +22,10 @@ import {
   type UseEbookReaderOptions,
 } from '@/components/reader/opening/useEbookReader.ts';
 import { useLandingApology } from '@/components/reader/opening/useLandingApology.ts';
-import { useReaderLanding } from '@/components/reader/opening/useReaderLanding.ts';
+import {
+  useReaderLanding,
+  type ReaderTarget,
+} from '@/components/reader/opening/useReaderLanding.ts';
 import { useReaderSession } from '@/components/reader/opening/useReaderSession.ts';
 import { useReadingPositionWriter } from '@/components/reader/position/useReadingPositionWriter.ts';
 import {
@@ -50,8 +53,8 @@ export interface ReaderShellProps {
   onClose: () => void;
   /** A highlight the reader tapped on the page. */
   onOpenHighlight?: (highlightId: number) => void;
-  /** The highlight to open the book at; only its value at mount counts. */
-  highlightId?: number;
+  /** Where to open the book; only its value at mount counts. */
+  target?: ReaderTarget | null;
   testing?: ReaderTestKnobs;
 }
 
@@ -63,7 +66,7 @@ export const ReaderShell = ({
   bookId,
   onClose,
   onOpenHighlight,
-  highlightId,
+  target,
   testing: { createReader, bootTimeoutMs, writeDebounceMs, heartbeatMs } = {},
 }: ReaderShellProps) => {
   // A fixed overlay never scrolls the body, which is what arms pull-to-refresh.
@@ -87,8 +90,8 @@ export const ReaderShell = ({
   const appearance = useMemo(() => toEbookAppearance(theme, preferences), [theme, preferences]);
   const { seed, moved } = useReadingPositionWriter(bookId, { writeDebounceMs, heartbeatMs });
   // Latched, so that nothing done to the address after the book opens can move it.
-  const [target] = useState(highlightId ?? null);
-  const landing = useReaderLanding(bookId, target, details?.chapters);
+  const [jump] = useState(target ?? null);
+  const landing = useReaderLanding(bookId, jump, details?.chapters);
   const placedHighlights = useHighlightDecorations(bookId, highlights);
   const creation = useHighlightCreation(bookId);
   const { showSnackbar } = useSnackbar();
@@ -120,7 +123,7 @@ export const ReaderShell = ({
     // On to the passage, which opening at its locator can leave a page short of, or else to
     // its chapter.
     finishLanding:
-      target === null
+      jump === null
         ? undefined
         : (opened) =>
             landingOfAJump(landing?.locator ?? null, opened, landing?.chapter ?? null).destination,
@@ -153,7 +156,7 @@ export const ReaderShell = ({
     }
   }, [fontSizeRange, preferences.fontSize, setPreferences]);
 
-  useLandingApology(book, landing, target);
+  useLandingApology(book, landing, jump);
 
   if (sessionStatus === 'error') {
     return (

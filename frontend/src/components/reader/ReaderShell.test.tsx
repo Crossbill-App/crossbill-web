@@ -807,7 +807,7 @@ const aJump = async (
     })
   );
   worker.use(...highlightLocatorApi(locators));
-  const screen = await renderShell({ highlightId: 300 });
+  const screen = await renderShell({ target: { kind: 'highlight', id: 300 } });
   await expect.poll(() => readers.length).toBe(1);
   return { screen, resumeRequests: () => resumeRequests };
 };
@@ -827,6 +827,8 @@ const MISSED_THE_HIGHLIGHT =
   "Couldn't find this highlight's exact place, so the book opened at the start of its chapter.";
 const MISSED_THE_CHAPTER_TOO =
   "Couldn't find this highlight's place, so the book opened at the start.";
+const CHAPTER_NOT_IN_THE_BOOK =
+  "Couldn't find this chapter in the book, so it opened at the start.";
 
 const expectToBeTold = (screen: Screen, message: string) =>
   expect.element(screen.getByRole('alert').filter({ hasText: message })).toBeVisible();
@@ -887,9 +889,9 @@ test('a highlight id that changes while the book is on its way does not move it'
   worker.use(...readiumApi());
   worker.use(...bookApi().handlers);
   worker.use(...highlightLocatorApi([aPassage(300), aHighlightLocator(301)], { delayMs: 300 }));
-  const screen = await renderShell({ highlightId: 300 });
+  const screen = await renderShell({ target: { kind: 'highlight', id: 300 } });
 
-  await screen.rerenderShell({ highlightId: 301 });
+  await screen.rerenderShell({ target: { kind: 'highlight', id: 301 } });
   await expect.poll(() => readers.length).toBe(1);
   readers[0].resolveOpen({ landedAt: 'requested' });
   await expectOnScreen(screen);
@@ -976,6 +978,13 @@ const A_TOC_OF_PARTS: EbookTocEntry[] = [
   { href: '#', type: '', title: 'Part two', children: [anIntroduction('part2/intro.xhtml')] },
 ];
 
+/** Where the second part begins, its own heading linking nowhere. */
+const THE_START_OF_PART_TWO = {
+  href: 'part2/intro.xhtml',
+  type: 'application/xhtml+xml',
+  locations: {},
+};
+
 test('a repeated chapter title falls back to the right one of them', async () => {
   // Numbered against their ids, so an order by id would pick the first part's.
   const { screen } = await aJump(
@@ -990,9 +999,7 @@ test('a repeated chapter title falls back to the right one of them', async () =>
   readers[0].resolveOpen({ toc: A_TOC_OF_PARTS });
 
   await expectOnScreen(screen);
-  expect(readers[0].goToCalls).toEqual([
-    { href: 'part2/intro.xhtml', type: 'application/xhtml+xml', locations: {} },
-  ]);
+  expect(readers[0].goToCalls).toEqual([THE_START_OF_PART_TWO]);
   await expectToBeTold(screen, MISSED_THE_HIGHLIGHT);
 });
 
@@ -1042,6 +1049,61 @@ test('a heading that links nowhere is never the fallback', async () => {
   });
 
   await expectTheChapterFallback(screen);
+});
+
+const HIGHLIGHT_LOCATOR_PATH = '/api/v1/highlights/:highlightId/locator';
+
+/** The shell opened at a chapter of the book, counting what it asks the server on the way. */
+const aChapterJump = async (chapter: ChapterWithHighlights) => {
+  worker.use(...readiumApi());
+  worker.use(...bookApi({ book: aBookDetails({ chapters: [chapter] }) }).handlers);
+  const asked: string[] = [];
+  // Answering nothing passes each request on to the handler that answers it.
+  worker.use(
+    http.get(POSITION_PATH, () => {
+      asked.push('resume');
+    }),
+    http.get(HIGHLIGHT_LOCATOR_PATH, () => {
+      asked.push('locator');
+    })
+  );
+  const screen = await renderShell({ target: { kind: 'chapter', id: chapter.id } });
+  await expect.poll(() => readers.length).toBe(1);
+  return Object.assign(screen, { asked: () => asked });
+};
+
+test("a chapter jump opens the book at that chapter's place in the contents", async () => {
+  const screen = await aChapterJump(aChapter({ id: 11, name: 'On Memory' }));
+
+  expect(readers[0].openedWith[0].initialLocation).toBeUndefined();
+  readers[0].resolveOpen({ toc: A_TOC });
+
+  await expectOnScreen(screen);
+  expect(readers[0].goToCalls).toEqual([THE_START_OF_ON_MEMORY]);
+  // The book's own contents answer a chapter jump, so the server is asked nothing.
+  expect(screen.asked()).toEqual([]);
+  // Arriving at the chapter is what was asked for, not a miss to apologise for.
+  await expectNoApology(screen);
+});
+
+test('a part whose heading links nowhere opens at its first section', async () => {
+  const screen = await aChapterJump(aChapter({ id: 11, name: 'Part two' }));
+
+  readers[0].resolveOpen({ toc: A_TOC_OF_PARTS });
+
+  await expectOnScreen(screen);
+  expect(readers[0].goToCalls).toEqual([THE_START_OF_PART_TWO]);
+  await expectNoApology(screen);
+});
+
+test("a chapter this edition's contents do not name opens at the start, and says so", async () => {
+  const screen = await aChapterJump(aChapter({ id: 11, name: 'On Forgetting' }));
+
+  readers[0].resolveOpen({ toc: A_TOC });
+
+  await expectOnScreen(screen);
+  expect(readers[0].goToCalls).toEqual([]);
+  await expectToBeTold(screen, CHAPTER_NOT_IN_THE_BOOK);
 });
 
 /**

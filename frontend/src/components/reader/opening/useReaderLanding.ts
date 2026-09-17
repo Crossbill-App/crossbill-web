@@ -1,5 +1,5 @@
 /**
- * Where one book should open: the highlight this open is a jump to, or else the
+ * Where one book should open: the place this open is a jump to, or else the
  * place the reader last got to, on whatever device they were reading.
  *
  * The reconciliation against this publication's own position list belongs to
@@ -15,8 +15,21 @@ import type {
 import { useGetReadingPosition } from '@/api/generated/readium/readium.ts';
 import { fromBrowserLocator, fromLocatorSchema } from '@/components/reader/api/apiLocators.ts';
 import type { EbookLocation } from '@/components/reader/engine/EbookReader.ts';
-import { chapterHintFor, type ChapterHint } from '@/components/reader/opening/jumpFallback.ts';
+import {
+  chapterHintForChapter,
+  chapterHintForHighlight,
+  type ChapterHint,
+} from '@/components/reader/opening/jumpFallback.ts';
 import { useState } from 'react';
+
+/** What an open of a book is a jump to, where the address names a place at all. */
+export type ReaderTarget = { kind: 'highlight'; id: number } | { kind: 'chapter'; id: number };
+
+/** The place the address names, a highlight taking precedence where it somehow names both. */
+export const targetOf = (highlightId?: number, chapterId?: number): ReaderTarget | null => {
+  if (highlightId !== undefined) return { kind: 'highlight', id: highlightId };
+  return chapterId === undefined ? null : { kind: 'chapter', id: chapterId };
+};
 
 /** Where a book opens is asked afresh on every open, never taken from this tab's cache. */
 const LANDING_QUERY = {
@@ -51,14 +64,20 @@ const landingFrom = (stored: ResumePositionResponse | undefined): ReaderLanding 
     ? { locator: fromBrowserLocator(stored.locator), lost: false, chapter: null }
     : { locator: null, lost: stored?.unresolved === true, chapter: null };
 
+// A chapter has nothing to ask the server for: the book boots at the beginning
+// and the walk to the chapter's own place in the contents finishes the landing.
 const jumpFrom = (
-  placed: HighlightLocatorResponse | undefined,
-  chapter: ChapterHint | null
-): ReaderLanding => ({
-  locator: placed?.locator ? fromLocatorSchema(placed.locator) : null,
-  lost: false,
-  chapter,
-});
+  target: ReaderTarget,
+  chapters: ChapterWithHighlights[],
+  placed: HighlightLocatorResponse | undefined
+): ReaderLanding =>
+  target.kind === 'chapter'
+    ? { locator: null, lost: false, chapter: chapterHintForChapter(chapters, target.id) }
+    : {
+        locator: placed?.locator ? fromLocatorSchema(placed.locator) : null,
+        lost: false,
+        chapter: chapterHintForHighlight(chapters, target.id),
+      };
 
 /**
  * Where this book should open, or `undefined` until the answer is in — which
@@ -67,23 +86,25 @@ const jumpFrom = (
  */
 export const useReaderLanding = (
   bookId: number,
-  target: number | null,
+  target: ReaderTarget | null,
   chapters: ChapterWithHighlights[] | undefined
 ): ReaderLanding | undefined => {
   const resume = useGetReadingPosition(bookId, {
     query: { ...LANDING_QUERY, enabled: target === null },
   });
-  const jump = useGetHighlightLocator(target ?? 0, {
-    query: { ...LANDING_QUERY, enabled: target !== null },
+  const jump = useGetHighlightLocator(target?.kind === 'highlight' ? target.id : 0, {
+    query: { ...LANDING_QUERY, enabled: target?.kind === 'highlight' },
   });
   const answer =
     target === null
       ? resume.isPending
         ? undefined
         : landingFrom(resume.data)
-      : jump.isPending || chapters === undefined
+      : // Either kind of jump wants the book's chapters: they are what it falls
+        // back to, and for a chapter they are the jump itself.
+        chapters === undefined || (target.kind === 'highlight' && jump.isPending)
         ? undefined
-        : jumpFrom(jump.data, chapterHintFor(chapters, target));
+        : jumpFrom(target, chapters, jump.data);
 
   // Latched during render rather than in an effect, which would let the
   // un-latched answer reach the boot first. The query behind it is live, and a
