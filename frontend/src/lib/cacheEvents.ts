@@ -132,9 +132,15 @@ export const useCacheEvents = () => {
        */
       refreshRequested: () => queryClient.invalidateQueries(),
 
-      /** A highlight was made. The promise settles once the book's details have refetched. */
-      highlightCreated: (bookId: number) =>
-        queryClient.invalidateQueries({ queryKey: getGetBookDetailsQueryKey(bookId) }),
+      /**
+       * A highlight was made. The promise settles once the book's details have refetched.
+       *
+       * Its labels too: a highlight in a colour the book had no style for makes one.
+       */
+      highlightCreated: (bookId: number) => {
+        invalidate(getGetBookHighlightLabelsQueryKey(bookId));
+        return queryClient.invalidateQueries({ queryKey: getGetBookDetailsQueryKey(bookId) });
+      },
 
       /** A highlight label was renamed or recoloured. Book details embeds labels. */
       highlightLabelsChanged: (bookId: number) =>

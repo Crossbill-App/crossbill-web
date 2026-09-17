@@ -10,6 +10,7 @@ from __future__ import annotations
 import datetime as dt_module
 from dataclasses import dataclass, field
 from datetime import UTC
+from typing import Final
 
 from src.domain.common.entity import Entity
 from src.domain.common.value_objects import (
@@ -17,6 +18,9 @@ from src.domain.common.value_objects import (
     HighlightStyleId,
     UserId,
 )
+
+# The drawer KOReader uses unless the reader picked another.
+KOREADER_DEFAULT_DRAWER: Final = "lighten"
 
 
 @dataclass

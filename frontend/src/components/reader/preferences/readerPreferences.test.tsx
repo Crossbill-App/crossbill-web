@@ -1,4 +1,8 @@
 import {
+  loadReaderPreferences,
+  READER_PREFERENCES_KEY,
+} from '@/components/reader/preferences/readerPreferenceStorage.ts';
+import {
   DEFAULT_READER_PREFERENCES,
   READER_SPACINGS,
   toEbookAppearance,
@@ -28,4 +32,19 @@ test('every spacing the reader is offered is one the engine honours', () => {
       expect(value).toBeLessThanOrEqual(max);
     }
   }
+});
+
+const seedPreferences = (record: object) =>
+  window.localStorage.setItem(READER_PREFERENCES_KEY, JSON.stringify(record));
+
+test('the highlight colour left in storage is read back', () => {
+  seedPreferences({ version: 1, highlightColor: 'green' });
+
+  expect(loadReaderPreferences().highlightColor).toBe('green');
+});
+
+test('a highlight colour no device offers is read as the default', () => {
+  seedPreferences({ version: 1, highlightColor: 'chartreuse' });
+
+  expect(loadReaderPreferences().highlightColor).toBe('yellow');
 });

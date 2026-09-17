@@ -42,6 +42,7 @@ from src.domain.common.value_objects.position import Position
 from src.domain.library.exceptions import EbookFileNotFoundError
 from src.domain.library.services.chapter_position_resolver import ChapterPositionResolver
 from src.domain.reading.entities.highlight import Highlight
+from src.domain.reading.entities.highlight_style import KOREADER_DEFAULT_DRAWER
 from src.domain.reading.exceptions import HighlightStyleNotFoundError
 from src.domain.web_reader.exceptions import BookFileUnreadableError, UnresolvablePositionError
 
@@ -119,6 +120,8 @@ class CreateHighlightFromLocatorUseCase:
         locator: Locator,
         note: str | None = None,
         highlight_style_id: int | None = None,
+        device_color: str | None = None,
+        device_style: str | None = None,
     ) -> CreatedHighlight:
         """Store what the reader selected, or hand back the highlight already there.
 
@@ -126,7 +129,8 @@ class CreateHighlightFromLocatorUseCase:
         the book already holds costs two queries rather than a parse -- and answers
         with the stored highlight whatever this selection would have resolved to. A
         note or label sent with such a selection is checked and then dropped: this
-        creates a highlight, and changing one that exists is an edit (M4.4).
+        creates a highlight, and changing one that exists is an edit (M4.4). A colour
+        is dropped too, without creating the style it would have filed under.
 
         Args:
             book_id: The book being read.
@@ -138,6 +142,11 @@ class CreateHighlightFromLocatorUseCase:
                 highlight's device-side note, which is the one an e-reader shows.
             highlight_style_id: The label to file the highlight under -- one of the
                 book's own, as ``GET /books/{id}/highlight-labels`` lists them.
+            device_color: A KOReader colour name to file the highlight under instead,
+                as the e-reader's own highlights are filed: the book's style for this
+                colour and drawer, created if the book has none yet.
+            device_style: The drawer that colour is drawn with, KOReader's own default
+                when a colour arrives without one.
 
         Raises:
             BookNotFoundError: If the user has no such book.
@@ -172,6 +181,15 @@ class CreateHighlightFromLocatorUseCase:
 
         match = self._graded(await self._resolved(epub_content, locator), locator, book_id_vo)
         position = await self._position(epub_content, match.xpoints)
+
+        # Only once the selection is placed: a refused one would otherwise leave a
+        # style no highlight points at, listed among the book's labels.
+        if device_color is not None:
+            style = (
+                await self.highlight_style_repository.find_or_create(
+                    user, book_id_vo, device_color, device_style or KOREADER_DEFAULT_DRAWER
+                )
+            ).id
 
         highlight = Highlight.create(
             user_id=user,

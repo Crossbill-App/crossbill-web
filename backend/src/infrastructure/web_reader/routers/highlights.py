@@ -69,6 +69,10 @@ async def create_highlight(
     highlight may sit at another occurrence of the same words, so a reader that
     needs to draw it should ask ``GET /highlights/{id}/locator`` where it is rather
     than assume it is where this selection was.
+
+    A selection may name a ``device_color`` in place of a label, and is then filed
+    under the book's style for that colour and drawer -- created if the book has
+    none yet -- the way the e-reader's own highlights are.
     """
     result = await use_case.create_highlight(
         book_id=book_id,
@@ -76,6 +80,8 @@ async def create_highlight(
         locator=anchor_locator(body.locator),
         note=body.note,
         highlight_style_id=body.highlight_style_id,
+        device_color=body.device_color,
+        device_style=body.device_style,
     )
     if not result.created:
         response.status_code = status.HTTP_200_OK

@@ -41,6 +41,8 @@ export interface ReaderPreferences {
   spacing: ReaderSpacing;
   alignment: ReaderAlignment;
   columns: ReaderColumns;
+  /** The KOReader colour a highlight made from a selection is filed under. */
+  highlightColor: string;
 }
 
 export const DEFAULT_READER_PREFERENCES: ReaderPreferences = {
@@ -49,6 +51,8 @@ export const DEFAULT_READER_PREFERENCES: ReaderPreferences = {
   spacing: 'default',
   alignment: 'default',
   columns: 'single',
+  // KOReader's own default, so a highlight made here is filed as one made there.
+  highlightColor: 'yellow',
 };
 
 // Tight leaves the paragraph breaks alone rather than closing them to 0: a book
@@ -77,7 +81,7 @@ export const readerPageColors = (theme: Theme, name: ReaderPageColor) =>
 /** What the reader chose, in the terms the seam carries. */
 export const toEbookAppearance = (
   theme: Theme,
-  preferences: ReaderPreferences
+  preferences: Omit<ReaderPreferences, 'highlightColor'>
 ): EbookAppearance => {
   const colors = readerPageColors(theme, preferences.pageColor);
   return {

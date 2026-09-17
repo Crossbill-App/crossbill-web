@@ -2,6 +2,7 @@ import { getGetBookDetailsQueryKey } from '@/api/generated/books/books.ts';
 import type {
   ChapterWithHighlights,
   Highlight,
+  HighlightLabelInBook,
   HighlightLocatorResponse,
 } from '@/api/generated/model';
 import type {
@@ -51,6 +52,9 @@ const MANIFEST_URL = `${window.location.origin}/api/v1/readium/books/1/manifest.
 
 /** Narrower than the `sm` breakpoint the reader lays itself out against. */
 const PHONE_VIEWPORT = { width: 390, height: 780 };
+
+/** Narrower than any phone the reader is likely to be held in. */
+const NARROW_VIEWPORT = { width: 320, height: 640 };
 
 /** `vitest.config.ts`'s own viewport, restored after a test has narrowed it. */
 const DEFAULT_VIEWPORT = { width: 1440, height: 900 };
@@ -491,6 +495,7 @@ const seedPreferences = (record: object) =>
 const storedPreferences = () =>
   JSON.parse(window.localStorage.getItem(READER_PREFERENCES_KEY) ?? 'null') as {
     pageColor?: string;
+    highlightColor?: string;
   } | null;
 
 test('the book is opened with the appearance left in storage', async () => {
@@ -1297,7 +1302,8 @@ const standIns = () =>
 const standInWords = () => standIns().map((decoration) => decoration.location.text?.highlight);
 
 test('pressing Highlight lets go of the selection and draws it at once', async () => {
-  worker.use(...highlightCreationApi([{ status: 500, delayMs: 300 }]).handlers);
+  const { handlers, bodies } = highlightCreationApi([{ status: 500, delayMs: 300 }]);
+  worker.use(...handlers);
   await aBookWithASelection();
 
   await pressHighlight();
@@ -1308,10 +1314,240 @@ test('pressing Highlight lets go of the selection and draws it at once', async (
     {
       id: 'selection-1',
       location: A_SELECTION.location,
-      tint: DEFAULT_LABEL_COLOR,
+      tint: '#F59E0B',
       opacity: 0.35,
     },
   ]);
+  await expect.poll(() => bodies.length).toBe(1);
+  expect(bodies[0].device_color).toBe('yellow');
+});
+
+/** The nine colours KOReader offers, in the order the popover puts them in. */
+const KOREADER_COLORS = [
+  'Yellow',
+  'Orange',
+  'Red',
+  'Purple',
+  'Blue',
+  'Cyan',
+  'Green',
+  'Olive',
+  'Gray',
+];
+
+/** The dropdown saying which colour Highlight will use. */
+const theColorChoice = () =>
+  theSelectionToolbar().getByRole('combobox', { name: 'Highlight colour' });
+
+/** The colours the opened dropdown offers, in the order it offers them. */
+const colorOptions = () =>
+  page
+    .getByRole('option')
+    .elements()
+    .map((option) => option.textContent.trim());
+
+const chooseColor = async (name: string) => {
+  await theColorChoice().click();
+  await page.getByRole('option', { name }).click();
+};
+
+/** The book's labels, over `bookApi`'s empty list, which MSW resolves newest first. */
+const bookLabels = (...items: Partial<HighlightLabelInBook>[]) =>
+  http.get('/api/v1/books/:bookId/highlight-labels', () =>
+    HttpResponse.json({
+      items: items.map((item, index) => ({
+        id: 10 + index,
+        label_source: 'book',
+        highlight_count: 3,
+        ...item,
+      })),
+    })
+  );
+
+const toolbarButtonNames = () =>
+  Array.from(
+    theSelectionToolbar().element().querySelectorAll('button, [role="button"]'),
+    (button) => button.textContent.trim()
+  );
+
+test("the popover highlights in KOReader's own yellow until another colour is chosen", async () => {
+  await aBookWithASelection();
+
+  await expect.element(theColorChoice()).toHaveTextContent('Yellow');
+  expect(toolbarButtonNames()).toEqual(['Highlight', 'Extend', 'Cancel']);
+});
+
+test('the dropdown offers the nine colours KOReader knows', async () => {
+  await aBookWithASelection();
+
+  await theColorChoice().click();
+
+  await expect.poll(colorOptions).toEqual(KOREADER_COLORS);
+});
+
+/**
+ * The dropdown keeps focus off itself for a pointer, which is what keeps the
+ * selection drawn; a reader who has tabbed to it gets the menu MUI gives
+ * everyone -- open on Enter, walk it with the arrows, Escape to leave it.
+ */
+test('the dropdown opens, walks and closes from the keyboard', async () => {
+  await aBookWithASelection();
+  (theColorChoice().element() as HTMLElement).focus();
+
+  await userEvent.keyboard('{Enter}');
+  await expect.poll(colorOptions).toEqual(KOREADER_COLORS);
+  await userEvent.keyboard('{ArrowDown}{ArrowDown}{Enter}');
+
+  await expect.element(theColorChoice()).toHaveTextContent('Red');
+  // Polled rather than read: the menu takes its closing transition to go.
+  await expect.poll(() => colorOptions().length).toBe(0);
+
+  await userEvent.keyboard('{Enter}');
+  await expect.poll(colorOptions).toEqual(KOREADER_COLORS);
+  await userEvent.keyboard('{Escape}');
+
+  await expect.poll(() => colorOptions().length).toBe(0);
+});
+
+test('choosing a colour marks it without making a highlight', async () => {
+  const { handlers, bodies } = highlightCreationApi([{ status: 500, delayMs: 300 }]);
+  worker.use(...handlers);
+  await aBookWithASelection();
+
+  await chooseColor('Green');
+
+  await expect.element(theColorChoice()).toHaveTextContent('Green');
+  await sleep(100);
+  expect(bodies).toEqual([]);
+  expect(standIns()).toEqual([]);
+  expect(readers[0].clearSelectionCalls).toBe(0);
+  await expect.element(theSelectionToolbar()).toBeVisible();
+});
+
+test('choosing a colour leaves focus where it was and the selection where it is', async () => {
+  const screen = await aBookWithASelection();
+  const focused = screen.getByRole('button', { name: 'Close reader' }).element() as HTMLElement;
+  focused.focus();
+
+  await chooseColor('Green');
+
+  expect(document.activeElement).toBe(focused);
+  expect(readers[0].clearSelectionCalls).toBe(0);
+});
+
+const standInTints = () => standIns().map((decoration) => decoration.tint);
+
+test('Highlight stores the passage in the chosen colour and draws it in that hue', async () => {
+  const { handlers, bodies } = highlightCreationApi([{ status: 500, delayMs: 300 }]);
+  worker.use(...handlers);
+  await aBookWithASelection();
+  await chooseColor('Green');
+
+  await pressHighlight();
+
+  expect(readers[0].clearSelectionCalls).toBe(1);
+  await expect.poll(standInTints).toEqual(['#10B981']);
+  await expect.poll(() => bodies.length).toBe(1);
+  expect(bodies[0].device_color).toBe('green');
+});
+
+test('choosing a colour stores it as the one to offer next', async () => {
+  await aBookWithASelection();
+
+  await chooseColor('Green');
+
+  expect(storedPreferences()?.highlightColor).toBe('green');
+});
+
+/**
+ * The colour is stored beside the appearance without being part of one, and the
+ * engine reflows the whole book for any appearance it is handed again.
+ */
+test('choosing a colour does not lay the book out again', async () => {
+  await aBookWithASelection();
+  const laidOutTimes = readers[0].appearances.length;
+
+  await chooseColor('Green');
+
+  await expect.element(theColorChoice()).toHaveTextContent('Green');
+  expect(readers[0].appearances).toHaveLength(laidOutTimes);
+});
+
+test('the colour left in storage is the one the popover highlights in', async () => {
+  const { handlers, bodies } = highlightCreationApi([{ status: 500, delayMs: 300 }]);
+  worker.use(...handlers);
+  seedPreferences({ ...A_STORED_APPEARANCE, highlightColor: 'blue' });
+  await aBookWithASelection();
+  await expect.element(theColorChoice()).toHaveTextContent('Blue');
+
+  await pressHighlight();
+
+  await expect.poll(() => bodies.length).toBe(1);
+  expect(bodies[0].device_color).toBe('blue');
+});
+
+test('a colour the book has labelled wears the label', async () => {
+  const { handlers, bodies } = highlightCreationApi([{ status: 500, delayMs: 300 }]);
+  worker.use(
+    ...handlers,
+    bookLabels({
+      device_color: 'yellow',
+      device_style: 'lighten',
+      label: 'Important',
+      ui_color: '#ff0000',
+    })
+  );
+  await aBookWithASelection();
+  await expect.element(theColorChoice()).toHaveTextContent('Important');
+  await theColorChoice().click();
+  await expect.poll(colorOptions).toEqual(['Important', ...KOREADER_COLORS.slice(1)]);
+
+  await page.getByRole('option', { name: 'Important' }).click();
+  await pressHighlight();
+
+  await expect.poll(standInTints).toEqual(['#ff0000']);
+  await expect.poll(() => bodies.length).toBe(1);
+  expect(bodies[0].device_color).toBe('yellow');
+});
+
+test("a label on another drawer of a colour is not that colour's", async () => {
+  worker.use(
+    bookLabels(
+      { device_color: 'yellow', device_style: 'underscore', label: 'Vocabulary' },
+      // Its own colour's label, so the list is known to have arrived.
+      { device_color: 'blue', device_style: 'lighten', label: 'Later' }
+    )
+  );
+  await aBookWithASelection();
+
+  await theColorChoice().click();
+
+  await expect
+    .poll(colorOptions)
+    .toEqual(KOREADER_COLORS.map((name) => (name === 'Blue' ? 'Later' : name)));
+});
+
+/** About as long a label as a reader types, and far longer than the row is wide. */
+const A_LONG_LABEL = 'Worth coming back to on a second reading';
+
+/** Words a narrow screen has room for, so only the row's own width is in question. */
+const A_NARROW_SELECTION = { ...A_SELECTION, rect: { x: 40, y: 300, width: 120, height: 20 } };
+
+test('a label longer than the row keeps the popover inside a narrow phone', async () => {
+  worker.use(
+    ...readiumApi(),
+    bookLabels({ device_color: 'yellow', device_style: 'lighten', label: A_LONG_LABEL })
+  );
+  await page.viewport(NARROW_VIEWPORT.width, NARROW_VIEWPORT.height);
+  await anOpenBook();
+
+  readers[0].select(A_NARROW_SELECTION);
+
+  await expect.element(theColorChoice()).toHaveTextContent(A_LONG_LABEL);
+  await expect
+    .poll(() => theSelectionToolbar().element().getBoundingClientRect().right)
+    .toBeLessThanOrEqual(window.innerWidth);
+  expect(document.documentElement.scrollWidth).toBe(window.innerWidth);
 });
 
 test.each([
