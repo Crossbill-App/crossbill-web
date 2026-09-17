@@ -7,7 +7,7 @@ the same sentence twice, which is what makes an ambiguous quote observable.
 
 from datetime import UTC, datetime
 from pathlib import Path
-from typing import Any
+from typing import Any, TypedDict, Unpack
 
 import pytest
 from httpx import AsyncClient, Response
@@ -70,33 +70,48 @@ def selection(
     return {"href": href, "type": MEDIA_TYPE, "locations": locations, "text": text}
 
 
+class Fields(TypedDict, total=False):
+    note: str | None
+    highlight_style_id: int | None
+    device_color: str | None
+    device_style: str | None
+
+
 async def post(
     client: AsyncClient,
     book: models.Book,
     locator: dict[str, Any] | None = None,
-    note: str | None = None,
-    highlight_style_id: int | None = None,
+    **fields: Unpack[Fields],
 ) -> Response:
-    return await client.post(
-        url(book.id),
-        json={
-            "locator": locator if locator is not None else selection(),
-            "note": note,
-            "highlight_style_id": highlight_style_id,
-        },
-    )
+    body = {"locator": locator if locator is not None else selection(), **fields}
+    return await client.post(url(book.id), json=body)
 
 
 async def created(
     client: AsyncClient,
     book: models.Book,
     locator: dict[str, Any] | None = None,
-    note: str | None = None,
-    highlight_style_id: int | None = None,
+    **fields: Unpack[Fields],
 ) -> dict[str, Any]:
-    response = await post(client, book, locator, note, highlight_style_id)
+    response = await post(client, book, locator, **fields)
     assert response.status_code == status.HTTP_201_CREATED, response.text
     return response.json()
+
+
+async def stored_styles(db_session: AsyncSession, book: models.Book) -> list[models.HighlightStyle]:
+    rows = await db_session.execute(
+        select(models.HighlightStyle)
+        .filter_by(book_id=book.id)
+        .order_by(models.HighlightStyle.id)
+        .execution_options(populate_existing=True)
+    )
+    return list(rows.scalars().all())
+
+
+async def book_labels(client: AsyncClient, book: models.Book) -> list[dict[str, Any]]:
+    response = await client.get(f"/api/v1/books/{book.id}/highlight-labels")
+    assert response.status_code == status.HTTP_200_OK, response.text
+    return response.json()["items"]
 
 
 async def stored_highlights(db_session: AsyncSession, book: models.Book) -> list[models.Highlight]:
@@ -244,6 +259,130 @@ async def test_another_books_label_is_not_one_this_book_can_be_filed_under(
 
     assert response.status_code == status.HTTP_404_NOT_FOUND, response.text
     assert await stored_highlights(db_session, readable_book) == []
+
+
+async def test_a_colour_is_filed_under_the_books_style_for_it_created_on_the_spot(
+    client: AsyncClient, db_session: AsyncSession, readable_book: models.Book
+) -> None:
+    body = await created(client, readable_book, device_color="yellow")
+
+    assert body["highlight_style_id"] is not None
+    styles = await stored_styles(db_session, readable_book)
+    assert len(styles) == 1
+    assert (styles[0].device_color, styles[0].device_style) == ("yellow", "lighten")
+    assert styles[0].id == body["highlight_style_id"]
+
+    labels = await book_labels(client, readable_book)
+    assert len(labels) == 1
+    assert labels[0]["device_color"] == "yellow"
+    assert labels[0]["device_style"] == "lighten"
+    assert labels[0]["highlight_count"] == 1
+
+
+async def test_a_colour_the_book_already_has_a_style_for_is_filed_under_that_one(
+    client: AsyncClient,
+    db_session: AsyncSession,
+    test_user: models.User,
+    readable_book: models.Book,
+) -> None:
+    style = await create_test_highlight_style(
+        db_session,
+        user_id=test_user.id,
+        book_id=readable_book.id,
+        device_color="yellow",
+        device_style="lighten",
+    )
+
+    body = await created(client, readable_book, device_color="yellow")
+
+    assert body["highlight_style_id"] == style.id
+    assert len(await stored_styles(db_session, readable_book)) == 1
+
+
+async def test_a_drawer_sent_with_the_colour_is_what_the_style_is_created_for(
+    client: AsyncClient, db_session: AsyncSession, readable_book: models.Book
+) -> None:
+    body = await created(client, readable_book, device_color="yellow", device_style="underscore")
+
+    styles = await stored_styles(db_session, readable_book)
+    assert len(styles) == 1
+    assert (styles[0].device_color, styles[0].device_style) == ("yellow", "underscore")
+    assert styles[0].id == body["highlight_style_id"]
+
+
+async def test_a_global_label_for_the_colour_names_the_style_the_colour_creates(
+    client: AsyncClient,
+    db_session: AsyncSession,
+    test_user: models.User,
+    readable_book: models.Book,
+) -> None:
+    await create_test_highlight_style(
+        db_session,
+        user_id=test_user.id,
+        book_id=None,
+        device_color="yellow",
+        device_style=None,
+        label="Important",
+    )
+
+    body = await created(client, readable_book, device_color="yellow")
+
+    labels = await book_labels(client, readable_book)
+    assert len(labels) == 1
+    assert labels[0]["id"] == body["highlight_style_id"]
+    assert labels[0]["label"] == "Important"
+    assert labels[0]["label_source"] == "global"
+
+
+async def test_a_duplicate_passage_sent_with_a_colour_creates_no_style(
+    client: AsyncClient,
+    db_session: AsyncSession,
+    test_user: models.User,
+    readable_book: models.Book,
+) -> None:
+    stored = await create_test_highlight(
+        db_session,
+        book=readable_book,
+        user_id=test_user.id,
+        text=CH1_QUOTE,
+        datetime_str="2026-01-01 10:00:00",
+    )
+
+    response = await post(client, readable_book, device_color="yellow")
+
+    assert response.status_code == status.HTTP_200_OK, response.text
+    assert response.json()["id"] == stored.id
+    assert await stored_styles(db_session, readable_book) == []
+
+
+@pytest.mark.parametrize(
+    "fields",
+    [
+        {"highlight_style_id": 1, "device_color": "yellow"},
+        {"device_style": "lighten"},
+        {"device_color": "  "},
+        {"device_color": "yellow", "device_style": "  "},
+    ],
+)
+async def test_a_colour_that_names_no_single_style_is_refused(
+    client: AsyncClient, db_session: AsyncSession, readable_book: models.Book, fields: Fields
+) -> None:
+    response = await post(client, readable_book, **fields)
+
+    assert response.status_code == status.HTTP_422_UNPROCESSABLE_ENTITY, response.text
+    assert await stored_highlights(db_session, readable_book) == []
+    assert await stored_styles(db_session, readable_book) == []
+
+
+async def test_a_selection_refused_with_a_colour_leaves_no_style_behind(
+    client: AsyncClient, db_session: AsyncSession, readable_book: models.Book
+) -> None:
+    response = await post(
+        client, readable_book, selection(CH1_HREF, "Words from another book"), device_color="yellow"
+    )
+
+    assert response.status_code == status.HTTP_422_UNPROCESSABLE_ENTITY, response.text
+    assert await stored_styles(db_session, readable_book) == []
 
 
 async def test_the_same_passage_marked_twice_stays_one_highlight(

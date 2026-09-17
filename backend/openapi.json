@@ -1015,7 +1015,7 @@
           "highlights"
         ],
         "summary": "Create Highlight",
-        "description": "Store a passage the reader selected in the browser.\n\nThe selection is converted to the canonical KOReader xpointers before anything\nis stored (ADR-0004 \u00a72) and refused with 422 if the book does not hold the\nselected text, or holds it in so many places that which one was meant cannot be\nsaid. What is stored is an ordinary highlight, so it reaches the e-reader\nthrough the sync that already exists and shows up in every view that renders\none.\n\nThe same passage marked twice is one highlight: a selection whose text the book\nalready holds answers **200** with the stored highlight instead of 201, and one\nthe reader had deleted comes back rather than being stored again. That stored\nhighlight may sit at another occurrence of the same words, so a reader that\nneeds to draw it should ask ``GET /highlights/{id}/locator`` where it is rather\nthan assume it is where this selection was.",
+        "description": "Store a passage the reader selected in the browser.\n\nThe selection is converted to the canonical KOReader xpointers before anything\nis stored (ADR-0004 \u00a72) and refused with 422 if the book does not hold the\nselected text, or holds it in so many places that which one was meant cannot be\nsaid. What is stored is an ordinary highlight, so it reaches the e-reader\nthrough the sync that already exists and shows up in every view that renders\none.\n\nThe same passage marked twice is one highlight: a selection whose text the book\nalready holds answers **200** with the stored highlight instead of 201, and one\nthe reader had deleted comes back rather than being stored again. That stored\nhighlight may sit at another occurrence of the same words, so a reader that\nneeds to draw it should ask ``GET /highlights/{id}/locator`` where it is rather\nthan assume it is where this selection was.\n\nA selection may name a ``device_color`` in place of a label, and is then filed\nunder the book's style for that colour and drawer -- created if the book has\nnone yet -- the way the e-reader's own highlights are.",
         "operationId": "create_highlight",
         "security": [
           {
@@ -10087,6 +10087,34 @@
             ],
             "title": "Highlight Style Id",
             "description": "The label to file this highlight under -- one of the book's own, as `GET /books/{book_id}/highlight-labels` lists them."
+          },
+          "device_color": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 50,
+                "minLength": 1
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Device Color",
+            "description": "A KOReader colour name, such as `yellow`. A highlight in this colour is filed under the book's style for that colour and drawer, created if the book has none yet, the way the e-reader's own highlights are."
+          },
+          "device_style": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 50,
+                "minLength": 1
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Device Style",
+            "description": "The drawer the colour is drawn with. Sent alongside `device_color`, and defaults to KOReader's `lighten` when it is omitted."
           }
         },
         "type": "object",

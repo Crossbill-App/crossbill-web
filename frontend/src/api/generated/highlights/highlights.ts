@@ -409,6 +409,10 @@ export function useSearchBookHighlights<
  * highlight may sit at another occurrence of the same words, so a reader that
  * needs to draw it should ask ``GET /highlights/{id}/locator`` where it is rather
  * than assume it is where this selection was.
+ *
+ * A selection may name a ``device_color`` in place of a label, and is then filed
+ * under the book's style for that colour and drawer -- created if the book has
+ * none yet -- the way the e-reader's own highlights are.
  * @summary Create Highlight
  */
 export const createHighlight = (
