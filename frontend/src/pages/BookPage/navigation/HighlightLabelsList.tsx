@@ -1,8 +1,9 @@
 import { useGetBookHighlightLabels } from '@/api/generated/highlight-labels/highlight-labels.ts';
 import type { HighlightLabelInBook } from '@/api/generated/model';
+import { LabelChip } from '@/components/highlights/LabelChip.tsx';
 import { PaletteIcon } from '@/theme/Icons.tsx';
-import { DEFAULT_LABEL_COLOR, getContrastColor } from '@/utils/colorUtils.ts';
-import { Box, Chip } from '@mui/material';
+import { DEFAULT_LABEL_COLOR } from '@/utils/colorUtils.ts';
+import { Box } from '@mui/material';
 
 import { SidebarSectionHeader } from './SidebarSectionHeader.tsx';
 
@@ -23,56 +24,6 @@ const getLabelDisplayName = (label: HighlightLabelInBook): string => {
 
 const getLabelColor = (label: HighlightLabelInBook): string => {
   return label.ui_color || DEFAULT_LABEL_COLOR;
-};
-
-const LabelChip = ({
-  label,
-  isSelected,
-  onClick,
-}: {
-  label: HighlightLabelInBook;
-  isSelected: boolean;
-  onClick: () => void;
-}) => {
-  const color = getLabelColor(label);
-  const displayName = getLabelDisplayName(label);
-  const chipLabel = `${displayName} (${label.highlight_count})`;
-
-  return (
-    <Chip
-      label={
-        <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75 }}>
-          <Box
-            sx={{
-              width: 8,
-              height: 8,
-              borderRadius: '50%',
-              backgroundColor: color,
-              flexShrink: 0,
-            }}
-          />
-          <span>{chipLabel}</span>
-        </Box>
-      }
-      variant={isSelected ? 'filled' : 'outlined'}
-      onClick={onClick}
-      // The one chip that keeps its own colour when selected: it is the
-      // colour the highlight was made in on the device.
-      sx={
-        isSelected
-          ? {
-              backgroundColor: color,
-              color: getContrastColor(color),
-              '&:hover': {
-                backgroundColor: color,
-                opacity: 0.85,
-                transform: 'translateY(-1px)',
-              },
-            }
-          : undefined
-      }
-    />
-  );
 };
 
 export const HighlightLabelsList = ({
@@ -100,7 +51,9 @@ export const HighlightLabelsList = ({
         {labels.map((label) => (
           <LabelChip
             key={label.id}
-            label={label}
+            name={getLabelDisplayName(label)}
+            color={getLabelColor(label)}
+            count={label.highlight_count}
             isSelected={selectedLabelId === label.id}
             onClick={() => onLabelClick(selectedLabelId === label.id ? null : label.id)}
           />
