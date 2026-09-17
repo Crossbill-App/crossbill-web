@@ -261,9 +261,9 @@ def readers_today(day: date) -> Iterator[None]:
 async def create_test_highlight_style(
     db_session: AsyncSession,
     user_id: int,
-    book_id: int,
+    book_id: int | None,
     device_color: str = "gray",
-    device_style: str = "lighten",
+    device_style: str | None = "lighten",
     label: str | None = None,
     ui_color: str | None = None,
 ) -> HighlightStyleModel:

@@ -7,10 +7,15 @@ the highlight, and there is no second copy of it to disagree.
 """
 
 from datetime import datetime as dt
+from typing import Annotated
 
-from pydantic import BaseModel, Field, model_validator
+from pydantic import BaseModel, Field, StringConstraints, model_validator
 
+from src.domain.reading.entities.highlight_style import KOREADER_DEFAULT_DRAWER
 from src.infrastructure.web_reader.schemas.reading_position_schemas import BrowserLocatorSchema
+
+# As wide as the column the value is stored in.
+DeviceField = Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=50)]
 
 
 class SelectionHighlightCreate(BaseModel):
@@ -45,6 +50,37 @@ class SelectionHighlightCreate(BaseModel):
             "`GET /books/{book_id}/highlight-labels` lists them."
         ),
     )
+    device_color: DeviceField | None = Field(
+        None,
+        description=(
+            "A KOReader colour name, such as `yellow`. A highlight in this colour is "
+            "filed under the book's style for that colour and drawer, created if the "
+            "book has none yet, the way the e-reader's own highlights are."
+        ),
+    )
+    device_style: DeviceField | None = Field(
+        None,
+        description=(
+            "The drawer the colour is drawn with. Sent alongside `device_color`, and "
+            f"defaults to KOReader's `{KOREADER_DEFAULT_DRAWER}` when it is omitted."
+        ),
+    )
+
+    @model_validator(mode="after")
+    def require_one_label(self) -> "SelectionHighlightCreate":
+        """Refuse a body naming both a label and a colour, or a drawer with no colour.
+
+        Here rather than in the use case so that a colour reaching it is already one
+        style to file under, with nothing left to decide between.
+        """
+        if self.highlight_style_id is not None and self.device_color is not None:
+            raise ValueError(
+                "highlight_style_id and device_color are exclusive: "
+                "a highlight is filed under one label"
+            )
+        if self.device_style is not None and self.device_color is None:
+            raise ValueError("device_style needs the device_color it draws")
+        return self
 
     @model_validator(mode="after")
     def require_selected_text(self) -> "SelectionHighlightCreate":

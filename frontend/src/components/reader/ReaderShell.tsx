@@ -1,4 +1,5 @@
 import { useGetBookDetails } from '@/api/generated/books/books.ts';
+import { useGetBookHighlightLabels } from '@/api/generated/highlight-labels/highlight-labels.ts';
 import { isAnyDialogOpen } from '@/components/dialogs/dialogStack.ts';
 import { manifestUrl } from '@/components/reader/api/readiumUrls.ts';
 import { ExtensionBar } from '@/components/reader/chrome/ExtensionBar.tsx';
@@ -13,6 +14,7 @@ import {
   heldPassageDecoration,
   highlightIdFrom,
 } from '@/components/reader/highlights/decorations.ts';
+import { paletteFor } from '@/components/reader/highlights/highlightPalette.ts';
 import { useHighlightCreation } from '@/components/reader/highlights/useHighlightCreation.ts';
 import { useHighlightDecorations } from '@/components/reader/highlights/useHighlightDecorations.ts';
 import { useSelectionWorkflow } from '@/components/reader/highlights/useSelectionWorkflow.ts';
@@ -79,15 +81,26 @@ export const ReaderShell = ({
     () => details?.chapters.flatMap((chapter) => chapter.highlights),
     [details]
   );
+  const { data: labels } = useGetBookHighlightLabels(bookId);
+  const palette = paletteFor(labels?.items ?? []);
   const host = useRef<HTMLDivElement | null>(null);
   const [isTocOpen, setIsTocOpen] = useState(false);
   const [preferences, setPreferences] = useReaderPreferences();
+  // Never undefined: the palette is the nine colours, and a stored colour
+  // outside them is read back as the default.
+  const selectedColor =
+    palette.find((color) => color.device_color === preferences.highlightColor) ?? palette[0];
   const [appearanceAnchor, setAppearanceAnchor] = useState<Element | null>(null);
   const theme = useTheme();
   const pageColors = readerPageColors(theme, preferences.pageColor);
-  // A new object every render would submit the same appearance to the engine
-  // again on every render, which is not a cost the engine skips.
-  const appearance = useMemo(() => toEbookAppearance(theme, preferences), [theme, preferences]);
+  // A new object submits the same appearance to the engine again, which reflows
+  // the book rather than costing nothing. Keyed on the fields an appearance is
+  // made of, so the highlight colour stored beside them buys no reflow.
+  const { pageColor, fontSize, spacing, alignment, columns } = preferences;
+  const appearance = useMemo(
+    () => toEbookAppearance(theme, { pageColor, fontSize, spacing, alignment, columns }),
+    [theme, pageColor, fontSize, spacing, alignment, columns]
+  );
   const { seed, moved } = useReadingPositionWriter(bookId, { writeDebounceMs, heartbeatMs });
   // Latched, so that nothing done to the address after the book opens can move it.
   const [jump] = useState(target ?? null);
@@ -251,7 +264,10 @@ export const ReaderShell = ({
 
       <SelectionPopover
         rect={book.selection?.rect ?? null}
-        onHighlight={workflow.highlight}
+        palette={palette}
+        selected={selectedColor}
+        onSelect={(color) => setPreferences({ ...preferences, highlightColor: color.device_color })}
+        onHighlight={() => workflow.highlight(selectedColor)}
         onExtend={workflow.extend}
         onCancel={book.clearSelection}
       />

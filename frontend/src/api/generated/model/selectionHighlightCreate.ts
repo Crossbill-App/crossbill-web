@@ -21,4 +21,8 @@ export interface SelectionHighlightCreate {
   note?: string | null;
   /** The label to file this highlight under -- one of the book's own, as `GET /books/{book_id}/highlight-labels` lists them. */
   highlight_style_id?: number | null;
+  /** A KOReader colour name, such as `yellow`. A highlight in this colour is filed under the book's style for that colour and drawer, created if the book has none yet, the way the e-reader's own highlights are. */
+  device_color?: string | null;
+  /** The drawer the colour is drawn with. Sent alongside `device_color`, and defaults to KOReader's `lighten` when it is omitted. */
+  device_style?: string | null;
 }
