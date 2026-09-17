@@ -9,12 +9,22 @@ const ReaderLinkButton = createLink(IconButton);
 export interface OpenInReaderButtonProps {
   bookId: number;
   highlightId?: number;
+  chapterId?: number;
   size?: IconButtonProps['size'];
   sx?: IconButtonProps['sx'];
 }
 
-/** Opens the book in the reader, at a highlight when given one; nothing while already reading it. */
-export const OpenInReaderButton = ({ bookId, highlightId, size, sx }: OpenInReaderButtonProps) => {
+/**
+ * Opens the book in the reader, at a highlight or a chapter when given one;
+ * nothing while already reading it.
+ */
+export const OpenInReaderButton = ({
+  bookId,
+  highlightId,
+  chapterId,
+  size,
+  sx,
+}: OpenInReaderButtonProps) => {
   // Selected down to the book id, so a list of these does not re-render on every search change.
   const readingBookId = useMatch({
     from: '/book_/$bookId/read',
@@ -24,13 +34,15 @@ export const OpenInReaderButton = ({ bookId, highlightId, size, sx }: OpenInRead
 
   if (readingBookId === String(bookId)) return null;
 
+  const label = chapterId === undefined ? 'Open in reader' : 'Open chapter in reader';
+
   return (
-    <Tooltip title="Open in reader">
+    <Tooltip title={label}>
       <ReaderLinkButton
         to="/book/$bookId/read"
         params={{ bookId: String(bookId) }}
-        search={{ highlightId }}
-        aria-label="Open in reader"
+        search={{ highlightId, chapterId }}
+        aria-label={label}
         size={size}
         sx={sx}
       >

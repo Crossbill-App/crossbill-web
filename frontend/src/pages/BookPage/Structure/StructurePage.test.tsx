@@ -365,6 +365,16 @@ test('the chapter dialog offers a copy-link, with or without AI', async () => {
   expect(dialog.getByRole('button', { name: /Generate summary/ }).elements()).toHaveLength(0);
 });
 
+test('the chapter dialog offers the reader, opened at the chapter', async () => {
+  worker.use(...bookApi({ book: aStructuredBook() }).handlers);
+
+  const screen = await renderApp({ path: '/book/1/structure?chapterId=11' });
+
+  await expect
+    .element(screen.getByRole('dialog').getByRole('link', { name: 'Open chapter in reader' }))
+    .toHaveAttribute('href', '/book/1/read?chapterId=11');
+});
+
 /**
  * The tab used to return its empty message *instead of* the header, so a book
  * with no chapter structure lost its title, its search field and the digest
