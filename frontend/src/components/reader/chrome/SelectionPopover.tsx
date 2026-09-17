@@ -1,15 +1,31 @@
-import { LabelChip } from '@/components/highlights/LabelChip.tsx';
+import { ColorDot } from '@/components/highlights/ColorDot.tsx';
 import type { EbookRect } from '@/components/reader/engine/EbookReader.ts';
 import type { HighlightColor } from '@/components/reader/highlights/highlightPalette.ts';
-import { Box, Button, Paper, Popper, Stack, useMediaQuery, useTheme } from '@mui/material';
+import {
+  Box,
+  Button,
+  MenuItem,
+  Paper,
+  Popper,
+  Select,
+  Stack,
+  useMediaQuery,
+  useTheme,
+  type SelectProps,
+} from '@mui/material';
+import { useState } from 'react';
 
 export interface SelectionPopoverProps {
   /** Where the selected words sit on screen, `null` when nothing is selected. */
   rect: EbookRect | null;
-  /** The colours a highlight can be made in, offered one tap each. */
+  /** The colours a highlight can be made in. */
   palette: HighlightColor[];
-  /** A colour makes the highlight in it; none makes an unlabelled one. */
-  onHighlight: (color?: HighlightColor) => void;
+  /** The colour Highlight will use. */
+  selected: HighlightColor;
+  /** Marks a colour as the one to highlight in, storing nothing. */
+  onSelect: (color: HighlightColor) => void;
+  /** Lets go of the selection and stores the passage in the selected colour. */
+  onHighlight: () => void;
   /** Carries the selection on to a word tapped later, over as many pages as it takes. */
   onExtend: () => void;
   onCancel: () => void;
@@ -22,39 +38,100 @@ const GAP_PX = 8;
 // and its arrow -- and offers no way to place it or ask where it went.
 const PHONE_GAP_PX = 60;
 
-// Narrow enough that the nine colours wrap into rows rather than one long strip
-// reaching past the edge of a phone, which has no way to scroll a popper.
-const MAX_WIDTH_PX = 320;
+// Wide enough for the nine colours' own names; a book's own label for one can be
+// any length, and past this it is the name that gives way rather than the row,
+// which on a phone has no room to spare.
+const COLOR_WIDTH_PX = 140;
+
+const keepFocus = (event: { preventDefault: () => void }) => event.preventDefault();
+
+// Open, the menu leaves focus where it found it too: `autoFocus: false` keeps the
+// list from moving focus into itself, `disableAutoFocus: true` the modal under it.
+const MENU_LEAVES_FOCUS_ALONE: SelectProps['MenuProps'] = {
+  autoFocus: false,
+  disableAutoFocus: true,
+  // For a real browser rather than the tests: there, pressing an option focuses
+  // it, and focus off the book's frame is the selection gone.
+  slotProps: { paper: { onMouseDown: keepFocus } },
+};
+
+/** One colour as the dropdown says it: its hue, then the name the book gives it. */
+const ColorChoice = ({ color }: { color: HighlightColor }) => (
+  <Stack direction="row" spacing={0.75} sx={{ alignItems: 'center', minWidth: 0 }}>
+    <ColorDot color={color.tint} />
+    <Box component="span" sx={{ overflow: 'hidden', textOverflow: 'ellipsis' }}>
+      {color.name}
+    </Box>
+  </Stack>
+);
 
 type SelectionActionsProps = Omit<SelectionPopoverProps, 'rect'>;
 
-const SelectionActions = ({ palette, onHighlight, onExtend, onCancel }: SelectionActionsProps) => (
-  // Never takes focus: away from the book's frame, the browser stops showing the selection.
-  <Paper
-    elevation={8}
-    onMouseDown={(event) => event.preventDefault()}
-    sx={{ p: 0.5, maxWidth: MAX_WIDTH_PX }}
-  >
-    <Stack role="toolbar" aria-label="Selected text" spacing={0.5}>
-      <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
-        {palette.map((color) => (
-          <LabelChip
-            key={color.device_color}
-            name={color.name}
-            color={color.tint}
-            size="small"
-            onClick={() => onHighlight(color)}
-          />
-        ))}
-      </Box>
-      <Stack direction="row" spacing={0.5}>
-        <Button onClick={() => onHighlight()}>Highlight</Button>
-        <Button onClick={onExtend}>Extend</Button>
-        <Button onClick={onCancel}>Cancel</Button>
+const SelectionActions = ({
+  palette,
+  selected,
+  onSelect,
+  onHighlight,
+  onExtend,
+  onCancel,
+}: SelectionActionsProps) => {
+  // Held here because the dropdown is opened from a mousedown of our own; the
+  // Select's own one focuses the dropdown before opening it.
+  const [isChoosingColor, setIsChoosingColor] = useState(false);
+  // Once the reader has tabbed to the dropdown, focus has already left the book's
+  // frame: there is no selection left to protect, so the menu may take focus as usual.
+  const [openedByPointer, setOpenedByPointer] = useState(false);
+
+  return (
+    // Never takes focus: away from the book's frame, the browser stops showing the selection.
+    <Paper elevation={8} onMouseDown={keepFocus} sx={{ maxWidth: 'calc(100vw - 16px)', p: 0.5 }}>
+      <Stack role="toolbar" aria-label="Selected text" direction="row" spacing={0.5}>
+        <Select
+          size="small"
+          sx={{ maxWidth: COLOR_WIDTH_PX, minWidth: 0 }}
+          value={selected.device_color}
+          // MUI puts this on the display element, which is what carries the
+          // combobox role; `slotProps.htmlInput` would label the hidden input.
+          inputProps={{ 'aria-label': 'Highlight colour' }}
+          MenuProps={openedByPointer ? MENU_LEAVES_FOCUS_ALONE : undefined}
+          open={isChoosingColor}
+          // Only the keyboard arrives here: the mousedown below opens the menu itself.
+          onOpen={() => {
+            setOpenedByPointer(false);
+            setIsChoosingColor(true);
+          }}
+          onClose={() => setIsChoosingColor(false)}
+          SelectDisplayProps={{
+            onMouseDown: (event) => {
+              keepFocus(event);
+              setOpenedByPointer(true);
+              setIsChoosingColor(true);
+            },
+          }}
+        >
+          {palette.map((color) => (
+            <MenuItem
+              key={color.device_color}
+              value={color.device_color}
+              onClick={() => onSelect(color)}
+            >
+              <ColorChoice color={color} />
+            </MenuItem>
+          ))}
+        </Select>
+        <Button size="small" onClick={onHighlight}>
+          Highlight
+        </Button>
+        <Button size="small" onClick={onExtend}>
+          Extend
+        </Button>
+        <Button size="small" onClick={onCancel}>
+          Cancel
+        </Button>
       </Stack>
-    </Stack>
-  </Paper>
-);
+    </Paper>
+  );
+};
 
 /** What can be done with the words selected in the book, below the rectangle they fill. */
 export const SelectionPopover = ({ rect, ...actions }: SelectionPopoverProps) => {

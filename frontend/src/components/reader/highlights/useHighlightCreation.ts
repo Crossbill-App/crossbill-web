@@ -39,7 +39,7 @@ const withLocator = (
 export interface HighlightCreation {
   /** Passages drawn at once for highlights the server has not yet stored. */
   standIns: EbookDecoration[];
-  create: (location: EbookLocation, color?: HighlightColor) => void;
+  create: (location: EbookLocation, color: HighlightColor) => void;
 }
 
 /** Highlights made from selections in one book, each drawn before the server has answered. */
@@ -66,16 +66,16 @@ export const useHighlightCreation = (bookId: number): HighlightCreation => {
     }
   };
 
-  const create = (location: EbookLocation, color?: HighlightColor) => {
+  const create = (location: EbookLocation, color: HighlightColor) => {
     sequence.current += 1;
-    const standIn = standInDecoration(sequence.current, location, color?.tint);
+    const standIn = standInDecoration(sequence.current, location, color.tint);
     setStandIns((current) => [...current, standIn]);
 
     void (async () => {
       try {
         const created = await createHighlight(bookId, {
           locator: location,
-          device_color: color?.device_color,
+          device_color: color.device_color,
         });
         await placeLocator(created.id);
         // Awaited so the stand-in stays until the saved highlight can be drawn.

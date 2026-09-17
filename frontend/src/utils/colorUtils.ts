@@ -44,3 +44,8 @@ export const LABEL_COLORS: readonly ColorOption[] = [
   { value: DEFAULT_LABEL_COLOR, name: 'Gray', device_color: 'gray' },
   { value: '#475569', name: 'Slate' },
 ];
+
+/** The names KOReader stores for the nine colours it offers. */
+export const DEVICE_COLORS: readonly string[] = LABEL_COLORS.flatMap(
+  (option) => option.device_color ?? []
+);

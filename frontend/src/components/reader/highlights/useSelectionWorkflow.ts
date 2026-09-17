@@ -18,8 +18,8 @@ export interface SelectionWorkflow {
   /** Drawn by the reader itself: a passage the browser has stopped showing as selected
    * would otherwise sit under the popover with nothing marking its words. */
   heldPassage: EbookLocation | null;
-  /** Lets go of the selection and stores the passage it covered. */
-  highlight: (color?: HighlightColor) => void;
+  /** Lets go of the selection and stores the passage it covered, in this colour. */
+  highlight: (color: HighlightColor) => void;
   /** Asks the engine to carry the passage over to a tap yet to come. */
   extend: () => void;
   /** Lets the engine forget where the passage started. */
@@ -40,7 +40,7 @@ export const useSelectionWorkflow = (
     if (book.selection) setIsExtending(false);
   });
 
-  const highlight = (color?: HighlightColor) => {
+  const highlight = (color: HighlightColor) => {
     const location = book.selection?.location;
     book.clearSelection();
     if (location) creation.create(location, color);

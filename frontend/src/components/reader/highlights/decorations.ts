@@ -21,7 +21,7 @@ export const highlightIdFrom = (decorationId: string): number | null => {
 export const standInDecoration = (
   sequence: number,
   location: EbookLocation,
-  tint = DEFAULT_LABEL_COLOR
+  tint: string
 ): EbookDecoration => ({
   id: `selection-${sequence}`,
   location,

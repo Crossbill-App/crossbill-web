@@ -6,6 +6,7 @@ import {
   READER_SPACINGS,
   type ReaderPreferences,
 } from '@/components/reader/preferences/readerPreferences.ts';
+import { DEVICE_COLORS } from '@/utils/colorUtils.ts';
 
 /** Where the reader's appearance is remembered: one key for the whole library. */
 export const READER_PREFERENCES_KEY = 'crossbill.reader.preferences';
@@ -55,6 +56,11 @@ export const loadReaderPreferences = (): ReaderPreferences => {
     spacing: offered(READER_SPACINGS, stored.spacing, DEFAULT_READER_PREFERENCES.spacing),
     alignment: offered(READER_ALIGNMENTS, stored.alignment, DEFAULT_READER_PREFERENCES.alignment),
     columns: offered(READER_COLUMNS, stored.columns, DEFAULT_READER_PREFERENCES.columns),
+    highlightColor: offered(
+      DEVICE_COLORS,
+      stored.highlightColor,
+      DEFAULT_READER_PREFERENCES.highlightColor
+    ),
   };
 };
 
