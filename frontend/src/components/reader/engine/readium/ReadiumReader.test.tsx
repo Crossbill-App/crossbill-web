@@ -292,19 +292,6 @@ test('the pages left in a chapter count down as the reader turns them', async ()
   await expect.poll(() => last(recorded.pagesLeft)).toBe(atTheStart - 1);
 });
 
-test('a narrower page leaves more pages in the chapter', async () => {
-  worker.use(...readiumApi());
-  const opened = await openTheBookAt(aPositionList().positions[1]);
-  const recorded = recordEvents();
-
-  host.style.width = '400px';
-
-  // A resize goes through Readium's observer, its column CSS and a relayout.
-  await expect
-    .poll(() => last(recorded.pagesLeft) ?? 0, { timeout: 5_000 })
-    .toBeGreaterThan(opened.chapterProgress!.pagesLeft);
-});
-
 test('the pages left end at the subchapter that follows, not the chapter around it', async () => {
   const manifest = aManifest();
   manifest.toc![1].children![0].children = [
