@@ -75,6 +75,18 @@ export interface EbookTocEntry {
   children: EbookTocEntry[];
 }
 
+/**
+ * How much of the chapter is left, in screen pages at the current size and font.
+ *
+ * A chapter runs from a resource the contents link to up to the next one, so
+ * sections inside one file count toward the chapter that file starts, and
+ * whatever comes before the first linked resource is a chapter of its own.
+ */
+export interface EbookChapterProgress {
+  /** Page turns to the chapter's last page; 0 on it. */
+  pagesLeft: number;
+}
+
 /** What a book says about itself once it is on screen. */
 export interface OpenedEbook {
   pageCount: number;
@@ -82,6 +94,8 @@ export interface OpenedEbook {
   /** The contents entry the book opened at, or null where none covers it. */
   tocHref: string | null;
   location: EbookLocation;
+  /** Null for a book with no position list. */
+  chapterProgress: EbookChapterProgress | null;
   /** Whether the place asked for named a resource this publication has; `'start'`
    * says the book opened at its beginning instead, and is what an apology hangs on. */
   landedAt: 'requested' | 'start';
@@ -159,5 +173,7 @@ export interface EbookReader {
   onPageTurnRequested(listener: (direction: PageTurnDirection) => void): () => void;
   /** The reader has moved into a different contents entry; `OpenedEbook.tocHref` is the first. */
   onTocEntryChanged(listener: (href: string | null) => void): () => void;
+  /** A page turn or a reflow moved the reader; `OpenedEbook.chapterProgress` is the first. */
+  onChapterProgressChanged(listener: (progress: EbookChapterProgress | null) => void): () => void;
   destroy(): Promise<void>;
 }

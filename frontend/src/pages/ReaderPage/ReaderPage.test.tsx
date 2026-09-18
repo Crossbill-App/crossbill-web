@@ -67,14 +67,25 @@ const aReadableBook = () =>
 /** The book open at its first page, which is where every reading test starts. */
 const openTheBook = async () => {
   const screen = await renderApp({ path: '/book/1/read' });
-  await expect.element(screen.getByText('Page 1 of 2 · 0%')).toBeVisible();
+  await expect.element(screen.getByText('0%', { exact: true })).toBeVisible();
   return screen;
 };
 
-const expectPage = (screen: Screen, label: string) =>
-  expect.element(screen.getByText(label), { timeout: 5_000 }).toBeVisible();
+/** How far into the book the footer says the reader is: 0% on page 1 of 2, 50% on page 2. */
+const expectProgress = (screen: Screen, percent: string) =>
+  expect.element(screen.getByText(percent, { exact: true }), { timeout: 5_000 }).toBeVisible();
 
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+
+/**
+ * The book still on its first page. Settled rather than polled: a turn that got
+ * through would land a frame or two later, and an immediate assertion would pass
+ * while it was in flight.
+ */
+const expectNoPageTurn = async (screen: Screen) => {
+  await sleep(1_200);
+  await expectProgress(screen, '0%');
+};
 
 afterEach(async () => {
   // Unmounted here rather than by the global teardown: the reader writes where
@@ -169,10 +180,10 @@ test('the next button turns the page and the label follows', async () => {
   const screen = await openTheBook();
 
   await screen.getByRole('button', { name: 'Next page' }).click();
-  await expectPage(screen, 'Page 2 of 2 · 50%');
+  await expectProgress(screen, '50%');
 
   await screen.getByRole('button', { name: 'Previous page' }).click();
-  await expectPage(screen, 'Page 1 of 2 · 0%');
+  await expectProgress(screen, '0%');
 });
 
 test('the arrow keys turn the page', async () => {
@@ -182,10 +193,10 @@ test('the arrow keys turn the page', async () => {
   const screen = await openTheBook();
 
   await userEvent.keyboard('{ArrowRight}');
-  await expectPage(screen, 'Page 2 of 2 · 50%');
+  await expectProgress(screen, '50%');
 
   await userEvent.keyboard('{ArrowLeft}');
-  await expectPage(screen, 'Page 1 of 2 · 0%');
+  await expectProgress(screen, '0%');
 });
 
 test('an arrow key pressed before the book is on screen does not jam it', async () => {
@@ -204,9 +215,9 @@ test('an arrow key pressed before the book is on screen does not jam it', async 
   await expect.element(screen.getByLabelText('Loading the book')).toBeVisible();
   await userEvent.keyboard('{ArrowRight}');
 
-  await expectPage(screen, 'Page 1 of 2 · 0%');
+  await expectProgress(screen, '0%');
   await screen.getByRole('button', { name: 'Next page' }).click();
-  await expectPage(screen, 'Page 2 of 2 · 50%');
+  await expectProgress(screen, '50%');
 });
 
 test('a book with no EPUB explains there is nothing to read', async () => {
@@ -240,7 +251,7 @@ test('a book whose manifest cannot be read says so and offers a retry', async ()
   worker.use(...readiumApi());
   await screen.getByRole('button', { name: 'Try again' }).click();
 
-  await expectPage(screen, 'Page 1 of 2 · 0%');
+  await expectProgress(screen, '0%');
 });
 
 test('a lapsed session holds the book until it has been renewed', async () => {
@@ -316,7 +327,7 @@ test('the contents mark the chapter being read, and follow the reader out of it'
   await closeTheContents(screen);
 
   await screen.getByRole('button', { name: 'Next page' }).click();
-  await expectPage(screen, 'Page 2 of 2 · 50%');
+  await expectProgress(screen, '50%');
 
   const reopened = await openTheContents(screen);
   await expect
@@ -395,10 +406,7 @@ test('an arrow key with the contents open does not turn the page behind them', a
 
   await userEvent.keyboard('{ArrowRight}');
 
-  // Settled rather than polled: a turn that got through would land a frame or
-  // two later, and an immediate assertion would pass while it was in flight.
-  await new Promise((resolve) => setTimeout(resolve, 1_200));
-  await expect.element(screen.getByText('Page 1 of 2 · 0%')).toBeVisible();
+  await expectNoPageTurn(screen);
 });
 
 const openTheAppearance = async (screen: Screen) => {
@@ -446,7 +454,7 @@ test('the dark page is painted into the book and into the chrome around it', asy
   // Both read before the popover covers them: a role query skips the modal's
   // aria-hidden siblings.
   const frame = readerFrame(screen);
-  const label = screen.getByText('Page 1 of 2 · 0%').element();
+  const label = screen.getByText('0%', { exact: true }).element();
   const { dark } = theme.customColors.readerPage;
   await openTheAppearance(screen);
 
@@ -515,8 +523,7 @@ test('an arrow key with the appearance open does not turn the page behind it', a
 
   await userEvent.keyboard('{ArrowRight}');
 
-  await new Promise((resolve) => setTimeout(resolve, 1_200));
-  await expect.element(screen.getByText('Page 1 of 2 · 0%')).toBeVisible();
+  await expectNoPageTurn(screen);
 });
 
 test('a larger font size reaches the words on the page', async () => {
@@ -533,8 +540,7 @@ test('an arrow key typed into the font size does not turn the page', async () =>
   await screen.getByRole('textbox', { name: 'Font size in percent' }).click();
   await userEvent.keyboard('{ArrowRight}');
 
-  await new Promise((resolve) => setTimeout(resolve, 1_200));
-  await expect.element(screen.getByText('Page 1 of 2 · 0%')).toBeVisible();
+  await expectNoPageTurn(screen);
 });
 
 test('pressing the setting already chosen leaves it chosen', async () => {
@@ -638,7 +644,7 @@ const aBookRecordingPositions = async () => {
 /** A page read and the reader closed again, well inside the write debounce. */
 const readAPageAndLeave = async (screen: Screen) => {
   await screen.getByRole('button', { name: 'Next page' }).click();
-  await expectPage(screen, 'Page 2 of 2 · 50%');
+  await expectProgress(screen, '50%');
 
   await screen.getByRole('button', { name: 'Close reader' }).click();
   await expect.element(screen.getByRole('heading', { name: 'Ada Lovelace' })).toBeVisible();
@@ -653,7 +659,7 @@ test(
     expect(writes).toHaveLength(0);
 
     await screen.getByRole('button', { name: 'Next page' }).click();
-    await expectPage(screen, 'Page 2 of 2 · 50%');
+    await expectProgress(screen, '50%');
 
     await expect.poll(() => writes.length, { timeout: 15_000 }).toBe(1);
     expect(writes[0].locator.href).toBe('resources/OEBPS/chapter2.xhtml');
@@ -703,16 +709,16 @@ const aBookResumingAt = async (stored: ResumePositionResponse, positions?: Posit
 
 /**
  * The reader half-way through the second chapter, on a list that numbers that
- * chapter in three. Against `aPositionList` the head of the chapter and the
- * middle of it are both "Page 2 of 2", so a landing that lost its progression
- * would read the same as one that kept it.
+ * chapter in three: 50% rather than the 25% its head is at. Against
+ * `aPositionList` the head of the chapter and the middle of it are both 50%, so
+ * a landing that lost its progression would read the same as one that kept it.
  */
 const expectHalfwayThroughChapterTwo = (screen: Screen) =>
-  expect.element(screen.getByText(/^Page 3 of 4/), { timeout: 10_000 }).toBeVisible();
+  expect.element(screen.getByText('50%', { exact: true }), { timeout: 10_000 }).toBeVisible();
 
 /** The reader somewhere in the second chapter, which is never where a book opens. */
 const expectChapterTwo = (screen: Screen) =>
-  expect.element(screen.getByText(/^Page 2 of 2/), { timeout: 10_000 }).toBeVisible();
+  expect.element(screen.getByText('50%', { exact: true }), { timeout: 10_000 }).toBeVisible();
 
 const expectTheApology = (screen: Screen) =>
   expect.element(screen.getByRole('alert').filter({ hasText: LOST_THE_BOOKMARK })).toBeVisible();
@@ -770,7 +776,7 @@ test('reading on within the restored position is still written', { timeout: 60_0
 test('a place that could not be found says so, and the book still opens', async () => {
   const { screen } = await aBookResumingAt({ ...nowhereToResume(), unresolved: true });
 
-  await expectPage(screen, 'Page 1 of 2 · 0%');
+  await expectProgress(screen, '0%');
   await expectTheApology(screen);
 });
 
@@ -785,7 +791,7 @@ test('a place in a chapter the book no longer has costs a bookmark, not the book
     })
   );
 
-  await expectPage(screen, 'Page 1 of 2 · 0%');
+  await expectProgress(screen, '0%');
   await expectTheApology(screen);
 });
 
@@ -799,7 +805,7 @@ test(
     worker.use(http.get(POSITION_PATH, () => HttpResponse.json(stored)));
 
     const screen = await renderApp({ path: '/book/1/read' });
-    await expectPage(screen, 'Page 1 of 4 · 0%');
+    await expectProgress(screen, '0%');
     await screen.getByRole('button', { name: 'Close reader' }).click();
     await expect.element(screen.getByRole('heading', { name: 'Ada Lovelace' })).toBeVisible();
 
@@ -842,15 +848,15 @@ test(
 test('a book nobody has read opens at the start and says nothing', async () => {
   const { screen } = await aBookResumingAt(nowhereToResume());
 
-  await expectPage(screen, 'Page 1 of 2 · 0%');
+  await expectProgress(screen, '0%');
   await expect.element(screen.getByRole('alert')).not.toBeInTheDocument();
 });
 
 test('coming back to the tab leaves the reader where they were reading', async () => {
   const { screen } = await aBookResumingAt(nowhereToResume());
-  await expectPage(screen, 'Page 1 of 2 · 0%');
+  await expectProgress(screen, '0%');
   await screen.getByRole('button', { name: 'Next page' }).click();
-  await expectPage(screen, 'Page 2 of 2 · 50%');
+  await expectProgress(screen, '50%');
 
   window.dispatchEvent(new Event('focus'));
   document.dispatchEvent(new Event('visibilitychange'));
@@ -858,7 +864,7 @@ test('coming back to the tab leaves the reader where they were reading', async (
   // Where a book opens is settled the moment it opens: an answer arriving a
   // second time must not put the reader back at the page they started from.
   await sleep(500);
-  await expectPage(screen, 'Page 2 of 2 · 50%');
+  await expectProgress(screen, '50%');
 });
 
 const PLACED_TEXT = 'Attention is the rarest and purest form of generosity.';
@@ -916,7 +922,7 @@ const aJumpToAnUnplacedHighlightIn = async (chapterName: string) => {
 test('a highlight that cannot be placed opens its chapter, and says so', async () => {
   const screen = await aJumpToAnUnplacedHighlightIn('On Memory');
 
-  await expectPage(screen, 'Page 2 of 2 · 50%');
+  await expectProgress(screen, '50%');
   await expect
     .element(
       screen.getByRole('alert').filter({
@@ -930,7 +936,7 @@ test('a highlight that cannot be placed opens its chapter, and says so', async (
 test('a highlight whose chapter is not in this edition opens at the start, and says so', async () => {
   const screen = await aJumpToAnUnplacedHighlightIn('On Forgetting');
 
-  await expectPage(screen, 'Page 1 of 2 · 0%');
+  await expectProgress(screen, '0%');
   await expect
     .element(
       screen.getByRole('alert').filter({
@@ -1055,8 +1061,7 @@ test('arrow keys page between highlights without turning the book underneath', a
   await userEvent.keyboard('{ArrowRight}');
 
   await expectTheDialogShowing(screen, UNPLACED_TEXT);
-  await sleep(1_200);
-  await expect.element(screen.getByText('Page 1 of 2 · 0%')).toBeVisible();
+  await expectNoPageTurn(screen);
 });
 
 test('an arrow key after paging to the last highlight does not turn the book underneath', async () => {
@@ -1070,8 +1075,7 @@ test('an arrow key after paging to the last highlight does not turn the book und
 
   await userEvent.keyboard('{ArrowRight}');
 
-  await sleep(1_200);
-  await expect.element(screen.getByText('Page 1 of 2 · 0%')).toBeVisible();
+  await expectNoPageTurn(screen);
 });
 
 test('deleting a highlight takes its mark off the page and fetches no locators again', async () => {
@@ -1100,7 +1104,7 @@ test('arrow keys turn the page again once the dialog is closed', async () => {
 
   await userEvent.keyboard('{ArrowRight}');
 
-  await expectPage(screen, 'Page 2 of 2 · 50%');
+  await expectProgress(screen, '50%');
 });
 
 test('arriving takes the highlight back out of the address', async () => {
@@ -1218,7 +1222,7 @@ test('a passage extended across a page turn is highlighted from its first words 
   const { screen, bodies } = await aBookThatStoresHighlights({ id: 400 });
   // The second chapter is the one long enough to run over several pages.
   await screen.getByRole('button', { name: 'Next page' }).click();
-  await expectPage(screen, 'Page 2 of 2 · 50%');
+  await expectProgress(screen, '50%');
   const chapter = visibleFrame(document)!.contentDocument!;
   const anchor = paragraphsOnThePage(chapter)[0];
   selectInBook(document, 'rarest and purest', anchor);

@@ -1,5 +1,6 @@
 import type {
   EbookAppearance,
+  EbookChapterProgress,
   EbookDecoration,
   EbookLocation,
   EbookReader,
@@ -9,11 +10,11 @@ import type {
   PageTurnDirection,
 } from '@/components/reader/engine/EbookReader.ts';
 
-/** A place in the two-chapter book the other fixtures describe. */
+/** A place in the two-chapter book the other fixtures describe: 0% into it on page 1, 50% on page 2. */
 export const aFakeLocation = (position: number): EbookLocation => ({
   href: `resources/OEBPS/chapter${position}.xhtml`,
   type: 'application/xhtml+xml',
-  locations: { position },
+  locations: { position, totalProgression: (position - 1) / 2 },
 });
 
 /** An `EbookReader` whose open the test settles and whose events the test fires. */
@@ -40,6 +41,9 @@ export class FakeEbookReader implements EbookReader {
   private readonly locationListeners = new Set<(location: EbookLocation) => void>();
   private readonly pageTurnListeners = new Set<(direction: PageTurnDirection) => void>();
   private readonly tocEntryListeners = new Set<(href: string | null) => void>();
+  private readonly chapterProgressListeners = new Set<
+    (progress: EbookChapterProgress | null) => void
+  >();
   private readonly decorationListeners = new Set<(id: string) => void>();
   private readonly selectionListeners = new Set<(selection: EbookSelection | null) => void>();
   private settle: ((opened: OpenedEbook) => void) | undefined;
@@ -69,6 +73,7 @@ export class FakeEbookReader implements EbookReader {
       toc: [],
       tocHref: null,
       location: aFakeLocation(1),
+      chapterProgress: null,
       landedAt: 'start',
       // Deliberately not the engine's own [0.7, 4], so a test about the
       // stepper's limits proves the range crossed the seam.
@@ -92,6 +97,10 @@ export class FakeEbookReader implements EbookReader {
 
   reportTocEntry(href: string | null): void {
     for (const listener of [...this.tocEntryListeners]) listener(href);
+  }
+
+  reportChapterProgress(progress: EbookChapterProgress | null): void {
+    for (const listener of [...this.chapterProgressListeners]) listener(progress);
   }
 
   activateDecoration(id: string): void {
@@ -174,6 +183,11 @@ export class FakeEbookReader implements EbookReader {
   onTocEntryChanged(listener: (href: string | null) => void): () => void {
     this.tocEntryListeners.add(listener);
     return () => this.tocEntryListeners.delete(listener);
+  }
+
+  onChapterProgressChanged(listener: (progress: EbookChapterProgress | null) => void): () => void {
+    this.chapterProgressListeners.add(listener);
+    return () => this.chapterProgressListeners.delete(listener);
   }
 
   destroy(): Promise<void> {

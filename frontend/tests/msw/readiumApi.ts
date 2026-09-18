@@ -20,13 +20,22 @@ const HIGHLIGHT_LOCATORS_PATH = '/api/v1/books/:bookId/highlight-locators';
 const HIGHLIGHT_LOCATOR_PATH = '/api/v1/highlights/:highlightId/locator';
 const HIGHLIGHTS_PATH = '/api/v1/books/:bookId/highlights';
 
+/** An anchor half-way through chapter two, for a contents entry to start a subchapter at. */
+export const CHAPTER_TWO_SECOND_HALF = 'second-half';
+
+const PARAGRAPH = 'Attention is the rarest and purest form of generosity.';
+
 /** A chapter as an EPUB actually ships one: XHTML, with its own namespace. */
-const chapterDocument = (title: string, paragraphs = 1) =>
+const chapterDocument = (title: string, paragraphs = 1, anchorAt?: number) =>
   `<?xml version="1.0" encoding="utf-8"?>
 <!DOCTYPE html>
 <html xmlns="http://www.w3.org/1999/xhtml">
   <head><title>${title}</title></head>
-  <body><h1>${title}</h1>${'<p>Attention is the rarest and purest form of generosity.</p>'.repeat(paragraphs)}</body>
+  <body><h1>${title}</h1>${Array.from(
+    { length: paragraphs },
+    (_, index) =>
+      `<p${index === anchorAt ? ` id="${CHAPTER_TWO_SECOND_HALF}"` : ''}>${PARAGRAPH}</p>`
+  ).join('')}</body>
 </html>`;
 
 /**
@@ -59,7 +68,7 @@ const RESOURCES: Record<string, { body: string; type: string } | undefined> = {
   // part-way through a chapter rather than only at the head of one. Safe for
   // every other test because nothing here turns more than one page into it.
   'OEBPS/chapter2.xhtml': {
-    body: chapterDocument('On Memory', 240),
+    body: chapterDocument('On Memory', 240, 120),
     type: 'application/xhtml+xml',
   },
   'OEBPS/style.css': { body: 'body { margin: 0; }', type: 'text/css' },

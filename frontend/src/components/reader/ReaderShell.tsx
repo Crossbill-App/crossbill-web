@@ -241,7 +241,11 @@ export const ReaderShell = ({
         }
       />
 
-      <ReaderFooter progression={book.location?.locations.totalProgression} colors={pageColors} />
+      <ReaderFooter
+        progression={book.location?.locations.totalProgression}
+        chapterProgress={book.chapterProgress}
+        colors={pageColors}
+      />
 
       <TocDrawer
         open={isTocOpen}
