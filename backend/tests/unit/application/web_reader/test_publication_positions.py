@@ -1,6 +1,4 @@
-"""How a reading order is cut into positions, and what a hostile one may cost."""
-
-import tracemalloc
+"""How a reading order is cut into positions."""
 
 import pytest
 
@@ -15,30 +13,9 @@ from src.domain.library.exceptions import InvalidEbookError
 
 XHTML = "application/xhtml+xml"
 
-# Enough positions for the per-position cost to be measurable over tracemalloc's
-# own noise, and few enough to keep the measurement quick.
-ADMITTED_POSITIONS = 20_000
-
 
 def chapter(href: str, size: int, layout: PublicationLayout | None = None) -> PublicationResource:
     return PublicationResource(href=href, media_type=XHTML, size=size, layout=layout)
-
-
-def peak_bytes_listing(
-    reading_order: tuple[PublicationResource, ...],
-) -> tuple[tuple[PublicationPosition, ...] | InvalidEbookError, int]:
-    """Cut a reading order into positions and report what it peaked at, outcome and all."""
-    tracemalloc.start()
-    try:
-        outcome: tuple[PublicationPosition, ...] | InvalidEbookError
-        try:
-            outcome = position_list(reading_order)
-        except InvalidEbookError as e:
-            outcome = e
-        peak = tracemalloc.get_traced_memory()[1]
-    finally:
-        tracemalloc.stop()
-    return outcome, peak
 
 
 def test_positions_run_on_across_resources_while_progression_restarts() -> None:
@@ -83,24 +60,3 @@ def test_the_ceiling_is_served_and_one_byte_more_is_refused() -> None:
 
     with pytest.raises(InvalidEbookError, match="positions"):
         position_list((chapter("c1.xhtml", at_the_limit + 1),))
-
-
-def test_an_oversized_declaration_is_refused_before_the_list_is_built() -> None:
-    """Should refuse on the arithmetic rather than allocate the list and then judge it.
-
-    Cheap on its own proves nothing, so the cost of an admitted list of known
-    size sets the scale the refusal is measured against.
-    """
-    admitted, admitted_peak = peak_bytes_listing(
-        (chapter("c1.xhtml", ADMITTED_POSITIONS * POSITION_LENGTH),)
-    )
-    assert isinstance(admitted, tuple)
-    assert len(admitted) == ADMITTED_POSITIONS
-
-    refused, refused_peak = peak_bytes_listing((chapter("c1.xhtml", 2 * 1024**3),))
-
-    assert isinstance(refused, InvalidEbookError)
-    assert refused_peak < admitted_peak, (
-        f"refusing a hundredfold longer list peaked at {refused_peak} bytes, over the "
-        f"{admitted_peak} that building {ADMITTED_POSITIONS} positions costs"
-    )

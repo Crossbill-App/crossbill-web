@@ -46,21 +46,11 @@ from src.domain.library.exceptions import InvalidEbookError
 # reads it cut the book the same way whoever wrote it did.
 POSITION_LENGTH = 1024
 
-# The most positions one publication may be cut into.
-#
-# This is the one web-reader response a small file can inflate for free:
-# everywhere else the bytes have to exist, while a position list is arithmetic
-# over sizes the archive merely *declares*. The upstream guard is
-# `MAX_PUBLICATION_UNCOMPRESSED_BYTES`
-# (2 GiB, `infrastructure/library/services/epub_publication_parser.py`), which
-# admits a publication declaring two million positions -- each of which becomes
-# a dataclass, then a Pydantic model, then a JSON object on the way out.
-#
-# The size is derived from the upload limit rather than picked. An EPUB arrives
-# as at most the 50 MiB `MAX_EBOOK_SIZE` an upload may be, and XHTML deflates at
-# roughly four to one, so four times the upload cap is a generous ceiling on the
-# markup an honest reading order can hold. For scale: the longest novel ever
-# published runs to about 4 MB of text, some four thousand positions.
+# The most positions one publication may be cut into. It also bounds the page
+# a browser may label a reading position with (ADR-0004), so it is a ceiling on
+# a sane book rather than a defence: four times the 50 MiB upload cap, XHTML
+# deflating at roughly four to one. The longest novel ever published runs to
+# about 4 MB of text, some four thousand positions.
 MAX_PUBLICATION_POSITIONS = 4 * 50 * 1024 * 1024 // POSITION_LENGTH
 
 
@@ -98,11 +88,6 @@ def position_list(reading_order: Sequence[PublicationResource]) -> tuple[Publica
     """
     counts = [_position_count(resource) for resource in reading_order]
     total = sum(counts)
-    # Counted before anything is built, which is the whole difference between a
-    # refusal and an outage: `counts` is one integer per reading-order item, so
-    # the sum is free, while the list it describes is an object per kilobyte of
-    # a book that may not exist. Judging the list after building it would pay
-    # the cost this exists to refuse.
     if total > MAX_PUBLICATION_POSITIONS:
         raise InvalidEbookError(
             f"declares {total} positions, over the {MAX_PUBLICATION_POSITIONS} limit",
