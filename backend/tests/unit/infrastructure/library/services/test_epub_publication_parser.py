@@ -6,10 +6,7 @@ once. A highlight cannot be anchored to a resource the index names differently.
 """
 
 import hashlib
-import io
 import logging
-import struct
-import tracemalloc
 import zipfile
 from io import BytesIO
 from pathlib import Path
@@ -23,7 +20,6 @@ from src.application.web_reader.publications import (
     TocEntry,
 )
 from src.domain.library.exceptions import InvalidEbookError
-from src.infrastructure.library.services import epub_publication_parser
 from src.infrastructure.library.services.epub_parser_service import EpubParserService
 from src.infrastructure.library.services.epub_publication_parser import read_publication
 from tests.epub_builders import (
@@ -45,13 +41,7 @@ CHAPTER_ITEM = '<item id="ch1" href="chapter1.xhtml" media-type="application/xht
 NCX_ITEM = '<item id="ncx" href="toc.ncx" media-type="application/x-dtbncx+xml"/>'
 CHAPTER_SPINE = '<itemref idref="ch1"/>'
 
-BOMB_SIZE = 64 * 1024 * 1024
-
 EOCD_SIGNATURE = b"PK\x05\x06"
-EOCD_ENTRY_COUNT_OFFSET = 10
-OVERFULL_ENTRIES = 70_000
-# Measured: `zipfile.ZipFile` peaks here building its `ZipInfo` per member.
-COST_OF_OPENING_OVERFULL = 38 * 1024**2
 
 
 def ncx_document(nav_points: str) -> str:
@@ -78,40 +68,13 @@ def epub_with_nav(nav: str) -> bytes:
     )
 
 
-def understating_its_last_member(content: bytes, declared: int) -> bytes:
-    """Rewrite the size the archive's final member declares, leaving what it holds.
-
-    Local header and central directory are patched alike, so no honest copy of
-    the number is left for the parse to prefer to the lie.
-    """
-    patched = bytearray(content)
-    for signature, offset in ((b"PK\x03\x04", 22), (b"PK\x01\x02", 24)):
-        struct.pack_into("<I", patched, patched.rfind(signature) + offset, declared)
-    return bytes(patched)
-
-
-def understating_its_entry_count(content: bytes, declared: int) -> bytes:
-    """Rewrite the total the End of Central Directory record states, leaving the entries."""
-    patched = bytearray(content)
-    struct.pack_into(
-        "<H", patched, patched.rfind(EOCD_SIGNATURE) + EOCD_ENTRY_COUNT_OFFSET, declared
-    )
-    return bytes(patched)
-
-
-def archive_of_empty_members(entries: int, comment: bytes = b"") -> bytes:
-    """Build a real zip of empty members, so the trailer under test is Python's, not ours."""
+def archive_of_empty_members(entries: int) -> bytes:
+    """Build a real zip of empty members, so the trailer under test is one Python wrote."""
     out = BytesIO()
     with zipfile.ZipFile(out, "w", zipfile.ZIP_STORED) as archive:
         for index in range(entries):
             archive.writestr(str(index), b"")
-        archive.comment = comment
     return out.getvalue()
-
-
-def declared_entry_count(content: bytes) -> int:
-    eocd = content.rfind(EOCD_SIGNATURE)
-    return int(struct.unpack_from("<H", content, eocd + EOCD_ENTRY_COUNT_OFFSET)[0])
 
 
 def hrefs(resources: tuple[PublicationResource, ...]) -> list[str]:
@@ -122,19 +85,9 @@ def layouts(resources: tuple[PublicationResource, ...]) -> list[PublicationLayou
     return [resource.layout for resource in resources]
 
 
-def peak_bytes_refusing(content: bytes, match: str | None = None) -> int:
-    """Refuse an archive and report what refusing it cost, in bytes."""
-    tracemalloc.start()
-    try:
-        with pytest.raises(InvalidEbookError, match=match):
-            read_publication(content)
-        return tracemalloc.get_traced_memory()[1]
-    finally:
-        tracemalloc.stop()
-
-
 class TestAnEpubBecomesAPublicationIndex:
-    """The ordinary book, read end to end through the service that publishes it."""
+    """The ordinary book, read end to end through the service that publishes it, and
+    the bytes that are not a book at all."""
 
     def test_a_real_epub_resolves_to_its_reading_order_resources_and_metadata(self) -> None:
         # Sizes come from the archive rather than the package document, which
@@ -163,6 +116,18 @@ class TestAnEpubBecomesAPublicationIndex:
     def test_bytes_that_are_not_an_archive_at_all_are_not_a_readable_epub(self) -> None:
         with pytest.raises(InvalidEbookError):
             read_publication(b"not a zip")
+
+    def test_an_archive_with_no_trailer_at_all_is_refused_by_the_archive_reader(self) -> None:
+        content = archive_of_empty_members(3)
+
+        with pytest.raises(InvalidEbookError, match="File is not a zip file"):
+            read_publication(content[: content.rfind(EOCD_SIGNATURE)])
+
+    def test_a_trailer_cut_off_mid_record_is_refused_rather_than_crashing(self) -> None:
+        content = archive_of_empty_members(3)
+
+        with pytest.raises(InvalidEbookError):
+            read_publication(content[: content.rfind(EOCD_SIGNATURE) + 8])
 
     def test_an_archive_without_a_container_is_refused_by_the_member_it_lacks(self) -> None:
         out = BytesIO()
@@ -500,104 +465,6 @@ class TestAReadingOrderItemCarriesTheLayoutThePublicationStates:
         )
 
 
-class TestAStructuralDocumentCostsWhatItDeclares:
-    """The package document is the one member the parse cannot skip."""
-
-    def test_a_package_document_over_the_cap_is_refused(
-        self, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
-        content = build_epub(
-            '<item id="ch1" href="chapter1.xhtml" media-type="application/xhtml+xml"/>',
-            '<itemref idref="ch1"/>',
-            files=("chapter1.xhtml",),
-            extra_metadata=f"<dc:description>{'padding ' * 200}</dc:description>",
-        )
-        monkeypatch.setattr(epub_publication_parser, "MAX_STRUCTURAL_DOCUMENT_BYTES", 1000)
-
-        with pytest.raises(InvalidEbookError):
-            read_publication(content)
-
-    def test_a_package_document_that_understates_its_size_is_not_inflated(self) -> None:
-        # The cap alone cannot do this: a member declaring eight bytes passes it
-        # and then costs the 64 MiB anyway, because ``ZipFile.read()`` truncates
-        # its result to the declaration and hands the decompressor no limit.
-        content = self._epub_understating_its_package(b"A" * BOMB_SIZE, declared=8)
-        assert len(content) < 1024 * 1024, "the archive itself should be small"
-
-        peak = peak_bytes_refusing(content)
-
-        assert peak < BOMB_SIZE // 8, f"inflated the member: {peak / 1024**2:.0f} MiB"
-
-    @staticmethod
-    def _epub_understating_its_package(body: bytes, declared: int) -> bytes:
-        out = io.BytesIO()
-        with zipfile.ZipFile(out, "w", zipfile.ZIP_DEFLATED) as archive:
-            archive.writestr("META-INF/container.xml", container_xml())
-            archive.writestr("content.opf", body)
-        return understating_its_last_member(out.getvalue(), declared)
-
-
-class TestAnArchiveDeclaresAShapeABookCouldHave:
-    """The entry count and the uncompressed total, which the upload limit cannot see.
-
-    The count is read from the archive's trailer by hand, so an archive over the
-    limit is refused without ``ZipFile`` ever building the directory it declares.
-    """
-
-    def test_an_archive_declaring_more_entries_than_a_book_holds_is_refused_unopened(self) -> None:
-        content = archive_of_empty_members(OVERFULL_ENTRIES)
-        assert len(content) < 8 * 1024**2, "the archive itself should be small"
-        # Past 65,535 the trailer can only hold 0xFFFF, which is over the limit
-        # on its own, so the ZIP64 record holding the real total is never read.
-        assert declared_entry_count(content) == 0xFFFF, "no sentinel to refuse"
-
-        peak = peak_bytes_refusing(content, match="declares 65535 entries")
-
-        assert peak < COST_OF_OPENING_OVERFULL // 32, (
-            f"opened the archive: {peak / 1024**2:.1f} MiB of the "
-            f"{COST_OF_OPENING_OVERFULL / 1024**2:.0f} MiB opening it costs"
-        )
-
-    def test_a_count_behind_a_trailing_archive_comment_is_still_found(self) -> None:
-        content = archive_of_empty_members(10_001, comment=b"x" * 3000)
-
-        with pytest.raises(InvalidEbookError, match="declares 10001 entries"):
-            read_publication(content)
-
-    def test_an_archive_understating_its_entry_count_is_refused_once_it_is_open(self) -> None:
-        content = understating_its_entry_count(archive_of_empty_members(10_001), declared=1)
-        assert declared_entry_count(content) == 1, "the trailer should tell the lie under test"
-
-        with pytest.raises(InvalidEbookError, match="holds 10001 entries"):
-            read_publication(content)
-
-    def test_an_archive_with_no_trailer_at_all_is_refused_by_the_archive_reader(self) -> None:
-        content = archive_of_empty_members(3)
-
-        with pytest.raises(InvalidEbookError, match="File is not a zip file"):
-            read_publication(content[: content.rfind(EOCD_SIGNATURE)])
-
-    def test_a_trailer_cut_off_mid_record_is_refused_rather_than_crashing(self) -> None:
-        content = archive_of_empty_members(3)
-
-        with pytest.raises(InvalidEbookError):
-            read_publication(content[: content.rfind(EOCD_SIGNATURE) + 8])
-
-    def test_a_declared_uncompressed_total_over_the_ceiling_is_refused(
-        self, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
-        content = build_epub(CHAPTER_ITEM, CHAPTER_SPINE, files=("chapter1.xhtml",))
-        with zipfile.ZipFile(BytesIO(content)) as archive:
-            sizes = [entry.file_size for entry in archive.infolist()]
-        # Between the largest member and the total, so it is what the archive adds
-        # up to that is over the ceiling rather than any one member of it.
-        ceiling = (max(sizes) + sum(sizes)) // 2
-        monkeypatch.setattr(epub_publication_parser, "MAX_PUBLICATION_UNCOMPRESSED_BYTES", ceiling)
-
-        with pytest.raises(InvalidEbookError, match="uncompressed bytes"):
-            read_publication(content)
-
-
 class TestAPublicationCarriesTheTableOfContentsItStates:
     """The navigation document, or the NCX behind it, read into nested entries."""
 
@@ -881,18 +748,3 @@ class TestNavigationThatCannotBeReadCostsTheTableOfContentsAlone:
         assert publication.toc == ()
         assert hrefs(publication.reading_order) == ["chapter1.xhtml"]
         assert hrefs(publication.resources) == []
-
-    def test_a_navigation_document_that_understates_its_size_is_refused_uninflated(self) -> None:
-        # Degrading past this one would mean paying for the bomb first: the
-        # member is read before anything can tell that it is unparseable.
-        out = io.BytesIO(
-            build_epub(f"{CHAPTER_ITEM}{NAV_ITEM}", CHAPTER_SPINE, files=("chapter1.xhtml",))
-        )
-        with zipfile.ZipFile(out, "a", zipfile.ZIP_DEFLATED) as archive:
-            archive.writestr("nav.xhtml", b"A" * BOMB_SIZE)
-        content = understating_its_last_member(out.getvalue(), declared=8)
-        assert len(content) < 1024 * 1024, "the archive itself should be small"
-
-        peak = peak_bytes_refusing(content)
-
-        assert peak < BOMB_SIZE // 8, f"inflated the member: {peak / 1024**2:.0f} MiB"
