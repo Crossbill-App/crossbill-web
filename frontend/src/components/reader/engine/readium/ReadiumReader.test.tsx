@@ -299,8 +299,9 @@ test('a narrower page leaves more pages in the chapter', async () => {
 
   host.style.width = '400px';
 
+  // A resize goes through Readium's observer, its column CSS and a relayout.
   await expect
-    .poll(() => last(recorded.pagesLeft) ?? 0)
+    .poll(() => last(recorded.pagesLeft) ?? 0, { timeout: 5_000 })
     .toBeGreaterThan(opened.chapterProgress!.pagesLeft);
 });
 
