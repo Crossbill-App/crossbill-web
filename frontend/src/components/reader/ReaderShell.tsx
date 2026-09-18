@@ -3,6 +3,7 @@ import { useGetBookHighlightLabels } from '@/api/generated/highlight-labels/high
 import { isAnyDialogOpen } from '@/components/dialogs/dialogStack.ts';
 import { manifestUrl } from '@/components/reader/api/readiumUrls.ts';
 import { ExtensionBar } from '@/components/reader/chrome/ExtensionBar.tsx';
+import { ReaderFooter } from '@/components/reader/chrome/ReaderFooter.tsx';
 import { ReaderMessage } from '@/components/reader/chrome/ReaderMessage.tsx';
 import { overlaySx } from '@/components/reader/chrome/readerOverlay.ts';
 import { ReaderToolbar } from '@/components/reader/chrome/ReaderToolbar.tsx';
@@ -202,7 +203,6 @@ export const ReaderShell = ({
   }
 
   const isOpen = book.status === 'open';
-  const position = book.location?.locations.position;
 
   const goToTocEntry = (entry: EbookTocEntry) => {
     setIsTocOpen(false);
@@ -220,9 +220,6 @@ export const ReaderShell = ({
     >
       <ReaderToolbar
         title={title}
-        page={position}
-        pageCount={book.pageCount}
-        progression={book.location?.locations.totalProgression}
         isOpen={isOpen}
         colors={pageColors}
         onOpenContents={() => setIsTocOpen(true)}
@@ -243,6 +240,8 @@ export const ReaderShell = ({
           )
         }
       />
+
+      <ReaderFooter progression={book.location?.locations.totalProgression} colors={pageColors} />
 
       <TocDrawer
         open={isTocOpen}
