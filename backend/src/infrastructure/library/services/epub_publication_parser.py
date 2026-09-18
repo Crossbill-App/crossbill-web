@@ -5,7 +5,6 @@
 import logging
 import mimetypes
 import posixpath
-import struct
 import zipfile
 from collections.abc import Callable, Iterable, Mapping
 from io import BytesIO
@@ -56,20 +55,9 @@ _LAYOUT_BY_ITEMREF_PROPERTY = {
     "rendition:layout-reflowable": PublicationLayout.REFLOWABLE,
 }
 
-# The upload limit bounds only the compressed bytes, so these bound the shape an
-# archive declares. Both sit far above any real book, illustrated ones included.
-MAX_PUBLICATION_ENTRIES = 10_000
-MAX_PUBLICATION_UNCOMPRESSED_BYTES = 2 * 1024**3
-
 # A package document lists one item per archive member, so at a generous 200
 # bytes an item even a ten-thousand-file book writes about 2 MB of one.
 MAX_STRUCTURAL_DOCUMENT_BYTES = 16 * 1024 * 1024
-
-# Offsets into the End of Central Directory record, from APPNOTE.TXT 4.3.16.
-_EOCD_SIGNATURE = b"PK\x05\x06"
-_EOCD_SIZE = 22
-_EOCD_ENTRY_COUNT_OFFSET = 10
-_EOCD_MAX_COMMENT = 0xFFFF
 
 
 class _ManifestItem(NamedTuple):
@@ -103,14 +91,12 @@ def read_publication(epub_content: bytes) -> ParsedPublication:
     """Resolve an EPUB into its reading order, resources, table of contents and metadata.
 
     Raises:
-        InvalidEbookError: If the archive declares a shape no book has, the bytes
-            are not a readable EPUB, its package document is missing, oversized or
-            unparseable, or its spine names nothing the publication contains.
+        InvalidEbookError: If the bytes are not a readable EPUB, its package
+            document is missing, oversized or unparseable, or its spine names
+            nothing the publication contains.
     """
-    _reject_overfull_archive(epub_content)
     try:
         with zipfile.ZipFile(BytesIO(epub_content)) as archive:
-            _reject_oversized_archive(archive)
             package = _read_package_document(archive)
             toc = _read_navigation(archive, package)
             sizes = {entry.filename: entry.file_size for entry in archive.infolist()}
@@ -152,45 +138,6 @@ def read_publication(epub_content: bytes) -> ParsedPublication:
         toc=toc,
         content_hash=epub_content_hash(epub_content),
     )
-
-
-def _declared_entry_count(epub_content: bytes) -> int | None:
-    # Refuses an archive that admits to being overfull without paying for its
-    # directory. One that understates the count is caught after opening instead.
-    tail_start = max(0, len(epub_content) - (_EOCD_SIZE + _EOCD_MAX_COMMENT))
-    eocd = epub_content.rfind(_EOCD_SIGNATURE, tail_start)
-    if eocd < 0 or eocd + _EOCD_SIZE > len(epub_content):
-        return None
-    # 0xFFFF, the sentinel for a count only ZIP64 holds, is itself over the limit.
-    (count,) = struct.unpack_from("<H", epub_content, eocd + _EOCD_ENTRY_COUNT_OFFSET)
-    return count
-
-
-def _reject_overfull_archive(epub_content: bytes) -> None:
-    declared = _declared_entry_count(epub_content)
-    if declared is not None and declared > MAX_PUBLICATION_ENTRIES:
-        raise InvalidEbookError(
-            f"declares {declared} entries, over the {MAX_PUBLICATION_ENTRIES} limit", "epub"
-        )
-
-
-def _reject_oversized_archive(archive: zipfile.ZipFile) -> None:
-    entries = archive.infolist()
-    # A count the record understated would otherwise slip past the check made
-    # before the archive was opened.
-    if len(entries) > MAX_PUBLICATION_ENTRIES:
-        raise InvalidEbookError(
-            f"holds {len(entries)} entries, over the {MAX_PUBLICATION_ENTRIES} limit", "epub"
-        )
-    # A sanity check rather than a decompression limit: the sizes are attacker-
-    # controlled, so it only turns away what *claims* to expand to tens of gigabytes.
-    declared_bytes = sum(entry.file_size for entry in entries)
-    if declared_bytes > MAX_PUBLICATION_UNCOMPRESSED_BYTES:
-        raise InvalidEbookError(
-            f"declares {declared_bytes} uncompressed bytes, over the "
-            f"{MAX_PUBLICATION_UNCOMPRESSED_BYTES} limit",
-            "epub",
-        )
 
 
 def _read_package_document(archive: zipfile.ZipFile) -> _PackageDocument:
