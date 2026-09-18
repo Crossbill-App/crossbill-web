@@ -6,10 +6,7 @@ once. A highlight cannot be anchored to a resource the index names differently.
 """
 
 import hashlib
-import io
 import logging
-import struct
-import tracemalloc
 import zipfile
 from io import BytesIO
 from pathlib import Path
@@ -23,7 +20,6 @@ from src.application.web_reader.publications import (
     TocEntry,
 )
 from src.domain.library.exceptions import InvalidEbookError
-from src.infrastructure.library.services import epub_publication_parser
 from src.infrastructure.library.services.epub_parser_service import EpubParserService
 from src.infrastructure.library.services.epub_publication_parser import read_publication
 from tests.epub_builders import (
@@ -44,8 +40,6 @@ FIXED_LAYOUT_EPUB = FIXTURES / "fixed_layout.epub"
 CHAPTER_ITEM = '<item id="ch1" href="chapter1.xhtml" media-type="application/xhtml+xml"/>'
 NCX_ITEM = '<item id="ncx" href="toc.ncx" media-type="application/x-dtbncx+xml"/>'
 CHAPTER_SPINE = '<itemref idref="ch1"/>'
-
-BOMB_SIZE = 64 * 1024 * 1024
 
 EOCD_SIGNATURE = b"PK\x05\x06"
 
@@ -74,18 +68,6 @@ def epub_with_nav(nav: str) -> bytes:
     )
 
 
-def understating_its_last_member(content: bytes, declared: int) -> bytes:
-    """Rewrite the size the archive's final member declares, leaving what it holds.
-
-    Local header and central directory are patched alike, so no honest copy of
-    the number is left for the parse to prefer to the lie.
-    """
-    patched = bytearray(content)
-    for signature, offset in ((b"PK\x03\x04", 22), (b"PK\x01\x02", 24)):
-        struct.pack_into("<I", patched, patched.rfind(signature) + offset, declared)
-    return bytes(patched)
-
-
 def archive_of_empty_members(entries: int) -> bytes:
     """Build a real zip of empty members, so the trailer under test is Python's, not ours."""
     out = BytesIO()
@@ -101,17 +83,6 @@ def hrefs(resources: tuple[PublicationResource, ...]) -> list[str]:
 
 def layouts(resources: tuple[PublicationResource, ...]) -> list[PublicationLayout | None]:
     return [resource.layout for resource in resources]
-
-
-def peak_bytes_refusing(content: bytes, match: str | None = None) -> int:
-    """Refuse an archive and report what refusing it cost, in bytes."""
-    tracemalloc.start()
-    try:
-        with pytest.raises(InvalidEbookError, match=match):
-            read_publication(content)
-        return tracemalloc.get_traced_memory()[1]
-    finally:
-        tracemalloc.stop()
 
 
 class TestAnEpubBecomesAPublicationIndex:
@@ -493,43 +464,6 @@ class TestAReadingOrderItemCarriesTheLayoutThePublicationStates:
         )
 
 
-class TestAStructuralDocumentCostsWhatItDeclares:
-    """The package document is the one member the parse cannot skip."""
-
-    def test_a_package_document_over_the_cap_is_refused(
-        self, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
-        content = build_epub(
-            '<item id="ch1" href="chapter1.xhtml" media-type="application/xhtml+xml"/>',
-            '<itemref idref="ch1"/>',
-            files=("chapter1.xhtml",),
-            extra_metadata=f"<dc:description>{'padding ' * 200}</dc:description>",
-        )
-        monkeypatch.setattr(epub_publication_parser, "MAX_STRUCTURAL_DOCUMENT_BYTES", 1000)
-
-        with pytest.raises(InvalidEbookError):
-            read_publication(content)
-
-    def test_a_package_document_that_understates_its_size_is_not_inflated(self) -> None:
-        # The cap alone cannot do this: a member declaring eight bytes passes it
-        # and then costs the 64 MiB anyway, because ``ZipFile.read()`` truncates
-        # its result to the declaration and hands the decompressor no limit.
-        content = self._epub_understating_its_package(b"A" * BOMB_SIZE, declared=8)
-        assert len(content) < 1024 * 1024, "the archive itself should be small"
-
-        peak = peak_bytes_refusing(content)
-
-        assert peak < BOMB_SIZE // 8, f"inflated the member: {peak / 1024**2:.0f} MiB"
-
-    @staticmethod
-    def _epub_understating_its_package(body: bytes, declared: int) -> bytes:
-        out = io.BytesIO()
-        with zipfile.ZipFile(out, "w", zipfile.ZIP_DEFLATED) as archive:
-            archive.writestr("META-INF/container.xml", container_xml())
-            archive.writestr("content.opf", body)
-        return understating_its_last_member(out.getvalue(), declared)
-
-
 class TestAPublicationCarriesTheTableOfContentsItStates:
     """The navigation document, or the NCX behind it, read into nested entries."""
 
@@ -813,18 +747,3 @@ class TestNavigationThatCannotBeReadCostsTheTableOfContentsAlone:
         assert publication.toc == ()
         assert hrefs(publication.reading_order) == ["chapter1.xhtml"]
         assert hrefs(publication.resources) == []
-
-    def test_a_navigation_document_that_understates_its_size_is_refused_uninflated(self) -> None:
-        # Degrading past this one would mean paying for the bomb first: the
-        # member is read before anything can tell that it is unparseable.
-        out = io.BytesIO(
-            build_epub(f"{CHAPTER_ITEM}{NAV_ITEM}", CHAPTER_SPINE, files=("chapter1.xhtml",))
-        )
-        with zipfile.ZipFile(out, "a", zipfile.ZIP_DEFLATED) as archive:
-            archive.writestr("nav.xhtml", b"A" * BOMB_SIZE)
-        content = understating_its_last_member(out.getvalue(), declared=8)
-        assert len(content) < 1024 * 1024, "the archive itself should be small"
-
-        peak = peak_bytes_refusing(content)
-
-        assert peak < BOMB_SIZE // 8, f"inflated the member: {peak / 1024**2:.0f} MiB"

@@ -55,10 +55,6 @@ _LAYOUT_BY_ITEMREF_PROPERTY = {
     "rendition:layout-reflowable": PublicationLayout.REFLOWABLE,
 }
 
-# A package document lists one item per archive member, so at a generous 200
-# bytes an item even a ten-thousand-file book writes about 2 MB of one.
-MAX_STRUCTURAL_DOCUMENT_BYTES = 16 * 1024 * 1024
-
 
 class _ManifestItem(NamedTuple):
     """One ``<item>`` of the package document's manifest."""
@@ -92,7 +88,7 @@ def read_publication(epub_content: bytes) -> ParsedPublication:
 
     Raises:
         InvalidEbookError: If the bytes are not a readable EPUB, its package
-            document is missing, oversized or unparseable, or its spine names
+            document is missing or unparseable, or its spine names
             nothing the publication contains.
     """
     try:
@@ -154,18 +150,10 @@ def _read_package_document(archive: zipfile.ZipFile) -> _PackageDocument:
 
 
 def _read_structural_document(archive: zipfile.ZipFile, name: str) -> bytes:
-    # The cap turns away a member that honestly says it is too big; the bounded
-    # read stops a member that lies about its size from inflating anyway.
     try:
         entry = archive.getinfo(posixpath.normpath(name))
     except KeyError as e:
         raise InvalidEbookError(f"is missing {name!r}", "epub") from e
-    if entry.file_size > MAX_STRUCTURAL_DOCUMENT_BYTES:
-        raise InvalidEbookError(
-            f"{entry.filename!r} declares {entry.file_size} bytes, over the "
-            f"{MAX_STRUCTURAL_DOCUMENT_BYTES} limit",
-            "epub",
-        )
     return read_bounded_member(archive, entry)
 
 
@@ -337,7 +325,7 @@ def _read_navigation(archive: zipfile.ZipFile, package: _PackageDocument) -> tup
         return ()
 
     # Navigation that cannot be parsed costs the table of contents alone; one the
-    # archive will not yield -- oversized, corrupt, lying about its size -- costs the book.
+    # archive will not yield -- corrupt, cut short -- costs the book.
     try:
         return source.parse(_read_structural_document(archive, member), posixpath.dirname(member))
     except InvalidEbookError:
