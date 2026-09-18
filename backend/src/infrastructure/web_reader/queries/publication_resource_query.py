@@ -13,7 +13,7 @@ from src.application.web_reader.queries.publication_resource import PublicationR
 from src.domain.common.value_objects.ids import BookId, UserId
 from src.domain.library.exceptions import EbookFileNotFoundError, InvalidEbookError
 from src.domain.web_reader.exceptions import PublicationResourceNotFoundError
-from src.infrastructure.common.zip_members import read_bounded_member
+from src.infrastructure.common.zip_members import read_member
 from src.infrastructure.web_reader.mappers.publication_json import publication_from_json
 from src.infrastructure.web_reader.publication_rows import publication_row
 
@@ -82,4 +82,4 @@ def _read_member(content: bytes, path: str) -> bytes:
             # the archive's file list, so a manifest may name a member the
             # container does not hold.
             raise PublicationResourceNotFoundError(path) from None
-        return read_bounded_member(archive, entry)
+        return read_member(archive, entry)

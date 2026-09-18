@@ -22,7 +22,7 @@ from src.application.web_reader.publications import (
     epub_content_hash,
 )
 from src.domain.library.exceptions import InvalidEbookError
-from src.infrastructure.common.zip_members import read_bounded_member
+from src.infrastructure.common.zip_members import read_member
 
 logger = logging.getLogger(__name__)
 
@@ -154,7 +154,7 @@ def _read_structural_document(archive: zipfile.ZipFile, name: str) -> bytes:
         entry = archive.getinfo(posixpath.normpath(name))
     except KeyError as e:
         raise InvalidEbookError(f"is missing {name!r}", "epub") from e
-    return read_bounded_member(archive, entry)
+    return read_member(archive, entry)
 
 
 def _parse_package_document(package: etree._Element, directory: str) -> _PackageDocument:

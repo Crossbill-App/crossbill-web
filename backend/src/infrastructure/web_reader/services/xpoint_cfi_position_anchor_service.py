@@ -31,7 +31,7 @@ from src.domain.common.value_objects.xpoint import XPoint, XPointRange
 logger = structlog.get_logger(__name__)
 
 # ``xpoint_cfi`` reads spine documents through ``zipfile`` as it goes, so a broken
-# archive surfaces here rather than at construction -- as ``read_bounded_member`` sees it too.
+# archive surfaces here rather than at construction -- as ``read_member`` sees it too.
 UNREADABLE_ARCHIVE = (OSError, zipfile.BadZipFile, EOFError, zlib.error)
 
 POINT_CONTEXT_CHARS = 120

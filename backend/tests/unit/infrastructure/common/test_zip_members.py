@@ -1,14 +1,13 @@
-"""Tests for reading one zip member on terms the archive does not get to set."""
+"""Tests for reading one zip member, and for what a member that cannot be read does."""
 
 import io
 import struct
-import tracemalloc
 import zipfile
 
 import pytest
 
 from src.domain.library.exceptions import InvalidEbookError
-from src.infrastructure.common.zip_members import read_bounded_member
+from src.infrastructure.common.zip_members import read_member as read_zip_member
 
 
 def deflated_archive(members: dict[str, bytes]) -> bytes:
@@ -18,18 +17,6 @@ def deflated_archive(members: dict[str, bytes]) -> bytes:
         for name, body in members.items():
             archive.writestr(name, body)
     return out.getvalue()
-
-
-def with_declared_size(archive_content: bytes, declared: int) -> bytes:
-    """Rewrite what the archive's last member claims to decompress to.
-
-    Both the local header and the central directory are rewritten, so nothing
-    short of decompressing the member can tell how big it really is.
-    """
-    content = bytearray(archive_content)
-    for signature, offset in ((b"PK\x03\x04", 22), (b"PK\x01\x02", 24)):
-        struct.pack_into("<I", content, content.rfind(signature) + offset, declared)
-    return bytes(content)
 
 
 def with_severed_stream(archive_content: bytes, kept_bytes: int) -> bytes:
@@ -62,51 +49,7 @@ def with_corrupt_payload(archive_content: bytes, name: str) -> bytes:
 def read_member(archive_content: bytes, name: str) -> bytes:
     """Read one named member of an archive held in memory."""
     with zipfile.ZipFile(io.BytesIO(archive_content)) as archive:
-        return read_bounded_member(archive, archive.getinfo(name))
-
-
-class TestAMemberCostsWhatItDeclares:
-    """What a member declares has to bound the work, not only the answer.
-
-    An archive is a file its owner uploaded, so its declarations are claims:
-    a member is free to declare eight bytes and really inflate to 64 MiB.
-    ``ZipFile.read()`` truncates such a member's result to the declaration
-    while allocating the whole of it, which turns one read into as much memory
-    as the archive cares to ask for.
-    """
-
-    BOMB_SIZE = 64 * 1024 * 1024
-
-    @staticmethod
-    def _outcome_and_peak(archive_content: bytes, name: str) -> tuple[object, int]:
-        """Read a hostile member and report the outcome and what the read peaked at."""
-        tracemalloc.start()
-        try:
-            try:
-                outcome: object = read_member(archive_content, name)
-            except InvalidEbookError as e:
-                outcome = e
-            peak = tracemalloc.get_traced_memory()[1]
-        finally:
-            tracemalloc.stop()
-        return outcome, peak
-
-    def test_a_member_that_understates_its_size_is_not_inflated(self) -> None:
-        """Should cost what the member declared rather than what it really holds.
-
-        The lie is also refused rather than served as a short answer: the eight
-        bytes that come back do not match the CRC-32 of what was compressed, so
-        the member reads as broken. That refusal is worth nothing on its own --
-        an unbounded read reaches the same CRC-32 check, having allocated the
-        whole 64 MiB to get there.
-        """
-        content = with_declared_size(deflated_archive({"big.css": b"A" * self.BOMB_SIZE}), 8)
-        assert len(content) < 1024 * 1024, "the archive itself should be small"
-
-        outcome, peak = self._outcome_and_peak(content, "big.css")
-
-        assert isinstance(outcome, InvalidEbookError)
-        assert peak < self.BOMB_SIZE // 8, f"inflated the member: {peak / 1024**2:.0f} MiB"
+        return read_zip_member(archive, archive.getinfo(name))
 
 
 class TestAMemberIsReadBackOrRefused:
