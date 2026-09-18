@@ -1,6 +1,7 @@
 import {
   PublicationUnavailableError,
   type EbookAppearance,
+  type EbookChapterProgress,
   type EbookDecoration,
   type EbookLocation,
   type EbookReader,
@@ -63,6 +64,8 @@ export interface EbookReaderState {
   toc: EbookTocEntry[];
   /** The contents entry covering where the reader is, or null where none does. */
   currentTocHref: string | null;
+  /** Null until a book with page numbers is on screen. */
+  chapterProgress: EbookChapterProgress | null;
   /** Whether the book opened where it was asked to; null until one is on screen. */
   landedAt: OpenedEbook['landedAt'] | null;
   /** Null until a book is on screen: only an engine with one can report it. */
@@ -117,6 +120,7 @@ export const useEbookReader = ({
   const [opened, setOpened] = useState<OpenedEbook | null>(null);
   const [location, setLocation] = useState<EbookLocation | null>(null);
   const [currentTocHref, setCurrentTocHref] = useState<string | null>(null);
+  const [chapterProgress, setChapterProgress] = useState<EbookChapterProgress | null>(null);
   const [selection, setSelection] = useState<EbookSelection | null>(null);
   const [attempt, setAttempt] = useState(0);
   const readerRef = useRef<EbookReader | null>(null);
@@ -168,6 +172,7 @@ export const useEbookReader = ({
       }),
       reader.onSelectionChanged(setSelection),
       reader.onTocEntryChanged(setCurrentTocHref),
+      reader.onChapterProgressChanged(setChapterProgress),
       reader.onDecorationActivated((id) => activateDecoration(id)),
       reader.onSelectionExtensionRefused(() => refuseExtension()),
       reader.onPageTurnRequested((direction) => {
@@ -187,6 +192,7 @@ export const useEbookReader = ({
       setOpened(opened);
       setLocation(opened.location);
       setCurrentTocHref(opened.tocHref);
+      setChapterProgress(opened.chapterProgress);
       const destination = finishTheLanding(opened);
       if (destination) {
         // A move that never finishes still owes the reader the book, where it opened.
@@ -268,6 +274,7 @@ export const useEbookReader = ({
     // Nothing from the last attempt survives into the new one.
     setOpened(null);
     setCurrentTocHref(null);
+    setChapterProgress(null);
     setAttempt((count) => count + 1);
   }, []);
 
@@ -289,6 +296,7 @@ export const useEbookReader = ({
     location,
     toc: opened?.toc ?? NO_TOC,
     currentTocHref,
+    chapterProgress,
     landedAt: opened?.landedAt ?? null,
     fontSizeRange: opened?.fontSizeRange ?? null,
     selection,

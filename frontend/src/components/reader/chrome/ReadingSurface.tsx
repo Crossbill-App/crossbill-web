@@ -9,7 +9,7 @@ import type { ReactNode, RefObject } from 'react';
 const PAGE_TURN_GUTTER = '48px';
 
 /** Readium's own page gutter is horizontal only, so the air above and below is ours to add. */
-const READING_SURFACE_INSET = 2;
+const READING_SURFACE_INSET = 4;
 
 interface PageTurnButtonProps {
   edge: 'left' | 'right';

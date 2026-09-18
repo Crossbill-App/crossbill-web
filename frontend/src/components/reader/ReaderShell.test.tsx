@@ -158,7 +158,7 @@ const anOpenBook = async (
   const screen = await renderShell(props, knobs);
   await expect.poll(() => readers.length).toBe(1);
   readers[0].resolveOpen(opened);
-  await expect.element(screen.getByText('Page 1 of 2')).toBeVisible();
+  await expect.element(screen.getByText('0%', { exact: true })).toBeVisible();
   return screen;
 };
 
@@ -194,14 +194,6 @@ test("the book is opened with the reader's appearance", async () => {
     pageBackgroundColor: theme.palette.background.default,
     pageTextColor: theme.palette.text.primary,
   });
-});
-
-test('a book whose positions say nothing about progress still numbers its pages', async () => {
-  worker.use(...readiumApi());
-
-  const screen = await anOpenBook();
-
-  await expect.element(screen.getByText('Page 1 of 2', { exact: true })).toBeVisible();
 });
 
 test('a page turn asked for by the book is forwarded', async () => {
@@ -256,7 +248,7 @@ test('a book that never appears times out and can be retried', async () => {
   await expect.element(screen.getByLabelText('Loading the book')).toBeVisible();
 
   readers[1].resolveOpen({ location: aFakeLocation(2) });
-  await expect.element(screen.getByText('Page 2 of 2')).toBeVisible();
+  await expect.element(screen.getByText('50%', { exact: true })).toBeVisible();
 });
 
 test('a book whose chapters never arrive times out and can be retried', async () => {
@@ -273,7 +265,7 @@ test('a book whose chapters never arrive times out and can be retried', async ()
   worker.use(...readiumApi());
   await screen.getByRole('button', { name: 'Try again' }).click();
 
-  await expect.element(screen.getByText('Page 1 of 2'), { timeout: 5_000 }).toBeVisible();
+  await expect.element(screen.getByText('0%', { exact: true }), { timeout: 5_000 }).toBeVisible();
 });
 
 test('the contents are not offered until the book is on screen', async () => {
@@ -759,7 +751,7 @@ test('a landing the navigator refuses is retried once, without it', async () => 
 
   await refuseTheLanding();
 
-  await expect.element(screen.getByText('Page 1 of 2')).toBeVisible();
+  await expect.element(screen.getByText('0%', { exact: true })).toBeVisible();
   // The place is gone either way, so the reader is owed the same sentence as if
   // it had never been found.
   await expect
@@ -868,7 +860,7 @@ test('the book is not shown until the move to the highlight has finished', async
   arrive();
 
   await expectOnScreen(screen);
-  await expect.element(screen.getByText('Page 2 of 2')).toBeVisible();
+  await expect.element(screen.getByText('50%', { exact: true })).toBeVisible();
 });
 
 test('a move to the highlight that never finishes still shows the book', async () => {
@@ -1264,7 +1256,7 @@ test('turning a page leaves the drawn highlights alone', async () => {
 
   readers[0].reportLocation(aFakeLocation(2));
 
-  await expect.element(screen.getByText('Page 2 of 2')).toBeVisible();
+  await expect.element(screen.getByText('50%', { exact: true })).toBeVisible();
   expect(readers[0].decorations).toHaveLength(submissions);
 });
 

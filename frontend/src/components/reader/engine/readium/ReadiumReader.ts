@@ -1,15 +1,23 @@
 import {
   PublicationUnavailableError,
   type EbookAppearance,
+  type EbookChapterProgress,
   type EbookDecoration,
   type EbookLocation,
   type EbookReader,
   type EbookSelection,
+  type EbookTocEntry,
   type OpenEbookOptions,
   type OpenedEbook,
   type PageTurnDirection,
 } from '@/components/reader/engine/EbookReader.ts';
 import { listenerSet } from '@/components/reader/engine/listeners.ts';
+import {
+  chapterProgressAt,
+  chapterStartsIn,
+  resourceLayoutIn,
+  sectionIdsIn,
+} from '@/components/reader/engine/readium/chapterProgress.ts';
 import {
   PAGE_TURN_KEYS,
   fromLocation,
@@ -23,7 +31,13 @@ import { sanitizeResponse } from '@/components/reader/engine/readium/sanitizeRes
 import { type EbookResource } from '@/components/reader/engine/readium/selectionLocator.ts';
 import { SelectionTracker } from '@/components/reader/engine/readium/SelectionTracker.ts';
 import { EpubNavigator, type EpubNavigatorListeners } from '@readium/navigator';
-import { HttpFetcher, Manifest, Publication, type TimelineItem } from '@readium/shared';
+import {
+  HttpFetcher,
+  Manifest,
+  Publication,
+  type Locator,
+  type TimelineItem,
+} from '@readium/shared';
 
 const DESTROY_TIMEOUT_MS = 2000;
 
@@ -78,12 +92,19 @@ export class ReadiumReader implements EbookReader {
   private readonly locationListeners = listenerSet<EbookLocation>();
   private readonly pageTurnListeners = listenerSet<PageTurnDirection>();
   private readonly tocEntryListeners = listenerSet<string | null>();
+  private readonly chapterProgressListeners = listenerSet<EbookChapterProgress | null>();
   private readonly decorationListeners = listenerSet<string>();
   private readonly destruction = new AbortController();
   /** Each resource of the publication by the URL its frame is built around. */
   private readonly resources = new Map<string, EbookResource>();
   private readonly selection: SelectionTracker;
   private decorations: EbookDecoration[] = [];
+  private positions: Locator[] = [];
+  private toc: EbookTocEntry[] = [];
+  private chapterStarts: number[] = [];
+  /** The window each resource was last loaded into, by its href. */
+  private readonly frames = new Map<string, Window>();
+  private chapterProgress: EbookChapterProgress | null = null;
   private navigator: EpubNavigator | undefined;
   private wrapper: HTMLDivElement | undefined;
   private isOpened = false;
@@ -113,6 +134,10 @@ export class ReadiumReader implements EbookReader {
     // A book with no position list is still readable; it just has no page numbers.
     const positions = await publication.positionsFromManifest().catch(() => []);
     await this.checkpoint(signal);
+    const toc = tocEntriesFrom(publication.toc?.items ?? []);
+    this.positions = positions;
+    this.toc = toc;
+    this.chapterStarts = chapterStartsIn(toc, positions);
 
     // Readium sizes its frames from the container's parent and never recovers
     // from a 0x0 start.
@@ -152,11 +177,13 @@ export class ReadiumReader implements EbookReader {
     await navigator.resizeHandler();
     await this.checkpoint(signal);
 
+    this.chapterProgress = this.chapterProgressAt(navigator.currentLocator);
     return {
       pageCount: positions.length,
-      toc: tocEntriesFrom(publication.toc?.items ?? []),
+      toc,
       tocHref: this.tocEntryHrefFor(navigator.timeline.locate(navigator.currentLocator)),
       location: toLocation(navigator.currentLocator),
+      chapterProgress: this.chapterProgress,
       landedAt: landing ? 'requested' : 'start',
       // Asked of the navigator's own editor rather than copied from the library's
       // `fontSizeRangeConfig`: a second copy of those numbers drifts on an upgrade.
@@ -225,6 +252,10 @@ export class ReadiumReader implements EbookReader {
     return this.tocEntryListeners.add(listener);
   }
 
+  onChapterProgressChanged(listener: (progress: EbookChapterProgress | null) => void): () => void {
+    return this.chapterProgressListeners.add(listener);
+  }
+
   async destroy(): Promise<void> {
     if (this.isDestroyed) return;
     this.isDestroyed = true;
@@ -251,9 +282,11 @@ export class ReadiumReader implements EbookReader {
     this.wrapper?.remove();
     this.wrapper = undefined;
     this.selection.destroy();
+    this.frames.clear();
     this.locationListeners.clear();
     this.pageTurnListeners.clear();
     this.tocEntryListeners.clear();
+    this.chapterProgressListeners.clear();
     this.decorationListeners.clear();
   }
 
@@ -329,8 +362,17 @@ export class ReadiumReader implements EbookReader {
 
   private navigatorListeners(): EpubNavigatorListeners {
     return {
-      frameLoaded: (frame) => this.selection.watch(frame),
-      positionChanged: (locator) => this.locationListeners.notify(toLocation(locator)),
+      frameLoaded: (frame) => {
+        this.selection.watch(frame);
+        const resource = this.resources.get(frame.document.baseURI);
+        if (!resource) return;
+        this.frames.set(resource.href, frame);
+        this.watchLayout(frame, resource.href);
+      },
+      positionChanged: (locator) => {
+        this.locationListeners.notify(toLocation(locator));
+        this.reportChapterProgress(locator);
+      },
       timelineItemChanged: (item) => this.tocEntryListeners.notify(this.tocEntryHrefFor(item)),
       // Claimed so Readium's own quarter-screen pager does not turn pages
       // behind the UI's back.
@@ -359,6 +401,41 @@ export class ReadiumReader implements EbookReader {
     const navigator = this.navigator;
     if (!navigator || !item) return null;
     return navigator.timeline.tocEntryFor(item)?.link.href ?? null;
+  }
+
+  /**
+   * Measures the chapter again once a relayout Readium did not report has landed.
+   *
+   * Readium reports a position when the page moves, and a resize usually moves
+   * it, but the new column widths and fonts it applies land on the frame's root
+   * a tick later, and nothing promises a report after them.
+   */
+  private watchLayout(frame: Window, href: string): void {
+    const remeasure = () =>
+      frame.requestAnimationFrame(() => {
+        const locator = this.navigator?.currentLocator;
+        if (locator?.href === href) this.reportChapterProgress(locator);
+      });
+    frame.addEventListener('resize', remeasure, { signal: this.destruction.signal });
+    const restyled = new MutationObserver(remeasure);
+    restyled.observe(frame.document.documentElement, { attributeFilter: ['style'] });
+    this.destruction.signal.addEventListener('abort', () => restyled.disconnect(), { once: true });
+  }
+
+  /** Tells the listeners, when the number of pages left has changed. */
+  private reportChapterProgress(locator: Locator): void {
+    const progress = this.chapterProgressAt(locator);
+    if (progress?.pagesLeft === this.chapterProgress?.pagesLeft) return;
+    this.chapterProgress = progress;
+    this.chapterProgressListeners.notify(progress);
+  }
+
+  /** Asked when the navigator reports a position, which it does once the page has settled. */
+  private chapterProgressAt(locator: Locator): EbookChapterProgress | null {
+    const frame = this.frames.get(locator.href);
+    if (!frame) return null;
+    const layout = resourceLayoutIn(frame, sectionIdsIn(this.toc, locator.href));
+    return chapterProgressAt(locator, layout, this.chapterStarts, this.positions);
   }
 
   private move(

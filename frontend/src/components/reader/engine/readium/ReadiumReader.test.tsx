@@ -20,8 +20,9 @@ import {
   tapAt,
   visibleFrame as visibleFrameIn,
 } from '@tests/harness/textSelection';
-import { noPublication, readiumApi } from '@tests/msw/readiumApi';
+import { CHAPTER_TWO_SECOND_HALF, noPublication, readiumApi } from '@tests/msw/readiumApi';
 import { worker } from '@tests/msw/worker';
+import { last } from 'lodash';
 import { http, HttpResponse } from 'msw';
 import { afterEach, beforeEach, expect, test } from 'vitest';
 import { userEvent } from 'vitest/browser';
@@ -49,20 +50,24 @@ const recordEvents = () => {
   const turns: PageTurnDirection[] = [];
   const tocHrefs: (string | null)[] = [];
   const selections: (EbookSelection | null)[] = [];
+  const pagesLeft: (number | undefined)[] = [];
   reader.onLocationChanged((location) => positions.push(location.locations.position));
   reader.onPageTurnRequested((direction) => turns.push(direction));
   reader.onTocEntryChanged((href) => tocHrefs.push(href));
   reader.onSelectionChanged((selection) => selections.push(selection));
+  reader.onChapterProgressChanged((progress) => pagesLeft.push(progress?.pagesLeft));
   return {
     positions,
     turns,
     tocHrefs,
     selections,
+    pagesLeft,
     clear: () => {
       positions.length = 0;
       turns.length = 0;
       tocHrefs.length = 0;
       selections.length = 0;
+      pagesLeft.length = 0;
     },
   };
 };
@@ -272,6 +277,50 @@ test('next and previous turn the page and report where the reader is', async () 
   recorded.clear();
   await reader.previous();
   await expect.poll(() => recorded.positions).toContain(1);
+});
+
+test('the pages left in a chapter count down as the reader turns them', async () => {
+  worker.use(...readiumApi());
+  const opened = await openTheBookAt(aPositionList().positions[1]);
+  const recorded = recordEvents();
+  const atTheStart = opened.chapterProgress!.pagesLeft;
+  // Chapter two is 240 paragraphs, many screens at this size.
+  expect(atTheStart).toBeGreaterThan(1);
+
+  await reader.next();
+
+  await expect.poll(() => last(recorded.pagesLeft)).toBe(atTheStart - 1);
+});
+
+test('the pages left end at the subchapter that follows, not the chapter around it', async () => {
+  const manifest = aManifest();
+  manifest.toc![1].children![0].children = [
+    {
+      href: `resources/OEBPS/chapter2.xhtml#${CHAPTER_TWO_SECOND_HALF}`,
+      title: 'The second half',
+    },
+  ];
+  worker.use(...readiumApi({ manifest }));
+  const opened = await openTheBookAt(aPositionList().positions[1]);
+  const recorded = recordEvents();
+
+  for (let left = opened.chapterProgress!.pagesLeft; left > 0; left -= 1) {
+    await reader.next();
+    await expect.poll(() => last(recorded.pagesLeft)).toBe(left - 1);
+  }
+  await reader.next();
+
+  // Into the second half, whose own pages run to the end of the chapter.
+  await expect.poll(() => last(recorded.pagesLeft) ?? 0).toBeGreaterThan(0);
+});
+
+test('the last page of a chapter has none left', async () => {
+  worker.use(...readiumApi());
+
+  const opened = await openTheBook();
+
+  // Chapter one is a heading and one paragraph: a single page.
+  expect(opened.chapterProgress).toEqual({ pagesLeft: 0 });
 });
 
 test('the book names the contents entry it opened at', async () => {

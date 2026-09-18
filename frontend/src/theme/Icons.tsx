@@ -35,6 +35,8 @@ export {
   // are the same idea, and `MenuBook` now means only "a book".
   FormatQuote as HighlightsIcon,
   Notes as NotesIcon,
+  // Page turns left before the chapter ends, in the reader's footer.
+  Redo as PagesLeftIcon,
   PaletteOutlined as PaletteIcon,
   // Reading the book here in the browser, not a session read on a device.
   ChromeReaderMode as ReaderIcon,
