@@ -88,8 +88,8 @@ def read_publication(epub_content: bytes) -> ParsedPublication:
 
     Raises:
         InvalidEbookError: If the bytes are not a readable EPUB, its package
-            document is missing or unparseable, or its spine names
-            nothing the publication contains.
+            document is missing or unparseable, or its spine names nothing the
+            publication contains.
     """
     try:
         with zipfile.ZipFile(BytesIO(epub_content)) as archive:

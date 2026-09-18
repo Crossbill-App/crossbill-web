@@ -7,11 +7,11 @@ import zipfile
 import pytest
 
 from src.domain.library.exceptions import InvalidEbookError
-from src.infrastructure.common.zip_members import read_member as read_zip_member
+from src.infrastructure.common.zip_members import read_member
 
 
 def deflated_archive(members: dict[str, bytes]) -> bytes:
-    """An archive holding each member's real bytes, compressed and honestly declared."""
+    """An archive holding each member, compressed."""
     out = io.BytesIO()
     with zipfile.ZipFile(out, "w", zipfile.ZIP_DEFLATED) as archive:
         for name, body in members.items():
@@ -34,8 +34,7 @@ def with_severed_stream(archive_content: bytes, kept_bytes: int) -> bytes:
 def with_corrupt_payload(archive_content: bytes, name: str) -> bytes:
     """Scribble over the start of a member's compressed stream.
 
-    The headers are left alone, so the archive still describes a member of the
-    size it really is; the deflate stream behind them no longer decodes.
+    The headers are left alone; the deflate stream behind them no longer decodes.
     """
     with zipfile.ZipFile(io.BytesIO(archive_content)) as archive:
         entry = archive.getinfo(name)
@@ -46,10 +45,10 @@ def with_corrupt_payload(archive_content: bytes, name: str) -> bytes:
     return bytes(content)
 
 
-def read_member(archive_content: bytes, name: str) -> bytes:
+def read_named_member(archive_content: bytes, name: str) -> bytes:
     """Read one named member of an archive held in memory."""
     with zipfile.ZipFile(io.BytesIO(archive_content)) as archive:
-        return read_zip_member(archive, archive.getinfo(name))
+        return read_member(archive, archive.getinfo(name))
 
 
 class TestAMemberIsReadBackOrRefused:
@@ -59,7 +58,7 @@ class TestAMemberIsReadBackOrRefused:
         """Should return exactly the bytes the member was written from."""
         body = b"<html><body><p>Hi there.</p></body></html>" * 100
 
-        assert read_member(deflated_archive({"chapter.xhtml": body}), "chapter.xhtml") == body
+        assert read_named_member(deflated_archive({"chapter.xhtml": body}), "chapter.xhtml") == body
 
     def test_a_member_whose_stream_is_cut_short_is_a_broken_publication(self) -> None:
         """Should raise InvalidEbookError rather than let a truncated stream surface."""
@@ -68,7 +67,7 @@ class TestAMemberIsReadBackOrRefused:
         )
 
         with pytest.raises(InvalidEbookError):
-            read_member(content, "chapter.xhtml")
+            read_named_member(content, "chapter.xhtml")
 
     def test_a_member_whose_stream_is_gibberish_is_a_broken_publication(self) -> None:
         """Should raise InvalidEbookError rather than a bare zlib error.
@@ -82,4 +81,4 @@ class TestAMemberIsReadBackOrRefused:
         )
 
         with pytest.raises(InvalidEbookError):
-            read_member(content, "chapter.xhtml")
+            read_named_member(content, "chapter.xhtml")

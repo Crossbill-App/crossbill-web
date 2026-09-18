@@ -69,7 +69,7 @@ def epub_with_nav(nav: str) -> bytes:
 
 
 def archive_of_empty_members(entries: int) -> bytes:
-    """Build a real zip of empty members, so the trailer under test is Python's, not ours."""
+    """Build a real zip of empty members, so the trailer under test is one Python wrote."""
     out = BytesIO()
     with zipfile.ZipFile(out, "w", zipfile.ZIP_STORED) as archive:
         for index in range(entries):
@@ -86,7 +86,8 @@ def layouts(resources: tuple[PublicationResource, ...]) -> list[PublicationLayou
 
 
 class TestAnEpubBecomesAPublicationIndex:
-    """The ordinary book, read end to end through the service that publishes it."""
+    """The ordinary book, read end to end through the service that publishes it, and
+    the bytes that are not a book at all."""
 
     def test_a_real_epub_resolves_to_its_reading_order_resources_and_metadata(self) -> None:
         # Sizes come from the archive rather than the package document, which
