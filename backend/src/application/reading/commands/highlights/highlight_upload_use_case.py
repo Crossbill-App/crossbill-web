@@ -52,6 +52,7 @@ class HighlightUploadData:
     """
 
     text: str
+    datetime: dt
     chapter_number: int | None = None
     chapter: str | None = None  # Chapter name (for warning logs)
     start_xpoint: str | None = None
@@ -59,7 +60,6 @@ class HighlightUploadData:
     page: int | None = None
     color: str | None = None
     drawer: str | None = None
-    datetime: dt | None = None
     datetime_updated: dt | None = None
     koreader_note: str | None = None
     # Set by the device for a highlight it created after its last pull; tells a
