@@ -1,6 +1,7 @@
 """Repository for HighlightStyle persistence."""
 
 from sqlalchemy import select
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.domain.common.value_objects import BookId, UserId
@@ -34,10 +35,9 @@ class HighlightStyleRepository(BaseRepository[HighlightStyle, HighlightStyleORM]
             HighlightStyleORM.device_color == device_color,
             HighlightStyleORM.device_style == device_style,
         )
-        result = await self.db.execute(stmt)
-        orm = result.scalar_one_or_none()
-        if orm:
-            return self.mapper.to_domain(orm)
+        existing = (await self.db.execute(stmt)).scalar_one_or_none()
+        if existing:
+            return self.mapper.to_domain(existing)
 
         style = HighlightStyle.create(
             user_id=user_id,
@@ -46,7 +46,12 @@ class HighlightStyleRepository(BaseRepository[HighlightStyle, HighlightStyleORM]
             device_style=device_style,
         )
         orm = self.mapper.to_orm(style)
-        self.db.add(orm)
+        try:
+            async with self.db.begin_nested():
+                self.db.add(orm)
+        except IntegrityError:
+            # A concurrent request inserted the same row between our select and insert.
+            orm = (await self.db.execute(stmt)).scalar_one()
         await self.db.commit()
         await self.db.refresh(orm)
         return self.mapper.to_domain(orm)
