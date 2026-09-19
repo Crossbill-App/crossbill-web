@@ -3,7 +3,7 @@
 from datetime import datetime as dt
 from typing import TYPE_CHECKING
 
-from sqlalchemy import DateTime, ForeignKey, String, func
+from sqlalchemy import DateTime, ForeignKey, Index, String, func, text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from src.database import Base
@@ -14,10 +14,31 @@ if TYPE_CHECKING:
     from src.infrastructure.reading.orm.highlight_model import Highlight
 
 
+def _unique_per_level(name: str, book: bool, color: bool, style: bool) -> Index:
+    """A unique index over one level of the label hierarchy.
+
+    Partial because a plain unique constraint treats NULLs as distinct, which
+    would let every level with a NULL dimension hold duplicates.
+    """
+    levels = {"book_id": book, "device_color": color, "device_style": style}
+    where = text(" AND ".join(f"{col} IS {'NOT ' if on else ''}NULL" for col, on in levels.items()))
+    columns = ["user_id", *(col for col, on in levels.items() if on)]
+    return Index(name, *columns, unique=True, postgresql_where=where, sqlite_where=where)
+
+
 class HighlightStyle(Base):
     """HighlightStyle model for storing highlight style labels and colors."""
 
     __tablename__ = "highlight_styles"
+    __table_args__ = (
+        _unique_per_level("uq_hs_all", book=True, color=True, style=True),
+        _unique_per_level("uq_hs_book_color", book=True, color=True, style=False),
+        _unique_per_level("uq_hs_book_style", book=True, color=False, style=True),
+        _unique_per_level("uq_hs_book_none", book=True, color=False, style=False),
+        _unique_per_level("uq_hs_global_combo", book=False, color=True, style=True),
+        _unique_per_level("uq_hs_global_color", book=False, color=True, style=False),
+        _unique_per_level("uq_hs_global_style", book=False, color=False, style=True),
+    )
 
     id: Mapped[int] = mapped_column(primary_key=True, index=True)
     user_id: Mapped[int] = mapped_column(
