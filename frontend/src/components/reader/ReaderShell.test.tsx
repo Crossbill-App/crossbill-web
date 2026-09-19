@@ -1433,7 +1433,7 @@ test('a highlight is stamped with the time on the reader’s own clock', async (
 
   await expect.poll(() => bodies.length).toBe(1);
   const madeAt = DateTime.fromISO(bodies[0].datetime, { setZone: true });
-  expect(madeAt.offset).toBe(before.offset);
+  expect(madeAt.toFormat('ZZ')).toBe(before.toFormat('ZZ'));
   expect(madeAt.diff(before).as('seconds')).toBeGreaterThanOrEqual(0);
   expect(madeAt.diff(before).as('seconds')).toBeLessThan(5);
 });
