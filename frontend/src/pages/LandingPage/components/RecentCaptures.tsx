@@ -1,15 +1,12 @@
-import { useGetRecentCaptures } from '@/api/generated/captures/captures';
 import type { RecentCapture } from '@/api/generated/model';
-import { Spinner } from '@/components/animations/Spinner.tsx';
 import { EmptyStateText } from '@/components/EmptyStateText.tsx';
 import { SectionTitle } from '@/components/typography/SectionTitle.tsx';
-import { browserTimeZone, formatDay } from '@/utils/date.ts';
+import { formatDay } from '@/utils/date.ts';
 import { Alert, Box, Typography } from '@mui/material';
 import { useMemo } from 'react';
 
 import { CaptureEntry } from './CaptureEntry.tsx';
-
-const CAPTURES_LIMIT = 8;
+import { useRecentCaptures } from './landingQueries.ts';
 
 /** The feed's captures under the day each belongs to, newest day first. */
 const byDay = (captures: RecentCapture[]): [string, RecentCapture[]][] => {
@@ -30,20 +27,15 @@ const byDay = (captures: RecentCapture[]): [string, RecentCapture[]][] => {
  * fill it, the way the activity grid keeps its squares with nothing on them.
  */
 export const RecentCaptures = () => {
-  const { data, isLoading, isError } = useGetRecentCaptures({
-    limit: CAPTURES_LIMIT,
-    tz: browserTimeZone(),
-  });
+  const { data, isError } = useRecentCaptures();
   const captures = data?.items;
   const days = useMemo(() => byDay(captures ?? []), [captures]);
 
-  const empty = !isLoading && !isError && days.length === 0;
+  const empty = !isError && days.length === 0;
 
   return (
     <Box sx={{ mb: 6 }}>
       <SectionTitle showDivider>Recent highlights and notes</SectionTitle>
-
-      {isLoading && <Spinner />}
 
       {isError && (
         <Box sx={{ py: 3 }}>

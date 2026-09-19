@@ -1,14 +1,13 @@
 import type { LibraryActivity, LibraryStats } from '@/api/generated/model';
-import { useGetLibraryReadingActivity } from '@/api/generated/statistics/statistics';
-import { Spinner } from '@/components/animations/Spinner.tsx';
 import { EmptyStateText } from '@/components/EmptyStateText.tsx';
 import { ReadingActivityGrid } from '@/components/reading/ReadingActivityGrid.tsx';
 import { Stat, type StatProps } from '@/components/reading/Stat.tsx';
 import { SectionTitle } from '@/components/typography/SectionTitle.tsx';
 import { countLabel } from '@/utils/counts.ts';
-import { browserTimeZone, formatDay, formatSeconds } from '@/utils/date.ts';
+import { formatDay, formatSeconds } from '@/utils/date.ts';
 import { Alert, Box, useMediaQuery } from '@mui/material';
 import { useMemo } from 'react';
+import { useReadingActivity } from './landingQueries.ts';
 import { RECENT_ROW_WIDTH } from './RecentBooks.tsx';
 
 /** Books a day is named by before the rest are counted instead. */
@@ -75,19 +74,17 @@ const summary = (stats: LibraryStats): StatProps[] => [
  * The numbers wait until there is something to count.
  */
 export const ReadingActivity = () => {
-  const { data, isLoading, isError } = useGetLibraryReadingActivity({ tz: browserTimeZone() });
+  const { data, isError } = useReadingActivity();
   const activity = data?.activity;
   const stats = data?.stats;
   const read = useMemo(() => booksByDay(activity), [activity]);
   const roomy = useMediaQuery(`(min-width: ${ROOMY_VIEWPORT}px)`);
 
-  const empty = !isLoading && !isError && !activity;
+  const empty = !isError && !activity;
 
   return (
     <Box sx={{ mb: 6 }}>
       <SectionTitle showDivider>Reading activity</SectionTitle>
-
-      {isLoading && <Spinner />}
 
       {isError && (
         <Box sx={{ py: 3 }}>

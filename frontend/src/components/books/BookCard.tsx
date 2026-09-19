@@ -16,6 +16,8 @@ const COVER_INSET = 8;
 
 export interface BookCardProps {
   book: BookWithHighlightCount;
+  /** See `FadeInOut`'s prop of the same name. */
+  animateOnMount?: boolean;
 }
 
 /**
@@ -69,9 +71,9 @@ const truncateText = (text: string, maxLength: number) => {
   return text.slice(0, maxLength) + '...';
 };
 
-export const BookCard = ({ book }: BookCardProps) => {
+export const BookCard = ({ book, animateOnMount }: BookCardProps) => {
   return (
-    <FadeInOut ekey={book.id}>
+    <FadeInOut ekey={book.id} animateOnMount={animateOnMount}>
       <Link
         to="/book/$bookId"
         params={{ bookId: String(book.id) }}
