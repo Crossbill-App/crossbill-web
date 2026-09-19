@@ -8,6 +8,12 @@ interface IconButtonWithTooltipProps {
   icon: ReactNode;
   edge?: IconButtonProps['edge'];
   size?: IconButtonProps['size'];
+  /**
+   * `inherit` for a button on a surface the app's palette does not describe —
+   * the reader's page, whose colour the reader chooses. Left alone it is
+   * `action.active`, a fixed black that a dark page swallows.
+   */
+  color?: IconButtonProps['color'];
   sx?: IconButtonProps['sx'];
 }
 
@@ -18,6 +24,7 @@ export const IconButtonWithTooltip = ({
   icon,
   edge,
   size = 'medium',
+  color,
   sx,
 }: IconButtonWithTooltipProps) => {
   return (
@@ -28,6 +35,7 @@ export const IconButtonWithTooltip = ({
         aria-label={label}
         size={size}
         edge={edge}
+        color={color}
         sx={sx}
       >
         {icon}

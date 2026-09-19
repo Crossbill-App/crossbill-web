@@ -471,6 +471,52 @@ test('a page colour chosen in the popover reaches the engine', async () => {
   });
 });
 
+/** What the browser is drawing a chrome control in, resolved. */
+const drawnIn = (screen: Screen, label: string) =>
+  getComputedStyle(screen.getByRole('button', { name: label }).element()).color;
+
+/**
+ * A page colour is not only the words: the controls on the page are on the page
+ * too.
+ *
+ * The toolbar's buttons were left on `IconButton`'s default, which is
+ * `action.active` — black at 54%, stated for the app's light surfaces and fixed
+ * there. On the dark page the title and the page-turn chevrons went light and
+ * the three buttons beside them stayed black, which is the bar's whole set of
+ * ways out sitting all but invisible on it.
+ */
+test('the chrome controls are drawn in the page colour, not the app palette', async () => {
+  worker.use(...readiumApi());
+
+  const screen = await anOpenBook();
+  const onTheLightPage = theme.customColors.readerPage.light.text;
+  const onTheDarkPage = theme.customColors.readerPage.dark.text;
+
+  for (const label of ['Contents', 'Appearance', 'Close reader', 'Next page']) {
+    expect(drawnIn(screen, label), label).toBe(asRgb(onTheLightPage));
+  }
+
+  await openTheAppearance(screen);
+  await screen.getByRole('button', { name: 'Dark' }).click();
+  // Dismissed before the bar is read: the popover is modal, and it hides the
+  // chrome behind it from the accessibility tree along with everything else.
+  await userEvent.keyboard('{Escape}');
+  await expect.element(screen.getByRole('dialog', { name: 'Appearance' })).not.toBeInTheDocument();
+
+  // Polled on the first of them: the page colour lands with a render, and which
+  // one is not this test's business.
+  await expect.poll(() => drawnIn(screen, 'Contents')).toBe(asRgb(onTheDarkPage));
+  for (const label of ['Appearance', 'Close reader', 'Next page']) {
+    expect(drawnIn(screen, label), label).toBe(asRgb(onTheDarkPage));
+  }
+});
+
+/** A `#rrggbb` from the theme, as `getComputedStyle` gives it back. */
+const asRgb = (hex: string) => {
+  const [, r, g, b] = /^#(\w\w)(\w\w)(\w\w)$/.exec(hex)!;
+  return `rgb(${parseInt(r, 16)}, ${parseInt(g, 16)}, ${parseInt(b, 16)})`;
+};
+
 /** A whole appearance, none of it the default, as the storage holds it. */
 const A_STORED_APPEARANCE = {
   version: 1,
