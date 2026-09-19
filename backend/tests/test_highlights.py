@@ -1,5 +1,7 @@
 """Tests for highlights API endpoints."""
 
+from collections.abc import Iterator
+from contextlib import contextmanager
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
@@ -7,7 +9,7 @@ from typing import Any
 import pytest
 from fastapi import status
 from httpx import AsyncClient
-from sqlalchemy import select
+from sqlalchemy import Connection, event, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src import models
@@ -72,6 +74,43 @@ async def upload_then_delete_highlight(
         json={"highlight_ids": [result.scalar_one().id]},
     )
     assert deletion.json()["deleted_count"] == 1
+
+
+@contextmanager
+def inserting_the_style_after_its_lookup(
+    db_session: AsyncSession, color: str | None, drawer: str | None
+) -> Iterator[None]:
+    """Play a concurrent request that inserts the style `find_or_create` just missed."""
+    raced = False
+
+    def insert_after_lookup(
+        conn: Connection,
+        _cursor: object,
+        statement: str,
+        parameters: tuple[object, ...],
+        *_: object,
+    ) -> None:
+        nonlocal raced
+        if raced or not statement.startswith("SELECT") or "device_style" not in statement:
+            return
+        if "FROM highlight_styles" not in statement or "WHERE" not in statement:
+            return
+        raced = True
+        user_id, book_id = parameters[0], parameters[1]
+        conn.exec_driver_sql(
+            "INSERT INTO highlight_styles"
+            " (user_id, book_id, device_color, device_style, created_at, updated_at)"
+            " VALUES (?, ?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)",
+            (user_id, book_id, color, drawer),
+        )
+
+    engine = db_session.get_bind()
+    event.listen(engine, "after_cursor_execute", insert_after_lookup)
+    try:
+        yield
+    finally:
+        event.remove(engine, "after_cursor_execute", insert_after_lookup)
+    assert raced
 
 
 class TestHighlightsUpload:
@@ -495,6 +534,44 @@ class TestHighlightsUpload:
         style = result.scalar_one()
         assert style.device_color == "red"
         assert style.device_style == "underscore"
+
+    @pytest.mark.parametrize(
+        ("color", "drawer"), [("yellow", "lighten"), (None, None)], ids=["styled", "unstyled"]
+    )
+    async def test_upload_racing_another_for_a_new_style_shares_its_row(
+        self,
+        plugin_client: AsyncClient,
+        db_session: AsyncSession,
+        create_book_via_api: CreateBookFunc,
+        color: str | None,
+        drawer: str | None,
+    ) -> None:
+        """A style row another request inserts between lookup and insert is reused."""
+        await create_book_via_api({"client_book_id": "racing-book", "title": "Racing"})
+
+        with inserting_the_style_after_its_lookup(db_session, color, drawer):
+            response = await plugin_client.post(
+                "/api/v1/highlights/sync",
+                json={
+                    "client_book_id": "racing-book",
+                    "highlights": [
+                        {
+                            "text": "Raced passage",
+                            "datetime": "2019-06-01 08:15:30",
+                            "color": color,
+                            "drawer": drawer,
+                        }
+                    ],
+                },
+            )
+
+        assert response.json()["highlights_created"] == 1
+        styles = (await db_session.execute(select(models.HighlightStyle))).scalars().all()
+        assert [(s.device_color, s.device_style) for s in styles] == [(color, drawer)]
+        highlight = (
+            await db_session.execute(select(models.Highlight).filter_by(text="Raced passage"))
+        ).scalar_one()
+        assert highlight.highlight_style_id == styles[0].id
 
     async def test_reupload_without_note_clears_stored_note(
         self,
