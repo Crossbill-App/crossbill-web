@@ -52,17 +52,23 @@ const parse = (text: string, parserType: DOMParserSupportedType): Document => {
   return failed ? parser.parseFromString(text, 'text/html') : doc;
 };
 
+// XHTML, unlike the HTML parser, does not invent a head the book left out.
+const headOf = (doc: Document): HTMLHeadElement => {
+  const existing = doc.head as HTMLHeadElement | null;
+  if (existing) return existing;
+  const head = doc.createElement('head');
+  doc.documentElement.prepend(head);
+  return head;
+};
+
 const sanitize = (text: string, parserType: DOMParserSupportedType): string => {
   const doc = parse(text, parserType);
   disarm(doc);
 
-  const head = doc.head as HTMLHeadElement | null;
-  if (head) {
-    const meta = doc.createElement('meta');
-    meta.setAttribute('http-equiv', 'Content-Security-Policy');
-    meta.setAttribute('content', CONTENT_POLICY);
-    head.prepend(meta);
-  }
+  const meta = doc.createElement('meta');
+  meta.setAttribute('http-equiv', 'Content-Security-Policy');
+  meta.setAttribute('content', CONTENT_POLICY);
+  headOf(doc).prepend(meta);
 
   return new XMLSerializer().serializeToString(doc);
 };

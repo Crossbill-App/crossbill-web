@@ -39,6 +39,17 @@ test('a chapter arrives under a policy that allows only the navigator its script
   );
 });
 
+test('a chapter written without a head still arrives under the policy', async () => {
+  const headless = `<html xmlns="http://www.w3.org/1999/xhtml"><body><p>No head.</p></body></html>`;
+
+  const sanitized = await sanitizedText(headless, 'application/xhtml+xml');
+
+  const head = new DOMParser().parseFromString(sanitized, 'application/xhtml+xml').head;
+  expect(head.firstElementChild?.getAttribute('content')).toBe(
+    "script-src blob:; object-src 'none'; child-src 'none'"
+  );
+});
+
 test('a stylesheet passes through byte-identical', async () => {
   const stylesheet = 'body { margin: 0; }\n/* onload= javascript: */';
 
