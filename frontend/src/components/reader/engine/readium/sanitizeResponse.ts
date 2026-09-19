@@ -43,21 +43,32 @@ const disarm = (doc: Document): void => {
   });
 };
 
-const sanitize = (text: string, parserType: DOMParserSupportedType): string => {
-  const doc = new DOMParser().parseFromString(text, parserType);
-  // A document that does not parse is Readium's to complain about, in its own
-  // words, rather than ours to hand back as a mangled serialisation.
-  if (doc.querySelector('parsererror')) return text;
+// A browser renders malformed XHTML up to the error, scripts included, so it
+// cannot pass through raw; the HTML parser recovers from anything.
+const parse = (text: string, parserType: DOMParserSupportedType): Document => {
+  const parser = new DOMParser();
+  const doc = parser.parseFromString(text, parserType);
+  const failed = parserType === 'application/xhtml+xml' && doc.querySelector('parsererror');
+  return failed ? parser.parseFromString(text, 'text/html') : doc;
+};
 
+// XHTML, unlike the HTML parser, does not invent a head the book left out.
+const headOf = (doc: Document): HTMLHeadElement => {
+  const existing = doc.head as HTMLHeadElement | null;
+  if (existing) return existing;
+  const head = doc.createElement('head');
+  doc.documentElement.prepend(head);
+  return head;
+};
+
+const sanitize = (text: string, parserType: DOMParserSupportedType): string => {
+  const doc = parse(text, parserType);
   disarm(doc);
 
-  const head = doc.head as HTMLHeadElement | null;
-  if (head) {
-    const meta = doc.createElement('meta');
-    meta.setAttribute('http-equiv', 'Content-Security-Policy');
-    meta.setAttribute('content', CONTENT_POLICY);
-    head.prepend(meta);
-  }
+  const meta = doc.createElement('meta');
+  meta.setAttribute('http-equiv', 'Content-Security-Policy');
+  meta.setAttribute('content', CONTENT_POLICY);
+  headOf(doc).prepend(meta);
 
   return new XMLSerializer().serializeToString(doc);
 };
