@@ -35,7 +35,7 @@ export const ReaderToolbar = ({
 
   return (
     <Box sx={{ borderBottom: 1, borderColor: alpha(colors.text, 0.12) }}>
-      <Toolbar variant="dense" sx={{ gap: 1 }}>
+      <Toolbar variant="dense">
         <IconButtonWithTooltip
           label="Contents"
           onClick={onOpenContents}
