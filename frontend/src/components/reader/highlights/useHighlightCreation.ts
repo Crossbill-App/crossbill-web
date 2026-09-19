@@ -17,6 +17,7 @@ import { useMutationErrorHandler } from '@/hooks/useMutationErrorHandler.ts';
 import { useCacheEvents } from '@/lib/cacheEvents.ts';
 import { useQueryClient } from '@tanstack/react-query';
 import type { AxiosError } from 'axios';
+import { DateTime } from 'luxon';
 import { useRef, useState } from 'react';
 
 // 422: the words matched in several places or none, and more context settles the first.
@@ -68,6 +69,7 @@ export const useHighlightCreation = (bookId: number): HighlightCreation => {
 
   const create = (location: EbookLocation, color: HighlightColor) => {
     sequence.current += 1;
+    const madeAt = DateTime.now().toISO();
     const standIn = standInDecoration(sequence.current, location, color.tint);
     setStandIns((current) => [...current, standIn]);
 
@@ -75,6 +77,7 @@ export const useHighlightCreation = (bookId: number): HighlightCreation => {
       try {
         const created = await createHighlight(bookId, {
           locator: location,
+          datetime: madeAt,
           device_color: color.device_color,
         });
         await placeLocator(created.id);

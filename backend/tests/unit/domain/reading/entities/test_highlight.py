@@ -5,6 +5,8 @@ deletion: the highlight stays on the web and only disappears from e-readers.
 No endpoint sets it yet, so these guards are unreachable from the API tier.
 """
 
+from datetime import datetime
+
 import pytest
 
 from src.domain.common.exceptions import DomainError
@@ -17,6 +19,7 @@ def _create() -> Highlight:
         user_id=UserId(1),
         book_id=BookId(2),
         text="A passage worth keeping on the web.",
+        device_datetime=datetime(2026, 1, 1, 12, 0),  # noqa: DTZ001 - a device clock
     )
 
 

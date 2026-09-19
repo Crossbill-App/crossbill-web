@@ -17,6 +17,8 @@ import type { BrowserLocatorSchema } from './browserLocatorSchema.ts';
 export interface SelectionHighlightCreate {
   /** What the reader selected. Unlike the reading position's locator this one must quote its `text.highlight`: that is the selected text, and it is both what gets anchored in the book and what gets stored as the highlight. */
   locator: BrowserLocatorSchema;
+  /** When the reader made the highlight, on the browser's clock and with its UTC offset. Stored as that local wall clock without the offset, the convention an e-reader's own timestamp arrives in. */
+  datetime: string;
   /** What the reader wrote about the passage. Stored as the highlight's device-side note, which is the one an e-reader shows and edits. */
   note?: string | null;
   /** The label to file this highlight under -- one of the book's own, as `GET /books/{book_id}/highlight-labels` lists them. */

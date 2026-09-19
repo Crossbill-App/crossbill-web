@@ -45,6 +45,9 @@ CHAPTER_TWO_STARTS_AT = [15, 0]
 
 # When a highlight this test deletes was deleted; only that it is set matters.
 DELETED_AT = datetime(2026, 2, 1, tzinfo=UTC)
+# Helsinki in summer: a wall clock three hours off UTC, so a server stamping its own
+# UTC clock, or keeping the instant rather than the reading, is caught.
+MADE_AT = "2026-07-14T18:30:00+03:00"
 
 
 def url(book_id: int) -> str:
@@ -71,6 +74,7 @@ def selection(
 
 
 class Fields(TypedDict, total=False):
+    datetime: str
     note: str | None
     highlight_style_id: int | None
     device_color: str | None
@@ -83,7 +87,11 @@ async def post(
     locator: dict[str, Any] | None = None,
     **fields: Unpack[Fields],
 ) -> Response:
-    body = {"locator": locator if locator is not None else selection(), **fields}
+    body = {
+        "locator": locator if locator is not None else selection(),
+        "datetime": MADE_AT,
+        **fields,
+    }
     return await client.post(url(book.id), json=body)
 
 
@@ -174,8 +182,24 @@ async def test_a_selection_is_stored_as_a_highlight_the_e_reader_will_recognise(
     assert rows[0].start_xpoint == CH1_START_XPOINT
     assert rows[0].position == [10, 0]
     assert rows[0].origin_device_id == WEB_READER_DEVICE_ID
-    # The device's own convention: a wall clock carrying no offset to place it at.
-    assert rows[0].datetime.tzinfo is None
+
+
+async def test_a_selection_is_stamped_with_the_browsers_wall_clock(
+    client: AsyncClient, db_session: AsyncSession, readable_book: models.Book
+) -> None:
+    body = await created(client, readable_book, datetime=MADE_AT)
+
+    assert body["datetime"] == "2026-07-14T18:30:00"
+    rows = await stored_highlights(db_session, readable_book)
+    assert rows[0].datetime == datetime(2026, 7, 14, 18, 30)  # noqa: DTZ001 - a device clock
+
+
+async def test_a_timestamp_without_an_offset_is_refused(
+    client: AsyncClient, readable_book: models.Book
+) -> None:
+    response = await post(client, readable_book, datetime="2026-07-14T18:30:00")
+
+    assert response.status_code == status.HTTP_422_UNPROCESSABLE_ENTITY
 
 
 async def test_the_selection_locator_is_stored_with_the_grade_it_resolved_at(

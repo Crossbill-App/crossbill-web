@@ -78,6 +78,7 @@ async def create_highlight(
         book_id=book_id,
         user_id=current_user.id.value,
         locator=anchor_locator(body.locator),
+        device_datetime=body.datetime.replace(tzinfo=None),
         note=body.note,
         highlight_style_id=body.highlight_style_id,
         device_color=body.device_color,

@@ -10064,6 +10064,12 @@
             "$ref": "#/components/schemas/BrowserLocatorSchema",
             "description": "What the reader selected. Unlike the reading position's locator this one must quote its `text.highlight`: that is the selected text, and it is both what gets anchored in the book and what gets stored as the highlight."
           },
+          "datetime": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Datetime",
+            "description": "When the reader made the highlight, on the browser's clock and with its UTC offset. Stored as that local wall clock without the offset, the convention an e-reader's own timestamp arrives in."
+          },
           "note": {
             "anyOf": [
               {
@@ -10119,7 +10125,8 @@
         },
         "type": "object",
         "required": [
-          "locator"
+          "locator",
+          "datetime"
         ],
         "title": "SelectionHighlightCreate",
         "description": "What the reader sends when they have highlighted a passage.\n\nNamed for the selection rather than for the highlight because the KOReader\nsync's own upload item is already ``HighlightCreate``, and two schemas of\nthat name would leave every generated client calling both by their full\nmodule paths."

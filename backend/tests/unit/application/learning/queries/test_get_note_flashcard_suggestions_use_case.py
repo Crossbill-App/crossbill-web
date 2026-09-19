@@ -42,6 +42,7 @@ def _make_highlight(highlight_id: int, text: str, deleted: bool = False) -> High
         user_id=UserId(1),
         book_id=BookId(1),
         text=text,
+        device_datetime=datetime(2026, 1, 1, 12, 0),  # noqa: DTZ001 - a device clock
     )
     highlight.id = HighlightId(highlight_id)
     if deleted:

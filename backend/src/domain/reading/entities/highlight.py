@@ -25,16 +25,6 @@ from src.domain.common.value_objects import (
 from src.domain.common.value_objects.position import Position
 
 
-def device_clock_now() -> dt_module.datetime:
-    """Server time as an offsetless wall clock.
-
-    Stands in for a device timestamp when the e-reader sends none, so the
-    substitute has the same shape as the real thing: a wall-clock reading with
-    no zone attached.
-    """
-    return dt_module.datetime.now(UTC).replace(tzinfo=None)
-
-
 @dataclass
 class Highlight(AggregateRoot[HighlightId]):
     """
@@ -69,9 +59,9 @@ class Highlight(AggregateRoot[HighlightId]):
     highlight_style_id: HighlightStyleId | None = None
 
     # Metadata
-    # Device-local wall clock with no offset: the e-reader does not send one, so
+    # Reader-local wall clock with no offset: the e-reader does not send one, so
     # none is invented here. Ordering across timezones is approximate.
-    datetime: dt_module.datetime = field(default_factory=device_clock_now)
+    datetime: dt_module.datetime = field(kw_only=True)
     koreader_updated_at: dt_module.datetime | None = None  # Last edit on the device
     koreader_note: str | None = None  # Note written on the e-reader; not the Notes module
     origin_device_id: str | None = None  # Device the highlight was uploaded from
@@ -188,12 +178,12 @@ class Highlight(AggregateRoot[HighlightId]):
         user_id: UserId,
         book_id: BookId,
         text: str,
+        device_datetime: dt_module.datetime,
         chapter_id: ChapterId | None = None,
         xpoints: XPointRange | None = None,
         page: int | None = None,
         position: Position | None = None,
         highlight_style_id: HighlightStyleId | None = None,
-        device_datetime: dt_module.datetime | None = None,
         koreader_updated_at: dt_module.datetime | None = None,
         koreader_note: str | None = None,
         origin_device_id: str | None = None,
@@ -205,11 +195,11 @@ class Highlight(AggregateRoot[HighlightId]):
             user_id: User who created the highlight
             book_id: Book this highlight belongs to
             text: Highlighted text
+            device_datetime: Reader-local wall clock the highlight was made at, no offset
             chapter_id: Optional chapter reference
             xpoints: Optional XPoint range for precise position
             page: Optional page number
             position: Optional Position for document-order location
-            device_datetime: Device-side creation time; server time when absent
             koreader_updated_at: Device-side time of the last edit; None until first edited
             koreader_note: Note attached to the highlight on the e-reader
             origin_device_id: Device the upload batch came from
@@ -222,8 +212,6 @@ class Highlight(AggregateRoot[HighlightId]):
         """
         highlight_text = text
         now = dt_module.datetime.now(UTC)
-        if device_datetime is None:
-            device_datetime = device_clock_now()
 
         return cls(
             id=HighlightId.generate(),  # Generate new ID
