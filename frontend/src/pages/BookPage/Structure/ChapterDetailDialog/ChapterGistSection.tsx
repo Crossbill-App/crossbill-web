@@ -9,7 +9,7 @@ import { useSaveStatus } from '@/hooks/useSaveStatus.ts';
 import { useCacheEvents } from '@/lib/cacheEvents.ts';
 import { useBookPage } from '@/pages/BookPage/BookPageContext';
 import { GistHelperText } from '@/pages/BookPage/Notes/GistHelperText.tsx';
-import { Box, ButtonBase, TextField, Typography } from '@mui/material';
+import { ButtonBase, TextField, Typography } from '@mui/material';
 import { find } from 'lodash';
 import { useState } from 'react';
 
@@ -24,11 +24,12 @@ const ExistingGistText = ({ text, onEdit }: ExistingGistTextProps) => (
   <ButtonBase
     onClick={onEdit}
     sx={{
-      width: '100%',
+      display: 'flex',
       justifyContent: 'flex-start',
       textAlign: 'left',
       borderRadius: 1,
       px: 1,
+      mx: -1,
       py: 0.5,
       '&:hover': { bgcolor: 'action.hover' },
     }}
@@ -144,7 +145,7 @@ export const ChapterGistSection = ({ chapterId, chapterName, notes }: ChapterGis
   }
 
   return (
-    <Box sx={{ px: 2, mb: 2 }}>
+    <>
       <Typography variant="body1" sx={{ fontWeight: 600, color: 'primary.main', py: 1.5 }}>
         Gist
       </Typography>
@@ -170,6 +171,6 @@ export const ChapterGistSection = ({ chapterId, chapterName, notes }: ChapterGis
         />
       )}
       <SavedIndicator status={saveStatus.status} />
-    </Box>
+    </>
   );
 };

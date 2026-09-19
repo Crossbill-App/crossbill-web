@@ -88,9 +88,9 @@ const customColors = {
   },
 };
 
-const COARSE_POINTER_QUERY = '@media (pointer: coarse)';
+export const COARSE_POINTER_QUERY = '@media (pointer: coarse)';
 
-const TOUCH_TARGET_MIN = 48;
+export const TOUCH_TARGET_MIN = 48;
 
 /**
  * Shared markdown styles for consistent rendering across the application.

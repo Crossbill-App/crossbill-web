@@ -157,7 +157,7 @@ export const GroupTagsDialog = ({
                 ? `in ${groupNameById.get(otherGroupId) ?? ''}`
                 : undefined;
             return (
-              <ListItemButton key={tag.id} onClick={() => toggle(tag.id)} dense>
+              <ListItemButton key={tag.id} onClick={() => toggle(tag.id)} dense sx={{ px: 0 }}>
                 <Checkbox
                   edge="start"
                   checked={checkedIds.has(tag.id)}
@@ -173,7 +173,6 @@ export const GroupTagsDialog = ({
               variant="body2"
               sx={{
                 color: 'text.secondary',
-                px: 1,
                 py: 2,
               }}
             >
