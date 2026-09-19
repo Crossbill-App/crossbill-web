@@ -1,4 +1,5 @@
 import { ReaderLoading } from '@/components/reader/chrome/ReaderLoading.tsx';
+import { readerControlSx } from '@/components/reader/chrome/readerOverlay.ts';
 import type { readerPageColors } from '@/components/reader/preferences/readerPreferences.ts';
 import { NextPageIcon, PreviousPageIcon } from '@/theme/Icons.tsx';
 import { ICON_SIZE } from '@/theme/iconSizes.ts';
@@ -15,9 +16,11 @@ interface PageTurnButtonProps {
   edge: 'left' | 'right';
   onClick: () => void;
   disabled: boolean;
+  /** The page's, for the same reason the toolbar above takes them. */
+  colors: ReturnType<typeof readerPageColors>;
 }
 
-const PageTurnButton = ({ edge, onClick, disabled }: PageTurnButtonProps) => (
+const PageTurnButton = ({ edge, onClick, disabled, colors }: PageTurnButtonProps) => (
   <IconButton
     onClick={onClick}
     disabled={disabled}
@@ -32,6 +35,7 @@ const PageTurnButton = ({ edge, onClick, disabled }: PageTurnButtonProps) => (
       // Gone on a phone, where they cover the page they turn and swiping is
       // the gesture at hand; the gutter they need goes with them.
       display: { xs: 'none', sm: 'inline-flex' },
+      ...readerControlSx(colors),
     }}
   >
     {edge === 'left' ? (
@@ -69,8 +73,13 @@ export const ReadingSurface = ({
 
   return (
     <Box sx={{ flex: 1, minHeight: 0, position: 'relative' }}>
-      <PageTurnButton edge="left" onClick={onPrevious} disabled={pageTurnsDisabled} />
-      <PageTurnButton edge="right" onClick={onNext} disabled={pageTurnsDisabled} />
+      <PageTurnButton
+        edge="left"
+        onClick={onPrevious}
+        disabled={pageTurnsDisabled}
+        colors={colors}
+      />
+      <PageTurnButton edge="right" onClick={onNext} disabled={pageTurnsDisabled} colors={colors} />
 
       {/* Hidden rather than unmounted: the engine measures this box to lay
           the book out, and a box that is not there has no size to measure. */}
