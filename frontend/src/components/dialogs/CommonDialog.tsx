@@ -30,6 +30,8 @@ interface CommonDialogProps {
   headerElement?: ReactNode;
 }
 
+const GUTTER = { xs: 3, sm: 5 };
+
 interface NavArrowProps {
   direction: 'previous' | 'next';
   navigation: DialogNavigation;
@@ -181,7 +183,7 @@ export const CommonDialog = ({
         },
       }}
     >
-      <DialogTitle>
+      <DialogTitle sx={{ px: GUTTER }}>
         <Box
           sx={{
             display: 'flex',
@@ -216,7 +218,7 @@ export const CommonDialog = ({
             {headerElement}
           </Box>
         )}
-        <Box sx={{ px: 3 }}>
+        <Box sx={{ px: GUTTER }}>
           {navigation ? (
             <Box
               sx={{
@@ -224,7 +226,6 @@ export const CommonDialog = ({
                 flexDirection: 'column',
                 gap: 3,
                 minWidth: 0,
-                px: fullScreen ? 0 : 2,
               }}
             >
               {children}
@@ -242,8 +243,7 @@ export const CommonDialog = ({
             // Add safe-area padding for iPhone rounded corners
             // Uses max() to ensure minimum 16px padding, but respects safe-area-inset-bottom
             pb: 'max(16px, calc(16px + env(safe-area-inset-bottom)))',
-            pr: 2,
-            pl: 2,
+            px: GUTTER,
           }}
         >
           {footerNavigation ? (

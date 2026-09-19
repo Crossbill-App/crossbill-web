@@ -52,7 +52,7 @@ export const NotePickerDialog = ({
       )}
       <List>
         {notes.map((note) => (
-          <ListItemButton key={note.id} onClick={() => onSelect(note)}>
+          <ListItemButton key={note.id} onClick={() => onSelect(note)} sx={{ px: 0 }}>
             <ListItemText primary={note.title} />
             <NoteKindChip kind={note.kind} />
           </ListItemButton>

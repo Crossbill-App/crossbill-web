@@ -33,6 +33,7 @@ export const CollapsibleSection = ({
       <AccordionSummary
         expandIcon={<ExpandMoreIcon />}
         sx={{
+          px: 0,
           '&.Mui-expanded': { minHeight: 48 },
           '& .MuiAccordionSummary-content.Mui-expanded': { my: '12px' },
         }}
@@ -41,7 +42,7 @@ export const CollapsibleSection = ({
           {headerText}
         </SectionTitle>
       </AccordionSummary>
-      <AccordionDetails sx={{ pt: 0 }}>{children}</AccordionDetails>
+      <AccordionDetails sx={{ pt: 0, px: 0 }}>{children}</AccordionDetails>
     </Accordion>
   );
 };
