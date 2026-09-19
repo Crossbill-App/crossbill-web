@@ -17,6 +17,7 @@ Syncs data from e-readers using Koreader.
 ## Features
 - Sync highlights from KOReader with automatic deduplication
 - Organize highlights
+- Read your books in the browser - jump from a highlight to its place in the book, and make highlights that sync back to KOReader
 - Create flash cards from your highlights and sync them to Anki or get AI suggestions from highlights.
 - Create AI summaries from epub book chapters for review and skimming. Ollama, OpenAI, Anthropic and Gemini supported.
 - Create notes and link them to the highlights, chapters etc.
@@ -54,6 +55,12 @@ Syncs data from e-readers using Koreader.
     </td>
   </tr>
 </table>
+
+<p align="center">
+  <img alt="The web reader showing chapter X of Frankenstein in the browser: two passages highlighted in place, one in pink and one in orange, the book's title and a contents button in the top bar, page-turn arrows at either edge, and pages left in the chapter and percent read in the footer." src="site/src/assets/screenshots/web-reader.png" />
+  <br />
+  <em>The web reader &mdash; the book itself, with your highlights drawn in place in the colours you gave them.</em>
+</p>
 
 ## Overview of software components
 

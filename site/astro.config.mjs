@@ -45,6 +45,7 @@ export default defineConfig({
 					label: 'Features',
 					items: [
 						{ label: 'Highlights', slug: 'features/highlights' },
+						{ label: 'Web reader', slug: 'features/web-reader' },
 						{ label: 'Tags and organization', slug: 'features/tags-and-organization' },
 						{ label: 'Notes', slug: 'features/notes' },
 						{ label: 'Chapter digests', slug: 'features/chapter-digests' },
