@@ -9,7 +9,7 @@ the highlight, and there is no second copy of it to disagree.
 from datetime import datetime as dt
 from typing import Annotated
 
-from pydantic import BaseModel, Field, StringConstraints, model_validator
+from pydantic import AwareDatetime, BaseModel, Field, StringConstraints, model_validator
 
 from src.domain.reading.entities.highlight_style import KOREADER_DEFAULT_DRAWER
 from src.infrastructure.web_reader.schemas.reading_position_schemas import BrowserLocatorSchema
@@ -36,6 +36,14 @@ class SelectionHighlightCreate(BaseModel):
         ),
     )
 
+    datetime: AwareDatetime = Field(
+        ...,
+        description=(
+            "When the reader made the highlight, on the browser's clock and with its "
+            "UTC offset. Stored as that local wall clock without the offset, the "
+            "convention an e-reader's own timestamp arrives in."
+        ),
+    )
     note: str | None = Field(
         None,
         description=(

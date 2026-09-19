@@ -40,6 +40,7 @@ import {
   readiumApi,
 } from '@tests/msw/readiumApi';
 import { worker } from '@tests/msw/worker';
+import { DateTime } from 'luxon';
 import { HttpResponse, delay, http } from 'msw';
 import { afterEach, beforeEach, expect, test } from 'vitest';
 import { cleanup, render } from 'vitest-browser-react';
@@ -1420,6 +1421,21 @@ test('pressing Highlight lets go of the selection and draws it at once', async (
   ]);
   await expect.poll(() => bodies.length).toBe(1);
   expect(bodies[0].device_color).toBe('yellow');
+});
+
+test('a highlight is stamped with the time on the reader’s own clock', async () => {
+  const { handlers, bodies } = highlightCreationApi([{ status: 500, delayMs: 300 }]);
+  worker.use(...handlers);
+  await aBookWithASelection();
+  const before = DateTime.now();
+
+  await pressHighlight();
+
+  await expect.poll(() => bodies.length).toBe(1);
+  const madeAt = DateTime.fromISO(bodies[0].datetime, { setZone: true });
+  expect(madeAt.offset).toBe(before.offset);
+  expect(madeAt.diff(before).as('seconds')).toBeGreaterThanOrEqual(0);
+  expect(madeAt.diff(before).as('seconds')).toBeLessThan(5);
 });
 
 /** The nine colours KOReader offers, in the order the popover puts them in. */

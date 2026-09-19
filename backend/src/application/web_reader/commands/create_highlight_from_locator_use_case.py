@@ -2,6 +2,7 @@
 
 import asyncio
 from dataclasses import dataclass
+from datetime import datetime
 
 import structlog
 
@@ -118,6 +119,7 @@ class CreateHighlightFromLocatorUseCase:
         book_id: int,
         user_id: int,
         locator: Locator,
+        device_datetime: datetime,
         note: str | None = None,
         highlight_style_id: int | None = None,
         device_color: str | None = None,
@@ -138,6 +140,8 @@ class CreateHighlightFromLocatorUseCase:
             locator: The selection, with hrefs already read back into the paths the
                 publication uses internally. Its ``text.highlight`` is the selected
                 text and becomes the highlight's own.
+            device_datetime: When the reader made it, as a wall clock on their own
+                clock with no offset -- what an e-reader sends.
             note: What the reader wrote about the passage, if anything. Stored as the
                 highlight's device-side note, which is the one an e-reader shows.
             highlight_style_id: The label to file the highlight under -- one of the
@@ -199,8 +203,7 @@ class CreateHighlightFromLocatorUseCase:
             xpoints=match.xpoints,
             position=position,
             highlight_style_id=style,
-            # No device wrote this, so the offsetless wall clock a device would have
-            # sent is the server's own -- what `Highlight.create` fills in.
+            device_datetime=device_datetime,
             koreader_note=note or None,
             origin_device_id=WEB_READER_DEVICE_ID,
         )
