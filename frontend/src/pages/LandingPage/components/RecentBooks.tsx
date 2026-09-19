@@ -7,6 +7,7 @@ import { EmptyStateText } from '@/components/EmptyStateText.tsx';
 import { PAGE_GUTTER } from '@/components/layout/Layouts.tsx';
 import { SectionTitle } from '@/components/typography/SectionTitle.tsx';
 import { Alert, Box } from '@mui/material';
+import { useState } from 'react';
 
 const RECENT_BOOKS_LIMIT = 8;
 
@@ -37,6 +38,8 @@ export const RECENT_ROW_WIDTH =
 export const RecentBooks = () => {
   const { data, isLoading, isError } = useGetRecentBooks({ limit: RECENT_BOOKS_LIMIT });
   const books = data?.items;
+  // Cached covers paint with the page, whose own fade already covers them.
+  const [cachedOnMount] = useState(books !== undefined);
   const empty = !isLoading && !isError && !books?.length;
 
   return (
@@ -61,7 +64,7 @@ export const RecentBooks = () => {
         <Carousel aria-label="Recent books" gap={CAROUSEL_GAP} bleed={PAGE_GUTTER}>
           {books.map((book) => (
             <CarouselItem key={book.id}>
-              <BookCard book={book} />
+              <BookCard book={book} animateOnMount={!cachedOnMount} />
             </CarouselItem>
           ))}
         </Carousel>

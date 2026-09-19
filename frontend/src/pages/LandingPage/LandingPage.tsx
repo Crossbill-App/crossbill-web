@@ -1,3 +1,4 @@
+import { FadeInOut } from '@/components/animations/FadeInOut.tsx';
 import { PageContainer } from '@/components/layout/Layouts.tsx';
 import { PageTitle } from '@/components/typography/PageTitle.tsx';
 import { Box, Typography } from '@mui/material';
@@ -13,24 +14,26 @@ import { RecentCaptures } from './components/RecentCaptures';
 export const LandingPage = () => {
   return (
     <PageContainer maxWidth="xl">
-      <Box sx={{ mt: { xs: 6, md: 8 }, mb: 6, textAlign: 'center' }}>
-        <PageTitle text="Welcome to Crossbill" component="h1" />
-        <Typography
-          variant="body1"
-          sx={{
-            color: 'text.secondary',
-            fontSize: '1.1rem',
-          }}
-        >
-          Your reading companion
-        </Typography>
-      </Box>
+      <FadeInOut ekey="landing">
+        <Box sx={{ mt: { xs: 6, md: 8 }, mb: 6, textAlign: 'center' }}>
+          <PageTitle text="Welcome to Crossbill" component="h1" />
+          <Typography
+            variant="body1"
+            sx={{
+              color: 'text.secondary',
+              fontSize: '1.1rem',
+            }}
+          >
+            Your reading companion
+          </Typography>
+        </Box>
 
-      <RecentBooks />
+        <RecentBooks />
 
-      <ReadingActivity />
+        <ReadingActivity />
 
-      <RecentCaptures />
+        <RecentCaptures />
+      </FadeInOut>
     </PageContainer>
   );
 };
