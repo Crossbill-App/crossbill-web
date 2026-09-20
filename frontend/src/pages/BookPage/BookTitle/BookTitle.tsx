@@ -3,7 +3,7 @@ import { BookCover } from '@/components/BookCover.tsx';
 import { IconButtonWithTooltip } from '@/components/buttons/IconButtonWithTooltip.tsx';
 import { ReadingStageChip } from '@/pages/BookPage/Reflection/ReadingStageChip.tsx';
 import { ManageIcon } from '@/theme/Icons.tsx';
-import { Box, LinearProgress, Tooltip, Typography } from '@mui/material';
+import { Box, Divider, LinearProgress, Tooltip, Typography } from '@mui/material';
 import { useState } from 'react';
 import { BookBlurb } from './BookBlurb.tsx';
 import { BookEditDialog } from './BookEditDialog.tsx';
@@ -91,38 +91,43 @@ export const BookTitle = ({ book }: BookTitleProps) => {
             display: 'flex',
             flexDirection: 'column',
             alignItems: 'flex-start',
-            justifyContent: 'flex-start',
-            textAlign:'left',
+            justifyContent: 'space-between',
+            textAlign: 'left',
             width: { xs: '100%', lg: 'auto' },
             position: 'relative',
           }}
         >
-          <Typography variant="h1" component="h1" aria-label={book.title} sx={{ mb: 1 }}>
-            {book.title}
-            <IconButtonWithTooltip
-              label="Manage book"
-              onClick={handleEdit}
-              icon={<ManageIcon />}
-              size="small"
-              sx={titleActionSx}
-            />
-          </Typography>
+          <Box sx={{ mb: 2 }}>
+            <Typography variant="h1" component="h1" aria-label={book.title} sx={{ mb: 0 }}>
+              {book.title}
+              <IconButtonWithTooltip
+                label="Manage book"
+                onClick={handleEdit}
+                icon={<ManageIcon />}
+                size="small"
+                sx={titleActionSx}
+              />
+            </Typography>
 
-          <Typography
-            variant="h2"
-            sx={{
-              color: 'primary.main',
-              mb: { xs: 1, md: 2 },
-              width: '100%',
-            }}
-            gutterBottom
-          >
-            {book.author || 'Unknown author'}
-          </Typography>
+            <Typography
+              variant="h2"
+              sx={{
+                color: 'primary.main',
+                mb: { xs: 2, md: 2 },
+                width: '100%',
+              }}
+              gutterBottom
+            >
+              {book.author || 'Unknown author'}
+            </Typography>
 
-          <BookBlurb description={book.description ?? null} />
+            <BookBlurb description={book.description ?? null} />
+          </Box>
 
-          <BookStatsStrip book={book} />
+          <Box sx={{ width: '100%' }}>
+            <Divider sx={{ width: '100%', mb: 1 }} />
+            <BookStatsStrip book={book} />
+          </Box>
         </Box>
       </Box>
 
