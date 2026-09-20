@@ -1,8 +1,9 @@
 import type { RecentCapture } from '@/api/generated/model';
 import { EmptyStateText } from '@/components/EmptyStateText.tsx';
+import { Eyebrow } from '@/components/typography/Eyebrow.tsx';
 import { SectionTitle } from '@/components/typography/SectionTitle.tsx';
 import { formatDay } from '@/utils/date.ts';
-import { Alert, Box, Typography } from '@mui/material';
+import { Alert, Box } from '@mui/material';
 import { useMemo } from 'react';
 
 import { CaptureEntry } from './CaptureEntry.tsx';
@@ -51,21 +52,9 @@ export const RecentCaptures = () => {
 
       {days.map(([day, dayCaptures]) => (
         <Box key={day} sx={{ mb: 1 }}>
-          <Typography
-            variant="caption"
-            component="h3"
-            sx={{
-              display: 'block',
-              color: 'text.secondary',
-              letterSpacing: '0.08em',
-              textTransform: 'uppercase',
-              px: 1.5,
-              mt: 2,
-              mb: 0.5,
-            }}
-          >
+          <Eyebrow component="h3" sx={{ px: 1.5, mt: 2, mb: 0.5 }}>
             {formatDay(day)}
-          </Typography>
+          </Eyebrow>
 
           {dayCaptures.map((capture) => (
             <CaptureEntry key={`${capture.kind}-${capture.id}`} capture={capture} />

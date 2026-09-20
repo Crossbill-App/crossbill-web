@@ -1,12 +1,13 @@
 import { TagGroupInBook } from '@/api/generated/model';
 import { CollapseChevron } from '@/components/CollapseChevron.tsx';
 import { SavedIndicator } from '@/components/SavedIndicator.tsx';
+import { Eyebrow } from '@/components/typography/Eyebrow.tsx';
 import { useCommitOnBlur } from '@/hooks/useCommitOnBlur.ts';
 import type { SaveStatus } from '@/hooks/useSaveStatus.ts';
 import { DeleteIcon, EditIcon, EditTagsIcon } from '@/theme/Icons.tsx';
 import { ICON_SIZE } from '@/theme/iconSizes.ts';
 import { createAdaptiveHoverStyles } from '@/utils/adaptiveHover.ts';
-import { Box, ButtonBase, IconButton, TextField, Tooltip, Typography } from '@mui/material';
+import { Box, ButtonBase, IconButton, TextField, Tooltip } from '@mui/material';
 import { useState } from 'react';
 
 interface TagGroupTitleProps {
@@ -49,29 +50,16 @@ export const TagGroupTitle = ({
         isExpanded={isExpanded}
         sx={{ fontSize: ICON_SIZE.inline, color: 'text.secondary' }}
       />
-      <Typography
-        variant="subtitle2"
-        sx={{
-          fontSize: '0.75rem',
-          fontWeight: 600,
-          color: 'text.secondary',
-          textTransform: 'uppercase',
-          letterSpacing: '0.5px',
-        }}
-      >
+      <Eyebrow>
         {title}
-        <Typography
+        {/* Not part of the name, so it drops the caps tracking the name wears. */}
+        <Box
           component="span"
-          sx={{
-            fontSize: '0.7rem',
-            fontWeight: 400,
-            color: 'text.disabled',
-            ml: 0.5,
-          }}
+          sx={{ fontWeight: 400, letterSpacing: 'normal', color: 'text.disabled', ml: 0.5 }}
         >
           ({count})
-        </Typography>
-      </Typography>
+        </Box>
+      </Eyebrow>
     </ButtonBase>
   );
 };

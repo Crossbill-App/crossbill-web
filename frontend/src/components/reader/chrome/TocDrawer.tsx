@@ -51,10 +51,7 @@ const TocEntries = ({ entries, depth, onSelect, currentHref, currentRef }: TocEn
             onClick={() => onSelect(entry)}
             sx={{ pl: 2 + depth * INDENT_PER_LEVEL, borderRadius: 1 }}
           >
-            <ListItemText
-              primary={entry.title || 'Untitled'}
-              slotProps={{ primary: { variant: 'body2' } }}
-            />
+            <ListItemText primary={entry.title || 'Untitled'} />
           </ListItemButton>
           <TocEntries
             entries={entry.children}

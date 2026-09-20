@@ -1,4 +1,5 @@
 import { Collapsable } from '@/components/animations/Collapsable';
+import { Eyebrow } from '@/components/typography/Eyebrow.tsx';
 import { HighlightsIcon } from '@/theme/Icons';
 import { ICON_SIZE } from '@/theme/iconSizes.ts';
 import { Box, ButtonBase, styled, Typography } from '@mui/material';
@@ -85,19 +86,7 @@ export const FlashcardCard = ({
 
       <Collapsable isExpanded={isExpanded}>
         <Box sx={{ mt: 1.5 }}>
-          <Typography
-            variant="caption"
-            sx={{
-              color: 'text.secondary',
-              fontWeight: 600,
-              textTransform: 'uppercase',
-              letterSpacing: '0.05em',
-              display: 'block',
-              mb: 0.5,
-            }}
-          >
-            Answer
-          </Typography>
+          <Eyebrow sx={{ mb: 0.5 }}>Answer</Eyebrow>
 
           <Typography variant="body1" sx={{ color: 'text.secondary', lineHeight: 1.5 }}>
             {answer}

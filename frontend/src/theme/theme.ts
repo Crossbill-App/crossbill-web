@@ -16,12 +16,18 @@ const colors = {
   },
 };
 
+// Lora's variable axis runs 400-700 and CSS clamps anything outside it, so the
+// scale below steps by size and colour rather than by a weight that never lands.
+const FONT_FAMILY = ['"Lora"', 'Georgia', 'serif'].join(',');
+
+// The one place the app leaves Lora: letterspaced serif caps break up around
+// 11px, where a humanist sans with open apertures still holds its shape.
+const UI_FONT_FAMILY = ['"Source Sans 3"', 'system-ui', 'sans-serif'].join(',');
+
 /**
  * Custom colors used throughout the application.
  * These are consolidated from various rgba() calls in components.
  */
-const FONT_FAMILY = ['"Lora"', 'Georgia', 'serif'].join(',');
-
 const customColors = {
   // Highlight colors for scroll-to-highlight effects
   highlightBlue: {
@@ -87,6 +93,13 @@ const customColors = {
     dark: { background: colors.stone[900], text: colors.stone[100] },
   },
 };
+
+/**
+ * For digits that stack in a column or change in place. Digits only: Lora's
+ * tabular feature widens the space to a figure's width as well, which blows a
+ * gap into any value with a word in it ("1h 20m").
+ */
+export const tabularNums = { fontVariantNumeric: 'tabular-nums' } as const;
 
 export const COARSE_POINTER_QUERY = '@media (pointer: coarse)';
 
@@ -161,10 +174,12 @@ declare module '@mui/material/styles' {
   interface TypographyVariants {
     pageTitle: CSSProperties;
     sectionTitle: CSSProperties;
+    eyebrow: CSSProperties;
   }
   interface TypographyVariantsOptions {
     pageTitle?: CSSProperties;
     sectionTitle?: CSSProperties;
+    eyebrow?: CSSProperties;
   }
 }
 
@@ -172,6 +187,7 @@ declare module '@mui/material/Typography' {
   interface TypographyPropsVariantOverrides {
     pageTitle: true;
     sectionTitle: true;
+    eyebrow: true;
   }
 }
 
@@ -204,18 +220,18 @@ export const theme = createTheme({
     fontFamily: FONT_FAMILY,
     h1: {
       fontSize: '2rem',
-      fontWeight: 900,
+      fontWeight: 700,
       letterSpacing: '-0.02em',
       lineHeight: 1.2,
     },
     h2: {
       fontSize: '1.4rem',
-      fontWeight: 200,
+      fontWeight: 400,
       lineHeight: 1.3,
     },
     h3: {
       fontSize: '1.1rem',
-      fontWeight: 800,
+      fontWeight: 700,
       letterSpacing: '0.01em',
     },
     h4: {
@@ -232,27 +248,43 @@ export const theme = createTheme({
     },
     body1: {
       fontSize: '1.0rem',
-      fontWeight: 400, // Light for readability
+      fontWeight: 400,
       lineHeight: 1.75,
       letterSpacing: '0.01em',
     },
+    // The quiet tier. Lora has no weight below 400 to be quiet with, so the
+    // step down from body1 is a size and a colour instead.
     body2: {
-      fontWeight: 200, // Very light
+      fontSize: '0.8125rem',
+      fontWeight: 400,
       lineHeight: 1.6,
+      letterSpacing: '0.01em',
     },
     pageTitle: {
       fontFamily: FONT_FAMILY,
-      fontSize: '1.4rem',
-      fontWeight: 900,
+      fontSize: '1.5rem',
+      fontWeight: 700,
+      letterSpacing: '-0.01em',
       lineHeight: 1.3,
       color: colors.amber[700],
     },
+    // A rank below `pageTitle` by weight as well as size: the gradient rule
+    // beside it already says "section", so the type does not have to shout it.
     sectionTitle: {
       fontFamily: FONT_FAMILY,
       fontSize: '1.1rem',
-      fontWeight: 800,
+      fontWeight: 600,
       letterSpacing: '0.01em',
       color: colors.amber[700],
+    },
+    eyebrow: {
+      fontFamily: UI_FONT_FAMILY,
+      fontSize: '0.6875rem',
+      fontWeight: 600,
+      lineHeight: 1.5,
+      letterSpacing: '0.08em',
+      textTransform: 'uppercase',
+      color: colors.stone[600],
     },
   },
   shape: {
@@ -338,6 +370,7 @@ export const theme = createTheme({
         variantMapping: {
           pageTitle: 'h2',
           sectionTitle: 'h2',
+          eyebrow: 'div',
         },
       },
     },

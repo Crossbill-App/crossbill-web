@@ -76,9 +76,7 @@ export const HighlightDateFilter = ({ from, to, onChange }: HighlightDateFilterP
   return (
     <LocalizationProvider dateAdapter={AdapterLuxon} adapterLocale={dateLocale}>
       <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.5 }}>
-        <Typography variant="h6" sx={{ fontSize: '1rem', fontWeight: 600 }}>
-          Date highlighted
-        </Typography>
+        <Typography variant="h6">Date highlighted</Typography>
         <DatePicker
           label="From"
           value={fromValue}
