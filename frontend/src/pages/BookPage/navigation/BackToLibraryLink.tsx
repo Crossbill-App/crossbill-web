@@ -20,7 +20,7 @@ export const BackToLibraryLink = () => (
     startIcon={<ArrowBackIcon />}
     sx={{
       display: { xs: 'inline-flex', md: 'none' },
-      mb: 1,
+      mb: 2,
       ml: -1,
       color: 'text.secondary',
     }}
