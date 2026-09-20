@@ -238,9 +238,13 @@ export const theme = createTheme({
       lineHeight: 1.75,
       letterSpacing: '0.01em',
     },
+    // The quiet tier. Lora has no weight below 400 to be quiet with, so the
+    // step down from body1 is a size and a colour instead.
     body2: {
-      fontWeight: 200, // Very light
+      fontSize: '0.8125rem',
+      fontWeight: 400,
       lineHeight: 1.6,
+      letterSpacing: '0.01em',
     },
     pageTitle: {
       fontFamily: FONT_FAMILY,
