@@ -47,7 +47,6 @@ export const DesktopNavLinks = ({ bookId }: DesktopNavLinksProps) => {
                 primary={BOOK_PAGE_LABELS[item.segment]}
                 slotProps={{
                   primary: {
-                    variant: 'body2',
                     sx: {
                       fontWeight: isActive ? 600 : 400,
                       color: isActive ? 'primary.main' : 'text.primary',
