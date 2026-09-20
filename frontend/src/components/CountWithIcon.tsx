@@ -1,4 +1,5 @@
 import { ICON_SIZE } from '@/theme/iconSizes';
+import { tabularNums } from '@/theme/theme.ts';
 import { countLabel } from '@/utils/counts';
 import type { SvgIconComponent } from '@mui/icons-material';
 import { Box } from '@mui/material';
@@ -23,6 +24,7 @@ export const CountWithIcon = ({ icon: Icon, count, noun }: CountWithIconProps) =
       role="img"
       aria-label={countLabel(count, noun)}
       sx={{
+        ...tabularNums,
         display: 'inline-flex',
         alignItems: 'center',
         gap: 0.5,

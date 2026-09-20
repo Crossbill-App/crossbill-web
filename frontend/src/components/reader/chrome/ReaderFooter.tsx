@@ -2,6 +2,7 @@ import type { EbookChapterProgress } from '@/components/reader/engine/EbookReade
 import type { readerPageColors } from '@/components/reader/preferences/readerPreferences.ts';
 import { BookCoverIcon, PagesLeftIcon } from '@/theme/Icons.tsx';
 import { ICON_SIZE } from '@/theme/iconSizes.ts';
+import { tabularNums } from '@/theme/theme.ts';
 import { alpha, Box, Stack, Typography, type SvgIconProps } from '@mui/material';
 import type { ComponentType } from 'react';
 
@@ -28,7 +29,7 @@ const FooterStat = ({ Icon, label, value, colors }: FooterStatProps) => (
     sx={{ alignItems: 'center', color: alpha(colors.text, 0.7) }}
   >
     <Icon titleAccess={label} sx={{ fontSize: ICON_SIZE.inline }} />
-    <Typography variant="body2" noWrap>
+    <Typography variant="body2" noWrap sx={tabularNums}>
       {value}
     </Typography>
   </Stack>

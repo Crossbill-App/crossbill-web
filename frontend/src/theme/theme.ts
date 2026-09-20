@@ -94,6 +94,13 @@ const customColors = {
   },
 };
 
+/**
+ * For digits that stack in a column or change in place. Digits only: Lora's
+ * tabular feature widens the space to a figure's width as well, which blows a
+ * gap into any value with a word in it ("1h 20m").
+ */
+export const tabularNums = { fontVariantNumeric: 'tabular-nums' } as const;
+
 export const COARSE_POINTER_QUERY = '@media (pointer: coarse)';
 
 export const TOUCH_TARGET_MIN = 48;
