@@ -16,12 +16,14 @@ const colors = {
   },
 };
 
+// Lora's variable axis runs 400-700 and CSS clamps anything outside it, so the
+// scale below steps by size and colour rather than by a weight that never lands.
+const FONT_FAMILY = ['"Lora"', 'Georgia', 'serif'].join(',');
+
 /**
  * Custom colors used throughout the application.
  * These are consolidated from various rgba() calls in components.
  */
-const FONT_FAMILY = ['"Lora"', 'Georgia', 'serif'].join(',');
-
 const customColors = {
   // Highlight colors for scroll-to-highlight effects
   highlightBlue: {
@@ -204,18 +206,18 @@ export const theme = createTheme({
     fontFamily: FONT_FAMILY,
     h1: {
       fontSize: '2rem',
-      fontWeight: 900,
+      fontWeight: 700,
       letterSpacing: '-0.02em',
       lineHeight: 1.2,
     },
     h2: {
       fontSize: '1.4rem',
-      fontWeight: 200,
+      fontWeight: 400,
       lineHeight: 1.3,
     },
     h3: {
       fontSize: '1.1rem',
-      fontWeight: 800,
+      fontWeight: 700,
       letterSpacing: '0.01em',
     },
     h4: {
@@ -232,7 +234,7 @@ export const theme = createTheme({
     },
     body1: {
       fontSize: '1.0rem',
-      fontWeight: 400, // Light for readability
+      fontWeight: 400,
       lineHeight: 1.75,
       letterSpacing: '0.01em',
     },
@@ -242,15 +244,18 @@ export const theme = createTheme({
     },
     pageTitle: {
       fontFamily: FONT_FAMILY,
-      fontSize: '1.4rem',
-      fontWeight: 900,
+      fontSize: '1.5rem',
+      fontWeight: 700,
+      letterSpacing: '-0.01em',
       lineHeight: 1.3,
       color: colors.amber[700],
     },
+    // A rank below `pageTitle` by weight as well as size: the gradient rule
+    // beside it already says "section", so the type does not have to shout it.
     sectionTitle: {
       fontFamily: FONT_FAMILY,
       fontSize: '1.1rem',
-      fontWeight: 800,
+      fontWeight: 600,
       letterSpacing: '0.01em',
       color: colors.amber[700],
     },
