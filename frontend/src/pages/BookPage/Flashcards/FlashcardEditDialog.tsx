@@ -2,9 +2,10 @@ import { useUpdateFlashcard } from '@/api/generated/flashcards/flashcards.ts';
 import { CommonDialog } from '@/components/dialogs/CommonDialog.tsx';
 import type { FlashcardWithContext } from '@/components/features/flashcards/FlashcardChapterList.tsx';
 import { RHFTextField } from '@/components/inputs/RHFTextField.tsx';
+import { Eyebrow } from '@/components/typography/Eyebrow.tsx';
 import { useMutationErrorHandler } from '@/hooks/useMutationErrorHandler.ts';
 import { HighlightContent } from '@/pages/BookPage/common/HighlightContent.tsx';
-import { Box, Button, Typography } from '@mui/material';
+import { Box, Button } from '@mui/material';
 import { useEffect, useState } from 'react';
 import { useForm } from 'react-hook-form';
 
@@ -108,19 +109,7 @@ export const FlashcardEditDialog = ({
         )}
 
         <Box>
-          <Typography
-            variant="caption"
-            sx={{
-              color: 'text.secondary',
-              fontWeight: 600,
-              textTransform: 'uppercase',
-              letterSpacing: '0.05em',
-              display: 'block',
-              mb: 1,
-            }}
-          >
-            Question
-          </Typography>
+          <Eyebrow sx={{ mb: 1 }}>Question</Eyebrow>
           <RHFTextField
             name="question"
             control={control}
@@ -135,19 +124,7 @@ export const FlashcardEditDialog = ({
         </Box>
 
         <Box>
-          <Typography
-            variant="caption"
-            sx={{
-              color: 'text.secondary',
-              fontWeight: 600,
-              textTransform: 'uppercase',
-              letterSpacing: '0.05em',
-              display: 'block',
-              mb: 1,
-            }}
-          >
-            Answer
-          </Typography>
+          <Eyebrow sx={{ mb: 1 }}>Answer</Eyebrow>
           <RHFTextField
             name="answer"
             control={control}

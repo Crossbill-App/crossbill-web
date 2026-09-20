@@ -20,6 +20,10 @@ const colors = {
 // scale below steps by size and colour rather than by a weight that never lands.
 const FONT_FAMILY = ['"Lora"', 'Georgia', 'serif'].join(',');
 
+// The one place the app leaves Lora: letterspaced serif caps break up around
+// 11px, where a humanist sans with open apertures still holds its shape.
+const UI_FONT_FAMILY = ['"Source Sans 3"', 'system-ui', 'sans-serif'].join(',');
+
 /**
  * Custom colors used throughout the application.
  * These are consolidated from various rgba() calls in components.
@@ -163,10 +167,12 @@ declare module '@mui/material/styles' {
   interface TypographyVariants {
     pageTitle: CSSProperties;
     sectionTitle: CSSProperties;
+    eyebrow: CSSProperties;
   }
   interface TypographyVariantsOptions {
     pageTitle?: CSSProperties;
     sectionTitle?: CSSProperties;
+    eyebrow?: CSSProperties;
   }
 }
 
@@ -174,6 +180,7 @@ declare module '@mui/material/Typography' {
   interface TypographyPropsVariantOverrides {
     pageTitle: true;
     sectionTitle: true;
+    eyebrow: true;
   }
 }
 
@@ -263,6 +270,15 @@ export const theme = createTheme({
       letterSpacing: '0.01em',
       color: colors.amber[700],
     },
+    eyebrow: {
+      fontFamily: UI_FONT_FAMILY,
+      fontSize: '0.6875rem',
+      fontWeight: 600,
+      lineHeight: 1.5,
+      letterSpacing: '0.08em',
+      textTransform: 'uppercase',
+      color: colors.stone[600],
+    },
   },
   shape: {
     borderRadius: 12,
@@ -347,6 +363,7 @@ export const theme = createTheme({
         variantMapping: {
           pageTitle: 'h2',
           sectionTitle: 'h2',
+          eyebrow: 'div',
         },
       },
     },
