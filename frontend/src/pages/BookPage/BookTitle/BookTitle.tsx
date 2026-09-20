@@ -39,7 +39,6 @@ export const BookTitle = ({ book }: BookTitleProps) => {
           display: 'grid',
           gridTemplateColumns: { xs: '1fr', lg: '280px 1fr 280px' },
           gap: 4,
-          alignItems: 'stretch',
           mb: 2.5,
         }}
       >
@@ -56,8 +55,8 @@ export const BookTitle = ({ book }: BookTitleProps) => {
           <Box
             sx={{
               flexShrink: 0,
-              width: { xs: 160, md: 200 },
-              height: { xs: 240, md: 280 },
+              width: { xs: 160, sm: 200 },
+              height: { xs: 240, sm: 280 },
             }}
           >
             <BookCover
