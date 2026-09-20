@@ -90,9 +90,9 @@ export const BookTitle = ({ book }: BookTitleProps) => {
             flex: 1,
             display: 'flex',
             flexDirection: 'column',
-            alignItems: { xs: 'center', lg: 'flex-start' },
-            justifyContent: { xs: 'center', lg: 'flex-start' },
-            textAlign: { xs: 'center', lg: 'left' },
+            alignItems: 'flex-start',
+            justifyContent: 'flex-start',
+            textAlign:'left',
             width: { xs: '100%', lg: 'auto' },
             position: 'relative',
           }}

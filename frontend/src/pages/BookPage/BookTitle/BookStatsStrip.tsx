@@ -39,7 +39,7 @@ export const BookStatsStrip = ({ book }: BookStatsStripProps) => {
     <MetadataRow
       items={items}
       sx={{
-        textAlign: { xs: 'center', lg: 'left' },
+        textAlign: 'left',
         mt: 'auto',
         mb: 2,
         width: '100%',
