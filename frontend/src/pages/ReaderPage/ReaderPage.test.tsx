@@ -3,6 +3,7 @@ import type {
   ResumePositionResponse,
   WebPublicationManifest,
 } from '@/api/generated/model';
+import { ReadiumReader } from '@/components/reader/engine/readium/ReadiumReader.ts';
 import { READER_PREFERENCES_KEY } from '@/components/reader/preferences/readerPreferenceStorage.ts';
 import { theme } from '@/theme/theme.ts';
 import { aBookDetails, aChapter, aHighlight } from '@tests/fixtures/book';
@@ -30,7 +31,9 @@ import {
 import { bookApi } from '@tests/msw/bookApi';
 import type { HighlightCreationAnswer } from '@tests/msw/readiumApi';
 import {
+  aHeldFirstChapter,
   aHeldSession,
+  aHold,
   highlightCreationApi,
   highlightLocatorApi,
   highlightLocatorsApi,
@@ -39,14 +42,13 @@ import {
   readiumApi,
 } from '@tests/msw/readiumApi';
 import { worker } from '@tests/msw/worker';
-import { delay, http, HttpResponse } from 'msw';
-import { afterEach, expect, test, vi } from 'vitest';
+import { http, HttpResponse } from 'msw';
+import { afterEach, expect, onTestFinished, test, vi } from 'vitest';
 import { cleanup } from 'vitest-browser-react';
 import { userEvent } from 'vitest/browser';
 
 const MANIFEST_PATH = '/api/v1/readium/books/:bookId/manifest.json';
 const SESSION_PATH = '/api/v1/readium/books/:bookId/session';
-const RESOURCE_PATH = '/api/v1/readium/books/:bookId/resources/*';
 const POSITION_PATH = '/api/v1/readium/books/:bookId/reading-position';
 
 const elementUnderTheAppBar = () => {
@@ -70,6 +72,8 @@ const aReadableBook = () =>
 const openTheBook = async () => {
   const screen = await renderApp({ path: '/book/1/read' });
   await expect.element(screen.getByText('0%', { exact: true })).toBeVisible();
+  // The label is up while the book is still arriving, when a key is dropped.
+  await expect.element(screen.getByRole('button', { name: 'Next page' })).toBeEnabled();
   return screen;
 };
 
@@ -80,13 +84,20 @@ const expectProgress = (screen: Screen, percent: string) =>
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
 /**
- * The book still on its first page. Settled rather than polled: a turn that got
- * through would land a frame or two later, and an immediate assertion would pass
- * while it was in flight.
+ * Every turn, jump and open the app asks of the engine from here on.
+ *
+ * Readium moves the page a round trip into the chapter's frame after it is asked,
+ * so a test proves the book stayed put by it never having been asked.
  */
-const expectNoPageTurn = async (screen: Screen) => {
-  await sleep(1_200);
-  await expectProgress(screen, '0%');
+const watchTheEngine = () => {
+  const spies = {
+    next: vi.spyOn(ReadiumReader.prototype, 'next'),
+    previous: vi.spyOn(ReadiumReader.prototype, 'previous'),
+    goTo: vi.spyOn(ReadiumReader.prototype, 'goTo'),
+    open: vi.spyOn(ReadiumReader.prototype, 'open'),
+  };
+  onTestFinished(() => Object.values(spies).forEach((spy) => spy.mockRestore()));
+  return () => Object.entries(spies).flatMap(([method, spy]) => spy.mock.calls.map(() => method));
 };
 
 afterEach(async () => {
@@ -193,8 +204,12 @@ test('the arrow keys turn the page', async () => {
   worker.use(...readiumApi());
 
   const screen = await openTheBook();
+  const asked = watchTheEngine();
 
   await userEvent.keyboard('{ArrowRight}');
+  // Asked for by the time the key is up, which is what lets `watchTheEngine`
+  // prove a key turned nothing.
+  expect(asked()).toEqual(['next']);
   await expectProgress(screen, '50%');
 
   await userEvent.keyboard('{ArrowLeft}');
@@ -204,18 +219,15 @@ test('the arrow keys turn the page', async () => {
 test('an arrow key pressed before the book is on screen does not jam it', async () => {
   worker.use(...aReadableBook());
   worker.use(...readiumApi());
-  // The chapter alone is late; everything else is served as usual by falling
-  // through to the handler registered underneath this one.
-  worker.use(
-    http.get(RESOURCE_PATH, async ({ params }) => {
-      if (String(params[0]) !== 'OEBPS/chapter1.xhtml') return;
-      await delay(1_500);
-    })
-  );
+  const chapter = aHeldFirstChapter();
+  worker.use(chapter.handler);
 
   const screen = await renderApp({ path: '/book/1/read' });
+  // Asked for once the navigator is up, which is when it starts listening for keys.
+  await expect.poll(chapter.isRequested).toBe(true);
   await expect.element(screen.getByLabelText('Loading the book')).toBeVisible();
   await userEvent.keyboard('{ArrowRight}');
+  chapter.release();
 
   await expectProgress(screen, '0%');
   await screen.getByRole('button', { name: 'Next page' }).click();
@@ -399,11 +411,12 @@ test('a book with no contents says so', async () => {
 });
 
 test('an arrow key with the contents open does not turn the page behind them', async () => {
-  const { screen } = await aBookWithItsContentsOpen();
+  await aBookWithItsContentsOpen();
+  const asked = watchTheEngine();
 
   await userEvent.keyboard('{ArrowRight}');
 
-  await expectNoPageTurn(screen);
+  expect(asked()).toEqual([]);
 });
 
 const openTheAppearance = async (screen: Screen) => {
@@ -516,11 +529,12 @@ test('the automatic column count gives a wide page two columns', async () => {
 });
 
 test('an arrow key with the appearance open does not turn the page behind it', async () => {
-  const screen = await aBookWithItsAppearanceOpen();
+  await aBookWithItsAppearanceOpen();
+  const asked = watchTheEngine();
 
   await userEvent.keyboard('{ArrowRight}');
 
-  await expectNoPageTurn(screen);
+  expect(asked()).toEqual([]);
 });
 
 test('a larger font size reaches the words on the page', async () => {
@@ -535,9 +549,11 @@ test('an arrow key typed into the font size does not turn the page', async () =>
   const screen = await aBookWithItsAppearanceOpen();
 
   await screen.getByRole('textbox', { name: 'Font size in percent' }).click();
+  const asked = watchTheEngine();
+
   await userEvent.keyboard('{ArrowRight}');
 
-  await expectNoPageTurn(screen);
+  expect(asked()).toEqual([]);
 });
 
 test('pressing the setting already chosen leaves it chosen', async () => {
@@ -825,18 +841,27 @@ test('a book nobody has read opens at the start and says nothing', async () => {
 });
 
 test('coming back to the tab leaves the reader where they were reading', async () => {
-  const { screen } = await aBookResumingAt(nowhereToResume());
-  await expectProgress(screen, '0%');
+  worker.use(...aReadableBook());
+  worker.use(...readiumApi());
+  let stored: ResumePositionResponse = nowhereToResume();
+  worker.use(http.get(POSITION_PATH, () => HttpResponse.json(stored)));
+  const screen = await openTheBook();
   await screen.getByRole('button', { name: 'Next page' }).click();
   await expectProgress(screen, '50%');
+  // Somewhere else by now, so a second answer would have somewhere to move the book.
+  stored = aResumePosition();
+  const asked = watchTheEngine();
 
   window.dispatchEvent(new Event('focus'));
-  document.dispatchEvent(new Event('visibilitychange'));
+  // Bubbling, as the browser's own does: TanStack Query hears it on the window.
+  document.dispatchEvent(new Event('visibilitychange', { bubbles: true }));
 
-  // Where a book opens is settled the moment it opens: an answer arriving a
-  // second time must not put the reader back at the page they started from.
-  await sleep(500);
-  await expectProgress(screen, '50%');
+  // Where a book opens is settled once it opens. A focus refetch starts a tick
+  // after the event, and its answer renders a task after it lands.
+  await sleep(0);
+  await expect.poll(() => screen.queryClient.isFetching()).toBe(0);
+  await sleep(0);
+  expect(asked()).toEqual([]);
 });
 
 const PLACED_TEXT = 'Attention is the rarest and purest form of generosity.';
@@ -1032,11 +1057,12 @@ test('arrow keys page between highlights without turning the book underneath', a
   const screen = await aBookWithAPaintedHighlight();
   await tapTheHighlight();
   await expectTheDialogShowing(screen, PLACED_TEXT);
+  const asked = watchTheEngine();
 
   await userEvent.keyboard('{ArrowRight}');
 
   await expectTheDialogShowing(screen, UNPLACED_TEXT);
-  await expectNoPageTurn(screen);
+  expect(asked()).toEqual([]);
 });
 
 test('an arrow key after paging to the last highlight does not turn the book underneath', async () => {
@@ -1047,10 +1073,11 @@ test('an arrow key after paging to the last highlight does not turn the book und
   // which Readium does not count as interactive, so it would turn the page.
   await screen.getByRole('dialog').getByRole('button', { name: 'Next', exact: true }).click();
   await expectTheDialogShowing(screen, UNPLACED_TEXT);
+  const asked = watchTheEngine();
 
   await userEvent.keyboard('{ArrowRight}');
 
-  await expectNoPageTurn(screen);
+  expect(asked()).toEqual([]);
 });
 
 test('deleting a highlight takes its mark off the page and fetches no locators again', async () => {
@@ -1157,14 +1184,16 @@ const aHighlightPressed = async (answer: HighlightCreationAnswer) => {
 };
 
 test('a highlight is drawn before the server answers, from the words selected', async () => {
-  const { bodies, created } = await aHighlightPressed({ delayMs: 1_500 });
+  const answer = aHold();
+  const { bodies, created } = await aHighlightPressed({ until: answer.released });
 
   await expect.poll(() => drawnOn(document)).toEqual(['p:rarest and purest']);
   expect(created).toEqual([]);
   await expect.poll(() => bodies).toHaveLength(1);
   expect(bodies[0].locator.text?.highlight).toBe('rarest and purest');
   expect(bodies[0].locator.locations?.cssSelector).toBeTruthy();
-  await expect.poll(() => created, { timeout: 5_000 }).toEqual([400]);
+  answer.release();
+  await expect.poll(() => created).toEqual([400]);
 });
 
 test('a saved highlight is drawn once, and tapping it opens it', async () => {

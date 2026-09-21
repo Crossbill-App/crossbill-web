@@ -32,6 +32,7 @@ import { pendingQueryClients } from '@tests/harness/pendingQueryClients';
 import { bookApi } from '@tests/msw/bookApi';
 import {
   aHeldSession,
+  aHold,
   highlightCreationApi,
   highlightLocatorApi,
   highlightLocatorsApi,
@@ -864,6 +865,9 @@ test('a second refusal is a real failure, not a third attempt', async () => {
 
 const THE_PASSAGE = aPassage(300).locator;
 
+/** How long the reader waits on a move to the highlight before showing the book anyway. */
+const FINISH_LANDING_TIMEOUT_MS = 3_000;
+
 const BOOK_DETAILS_PATH = '/api/v1/books/:bookId';
 
 /** A chapter of the book holding highlight 300. */
@@ -954,10 +958,13 @@ test('the book is not shown until the move to the highlight has finished', async
 });
 
 test('a move to the highlight that never finishes still shows the book', async () => {
+  fakeTheClock();
   const { screen } = await aJump();
   readers[0].goToOutcome = new Promise(() => {});
 
   readers[0].resolveOpen({ landedAt: 'requested' });
+  await expect.poll(() => readers[0].goToCalls).toEqual([THE_PASSAGE]);
+  await vi.advanceTimersByTimeAsync(FINISH_LANDING_TIMEOUT_MS);
 
   await expectOnScreen(screen);
 });
@@ -1307,13 +1314,15 @@ test('a place listed for a highlight the book no longer has is not drawn', async
 
 test('the book is on screen before its highlights are placed', async () => {
   worker.use(...readiumApi());
-  worker.use(...highlightLocatorsApi([aHighlightLocator(300)], { delayMs: 1_500 }));
+  const placing = aHold();
+  worker.use(...highlightLocatorsApi([aHighlightLocator(300)], { until: placing.released }));
   worker.use(...aBookHolding([aYellowHighlight()]).handlers);
 
   await anOpenBook();
   expect(lastSubmitted()).toEqual([]);
+  placing.release();
 
-  await expect.poll(drawnIds, { timeout: 3_000 }).toEqual(['highlight-300']);
+  await expect.poll(drawnIds).toEqual(['highlight-300']);
   expect(readers).toHaveLength(1);
 });
 
@@ -1891,9 +1900,18 @@ test('a saved highlight takes over from what was drawn for it with nothing missi
 });
 
 test('a highlight made while the placed highlights are still loading is drawn', async () => {
-  await aSelectionOverTheDetails(...highlightLocatorsApi([], { delayMs: 1_500 }));
+  const placing = aHold();
+  let isItsPlaceAsked = false;
+  await aSelectionOverTheDetails(
+    ...highlightLocatorsApi([], { until: placing.released }),
+    http.get(HIGHLIGHT_LOCATOR_PATH, () => {
+      isItsPlaceAsked = true;
+    })
+  );
 
   await pressHighlight();
+  await expect.poll(() => isItsPlaceAsked).toBe(true);
+  placing.release();
 
-  await expect.poll(drawnIds, { timeout: 5_000 }).toContain('highlight-400');
+  await expect.poll(drawnIds).toContain('highlight-400');
 });
