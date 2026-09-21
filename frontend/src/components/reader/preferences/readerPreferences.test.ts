@@ -13,7 +13,7 @@ import {
   paragraphIndentRangeConfig,
   paragraphSpacingRangeConfig,
 } from '@readium/navigator';
-import { expect, test } from 'vitest';
+import { afterEach, expect, test, vi } from 'vitest';
 
 // The spacings are ours rather than the engine's, so nothing but this notices
 // an upgrade that narrows a range out from under them.
@@ -34,8 +34,15 @@ test('every spacing the reader is offered is one the engine honours', () => {
   }
 });
 
-const seedPreferences = (record: object) =>
-  window.localStorage.setItem(READER_PREFERENCES_KEY, JSON.stringify(record));
+afterEach(() => {
+  vi.unstubAllGlobals();
+});
+
+const seedPreferences = (record: object) => {
+  const stored = new Map([[READER_PREFERENCES_KEY, JSON.stringify(record)]]);
+  const localStorage = { getItem: (key: string) => stored.get(key) ?? null };
+  vi.stubGlobal('window', { localStorage });
+};
 
 test('the highlight colour left in storage is read back', () => {
   seedPreferences({ version: 1, highlightColor: 'green' });

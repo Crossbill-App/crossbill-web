@@ -98,7 +98,7 @@ export default tseslint.config(
     // restricted too, deliberately: the seam exists so that its own types, not
     // the engine's, are what cross it.
     files: ['src/**/*.{ts,tsx}'],
-    ignores: ['src/components/reader/engine/**', 'src/**/*.test.tsx'],
+    ignores: ['src/components/reader/engine/**', 'src/**/*.test.{ts,tsx}'],
     rules: {
       '@typescript-eslint/no-restricted-imports': [
         'error',

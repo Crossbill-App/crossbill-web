@@ -34,16 +34,34 @@ export default mergeConfig(
         '@readium/shared',
       ],
     },
+    // The extension is the tier: `.test.ts` is pure logic run in node,
+    // `.test.tsx` needs Chromium — it renders, or leans on the real DOM.
     test: {
-      include: ['src/**/*.test.tsx'],
-      setupFiles: ['./tests/setup.ts'],
-      browser: {
-        enabled: true,
-        headless: true,
-        provider: playwright(),
-        instances: [{ browser: 'chromium' }],
-        viewport: { width: 1440, height: 900 },
-      },
+      projects: [
+        {
+          extends: true,
+          test: {
+            name: 'unit',
+            environment: 'node',
+            include: ['src/**/*.test.ts'],
+          },
+        },
+        {
+          extends: true,
+          test: {
+            name: 'browser',
+            include: ['src/**/*.test.tsx'],
+            setupFiles: ['./tests/setup.ts'],
+            browser: {
+              enabled: true,
+              headless: true,
+              provider: playwright(),
+              instances: [{ browser: 'chromium' }],
+              viewport: { width: 1440, height: 900 },
+            },
+          },
+        },
+      ],
     },
   })
 );

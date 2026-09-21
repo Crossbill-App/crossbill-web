@@ -8,7 +8,7 @@ import type { KnipConfig } from 'knip';
  *
  * Entry points are mostly discovered by knip's built-in Vite and Vitest
  * plugins: `index.html` pulls in `src/main.tsx`, and `vitest.config.ts`
- * contributes `src/**\/*.test.tsx` plus `tests/setup.ts`. Everything the
+ * contributes `src/**\/*.test.{ts,tsx}` plus `tests/setup.ts`. Everything the
  * tests import (`tests/harness`, `tests/msw`, `tests/fixtures`) is reachable
  * from there, so it needs no entry of its own.
  */

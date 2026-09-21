@@ -8,7 +8,7 @@ import {
 } from '@/components/reader/engine/readium/conversions.ts';
 import { TextAlignment } from '@readium/navigator';
 import { Links, Locator } from '@readium/shared';
-import { aManifest } from '@tests/fixtures/publication';
+import { aTableOfContents } from '@tests/fixtures/publication';
 import { expect, test } from 'vitest';
 
 /** A highlight's place in a chapter, as the seam spells one. */
@@ -69,7 +69,10 @@ test('a location survives the round trip through Readium and back', () => {
 });
 
 test('the contents keep their nesting, and say nothing rather than undefined', () => {
-  const links = Links.deserialize([...aManifest().toc, { href: 'resources/OEBPS/colophon.xhtml' }]);
+  const links = Links.deserialize([
+    ...aTableOfContents(),
+    { href: 'resources/OEBPS/colophon.xhtml' },
+  ]);
 
   const entries = tocEntriesFrom(links?.items ?? []);
 
