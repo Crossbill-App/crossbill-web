@@ -4,6 +4,9 @@ from typing import Annotated
 
 from fastapi import APIRouter, Depends, Query, status
 
+from src.application.reading.commands.highlights.change_highlight_color_use_case import (
+    ChangeHighlightColorUseCase,
+)
 from src.application.reading.commands.highlights.highlight_delete_use_case import (
     HighlightDeleteUseCase,
 )
@@ -28,8 +31,10 @@ from src.infrastructure.identity.dependencies import get_current_user
 from src.infrastructure.reading.schemas import (
     BookHighlightSearchResponse,
     ChapterWithHighlights,
+    HighlightColorChange,
     HighlightDeleteRequest,
     HighlightDeleteResponse,
+    HighlightLabel,
     HighlightSyncRequest,
     HighlightSyncResponse,
 )
@@ -209,4 +214,43 @@ async def delete_highlights(
         success=True,
         message=f"Successfully deleted {deleted_count} highlight(s)",
         deleted_count=deleted_count,
+    )
+
+
+@router.patch(
+    "/books/{book_id}/highlights/{highlight_id}/color",
+    response_model=HighlightLabel,
+    status_code=status.HTTP_200_OK,
+)
+async def change_highlight_color(
+    book_id: int,
+    highlight_id: int,
+    request: HighlightColorChange,
+    current_user: Annotated[User, Depends(get_current_user)],
+    use_case: ChangeHighlightColorUseCase = Depends(
+        inject_use_case(container.reading.change_highlight_color_use_case)
+    ),
+) -> HighlightLabel:
+    """Draw one highlight in another of KOReader's colours.
+
+    Only this highlight moves. The label naming a colour belongs to the style
+    every highlight of that colour in the book shares, so recolouring one of
+    them files it under another style rather than repainting the rest.
+
+    Returns:
+        The label the highlight now resolves to, ready to draw it with.
+    """
+    highlight, resolved = await use_case.execute(
+        book_id=book_id,
+        highlight_id=highlight_id,
+        user_id=current_user.id.value,
+        device_color=request.device_color,
+        device_style=request.device_style,
+    )
+    return HighlightLabel(
+        highlight_style_id=highlight.highlight_style_id.value
+        if highlight.highlight_style_id
+        else None,
+        text=resolved.label if resolved else None,
+        ui_color=resolved.ui_color if resolved else None,
     )
