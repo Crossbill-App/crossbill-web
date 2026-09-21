@@ -20,10 +20,7 @@ import { useHighlightCreation } from '@/components/reader/highlights/useHighligh
 import { useHighlightDecorations } from '@/components/reader/highlights/useHighlightDecorations.ts';
 import { useSelectionWorkflow } from '@/components/reader/highlights/useSelectionWorkflow.ts';
 import { landingOfAJump } from '@/components/reader/opening/jumpFallback.ts';
-import {
-  useEbookReader,
-  type UseEbookReaderOptions,
-} from '@/components/reader/opening/useEbookReader.ts';
+import { useEbookReader } from '@/components/reader/opening/useEbookReader.ts';
 import { useLandingApology } from '@/components/reader/opening/useLandingApology.ts';
 import {
   useReaderLanding,
@@ -43,11 +40,6 @@ import { useBodyScrollLock } from '@/hooks/useBodyScrollLock.ts';
 import { Box, useTheme } from '@mui/material';
 import { useEffect, useMemo, useRef, useState } from 'react';
 
-/** Only for tests: a fake engine. */
-export interface ReaderTestKnobs {
-  createReader?: UseEbookReaderOptions['createReader'];
-}
-
 export interface ReaderShellProps {
   bookId: number;
   onClose: () => void;
@@ -55,20 +47,13 @@ export interface ReaderShellProps {
   onOpenHighlight?: (highlightId: number) => void;
   /** Where to open the book; only its value at mount counts. */
   target?: ReaderTarget | null;
-  testing?: ReaderTestKnobs;
 }
 
 /** Said over the open book for a tap that landed in a chapter the passage cannot reach. */
 const ONE_CHAPTER_ONLY = 'A highlight has to stay inside one chapter.';
 
 /** The reader's full-viewport frame: a title bar, a way out, and the book. */
-export const ReaderShell = ({
-  bookId,
-  onClose,
-  onOpenHighlight,
-  target,
-  testing: { createReader } = {},
-}: ReaderShellProps) => {
+export const ReaderShell = ({ bookId, onClose, onOpenHighlight, target }: ReaderShellProps) => {
   // A fixed overlay never scrolls the body, which is what arms pull-to-refresh.
   useBodyScrollLock(true);
   const { status: sessionStatus, isRenewing } = useReaderSession(bookId);
@@ -119,7 +104,6 @@ export const ReaderShell = ({
     canTurnPage: () => !isRenewing && !isAnyDialogOpen(),
     appearance,
     initialLocation: landing?.locator ?? null,
-    createReader,
     on: {
       arrivedAt: seed,
       movedTo: moved,

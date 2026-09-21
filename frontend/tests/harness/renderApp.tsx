@@ -6,6 +6,7 @@ import { ThemeProvider } from '@mui/material/styles';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { RouterProvider, createBrowserHistory, createRouter } from '@tanstack/react-router';
 import { render } from 'vitest-browser-react';
+import { pendingQueryClients } from './pendingQueryClients';
 
 interface RenderAppOptions {
   path: string;
@@ -23,19 +24,6 @@ const createTestQueryClient = () =>
       },
     },
   });
-
-/**
- * Every `QueryClient` a test has created since the last drain.
- *
- * A component can still have a request in flight for a moment after the test
- * that triggered it has moved on — opening a dialog fires a fetch nothing in
- * the test awaits, for instance. `tests/setup.ts`'s `afterEach` drains this
- * list and gives each client a bounded chance to go idle before resetting MSW
- * handlers, so that request lands on the handlers that were active when it
- * was made rather than being orphaned onto whichever later test's `afterEach`
- * happens to run when it finally resolves.
- */
-export const pendingQueryClients: QueryClient[] = [];
 
 /**
  * Renders the whole app at `path`: the real route tree, the real auth gate and

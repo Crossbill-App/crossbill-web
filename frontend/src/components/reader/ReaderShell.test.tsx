@@ -12,17 +12,13 @@ import type {
   OpenedEbook,
 } from '@/components/reader/engine/EbookReader.ts';
 import { READER_PREFERENCES_KEY } from '@/components/reader/preferences/readerPreferenceStorage.ts';
-import {
-  ReaderShell,
-  type ReaderShellProps,
-  type ReaderTestKnobs,
-} from '@/components/reader/ReaderShell.tsx';
+import { ReaderShell, type ReaderShellProps } from '@/components/reader/ReaderShell.tsx';
 import { SnackbarProvider } from '@/context/SnackbarContext.tsx';
 import { theme } from '@/theme/theme.ts';
 import { DEFAULT_LABEL_COLOR } from '@/utils/colorUtils.ts';
 import { ThemeProvider } from '@mui/material/styles';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { FakeEbookReader, aFakeLocation } from '@tests/fakes/FakeEbookReader';
+import { aFakeLocation, type FakeEbookReader } from '@tests/fakes/FakeEbookReader';
 import { aBookDetails, aChapter, aHighlight } from '@tests/fixtures/book';
 import {
   aHighlightLocator,
@@ -32,7 +28,7 @@ import {
   nowhereToResume,
 } from '@tests/fixtures/publication';
 import { expectAWriteOnceTheDebounceRunsOut, fakeTheClock } from '@tests/harness/fakeClock';
-import { pendingQueryClients } from '@tests/harness/renderApp';
+import { pendingQueryClients } from '@tests/harness/pendingQueryClients';
 import { bookApi } from '@tests/msw/bookApi';
 import {
   highlightCreationApi,
@@ -62,16 +58,30 @@ const NARROW_VIEWPORT = { width: 320, height: 640 };
 /** `vitest.config.ts`'s own viewport, restored after a test has narrowed it. */
 const DEFAULT_VIEWPORT = { width: 1440, height: 900 };
 
-const readers: FakeEbookReader[] = [];
+const engine = vi.hoisted(() => ({ readers: [] as FakeEbookReader[], isReal: false }));
+const { readers } = engine;
 
-const createReader = () => {
-  const reader = new FakeEbookReader();
-  readers.push(reader);
-  return reader;
+vi.mock(import('@/components/reader/engine/readium/ReadiumReader.ts'), async (importOriginal) => {
+  const { ReadiumReader } = await importOriginal();
+  const { FakeEbookReader } = await import('@tests/fakes/FakeEbookReader');
+  return {
+    ReadiumReader: function (host: HTMLElement) {
+      if (engine.isReal) return new ReadiumReader(host);
+      const reader = new FakeEbookReader();
+      engine.readers.push(reader);
+      return reader;
+    } as unknown as typeof ReadiumReader,
+  };
+});
+
+/** The book opened by Readium itself rather than by a `FakeEbookReader`. */
+const switchToTheRealEngine = () => {
+  engine.isReal = true;
 };
 
 beforeEach(() => {
   readers.length = 0;
+  engine.isReal = false;
   // The shell reads the book's details for its title and its highlights, so
   // every test needs a book whether or not it is about one. A test with
   // something to say about the book registers its own handlers over these.
@@ -107,33 +117,24 @@ const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
 // The shell asks the server where to resume and apologises when it cannot, so
 // it needs the two providers the app mounts it under.
-const shellUnder = (
-  queryClient: QueryClient,
-  props: Partial<ReaderShellProps>,
-  knobs: ReaderTestKnobs
-) => (
+const shellUnder = (queryClient: QueryClient, props: Partial<ReaderShellProps>) => (
   <QueryClientProvider client={queryClient}>
     <ThemeProvider theme={theme}>
       <SnackbarProvider>
-        <ReaderShell
-          bookId={1}
-          onClose={() => {}}
-          {...props}
-          testing={{ createReader, ...knobs }}
-        />
+        <ReaderShell bookId={1} onClose={() => {}} {...props} />
       </SnackbarProvider>
     </ThemeProvider>
   </QueryClientProvider>
 );
 
-const renderShell = async (props: Partial<ReaderShellProps> = {}, knobs: ReaderTestKnobs = {}) => {
+const renderShell = async (props: Partial<ReaderShellProps> = {}) => {
   const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   pendingQueryClients.push(queryClient);
-  const screen = await render(shellUnder(queryClient, props, knobs));
+  const screen = await render(shellUnder(queryClient, props));
   return Object.assign(screen, {
     queryClient,
     rerenderShell: (next: Partial<ReaderShellProps>) =>
-      screen.rerender(shellUnder(queryClient, next, knobs)),
+      screen.rerender(shellUnder(queryClient, next)),
   });
 };
 
@@ -263,8 +264,9 @@ test('a book whose chapters never arrive times out and can be retried', async ()
   fakeTheClock();
   worker.use(...readiumApi());
   worker.use(http.get(RESOURCE_PATH, () => delay('infinite')));
+  switchToTheRealEngine();
 
-  const screen = await renderShell({}, { createReader: undefined });
+  const screen = await renderShell();
 
   // Nothing on screen says when the navigator has armed its watchdog.
   await expect
