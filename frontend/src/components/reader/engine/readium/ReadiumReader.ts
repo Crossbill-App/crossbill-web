@@ -26,6 +26,7 @@ import {
   toLocation,
   tocEntriesFrom,
 } from '@/components/reader/engine/readium/conversions.ts';
+import { GestureWatch } from '@/components/reader/engine/readium/GestureWatch.ts';
 import { landingFor } from '@/components/reader/engine/readium/landing.ts';
 import { sanitizeResponse } from '@/components/reader/engine/readium/sanitizeResponse.ts';
 import { type EbookResource } from '@/components/reader/engine/readium/selectionLocator.ts';
@@ -95,6 +96,8 @@ export class ReadiumReader implements EbookReader {
   private readonly chapterProgressListeners = listenerSet<EbookChapterProgress | null>();
   private readonly decorationListeners = listenerSet<string>();
   private readonly destruction = new AbortController();
+  /** Tells a tap on the page from the swipe that turns it, for whoever acts on one. */
+  private readonly gestures = new GestureWatch();
   /** Each resource of the publication by the URL its frame is built around. */
   private readonly resources = new Map<string, EbookResource>();
   private readonly selection: SelectionTracker;
@@ -113,8 +116,10 @@ export class ReadiumReader implements EbookReader {
   constructor(private readonly host: HTMLElement) {
     // In the body, not as a field initialiser: those run before the parameter
     // property is assigned, and the tracker is handed the host.
-    this.selection = new SelectionTracker(host, (frame) =>
-      this.resources.get(frame.document.baseURI)
+    this.selection = new SelectionTracker(
+      host,
+      (frame) => this.resources.get(frame.document.baseURI),
+      this.gestures
     );
   }
 
@@ -163,6 +168,9 @@ export class ReadiumReader implements EbookReader {
     // stub here would leave every decoration in the book inert.
     navigator.registerDecorationObserver(DECORATION_GROUP, {
       onDecorationActivated: ({ decoration }) => {
+        // A finger that swiped the chapter aside lifts wherever the new page landed
+        // under it, and a highlight it happens to land on was not asked for.
+        if (!this.gestures.isTap()) return false;
         this.decorationListeners.notify(decoration.id);
         return true;
       },
@@ -363,6 +371,8 @@ export class ReadiumReader implements EbookReader {
   private navigatorListeners(): EpubNavigatorListeners {
     return {
       frameLoaded: (frame) => {
+        // Before the tracker, which asks it about the tap it is being handed.
+        this.gestures.watch(frame);
         this.selection.watch(frame);
         const resource = this.resources.get(frame.document.baseURI);
         if (!resource) return;

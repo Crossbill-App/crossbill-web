@@ -14,6 +14,7 @@
  */
 import type { EbookRect, EbookSelection } from '@/components/reader/engine/EbookReader.ts';
 import { listenerSet } from '@/components/reader/engine/listeners.ts';
+import type { GestureWatch } from '@/components/reader/engine/readium/GestureWatch.ts';
 import {
   caretAt,
   rangeBetween,
@@ -33,9 +34,6 @@ import { debounce } from 'lodash';
  * handle keeps firing it for as long as a finger is on it.
  */
 const SELECTION_SETTLE_MS = 200;
-
-/** How far a finger may travel and still have meant a tap rather than a swipe. */
-const TAP_SLOP_PX = 10;
 
 /** Which event asked for a report: only the reader's own tap can let a held passage go. */
 type ReportSource = 'tap' | 'settled';
@@ -63,7 +61,8 @@ export class SelectionTracker {
 
   constructor(
     private readonly host: HTMLElement,
-    private readonly resourceOf: (frame: Window) => EbookResource | undefined
+    private readonly resourceOf: (frame: Window) => EbookResource | undefined,
+    private readonly gestures: GestureWatch
   ) {}
 
   /** Takes up everything this tracker listens for in one frame of the book. */
@@ -189,15 +188,12 @@ export class SelectionTracker {
       this.swallowNextClick = true;
       event.stopPropagation();
     };
-    let pressedAt: { x: number; y: number } | null = null;
     const extend = (event: PointerEvent) => {
       const anchor = this.extensionAnchor;
       if (!anchor) return;
       // A finger lifting after a swipe says where the page turn ended, not where the
       // passage does, and a swipe is how the reader reaches the page they want.
-      const travelled =
-        pressedAt && Math.hypot(event.clientX - pressedAt.x, event.clientY - pressedAt.y);
-      if (travelled !== null && travelled > TAP_SLOP_PX) return;
+      if (!this.gestures.isTap()) return;
       // Every tap while an extension waits is the extension's, wherever it lands.
       spend(event);
       if (frame.document !== anchor.node.ownerDocument) {
@@ -234,14 +230,9 @@ export class SelectionTracker {
     frame.document.addEventListener('click', swallow, { capture: true });
     // A gesture beginning says the last one's click is never coming, and a swallow
     // left standing would eat this one instead.
-    frame.document.addEventListener(
-      'pointerdown',
-      (event: PointerEvent) => {
-        this.swallowNextClick = false;
-        pressedAt = { x: event.clientX, y: event.clientY };
-      },
-      { capture: true }
-    );
+    frame.document.addEventListener('pointerdown', () => (this.swallowNextClick = false), {
+      capture: true,
+    });
   }
 
   /** Keeps a touch gesture over selected words away from Readium's snapper. */
