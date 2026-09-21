@@ -436,6 +436,28 @@ test('tapping a decoration reports its id', async () => {
   await expect.poll(() => activated).toEqual([A_HIGHLIGHT.id]);
 });
 
+/** A finger that came down a page away and lifted here, which is what turning a page does. */
+const swipeOnto = (target: Range) => {
+  const chapter = visibleFrame()!.contentDocument!;
+  const { x, y } = centreOf(target);
+  const travel = (type: string, clientX: number) =>
+    chapter.dispatchEvent(new PointerEvent(type, { bubbles: true, clientX, clientY: y }));
+  travel('pointerdown', x + 200);
+  travel('pointerup', x);
+};
+
+test('a swipe ending on a decoration leaves it alone, and the tap after it still opens it', async () => {
+  const activated = await theBookWithAHighlightDrawn();
+  const highlight = drawnRanges(host)[0];
+
+  swipeOnto(highlight);
+  await userEvent.click(frame()!, { position: centreOf(highlight) });
+
+  // Only the tap is reported, and it is reported once: the swipe that ended on the
+  // same words would have arrived first, so nothing of it is still on its way.
+  await expect.poll(() => activated).toEqual([A_HIGHLIGHT.id]);
+});
+
 test('applying an empty set removes what was drawn', async () => {
   worker.use(...readiumApi());
   reader.applyDecorations([A_HIGHLIGHT]);
