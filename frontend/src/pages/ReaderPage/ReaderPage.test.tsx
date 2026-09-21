@@ -38,7 +38,7 @@ import {
 } from '@tests/msw/readiumApi';
 import { worker } from '@tests/msw/worker';
 import { delay, http, HttpResponse } from 'msw';
-import { afterEach, expect, test } from 'vitest';
+import { afterEach, expect, onTestFinished, test, vi } from 'vitest';
 import { cleanup } from 'vitest-browser-react';
 import { userEvent } from 'vitest/browser';
 
@@ -620,10 +620,6 @@ test('an appearance of values we do not offer opens the book on the defaults', a
 /**
  * The reader's place is written back so that both readers agree where it is,
  * and so that reading in the browser reaches the reading statistics.
- *
- * These tests wait out the real debounce rather than faking the clock: the
- * navigator's own boot is a chain of timers and animation frames, and a fake
- * clock would be testing the mock's scheduler rather than the reader.
  */
 const aBookRecordingPositions = async () => {
   worker.use(...aReadableBook());
@@ -641,6 +637,24 @@ const aBookRecordingPositions = async () => {
   return { screen, writes: positions.writes, requests };
 };
 
+/**
+ * A clock the test can jump past the write debounce. It still runs on with real
+ * time, because the navigator's own boot is a chain of timers a frozen clock stalls.
+ */
+const fakeTheClock = () => {
+  vi.useFakeTimers({ shouldAdvanceTime: true });
+  onTestFinished(() => void vi.useRealTimers());
+};
+
+/** The clock moved on until one write has landed, for a turn nothing on screen shows. */
+const expectAWriteOnceTheDebounceRunsOut = (writes: unknown[]) =>
+  expect
+    .poll(async () => {
+      await vi.advanceTimersByTimeAsync(5_000);
+      return writes.length;
+    })
+    .toBe(1);
+
 /** A page read and the reader closed again, well inside the write debounce. */
 const readAPageAndLeave = async (screen: Screen) => {
   await screen.getByRole('button', { name: 'Next page' }).click();
@@ -650,38 +664,31 @@ const readAPageAndLeave = async (screen: Screen) => {
   await expect.element(screen.getByRole('heading', { name: 'Ada Lovelace' })).toBeVisible();
 };
 
-test(
-  'turning a page in the reader records where the reader got to',
-  { timeout: 40_000 },
-  async () => {
-    const { screen, writes } = await aBookRecordingPositions();
-    // Nothing yet: where the book opened is where the reader already was.
-    expect(writes).toHaveLength(0);
+test('turning a page in the reader records where the reader got to', async () => {
+  fakeTheClock();
+  const { screen, writes } = await aBookRecordingPositions();
+  // Nothing yet: where the book opened is where the reader already was.
+  expect(writes).toHaveLength(0);
 
-    await screen.getByRole('button', { name: 'Next page' }).click();
-    await expectProgress(screen, '50%');
+  await screen.getByRole('button', { name: 'Next page' }).click();
+  await expectProgress(screen, '50%');
 
-    await expect.poll(() => writes.length, { timeout: 15_000 }).toBe(1);
-    expect(writes[0].locator.href).toBe('resources/OEBPS/chapter2.xhtml');
-    expect(writes[0].closing).toBe(false);
-  }
-);
+  await expectAWriteOnceTheDebounceRunsOut(writes);
+  expect(writes[0].locator.href).toBe('resources/OEBPS/chapter2.xhtml');
+  expect(writes[0].closing).toBe(false);
+});
 
-test(
-  'closing the reader writes the last position and closes the session',
-  { timeout: 40_000 },
-  async () => {
-    const { screen, writes } = await aBookRecordingPositions();
+test('closing the reader writes the last position and closes the session', async () => {
+  const { screen, writes } = await aBookRecordingPositions();
 
-    await readAPageAndLeave(screen);
+  await readAPageAndLeave(screen);
 
-    await expect.poll(() => writes.length).toBe(1);
-    expect(writes[0].locator.href).toBe('resources/OEBPS/chapter2.xhtml');
-    expect(writes[0].closing).toBe(true);
-  }
-);
+  await expect.poll(() => writes.length).toBe(1);
+  expect(writes[0].locator.href).toBe('resources/OEBPS/chapter2.xhtml');
+  expect(writes[0].closing).toBe(true);
+});
 
-test('the departing write carries the access token', { timeout: 40_000 }, async () => {
+test('the departing write carries the access token', async () => {
   const { screen, requests } = await aBookRecordingPositions();
 
   await readAPageAndLeave(screen);
@@ -723,13 +730,13 @@ const expectChapterTwo = (screen: Screen) =>
 const expectTheApology = (screen: Screen) =>
   expect.element(screen.getByRole('alert').filter({ hasText: LOST_THE_BOOKMARK })).toBeVisible();
 
-test('a book opens where the reader left off', { timeout: 40_000 }, async () => {
+test('a book opens where the reader left off', async () => {
   const { screen } = await aBookResumingAt(aResumePosition(), aDetailedPositionList());
 
   await expectHalfwayThroughChapterTwo(screen);
 });
 
-test('a place the e-reader recorded opens the same way', { timeout: 40_000 }, async () => {
+test('a place the e-reader recorded opens the same way', async () => {
   // A place derived from an xpointer carries no position number: the server
   // computes a progression against the EPUB and leaves the position list to
   // whoever holds one.
@@ -748,25 +755,19 @@ test('a place the e-reader recorded opens the same way', { timeout: 40_000 }, as
   await expectHalfwayThroughChapterTwo(screen);
 });
 
-test('restoring a position writes nothing back', { timeout: 60_000 }, async () => {
+test('restoring a position writes nothing back, and reading on from it is written', async () => {
+  fakeTheClock();
   const { screen, writes } = await aBookResumingAt(aResumePosition());
   await expectChapterTwo(screen);
 
-  // Past the five-second debounce with room to spare: where the book opened is
-  // where the reader already was, and writing it back would credit them with a
-  // sitting for the act of opening a book.
-  await sleep(8_000);
-
-  expect(writes).toEqual([]);
-});
-
-test('reading on within the restored position is still written', { timeout: 60_000 }, async () => {
-  const { screen, writes } = await aBookResumingAt(aResumePosition());
-  await expectChapterTwo(screen);
+  // Where the book opened is where the reader already was, and writing it back
+  // would credit them with a sitting for the act of opening a book. Such a write
+  // would fire here and be the one the turn below is counted against.
+  await vi.advanceTimersByTimeAsync(10_000);
 
   await screen.getByRole('button', { name: 'Next page' }).click();
 
-  await expect.poll(() => writes.length, { timeout: 15_000 }).toBe(1);
+  await expectAWriteOnceTheDebounceRunsOut(writes);
   // Past where they were put back, rather than merely in the same chapter: the
   // resume already had them here, so only the progression is news.
   expect(writes[0].locator.locations?.progression).toBeGreaterThan(0.5);
@@ -795,55 +796,47 @@ test('a place in a chapter the book no longer has costs a bookmark, not the book
   await expectTheApology(screen);
 });
 
-test(
-  'a book reopened in the same tab honours where another device left off',
-  { timeout: 60_000 },
-  async () => {
-    worker.use(...aReadableBook());
-    worker.use(...readiumApi({ positions: aDetailedPositionList() }));
-    let stored: ResumePositionResponse = nowhereToResume();
-    worker.use(http.get(POSITION_PATH, () => HttpResponse.json(stored)));
+test('a book reopened in the same tab honours where another device left off', async () => {
+  worker.use(...aReadableBook());
+  worker.use(...readiumApi({ positions: aDetailedPositionList() }));
+  let stored: ResumePositionResponse = nowhereToResume();
+  worker.use(http.get(POSITION_PATH, () => HttpResponse.json(stored)));
 
-    const screen = await renderApp({ path: '/book/1/read' });
-    await expectProgress(screen, '0%');
-    await screen.getByRole('button', { name: 'Close reader' }).click();
-    await expect.element(screen.getByRole('heading', { name: 'Ada Lovelace' })).toBeVisible();
+  const screen = await renderApp({ path: '/book/1/read' });
+  await expectProgress(screen, '0%');
+  await screen.getByRole('button', { name: 'Close reader' }).click();
+  await expect.element(screen.getByRole('heading', { name: 'Ada Lovelace' })).toBeVisible();
 
-    // The reader carries on elsewhere while the book is shut here.
-    stored = aResumePosition();
-    await screen.getByRole('link', { name: 'Read', exact: true }).click();
+  // The reader carries on elsewhere while the book is shut here.
+  stored = aResumePosition();
+  await screen.getByRole('link', { name: 'Read', exact: true }).click();
 
-    // The answer this tab already has is the stale one, and it comes back as
-    // settled data rather than as pending, so a cache that outlived the first
-    // open would be latched before the refetch could land.
-    await expectHalfwayThroughChapterTwo(screen);
-  }
-);
+  // The answer this tab already has is the stale one, and it comes back as
+  // settled data rather than as pending, so a cache that outlived the first
+  // open would be latched before the refetch could land.
+  await expectHalfwayThroughChapterTwo(screen);
+});
 
-test(
-  'a book that would not load keeps the reader their place for the retry',
-  { timeout: 60_000 },
-  async () => {
-    worker.use(...aReadableBook());
-    worker.use(...readiumApi({ positions: aDetailedPositionList() }));
-    worker.use(...readingPositionApi(aResumePosition()).handlers);
-    worker.use(
-      http.get(MANIFEST_PATH, () => new HttpResponse(null, { status: 503 }), { once: true })
-    );
+test('a book that would not load keeps the reader their place for the retry', async () => {
+  worker.use(...aReadableBook());
+  worker.use(...readiumApi({ positions: aDetailedPositionList() }));
+  worker.use(...readingPositionApi(aResumePosition()).handlers);
+  worker.use(
+    http.get(MANIFEST_PATH, () => new HttpResponse(null, { status: 503 }), { once: true })
+  );
 
-    const screen = await renderApp({ path: '/book/1/read' });
-    await expect
-      .element(screen.getByText('The book could not be opened. Please try again later.'))
-      .toBeVisible();
+  const screen = await renderApp({ path: '/book/1/read' });
+  await expect
+    .element(screen.getByText('The book could not be opened. Please try again later.'))
+    .toBeVisible();
 
-    await screen.getByRole('button', { name: 'Try again' }).click();
+  await screen.getByRole('button', { name: 'Try again' }).click();
 
-    // The publication is fetched before a landing is looked at, so a manifest
-    // that blipped says nothing about the place — dropping it here would cost a
-    // bookmark for the network's mistake, and apologise for it too.
-    await expectHalfwayThroughChapterTwo(screen);
-  }
-);
+  // The publication is fetched before a landing is looked at, so a manifest
+  // that blipped says nothing about the place — dropping it here would cost a
+  // bookmark for the network's mistake, and apologise for it too.
+  await expectHalfwayThroughChapterTwo(screen);
+});
 
 test('a book nobody has read opens at the start and says nothing', async () => {
   const { screen } = await aBookResumingAt(nowhereToResume());
@@ -946,14 +939,17 @@ test('a highlight whose chapter is not in this edition opens at the start, and s
     .toBeVisible();
 });
 
-test('jumping to a highlight writes no reading position', { timeout: 60_000 }, async () => {
-  const { writes } = await aJumpToAPassage();
+test('jumping to a highlight writes no reading position', async () => {
+  fakeTheClock();
+  const { screen, writes } = await aJumpToAPassage();
   await expectThePassageOnThePage();
 
-  // Past the five-second debounce with room to spare.
-  await sleep(8_000);
+  await vi.advanceTimersByTimeAsync(10_000);
 
-  expect(writes).toEqual([]);
+  await screen.getByRole('button', { name: 'Next page' }).click();
+  await expectAWriteOnceTheDebounceRunsOut(writes);
+  // The page after the passage ends the chapter; the jump itself is short of it.
+  expect(writes[0].locator.locations?.progression).toBe(1);
 });
 
 test('a book is opened with its highlights drawn on the page', async () => {
