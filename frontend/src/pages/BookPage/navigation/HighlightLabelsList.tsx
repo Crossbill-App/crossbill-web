@@ -45,8 +45,6 @@ export const HighlightLabelsList = ({
     return null;
   }
 
-  // Beside the chips, which carry each label's count: a name and a colour reach
-  // every highlight the count covers, and this is the only place that says so.
   const editButton = (
     <Button size="small" startIcon={<EditIcon />} onClick={() => setIsEditing(true)}>
       Edit labels

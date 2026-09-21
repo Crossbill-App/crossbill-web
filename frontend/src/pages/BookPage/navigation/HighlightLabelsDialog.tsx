@@ -23,14 +23,6 @@ interface LabelRowProps {
   label: HighlightLabelInBook;
 }
 
-/**
- * One highlighter of the book: what the reader calls it, and the colour it is
- * drawn in here.
- *
- * Both are the highlighter's, not any one highlight's, so the row leads with
- * how many highlights it speaks for. Autosaved like every other field in the
- * sidebar; a failure is reported by the snackbar and returns the marker to idle.
- */
 const LabelRow = ({ bookId, label }: LabelRowProps) => {
   const [name, setName] = useState(label.label || '');
   const saveStatus = useSaveStatus();
@@ -95,12 +87,6 @@ interface HighlightLabelsDialogProps {
 /**
  * The book's highlighters, named and recoloured where it is plain what they
  * cover.
- *
- * This is the one place a label's display colour can be changed. It used to sit
- * in the dialog of a single highlight, under that highlight's own colour, where
- * it read as "make this one red" and instead repainted every highlight of the
- * colour in the book. Here each row says how many highlights it speaks for
- * before it offers anything to change.
  */
 export const HighlightLabelsDialog = ({ bookId, open, onClose }: HighlightLabelsDialogProps) => {
   const { data } = useGetBookHighlightLabels(bookId, { query: { enabled: open } });
@@ -118,10 +104,6 @@ export const HighlightLabelsDialog = ({ bookId, open, onClose }: HighlightLabels
         </Box>
       }
     >
-      <Typography variant="body2" sx={{ color: 'text.secondary', pt: 2 }}>
-        A label is the meaning of a highlighter, so its name and colour reach every highlight made
-        with it in this book. To recolour one passage on its own, open it and pick a colour there.
-      </Typography>
       <Stack divider={<Divider />} spacing={3} sx={{ mt: 3 }}>
         {labels.map((label) => (
           <LabelRow key={label.id} bookId={bookId} label={label} />

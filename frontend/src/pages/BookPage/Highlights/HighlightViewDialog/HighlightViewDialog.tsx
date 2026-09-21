@@ -35,9 +35,6 @@ export const HighlightViewDialog = ({
   const cache = useCacheEvents();
   const mutationErrorHandler = useMutationErrorHandler();
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
-  // Whether the editor is up, kept apart from what it hangs off: the label's
-  // element is swapped when the highlight moves to a named colour, and the
-  // popover has to follow the new one rather than close or jump to the corner.
   const [isEditingStyle, setIsEditingStyle] = useState(false);
   const [labelAnchorEl, setLabelAnchorEl] = useState<HTMLElement | null>(null);
 

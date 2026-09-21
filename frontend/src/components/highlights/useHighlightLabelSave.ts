@@ -11,14 +11,6 @@ export interface HighlightLabelSave {
   save: (styleId: number, data: HighlightLabelUpdate) => void;
 }
 
-/**
- * Saving an edit to a label — its name, or the colour it is drawn in.
- *
- * Both reach every highlight made with that highlighter in the book, and both
- * are edited from two places: the Labels section of the sidebar, and the name
- * field in a highlight's own dialog. The marker is the caller's, because a
- * popover that also recolours the highlight itself shows one marker for both.
- */
 export const useHighlightLabelSave = (
   bookId: number,
   saveStatus: SaveStatusHandle
