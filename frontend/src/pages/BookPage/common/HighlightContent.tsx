@@ -9,9 +9,11 @@ import { Box, Typography } from '@mui/material';
 interface HighlightContentProps {
   highlight: Highlight;
   onLabelClick?: (event: React.MouseEvent<HTMLElement>) => void;
+  /** Handed the element the label sits in, for anything anchored to it. */
+  labelRef?: React.RefCallback<HTMLDivElement>;
 }
 
-export const HighlightContent = ({ highlight, onLabelClick }: HighlightContentProps) => {
+export const HighlightContent = ({ highlight, onLabelClick, labelRef }: HighlightContentProps) => {
   const startsWithLowercase =
     highlight.text.length > 0 &&
     highlight.text[0] === highlight.text[0].toLowerCase() &&
@@ -84,7 +86,12 @@ export const HighlightContent = ({ highlight, onLabelClick }: HighlightContentPr
           {formatDate(highlight.datetime)}
           {highlight.page && ` • Page ${highlight.page}`}
         </Typography>
-        <LabelIndicator label={highlight.label} onClick={onLabelClick} size="medium" />
+        {/* The indicator itself is a chip when the label has a name and a dot
+            when it has not, so it is swapped out from under anything anchored
+            to it. This wrapper is not, which is what the popover hangs off. */}
+        <Box ref={labelRef} sx={{ display: 'flex', alignItems: 'center' }}>
+          <LabelIndicator label={highlight.label} onClick={onLabelClick} size="medium" />
+        </Box>
         <NotOnDeviceChip removed={highlight.removed_from_devices} size="medium" />
       </Box>
     </Box>

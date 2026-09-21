@@ -1,10 +1,12 @@
 import { useGetBookHighlightLabels } from '@/api/generated/highlight-labels/highlight-labels.ts';
 import type { HighlightLabelInBook } from '@/api/generated/model';
 import { LabelChip } from '@/components/highlights/LabelChip.tsx';
-import { PaletteIcon } from '@/theme/Icons.tsx';
+import { EditIcon, PaletteIcon } from '@/theme/Icons.tsx';
 import { DEFAULT_LABEL_COLOR } from '@/utils/colorUtils.ts';
-import { Box } from '@mui/material';
+import { Box, Button } from '@mui/material';
+import { useState } from 'react';
 
+import { HighlightLabelsDialog } from './HighlightLabelsDialog.tsx';
 import { SidebarSectionHeader } from './SidebarSectionHeader.tsx';
 
 interface HighlightLabelsListProps {
@@ -33,19 +35,31 @@ export const HighlightLabelsList = ({
   hideTitle,
 }: HighlightLabelsListProps) => {
   const { data } = useGetBookHighlightLabels(bookId);
+  const [isEditing, setIsEditing] = useState(false);
   const labels = data?.items;
 
   // Shown from one label up. Hiding the section below two meant a reader whose
   // highlights are all one colour never learned labels can be named or
-  // recoloured — the editor is only reachable through the colour dot inside a
-  // highlight dialog.
+  // recoloured at all.
   if (!labels || labels.length === 0) {
     return null;
   }
 
+  // Beside the chips, which carry each label's count: a name and a colour reach
+  // every highlight the count covers, and this is the only place that says so.
+  const editButton = (
+    <Button size="small" startIcon={<EditIcon />} onClick={() => setIsEditing(true)}>
+      Edit labels
+    </Button>
+  );
+
   return (
     <Box>
-      {!hideTitle && <SidebarSectionHeader icon={PaletteIcon} title="Labels" />}
+      {hideTitle ? (
+        <Box sx={{ display: 'flex', justifyContent: 'flex-end', mb: 1 }}>{editButton}</Box>
+      ) : (
+        <SidebarSectionHeader icon={PaletteIcon} title="Labels" action={editButton} />
+      )}
 
       <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.75 }}>
         {labels.map((label) => (
@@ -59,6 +73,8 @@ export const HighlightLabelsList = ({
           />
         ))}
       </Box>
+
+      <HighlightLabelsDialog bookId={bookId} open={isEditing} onClose={() => setIsEditing(false)} />
     </Box>
   );
 };

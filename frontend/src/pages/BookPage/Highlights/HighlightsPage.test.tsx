@@ -322,9 +322,10 @@ test('the labels section appears with a single label', async () => {
 
   const screen = await renderApp({ path: '/book/1/highlights' });
 
-  // One label is enough: without the section, naming or recolouring it is only
-  // reachable through the colour dot inside a highlight dialog.
-  await expect.element(screen.getByText('Labels')).toBeVisible();
+  // One label is enough: without the section, naming or recolouring it is
+  // unreachable. Exactly, because the section's own Edit labels button matches
+  // a loose "Labels" too.
+  await expect.element(screen.getByText('Labels', { exact: true })).toBeVisible();
   await expect.element(screen.getByText('Important (3)')).toBeVisible();
 });
 
