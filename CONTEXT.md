@@ -41,9 +41,11 @@ _Avoid_: colour, marker, pen
 **Label**:
 The meaning a user assigned to a Highlight Style: what they meant when they
 reached for the yellow highlighter. A highlight inherits at most one label,
-from the device. Contrast Tag, which the user applies in Crossbill and can
-apply many of. A label may be set per book or globally, and resolves down a
-fallback chain from the most specific match to the least.
+from whichever style it is filed under — the one the device sent it in, or
+another the user picked in Crossbill by recolouring that one highlight.
+Contrast Tag, which the user applies in Crossbill and can apply many of. A
+label may be set per book or globally, and resolves down a fallback chain from
+the most specific match to the least.
 _Avoid_: category, tag, name
 
 **Bookmark**:
