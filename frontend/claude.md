@@ -69,6 +69,15 @@ network with MSW, and drives the page the way a user would.
 Run them with `npm run test` (headless Chromium via Vitest browser mode) or
 `npm run test:watch`. `npx playwright install chromium` once, first time.
 
+Vitest runs two projects, and the file extension picks the project:
+
+- `unit` — `*.test.ts`, in node, with no setup file and no MSW. Pure logic
+  only. `npm run test:unit` runs just these, in about a second.
+- `browser` — `*.test.tsx`, in Chromium, with `tests/setup.ts`. Anything that
+  renders, or that needs the real DOM (`DOMParser`, `Range`, layout).
+
+`npm run test` runs both, and so does CI.
+
 ### What belongs in a test
 
 - User-visible flows: open a dialog, edit, save, and assert the **list or page**
@@ -106,6 +115,6 @@ Copy `src/pages/BookPage/BookPage.test.tsx` (render) and
 `src/pages/BookPage/Notes/NotesPage.test.tsx` (mutation flow + error path) when
 adding tests for a new page. Tests live next to the page they cover.
 
-Plain node-environment unit tests are reserved for genuinely tricky pure logic
-in `src/utils` — parsing, normalisation, arithmetic — where a page-level test
-could not pin down the edge cases.
+`.test.ts` unit tests are reserved for genuinely tricky pure logic — parsing,
+normalisation, arithmetic — where a page-level test could not pin down the edge
+cases.

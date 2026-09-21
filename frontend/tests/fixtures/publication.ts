@@ -8,6 +8,17 @@ import type {
 const manifestHref = (bookId = 1) =>
   `${window.location.origin}/api/v1/readium/books/${bookId}/manifest.json`;
 
+/** The manifest's contents, with an unlinked `#` part heading among the chapters. */
+export const aTableOfContents = (): WebPublicationManifest['toc'] => [
+  { href: 'resources/OEBPS/chapter1.xhtml', title: 'On Attention' },
+  {
+    // A part heading links nowhere; its chapters do.
+    href: '#',
+    title: 'Part two',
+    children: [{ href: 'resources/OEBPS/chapter2.xhtml', title: 'On Memory' }],
+  },
+];
+
 /**
  * A small but genuine Readium Web Publication Manifest.
  *
@@ -36,15 +47,7 @@ export const aManifest = (
     { href: 'resources/OEBPS/chapter2.xhtml', type: 'application/xhtml+xml' },
   ],
   resources: [{ href: 'resources/OEBPS/style.css', type: 'text/css' }],
-  toc: [
-    { href: 'resources/OEBPS/chapter1.xhtml', title: 'On Attention' },
-    {
-      // A part heading links nowhere; its chapters do.
-      href: '#',
-      title: 'Part two',
-      children: [{ href: 'resources/OEBPS/chapter2.xhtml', title: 'On Memory' }],
-    },
-  ],
+  toc: aTableOfContents(),
   ...overrides,
 });
 

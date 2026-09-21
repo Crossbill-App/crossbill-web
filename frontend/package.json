@@ -18,6 +18,7 @@
     "type-check": "npm run routes:generate && tsc --noEmit",
     "test": "npm run routes:generate && vitest run",
     "test:watch": "npm run routes:generate && vitest",
+    "test:unit": "vitest run --project unit",
     "knip": "npm run routes:generate && knip",
     "duplication-check": "jscpd --no-tips"
   },
