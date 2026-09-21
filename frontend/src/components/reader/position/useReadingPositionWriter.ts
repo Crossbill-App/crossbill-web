@@ -26,12 +26,6 @@ const WRITE_DEBOUNCE_MS = 5_000;
 // throttled or sleeping tab before one sitting is recorded as two.
 const HEARTBEAT_MS = 10 * 60 * 1000;
 
-/** Overridable only for tests, which cannot wait out the real intervals. */
-interface WriterTimings {
-  writeDebounceMs?: number;
-  heartbeatMs?: number;
-}
-
 /** A position, and when the reader was seen at it. */
 interface Observation {
   locator: BrowserLocatorSchema;
@@ -45,10 +39,7 @@ const update = ({ locator, at }: Observation, closing: boolean): ReadingPosition
 });
 
 /** Where the reader has got to in one book, written down as they go. */
-export const useReadingPositionWriter = (
-  bookId: number,
-  { writeDebounceMs = WRITE_DEBOUNCE_MS, heartbeatMs = HEARTBEAT_MS }: WriterTimings = {}
-) => {
+export const useReadingPositionWriter = (bookId: number) => {
   // What the server is believed to hold, as its own JSON, so that "has this
   // moved" is one comparison rather than a tour of the locator's optional fields.
   const writtenRef = useRef<string | null>(null);
@@ -118,7 +109,7 @@ export const useReadingPositionWriter = (
       // a book nobody is looking at.
       if (document.visibilityState !== 'visible') return;
       const observed = latestRef.current;
-      if (!observed || Date.now() - spokeAtRef.current < heartbeatMs) return;
+      if (!observed || Date.now() - spokeAtRef.current < HEARTBEAT_MS) return;
       // A move still waiting out the debounce is what this beat has to say, so
       // it is sent as the beat rather than again a moment later.
       if (pendingRef.current) {
@@ -129,7 +120,7 @@ export const useReadingPositionWriter = (
       // is still here, never that they moved. A fresh timestamp would claim to
       // be a newer sighting than the page another tab is actually on.
       send(update(observed, false), false);
-    }, heartbeatMs / 2);
+    }, HEARTBEAT_MS / 2);
 
     // Coming back to a hidden tab is the same sitting, so it flushes what is
     // pending and leaves the session open.
@@ -142,7 +133,7 @@ export const useReadingPositionWriter = (
       clearInterval(tick);
       close();
     };
-  }, [send, sendPending, close, heartbeatMs]);
+  }, [send, sendPending, close]);
 
   /** Where the reader already is: remembered, written down nowhere. */
   const seed = useCallback((location: EbookLocation) => {
@@ -171,9 +162,9 @@ export const useReadingPositionWriter = (
       latestRef.current = observed;
       pendingRef.current = observed;
       clearTimeout(timerRef.current);
-      timerRef.current = setTimeout(() => sendPending(false), writeDebounceMs);
+      timerRef.current = setTimeout(() => sendPending(false), WRITE_DEBOUNCE_MS);
     },
-    [seed, sendPending, writeDebounceMs]
+    [seed, sendPending]
   );
 
   return { seed, moved };

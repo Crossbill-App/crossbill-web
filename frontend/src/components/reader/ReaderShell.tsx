@@ -43,12 +43,9 @@ import { useBodyScrollLock } from '@/hooks/useBodyScrollLock.ts';
 import { Box, useTheme } from '@mui/material';
 import { useEffect, useMemo, useRef, useState } from 'react';
 
-/** All four only for tests: a fake engine, and waits short enough to sit through. */
+/** Only for tests: a fake engine. */
 export interface ReaderTestKnobs {
   createReader?: UseEbookReaderOptions['createReader'];
-  bootTimeoutMs?: number;
-  writeDebounceMs?: number;
-  heartbeatMs?: number;
 }
 
 export interface ReaderShellProps {
@@ -70,7 +67,7 @@ export const ReaderShell = ({
   onClose,
   onOpenHighlight,
   target,
-  testing: { createReader, bootTimeoutMs, writeDebounceMs, heartbeatMs } = {},
+  testing: { createReader } = {},
 }: ReaderShellProps) => {
   // A fixed overlay never scrolls the body, which is what arms pull-to-refresh.
   useBodyScrollLock(true);
@@ -102,7 +99,7 @@ export const ReaderShell = ({
     () => toEbookAppearance(theme, { pageColor, fontSize, spacing, alignment, columns }),
     [theme, pageColor, fontSize, spacing, alignment, columns]
   );
-  const { seed, moved } = useReadingPositionWriter(bookId, { writeDebounceMs, heartbeatMs });
+  const { seed, moved } = useReadingPositionWriter(bookId);
   // Latched, so that nothing done to the address after the book opens can move it.
   const [jump] = useState(target ?? null);
   const landing = useReaderLanding(bookId, jump, details?.chapters);
@@ -123,7 +120,6 @@ export const ReaderShell = ({
     appearance,
     initialLocation: landing?.locator ?? null,
     createReader,
-    bootTimeoutMs,
     on: {
       arrivedAt: seed,
       movedTo: moved,

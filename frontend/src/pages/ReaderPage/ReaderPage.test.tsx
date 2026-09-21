@@ -16,6 +16,7 @@ import {
   nowhereToResume,
   PASSAGE_SELECTOR,
 } from '@tests/fixtures/publication';
+import { expectAWriteOnceTheDebounceRunsOut, fakeTheClock } from '@tests/harness/fakeClock';
 import { drawnOn, drawnRanges } from '@tests/harness/paintedHighlights';
 import { renderApp } from '@tests/harness/renderApp';
 import {
@@ -38,7 +39,7 @@ import {
 } from '@tests/msw/readiumApi';
 import { worker } from '@tests/msw/worker';
 import { delay, http, HttpResponse } from 'msw';
-import { afterEach, expect, onTestFinished, test, vi } from 'vitest';
+import { afterEach, expect, test, vi } from 'vitest';
 import { cleanup } from 'vitest-browser-react';
 import { userEvent } from 'vitest/browser';
 
@@ -636,24 +637,6 @@ const aBookRecordingPositions = async () => {
   const screen = await openTheBook();
   return { screen, writes: positions.writes, requests };
 };
-
-/**
- * A clock the test can jump past the write debounce. It still runs on with real
- * time, because the navigator's own boot is a chain of timers a frozen clock stalls.
- */
-const fakeTheClock = () => {
-  vi.useFakeTimers({ shouldAdvanceTime: true });
-  onTestFinished(() => void vi.useRealTimers());
-};
-
-/** The clock moved on until one write has landed, for a turn nothing on screen shows. */
-const expectAWriteOnceTheDebounceRunsOut = (writes: unknown[]) =>
-  expect
-    .poll(async () => {
-      await vi.advanceTimersByTimeAsync(5_000);
-      return writes.length;
-    })
-    .toBe(1);
 
 /** A page read and the reader closed again, well inside the write debounce. */
 const readAPageAndLeave = async (screen: Screen) => {

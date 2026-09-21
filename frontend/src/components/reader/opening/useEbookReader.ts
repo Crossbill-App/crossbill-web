@@ -50,7 +50,6 @@ export interface UseEbookReaderOptions {
   initialLocation?: EbookLocation | null;
   /** Must be referentially stable: an inline arrow rebuilds the reader every render. */
   createReader?: (host: HTMLElement) => EbookReader;
-  bootTimeoutMs?: number;
   /** Who to tell about what the reader does with the book. */
   on?: EbookReaderListeners;
   /** Where to move the book once it has opened, before it is shown; `null` shows it where it opened. */
@@ -109,7 +108,6 @@ export const useEbookReader = ({
   appearance,
   initialLocation,
   createReader = aReadiumReader,
-  bootTimeoutMs = BOOT_TIMEOUT_MS,
   on,
   finishLanding,
 }: UseEbookReaderOptions): EbookReaderState => {
@@ -159,7 +157,7 @@ export const useEbookReader = ({
     const cancel = new AbortController();
     // Read through a call: TypeScript would carry a check's narrowing across an await.
     const isCancelled = () => cancel.signal.aborted;
-    const signal = AbortSignal.any([cancel.signal, AbortSignal.timeout(bootTimeoutMs)]);
+    const signal = AbortSignal.any([cancel.signal, AbortSignal.timeout(BOOT_TIMEOUT_MS)]);
     let isOpen = false;
     const unsubscribes = [
       reader.onLocationChanged((location) => {
@@ -246,7 +244,7 @@ export const useEbookReader = ({
       void reader.destroy();
       readerRef.current = null;
     };
-  }, [enabled, manifestUrl, attempt, createReader, bootTimeoutMs, host]);
+  }, [enabled, manifestUrl, attempt, createReader, host]);
 
   const next = useCallback(() => void readerRef.current?.next(), []);
   const previous = useCallback(() => void readerRef.current?.previous(), []);
