@@ -3,7 +3,31 @@ import type {
   BookWithHighlightCount,
   ChapterWithHighlights,
   Highlight,
+  HighlightLabelInBook,
 } from '@/api/generated/model';
+
+/**
+ * KOReader's own hues for its colours, as the server fills them in for a label
+ * that names no colour of its own.
+ */
+export const KOREADER_HUE = {
+  yellow: '#F59E0B',
+  red: '#EF4444',
+} as const;
+
+/** One of the book's highlighters, as `GET /books/:id/highlight-labels` lists it. */
+export const aHighlightLabel = (
+  overrides: Partial<HighlightLabelInBook> = {}
+): HighlightLabelInBook => ({
+  id: 10,
+  device_color: 'yellow',
+  device_style: 'lighten',
+  label: null,
+  ui_color: KOREADER_HUE.yellow,
+  label_source: 'none',
+  highlight_count: 2,
+  ...overrides,
+});
 
 export const aHighlight = (overrides: Partial<Highlight> = {}): Highlight => ({
   id: 300,

@@ -38,7 +38,7 @@ export const LabelIndicator = ({ label, onClick, size = 'small' }: LabelIndicato
     <Box
       component={isClickable ? 'button' : 'span'}
       onClick={onClick}
-      aria-label={isClickable ? 'Edit label color' : undefined}
+      aria-label={isClickable ? 'Change highlight colour' : undefined}
       tabIndex={isClickable ? 0 : undefined}
       sx={{
         width: dotSize,

@@ -25,8 +25,10 @@ import type {
   CollectionResponseHighlightLocatorResponse,
   CreatedHighlightResponse,
   HTTPValidationError,
+  HighlightColorChange,
   HighlightDeleteRequest,
   HighlightDeleteResponse,
+  HighlightLabel,
   HighlightLocatorResponse,
   HighlightSyncRequest,
   HighlightSyncResponse,
@@ -582,6 +584,94 @@ export const useDeleteHighlights = <TError = HTTPValidationError, TContext = unk
   TContext
 > => {
   return useMutation(getDeleteHighlightsMutationOptions(options), queryClient);
+};
+/**
+ * Draw one highlight in another of KOReader's colours.
+ *
+ * Only this highlight moves. The label naming a colour belongs to the style
+ * every highlight of that colour in the book shares, so recolouring one of
+ * them files it under another style rather than repainting the rest.
+ *
+ * Returns:
+ *     The label the highlight now resolves to, ready to draw it with.
+ * @summary Change Highlight Color
+ */
+export const changeHighlightColor = (
+  bookId: number,
+  highlightId: number,
+  highlightColorChange: HighlightColorChange,
+  signal?: AbortSignal
+) => {
+  return axiosInstance<HighlightLabel>({
+    url: `/api/v1/books/${bookId}/highlights/${highlightId}/color`,
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    data: highlightColorChange,
+    signal,
+  });
+};
+
+export const getChangeHighlightColorMutationOptions = <
+  TError = HTTPValidationError,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof changeHighlightColor>>,
+    TError,
+    { bookId: number; highlightId: number; data: HighlightColorChange },
+    TContext
+  >;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof changeHighlightColor>>,
+  TError,
+  { bookId: number; highlightId: number; data: HighlightColorChange },
+  TContext
+> => {
+  const mutationKey = ['changeHighlightColor'];
+  const { mutation: mutationOptions } = options
+    ? options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey } };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof changeHighlightColor>>,
+    { bookId: number; highlightId: number; data: HighlightColorChange }
+  > = (props) => {
+    const { bookId, highlightId, data } = props ?? {};
+
+    return changeHighlightColor(bookId, highlightId, data);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type ChangeHighlightColorMutationResult = NonNullable<
+  Awaited<ReturnType<typeof changeHighlightColor>>
+>;
+export type ChangeHighlightColorMutationBody = HighlightColorChange;
+export type ChangeHighlightColorMutationError = HTTPValidationError;
+
+/**
+ * @summary Change Highlight Color
+ */
+export const useChangeHighlightColor = <TError = HTTPValidationError, TContext = unknown>(
+  options?: {
+    mutation?: UseMutationOptions<
+      Awaited<ReturnType<typeof changeHighlightColor>>,
+      TError,
+      { bookId: number; highlightId: number; data: HighlightColorChange },
+      TContext
+    >;
+  },
+  queryClient?: QueryClient
+): UseMutationResult<
+  Awaited<ReturnType<typeof changeHighlightColor>>,
+  TError,
+  { bookId: number; highlightId: number; data: HighlightColorChange },
+  TContext
+> => {
+  return useMutation(getChangeHighlightColorMutationOptions(options), queryClient);
 };
 /**
  * Get where every one of a book's live highlights is in its EPUB.

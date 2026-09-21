@@ -15,8 +15,8 @@ import type { HighlightDialogController } from '@/pages/BookPage/Highlights/hook
 import { Box, Stack } from '@mui/material';
 import { useState } from 'react';
 import { HighlightContent } from '../../common/HighlightContent.tsx';
+import { HighlightStylePopover } from './components/HighlightStylePopover.tsx';
 import { HighlightTabs } from './components/HighlightTabs.tsx';
-import { LabelEditorPopover } from './components/LabelEditorPopover.tsx';
 import { Toolbar } from './components/Toolbar.tsx';
 
 interface HighlightViewDialogProps {
@@ -35,6 +35,7 @@ export const HighlightViewDialog = ({
   const cache = useCacheEvents();
   const mutationErrorHandler = useMutationErrorHandler();
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
+  const [isEditingStyle, setIsEditingStyle] = useState(false);
   const [labelAnchorEl, setLabelAnchorEl] = useState<HTMLElement | null>(null);
 
   // Callers render this dialog only while a highlight is active
@@ -82,9 +83,9 @@ export const HighlightViewDialog = ({
     controller.close(highlight.id);
   };
 
-  const handleLabelClick = (event: React.MouseEvent<HTMLElement>) => {
+  const handleLabelClick = () => {
     if (highlight.label?.highlight_style_id) {
-      setLabelAnchorEl(event.currentTarget);
+      setIsEditingStyle(true);
     }
   };
 
@@ -139,7 +140,11 @@ export const HighlightViewDialog = ({
       navigation={navigation}
     >
       <FadeInOut ekey={highlight.id}>
-        <HighlightContent highlight={highlight} onLabelClick={handleLabelClick} />
+        <HighlightContent
+          highlight={highlight}
+          onLabelClick={handleLabelClick}
+          labelRef={setLabelAnchorEl}
+        />
       </FadeInOut>
       {renderContent()}
 
@@ -154,14 +159,14 @@ export const HighlightViewDialog = ({
       />
 
       {highlight.label?.highlight_style_id && (
-        <LabelEditorPopover
+        <HighlightStylePopover
           anchorEl={labelAnchorEl}
-          open={!!labelAnchorEl}
-          onClose={() => setLabelAnchorEl(null)}
+          open={isEditingStyle && labelAnchorEl !== null}
+          onClose={() => setIsEditingStyle(false)}
           styleId={highlight.label.highlight_style_id}
           currentLabel={highlight.label.text}
-          currentColor={highlight.label.ui_color}
           bookId={bookId}
+          highlightId={highlight.id}
         />
       )}
     </CommonDialog>

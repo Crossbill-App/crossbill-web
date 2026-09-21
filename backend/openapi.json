@@ -1131,6 +1131,73 @@
         }
       }
     },
+    "/api/v1/books/{book_id}/highlights/{highlight_id}/color": {
+      "patch": {
+        "tags": [
+          "highlights"
+        ],
+        "summary": "Change Highlight Color",
+        "description": "Draw one highlight in another of KOReader's colours.\n\nOnly this highlight moves. The label naming a colour belongs to the style\nevery highlight of that colour in the book shares, so recolouring one of\nthem files it under another style rather than repainting the rest.\n\nReturns:\n    The label the highlight now resolves to, ready to draw it with.",
+        "operationId": "change_highlight_color",
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "book_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Book Id"
+            }
+          },
+          {
+            "name": "highlight_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Highlight Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/HighlightColorChange"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HighlightLabel"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/tag-groups": {
       "post": {
         "tags": [
@@ -7560,6 +7627,37 @@
         ],
         "title": "Highlight",
         "description": "Schema for Highlight response with flashcards."
+      },
+      "HighlightColorChange": {
+        "properties": {
+          "device_color": {
+            "type": "string",
+            "maxLength": 50,
+            "minLength": 1,
+            "title": "Device Color",
+            "description": "A KOReader colour name, such as `yellow`"
+          },
+          "device_style": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 50,
+                "minLength": 1
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Device Style",
+            "description": "The drawer that colour is drawn with, defaulting to KOReader's `lighten`"
+          }
+        },
+        "type": "object",
+        "required": [
+          "device_color"
+        ],
+        "title": "HighlightColorChange",
+        "description": "Which highlighter one highlight should be drawn with from now on.\n\nA colour rather than a style id: the nine colours are what a reader picks\nfrom, and the book's style for the one they picked is created on the spot\nwhen the book has none, the way making a highlight in it would."
       },
       "HighlightCreate": {
         "properties": {

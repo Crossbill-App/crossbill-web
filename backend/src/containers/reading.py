@@ -18,6 +18,9 @@ from src.application.reading.commands.highlight_labels.create_global_highlight_l
 from src.application.reading.commands.highlight_labels.update_highlight_label_use_case import (
     UpdateHighlightLabelUseCase,
 )
+from src.application.reading.commands.highlights.change_highlight_color_use_case import (
+    ChangeHighlightColorUseCase,
+)
 from src.application.reading.commands.highlights.highlight_delete_use_case import (
     HighlightDeleteUseCase,
 )
@@ -129,6 +132,13 @@ class ReadingContainer(containers.DeclarativeContainer):
     highlight_search_use_case = providers.Factory(
         HighlightSearchUseCase,
         highlight_search_query=highlight_search_query,
+    )
+    change_highlight_color_use_case = providers.Factory(
+        ChangeHighlightColorUseCase,
+        book_repository=book_repository,
+        highlight_repository=highlight_repository,
+        highlight_style_repository=highlight_style_repository,
+        label_resolution_service=label_resolution_service,
     )
     highlight_delete_use_case = providers.Factory(
         HighlightDeleteUseCase,

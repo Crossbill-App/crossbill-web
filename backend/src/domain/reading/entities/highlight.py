@@ -150,6 +150,21 @@ class Highlight(AggregateRoot[HighlightId]):
         """Associate this highlight with a chapter."""
         self.chapter_id = chapter_id
 
+    def file_under(self, highlight_style_id: HighlightStyleId) -> None:
+        """Move this highlight to another highlighter's style.
+
+        Which highlighter a passage was marked with is the highlight's own, so
+        changing a highlight's colour repoints it at the style for that colour
+        rather than editing the style it was under -- that one is shared with
+        every other highlight of the same colour in the book.
+
+        Filing a highlight under the style it is already under is no error: the
+        colour it is drawn in is the same either way, and a reader tapping the
+        colour it already wears asked for nothing else.
+        """
+        self.highlight_style_id = highlight_style_id
+        self.updated_at = dt_module.datetime.now(UTC)
+
     def add_tag(self, tag_id: TagId, tag_book_id: BookId) -> None:
         """
         Add a tag to this highlight (domain validation).

@@ -77,6 +77,7 @@ export * from './getRecentCapturesParams.ts';
 export * from './globalSearchParams.ts';
 export * from './globalSearchResults.ts';
 export * from './highlight.ts';
+export * from './highlightColorChange.ts';
 export * from './highlightCreate.ts';
 export * from './highlightDeleteRequest.ts';
 export * from './highlightDeleteResponse.ts';

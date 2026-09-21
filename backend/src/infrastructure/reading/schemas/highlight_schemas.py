@@ -4,8 +4,9 @@ from datetime import UTC
 from datetime import datetime as dt
 from typing import TYPE_CHECKING, Annotated, Any, Literal
 
-from pydantic import AfterValidator, BaseModel, Field, model_validator
+from pydantic import AfterValidator, BaseModel, Field, StringConstraints, model_validator
 
+from src.domain.reading.entities.highlight_style import KOREADER_DEFAULT_DRAWER
 from src.infrastructure.common.schemas.position_schemas import PositionResponse
 from src.infrastructure.reading.schemas.bookmark_schemas import Bookmark
 from src.infrastructure.tagging.schemas.tag_schemas import (
@@ -34,6 +35,9 @@ def _drop_offset(value: dt) -> dt:
 
 
 DeviceDatetime = Annotated[dt, AfterValidator(_drop_offset)]
+
+# A device colour or drawer name, as wide as the column it is stored in.
+DeviceName = Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=50)]
 
 
 class HighlightBase(BaseModel):
@@ -293,6 +297,24 @@ class HighlightLabelUpdate(BaseModel):
 
     label: str | None = Field(None, description="New label (null to clear)")
     ui_color: str | None = Field(None, description="New UI color (null to clear)")
+
+
+class HighlightColorChange(BaseModel):
+    """Which highlighter one highlight should be drawn with from now on.
+
+    A colour rather than a style id: the nine colours are what a reader picks
+    from, and the book's style for the one they picked is created on the spot
+    when the book has none, the way making a highlight in it would.
+    """
+
+    device_color: DeviceName = Field(..., description="A KOReader colour name, such as `yellow`")
+    device_style: DeviceName | None = Field(
+        None,
+        description=(
+            "The drawer that colour is drawn with, defaulting to KOReader's "
+            f"`{KOREADER_DEFAULT_DRAWER}`"
+        ),
+    )
 
 
 class HighlightLabelCreate(BaseModel):
