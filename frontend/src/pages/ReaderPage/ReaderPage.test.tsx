@@ -30,6 +30,7 @@ import {
 import { bookApi } from '@tests/msw/bookApi';
 import type { HighlightCreationAnswer } from '@tests/msw/readiumApi';
 import {
+  aHeldSession,
   highlightCreationApi,
   highlightLocatorApi,
   highlightLocatorsApi,
@@ -256,28 +257,23 @@ test('a book whose manifest cannot be read says so and offers a retry', async ()
 });
 
 test('a lapsed session holds the book until it has been renewed', async () => {
+  fakeTheClock();
   worker.use(...aReadableBook());
-  // One second of life, so the cookie has genuinely lapsed by the time the tab
-  // is brought back. The scheduled renewal cannot interfere: its floor is five.
   worker.use(...readiumApi({ expiresIn: 1 }));
 
   const screen = await openTheBook();
 
-  worker.use(
-    http.post(SESSION_PATH, async () => {
-      await delay(2_000);
-      return HttpResponse.json({ expires_in: 900 });
-    })
-  );
-  await new Promise((resolve) => setTimeout(resolve, 1_200));
+  // The date jumps with no timer run, as on a machine that slept through the cookie.
+  vi.setSystemTime(Date.now() + 2_000);
+  const session = aHeldSession();
+  worker.use(session.handler);
   window.dispatchEvent(new Event('focus'));
 
   await expect.element(screen.getByText('Reconnecting…')).toBeVisible();
   await expect.element(screen.getByRole('button', { name: 'Next page' })).toBeDisabled();
 
-  await expect
-    .element(screen.getByText('Reconnecting…'), { timeout: 5_000 })
-    .not.toBeInTheDocument();
+  session.release();
+  await expect.element(screen.getByText('Reconnecting…')).not.toBeInTheDocument();
   await expect.element(screen.getByRole('button', { name: 'Next page' })).toBeEnabled();
 });
 

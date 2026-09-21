@@ -234,6 +234,19 @@ export const readiumApi = ({
   }),
 ];
 
+/** A session endpoint that answers only once the test releases it. */
+export const aHeldSession = () => {
+  let release = () => {};
+  const released = new Promise<void>((resolve) => {
+    release = resolve;
+  });
+  const handler = http.post(SESSION_PATH, async () => {
+    await released;
+    return HttpResponse.json({ expires_in: 900 });
+  });
+  return { handler, release };
+};
+
 /** A book with no EPUB: the manifest 404s, which is how the app learns there is none. */
 export const noPublication = [
   http.post(SESSION_PATH, () => HttpResponse.json({ expires_in: 900 })),

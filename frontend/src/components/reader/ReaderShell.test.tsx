@@ -31,6 +31,7 @@ import { expectAWriteOnceTheDebounceRunsOut, fakeTheClock } from '@tests/harness
 import { pendingQueryClients } from '@tests/harness/pendingQueryClients';
 import { bookApi } from '@tests/msw/bookApi';
 import {
+  aHeldSession,
   highlightCreationApi,
   highlightLocatorApi,
   highlightLocatorsApi,
@@ -44,7 +45,6 @@ import { afterEach, beforeEach, expect, test, vi } from 'vitest';
 import { cleanup, render } from 'vitest-browser-react';
 import { page, userEvent } from 'vitest/browser';
 
-const SESSION_PATH = '/api/v1/readium/books/:bookId/session';
 const RESOURCE_PATH = '/api/v1/readium/books/:bookId/resources/*';
 const POSITION_PATH = '/api/v1/readium/books/:bookId/reading-position';
 const MANIFEST_URL = `${window.location.origin}/api/v1/readium/books/1/manifest.json`;
@@ -107,12 +107,6 @@ const setVisibility = (state: DocumentVisibilityState) => {
 const hideTheTab = () => setVisibility('hidden');
 const showTheTab = () => setVisibility('visible');
 
-const aSlowSession = (ms: number) =>
-  http.post(SESSION_PATH, async () => {
-    await delay(ms);
-    return HttpResponse.json({ expires_in: 900 });
-  });
-
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
 // The shell asks the server where to resume and apologises when it cannot, so
@@ -170,11 +164,14 @@ const expectReconnecting = (screen: Screen) =>
 
 test('the shell waits for the cookie before opening the book', async () => {
   worker.use(...readiumApi());
-  worker.use(aSlowSession(500));
+  const session = aHeldSession();
+  worker.use(session.handler);
 
   const screen = await renderShell();
 
+  await expect.element(screen.getByLabelText('Loading the book')).toBeVisible();
   expect(readers).toHaveLength(0);
+  session.release();
   await expect.poll(() => readers.length).toBe(1);
   expect(readers[0].openedWith.map((opened) => opened.manifestUrl)).toEqual([MANIFEST_URL]);
   await expect.element(screen.getByLabelText('Loading the book')).toBeVisible();
@@ -212,23 +209,23 @@ test('a page turn asked for by the book is forwarded', async () => {
 });
 
 test('a page turn asked for while the cookie is being renewed is dropped', async () => {
-  // A one-second cookie has genuinely lapsed by the time the tab comes back,
-  // and the scheduled renewal cannot interfere: its floor is five.
+  fakeTheClock();
   worker.use(...readiumApi({ expiresIn: 1 }));
 
   const screen = await anOpenBook();
 
-  await sleep(1_200);
-  worker.use(aSlowSession(2_000));
+  // The date jumps with no timer run, as on a machine that slept through the cookie.
+  vi.setSystemTime(Date.now() + 2_000);
+  const session = aHeldSession();
+  worker.use(session.handler);
   window.dispatchEvent(new Event('focus'));
 
   await expectReconnecting(screen);
   readers[0].requestPageTurn('next');
   expect(readers[0].nextCalls).toBe(0);
 
-  await expect
-    .element(screen.getByText('Reconnecting…'), { timeout: 5_000 })
-    .not.toBeInTheDocument();
+  session.release();
+  await expect.element(screen.getByText('Reconnecting…')).not.toBeInTheDocument();
   readers[0].requestPageTurn('next');
   expect(readers[0].nextCalls).toBe(1);
 });
