@@ -103,6 +103,25 @@ const SENTENCE_TEXT_QUERY = [
   },
 ];
 
+// The Vitest config's `testTimeout` is the one budget a test gets. A test that
+// needs more is waiting in real time on something it should drive instead, and
+// raising its own limit is how a suite grows 60-second tests.
+const LONG_TIMEOUT_MESSAGE =
+  'Keep timeouts at 10 000 ms or less: testTimeout in vitest.config.ts is the budget. Drive the ' +
+  'wait instead: fake the clock, inject the delay, or poll for the state with expect.poll.';
+
+const LONG_TIMEOUT = [
+  {
+    selector: "Property[key.name='timeout'][value.value>10000]",
+    message: LONG_TIMEOUT_MESSAGE,
+  },
+  {
+    selector:
+      'CallExpression[callee.name=/^(test|it|describe|beforeEach|afterEach|beforeAll|afterAll)$/] > Literal.arguments[value>10000]',
+    message: LONG_TIMEOUT_MESSAGE,
+  },
+];
+
 /**
  * Composes the import restrictions that apply to one set of files.
  *
@@ -190,7 +209,7 @@ export default tseslint.config(
     files: ['src/**/*.test.{ts,tsx}', 'tests/**/*.{ts,tsx}'],
     rules: {
       '@typescript-eslint/no-restricted-imports': restrictImports(ICON_REGISTRY),
-      'no-restricted-syntax': restrictSyntax(CACHE_INVALIDATION, SENTENCE_TEXT_QUERY),
+      'no-restricted-syntax': restrictSyntax(CACHE_INVALIDATION, SENTENCE_TEXT_QUERY, LONG_TIMEOUT),
     },
   },
   {

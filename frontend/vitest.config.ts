@@ -51,6 +51,9 @@ export default mergeConfig(
           test: {
             name: 'browser',
             include: ['src/**/*.test.tsx'],
+            // The whole budget of a test. Lint caps a test's own timeout at
+            // 10 s, so a test can tighten this but never raise it.
+            testTimeout: 15_000,
             setupFiles: ['./tests/setup.ts'],
             browser: {
               enabled: true,
