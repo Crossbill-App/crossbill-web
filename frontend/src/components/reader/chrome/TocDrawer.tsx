@@ -1,18 +1,10 @@
+import { EmptyStateText } from '@/components/EmptyStateText.tsx';
 import type { EbookTocEntry } from '@/components/reader/engine/EbookReader.ts';
 import { isNavigable } from '@/components/reader/toc.ts';
 import { SectionTitle } from '@/components/typography/SectionTitle.tsx';
 import { CloseIcon } from '@/theme/Icons.tsx';
 import { ICON_SIZE } from '@/theme/iconSizes.ts';
-import {
-  Box,
-  Drawer,
-  IconButton,
-  List,
-  ListItemButton,
-  ListItemText,
-  Stack,
-  Typography,
-} from '@mui/material';
+import { Box, Drawer, IconButton, List, ListItemButton, ListItemText, Stack } from '@mui/material';
 import { Fragment, useCallback } from 'react';
 
 /** How far one level of nesting indents a chapter under its parent. */
@@ -93,9 +85,9 @@ export const TocDrawer = ({ open, onClose, toc, onSelect, currentHref }: TocDraw
           </IconButton>
         </Stack>
         {toc.length === 0 ? (
-          <Typography variant="body2" sx={{ color: 'text.secondary', px: 2, pb: 2 }}>
-            This book has no table of contents.
-          </Typography>
+          <Box sx={{ px: 2, pb: 2 }}>
+            <EmptyStateText>This book has no table of contents.</EmptyStateText>
+          </Box>
         ) : (
           <List sx={{ pb: 2 }}>
             <TocEntries

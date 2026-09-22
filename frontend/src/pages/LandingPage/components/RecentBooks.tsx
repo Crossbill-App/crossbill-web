@@ -3,8 +3,8 @@ import { Carousel } from '@/components/carousel/Carousel.tsx';
 import { CarouselItem } from '@/components/carousel/CarouselItem.tsx';
 import { EmptyStateText } from '@/components/EmptyStateText.tsx';
 import { PAGE_GUTTER } from '@/components/layout/Layouts.tsx';
-import { SectionTitle } from '@/components/typography/SectionTitle.tsx';
 import { Alert, Box } from '@mui/material';
+import { DashboardSection } from './DashboardSection.tsx';
 import { RECENT_BOOKS_LIMIT, useRecentBooks } from './landingQueries.ts';
 
 /**
@@ -37,9 +37,7 @@ export const RecentBooks = () => {
   const empty = !isError && !books?.length;
 
   return (
-    <Box sx={{ mb: 6 }}>
-      <SectionTitle showDivider>Recent books</SectionTitle>
-
+    <DashboardSection title="Recent books">
       {isError && (
         <Box sx={{ py: 3 }}>
           <Alert severity="error">Failed to load recent books.</Alert>
@@ -61,6 +59,6 @@ export const RecentBooks = () => {
           ))}
         </Carousel>
       )}
-    </Box>
+    </DashboardSection>
   );
 };

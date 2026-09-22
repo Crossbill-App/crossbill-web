@@ -2,6 +2,8 @@ import { Box, Typography } from '@mui/material';
 
 export interface SectionTitleProps {
   children: React.ReactNode;
+  /** Set where a landmark takes its accessible name from this heading. */
+  id?: string;
   component?: 'h1' | 'h2' | 'h3' | 'h4' | 'h5' | 'h6';
   /** The variant with the gradient rule running off to the right. */
   showDivider?: boolean;
@@ -17,12 +19,14 @@ export interface SectionTitleProps {
  */
 export const SectionTitle = ({
   children,
+  id,
   component = 'h2',
   showDivider = false,
   gutterBottom = true,
 }: SectionTitleProps) => {
   const heading = (
     <Typography
+      id={id}
       variant="sectionTitle"
       component={component}
       gutterBottom={gutterBottom && !showDivider}

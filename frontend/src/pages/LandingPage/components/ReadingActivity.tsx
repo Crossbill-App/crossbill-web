@@ -2,11 +2,11 @@ import type { LibraryActivity, LibraryStats } from '@/api/generated/model';
 import { EmptyStateText } from '@/components/EmptyStateText.tsx';
 import { ReadingActivityGrid } from '@/components/reading/ReadingActivityGrid.tsx';
 import { Stat, type StatProps } from '@/components/reading/Stat.tsx';
-import { SectionTitle } from '@/components/typography/SectionTitle.tsx';
 import { countLabel } from '@/utils/counts.ts';
 import { formatDay, formatSeconds } from '@/utils/date.ts';
 import { Alert, Box, useMediaQuery } from '@mui/material';
 import { useMemo } from 'react';
+import { DashboardSection } from './DashboardSection.tsx';
 import { useReadingActivity } from './landingQueries.ts';
 import { RECENT_ROW_WIDTH } from './RecentBooks.tsx';
 
@@ -83,9 +83,7 @@ export const ReadingActivity = () => {
   const empty = !isError && !activity;
 
   return (
-    <Box sx={{ mb: 6 }}>
-      <SectionTitle showDivider>Reading activity</SectionTitle>
-
+    <DashboardSection title="Reading activity">
       {isError && (
         <Box sx={{ py: 3 }}>
           <Alert severity="error">Failed to load reading activity.</Alert>
@@ -149,6 +147,6 @@ export const ReadingActivity = () => {
           )}
         </Box>
       )}
-    </Box>
+    </DashboardSection>
   );
 };
