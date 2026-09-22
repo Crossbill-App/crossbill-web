@@ -3,6 +3,7 @@ import globals from 'globals';
 import reactHooks from 'eslint-plugin-react-hooks';
 import reactRefresh from 'eslint-plugin-react-refresh';
 import tseslint from 'typescript-eslint';
+import vitest from '@vitest/eslint-plugin';
 
 // Icons come from the registry, which gives each glyph one domain name and is
 // what keeps two unrelated meanings from sharing one. The type is not an icon,
@@ -190,6 +191,28 @@ export default tseslint.config(
     rules: {
       '@typescript-eslint/no-restricted-imports': restrictImports(ICON_REGISTRY),
       'no-restricted-syntax': restrictSyntax(CACHE_INVALIDATION, SENTENCE_TEXT_QUERY),
+    },
+  },
+  {
+    // A test with no assertion passes whatever the app does, and a skipped or
+    // focused one hides the rest. Helpers named `expect…` or `assert…` count
+    // as assertions, which is how the suite names the ones it shares.
+    files: ['src/**/*.test.{ts,tsx}'],
+    plugins: { vitest },
+    rules: {
+      ...vitest.configs.recommended.rules,
+      'vitest/expect-expect': ['error', { assertFunctionNames: ['expect', 'expect*', 'assert*'] }],
+      // Vitest's `expect(value, message)` labels a failure inside a loop.
+      'vitest/valid-expect': ['error', { maxArgs: 2 }],
+      'vitest/no-conditional-expect': 'error',
+      'vitest/no-conditional-in-test': 'error',
+      'vitest/no-standalone-expect': 'error',
+      'vitest/no-disabled-tests': 'error',
+      'vitest/no-focused-tests': 'error',
+      'vitest/no-identical-title': 'error',
+      'vitest/prefer-to-have-length': 'error',
+      'vitest/prefer-to-be': 'error',
+      'vitest/prefer-to-contain': 'error',
     },
   },
   {
