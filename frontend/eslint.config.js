@@ -90,10 +90,6 @@ const CACHE_INVALIDATION = [
 // from the formatted values `getByText` is for — `Duration 1h 11m`, `63%`,
 // `Pages 102 – 115` — which stay allowed, because there the format is the
 // behaviour.
-//
-// It is keyed on the literal, not on the string: prose the test itself wrote
-// into a fixture is the test's own data rather than the app's copy, and saying
-// so by naming it is what binds the assertion to the fixture it is about.
 const SENTENCE_TEXT_QUERY = [
   {
     selector: "CallExpression[callee.property.name='getByText'] > Literal[value=/[.?!]$/]",

@@ -11,7 +11,6 @@ import { userEvent } from 'vitest/browser';
 const ANSWER_PLACEHOLDER = 'Write your answer...';
 const CHAPTER = aChapter({ id: 10, name: 'Attention and memory' });
 
-/** The first of the chapter's two digest questions, as the fixture writes it. */
 const THE_FIRST_QUESTION = 'What makes attention a filter?';
 
 /** The chapter dialog with two digest questions, opened straight from the URL. */

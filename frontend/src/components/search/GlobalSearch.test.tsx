@@ -14,7 +14,6 @@ import { userEvent } from 'vitest/browser';
 
 const PLACEHOLDER = 'Search...';
 
-/** The text of the one highlight the search returns, and the dialog shows. */
 const A_HIGHLIGHT = 'The map is not the territory.';
 
 test('the app bar offers a global search field when embeddings are on', async () => {

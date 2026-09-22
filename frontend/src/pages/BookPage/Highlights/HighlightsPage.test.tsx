@@ -10,19 +10,9 @@ import { page, userEvent } from 'vitest/browser';
 
 type Screen = Awaited<ReturnType<typeof renderApp>>;
 
-/**
- * What the date field says when the range it was given cannot be read. The
- * message is the behaviour here — it is the only thing that tells the reader
- * why the list did not move — so it is asserted, once, by its words.
- */
 const DATE_OUT_OF_RANGE = 'Enter a date in the allowed range.';
 const RANGE_IS_REVERSED = 'From must be on or before To.';
 
-/**
- * Highlight text the tests below look for. Named rather than repeated as a
- * literal so the assertion is bound to the fixture it is about, and so the
- * prose is visibly the test's own rather than the app's copy.
- */
 const A_HIGHLIGHT = 'The map is not the territory.';
 const ANOTHER_HIGHLIGHT = 'A second passage.';
 

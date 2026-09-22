@@ -14,7 +14,6 @@ const yesterday = DateTime.now().minus({ days: 1 }).toFormat('yyyy-MM-dd');
 
 type Screen = Awaited<ReturnType<typeof renderApp>>;
 
-/** The line a dashboard band shows in place of the content it has none of. */
 const emptyBandOf = (screen: Screen, section: string) =>
   screen.getByRole('region', { name: section }).getByRole('status');
 
@@ -23,7 +22,6 @@ const DUNE = { id: 2, title: 'Dune' };
 const ULYSSES = { id: 3, title: 'Ulysses' };
 const HAMLET = { id: 4, title: 'Hamlet' };
 
-/** A highlight long enough to prove the feed renders a capture's own words. */
 const A_CAPTURED_LINE = 'A reader who never disagrees has not finished reading.';
 
 /** A dashboard whose capture feed holds `captures` and whose grid is empty. */

@@ -236,7 +236,6 @@ test('a book with no EPUB explains there is nothing to read', async () => {
 
   await expect.element(screen.getByRole('alert')).toBeVisible();
   await expect.element(screen.getByRole('button', { name: 'Back to book' })).toBeVisible();
-  // Nothing to retry: the book has no file, so only the way back is offered.
   await expect.element(screen.getByRole('button', { name: 'Try again' })).not.toBeInTheDocument();
 });
 

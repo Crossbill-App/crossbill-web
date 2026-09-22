@@ -9,11 +9,6 @@ import { worker } from '@tests/msw/worker';
 import { http, HttpResponse } from 'msw';
 import { expect, test, vi } from 'vitest';
 
-/**
- * Blurbs the tests below write and then look for. Named rather than repeated
- * as literals so an assertion is bound to the fixture it is about, and so the
- * prose is visibly the test's own rather than the app's copy.
- */
 const SHORT_BLURB = 'Short and complete.';
 const SAFE_BLURB = 'Safe blurb.';
 const ORIGINAL_BLURB = 'The original blurb.';

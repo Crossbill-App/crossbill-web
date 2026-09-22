@@ -8,14 +8,7 @@ export interface ReaderMessageProps {
   onRetry?: () => void;
 }
 
-/**
- * What stands in for the book when it cannot be opened: a way back, and
- * sometimes a retry.
- *
- * `role="alert"` because this replaces the book the reader asked for, and the
- * way back is the only thing on screen. It is also what tells the four
- * failures apart from the book itself without quoting the apology.
- */
+/** What stands in for the book when it cannot be opened: a way back, and sometimes a retry. */
 export const ReaderMessage = ({ children, onClose, onRetry }: ReaderMessageProps) => (
   <Box sx={{ ...overlaySx, backgroundColor: 'background.default', color: 'text.primary' }}>
     <Box

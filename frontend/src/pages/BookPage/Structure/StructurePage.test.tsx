@@ -14,7 +14,6 @@ import { userEvent } from 'vitest/browser';
 
 const SEARCH_PLACEHOLDER = 'Search chapters by meaning...';
 
-/** The one digest question the chapter dialog below is given, and clicks off. */
 const A_DIGEST_QUESTION = 'What makes attention a filter?';
 
 /** Two parts, one leaf chapter each — enough to prove ancestors survive. */

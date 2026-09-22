@@ -9,11 +9,6 @@ import { userEvent } from 'vitest/browser';
 
 const ANSWER_NOTE_ID = 100;
 
-/**
- * The reflection the tests below read and rewrite. Named rather than repeated
- * as literals so each assertion is bound to the fixture it is about, and so
- * the prose is visibly the test's own rather than the app's copy.
- */
 const THE_QUESTION = 'What is the book about?';
 const THE_FIRST_ANSWER = 'A book about reading well.';
 const THE_REWRITTEN_ANSWER = 'A book about reading better.';

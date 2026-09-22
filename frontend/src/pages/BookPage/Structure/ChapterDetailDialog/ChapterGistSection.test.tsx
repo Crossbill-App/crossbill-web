@@ -10,11 +10,6 @@ import { userEvent } from 'vitest/browser';
 const PLACEHOLDER = 'What was this chapter about?';
 const CHAPTER = aChapter({ id: 10, name: 'Attention and memory' });
 
-/**
- * The gist the tests below edit. Named rather than repeated as a literal so
- * each assertion is bound to the fixture it is about, and so the prose is
- * visibly the test's own rather than the app's copy.
- */
 const THE_SAVED_GIST = 'A first pass.';
 const THE_REWRITTEN_GIST = 'A second, better pass.';
 
