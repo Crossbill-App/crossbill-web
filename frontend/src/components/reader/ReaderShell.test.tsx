@@ -112,7 +112,6 @@ const setVisibility = (state: DocumentVisibilityState) => {
 const hideTheTab = () => setVisibility('hidden');
 const showTheTab = () => setVisibility('visible');
 
-
 // The shell asks the server where to resume and apologises when it cannot, so
 // it needs the two providers the app mounts it under.
 const shellUnder = (queryClient: QueryClient, props: Partial<ReaderShellProps>) => (
