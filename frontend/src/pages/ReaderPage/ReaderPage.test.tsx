@@ -20,6 +20,7 @@ import {
 import { expectAWriteOnceTheDebounceRunsOut, fakeTheClock } from '@tests/harness/fakeClock';
 import { drawnOn, drawnRanges } from '@tests/harness/paintedHighlights';
 import { renderApp } from '@tests/harness/renderApp';
+import { afterTheAnswersRender, unmountAndAwaitItsWrites } from '@tests/harness/settle';
 import {
   endOf,
   paragraphsOnThePage,
@@ -44,7 +45,6 @@ import {
 import { worker } from '@tests/msw/worker';
 import { http, HttpResponse } from 'msw';
 import { afterEach, expect, onTestFinished, test, vi } from 'vitest';
-import { cleanup } from 'vitest-browser-react';
 import { userEvent } from 'vitest/browser';
 
 const MANIFEST_PATH = '/api/v1/readium/books/:bookId/manifest.json';
@@ -81,8 +81,6 @@ const openTheBook = async () => {
 const expectProgress = (screen: Screen, percent: string) =>
   expect.element(screen.getByText(percent, { exact: true }), { timeout: 5_000 }).toBeVisible();
 
-const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
-
 /**
  * Every turn, jump and open the app asks of the engine from here on.
  *
@@ -104,8 +102,7 @@ afterEach(async () => {
   // Unmounted here rather than by the global teardown: the reader writes where
   // it left the reader on its way out, and that write has to land on this
   // test's handlers rather than on the next test's.
-  cleanup();
-  await sleep(100);
+  await unmountAndAwaitItsWrites();
 });
 
 test('the book navigation offers to read the book', async () => {
@@ -841,11 +838,9 @@ test('coming back to the tab leaves the reader where they were reading', async (
   // Bubbling, as the browser's own does: TanStack Query hears it on the window.
   document.dispatchEvent(new Event('visibilitychange', { bubbles: true }));
 
-  // Where a book opens is settled once it opens. A focus refetch starts a tick
-  // after the event, and its answer renders a task after it lands.
-  await sleep(0);
-  await expect.poll(() => screen.queryClient.isFetching()).toBe(0);
-  await sleep(0);
+  // Where a book opens is settled once it opens: the refetch's answer, once
+  // rendered, moves nothing.
+  await afterTheAnswersRender(screen.queryClient);
   expect(asked()).toEqual([]);
 });
 
