@@ -103,6 +103,23 @@ const SENTENCE_TEXT_QUERY = [
   },
 ];
 
+// A test that sleeps is slow when the wait is long and flaky when it is short,
+// and proves an absence only for as long as it happened to wait. The harness
+// helpers are the sanctioned waits: they end on what the test is waiting for.
+const REAL_TIME_WAIT_MESSAGE =
+  'Wait on what the test is waiting for, not on the clock: expect.poll or expect.element for a ' +
+  'state, fakeTheClock for a timer, aHold for a slow answer, and afterTheAnswersRender, ' +
+  'unmountAndAwaitItsWrites or afterFrames from @tests/harness/settle to prove an absence.';
+
+const REAL_TIME_WAIT = {
+  paths: ['timers/promises', 'node:timers/promises'].map((name) => ({
+    name,
+    message: REAL_TIME_WAIT_MESSAGE,
+  })),
+};
+
+const TIMER_GLOBALS = ['setTimeout', 'setInterval'];
+
 // The Vitest config's `testTimeout` is the one budget a test gets. A test that
 // needs more is waiting in real time on something it should drive instead, and
 // raising its own limit is how a suite grows 60-second tests.
@@ -232,6 +249,17 @@ export default tseslint.config(
       'vitest/prefer-to-have-length': 'error',
       'vitest/prefer-to-be': 'error',
       'vitest/prefer-to-contain': 'error',
+      'no-restricted-globals': [
+        'error',
+        ...TIMER_GLOBALS.map((name) => ({ name, message: REAL_TIME_WAIT_MESSAGE })),
+      ],
+      'no-restricted-properties': [
+        'error',
+        ...['window', 'globalThis', 'self'].flatMap((object) =>
+          TIMER_GLOBALS.map((property) => ({ object, property, message: REAL_TIME_WAIT_MESSAGE }))
+        ),
+      ],
+      '@typescript-eslint/no-restricted-imports': restrictImports(ICON_REGISTRY, REAL_TIME_WAIT),
     },
   },
   {
@@ -239,7 +267,11 @@ export default tseslint.config(
     files: ['src/**/*.test.tsx'],
     ignores: COMPONENT_TIER,
     rules: {
-      '@typescript-eslint/no-restricted-imports': restrictImports(ICON_REGISTRY, DIRECT_RENDER),
+      '@typescript-eslint/no-restricted-imports': restrictImports(
+        ICON_REGISTRY,
+        DIRECT_RENDER,
+        REAL_TIME_WAIT
+      ),
     },
   }
 );
