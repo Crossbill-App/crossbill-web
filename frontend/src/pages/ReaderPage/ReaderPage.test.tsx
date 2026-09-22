@@ -3,6 +3,7 @@ import type {
   ResumePositionResponse,
   WebPublicationManifest,
 } from '@/api/generated/model';
+import { ReadiumReader } from '@/components/reader/engine/readium/ReadiumReader.ts';
 import { READER_PREFERENCES_KEY } from '@/components/reader/preferences/readerPreferenceStorage.ts';
 import { theme } from '@/theme/theme.ts';
 import { aBookDetails, aChapter, aHighlight } from '@tests/fixtures/book';
@@ -16,6 +17,7 @@ import {
   nowhereToResume,
   PASSAGE_SELECTOR,
 } from '@tests/fixtures/publication';
+import { expectAWriteOnceTheDebounceRunsOut, fakeTheClock } from '@tests/harness/fakeClock';
 import { drawnOn, drawnRanges } from '@tests/harness/paintedHighlights';
 import { renderApp } from '@tests/harness/renderApp';
 import {
@@ -29,6 +31,9 @@ import {
 import { bookApi } from '@tests/msw/bookApi';
 import type { HighlightCreationAnswer } from '@tests/msw/readiumApi';
 import {
+  aHeldFirstChapter,
+  aHeldSession,
+  aHold,
   highlightCreationApi,
   highlightLocatorApi,
   highlightLocatorsApi,
@@ -37,14 +42,13 @@ import {
   readiumApi,
 } from '@tests/msw/readiumApi';
 import { worker } from '@tests/msw/worker';
-import { delay, http, HttpResponse } from 'msw';
-import { afterEach, expect, test } from 'vitest';
+import { http, HttpResponse } from 'msw';
+import { afterEach, expect, onTestFinished, test, vi } from 'vitest';
 import { cleanup } from 'vitest-browser-react';
 import { userEvent } from 'vitest/browser';
 
 const MANIFEST_PATH = '/api/v1/readium/books/:bookId/manifest.json';
 const SESSION_PATH = '/api/v1/readium/books/:bookId/session';
-const RESOURCE_PATH = '/api/v1/readium/books/:bookId/resources/*';
 const POSITION_PATH = '/api/v1/readium/books/:bookId/reading-position';
 
 const elementUnderTheAppBar = () => {
@@ -68,6 +72,8 @@ const aReadableBook = () =>
 const openTheBook = async () => {
   const screen = await renderApp({ path: '/book/1/read' });
   await expect.element(screen.getByText('0%', { exact: true })).toBeVisible();
+  // The label is up while the book is still arriving, when a key is dropped.
+  await expect.element(screen.getByRole('button', { name: 'Next page' })).toBeEnabled();
   return screen;
 };
 
@@ -78,13 +84,20 @@ const expectProgress = (screen: Screen, percent: string) =>
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
 /**
- * The book still on its first page. Settled rather than polled: a turn that got
- * through would land a frame or two later, and an immediate assertion would pass
- * while it was in flight.
+ * Every turn, jump and open the app asks of the engine from here on.
+ *
+ * Readium moves the page a round trip into the chapter's frame after it is asked,
+ * so a test proves the book stayed put by it never having been asked.
  */
-const expectNoPageTurn = async (screen: Screen) => {
-  await sleep(1_200);
-  await expectProgress(screen, '0%');
+const watchTheEngine = () => {
+  const spies = {
+    next: vi.spyOn(ReadiumReader.prototype, 'next'),
+    previous: vi.spyOn(ReadiumReader.prototype, 'previous'),
+    goTo: vi.spyOn(ReadiumReader.prototype, 'goTo'),
+    open: vi.spyOn(ReadiumReader.prototype, 'open'),
+  };
+  onTestFinished(() => Object.values(spies).forEach((spy) => spy.mockRestore()));
+  return () => Object.entries(spies).flatMap(([method, spy]) => spy.mock.calls.map(() => method));
 };
 
 afterEach(async () => {
@@ -191,8 +204,12 @@ test('the arrow keys turn the page', async () => {
   worker.use(...readiumApi());
 
   const screen = await openTheBook();
+  const asked = watchTheEngine();
 
   await userEvent.keyboard('{ArrowRight}');
+  // Asked for by the time the key is up, which is what lets `watchTheEngine`
+  // prove a key turned nothing.
+  expect(asked()).toEqual(['next']);
   await expectProgress(screen, '50%');
 
   await userEvent.keyboard('{ArrowLeft}');
@@ -202,18 +219,15 @@ test('the arrow keys turn the page', async () => {
 test('an arrow key pressed before the book is on screen does not jam it', async () => {
   worker.use(...aReadableBook());
   worker.use(...readiumApi());
-  // The chapter alone is late; everything else is served as usual by falling
-  // through to the handler registered underneath this one.
-  worker.use(
-    http.get(RESOURCE_PATH, async ({ params }) => {
-      if (String(params[0]) !== 'OEBPS/chapter1.xhtml') return;
-      await delay(1_500);
-    })
-  );
+  const chapter = aHeldFirstChapter();
+  worker.use(chapter.handler);
 
   const screen = await renderApp({ path: '/book/1/read' });
+  // Asked for once the navigator is up, which is when it starts listening for keys.
+  await expect.poll(chapter.isRequested).toBe(true);
   await expect.element(screen.getByLabelText('Loading the book')).toBeVisible();
   await userEvent.keyboard('{ArrowRight}');
+  chapter.release();
 
   await expectProgress(screen, '0%');
   await screen.getByRole('button', { name: 'Next page' }).click();
@@ -255,28 +269,23 @@ test('a book whose manifest cannot be read says so and offers a retry', async ()
 });
 
 test('a lapsed session holds the book until it has been renewed', async () => {
+  fakeTheClock();
   worker.use(...aReadableBook());
-  // One second of life, so the cookie has genuinely lapsed by the time the tab
-  // is brought back. The scheduled renewal cannot interfere: its floor is five.
   worker.use(...readiumApi({ expiresIn: 1 }));
 
   const screen = await openTheBook();
 
-  worker.use(
-    http.post(SESSION_PATH, async () => {
-      await delay(2_000);
-      return HttpResponse.json({ expires_in: 900 });
-    })
-  );
-  await new Promise((resolve) => setTimeout(resolve, 1_200));
+  // The date jumps with no timer run, as on a machine that slept through the cookie.
+  vi.setSystemTime(Date.now() + 2_000);
+  const session = aHeldSession();
+  worker.use(session.handler);
   window.dispatchEvent(new Event('focus'));
 
   await expect.element(screen.getByText('Reconnecting…')).toBeVisible();
   await expect.element(screen.getByRole('button', { name: 'Next page' })).toBeDisabled();
 
-  await expect
-    .element(screen.getByText('Reconnecting…'), { timeout: 5_000 })
-    .not.toBeInTheDocument();
+  session.release();
+  await expect.element(screen.getByText('Reconnecting…')).not.toBeInTheDocument();
   await expect.element(screen.getByRole('button', { name: 'Next page' })).toBeEnabled();
 });
 
@@ -402,11 +411,12 @@ test('a book with no contents says so', async () => {
 });
 
 test('an arrow key with the contents open does not turn the page behind them', async () => {
-  const { screen } = await aBookWithItsContentsOpen();
+  await aBookWithItsContentsOpen();
+  const asked = watchTheEngine();
 
   await userEvent.keyboard('{ArrowRight}');
 
-  await expectNoPageTurn(screen);
+  expect(asked()).toEqual([]);
 });
 
 const openTheAppearance = async (screen: Screen) => {
@@ -519,11 +529,12 @@ test('the automatic column count gives a wide page two columns', async () => {
 });
 
 test('an arrow key with the appearance open does not turn the page behind it', async () => {
-  const screen = await aBookWithItsAppearanceOpen();
+  await aBookWithItsAppearanceOpen();
+  const asked = watchTheEngine();
 
   await userEvent.keyboard('{ArrowRight}');
 
-  await expectNoPageTurn(screen);
+  expect(asked()).toEqual([]);
 });
 
 test('a larger font size reaches the words on the page', async () => {
@@ -538,9 +549,11 @@ test('an arrow key typed into the font size does not turn the page', async () =>
   const screen = await aBookWithItsAppearanceOpen();
 
   await screen.getByRole('textbox', { name: 'Font size in percent' }).click();
+  const asked = watchTheEngine();
+
   await userEvent.keyboard('{ArrowRight}');
 
-  await expectNoPageTurn(screen);
+  expect(asked()).toEqual([]);
 });
 
 test('pressing the setting already chosen leaves it chosen', async () => {
@@ -620,10 +633,6 @@ test('an appearance of values we do not offer opens the book on the defaults', a
 /**
  * The reader's place is written back so that both readers agree where it is,
  * and so that reading in the browser reaches the reading statistics.
- *
- * These tests wait out the real debounce rather than faking the clock: the
- * navigator's own boot is a chain of timers and animation frames, and a fake
- * clock would be testing the mock's scheduler rather than the reader.
  */
 const aBookRecordingPositions = async () => {
   worker.use(...aReadableBook());
@@ -650,38 +659,31 @@ const readAPageAndLeave = async (screen: Screen) => {
   await expect.element(screen.getByRole('heading', { name: 'Ada Lovelace' })).toBeVisible();
 };
 
-test(
-  'turning a page in the reader records where the reader got to',
-  { timeout: 40_000 },
-  async () => {
-    const { screen, writes } = await aBookRecordingPositions();
-    // Nothing yet: where the book opened is where the reader already was.
-    expect(writes).toHaveLength(0);
+test('turning a page in the reader records where the reader got to', async () => {
+  fakeTheClock();
+  const { screen, writes } = await aBookRecordingPositions();
+  // Nothing yet: where the book opened is where the reader already was.
+  expect(writes).toHaveLength(0);
 
-    await screen.getByRole('button', { name: 'Next page' }).click();
-    await expectProgress(screen, '50%');
+  await screen.getByRole('button', { name: 'Next page' }).click();
+  await expectProgress(screen, '50%');
 
-    await expect.poll(() => writes.length, { timeout: 15_000 }).toBe(1);
-    expect(writes[0].locator.href).toBe('resources/OEBPS/chapter2.xhtml');
-    expect(writes[0].closing).toBe(false);
-  }
-);
+  await expectAWriteOnceTheDebounceRunsOut(writes);
+  expect(writes[0].locator.href).toBe('resources/OEBPS/chapter2.xhtml');
+  expect(writes[0].closing).toBe(false);
+});
 
-test(
-  'closing the reader writes the last position and closes the session',
-  { timeout: 40_000 },
-  async () => {
-    const { screen, writes } = await aBookRecordingPositions();
+test('closing the reader writes the last position and closes the session', async () => {
+  const { screen, writes } = await aBookRecordingPositions();
 
-    await readAPageAndLeave(screen);
+  await readAPageAndLeave(screen);
 
-    await expect.poll(() => writes.length).toBe(1);
-    expect(writes[0].locator.href).toBe('resources/OEBPS/chapter2.xhtml');
-    expect(writes[0].closing).toBe(true);
-  }
-);
+  await expect.poll(() => writes.length).toBe(1);
+  expect(writes[0].locator.href).toBe('resources/OEBPS/chapter2.xhtml');
+  expect(writes[0].closing).toBe(true);
+});
 
-test('the departing write carries the access token', { timeout: 40_000 }, async () => {
+test('the departing write carries the access token', async () => {
   const { screen, requests } = await aBookRecordingPositions();
 
   await readAPageAndLeave(screen);
@@ -723,13 +725,13 @@ const expectChapterTwo = (screen: Screen) =>
 const expectTheApology = (screen: Screen) =>
   expect.element(screen.getByRole('alert').filter({ hasText: LOST_THE_BOOKMARK })).toBeVisible();
 
-test('a book opens where the reader left off', { timeout: 40_000 }, async () => {
+test('a book opens where the reader left off', async () => {
   const { screen } = await aBookResumingAt(aResumePosition(), aDetailedPositionList());
 
   await expectHalfwayThroughChapterTwo(screen);
 });
 
-test('a place the e-reader recorded opens the same way', { timeout: 40_000 }, async () => {
+test('a place the e-reader recorded opens the same way', async () => {
   // A place derived from an xpointer carries no position number: the server
   // computes a progression against the EPUB and leaves the position list to
   // whoever holds one.
@@ -748,25 +750,19 @@ test('a place the e-reader recorded opens the same way', { timeout: 40_000 }, as
   await expectHalfwayThroughChapterTwo(screen);
 });
 
-test('restoring a position writes nothing back', { timeout: 60_000 }, async () => {
+test('restoring a position writes nothing back, and reading on from it is written', async () => {
+  fakeTheClock();
   const { screen, writes } = await aBookResumingAt(aResumePosition());
   await expectChapterTwo(screen);
 
-  // Past the five-second debounce with room to spare: where the book opened is
-  // where the reader already was, and writing it back would credit them with a
-  // sitting for the act of opening a book.
-  await sleep(8_000);
-
-  expect(writes).toEqual([]);
-});
-
-test('reading on within the restored position is still written', { timeout: 60_000 }, async () => {
-  const { screen, writes } = await aBookResumingAt(aResumePosition());
-  await expectChapterTwo(screen);
+  // Where the book opened is where the reader already was, and writing it back
+  // would credit them with a sitting for the act of opening a book. Such a write
+  // would fire here and be the one the turn below is counted against.
+  await vi.advanceTimersByTimeAsync(10_000);
 
   await screen.getByRole('button', { name: 'Next page' }).click();
 
-  await expect.poll(() => writes.length, { timeout: 15_000 }).toBe(1);
+  await expectAWriteOnceTheDebounceRunsOut(writes);
   // Past where they were put back, rather than merely in the same chapter: the
   // resume already had them here, so only the progression is news.
   expect(writes[0].locator.locations?.progression).toBeGreaterThan(0.5);
@@ -795,55 +791,47 @@ test('a place in a chapter the book no longer has costs a bookmark, not the book
   await expectTheApology(screen);
 });
 
-test(
-  'a book reopened in the same tab honours where another device left off',
-  { timeout: 60_000 },
-  async () => {
-    worker.use(...aReadableBook());
-    worker.use(...readiumApi({ positions: aDetailedPositionList() }));
-    let stored: ResumePositionResponse = nowhereToResume();
-    worker.use(http.get(POSITION_PATH, () => HttpResponse.json(stored)));
+test('a book reopened in the same tab honours where another device left off', async () => {
+  worker.use(...aReadableBook());
+  worker.use(...readiumApi({ positions: aDetailedPositionList() }));
+  let stored: ResumePositionResponse = nowhereToResume();
+  worker.use(http.get(POSITION_PATH, () => HttpResponse.json(stored)));
 
-    const screen = await renderApp({ path: '/book/1/read' });
-    await expectProgress(screen, '0%');
-    await screen.getByRole('button', { name: 'Close reader' }).click();
-    await expect.element(screen.getByRole('heading', { name: 'Ada Lovelace' })).toBeVisible();
+  const screen = await renderApp({ path: '/book/1/read' });
+  await expectProgress(screen, '0%');
+  await screen.getByRole('button', { name: 'Close reader' }).click();
+  await expect.element(screen.getByRole('heading', { name: 'Ada Lovelace' })).toBeVisible();
 
-    // The reader carries on elsewhere while the book is shut here.
-    stored = aResumePosition();
-    await screen.getByRole('link', { name: 'Read', exact: true }).click();
+  // The reader carries on elsewhere while the book is shut here.
+  stored = aResumePosition();
+  await screen.getByRole('link', { name: 'Read', exact: true }).click();
 
-    // The answer this tab already has is the stale one, and it comes back as
-    // settled data rather than as pending, so a cache that outlived the first
-    // open would be latched before the refetch could land.
-    await expectHalfwayThroughChapterTwo(screen);
-  }
-);
+  // The answer this tab already has is the stale one, and it comes back as
+  // settled data rather than as pending, so a cache that outlived the first
+  // open would be latched before the refetch could land.
+  await expectHalfwayThroughChapterTwo(screen);
+});
 
-test(
-  'a book that would not load keeps the reader their place for the retry',
-  { timeout: 60_000 },
-  async () => {
-    worker.use(...aReadableBook());
-    worker.use(...readiumApi({ positions: aDetailedPositionList() }));
-    worker.use(...readingPositionApi(aResumePosition()).handlers);
-    worker.use(
-      http.get(MANIFEST_PATH, () => new HttpResponse(null, { status: 503 }), { once: true })
-    );
+test('a book that would not load keeps the reader their place for the retry', async () => {
+  worker.use(...aReadableBook());
+  worker.use(...readiumApi({ positions: aDetailedPositionList() }));
+  worker.use(...readingPositionApi(aResumePosition()).handlers);
+  worker.use(
+    http.get(MANIFEST_PATH, () => new HttpResponse(null, { status: 503 }), { once: true })
+  );
 
-    const screen = await renderApp({ path: '/book/1/read' });
-    await expect
-      .element(screen.getByText('The book could not be opened. Please try again later.'))
-      .toBeVisible();
+  const screen = await renderApp({ path: '/book/1/read' });
+  await expect
+    .element(screen.getByText('The book could not be opened. Please try again later.'))
+    .toBeVisible();
 
-    await screen.getByRole('button', { name: 'Try again' }).click();
+  await screen.getByRole('button', { name: 'Try again' }).click();
 
-    // The publication is fetched before a landing is looked at, so a manifest
-    // that blipped says nothing about the place — dropping it here would cost a
-    // bookmark for the network's mistake, and apologise for it too.
-    await expectHalfwayThroughChapterTwo(screen);
-  }
-);
+  // The publication is fetched before a landing is looked at, so a manifest
+  // that blipped says nothing about the place — dropping it here would cost a
+  // bookmark for the network's mistake, and apologise for it too.
+  await expectHalfwayThroughChapterTwo(screen);
+});
 
 test('a book nobody has read opens at the start and says nothing', async () => {
   const { screen } = await aBookResumingAt(nowhereToResume());
@@ -853,18 +841,27 @@ test('a book nobody has read opens at the start and says nothing', async () => {
 });
 
 test('coming back to the tab leaves the reader where they were reading', async () => {
-  const { screen } = await aBookResumingAt(nowhereToResume());
-  await expectProgress(screen, '0%');
+  worker.use(...aReadableBook());
+  worker.use(...readiumApi());
+  let stored: ResumePositionResponse = nowhereToResume();
+  worker.use(http.get(POSITION_PATH, () => HttpResponse.json(stored)));
+  const screen = await openTheBook();
   await screen.getByRole('button', { name: 'Next page' }).click();
   await expectProgress(screen, '50%');
+  // Somewhere else by now, so a second answer would have somewhere to move the book.
+  stored = aResumePosition();
+  const asked = watchTheEngine();
 
   window.dispatchEvent(new Event('focus'));
-  document.dispatchEvent(new Event('visibilitychange'));
+  // Bubbling, as the browser's own does: TanStack Query hears it on the window.
+  document.dispatchEvent(new Event('visibilitychange', { bubbles: true }));
 
-  // Where a book opens is settled the moment it opens: an answer arriving a
-  // second time must not put the reader back at the page they started from.
-  await sleep(500);
-  await expectProgress(screen, '50%');
+  // Where a book opens is settled once it opens. A focus refetch starts a tick
+  // after the event, and its answer renders a task after it lands.
+  await sleep(0);
+  await expect.poll(() => screen.queryClient.isFetching()).toBe(0);
+  await sleep(0);
+  expect(asked()).toEqual([]);
 });
 
 const PLACED_TEXT = 'Attention is the rarest and purest form of generosity.';
@@ -946,14 +943,17 @@ test('a highlight whose chapter is not in this edition opens at the start, and s
     .toBeVisible();
 });
 
-test('jumping to a highlight writes no reading position', { timeout: 60_000 }, async () => {
-  const { writes } = await aJumpToAPassage();
+test('jumping to a highlight writes no reading position', async () => {
+  fakeTheClock();
+  const { screen, writes } = await aJumpToAPassage();
   await expectThePassageOnThePage();
 
-  // Past the five-second debounce with room to spare.
-  await sleep(8_000);
+  await vi.advanceTimersByTimeAsync(10_000);
 
-  expect(writes).toEqual([]);
+  await screen.getByRole('button', { name: 'Next page' }).click();
+  await expectAWriteOnceTheDebounceRunsOut(writes);
+  // The page after the passage ends the chapter; the jump itself is short of it.
+  expect(writes[0].locator.locations?.progression).toBe(1);
 });
 
 test('a book is opened with its highlights drawn on the page', async () => {
@@ -1057,11 +1057,12 @@ test('arrow keys page between highlights without turning the book underneath', a
   const screen = await aBookWithAPaintedHighlight();
   await tapTheHighlight();
   await expectTheDialogShowing(screen, PLACED_TEXT);
+  const asked = watchTheEngine();
 
   await userEvent.keyboard('{ArrowRight}');
 
   await expectTheDialogShowing(screen, UNPLACED_TEXT);
-  await expectNoPageTurn(screen);
+  expect(asked()).toEqual([]);
 });
 
 test('an arrow key after paging to the last highlight does not turn the book underneath', async () => {
@@ -1072,10 +1073,11 @@ test('an arrow key after paging to the last highlight does not turn the book und
   // which Readium does not count as interactive, so it would turn the page.
   await screen.getByRole('dialog').getByRole('button', { name: 'Next', exact: true }).click();
   await expectTheDialogShowing(screen, UNPLACED_TEXT);
+  const asked = watchTheEngine();
 
   await userEvent.keyboard('{ArrowRight}');
 
-  await expectNoPageTurn(screen);
+  expect(asked()).toEqual([]);
 });
 
 test('deleting a highlight takes its mark off the page and fetches no locators again', async () => {
@@ -1182,14 +1184,16 @@ const aHighlightPressed = async (answer: HighlightCreationAnswer) => {
 };
 
 test('a highlight is drawn before the server answers, from the words selected', async () => {
-  const { bodies, created } = await aHighlightPressed({ delayMs: 1_500 });
+  const answer = aHold();
+  const { bodies, created } = await aHighlightPressed({ until: answer.released });
 
   await expect.poll(() => drawnOn(document)).toEqual(['p:rarest and purest']);
   expect(created).toEqual([]);
   await expect.poll(() => bodies).toHaveLength(1);
   expect(bodies[0].locator.text?.highlight).toBe('rarest and purest');
   expect(bodies[0].locator.locations?.cssSelector).toBeTruthy();
-  await expect.poll(() => created, { timeout: 5_000 }).toEqual([400]);
+  answer.release();
+  await expect.poll(() => created).toEqual([400]);
 });
 
 test('a saved highlight is drawn once, and tapping it opens it', async () => {

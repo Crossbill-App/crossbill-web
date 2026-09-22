@@ -1,9 +1,10 @@
 import { aBookCard } from '@tests/fixtures/book';
+import { fakeTheClock } from '@tests/harness/fakeClock';
 import { renderApp } from '@tests/harness/renderApp';
 import { libraryApi } from '@tests/msw/libraryApi';
 import { worker } from '@tests/msw/worker';
 import { http, HttpResponse } from 'msw';
-import { expect, test } from 'vitest';
+import { expect, test, vi } from 'vitest';
 import { userEvent } from 'vitest/browser';
 
 test('a book card shows what the reader has made of the book', async () => {
@@ -72,6 +73,7 @@ test('a link to the old all-books page still finds the books it searched for', a
 });
 
 test('the search runs on Enter, not while the query is still being typed', async () => {
+  fakeTheClock();
   worker.use(
     http.get('/api/v1/books/', ({ request }) => {
       const query = new URL(request.url).searchParams.get('search');
@@ -86,9 +88,8 @@ test('the search runs on Enter, not while the query is still being typed', async
 
   await userEvent.fill(screen.getByPlaceholder('Search books by title or author...'), 'pragmatic');
 
-  // Longer than the debounce this field used to carry: a half-typed query now
-  // stays in the box however long the reader pauses.
-  await new Promise((resolve) => setTimeout(resolve, 500));
+  // A half-typed query stays in the box however long the reader pauses.
+  await vi.advanceTimersByTimeAsync(60_000);
   expect(window.location.search).not.toContain('search=');
   await expect.element(screen.getByText('Every Book')).toBeVisible();
 

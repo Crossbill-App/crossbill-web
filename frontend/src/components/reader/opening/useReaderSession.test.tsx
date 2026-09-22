@@ -2,10 +2,11 @@ import {
   useReaderSession,
   type ReaderSession,
 } from '@/components/reader/opening/useReaderSession.ts';
+import { fakeTheClock } from '@tests/harness/fakeClock';
 import { worker } from '@tests/msw/worker';
 import { http, HttpResponse } from 'msw';
 import { useEffect } from 'react';
-import { beforeEach, expect, test } from 'vitest';
+import { beforeEach, expect, test, vi } from 'vitest';
 import { render } from 'vitest-browser-react';
 
 const SESSION_PATH = '/api/v1/readium/books/:bookId/session';
@@ -35,7 +36,11 @@ const aRefusedSession = (status: number, options?: { once: boolean }) =>
     options
   );
 
-const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+/** The lifetime the server gives a cookie. */
+const COOKIE_LIFE_S = 900;
+
+/** The date jumps with no timer run, as on a machine that slept through the cookie. */
+const sleepThroughTheCookie = () => vi.setSystemTime(Date.now() + COOKIE_LIFE_S * 1000);
 
 const Probe = () => {
   const { status, isRenewing } = useReaderSession(1);
@@ -57,8 +62,15 @@ type Screen = Awaited<ReturnType<typeof render>>;
 const expectStatus = (screen: Screen, status: ReaderSession['status']) =>
   expect.element(screen.getByTestId('status')).toHaveTextContent(status);
 
+/** A mint the last session wrongly sent would reach the server before this one's and be counted. */
+const expectTheNextSessionToMintAfter = async (earlier: string[]) => {
+  const screen = await render(<Probe />);
+  await expectStatus(screen, 'ready');
+  expect(posts).toEqual([...earlier, 'minted']);
+};
+
 test('a session is ready once the first cookie has been minted', async () => {
-  worker.use(aSessionLasting(900));
+  worker.use(aSessionLasting(COOKIE_LIFE_S));
 
   const screen = await render(<Probe />);
 
@@ -68,16 +80,18 @@ test('a session is ready once the first cookie has been minted', async () => {
 });
 
 test('a session the server refuses before any cookie exists is fatal', async () => {
-  worker.use(aRefusedSession(500));
+  fakeTheClock();
+  worker.use(aSessionLasting(COOKIE_LIFE_S));
+  worker.use(aRefusedSession(500, { once: true }));
 
   const screen = await render(<Probe />);
   await expectStatus(screen, 'error');
 
-  // Past the shortest retry delay (1 s): a first failure must schedule none.
-  await sleep(1_500);
+  // Past every retry delay, so a retry the failure wrongly scheduled has been sent.
+  await vi.advanceTimersByTimeAsync(60_000);
+  await screen.unmount();
 
-  await expectStatus(screen, 'error');
-  expect(posts).toEqual(['refused']);
+  await expectTheNextSessionToMintAfter(['refused']);
 });
 
 test('a 401 the app cannot refresh past is fatal too', async () => {
@@ -94,35 +108,35 @@ test('a 401 the app cannot refresh past is fatal too', async () => {
 });
 
 test('a failed renewal keeps the session and retries', async () => {
-  worker.use(aSessionLasting(1));
+  fakeTheClock();
+  worker.use(aSessionLasting(COOKIE_LIFE_S));
 
   const screen = await render(<Probe />);
   await expectStatus(screen, 'ready');
 
-  // Past the 1 s cookie but under the 5 s refresh floor, so nothing has renewed it.
-  await sleep(1_200);
-  worker.use(aSessionLasting(900));
+  sleepThroughTheCookie();
   worker.use(aRefusedSession(500, { once: true }));
   window.dispatchEvent(new Event('focus'));
 
   await expect.element(screen.getByTestId('renewing')).toHaveTextContent('true');
+  await expect.poll(() => posts).toEqual(['minted', 'refused']);
   await expectStatus(screen, 'ready');
 
-  // The first retry lands a second later.
-  await expect
-    .element(screen.getByTestId('renewing'), { timeout: 2_000 })
-    .toHaveTextContent('false');
+  await vi.advanceTimersByTimeAsync(1_000);
+
+  await expect.element(screen.getByTestId('renewing')).toHaveTextContent('false');
   expect(posts).toEqual(['minted', 'refused', 'minted']);
 });
 
 test('renewing before the cookie lapses is invisible', async () => {
-  worker.use(aSessionLasting(5));
+  fakeTheClock();
+  worker.use(aSessionLasting(COOKIE_LIFE_S));
 
   const screen = await render(<Probe />);
   await expectStatus(screen, 'ready');
 
-  // A 5 s cookie is well inside the 30 s wake margin and nowhere near lapsing.
-  await sleep(300);
+  // Inside the 30 s wake margin, with the cookie still good.
+  vi.setSystemTime(Date.now() + (COOKIE_LIFE_S - 20) * 1000);
   window.dispatchEvent(new Event('focus'));
 
   await expect.poll(() => posts).toEqual(['minted', 'minted']);
@@ -130,16 +144,17 @@ test('renewing before the cookie lapses is invisible', async () => {
 });
 
 test('an unmounted session mints nothing more', async () => {
-  worker.use(aSessionLasting(1));
+  fakeTheClock();
+  worker.use(aSessionLasting(COOKIE_LIFE_S));
 
   const screen = await render(<Probe />);
   await expectStatus(screen, 'ready');
-  screen.unmount();
+  await screen.unmount();
 
-  // Past the 1 s cookie, so a session still mounted would renew on this focus.
-  await sleep(1_200);
+  // Past the scheduled renewal and the cookie, so a session still mounted would
+  // renew both on its timer and on this focus.
+  await vi.advanceTimersByTimeAsync(COOKIE_LIFE_S * 1000);
   window.dispatchEvent(new Event('focus'));
-  await sleep(100);
 
-  expect(posts).toEqual(['minted']);
+  await expectTheNextSessionToMintAfter(['minted']);
 });

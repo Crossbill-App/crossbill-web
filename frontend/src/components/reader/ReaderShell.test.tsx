@@ -4,6 +4,7 @@ import type {
   Highlight,
   HighlightLabelInBook,
   HighlightLocatorResponse,
+  ReadingPositionUpdate,
 } from '@/api/generated/model';
 import type {
   EbookDecoration,
@@ -11,17 +12,13 @@ import type {
   OpenedEbook,
 } from '@/components/reader/engine/EbookReader.ts';
 import { READER_PREFERENCES_KEY } from '@/components/reader/preferences/readerPreferenceStorage.ts';
-import {
-  ReaderShell,
-  type ReaderShellProps,
-  type ReaderTestKnobs,
-} from '@/components/reader/ReaderShell.tsx';
+import { ReaderShell, type ReaderShellProps } from '@/components/reader/ReaderShell.tsx';
 import { SnackbarProvider } from '@/context/SnackbarContext.tsx';
 import { theme } from '@/theme/theme.ts';
 import { DEFAULT_LABEL_COLOR } from '@/utils/colorUtils.ts';
 import { ThemeProvider } from '@mui/material/styles';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { FakeEbookReader, aFakeLocation } from '@tests/fakes/FakeEbookReader';
+import { aFakeLocation, type FakeEbookReader } from '@tests/fakes/FakeEbookReader';
 import { aBookDetails, aChapter, aHighlight } from '@tests/fixtures/book';
 import {
   aHighlightLocator,
@@ -30,9 +27,12 @@ import {
   anUnplacedHighlight,
   nowhereToResume,
 } from '@tests/fixtures/publication';
-import { pendingQueryClients } from '@tests/harness/renderApp';
+import { expectAWriteOnceTheDebounceRunsOut, fakeTheClock } from '@tests/harness/fakeClock';
+import { pendingQueryClients } from '@tests/harness/pendingQueryClients';
 import { bookApi } from '@tests/msw/bookApi';
 import {
+  aHeldSession,
+  aHold,
   highlightCreationApi,
   highlightLocatorApi,
   highlightLocatorsApi,
@@ -42,11 +42,10 @@ import {
 import { worker } from '@tests/msw/worker';
 import { DateTime } from 'luxon';
 import { HttpResponse, delay, http } from 'msw';
-import { afterEach, beforeEach, expect, test } from 'vitest';
+import { afterEach, beforeEach, expect, test, vi } from 'vitest';
 import { cleanup, render } from 'vitest-browser-react';
 import { page, userEvent } from 'vitest/browser';
 
-const SESSION_PATH = '/api/v1/readium/books/:bookId/session';
 const RESOURCE_PATH = '/api/v1/readium/books/:bookId/resources/*';
 const POSITION_PATH = '/api/v1/readium/books/:bookId/reading-position';
 const MANIFEST_URL = `${window.location.origin}/api/v1/readium/books/1/manifest.json`;
@@ -60,16 +59,30 @@ const NARROW_VIEWPORT = { width: 320, height: 640 };
 /** `vitest.config.ts`'s own viewport, restored after a test has narrowed it. */
 const DEFAULT_VIEWPORT = { width: 1440, height: 900 };
 
-const readers: FakeEbookReader[] = [];
+const engine = vi.hoisted(() => ({ readers: [] as FakeEbookReader[], isReal: false }));
+const { readers } = engine;
 
-const createReader = () => {
-  const reader = new FakeEbookReader();
-  readers.push(reader);
-  return reader;
+vi.mock(import('@/components/reader/engine/readium/ReadiumReader.ts'), async (importOriginal) => {
+  const { ReadiumReader } = await importOriginal();
+  const { FakeEbookReader } = await import('@tests/fakes/FakeEbookReader');
+  return {
+    ReadiumReader: function (host: HTMLElement) {
+      if (engine.isReal) return new ReadiumReader(host);
+      const reader = new FakeEbookReader();
+      engine.readers.push(reader);
+      return reader;
+    } as unknown as typeof ReadiumReader,
+  };
+});
+
+/** The book opened by Readium itself rather than by a `FakeEbookReader`. */
+const switchToTheRealEngine = () => {
+  engine.isReal = true;
 };
 
 beforeEach(() => {
   readers.length = 0;
+  engine.isReal = false;
   // The shell reads the book's details for its title and its highlights, so
   // every test needs a book whether or not it is about one. A test with
   // something to say about the book registers its own handlers over these.
@@ -95,43 +108,28 @@ const setVisibility = (state: DocumentVisibilityState) => {
 const hideTheTab = () => setVisibility('hidden');
 const showTheTab = () => setVisibility('visible');
 
-const aSlowSession = (ms: number) =>
-  http.post(SESSION_PATH, async () => {
-    await delay(ms);
-    return HttpResponse.json({ expires_in: 900 });
-  });
-
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
 // The shell asks the server where to resume and apologises when it cannot, so
 // it needs the two providers the app mounts it under.
-const shellUnder = (
-  queryClient: QueryClient,
-  props: Partial<ReaderShellProps>,
-  knobs: ReaderTestKnobs
-) => (
+const shellUnder = (queryClient: QueryClient, props: Partial<ReaderShellProps>) => (
   <QueryClientProvider client={queryClient}>
     <ThemeProvider theme={theme}>
       <SnackbarProvider>
-        <ReaderShell
-          bookId={1}
-          onClose={() => {}}
-          {...props}
-          testing={{ createReader, ...knobs }}
-        />
+        <ReaderShell bookId={1} onClose={() => {}} {...props} />
       </SnackbarProvider>
     </ThemeProvider>
   </QueryClientProvider>
 );
 
-const renderShell = async (props: Partial<ReaderShellProps> = {}, knobs: ReaderTestKnobs = {}) => {
+const renderShell = async (props: Partial<ReaderShellProps> = {}) => {
   const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   pendingQueryClients.push(queryClient);
-  const screen = await render(shellUnder(queryClient, props, knobs));
+  const screen = await render(shellUnder(queryClient, props));
   return Object.assign(screen, {
     queryClient,
     rerenderShell: (next: Partial<ReaderShellProps>) =>
-      screen.rerender(shellUnder(queryClient, next, knobs)),
+      screen.rerender(shellUnder(queryClient, next)),
   });
 };
 
@@ -153,10 +151,9 @@ const aBookWithContents = (): Partial<OpenedEbook> => ({ toc: A_TOC, tocHref: A_
 /** The shell with the book on screen at its first page. */
 const anOpenBook = async (
   opened: Partial<OpenedEbook> = {},
-  props: Partial<ReaderShellProps> = {},
-  knobs: ReaderTestKnobs = {}
+  props: Partial<ReaderShellProps> = {}
 ) => {
-  const screen = await renderShell(props, knobs);
+  const screen = await renderShell(props);
   await expect.poll(() => readers.length).toBe(1);
   readers[0].resolveOpen(opened);
   await expect.element(screen.getByText('0%', { exact: true })).toBeVisible();
@@ -168,11 +165,24 @@ const expectReconnecting = (screen: Screen) =>
 
 test('the shell waits for the cookie before opening the book', async () => {
   worker.use(...readiumApi());
-  worker.use(aSlowSession(500));
+  const session = aHeldSession();
+  worker.use(session.handler);
+  let isTheLandingAnswered = false;
+  worker.use(
+    http.get(POSITION_PATH, () => {
+      isTheLandingAnswered = true;
+      return HttpResponse.json(nowhereToResume());
+    })
+  );
 
   const screen = await renderShell();
 
+  await expect.element(screen.getByLabelText('Loading the book')).toBeVisible();
+  // With the landing in, the cookie is the only thing left holding the book back.
+  await expect.poll(() => isTheLandingAnswered).toBe(true);
+  await sleep(100);
   expect(readers).toHaveLength(0);
+  session.release();
   await expect.poll(() => readers.length).toBe(1);
   expect(readers[0].openedWith.map((opened) => opened.manifestUrl)).toEqual([MANIFEST_URL]);
   await expect.element(screen.getByLabelText('Loading the book')).toBeVisible();
@@ -210,31 +220,37 @@ test('a page turn asked for by the book is forwarded', async () => {
 });
 
 test('a page turn asked for while the cookie is being renewed is dropped', async () => {
-  // A one-second cookie has genuinely lapsed by the time the tab comes back,
-  // and the scheduled renewal cannot interfere: its floor is five.
+  fakeTheClock();
   worker.use(...readiumApi({ expiresIn: 1 }));
 
   const screen = await anOpenBook();
 
-  await sleep(1_200);
-  worker.use(aSlowSession(2_000));
+  // The date jumps with no timer run, as on a machine that slept through the cookie.
+  vi.setSystemTime(Date.now() + 2_000);
+  const session = aHeldSession();
+  worker.use(session.handler);
   window.dispatchEvent(new Event('focus'));
 
   await expectReconnecting(screen);
   readers[0].requestPageTurn('next');
   expect(readers[0].nextCalls).toBe(0);
 
-  await expect
-    .element(screen.getByText('Reconnecting…'), { timeout: 5_000 })
-    .not.toBeInTheDocument();
+  session.release();
+  await expect.element(screen.getByText('Reconnecting…')).not.toBeInTheDocument();
   readers[0].requestPageTurn('next');
   expect(readers[0].nextCalls).toBe(1);
 });
 
+/** How long the reader gives a book to appear. */
+const BOOT_TIMEOUT_MS = 15_000;
+
 test('a book that never appears times out and can be retried', async () => {
+  fakeTheClock();
   worker.use(...readiumApi());
 
-  const screen = await renderShell({}, { bootTimeoutMs: 300 });
+  const screen = await renderShell();
+  await expect.poll(() => readers.length).toBe(1);
+  await vi.advanceTimersByTimeAsync(BOOT_TIMEOUT_MS);
 
   await expect
     .element(screen.getByText('This book could not be opened in the reader.'))
@@ -253,14 +269,20 @@ test('a book that never appears times out and can be retried', async () => {
 });
 
 test('a book whose chapters never arrive times out and can be retried', async () => {
+  fakeTheClock();
   worker.use(...readiumApi());
   worker.use(http.get(RESOURCE_PATH, () => delay('infinite')));
+  switchToTheRealEngine();
 
-  const screen = await renderShell({}, { createReader: undefined, bootTimeoutMs: 500 });
+  const screen = await renderShell();
 
+  // Nothing on screen says when the navigator has armed its watchdog.
   await expect
-    .element(screen.getByText('This book could not be opened in the reader.'), { timeout: 3_000 })
-    .toBeVisible();
+    .poll(async () => {
+      await vi.advanceTimersByTimeAsync(BOOT_TIMEOUT_MS / 3);
+      return screen.getByText('This book could not be opened in the reader.').query();
+    })
+    .not.toBeNull();
   await expect.element(screen.getByRole('button', { name: 'Try again' })).toBeVisible();
 
   worker.use(...readiumApi());
@@ -622,93 +644,125 @@ test('closing the shell destroys the reader', async () => {
 
 /**
  * Where the reader gets to is written back, so that the two readers agree and
- * so that reading in the browser reaches the reading statistics. The real waits
- * are five seconds and ten minutes; these tests shorten both.
+ * so that reading in the browser reaches the reading statistics.
  */
-const A_QUICK_WRITE = { writeDebounceMs: 50, heartbeatMs: 60_000 };
 
-/** Long enough that only a flush, never the debounce, can have sent a write. */
-const NO_WRITE_YET = { writeDebounceMs: 30_000, heartbeatMs: 60_000 };
+/** How long a reader stays quiet before a beat says they are still there. */
+const HEARTBEAT_MS = 10 * 60 * 1000;
 
 /** The shell open over position handlers that remember what the reader wrote. */
-const aBookRecordingPositions = async (timings = A_QUICK_WRITE) => {
+const aBookRecordingPositions = async () => {
   worker.use(...readiumApi());
   const positions = readingPositionApi();
   worker.use(...positions.handlers);
-  const screen = await anOpenBook({}, {}, timings);
+  const screen = await anOpenBook();
   return { screen, writes: positions.writes };
 };
 
 test('turning a page writes the new position, once the reader settles', async () => {
+  fakeTheClock();
   const { writes } = await aBookRecordingPositions();
 
   readers[0].reportLocation(aFakeLocation(2));
 
-  await expect.poll(() => writes.length).toBe(1);
+  await expectAWriteOnceTheDebounceRunsOut(writes);
   expect(writes[0].locator.href).toBe('resources/OEBPS/chapter2.xhtml');
   expect(writes[0].locator.locations?.position).toBe(2);
   expect(writes[0].closing).toBe(false);
 });
 
 test('a run of page turns is written once, and only once it has stopped', async () => {
-  const { writes } = await aBookRecordingPositions({ writeDebounceMs: 1_000, heartbeatMs: 60_000 });
+  fakeTheClock();
+  const { writes } = await aBookRecordingPositions();
 
   readers[0].reportLocation(aFakeLocation(2));
-  await sleep(700);
+  await vi.advanceTimersByTimeAsync(4_000);
   readers[0].reportLocation(aFakeLocation(1));
-
   // Past the first turn's own deadline: a reader still turning pages has not
   // settled anywhere, so the wait starts again rather than running out.
-  await sleep(550);
-  expect(writes).toEqual([]);
-  await expect.poll(() => writes.length).toBe(1);
-  expect(writes[0].locator.locations?.position).toBe(1);
+  await vi.advanceTimersByTimeAsync(4_000);
+  readers[0].reportLocation(aFakeLocation(3));
+
+  await expectAWriteOnceTheDebounceRunsOut(writes);
+  expect(writes[0].locator.locations?.position).toBe(3);
 });
 
 test('a beat that writes a move still waiting leaves nothing waiting', async () => {
-  // A debounce long enough that only the beat can have sent this move; hiding
-  // the tab then stops the beats, so a second write could only be a stale one.
-  const { writes } = await aBookRecordingPositions({ writeDebounceMs: 30_000, heartbeatMs: 250 });
+  fakeTheClock();
+  worker.use(...readiumApi());
+  const positions = readingPositionApi();
+  worker.use(...positions.handlers);
+  const { writes } = positions;
+  const screen = await renderShell();
+  await expect.poll(() => readers.length).toBe(1);
+  await vi.advanceTimersByTimeAsync(1_000);
+  readers[0].resolveOpen();
+  await expect.element(screen.getByText('0%', { exact: true })).toBeVisible();
 
+  // The beat is checked every five minutes from mount, so with the book a second
+  // late the first beat comes at the third check, a few seconds after this move.
+  await vi.advanceTimersByTimeAsync(HEARTBEAT_MS * 1.5 - 4_000);
   readers[0].reportLocation(aFakeLocation(2));
-  await expect.poll(() => writes.length).toBe(1);
-  hideTheTab();
+  // Short of the debounce, so only the beat can have written it.
+  await vi.advanceTimersByTimeAsync(3_500);
+  await expect.poll(() => writes.length, { timeout: 500 }).toBe(1);
+  await vi.advanceTimersByTimeAsync(6_500);
 
-  await sleep(300);
-  expect(writes).toHaveLength(1);
+  // A move the beat left waiting would be written again here, before the next one.
+  readers[0].reportLocation(aFakeLocation(3));
+  await expect
+    .poll(async () => {
+      await vi.advanceTimersByTimeAsync(5_000);
+      return writes.map((write) => write.locator.locations?.position);
+    })
+    .toEqual([2, 3]);
 });
 
+/** A write already waiting would fire in the jump and be the one the next turn is counted as. */
+const expectNothingWrittenBeforeTheNextTurn = async (writes: ReadingPositionUpdate[]) => {
+  await vi.advanceTimersByTimeAsync(10_000);
+  readers[0].reportLocation(aFakeLocation(2));
+  await expectAWriteOnceTheDebounceRunsOut(writes);
+  expect(writes[0].locator.locations?.position).toBe(2);
+};
+
 test('a reader who has not moved writes nothing at all', async () => {
+  fakeTheClock();
   const { writes } = await aBookRecordingPositions();
 
   // A preference change, a resize and a re-render all re-announce the same place.
   readers[0].reportLocation(aFakeLocation(1));
 
-  await sleep(300);
-  expect(writes).toEqual([]);
+  await expectNothingWrittenBeforeTheNextTurn(writes);
 });
 
 test('the position the book opened at is never written', async () => {
+  fakeTheClock();
   const { writes } = await aBookRecordingPositions();
 
-  await sleep(300);
-
-  expect(writes).toEqual([]);
+  await expectNothingWrittenBeforeTheNextTurn(writes);
 });
 
 test('a reader who stays on one page is still recorded', async () => {
-  const { writes } = await aBookRecordingPositions({ writeDebounceMs: 50, heartbeatMs: 300 });
+  fakeTheClock();
+  const { writes } = await aBookRecordingPositions();
+  const openedAt = Date.now();
 
-  await expect.poll(() => writes.length).toBeGreaterThan(0);
+  await expect
+    .poll(async () => {
+      await vi.advanceTimersByTimeAsync(HEARTBEAT_MS / 2);
+      return writes.length;
+    })
+    .toBeGreaterThan(0);
   expect(writes[0].locator.locations?.position).toBe(1);
   expect(writes[0].closing).toBe(false);
   // The observation's own moment rather than the beat's: the reader is still
   // here, not somewhere new.
-  expect(Date.parse(writes[0].recorded_at)).toBeLessThanOrEqual(Date.now() - 300);
+  expect(Date.parse(writes[0].recorded_at)).toBeLessThanOrEqual(openedAt);
 });
 
 test('a hidden tab writes what is pending and leaves the session open', async () => {
-  const { writes } = await aBookRecordingPositions(NO_WRITE_YET);
+  const { writes } = await aBookRecordingPositions();
   readers[0].reportLocation(aFakeLocation(2));
 
   hideTheTab();
@@ -719,7 +773,7 @@ test('a hidden tab writes what is pending and leaves the session open', async ()
 });
 
 test('closing the reader writes the last position and ends the session', async () => {
-  const { screen, writes } = await aBookRecordingPositions(NO_WRITE_YET);
+  const { screen, writes } = await aBookRecordingPositions();
   readers[0].reportLocation(aFakeLocation(2));
 
   screen.unmount();
@@ -821,6 +875,9 @@ test('a second refusal is a real failure, not a third attempt', async () => {
 
 const THE_PASSAGE = aPassage(300).locator;
 
+/** How long the reader waits on a move to the highlight before showing the book anyway. */
+const FINISH_LANDING_TIMEOUT_MS = 3_000;
+
 const BOOK_DETAILS_PATH = '/api/v1/books/:bookId';
 
 /** A chapter of the book holding highlight 300. */
@@ -911,10 +968,13 @@ test('the book is not shown until the move to the highlight has finished', async
 });
 
 test('a move to the highlight that never finishes still shows the book', async () => {
+  fakeTheClock();
   const { screen } = await aJump();
   readers[0].goToOutcome = new Promise(() => {});
 
   readers[0].resolveOpen({ landedAt: 'requested' });
+  await expect.poll(() => readers[0].goToCalls).toEqual([THE_PASSAGE]);
+  await vi.advanceTimersByTimeAsync(FINISH_LANDING_TIMEOUT_MS);
 
   await expectOnScreen(screen);
 });
@@ -1264,13 +1324,15 @@ test('a place listed for a highlight the book no longer has is not drawn', async
 
 test('the book is on screen before its highlights are placed', async () => {
   worker.use(...readiumApi());
-  worker.use(...highlightLocatorsApi([aHighlightLocator(300)], { delayMs: 1_500 }));
+  const placing = aHold();
+  worker.use(...highlightLocatorsApi([aHighlightLocator(300)], { until: placing.released }));
   worker.use(...aBookHolding([aYellowHighlight()]).handlers);
 
   await anOpenBook();
   expect(lastSubmitted()).toEqual([]);
+  placing.release();
 
-  await expect.poll(drawnIds, { timeout: 3_000 }).toEqual(['highlight-300']);
+  await expect.poll(drawnIds).toEqual(['highlight-300']);
   expect(readers).toHaveLength(1);
 });
 
@@ -1848,9 +1910,21 @@ test('a saved highlight takes over from what was drawn for it with nothing missi
 });
 
 test('a highlight made while the placed highlights are still loading is drawn', async () => {
-  await aSelectionOverTheDetails(...highlightLocatorsApi([], { delayMs: 1_500 }));
+  const placing = aHold();
+  let isItsPlaceAnswered = false;
+  await aSelectionOverTheDetails(
+    ...highlightLocatorsApi([], { until: placing.released }),
+    http.get(HIGHLIGHT_LOCATOR_PATH, () => {
+      isItsPlaceAnswered = true;
+      return HttpResponse.json(aHighlightLocator(400));
+    })
+  );
 
   await pressHighlight();
+  // Its own place in first, so the list landing after it would overwrite it.
+  await expect.poll(() => isItsPlaceAnswered).toBe(true);
+  await sleep(100);
+  placing.release();
 
-  await expect.poll(drawnIds, { timeout: 5_000 }).toContain('highlight-400');
+  await expect.poll(drawnIds).toContain('highlight-400');
 });

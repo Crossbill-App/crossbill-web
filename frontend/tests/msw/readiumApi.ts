@@ -109,12 +109,11 @@ export const readingPositionApi = (stored: ResumePositionResponse = nowhereToRes
  */
 export const highlightLocatorsApi = (
   items: HighlightLocatorResponse[] = [],
-  { delayMs, onRequest }: { delayMs?: number; onRequest?: () => void } = {}
+  { until, onRequest }: { until?: Promise<void>; onRequest?: () => void } = {}
 ) => [
   http.get(HIGHLIGHT_LOCATORS_PATH, async () => {
     onRequest?.();
-    // Guarded, because MSW's `delay()` with no argument is a random one.
-    if (delayMs) await delay(delayMs);
+    await until;
     return HttpResponse.json({ items });
   }),
 ];
@@ -139,6 +138,8 @@ export interface HighlightCreationAnswer {
   status?: number;
   id?: number;
   delayMs?: number;
+  /** Held until this settles, for a test that says when the server answers. */
+  until?: Promise<void>;
 }
 
 /** Register these after `readiumApi()`, which MSW resolves newest first. */
@@ -154,9 +155,11 @@ export const highlightCreationApi = (
         status = 201,
         id = 400,
         delayMs,
+        until,
       } = answers[Math.min(bodies.length, answers.length - 1)];
       bodies.push(body);
       if (delayMs) await delay(delayMs);
+      await until;
       if (status >= 400) return new HttpResponse(null, { status });
       onCreated?.(id);
       return HttpResponse.json(
@@ -233,6 +236,38 @@ export const readiumApi = ({
     });
   }),
 ];
+
+/** A promise the test settles with `release`, for a handler to hold its answer on. */
+export const aHold = () => {
+  let release = () => {};
+  const released = new Promise<void>((resolve) => {
+    release = resolve;
+  });
+  return { released, release };
+};
+
+/** A session endpoint that answers only once the test releases it. */
+export const aHeldSession = () => {
+  const { released, release } = aHold();
+  const handler = http.post(SESSION_PATH, async () => {
+    await released;
+    return HttpResponse.json({ expires_in: 900 });
+  });
+  return { handler, release };
+};
+
+/** The first chapter, served only once the test releases it. Register after `readiumApi()`. */
+export const aHeldFirstChapter = () => {
+  const { released, release } = aHold();
+  let isRequested = false;
+  // Answering nothing passes the request on to the handler that serves it.
+  const handler = http.get(RESOURCE_PATH, async ({ params }) => {
+    if (String(params[0]) !== 'OEBPS/chapter1.xhtml') return;
+    isRequested = true;
+    await released;
+  });
+  return { handler, release, isRequested: () => isRequested };
+};
 
 /** A book with no EPUB: the manifest 404s, which is how the app learns there is none. */
 export const noPublication = [

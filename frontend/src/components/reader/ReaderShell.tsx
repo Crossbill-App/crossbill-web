@@ -20,10 +20,7 @@ import { useHighlightCreation } from '@/components/reader/highlights/useHighligh
 import { useHighlightDecorations } from '@/components/reader/highlights/useHighlightDecorations.ts';
 import { useSelectionWorkflow } from '@/components/reader/highlights/useSelectionWorkflow.ts';
 import { landingOfAJump } from '@/components/reader/opening/jumpFallback.ts';
-import {
-  useEbookReader,
-  type UseEbookReaderOptions,
-} from '@/components/reader/opening/useEbookReader.ts';
+import { useEbookReader } from '@/components/reader/opening/useEbookReader.ts';
 import { useLandingApology } from '@/components/reader/opening/useLandingApology.ts';
 import {
   useReaderLanding,
@@ -43,14 +40,6 @@ import { useBodyScrollLock } from '@/hooks/useBodyScrollLock.ts';
 import { Box, useTheme } from '@mui/material';
 import { useEffect, useMemo, useRef, useState } from 'react';
 
-/** All four only for tests: a fake engine, and waits short enough to sit through. */
-export interface ReaderTestKnobs {
-  createReader?: UseEbookReaderOptions['createReader'];
-  bootTimeoutMs?: number;
-  writeDebounceMs?: number;
-  heartbeatMs?: number;
-}
-
 export interface ReaderShellProps {
   bookId: number;
   onClose: () => void;
@@ -58,20 +47,13 @@ export interface ReaderShellProps {
   onOpenHighlight?: (highlightId: number) => void;
   /** Where to open the book; only its value at mount counts. */
   target?: ReaderTarget | null;
-  testing?: ReaderTestKnobs;
 }
 
 /** Said over the open book for a tap that landed in a chapter the passage cannot reach. */
 const ONE_CHAPTER_ONLY = 'A highlight has to stay inside one chapter.';
 
 /** The reader's full-viewport frame: a title bar, a way out, and the book. */
-export const ReaderShell = ({
-  bookId,
-  onClose,
-  onOpenHighlight,
-  target,
-  testing: { createReader, bootTimeoutMs, writeDebounceMs, heartbeatMs } = {},
-}: ReaderShellProps) => {
+export const ReaderShell = ({ bookId, onClose, onOpenHighlight, target }: ReaderShellProps) => {
   // A fixed overlay never scrolls the body, which is what arms pull-to-refresh.
   useBodyScrollLock(true);
   const { status: sessionStatus, isRenewing } = useReaderSession(bookId);
@@ -102,7 +84,7 @@ export const ReaderShell = ({
     () => toEbookAppearance(theme, { pageColor, fontSize, spacing, alignment, columns }),
     [theme, pageColor, fontSize, spacing, alignment, columns]
   );
-  const { seed, moved } = useReadingPositionWriter(bookId, { writeDebounceMs, heartbeatMs });
+  const { seed, moved } = useReadingPositionWriter(bookId);
   // Latched, so that nothing done to the address after the book opens can move it.
   const [jump] = useState(target ?? null);
   const landing = useReaderLanding(bookId, jump, details?.chapters);
@@ -122,8 +104,6 @@ export const ReaderShell = ({
     canTurnPage: () => !isRenewing && !isAnyDialogOpen(),
     appearance,
     initialLocation: landing?.locator ?? null,
-    createReader,
-    bootTimeoutMs,
     on: {
       arrivedAt: seed,
       movedTo: moved,

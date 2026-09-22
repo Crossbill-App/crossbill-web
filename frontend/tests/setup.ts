@@ -3,7 +3,9 @@ import { API_BASE_URL } from '@/api/base-url';
 import { clearTokens } from '@/api/token-manager';
 import { afterAll, afterEach, beforeAll } from 'vitest';
 import { cleanup } from 'vitest-browser-react';
-import { pendingQueryClients } from './harness/renderApp';
+// No app module may load from here: one loaded before a test file is out of
+// reach of that file's `vi.mock`.
+import { pendingQueryClients } from './harness/pendingQueryClients';
 import { worker } from './msw/worker';
 
 // Relative URLs, so MSW handlers can be written against `/api/v1/...` paths.

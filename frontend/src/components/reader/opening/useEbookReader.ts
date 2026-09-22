@@ -48,9 +48,6 @@ export interface UseEbookReaderOptions {
   appearance: EbookAppearance;
   /** Where the book should open; `null` opens it at the beginning. */
   initialLocation?: EbookLocation | null;
-  /** Must be referentially stable: an inline arrow rebuilds the reader every render. */
-  createReader?: (host: HTMLElement) => EbookReader;
-  bootTimeoutMs?: number;
   /** Who to tell about what the reader does with the book. */
   on?: EbookReaderListeners;
   /** Where to move the book once it has opened, before it is shown; `null` shows it where it opened. */
@@ -83,8 +80,6 @@ export interface EbookReaderState {
   retry: () => void;
 }
 
-const aReadiumReader = (host: HTMLElement): EbookReader => new ReadiumReader(host);
-
 const outcomeOfFailure = (error: unknown): EbookReaderOutcome => {
   if (error instanceof PublicationUnavailableError) return error.reason;
   if (error instanceof DOMException && error.name === 'TimeoutError') return 'timeout';
@@ -108,8 +103,6 @@ export const useEbookReader = ({
   canTurnPage,
   appearance,
   initialLocation,
-  createReader = aReadiumReader,
-  bootTimeoutMs = BOOT_TIMEOUT_MS,
   on,
   finishLanding,
 }: UseEbookReaderOptions): EbookReaderState => {
@@ -151,7 +144,7 @@ export const useEbookReader = ({
     if (!enabled || !element) return;
 
     const { appearance: openingAppearance, initialLocation: openingLocation } = openingOptions();
-    const reader = createReader(element);
+    const reader = new ReadiumReader(element);
     readerRef.current = reader;
     // Whatever was handed over before this reader existed, or to the reader before it.
     reader.applyDecorations(decorationsRef.current);
@@ -159,7 +152,7 @@ export const useEbookReader = ({
     const cancel = new AbortController();
     // Read through a call: TypeScript would carry a check's narrowing across an await.
     const isCancelled = () => cancel.signal.aborted;
-    const signal = AbortSignal.any([cancel.signal, AbortSignal.timeout(bootTimeoutMs)]);
+    const signal = AbortSignal.any([cancel.signal, AbortSignal.timeout(BOOT_TIMEOUT_MS)]);
     let isOpen = false;
     const unsubscribes = [
       reader.onLocationChanged((location) => {
@@ -246,7 +239,7 @@ export const useEbookReader = ({
       void reader.destroy();
       readerRef.current = null;
     };
-  }, [enabled, manifestUrl, attempt, createReader, bootTimeoutMs, host]);
+  }, [enabled, manifestUrl, attempt, host]);
 
   const next = useCallback(() => void readerRef.current?.next(), []);
   const previous = useCallback(() => void readerRef.current?.previous(), []);
