@@ -202,9 +202,7 @@ test('a failed blurb save reports the error and keeps the typed edit and the ori
   // Reopening must not resurrect the abandoned draft: the field should show
   // the real blurb, not the text left over from the failed save.
   await screen.getByRole('button', { name: 'Manage book' }).click();
-  await expect
-    .element(screen.getByRole('textbox', { name: 'Blurb' }))
-    .toHaveValue(ORIGINAL_BLURB);
+  await expect.element(screen.getByRole('textbox', { name: 'Blurb' })).toHaveValue(ORIGINAL_BLURB);
 });
 
 test('shortening an expanded blurb collapses it again', async () => {

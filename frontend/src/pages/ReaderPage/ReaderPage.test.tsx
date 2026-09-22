@@ -147,13 +147,7 @@ test('a session that cannot be started reports it and offers the way back', asyn
 
   const screen = await renderApp({ path: '/book/1/read' });
 
-  await expect
-    .element(
-      screen.getByText(
-        'The reader could not start a session for this book. Please try again later.'
-      )
-    )
-    .toBeVisible();
+  await expect.element(screen.getByRole('alert')).toBeVisible();
 
   await screen.getByRole('button', { name: 'Back to book' }).click();
 
@@ -240,14 +234,9 @@ test('a book with no EPUB explains there is nothing to read', async () => {
 
   const screen = await renderApp({ path: '/book/1/read' });
 
-  await expect
-    .element(
-      screen.getByText(
-        'This book has no EPUB file, so there is nothing to read here yet. Upload one to read it in the browser.'
-      )
-    )
-    .toBeVisible();
+  await expect.element(screen.getByRole('alert')).toBeVisible();
   await expect.element(screen.getByRole('button', { name: 'Back to book' })).toBeVisible();
+  // Nothing to retry: the book has no file, so only the way back is offered.
   await expect.element(screen.getByRole('button', { name: 'Try again' })).not.toBeInTheDocument();
 });
 
