@@ -2,6 +2,7 @@ import { getGetBookDetailsQueryKey } from '@/api/generated/books/books.ts';
 import { aBookCard, aBookDetails, aChapter, aHighlight } from '@tests/fixtures/book';
 import { aNote } from '@tests/fixtures/notes';
 import { renderApp } from '@tests/harness/renderApp';
+import { afterFrames } from '@tests/harness/settle';
 import { atCompactViewport } from '@tests/harness/viewport';
 import { bookApi } from '@tests/msw/bookApi';
 import { libraryApi } from '@tests/msw/libraryApi';
@@ -360,7 +361,7 @@ test('opening a book on mobile leaves the page at the top', async () => {
       .toBeVisible();
 
     // Settled rather than polled: an unwanted snap lands a frame or two in.
-    await new Promise((resolve) => setTimeout(resolve, 400));
+    await afterFrames(3);
     expect(window.scrollY).toBe(0);
   });
 });

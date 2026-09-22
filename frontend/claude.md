@@ -144,6 +144,26 @@ Vitest runs two projects, and the file extension picks the project:
 - Mocking hooks, contexts or modules. Mock **the network**, never the app.
   If a test needs a context stubbed, the test is at the wrong level.
 
+### Waiting
+
+A test never waits on the clock. `setTimeout`, `setInterval` and
+`timers/promises` are lint errors in `src/**/*.test.*`, and so is a `timeout`
+above 10 s: `testTimeout` in `vitest.config.ts` is the whole budget. Wait on
+what the test is waiting for instead:
+
+- a state: `expect.poll` or `expect.element`;
+- a timer or a debounce: `fakeTheClock()` from `tests/harness/fakeClock.ts`,
+  then `vi.advanceTimersByTimeAsync`;
+- a slow answer: a handler held on `aHold()` and released by the test;
+- an absence, which needs something to have had its chance:
+  `tests/harness/settle.ts` — `afterTheAnswersRender(queryClient)` once every
+  request is answered and rendered, `unmountAndAwaitItsWrites()` for the
+  `keepalive` write a reader sends on its way out, `afterFrames(n)` for a
+  scroll or a render that lands a frame late.
+
+The Vitest plugin's rules are on too: every test asserts (a helper named
+`expect…` or `assert…` counts), and nothing is skipped or focused.
+
 ### How it is wired
 
 - `tests/harness/renderApp.tsx` — `renderApp({ path })` mounts the whole app at

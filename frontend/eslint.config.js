@@ -3,6 +3,7 @@ import globals from 'globals';
 import reactHooks from 'eslint-plugin-react-hooks';
 import reactRefresh from 'eslint-plugin-react-refresh';
 import tseslint from 'typescript-eslint';
+import vitest from '@vitest/eslint-plugin';
 
 // Icons come from the registry, which gives each glyph one domain name and is
 // what keeps two unrelated meanings from sharing one. The type is not an icon,
@@ -102,6 +103,42 @@ const SENTENCE_TEXT_QUERY = [
   },
 ];
 
+// A test that sleeps is slow when the wait is long and flaky when it is short,
+// and proves an absence only for as long as it happened to wait. The harness
+// helpers are the sanctioned waits: they end on what the test is waiting for.
+const REAL_TIME_WAIT_MESSAGE =
+  'Wait on what the test is waiting for, not on the clock: expect.poll or expect.element for a ' +
+  'state, fakeTheClock for a timer, aHold for a slow answer, and afterTheAnswersRender, ' +
+  'unmountAndAwaitItsWrites or afterFrames from @tests/harness/settle to prove an absence.';
+
+const REAL_TIME_WAIT = {
+  paths: ['timers/promises', 'node:timers/promises'].map((name) => ({
+    name,
+    message: REAL_TIME_WAIT_MESSAGE,
+  })),
+};
+
+const TIMER_GLOBALS = ['setTimeout', 'setInterval'];
+
+// The Vitest config's `testTimeout` is the one budget a test gets. A test that
+// needs more is waiting in real time on something it should drive instead, and
+// raising its own limit is how a suite grows 60-second tests.
+const LONG_TIMEOUT_MESSAGE =
+  'Keep timeouts at 10 000 ms or less: testTimeout in vitest.config.ts is the budget. Drive the ' +
+  'wait instead: fake the clock, inject the delay, or poll for the state with expect.poll.';
+
+const LONG_TIMEOUT = [
+  {
+    selector: "Property[key.name='timeout'][value.value>10000]",
+    message: LONG_TIMEOUT_MESSAGE,
+  },
+  {
+    selector:
+      'CallExpression[callee.name=/^(test|it|describe|beforeEach|afterEach|beforeAll|afterAll)$/] > Literal.arguments[value>10000]',
+    message: LONG_TIMEOUT_MESSAGE,
+  },
+];
+
 /**
  * Composes the import restrictions that apply to one set of files.
  *
@@ -189,7 +226,40 @@ export default tseslint.config(
     files: ['src/**/*.test.{ts,tsx}', 'tests/**/*.{ts,tsx}'],
     rules: {
       '@typescript-eslint/no-restricted-imports': restrictImports(ICON_REGISTRY),
-      'no-restricted-syntax': restrictSyntax(CACHE_INVALIDATION, SENTENCE_TEXT_QUERY),
+      'no-restricted-syntax': restrictSyntax(CACHE_INVALIDATION, SENTENCE_TEXT_QUERY, LONG_TIMEOUT),
+    },
+  },
+  {
+    // A test with no assertion passes whatever the app does, and a skipped or
+    // focused one hides the rest. Helpers named `expect…` or `assert…` count
+    // as assertions, which is how the suite names the ones it shares.
+    files: ['src/**/*.test.{ts,tsx}'],
+    plugins: { vitest },
+    rules: {
+      ...vitest.configs.recommended.rules,
+      'vitest/expect-expect': ['error', { assertFunctionNames: ['expect', 'expect*', 'assert*'] }],
+      // Vitest's `expect(value, message)` labels a failure inside a loop.
+      'vitest/valid-expect': ['error', { maxArgs: 2 }],
+      'vitest/no-conditional-expect': 'error',
+      'vitest/no-conditional-in-test': 'error',
+      'vitest/no-standalone-expect': 'error',
+      'vitest/no-disabled-tests': 'error',
+      'vitest/no-focused-tests': 'error',
+      'vitest/no-identical-title': 'error',
+      'vitest/prefer-to-have-length': 'error',
+      'vitest/prefer-to-be': 'error',
+      'vitest/prefer-to-contain': 'error',
+      'no-restricted-globals': [
+        'error',
+        ...TIMER_GLOBALS.map((name) => ({ name, message: REAL_TIME_WAIT_MESSAGE })),
+      ],
+      'no-restricted-properties': [
+        'error',
+        ...['window', 'globalThis', 'self'].flatMap((object) =>
+          TIMER_GLOBALS.map((property) => ({ object, property, message: REAL_TIME_WAIT_MESSAGE }))
+        ),
+      ],
+      '@typescript-eslint/no-restricted-imports': restrictImports(ICON_REGISTRY, REAL_TIME_WAIT),
     },
   },
   {
@@ -197,7 +267,11 @@ export default tseslint.config(
     files: ['src/**/*.test.tsx'],
     ignores: COMPONENT_TIER,
     rules: {
-      '@typescript-eslint/no-restricted-imports': restrictImports(ICON_REGISTRY, DIRECT_RENDER),
+      '@typescript-eslint/no-restricted-imports': restrictImports(
+        ICON_REGISTRY,
+        DIRECT_RENDER,
+        REAL_TIME_WAIT
+      ),
     },
   }
 );

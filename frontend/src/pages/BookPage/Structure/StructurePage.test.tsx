@@ -3,6 +3,7 @@ import { aChapterDigest, aDigestQuestion } from '@tests/fixtures/digest';
 import { aNote } from '@tests/fixtures/notes';
 import { aDigestHit, aHighlightHit, aNoteHit } from '@tests/fixtures/search';
 import { renderApp } from '@tests/harness/renderApp';
+import { afterFrames } from '@tests/harness/settle';
 import { atCompactViewport } from '@tests/harness/viewport';
 import { settingsWithAi, settingsWithEmbeddings } from '@tests/msw/auth';
 import { bookApi } from '@tests/msw/bookApi';
@@ -287,7 +288,7 @@ test('closing a chapter dialog leaves the page where it was scrolled to', async 
 
   // Settled rather than polled: the regression restored the position and then
   // scrolled away from it a frame later, which a poll would call a pass.
-  await new Promise((resolve) => setTimeout(resolve, 400));
+  await afterFrames(3);
   expect(window.scrollY).toBe(parked);
 });
 

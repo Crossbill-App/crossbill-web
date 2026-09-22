@@ -9,6 +9,7 @@ import {
 import { ReadiumReader } from '@/components/reader/engine/readium/ReadiumReader.ts';
 import { fontSizeRangeConfig } from '@readium/navigator';
 import { aDetailedPositionList, aManifest, aPositionList } from '@tests/fixtures/publication';
+import { fakeTheClock } from '@tests/harness/fakeClock';
 import { drawnOn, drawnRanges } from '@tests/harness/paintedHighlights';
 import {
   adjustSelectionInBook as adjustSelectionIn,
@@ -24,7 +25,7 @@ import { CHAPTER_TWO_SECOND_HALF, noPublication, readiumApi } from '@tests/msw/r
 import { worker } from '@tests/msw/worker';
 import { last } from 'lodash';
 import { http, HttpResponse } from 'msw';
-import { afterEach, beforeEach, expect, test } from 'vitest';
+import { afterEach, beforeEach, expect, test, vi } from 'vitest';
 import { userEvent } from 'vitest/browser';
 
 const MANIFEST_PATH = '/api/v1/readium/books/:bookId/manifest.json';
@@ -120,8 +121,11 @@ const adjustSelectionInBook = (phrase: string) => adjustSelectionIn(host, phrase
 
 const selectInBook = (phrase: string, occurrence = 1) => selectIn(host, phrase, occurrence);
 
-/** Longer than the engine gives a changing selection to settle. */
-const afterTheSelectionSettles = () => new Promise((resolve) => setTimeout(resolve, 400));
+/** How long the engine gives a changing selection to settle before reporting it. */
+const SELECTION_SETTLE_MS = 200;
+
+/** The clock moved past the settle, so whatever it was going to report is in. */
+const afterTheSelectionSettles = () => vi.advanceTimersByTimeAsync(SELECTION_SETTLE_MS);
 
 /** The same gesture over nothing, which is what dropping a selection is. */
 const tapTheBook = () => {
@@ -135,6 +139,7 @@ const userProperty = (name: string) =>
   frame()?.contentDocument?.documentElement.style.getPropertyValue(`--USER__${name}`) ?? '';
 
 beforeEach(() => {
+  fakeTheClock();
   host = document.createElement('div');
   host.style.width = '800px';
   host.style.height = '600px';
@@ -1076,7 +1081,8 @@ test(
     const controller = new AbortController();
 
     const opening = openTheBook(controller.signal);
-    setTimeout(() => controller.abort(), 100);
+    await vi.advanceTimersByTimeAsync(100);
+    controller.abort();
 
     await expect(opening).rejects.toThrow();
     expect(host.children).toHaveLength(0);
@@ -1089,7 +1095,8 @@ test('destroying while the host has no size settles the open', { timeout: 3_000 
   host.style.height = '0';
 
   const opening = openTheBook();
-  setTimeout(() => void reader.destroy(), 100);
+  await vi.advanceTimersByTimeAsync(100);
+  void reader.destroy();
 
   await expect(opening).rejects.toThrow();
   expect(host.children).toHaveLength(0);

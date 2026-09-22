@@ -1,6 +1,7 @@
 import type { BookWithHighlightCount } from '@/api/generated/model';
 import { aBookDetails, aChapter, aHighlight } from '@tests/fixtures/book';
 import { renderApp } from '@tests/harness/renderApp';
+import { afterTheAnswersRender } from '@tests/harness/settle';
 import { bookApi } from '@tests/msw/bookApi';
 import { worker } from '@tests/msw/worker';
 import { http, HttpResponse } from 'msw';
@@ -99,11 +100,11 @@ type BookListPage = Awaited<ReturnType<typeof aBookListReadyToRefresh>>;
 
 /**
  * Nothing refetched: still the one request, still the original title. A
- * refresh fires its request off the touchend handler, so whatever the drag was
- * going to do has reached the handler well inside this window.
+ * refresh fires its request off the touchend handler, so once every answer is
+ * in, whatever the drag was going to do has reached the handler.
  */
 async function expectNoRefresh({ screen, state }: BookListPage) {
-  await new Promise((resolve) => setTimeout(resolve, 300));
+  await afterTheAnswersRender(screen.queryClient);
 
   expect(state.requests).toBe(1);
   await expect.element(screen.getByText(ORIGINAL_TITLE)).toBeVisible();

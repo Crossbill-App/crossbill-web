@@ -44,7 +44,7 @@ test('starting a backfill shows its progress and reports completion', async () =
     })
     .toBeVisible();
   await expectRunReady(screen);
-}, 20000);
+});
 
 test('a backfill already running when the page loads is shown and can be cancelled', async () => {
   const { handlers, state } = semanticApi({
