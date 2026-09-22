@@ -3,6 +3,7 @@ import { aChapterDigest, aDigestQuestion } from '@tests/fixtures/digest';
 import { aNote } from '@tests/fixtures/notes';
 import { aDigestHit, aHighlightHit, aNoteHit } from '@tests/fixtures/search';
 import { renderApp } from '@tests/harness/renderApp';
+import { atCompactViewport } from '@tests/harness/viewport';
 import { settingsWithAi, settingsWithEmbeddings } from '@tests/msw/auth';
 import { bookApi } from '@tests/msw/bookApi';
 import { globalSearchApi, relatedContentApi } from '@tests/msw/searchApi';
@@ -528,4 +529,115 @@ test('regenerating one chapter warns before replacing its questions and answers'
 
   await userEvent.click(confirmation.getByRole('button', { name: 'Regenerate' }));
   await expect.poll(() => requested).toBe(true);
+});
+
+/**
+ * The chapter dialog is the one place in the app where a `CommonDialog` pages
+ * between entities, tabs its content and opens a second dialog on top of
+ * itself at once, so the shell's own contracts are asserted through it rather
+ * than through a stub dialog with `vi.fn()` arrows.
+ */
+const openFirstChapterDialog = async () => {
+  worker.use(settingsWithAi(true), ...bookApi({ book: aStructuredBook() }).handlers);
+
+  const screen = await renderApp({ path: '/book/1/structure?chapterId=10' });
+  const dialog = screen.getByRole('dialog');
+  await expect.element(dialog.getByRole('tab', { name: 'Questions' })).toBeVisible();
+
+  return { screen, dialog };
+};
+
+/**
+ * One pair of arrows, in the footer, at every width. There was briefly a
+ * second pair flanking the content from `sm` up, so a tablet carried four
+ * arrow buttons for two actions.
+ */
+test('the chapter dialog pages from a single pair of footer arrows at any width', async () => {
+  const { dialog } = await openFirstChapterDialog();
+
+  const onePairOnly = async () => {
+    expect(dialog.getByRole('button', { name: 'Next' }).elements()).toHaveLength(1);
+    expect(dialog.getByRole('button', { name: 'Previous' }).elements()).toHaveLength(1);
+    // Nothing precedes the first chapter, so its arrow retires rather than
+    // disappearing — the pair must not reflow as the reader pages.
+    await expect.element(dialog.getByRole('button', { name: 'Previous' })).toBeDisabled();
+  };
+
+  await onePairOnly();
+  await atCompactViewport(onePairOnly);
+
+  await userEvent.click(dialog.getByRole('button', { name: 'Next' }));
+
+  await expect.element(dialog.getByText('Attention and memory')).toBeVisible();
+  await expect.element(dialog.getByRole('button', { name: 'Previous' })).toBeEnabled();
+});
+
+test('arrow keys page the chapter dialog and stop at the ends of the book', async () => {
+  const { dialog } = await openFirstChapterDialog();
+
+  // Nothing before the first chapter: the key is inert rather than wrapping.
+  await userEvent.keyboard('{ArrowLeft}');
+  await expect.element(dialog.getByText('Part One')).toBeVisible();
+
+  await userEvent.keyboard('{ArrowRight}');
+  await expect.element(dialog.getByText('Attention and memory')).toBeVisible();
+});
+
+/**
+ * Regressions for #620 and #621. Registration on the dialog stack lives in the
+ * shell, so a second dialog shadows the one beneath it without its own author
+ * opting in; and its scroll lock unwinding on close must leave the outer
+ * dialog's lock — and the page position parked under it — untouched.
+ */
+test('a dialog stacked on the chapter dialog shadows it, and closing it restores paging', async () => {
+  worker.use(
+    http.post('/api/v1/chapters/:chapterId/quiz-sessions', () =>
+      HttpResponse.json({ session_id: 1, message: 'Name one thing attention filters out.' })
+    )
+  );
+  const { screen, dialog } = await openFirstChapterDialog();
+
+  expect(document.body.style.position).toBe('fixed');
+  const lockedTop = document.body.style.top;
+
+  await userEvent.click(dialog.getByRole('button', { name: 'Quiz me' }));
+  const quiz = screen.getByRole('dialog').last();
+  await expect.element(quiz.getByText('Quiz: Part One')).toBeVisible();
+
+  // The quiz pages between nothing, so it renders no footer at all.
+  expect(quiz.getByRole('button', { name: 'Next' }).elements()).toHaveLength(0);
+  expect(quiz.getByRole('button', { name: 'Previous' }).elements()).toHaveLength(0);
+
+  await userEvent.keyboard('{ArrowRight}');
+  await expect.element(dialog.first().getByText('Part One')).toBeVisible();
+
+  await userEvent.click(quiz.getByRole('button', { name: 'Close dialog' }));
+  await expect.element(screen.getByText('Quiz: Part One')).not.toBeInTheDocument();
+
+  expect(document.body.style.position).toBe('fixed');
+  expect(document.body.style.top).toBe(lockedTop);
+
+  await userEvent.keyboard('{ArrowRight}');
+  await expect.element(dialog.getByText('Attention and memory')).toBeVisible();
+});
+
+/**
+ * The tab strip claims the arrow keys while it holds focus; without that the
+ * enclosing dialog steals them and walking the tabs pages the chapter away.
+ */
+test('arrow keys inside the tab strip move between tabs rather than paging the chapter', async () => {
+  const { dialog } = await openFirstChapterDialog();
+
+  await userEvent.click(dialog.getByRole('tab', { name: 'Questions' }));
+  await userEvent.keyboard('{ArrowRight}');
+
+  const notesTab = dialog.getByRole('tab', { name: 'Notes' });
+  await expect.element(notesTab).toHaveFocus();
+  await expect.element(dialog.getByText('Part One')).toBeVisible();
+
+  await userEvent.keyboard('{Enter}');
+
+  const panel = dialog.getByRole('tabpanel');
+  await expect.element(panel).toHaveAccessibleName('Notes');
+  await expect.element(notesTab).toHaveAttribute('aria-controls', panel.element().id);
 });
