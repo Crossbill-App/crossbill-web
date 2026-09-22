@@ -94,6 +94,9 @@ const TagGroupNameEditForm = ({
       size="small"
       autoFocus
       disabled={isProcessing}
+      // The field replaces the group's title in place, so it has no visible
+      // label of its own to be named by.
+      slotProps={{ htmlInput: { 'aria-label': 'Group name' } }}
       sx={{ flex: 1, mr: 1 }}
     />
   );
