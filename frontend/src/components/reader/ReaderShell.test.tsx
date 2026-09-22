@@ -167,10 +167,20 @@ test('the shell waits for the cookie before opening the book', async () => {
   worker.use(...readiumApi());
   const session = aHeldSession();
   worker.use(session.handler);
+  let isTheLandingAnswered = false;
+  worker.use(
+    http.get(POSITION_PATH, () => {
+      isTheLandingAnswered = true;
+      return HttpResponse.json(nowhereToResume());
+    })
+  );
 
   const screen = await renderShell();
 
   await expect.element(screen.getByLabelText('Loading the book')).toBeVisible();
+  // With the landing in, the cookie is the only thing left holding the book back.
+  await expect.poll(() => isTheLandingAnswered).toBe(true);
+  await sleep(100);
   expect(readers).toHaveLength(0);
   session.release();
   await expect.poll(() => readers.length).toBe(1);
@@ -1901,16 +1911,19 @@ test('a saved highlight takes over from what was drawn for it with nothing missi
 
 test('a highlight made while the placed highlights are still loading is drawn', async () => {
   const placing = aHold();
-  let isItsPlaceAsked = false;
+  let isItsPlaceAnswered = false;
   await aSelectionOverTheDetails(
     ...highlightLocatorsApi([], { until: placing.released }),
     http.get(HIGHLIGHT_LOCATOR_PATH, () => {
-      isItsPlaceAsked = true;
+      isItsPlaceAnswered = true;
+      return HttpResponse.json(aHighlightLocator(400));
     })
   );
 
   await pressHighlight();
-  await expect.poll(() => isItsPlaceAsked).toBe(true);
+  // Its own place in first, so the list landing after it would overwrite it.
+  await expect.poll(() => isItsPlaceAnswered).toBe(true);
+  await sleep(100);
   placing.release();
 
   await expect.poll(drawnIds).toContain('highlight-400');
