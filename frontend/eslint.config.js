@@ -4,6 +4,84 @@ import reactHooks from 'eslint-plugin-react-hooks';
 import reactRefresh from 'eslint-plugin-react-refresh';
 import tseslint from 'typescript-eslint';
 
+// Icons come from the registry, which gives each glyph one domain name and is
+// what keeps two unrelated meanings from sharing one. The type is not an icon,
+// so it stays importable anywhere.
+const ICON_REGISTRY = {
+  paths: [
+    {
+      name: '@mui/icons-material',
+      allowTypeImports: true,
+      message: 'Import icons from @/theme/Icons.tsx, adding one there if it is missing.',
+    },
+  ],
+  patterns: [
+    {
+      group: ['@mui/icons-material/*'],
+      message: 'Import icons from @/theme/Icons.tsx, adding one there if it is missing.',
+    },
+  ],
+};
+
+// Readium stays below the engine seam. The adapter and its own modules are what
+// translate between the engine and the EbookReader interface; letting a hook or
+// a component reach past them for a `Locator` would put Readium's types back in
+// the UI and make a second engine impossible. Types are restricted too,
+// deliberately: the seam exists so that its own types, not the engine's, are
+// what cross it.
+const READIUM_SEAM = {
+  patterns: [
+    {
+      group: ['@readium/*'],
+      message:
+        'Only the engine adapter speaks Readium. Everything else goes through the EbookReader seam in @/components/reader/engine/EbookReader.ts.',
+    },
+  ],
+};
+
+// The component tier's boundary. `render` mounts a component on its own, which
+// is the tier reserved for the directories below; everywhere else a `.test.tsx`
+// drives a real route. `cleanup` is not restricted — a route test that renders
+// twice still needs it.
+const DIRECT_RENDER = {
+  paths: [
+    {
+      name: 'vitest-browser-react',
+      importNames: ['render'],
+      message:
+        'Behaviour tests drive a real route: use renderApp from @tests/harness/renderApp. Rendering a component on its own is the component tier, which is limited to the allowlist in frontend/claude.md > Testing.',
+    },
+  ],
+};
+
+/**
+ * The directories whose `.test.tsx` files may render a component directly.
+ * Each earns it by having behaviour a route test could not pin down — see
+ * `frontend/claude.md > Testing` for what each one is and why.
+ */
+const COMPONENT_TIER = [
+  'src/components/reader/**/*.test.tsx',
+  'src/components/carousel/**/*.test.tsx',
+  'src/hooks/**/*.test.tsx',
+];
+
+/**
+ * Composes the import restrictions that apply to one set of files.
+ *
+ * Flat config replaces a rule's options wholesale when a later block names the
+ * same rule, so a block restricting one thing silently drops every restriction
+ * an earlier block put on the same file — which is how the icon-registry rule
+ * came to be enforced on the reader engine and the tests alone. Each block
+ * below therefore names every restriction its files are under.
+ */
+const restrictImports = (...restrictions) => [
+  'error',
+  {
+    paths: restrictions.flatMap((restriction) => restriction.paths ?? []),
+    patterns: restrictions.flatMap((restriction) => restriction.patterns ?? []),
+  },
+];
+
 export default tseslint.config(
   {
     ignores: [
@@ -63,55 +141,33 @@ export default tseslint.config(
     rules: { 'no-restricted-syntax': 'off' },
   },
   {
-    // Icons come from the registry, which gives each glyph one domain name and
-    // is what keeps two unrelated meanings from sharing one. The type is not an
-    // icon, so it stays importable anywhere.
     files: ['src/**/*.{ts,tsx}'],
-    ignores: ['src/theme/Icons.tsx'],
     rules: {
       // The typescript-eslint variant, for `allowTypeImports`.
-      '@typescript-eslint/no-restricted-imports': [
-        'error',
-        {
-          paths: [
-            {
-              name: '@mui/icons-material',
-              allowTypeImports: true,
-              message: 'Import icons from @/theme/Icons.tsx, adding one there if it is missing.',
-            },
-          ],
-          patterns: [
-            {
-              group: ['@mui/icons-material/*'],
-              message: 'Import icons from @/theme/Icons.tsx, adding one there if it is missing.',
-            },
-          ],
-        },
-      ],
+      '@typescript-eslint/no-restricted-imports': restrictImports(ICON_REGISTRY, READIUM_SEAM),
     },
   },
   {
-    // Readium stays below the engine seam. The adapter and its own modules are
-    // what translate between the engine and the EbookReader interface; letting a
-    // hook or a component reach past them for a `Locator` would put Readium's
-    // types back in the UI and make a second engine impossible. Types are
-    // restricted too, deliberately: the seam exists so that its own types, not
-    // the engine's, are what cross it.
-    files: ['src/**/*.{ts,tsx}'],
-    ignores: ['src/components/reader/engine/**', 'src/**/*.test.{ts,tsx}'],
+    // The registry itself, which is where the icons are imported.
+    files: ['src/theme/Icons.tsx'],
+    rules: { '@typescript-eslint/no-restricted-imports': restrictImports(READIUM_SEAM) },
+  },
+  {
+    // The adapter and its own modules: the seam's inside.
+    files: ['src/components/reader/engine/**'],
+    rules: { '@typescript-eslint/no-restricted-imports': restrictImports(ICON_REGISTRY) },
+  },
+  {
+    // A test may reach past the seam to stand in for the engine.
+    files: ['src/**/*.test.{ts,tsx}'],
+    rules: { '@typescript-eslint/no-restricted-imports': restrictImports(ICON_REGISTRY) },
+  },
+  {
+    // Outside the component tier, a rendering test renders a route.
+    files: ['src/**/*.test.tsx'],
+    ignores: COMPONENT_TIER,
     rules: {
-      '@typescript-eslint/no-restricted-imports': [
-        'error',
-        {
-          patterns: [
-            {
-              group: ['@readium/*'],
-              message:
-                'Only the engine adapter speaks Readium. Everything else goes through the EbookReader seam in @/components/reader/engine/EbookReader.ts.',
-            },
-          ],
-        },
-      ],
+      '@typescript-eslint/no-restricted-imports': restrictImports(ICON_REGISTRY, DIRECT_RENDER),
     },
   }
 );

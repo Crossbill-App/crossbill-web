@@ -62,9 +62,39 @@ is stale. Never hand-edit files under `src/api/generated`.
 
 ## Testing
 
-Behavior tests over whole routes are the only tier. A test renders a real route
-through the real router, the real auth gate and the real providers, mocks the
-network with MSW, and drives the page the way a user would.
+Three tiers. Which one a test belongs to is a decision about the code under it,
+not a matter of taste.
+
+**Pure logic** — `.test.ts`, in node. Parsers, arithmetic, normalisation:
+genuinely tricky pure functions, where a page-level test could not pin down the
+edge cases.
+
+**Route tier** — `.test.tsx` through `renderApp`. Everything user-facing, and
+the default for a new page or flow. A test renders a real route through the
+real router, the real auth gate and the real providers, mocks the network with
+MSW, and drives the page the way a user would.
+
+**Component tier** — `.test.tsx` rendering a component directly. For components
+with substantial behaviour of their own and a real engine or DOM contract to
+hold to. A dialog with two arrow buttons is not one of these: it is proven by
+the page that uses it. The allowlist, and what earns each entry:
+
+- `src/components/reader/**` — the reader engine. It has grown enough behaviour
+  of its own that driving it only through `/reader` would be slower and less
+  precise, not better.
+- `src/components/carousel/**` — paging arithmetic measured against a host of a
+  width the test sets. At route level the host is the viewport, so the item
+  pitch and the bleed margins cannot be pinned.
+- `src/hooks/**` — a hook with no component of its own gets a small `Probe`
+  component that uses it. `screen.rerender` stages the races these hooks exist
+  for — a refetch landing mid-keystroke (#259) — which a route cannot
+  reproduce.
+
+The boundary is a lint rule, not a convention: importing `render` from
+`vitest-browser-react` is an error in `src/**/*.test.tsx` outside that
+allowlist, which lives in `eslint.config.js`. Widening it means adding the
+directory there and a line here saying what earned it. `cleanup` is not
+restricted — a route test that renders twice still needs it.
 
 Run them with `npm run test` (headless Chromium via Vitest browser mode) or
 `npm run test:watch`. `npx playwright install chromium` once, first time.
@@ -92,7 +122,10 @@ Vitest runs two projects, and the file extension picks the project:
 
 ### What does not
 
-- Component-internal tests, shallow renders, snapshots, coverage targets.
+- Shallow renders, snapshots, coverage targets.
+- Rendering a component on its own outside the component tier above. Fold the
+  behaviour into the route test that already exercises the component, or leave
+  it to the route test that proves it by using it at all.
 - Mocking hooks, contexts or modules. Mock **the network**, never the app.
   If a test needs a context stubbed, the test is at the wrong level.
 
@@ -114,7 +147,3 @@ Vitest runs two projects, and the file extension picks the project:
 Copy `src/pages/BookPage/BookPage.test.tsx` (render) and
 `src/pages/BookPage/Notes/NotesPage.test.tsx` (mutation flow + error path) when
 adding tests for a new page. Tests live next to the page they cover.
-
-`.test.ts` unit tests are reserved for genuinely tricky pure logic — parsing,
-normalisation, arithmetic — where a page-level test could not pin down the edge
-cases.
