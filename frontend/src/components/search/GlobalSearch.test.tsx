@@ -14,6 +14,8 @@ import { userEvent } from 'vitest/browser';
 
 const PLACEHOLDER = 'Search...';
 
+const A_HIGHLIGHT = 'The map is not the territory.';
+
 test('the app bar offers a global search field when embeddings are on', async () => {
   const { handlers } = bookApi({ book: aBookDetails() });
   worker.use(settingsWithEmbeddings(true), ...handlers, ...globalSearchApi({}));
@@ -62,7 +64,7 @@ const renderWithHighlightResult = () =>
   renderWithResults(
     {
       attention: {
-        highlights: [aHighlightHit({ id: 300, text: 'The map is not the territory.' })],
+        highlights: [aHighlightHit({ id: 300, text: A_HIGHLIGHT })],
       },
     },
     aBookDetails({
@@ -233,9 +235,7 @@ test('clicking a highlight row opens the highlight dialog on the book page', asy
   await search(screen, 'attention');
   await userEvent.click(screen.getByRole('option').first());
 
-  await expect
-    .element(screen.getByRole('dialog').getByText('The map is not the territory.'))
-    .toBeVisible();
+  await expect.element(screen.getByRole('dialog').getByText(A_HIGHLIGHT)).toBeVisible();
   expect(window.location.pathname).toBe('/book/1/highlights');
   expect(window.location.search).toContain('highlightId=300');
 });
@@ -377,7 +377,7 @@ test('a failing search reports the failure', async () => {
 
   await search(screen, 'attention');
 
-  await expect.element(screen.getByText('Search failed. Try again.')).toBeVisible();
+  await expect.element(screen.getByRole('alert')).toBeVisible();
 });
 
 /**

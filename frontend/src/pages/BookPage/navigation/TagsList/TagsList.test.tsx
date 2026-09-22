@@ -66,7 +66,7 @@ test('confirming removes the group', async () => {
   await userEvent.click(screen.getByRole('button', { name: 'Delete group' }));
   await userEvent.click(screen.getByRole('alertdialog').getByRole('button', { name: 'Delete' }));
 
-  await expect.element(screen.getByText('No tagged highlights yet.')).toBeVisible();
+  await expect.element(screen.getByText('Themes')).not.toBeInTheDocument();
   expect(deleted).toEqual([5]);
 });
 

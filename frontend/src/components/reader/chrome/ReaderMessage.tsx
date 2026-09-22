@@ -23,7 +23,7 @@ export const ReaderMessage = ({ children, onClose, onRetry }: ReaderMessageProps
         textAlign: 'center',
       }}
     >
-      <Typography>{children}</Typography>
+      <Typography role="alert">{children}</Typography>
       <Stack direction="row" spacing={2}>
         <Button variant="outlined" onClick={onClose}>
           Back to book

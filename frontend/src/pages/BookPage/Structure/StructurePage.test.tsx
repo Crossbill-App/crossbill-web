@@ -14,6 +14,8 @@ import { userEvent } from 'vitest/browser';
 
 const SEARCH_PLACEHOLDER = 'Search chapters by meaning...';
 
+const A_DIGEST_QUESTION = 'What makes attention a filter?';
+
 /** Two parts, one leaf chapter each — enough to prove ancestors survive. */
 const aStructuredBook = () =>
   aBookDetails({
@@ -301,7 +303,7 @@ test('a digest answer says it saved when the field is left', async () => {
       digests: [
         aChapterDigest({
           chapter_id: 11,
-          questions: [aDigestQuestion({ question: 'What makes attention a filter?' })],
+          questions: [aDigestQuestion({ question: A_DIGEST_QUESTION })],
         }),
       ],
     }).handlers
@@ -324,7 +326,7 @@ test('a digest answer says it saved when the field is left', async () => {
   const restingGap = gapBelowField();
 
   await userEvent.fill(answer, 'It drops what is not attended to.');
-  await userEvent.click(dialog.getByText('What makes attention a filter?'));
+  await userEvent.click(dialog.getByText(A_DIGEST_QUESTION));
 
   await expect.element(dialog.getByText('Saved')).toBeVisible();
   expect(gapBelowField()).toBe(restingGap);
@@ -386,9 +388,7 @@ test('a book with no chapters keeps the structure header', async () => {
 
   const screen = await renderApp({ path: '/book/1/structure' });
 
-  await expect
-    .element(screen.getByText('No chapter structure available for this book.'))
-    .toBeVisible();
+  await expect.element(screen.getByRole('main').getByRole('status')).toBeVisible();
   await expect.element(screen.getByRole('heading', { name: 'Structure' })).toBeVisible();
 });
 

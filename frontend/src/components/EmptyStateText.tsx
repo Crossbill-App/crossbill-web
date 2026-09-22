@@ -14,6 +14,7 @@ interface EmptyStateTextProps {
 /** Muted placeholder text shown when a list or tab has no content. */
 export const EmptyStateText = ({ children, variant = 'inline' }: EmptyStateTextProps) => (
   <Typography
+    role="status"
     variant={variant === 'page' ? 'body1' : 'body2'}
     sx={{
       color: 'text.secondary',

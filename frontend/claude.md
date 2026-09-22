@@ -119,6 +119,21 @@ Vitest runs two projects, and the file extension picks the project:
   `screen.getByRole('dialog').getByRole('button', { name: 'Close', exact: true })`.
   Reach for `data-testid` only when nothing else works; giving the element a
   proper `aria-label` in `src/` is usually the better fix.
+- `getByText` for formatted **values** — `Duration 1h 11m`, `Pages 102 – 115`,
+  `63%` — where the format is the behaviour. Never for a sentence of copy: a
+  test that quotes the app's wording back at it breaks on every rewrite, and
+  the sentence-case and ellipsis conventions above mean rewrites keep coming.
+  Ask for the state instead: `getByRole('status')` for an empty state,
+  `getByRole('alert')` for a failure, `getByRole('alertdialog', { name:
+/delete/i })` for a confirmation, or the affordance the state puts on screen
+  — the bookmark rail is proven empty by its list being gone. Add the role or
+  the label in `src/` if the state has none.
+
+  A `no-restricted-syntax` rule in `eslint.config.js` rejects a `getByText`
+  literal ending in `.`, `?` or `!`. Two things legitimately still hold a
+  sentence, and both pass the rule by being named: prose the test wrote into
+  its own fixture, and a message that is itself the behaviour under test —
+  asserted from a constant, once, in the one test that is about it.
 
 ### What does not
 

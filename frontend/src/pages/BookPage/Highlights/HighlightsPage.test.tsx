@@ -10,6 +10,12 @@ import { page, userEvent } from 'vitest/browser';
 
 type Screen = Awaited<ReturnType<typeof renderApp>>;
 
+const DATE_OUT_OF_RANGE = 'Enter a date in the allowed range.';
+const RANGE_IS_REVERSED = 'From must be on or before To.';
+
+const A_HIGHLIGHT = 'The map is not the territory.';
+const ANOTHER_HIGHLIGHT = 'A second passage.';
+
 const expectHighlightInChapter = async (screen: Screen, chapter: string, highlight: string) => {
   await expect
     .element(screen.getByRole('list', { name: `Highlights in ${chapter}` }).getByText(highlight))
@@ -63,7 +69,9 @@ test('hydrates an inclusive range from the URL and clears each bound independent
   await expect.element(screen.getByText('Late that night')).toBeVisible();
   expect(screen.getByText('The next day').elements()).toHaveLength(0);
   expect(screen.getByText('Filtered chapter').elements()).toHaveLength(0);
-  await expect.element(screen.getByText('No bookmarks match the active filters.')).toBeVisible();
+  // The one bookmark is on a highlight outside the range, so the rail has
+  // nothing left to list.
+  expect(screen.getByRole('list', { name: 'Bookmarks' }).elements()).toHaveLength(0);
   await expect.element(screen.getByRole('group', { name: 'From' })).toBeVisible();
   await expect.element(screen.getByRole('group', { name: 'To' })).toBeVisible();
 
@@ -71,7 +79,7 @@ test('hydrates an inclusive range from the URL and clears each bound independent
   const validSearch = window.location.search;
   await userEvent.click(fromField.getByRole('spinbutton', { name: 'Year' }));
   await userEvent.keyboard('1000');
-  await expect.element(screen.getByText('Enter a date in the allowed range.')).toBeVisible();
+  await expect.element(screen.getByText(DATE_OUT_OF_RANGE)).toBeVisible();
   expect(window.location.search).toBe(validSearch);
 
   await userEvent.hover(fromField);
@@ -86,7 +94,9 @@ test('hydrates an inclusive range from the URL and clears each bound independent
   await userEvent.click(toField.getByRole('button', { name: 'Clear' }));
 
   await expect.element(screen.getByText('The next day')).toBeVisible();
-  await expect.element(screen.getByText('No bookmarks yet.')).not.toBeInTheDocument();
+  // Both bounds gone, so the bookmarked highlight is back in range and the
+  // rail lists it again.
+  await expect.element(screen.getByRole('list', { name: 'Bookmarks' })).toBeVisible();
   await expectHighlightInChapter(screen, 'Filtered chapter', 'Before the range');
   expect(window.location.search).not.toContain('from=');
   expect(window.location.search).not.toContain('to=');
@@ -102,7 +112,7 @@ test('hydrates an inclusive range from the URL and clears each bound independent
     replace: true,
   });
 
-  await expect.element(screen.getByText('From must be on or before To.')).toBeVisible();
+  await expect.element(screen.getByText(RANGE_IS_REVERSED)).toBeVisible();
   await expect.element(screen.getByText('The next day')).toBeVisible();
 });
 
@@ -172,7 +182,7 @@ test('composes date, search, tag, and label filters and shows the generic empty 
     replace: true,
   });
 
-  await expect.element(screen.getByText('No highlights match the current filters.')).toBeVisible();
+  await expect.element(screen.getByRole('main').getByRole('status')).toBeVisible();
 
   // One control undoes all four: search, tag, label and date range.
   await userEvent.click(screen.getByRole('button', { name: 'Clear filters' }));
@@ -400,8 +410,8 @@ const aBookWithOneTaggedHighlight = () =>
     chapters: [
       aChapter({
         highlights: [
-          aHighlight({ id: 301, text: 'The map is not the territory.' }),
-          aHighlight({ id: 302, text: 'A second passage.', tags: [CLOSE_READING] }),
+          aHighlight({ id: 301, text: A_HIGHLIGHT }),
+          aHighlight({ id: 302, text: ANOTHER_HIGHLIGHT, tags: [CLOSE_READING] }),
           aHighlight({ id: 303, text: 'A third passage.' }),
         ],
       }),
@@ -426,7 +436,7 @@ test('the header count follows the filter while the stats strip keeps the total'
   await expect
     .element(screen.getByRole('main').getByText('1 highlight', { exact: true }))
     .toBeVisible();
-  await expect.element(screen.getByText('A second passage.')).toBeVisible();
+  await expect.element(screen.getByText(ANOTHER_HIGHLIGHT)).toBeVisible();
 
   // The pair the reader compares: 1 shown here, 3 in the book (ADR-0003).
   await expect.element(screen.getByText('3 highlights', { exact: true })).toBeVisible();
@@ -437,7 +447,7 @@ const aBookWithTwoHighlights = () =>
     chapters: [
       aChapter({
         highlights: [
-          aHighlight({ id: 301, text: 'The map is not the territory.' }),
+          aHighlight({ id: 301, text: A_HIGHLIGHT }),
           aHighlight({ id: 302, text: 'Attention is the rarest form of generosity.' }),
         ],
       }),
@@ -448,7 +458,7 @@ test("a highlight's dialog offers to open it in the reader", async () => {
   worker.use(...bookApi({ book: aBookWithTwoHighlights() }).handlers);
 
   const screen = await renderApp({ path: '/book/1/highlights' });
-  await screen.getByText('The map is not the territory.').click();
+  await screen.getByText(A_HIGHLIGHT).click();
 
   await expect
     .element(screen.getByRole('dialog').getByRole('link', { name: 'Open in reader' }))

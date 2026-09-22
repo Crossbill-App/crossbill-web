@@ -35,7 +35,7 @@ export const GlobalSearchResults = ({
   if (isError) {
     return (
       <Box sx={{ px: GLOBAL_SEARCH_INSET_X, py: 2.5 }}>
-        <Typography variant="body2" color="error">
+        <Typography role="alert" variant="body2" color="error">
           Search failed. Try again.
         </Typography>
       </Box>

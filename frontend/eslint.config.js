@@ -65,6 +65,43 @@ const COMPONENT_TIER = [
   'src/hooks/**/*.test.tsx',
 ];
 
+const SENTENCE_TEXT_QUERY_MESSAGE =
+  'Assert the state, not the sentence: reach for the role and accessible name that state goes by ' +
+  "(getByRole('status'), getByRole('alertdialog', { name: /delete/i })), adding the role or label in " +
+  'src/ if it has none. Fixture prose belongs in a named constant, and a message that is itself the ' +
+  'behaviour under test is asserted from one — once.';
+
+// Invalidation belongs in src/lib/cacheEvents.ts, which owns the query keys and
+// takes them from the generated getters. A hand-written key elsewhere once
+// matched nothing and left deleted books in the list for five minutes.
+// `setQueryData` is deliberately not restricted: optimistic updates, cache
+// seeding and write-through are not invalidation and belong at their call site.
+const CACHE_INVALIDATION = [
+  {
+    selector: 'CallExpression[callee.property.name=/^(invalidateQueries|refetchQueries)$/]',
+    message:
+      'Express the change as an event in @/lib/cacheEvents.ts rather than invalidating a query key here.',
+  },
+];
+
+// A test that quotes a whole sentence of copy back at the app breaks on every
+// rewording, and the sentence-case and ellipsis conventions in claude.md mean
+// rewording keeps happening. Trailing `.`, `?` or `!` is what tells a sentence
+// from the formatted values `getByText` is for — `Duration 1h 11m`, `63%`,
+// `Pages 102 – 115` — which stay allowed, because there the format is the
+// behaviour.
+const SENTENCE_TEXT_QUERY = [
+  {
+    selector: "CallExpression[callee.property.name='getByText'] > Literal[value=/[.?!]$/]",
+    message: SENTENCE_TEXT_QUERY_MESSAGE,
+  },
+  {
+    selector:
+      "CallExpression[callee.property.name='getByText'] > Literal[regex.pattern=/\\\\[.?!]$/]",
+    message: SENTENCE_TEXT_QUERY_MESSAGE,
+  },
+];
+
 /**
  * Composes the import restrictions that apply to one set of files.
  *
@@ -81,6 +118,9 @@ const restrictImports = (...restrictions) => [
     patterns: restrictions.flatMap((restriction) => restriction.patterns ?? []),
   },
 ];
+
+/** The same composition, for `no-restricted-syntax` and the same reason. */
+const restrictSyntax = (...restrictions) => ['error', ...restrictions.flat()];
 
 export default tseslint.config(
   {
@@ -119,20 +159,7 @@ export default tseslint.config(
       ],
       '@typescript-eslint/no-unnecessary-condition': 'warn',
       'no-console': ['warn', { allow: ['warn', 'error'] }],
-      // Invalidation belongs in src/lib/cacheEvents.ts, which owns the query keys
-      // and takes them from the generated getters. A hand-written key here once
-      // matched nothing and left deleted books in the list for five minutes.
-      // `setQueryData` is deliberately not restricted: optimistic updates, cache
-      // seeding and write-through are not invalidation and belong at their call site.
-      'no-restricted-syntax': [
-        'error',
-        {
-          selector:
-            'CallExpression[callee.property.name=/^(invalidateQueries|refetchQueries)$/]',
-          message:
-            'Express the change as an event in @/lib/cacheEvents.ts rather than invalidating a query key here.',
-        },
-      ],
+      'no-restricted-syntax': restrictSyntax(CACHE_INVALIDATION),
     },
   },
   {
@@ -159,8 +186,11 @@ export default tseslint.config(
   },
   {
     // A test may reach past the seam to stand in for the engine.
-    files: ['src/**/*.test.{ts,tsx}'],
-    rules: { '@typescript-eslint/no-restricted-imports': restrictImports(ICON_REGISTRY) },
+    files: ['src/**/*.test.{ts,tsx}', 'tests/**/*.{ts,tsx}'],
+    rules: {
+      '@typescript-eslint/no-restricted-imports': restrictImports(ICON_REGISTRY),
+      'no-restricted-syntax': restrictSyntax(CACHE_INVALIDATION, SENTENCE_TEXT_QUERY),
+    },
   },
   {
     // Outside the component tier, a rendering test renders a route.

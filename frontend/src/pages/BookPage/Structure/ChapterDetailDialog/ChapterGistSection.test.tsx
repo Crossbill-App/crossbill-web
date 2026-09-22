@@ -10,6 +10,9 @@ import { userEvent } from 'vitest/browser';
 const PLACEHOLDER = 'What was this chapter about?';
 const CHAPTER = aChapter({ id: 10, name: 'Attention and memory' });
 
+const THE_SAVED_GIST = 'A first pass.';
+const THE_REWRITTEN_GIST = 'A second, better pass.';
+
 const aGist = (body: string) =>
   aNote({ id: 100, title: CHAPTER.name, body, kind: 'gist', chapter_ids: [CHAPTER.id] });
 
@@ -79,41 +82,41 @@ test('a new gist cannot be edited into a duplicate while its create is pending',
 
 test('an existing gist is edited in place, keeping the links it already had', async () => {
   const { dialog, state } = await openChapterDialog([
-    { ...aGist('A first pass.'), tag_ids: [7], chapter_ids: [10, 11] },
+    { ...aGist(THE_SAVED_GIST), tag_ids: [7], chapter_ids: [10, 11] },
   ]);
 
-  await userEvent.click(dialog.getByText('A first pass.'));
-  await userEvent.fill(dialog.getByPlaceholder(PLACEHOLDER), 'A second, better pass.');
+  await userEvent.click(dialog.getByText(THE_SAVED_GIST));
+  await userEvent.fill(dialog.getByPlaceholder(PLACEHOLDER), THE_REWRITTEN_GIST);
   await userEvent.keyboard('{Enter}');
 
-  await expect.element(dialog.getByText('A second, better pass.')).toBeVisible();
-  await expect.poll(() => state.notes[0].body).toBe('A second, better pass.');
+  await expect.element(dialog.getByText(THE_REWRITTEN_GIST)).toBeVisible();
+  await expect.poll(() => state.notes[0].body).toBe(THE_REWRITTEN_GIST);
   expect(state.notes[0]).toMatchObject({
-    body: 'A second, better pass.',
+    body: THE_REWRITTEN_GIST,
     tag_ids: [7],
     chapter_ids: [10, 11],
   });
 });
 
 test('Escape reverts the edit and leaves the saved gist alone', async () => {
-  const { dialog, state } = await openChapterDialog([aGist('A first pass.')]);
+  const { dialog, state } = await openChapterDialog([aGist(THE_SAVED_GIST)]);
 
-  await userEvent.click(dialog.getByText('A first pass.'));
+  await userEvent.click(dialog.getByText(THE_SAVED_GIST));
   await userEvent.fill(dialog.getByPlaceholder(PLACEHOLDER), 'Half a thought');
   await userEvent.keyboard('{Escape}');
 
-  await expect.element(dialog.getByText('A first pass.')).toBeVisible();
-  expect(state.notes[0].body).toBe('A first pass.');
+  await expect.element(dialog.getByText(THE_SAVED_GIST)).toBeVisible();
+  expect(state.notes[0].body).toBe(THE_SAVED_GIST);
 });
 
 test('clearing the text deletes the gist', async () => {
-  const { screen, dialog, state } = await openChapterDialog([aGist('A first pass.')]);
+  const { screen, dialog, state } = await openChapterDialog([aGist(THE_SAVED_GIST)]);
 
-  await userEvent.click(dialog.getByText('A first pass.'));
+  await userEvent.click(dialog.getByText(THE_SAVED_GIST));
   await userEvent.fill(dialog.getByPlaceholder(PLACEHOLDER), '');
   await userEvent.tab();
 
-  await expect.element(screen.getByText('Gist deleted.')).toBeVisible();
+  await expect.element(screen.getByRole('alert')).toBeVisible();
   await expect.element(dialog.getByPlaceholder(PLACEHOLDER)).toBeVisible();
   expect(state.notes).toHaveLength(0);
 });
@@ -125,6 +128,9 @@ test('a failed save keeps the text on screen and says it did not save', async ()
   await userEvent.fill(dialog.getByPlaceholder(PLACEHOLDER), 'Worth keeping.');
   await userEvent.tab();
 
-  await expect.element(dialog.getByText('Not saved — try again.')).toBeVisible();
-  await expect.element(dialog.getByPlaceholder(PLACEHOLDER)).toHaveValue('Worth keeping.');
+  // The failure is on the field the text is still in, not in a snackbar that
+  // fades: the editor stays invalid until the save is retried.
+  const editor = dialog.getByPlaceholder(PLACEHOLDER);
+  await expect.element(editor).toHaveAttribute('aria-invalid', 'true');
+  await expect.element(editor).toHaveValue('Worth keeping.');
 });

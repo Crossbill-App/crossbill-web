@@ -1,12 +1,12 @@
 import type { RecentCapture } from '@/api/generated/model';
 import { EmptyStateText } from '@/components/EmptyStateText.tsx';
 import { Eyebrow } from '@/components/typography/Eyebrow.tsx';
-import { SectionTitle } from '@/components/typography/SectionTitle.tsx';
 import { formatDay } from '@/utils/date.ts';
 import { Alert, Box } from '@mui/material';
 import { useMemo } from 'react';
 
 import { CaptureEntry } from './CaptureEntry.tsx';
+import { DashboardSection } from './DashboardSection.tsx';
 import { useRecentCaptures } from './landingQueries.ts';
 
 /** The feed's captures under the day each belongs to, newest day first. */
@@ -35,9 +35,7 @@ export const RecentCaptures = () => {
   const empty = !isError && days.length === 0;
 
   return (
-    <Box sx={{ mb: 6 }}>
-      <SectionTitle showDivider>Recent highlights and notes</SectionTitle>
-
+    <DashboardSection title="Recent highlights and notes">
       {isError && (
         <Box sx={{ py: 3 }}>
           <Alert severity="error">Failed to load recent highlights and notes.</Alert>
@@ -61,6 +59,6 @@ export const RecentCaptures = () => {
           ))}
         </Box>
       ))}
-    </Box>
+    </DashboardSection>
   );
 };
