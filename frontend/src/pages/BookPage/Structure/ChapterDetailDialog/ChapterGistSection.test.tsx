@@ -113,7 +113,7 @@ test('clearing the text deletes the gist', async () => {
   await userEvent.fill(dialog.getByPlaceholder(PLACEHOLDER), '');
   await userEvent.tab();
 
-  await expect.element(screen.getByText('Gist deleted.')).toBeVisible();
+  await expect.element(screen.getByRole('alert')).toBeVisible();
   await expect.element(dialog.getByPlaceholder(PLACEHOLDER)).toBeVisible();
   expect(state.notes).toHaveLength(0);
 });
@@ -125,6 +125,9 @@ test('a failed save keeps the text on screen and says it did not save', async ()
   await userEvent.fill(dialog.getByPlaceholder(PLACEHOLDER), 'Worth keeping.');
   await userEvent.tab();
 
-  await expect.element(dialog.getByText('Not saved — try again.')).toBeVisible();
-  await expect.element(dialog.getByPlaceholder(PLACEHOLDER)).toHaveValue('Worth keeping.');
+  // The failure is on the field the text is still in, not in a snackbar that
+  // fades: the editor stays invalid until the save is retried.
+  const editor = dialog.getByPlaceholder(PLACEHOLDER);
+  await expect.element(editor).toHaveAttribute('aria-invalid', 'true');
+  await expect.element(editor).toHaveValue('Worth keeping.');
 });

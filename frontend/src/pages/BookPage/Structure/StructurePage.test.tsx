@@ -386,9 +386,7 @@ test('a book with no chapters keeps the structure header', async () => {
 
   const screen = await renderApp({ path: '/book/1/structure' });
 
-  await expect
-    .element(screen.getByText('No chapter structure available for this book.'))
-    .toBeVisible();
+  await expect.element(screen.getByRole('main').getByRole('status')).toBeVisible();
   await expect.element(screen.getByRole('heading', { name: 'Structure' })).toBeVisible();
 });
 

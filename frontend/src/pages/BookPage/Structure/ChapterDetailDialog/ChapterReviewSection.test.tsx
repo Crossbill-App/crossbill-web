@@ -89,7 +89,7 @@ test('a failed save reports the error and keeps the answer on screen', async () 
   await userEvent.fill(dialog.getByPlaceholder(ANSWER_PLACEHOLDER).first(), 'Worth keeping.');
   await userEvent.tab();
 
-  await expect.element(screen.getByText('Failed to save answer. Please try again.')).toBeVisible();
+  await expect.element(screen.getByRole('alert')).toBeVisible();
   await expect
     .element(dialog.getByPlaceholder(ANSWER_PLACEHOLDER).first())
     .toHaveValue('Worth keeping.');

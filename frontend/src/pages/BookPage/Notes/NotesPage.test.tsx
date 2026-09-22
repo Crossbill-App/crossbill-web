@@ -173,7 +173,7 @@ test('clearing the filters from the empty state brings the notes back', async ()
   const screen = await renderNotesMatchingNothing();
   await userEvent.fill(screen.getByPlaceholder(NOTES_SEARCH_PLACEHOLDER), 'underwater');
   await userEvent.keyboard('{Enter}');
-  await expect.element(screen.getByText('No notes match the current filters.')).toBeVisible();
+  await expect.element(screen.getByRole('main').getByRole('status')).toBeVisible();
 
   await userEvent.click(screen.getByRole('button', { name: 'Clear filters' }));
 

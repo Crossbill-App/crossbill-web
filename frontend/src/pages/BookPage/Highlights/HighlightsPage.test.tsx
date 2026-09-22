@@ -10,6 +10,14 @@ import { page, userEvent } from 'vitest/browser';
 
 type Screen = Awaited<ReturnType<typeof renderApp>>;
 
+/**
+ * What the date field says when the range it was given cannot be read. The
+ * message is the behaviour here — it is the only thing that tells the reader
+ * why the list did not move — so it is asserted, once, by its words.
+ */
+const DATE_OUT_OF_RANGE = 'Enter a date in the allowed range.';
+const RANGE_IS_REVERSED = 'From must be on or before To.';
+
 const expectHighlightInChapter = async (screen: Screen, chapter: string, highlight: string) => {
   await expect
     .element(screen.getByRole('list', { name: `Highlights in ${chapter}` }).getByText(highlight))
@@ -63,7 +71,9 @@ test('hydrates an inclusive range from the URL and clears each bound independent
   await expect.element(screen.getByText('Late that night')).toBeVisible();
   expect(screen.getByText('The next day').elements()).toHaveLength(0);
   expect(screen.getByText('Filtered chapter').elements()).toHaveLength(0);
-  await expect.element(screen.getByText('No bookmarks match the active filters.')).toBeVisible();
+  // The one bookmark is on a highlight outside the range, so the rail has
+  // nothing left to list.
+  expect(screen.getByRole('list', { name: 'Bookmarks' }).elements()).toHaveLength(0);
   await expect.element(screen.getByRole('group', { name: 'From' })).toBeVisible();
   await expect.element(screen.getByRole('group', { name: 'To' })).toBeVisible();
 
@@ -71,7 +81,7 @@ test('hydrates an inclusive range from the URL and clears each bound independent
   const validSearch = window.location.search;
   await userEvent.click(fromField.getByRole('spinbutton', { name: 'Year' }));
   await userEvent.keyboard('1000');
-  await expect.element(screen.getByText('Enter a date in the allowed range.')).toBeVisible();
+  await expect.element(screen.getByText(DATE_OUT_OF_RANGE)).toBeVisible();
   expect(window.location.search).toBe(validSearch);
 
   await userEvent.hover(fromField);
@@ -86,7 +96,9 @@ test('hydrates an inclusive range from the URL and clears each bound independent
   await userEvent.click(toField.getByRole('button', { name: 'Clear' }));
 
   await expect.element(screen.getByText('The next day')).toBeVisible();
-  await expect.element(screen.getByText('No bookmarks yet.')).not.toBeInTheDocument();
+  // Both bounds gone, so the bookmarked highlight is back in range and the
+  // rail lists it again.
+  await expect.element(screen.getByRole('list', { name: 'Bookmarks' })).toBeVisible();
   await expectHighlightInChapter(screen, 'Filtered chapter', 'Before the range');
   expect(window.location.search).not.toContain('from=');
   expect(window.location.search).not.toContain('to=');
@@ -102,7 +114,7 @@ test('hydrates an inclusive range from the URL and clears each bound independent
     replace: true,
   });
 
-  await expect.element(screen.getByText('From must be on or before To.')).toBeVisible();
+  await expect.element(screen.getByText(RANGE_IS_REVERSED)).toBeVisible();
   await expect.element(screen.getByText('The next day')).toBeVisible();
 });
 
@@ -172,7 +184,7 @@ test('composes date, search, tag, and label filters and shows the generic empty 
     replace: true,
   });
 
-  await expect.element(screen.getByText('No highlights match the current filters.')).toBeVisible();
+  await expect.element(screen.getByRole('main').getByRole('status')).toBeVisible();
 
   // One control undoes all four: search, tag, label and date range.
   await userEvent.click(screen.getByRole('button', { name: 'Clear filters' }));

@@ -377,7 +377,7 @@ test('a failing search reports the failure', async () => {
 
   await search(screen, 'attention');
 
-  await expect.element(screen.getByText('Search failed. Try again.')).toBeVisible();
+  await expect.element(screen.getByRole('alert')).toBeVisible();
 });
 
 /**

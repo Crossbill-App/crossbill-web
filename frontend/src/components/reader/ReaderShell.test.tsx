@@ -252,9 +252,7 @@ test('a book that never appears times out and can be retried', async () => {
   await expect.poll(() => readers.length).toBe(1);
   await vi.advanceTimersByTimeAsync(BOOT_TIMEOUT_MS);
 
-  await expect
-    .element(screen.getByText('This book could not be opened in the reader.'))
-    .toBeVisible();
+  await expect.element(screen.getByRole('alert')).toBeVisible();
 
   await screen.getByRole('button', { name: 'Try again' }).click();
 
@@ -280,7 +278,7 @@ test('a book whose chapters never arrive times out and can be retried', async ()
   await expect
     .poll(async () => {
       await vi.advanceTimersByTimeAsync(BOOT_TIMEOUT_MS / 3);
-      return screen.getByText('This book could not be opened in the reader.').query();
+      return screen.getByRole('alert').query();
     })
     .not.toBeNull();
   await expect.element(screen.getByRole('button', { name: 'Try again' })).toBeVisible();
@@ -867,9 +865,8 @@ test('a second refusal is a real failure, not a third attempt', async () => {
 
   readers[1].rejectOpen();
 
-  await expect
-    .element(screen.getByText('The book could not be opened. Please try again later.'))
-    .toBeVisible();
+  await expect.element(screen.getByRole('alert')).toBeVisible();
+  await expect.element(screen.getByRole('button', { name: 'Back to book' })).toBeVisible();
   expect(readers).toHaveLength(2);
 });
 

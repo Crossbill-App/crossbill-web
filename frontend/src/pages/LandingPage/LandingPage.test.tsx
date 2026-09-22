@@ -12,10 +12,19 @@ import { expect, test } from 'vitest';
 const today = DateTime.now().toFormat('yyyy-MM-dd');
 const yesterday = DateTime.now().minus({ days: 1 }).toFormat('yyyy-MM-dd');
 
+type Screen = Awaited<ReturnType<typeof renderApp>>;
+
+/** The line a dashboard band shows in place of the content it has none of. */
+const emptyBandOf = (screen: Screen, section: string) =>
+  screen.getByRole('region', { name: section }).getByRole('status');
+
 const EMMA = { id: 1, title: 'Emma' };
 const DUNE = { id: 2, title: 'Dune' };
 const ULYSSES = { id: 3, title: 'Ulysses' };
 const HAMLET = { id: 4, title: 'Hamlet' };
+
+/** A highlight long enough to prove the feed renders a capture's own words. */
+const A_CAPTURED_LINE = 'A reader who never disagrees has not finished reading.';
 
 /** A dashboard whose capture feed holds `captures` and whose grid is empty. */
 const aFeedOf = (captures: RecentCapture[]) =>
@@ -88,7 +97,7 @@ test('a reader with nothing on the grid is shown the year empty', async () => {
 
   const screen = await renderApp({ path: '/' });
 
-  await expect.element(screen.getByText(/^No reading recorded yet\./)).toBeVisible();
+  await expect.element(emptyBandOf(screen, 'Reading activity')).toBeVisible();
 
   // A year of uncoloured squares rather than no grid: the section says what
   // will fill it instead of leaving a heading out of the dashboard.
@@ -111,7 +120,7 @@ test('the capture feed cuts the newest highlights and notes into days', async ()
   worker.use(
     ...libraryApi([], [aBookCard({ title: 'Emma' })], null, null, [
       aCapturedHighlight({
-        text: 'A reader who never disagrees has not finished reading.',
+        text: A_CAPTURED_LINE,
         day: today,
         captured_at: `${today}T20:00:00`,
       }),
@@ -125,9 +134,7 @@ test('the capture feed cuts the newest highlights and notes into days', async ()
 
   const screen = await renderApp({ path: '/' });
 
-  await expect
-    .element(screen.getByText('A reader who never disagrees has not finished reading.'))
-    .toBeVisible();
+  await expect.element(screen.getByText(A_CAPTURED_LINE)).toBeVisible();
   await expect.element(screen.getByRole('heading', { name: 'Today' })).toBeVisible();
   await expect.element(screen.getByRole('heading', { name: 'Yesterday' })).toBeVisible();
   await expect.element(screen.getByText('Koskela')).toBeVisible();
@@ -189,7 +196,7 @@ test('a reader who has captured nothing is told what will fill the feed', async 
   await expect
     .element(screen.getByRole('heading', { name: 'Recent highlights and notes' }))
     .toBeVisible();
-  await expect.element(screen.getByText(/^No highlights or notes yet\./)).toBeVisible();
+  await expect.element(emptyBandOf(screen, 'Recent highlights and notes')).toBeVisible();
 });
 
 test('a first-time reader gets every section, each saying what will fill it', async () => {
@@ -197,10 +204,8 @@ test('a first-time reader gets every section, each saying what will fill it', as
 
   const screen = await renderApp({ path: '/' });
 
-  await expect.element(screen.getByText(/^No books yet\./)).toBeVisible();
-  await expect.element(screen.getByText(/^No reading recorded yet\./)).toBeVisible();
-  await expect.element(screen.getByText(/^No highlights or notes yet\./)).toBeVisible();
   for (const section of ['Recent books', 'Reading activity', 'Recent highlights and notes']) {
     await expect.element(screen.getByRole('heading', { name: section })).toBeVisible();
+    await expect.element(emptyBandOf(screen, section)).toBeVisible();
   }
 });

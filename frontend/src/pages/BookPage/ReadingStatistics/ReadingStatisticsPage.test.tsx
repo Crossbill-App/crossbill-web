@@ -56,7 +56,8 @@ test('a session without a page range still shows its duration', async () => {
 test('the sessions tab reports having no sessions', async () => {
   const screen = await renderStatisticsTab({ sessions: [] });
 
-  await expect.element(screen.getByText('No reading sessions recorded yet.')).toBeVisible();
+  await expect.element(screen.getByRole('main').getByRole('status')).toBeVisible();
+  expect(screen.getByRole('heading', { name: /^Session / }).elements()).toHaveLength(0);
 });
 
 test('the tab pages five sessions at a time', async () => {
@@ -91,7 +92,7 @@ test('the tab summarises the reading above the list', async () => {
 test('a book nobody has opened summarises itself at zero', async () => {
   const screen = await renderStatisticsTab({ sessions: [] });
 
-  await expect.element(screen.getByText('No reading sessions recorded yet.')).toBeVisible();
+  await expect.element(screen.getByRole('main').getByRole('status')).toBeVisible();
   // Zeroes rather than a missing summary: a section that disappears reads as
   // a page that failed to load.
   await expect.element(screen.getByText('Time read')).toBeVisible();

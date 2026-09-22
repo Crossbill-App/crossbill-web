@@ -258,9 +258,7 @@ test('a book whose manifest cannot be read says so and offers a retry', async ()
 
   const screen = await renderApp({ path: '/book/1/read' });
 
-  await expect
-    .element(screen.getByText('The book could not be opened. Please try again later.'))
-    .toBeVisible();
+  await expect.element(screen.getByRole('alert')).toBeVisible();
 
   worker.use(...readiumApi());
   await screen.getByRole('button', { name: 'Try again' }).click();
@@ -407,7 +405,8 @@ test('an entry the manifest leaves untitled is still named', async () => {
 test('a book with no contents says so', async () => {
   const { contents } = await aBookWithItsContentsOpen(aManifest({ toc: [] }));
 
-  await expect.element(contents.getByText('This book has no table of contents.')).toBeVisible();
+  await expect.element(contents.getByRole('status')).toBeVisible();
+  expect(contents.getByRole('list').elements()).toHaveLength(0);
 });
 
 test('an arrow key with the contents open does not turn the page behind them', async () => {
@@ -821,9 +820,7 @@ test('a book that would not load keeps the reader their place for the retry', as
   );
 
   const screen = await renderApp({ path: '/book/1/read' });
-  await expect
-    .element(screen.getByText('The book could not be opened. Please try again later.'))
-    .toBeVisible();
+  await expect.element(screen.getByRole('alert')).toBeVisible();
 
   await screen.getByRole('button', { name: 'Try again' }).click();
 
@@ -1089,7 +1086,7 @@ test('deleting a highlight takes its mark off the page and fetches no locators a
   await expectTheDialogShowing(screen, PLACED_TEXT);
 
   await screen.getByRole('button', { name: 'Delete highlight' }).click();
-  await expect.element(screen.getByText('Delete this highlight?')).toBeVisible();
+  await expect.element(screen.getByRole('alertdialog', { name: /delete/i })).toBeVisible();
   await screen.getByRole('button', { name: 'Delete', exact: true }).click();
 
   await expect.element(screen.getByRole('dialog')).not.toBeInTheDocument();
