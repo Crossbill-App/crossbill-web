@@ -10,6 +10,14 @@ import { userEvent } from 'vitest/browser';
 const PLACEHOLDER = 'What was this chapter about?';
 const CHAPTER = aChapter({ id: 10, name: 'Attention and memory' });
 
+/**
+ * The gist the tests below edit. Named rather than repeated as a literal so
+ * each assertion is bound to the fixture it is about, and so the prose is
+ * visibly the test's own rather than the app's copy.
+ */
+const THE_SAVED_GIST = 'A first pass.';
+const THE_REWRITTEN_GIST = 'A second, better pass.';
+
 const aGist = (body: string) =>
   aNote({ id: 100, title: CHAPTER.name, body, kind: 'gist', chapter_ids: [CHAPTER.id] });
 
@@ -79,37 +87,37 @@ test('a new gist cannot be edited into a duplicate while its create is pending',
 
 test('an existing gist is edited in place, keeping the links it already had', async () => {
   const { dialog, state } = await openChapterDialog([
-    { ...aGist('A first pass.'), tag_ids: [7], chapter_ids: [10, 11] },
+    { ...aGist(THE_SAVED_GIST), tag_ids: [7], chapter_ids: [10, 11] },
   ]);
 
-  await userEvent.click(dialog.getByText('A first pass.'));
-  await userEvent.fill(dialog.getByPlaceholder(PLACEHOLDER), 'A second, better pass.');
+  await userEvent.click(dialog.getByText(THE_SAVED_GIST));
+  await userEvent.fill(dialog.getByPlaceholder(PLACEHOLDER), THE_REWRITTEN_GIST);
   await userEvent.keyboard('{Enter}');
 
-  await expect.element(dialog.getByText('A second, better pass.')).toBeVisible();
-  await expect.poll(() => state.notes[0].body).toBe('A second, better pass.');
+  await expect.element(dialog.getByText(THE_REWRITTEN_GIST)).toBeVisible();
+  await expect.poll(() => state.notes[0].body).toBe(THE_REWRITTEN_GIST);
   expect(state.notes[0]).toMatchObject({
-    body: 'A second, better pass.',
+    body: THE_REWRITTEN_GIST,
     tag_ids: [7],
     chapter_ids: [10, 11],
   });
 });
 
 test('Escape reverts the edit and leaves the saved gist alone', async () => {
-  const { dialog, state } = await openChapterDialog([aGist('A first pass.')]);
+  const { dialog, state } = await openChapterDialog([aGist(THE_SAVED_GIST)]);
 
-  await userEvent.click(dialog.getByText('A first pass.'));
+  await userEvent.click(dialog.getByText(THE_SAVED_GIST));
   await userEvent.fill(dialog.getByPlaceholder(PLACEHOLDER), 'Half a thought');
   await userEvent.keyboard('{Escape}');
 
-  await expect.element(dialog.getByText('A first pass.')).toBeVisible();
-  expect(state.notes[0].body).toBe('A first pass.');
+  await expect.element(dialog.getByText(THE_SAVED_GIST)).toBeVisible();
+  expect(state.notes[0].body).toBe(THE_SAVED_GIST);
 });
 
 test('clearing the text deletes the gist', async () => {
-  const { screen, dialog, state } = await openChapterDialog([aGist('A first pass.')]);
+  const { screen, dialog, state } = await openChapterDialog([aGist(THE_SAVED_GIST)]);
 
-  await userEvent.click(dialog.getByText('A first pass.'));
+  await userEvent.click(dialog.getByText(THE_SAVED_GIST));
   await userEvent.fill(dialog.getByPlaceholder(PLACEHOLDER), '');
   await userEvent.tab();
 

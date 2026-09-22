@@ -14,6 +14,9 @@ import { userEvent } from 'vitest/browser';
 
 const SEARCH_PLACEHOLDER = 'Search chapters by meaning...';
 
+/** The one digest question the chapter dialog below is given, and clicks off. */
+const A_DIGEST_QUESTION = 'What makes attention a filter?';
+
 /** Two parts, one leaf chapter each — enough to prove ancestors survive. */
 const aStructuredBook = () =>
   aBookDetails({
@@ -301,7 +304,7 @@ test('a digest answer says it saved when the field is left', async () => {
       digests: [
         aChapterDigest({
           chapter_id: 11,
-          questions: [aDigestQuestion({ question: 'What makes attention a filter?' })],
+          questions: [aDigestQuestion({ question: A_DIGEST_QUESTION })],
         }),
       ],
     }).handlers
@@ -324,7 +327,7 @@ test('a digest answer says it saved when the field is left', async () => {
   const restingGap = gapBelowField();
 
   await userEvent.fill(answer, 'It drops what is not attended to.');
-  await userEvent.click(dialog.getByText('What makes attention a filter?'));
+  await userEvent.click(dialog.getByText(A_DIGEST_QUESTION));
 
   await expect.element(dialog.getByText('Saved')).toBeVisible();
   expect(gapBelowField()).toBe(restingGap);

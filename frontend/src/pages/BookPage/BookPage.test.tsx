@@ -9,6 +9,16 @@ import { worker } from '@tests/msw/worker';
 import { http, HttpResponse } from 'msw';
 import { expect, test, vi } from 'vitest';
 
+/**
+ * Blurbs the tests below write and then look for. Named rather than repeated
+ * as literals so an assertion is bound to the fixture it is about, and so the
+ * prose is visibly the test's own rather than the app's copy.
+ */
+const SHORT_BLURB = 'Short and complete.';
+const SAFE_BLURB = 'Safe blurb.';
+const ORIGINAL_BLURB = 'The original blurb.';
+const DOOMED_BLURB = 'A blurb worth deleting.';
+
 test('renders the book and its chapters', async () => {
   const { handlers } = bookApi({
     book: aBookDetails({
@@ -94,12 +104,12 @@ test('a blurb renders as markdown and starts collapsed', async () => {
 });
 
 test('a blurb that already fits shows no expand toggle', async () => {
-  const { handlers } = bookApi({ book: aBookDetails({ description: 'Short and complete.' }) });
+  const { handlers } = bookApi({ book: aBookDetails({ description: SHORT_BLURB }) });
   worker.use(...handlers);
 
   const screen = await renderApp({ path: '/book/1' });
 
-  await expect.element(screen.getByText('Short and complete.')).toBeVisible();
+  await expect.element(screen.getByText(SHORT_BLURB)).toBeVisible();
   await expect(screen.getByRole('button', { name: 'Show more' }).query()).toBeNull();
 });
 
@@ -128,14 +138,14 @@ test('html in a publisher blurb renders as markup, not as visible tags', async (
 test('a dangerous payload in a blurb is stripped by the sanitiser, not just hidden by rehypeRaw', async () => {
   const { handlers } = bookApi({
     book: aBookDetails({
-      description: 'Safe blurb.\n\n<img src="x" onerror="alert(1)"><script>alert(1)</script>',
+      description: `${SAFE_BLURB}\n\n<img src="x" onerror="alert(1)"><script>alert(1)</script>`,
     }),
   });
   worker.use(...handlers);
 
   const screen = await renderApp({ path: '/book/1' });
 
-  await expect.element(screen.getByText('Safe blurb.')).toBeVisible();
+  await expect.element(screen.getByText(SAFE_BLURB)).toBeVisible();
   expect(screen.container.querySelector('script')).toBeNull();
   expect(screen.container.querySelector('img[onerror]')).toBeNull();
 });
@@ -161,14 +171,14 @@ test('a blurb can be written in the manage dialog and appears in the header', as
 
 test('a failed blurb save reports the error and keeps the typed edit and the original blurb', async () => {
   const { handlers } = bookApi({
-    book: aBookDetails({ description: 'The original blurb.' }),
+    book: aBookDetails({ description: ORIGINAL_BLURB }),
   });
   worker.use(...handlers);
   // Registered last, so it takes precedence over the happy-path PATCH above.
   worker.use(http.patch('/api/v1/books/:bookId', () => new HttpResponse(null, { status: 500 })));
 
   const screen = await renderApp({ path: '/book/1' });
-  await expect.element(screen.getByText('The original blurb.')).toBeVisible();
+  await expect.element(screen.getByText(ORIGINAL_BLURB)).toBeVisible();
 
   await screen.getByRole('button', { name: 'Manage book' }).click();
   await screen.getByRole('textbox', { name: 'Blurb' }).fill('A doomed edit about attention.');
@@ -187,14 +197,14 @@ test('a failed blurb save reports the error and keeps the typed edit and the ori
 
   // ...and closing without retrying leaves the original blurb on screen.
   await dialog.getByRole('button', { name: 'Cancel', exact: true }).click();
-  await expect.element(screen.getByText('The original blurb.')).toBeVisible();
+  await expect.element(screen.getByText(ORIGINAL_BLURB)).toBeVisible();
 
   // Reopening must not resurrect the abandoned draft: the field should show
   // the real blurb, not the text left over from the failed save.
   await screen.getByRole('button', { name: 'Manage book' }).click();
   await expect
     .element(screen.getByRole('textbox', { name: 'Blurb' }))
-    .toHaveValue('The original blurb.');
+    .toHaveValue(ORIGINAL_BLURB);
 });
 
 test('shortening an expanded blurb collapses it again', async () => {
@@ -208,17 +218,17 @@ test('shortening an expanded blurb collapses it again', async () => {
   await expect.element(screen.getByRole('button', { name: 'Show less' })).toBeVisible();
 
   await screen.getByRole('button', { name: 'Manage book' }).click();
-  await screen.getByRole('textbox', { name: 'Blurb' }).fill('Short and complete.');
+  await screen.getByRole('textbox', { name: 'Blurb' }).fill(SHORT_BLURB);
   await screen.getByRole('button', { name: 'Save' }).click();
 
   await expect.element(screen.getByRole('dialog')).not.toBeInTheDocument();
-  await expect.element(screen.getByText('Short and complete.')).toBeVisible();
+  await expect.element(screen.getByText(SHORT_BLURB)).toBeVisible();
   await expect(screen.getByRole('button', { name: 'Show less' }).query()).toBeNull();
   await expect(screen.getByRole('button', { name: 'Show more' }).query()).toBeNull();
 });
 
 test('a blurb arriving while the dialog is open does not overwrite the draft', async () => {
-  const { handlers } = bookApi({ book: aBookDetails({ description: 'The original blurb.' }) });
+  const { handlers } = bookApi({ book: aBookDetails({ description: ORIGINAL_BLURB }) });
   worker.use(...handlers);
 
   const screen = await renderApp({ path: '/book/1' });
@@ -244,19 +254,19 @@ test('a blurb arriving while the dialog is open does not overwrite the draft', a
 
 test('clearing the blurb removes it from the header', async () => {
   const { handlers, state } = bookApi({
-    book: aBookDetails({ description: 'A blurb worth deleting.' }),
+    book: aBookDetails({ description: DOOMED_BLURB }),
   });
   worker.use(...handlers);
 
   const screen = await renderApp({ path: '/book/1' });
-  await expect.element(screen.getByText('A blurb worth deleting.')).toBeVisible();
+  await expect.element(screen.getByText(DOOMED_BLURB)).toBeVisible();
 
   await screen.getByRole('button', { name: 'Manage book' }).click();
   await screen.getByRole('textbox', { name: 'Blurb' }).fill('');
   await screen.getByRole('button', { name: 'Save' }).click();
 
   await expect.element(screen.getByRole('dialog')).not.toBeInTheDocument();
-  await expect.element(screen.getByText('A blurb worth deleting.')).not.toBeInTheDocument();
+  await expect.element(screen.getByText(DOOMED_BLURB)).not.toBeInTheDocument();
   expect(state.book.description).toBeNull();
 });
 

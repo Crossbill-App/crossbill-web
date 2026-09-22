@@ -9,14 +9,23 @@ import { userEvent } from 'vitest/browser';
 
 const ANSWER_NOTE_ID = 100;
 
+/**
+ * The reflection the tests below read and rewrite. Named rather than repeated
+ * as literals so each assertion is bound to the fixture it is about, and so
+ * the prose is visibly the test's own rather than the app's copy.
+ */
+const THE_QUESTION = 'What is the book about?';
+const THE_FIRST_ANSWER = 'A book about reading well.';
+const THE_REWRITTEN_ANSWER = 'A book about reading better.';
+
 const renderReflection = async () => {
   const { handlers } = bookApi({
     book: aBookDetails(),
     notes: [
       aNote({
         id: ANSWER_NOTE_ID,
-        title: 'What is the book about?',
-        body: 'A book about reading well.',
+        title: THE_QUESTION,
+        body: THE_FIRST_ANSWER,
         kind: 'reflection',
       }),
       aNote({ id: 101, title: 'Attention', kind: 'concept' }),
@@ -34,7 +43,7 @@ const renderReflection = async () => {
 
 test('editing a reflection answer opens the note dialog already in edit mode', async () => {
   const screen = await renderReflection();
-  await expect.element(screen.getByText('A book about reading well.')).toBeVisible();
+  await expect.element(screen.getByText(THE_FIRST_ANSWER)).toBeVisible();
 
   await userEvent.click(screen.getByRole('button', { name: 'Edit answer' }));
 
@@ -42,16 +51,16 @@ test('editing a reflection answer opens the note dialog already in edit mode', a
   // The editor itself, not a read view with an Edit button.
   await expect.element(dialog.getByRole('textbox', { name: 'Title' })).toBeVisible();
   // The reflection question stays on screen beside the form.
-  await expect.element(dialog.getByText('What is the book about?')).toBeVisible();
+  await expect.element(dialog.getByText(THE_QUESTION)).toBeVisible();
 
   await userEvent.fill(
     dialog.getByRole('textbox', { name: 'Note (markdown)' }),
-    'A book about reading better.'
+    THE_REWRITTEN_ANSWER
   );
   await userEvent.click(dialog.getByRole('button', { name: 'Save' }));
   await userEvent.click(dialog.getByRole('button', { name: 'Close dialog' }));
 
-  await expect.element(screen.getByText('A book about reading better.')).toBeVisible();
+  await expect.element(screen.getByText(THE_REWRITTEN_ANSWER)).toBeVisible();
 });
 
 test('cancelling the edit falls back to the note, not out of the dialog', async () => {

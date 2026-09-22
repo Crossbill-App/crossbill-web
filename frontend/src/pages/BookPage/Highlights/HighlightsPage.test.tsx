@@ -18,6 +18,14 @@ type Screen = Awaited<ReturnType<typeof renderApp>>;
 const DATE_OUT_OF_RANGE = 'Enter a date in the allowed range.';
 const RANGE_IS_REVERSED = 'From must be on or before To.';
 
+/**
+ * Highlight text the tests below look for. Named rather than repeated as a
+ * literal so the assertion is bound to the fixture it is about, and so the
+ * prose is visibly the test's own rather than the app's copy.
+ */
+const A_HIGHLIGHT = 'The map is not the territory.';
+const ANOTHER_HIGHLIGHT = 'A second passage.';
+
 const expectHighlightInChapter = async (screen: Screen, chapter: string, highlight: string) => {
   await expect
     .element(screen.getByRole('list', { name: `Highlights in ${chapter}` }).getByText(highlight))
@@ -412,8 +420,8 @@ const aBookWithOneTaggedHighlight = () =>
     chapters: [
       aChapter({
         highlights: [
-          aHighlight({ id: 301, text: 'The map is not the territory.' }),
-          aHighlight({ id: 302, text: 'A second passage.', tags: [CLOSE_READING] }),
+          aHighlight({ id: 301, text: A_HIGHLIGHT }),
+          aHighlight({ id: 302, text: ANOTHER_HIGHLIGHT, tags: [CLOSE_READING] }),
           aHighlight({ id: 303, text: 'A third passage.' }),
         ],
       }),
@@ -438,7 +446,7 @@ test('the header count follows the filter while the stats strip keeps the total'
   await expect
     .element(screen.getByRole('main').getByText('1 highlight', { exact: true }))
     .toBeVisible();
-  await expect.element(screen.getByText('A second passage.')).toBeVisible();
+  await expect.element(screen.getByText(ANOTHER_HIGHLIGHT)).toBeVisible();
 
   // The pair the reader compares: 1 shown here, 3 in the book (ADR-0003).
   await expect.element(screen.getByText('3 highlights', { exact: true })).toBeVisible();
@@ -449,7 +457,7 @@ const aBookWithTwoHighlights = () =>
     chapters: [
       aChapter({
         highlights: [
-          aHighlight({ id: 301, text: 'The map is not the territory.' }),
+          aHighlight({ id: 301, text: A_HIGHLIGHT }),
           aHighlight({ id: 302, text: 'Attention is the rarest form of generosity.' }),
         ],
       }),
@@ -460,7 +468,7 @@ test("a highlight's dialog offers to open it in the reader", async () => {
   worker.use(...bookApi({ book: aBookWithTwoHighlights() }).handlers);
 
   const screen = await renderApp({ path: '/book/1/highlights' });
-  await screen.getByText('The map is not the territory.').click();
+  await screen.getByText(A_HIGHLIGHT).click();
 
   await expect
     .element(screen.getByRole('dialog').getByRole('link', { name: 'Open in reader' }))
