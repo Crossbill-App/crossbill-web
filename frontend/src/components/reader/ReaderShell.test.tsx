@@ -29,6 +29,11 @@ import {
 } from '@tests/fixtures/publication';
 import { expectAWriteOnceTheDebounceRunsOut, fakeTheClock } from '@tests/harness/fakeClock';
 import { pendingQueryClients } from '@tests/harness/pendingQueryClients';
+import {
+  afterFrames,
+  afterTheAnswersRender,
+  unmountAndAwaitItsWrites,
+} from '@tests/harness/settle';
 import { bookApi } from '@tests/msw/bookApi';
 import {
   aHeldSession,
@@ -43,7 +48,7 @@ import { worker } from '@tests/msw/worker';
 import { DateTime } from 'luxon';
 import { HttpResponse, delay, http } from 'msw';
 import { afterEach, beforeEach, expect, test, vi } from 'vitest';
-import { cleanup, render } from 'vitest-browser-react';
+import { render } from 'vitest-browser-react';
 import { page, userEvent } from 'vitest/browser';
 
 const RESOURCE_PATH = '/api/v1/readium/books/:bookId/resources/*';
@@ -93,8 +98,7 @@ afterEach(async () => {
   // Unmounted here rather than by the global teardown: the shell writes where
   // the reader was on its way out, and that write has to land on this test's
   // handlers rather than on the next test's.
-  cleanup();
-  await sleep(100);
+  await unmountAndAwaitItsWrites();
   showTheTab();
   await page.viewport(DEFAULT_VIEWPORT.width, DEFAULT_VIEWPORT.height);
 });
@@ -108,7 +112,6 @@ const setVisibility = (state: DocumentVisibilityState) => {
 const hideTheTab = () => setVisibility('hidden');
 const showTheTab = () => setVisibility('visible');
 
-const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
 // The shell asks the server where to resume and apologises when it cannot, so
 // it needs the two providers the app mounts it under.
@@ -180,7 +183,7 @@ test('the shell waits for the cookie before opening the book', async () => {
   await expect.element(screen.getByLabelText('Loading the book')).toBeVisible();
   // With the landing in, the cookie is the only thing left holding the book back.
   await expect.poll(() => isTheLandingAnswered).toBe(true);
-  await sleep(100);
+  await afterTheAnswersRender(screen.queryClient);
   expect(readers).toHaveLength(0);
   session.release();
   await expect.poll(() => readers.length).toBe(1);
@@ -784,9 +787,8 @@ test('closing the reader writes the last position and ends the session', async (
 test('a book opened and closed again without being read writes nothing', async () => {
   const { screen, writes } = await aBookRecordingPositions();
 
-  screen.unmount();
+  await unmountAndAwaitItsWrites(() => screen.unmount());
 
-  await sleep(300);
   expect(writes).toEqual([]);
 });
 
@@ -797,11 +799,15 @@ test('a book opened and closed again without being read writes nothing', async (
  */
 const LOST_THE_BOOKMARK = "Couldn't restore your last position, so the book opened at the start.";
 
-const aSlowResumeAnswer = (ms: number) =>
-  http.get(POSITION_PATH, async () => {
-    await delay(ms);
+/** A resume answer that comes only once the test releases it. */
+const aHeldResumeAnswer = () => {
+  const { released, release } = aHold();
+  const handler = http.get(POSITION_PATH, async () => {
+    await released;
     return HttpResponse.json(nowhereToResume());
   });
+  return { handler, release };
+};
 
 /** The shell over a place stored part-way through the book's second chapter. */
 const aResumedBook = async () => {
@@ -814,16 +820,18 @@ const aResumedBook = async () => {
 
 test('the book is not opened until the resume answer is in', async () => {
   worker.use(...readiumApi());
-  worker.use(aSlowResumeAnswer(500));
+  const resume = aHeldResumeAnswer();
+  worker.use(resume.handler);
 
   const screen = await renderShell();
 
   // The cookie is minted long before the answer, and a navigator takes its
   // initial position once, at construction.
-  await sleep(250);
+  await afterTheAnswersRender(screen.queryClient, { held: 1 });
   expect(readers).toHaveLength(0);
   await expect.element(screen.getByLabelText('Loading the book')).toBeVisible();
 
+  resume.release();
   await expect.poll(() => readers.length).toBe(1);
 });
 
@@ -915,9 +923,9 @@ const expectOnScreen = (screen: Screen) =>
     .element(screen.getByRole('button', { name: 'Contents' }), { timeout: 5_000 })
     .toBeEnabled();
 
-/** Given the time an apology would take to appear, so its absence means something. */
+/** With every answer in and rendered, so the apology's absence means something. */
 const expectNoApology = async (screen: Screen) => {
-  await sleep(300);
+  await afterTheAnswersRender(screen.queryClient);
   expect(screen.getByRole('alert').query()).toBeNull();
 };
 
@@ -955,7 +963,7 @@ test('the book is not shown until the move to the highlight has finished', async
   readers[0].resolveOpen({ landedAt: 'requested' });
   await expect.poll(() => readers[0].goToCalls).toEqual([THE_PASSAGE]);
   readers[0].reportLocation(aFakeLocation(2));
-  await sleep(300);
+  await afterFrames();
   await expect.element(screen.getByRole('button', { name: 'Contents' })).toBeDisabled();
 
   arrive();
@@ -1587,12 +1595,12 @@ test('the dropdown opens, walks and closes from the keyboard', async () => {
 test('choosing a colour marks it without making a highlight', async () => {
   const { handlers, bodies } = highlightCreationApi([{ status: 500, delayMs: 300 }]);
   worker.use(...handlers);
-  await aBookWithASelection();
+  const screen = await aBookWithASelection();
 
   await chooseColor('Green');
 
   await expect.element(theColorChoice()).toHaveTextContent('Green');
-  await sleep(100);
+  await afterTheAnswersRender(screen.queryClient);
   expect(bodies).toEqual([]);
   expect(standIns()).toEqual([]);
   expect(readers[0].clearSelectionCalls).toBe(0);
@@ -1882,10 +1890,11 @@ const aSelectionOverTheDetails = async (...handlers: Parameters<typeof worker.us
   };
   worker.use(...highlightCreationApi([{ id: 400 }], { onCreated: storeIt }).handlers);
   worker.use(...handlers);
-  await renderShell();
+  const screen = await renderShell();
   await expect.poll(() => readers.length).toBe(1);
   readers[0].resolveOpen();
   readers[0].select(A_SELECTION);
+  return screen;
 };
 
 test('a saved highlight takes over from what was drawn for it with nothing missing between', async () => {
@@ -1909,7 +1918,7 @@ test('a saved highlight takes over from what was drawn for it with nothing missi
 test('a highlight made while the placed highlights are still loading is drawn', async () => {
   const placing = aHold();
   let isItsPlaceAnswered = false;
-  await aSelectionOverTheDetails(
+  const screen = await aSelectionOverTheDetails(
     ...highlightLocatorsApi([], { until: placing.released }),
     http.get(HIGHLIGHT_LOCATOR_PATH, () => {
       isItsPlaceAnswered = true;
@@ -1920,7 +1929,7 @@ test('a highlight made while the placed highlights are still loading is drawn', 
   await pressHighlight();
   // Its own place in first, so the list landing after it would overwrite it.
   await expect.poll(() => isItsPlaceAnswered).toBe(true);
-  await sleep(100);
+  await afterTheAnswersRender(screen.queryClient, { held: 1 });
   placing.release();
 
   await expect.poll(drawnIds).toContain('highlight-400');
