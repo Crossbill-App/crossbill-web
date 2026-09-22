@@ -66,3 +66,23 @@ test('naming a label writes the style it was typed under', async () => {
   expect(relabels[0].url).toBe('/api/v1/highlight-labels/11');
   expect(relabels[0].body).toEqual({ label: 'Disagree' });
 });
+
+/**
+ * The swatch a label already wears is a toggle button, so the choice is
+ * announced rather than left to the check mark alone — and it is matched
+ * case-insensitively, because the API stores whatever hex string it was given
+ * and KOReader's own hues arrive lower-case.
+ */
+test('the swatch a label already wears is announced as pressed, whatever the hex casing', async () => {
+  highlightLabelApi([aHighlightLabel({ ui_color: KOREADER_HUE.yellow.toLowerCase() })]);
+
+  await openTheLabelsEditor();
+  const swatches = page.getByRole('group', { name: 'Colour for yellow / lighten' });
+
+  await expect
+    .element(swatches.getByRole('button', { name: 'Yellow' }))
+    .toHaveAttribute('aria-pressed', 'true');
+  await expect
+    .element(swatches.getByRole('button', { name: 'Red' }))
+    .toHaveAttribute('aria-pressed', 'false');
+});
