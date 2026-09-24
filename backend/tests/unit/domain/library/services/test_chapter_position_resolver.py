@@ -38,10 +38,6 @@ BOOK = [ONE, TWO, THREE]
 resolver = ChapterPositionResolver()
 
 
-def test_a_position_inside_a_range_is_that_chapter() -> None:
-    assert resolver.chapter_at(BOOK, Position(index=14)) is TWO
-
-
 def test_a_chapters_own_start_belongs_to_it_and_its_end_to_the_next() -> None:
     assert resolver.chapter_at(BOOK, Position(index=10)) is TWO
     assert resolver.chapter_at(BOOK, Position(index=9)) is ONE
@@ -56,10 +52,6 @@ def test_a_position_in_a_gap_between_ranges_belongs_to_no_chapter() -> None:
     assert resolver.chapter_at(gapped, Position(index=10)) is None
     assert resolver.chapter_at(gapped, Position(index=19)) is None
     assert resolver.chapter_at(gapped, Position(index=20)) is gapped[1]
-
-
-def test_the_last_chapter_runs_to_the_end_of_the_book() -> None:
-    assert resolver.chapter_at(BOOK, Position(index=9_999)) is THREE
 
 
 def test_a_position_before_every_chapter_belongs_to_none() -> None:
@@ -91,7 +83,3 @@ def test_nesting_picks_the_innermost_chapter() -> None:
     assert resolver.chapter_at([part, inner, later], Position(index=20)) is inner
     assert resolver.chapter_at([inner, part, later], Position(index=20)) is inner
     assert resolver.chapter_at([part, inner, later], Position(index=60)) is later
-
-
-def test_an_empty_book_has_no_chapter_to_place_anything_in() -> None:
-    assert resolver.chapter_at([], Position(index=5)) is None

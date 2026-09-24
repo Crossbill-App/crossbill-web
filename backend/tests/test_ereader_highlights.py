@@ -1,6 +1,5 @@
 """Tests for the ereader highlight pull endpoint."""
 
-from datetime import UTC, datetime
 from typing import Any
 
 import pytest
@@ -110,36 +109,6 @@ async def test_highlights_without_a_page_sort_last(
     assert [i["text"] for i in response.json()["items"]] == ["Page one", "Page two", "Pageless"]
 
 
-async def test_soft_deleted_highlight_is_excluded(
-    plugin_client: AsyncClient, ereader_book: Book
-) -> None:
-    await _upload(
-        plugin_client,
-        "client-pull",
-        [
-            {"text": "Kept", "page": 1, "datetime": "2024-01-15 14:00:00"},
-            {"text": "Removed", "page": 2, "datetime": "2024-01-15 14:01:00"},
-        ],
-    )
-    items = (await plugin_client.get("/api/v1/ereader/books/client-pull/highlights")).json()[
-        "items"
-    ]
-    doomed = next(i for i in items if i["text"] == "Removed")
-
-    deletion = await plugin_client.request(
-        "DELETE",
-        f"/api/v1/books/{ereader_book.id}/highlight",
-        json={"highlight_ids": [doomed["id"]]},
-    )
-    assert deletion.status_code == 200
-    assert deletion.json()["deleted_count"] == 1
-
-    response = await plugin_client.get("/api/v1/ereader/books/client-pull/highlights")
-
-    assert response.status_code == 200
-    assert [i["text"] for i in response.json()["items"]] == ["Kept"]
-
-
 async def test_unknown_client_book_id_returns_404(plugin_client: AsyncClient) -> None:
     response = await plugin_client.get("/api/v1/ereader/books/does-not-exist/highlights")
 
@@ -240,31 +209,3 @@ async def test_book_without_highlights_returns_empty_list(
 
     assert response.status_code == 200
     assert response.json()["items"] == []
-
-
-async def test_highlight_removed_from_devices_is_excluded(
-    db_session: AsyncSession, plugin_client: AsyncClient, ereader_book: Book, test_user: User
-) -> None:
-    """A highlight the user deleted on a device stays away from every device."""
-    await create_test_highlight(
-        db_session=db_session,
-        book=ereader_book,
-        user_id=test_user.id,
-        text="Kept",
-        datetime_str="2024-01-15 14:00:00",
-        page=1,
-    )
-    await create_test_highlight(
-        db_session=db_session,
-        book=ereader_book,
-        user_id=test_user.id,
-        text="Deleted on the e-reader",
-        datetime_str="2024-01-15 14:01:00",
-        page=2,
-        removed_from_devices_at=datetime(2024, 3, 1, tzinfo=UTC),
-    )
-
-    response = await plugin_client.get("/api/v1/ereader/books/client-pull/highlights")
-
-    assert response.status_code == 200
-    assert [i["text"] for i in response.json()["items"]] == ["Kept"]

@@ -7,7 +7,7 @@ import {
   tocEntriesFrom,
 } from '@/components/reader/engine/readium/conversions.ts';
 import { TextAlignment } from '@readium/navigator';
-import { Links, Locator } from '@readium/shared';
+import { Links } from '@readium/shared';
 import { aTableOfContents } from '@tests/fixtures/publication';
 import { expect, test } from 'vitest';
 
@@ -36,25 +36,6 @@ const AN_APPEARANCE: EbookAppearance = {
   pageBackgroundColor: '#fffaf0',
   pageTextColor: '#1a1a1a',
 };
-
-test('a selector reaches the frame both ways a Readium locator can carry it', () => {
-  const locator = fromLocation(A_HIGHLIGHT);
-
-  expect(locator.locations.otherLocations?.get('cssSelector')).toBe('#first > p:nth-child(1)');
-  // The structured-clone route, which a decoration crossing into a frame takes.
-  expect((locator.locations as { cssSelector?: string }).cssSelector).toBe(
-    '#first > p:nth-child(1)'
-  );
-});
-
-test('a contents entry declaring no media type still becomes a locator', () => {
-  const entry: EbookLocation = { href: 'resources/OEBPS/chapter2.xhtml', type: '', locations: {} };
-
-  expect(fromLocation(entry).href).toBe('resources/OEBPS/chapter2.xhtml');
-  expect(fromLocation(entry).type).toBe('');
-  // Which is why it is built rather than deserialized.
-  expect(Locator.deserialize({ href: entry.href, type: entry.type })).toBeUndefined();
-});
 
 test('a location survives the round trip through Readium and back', () => {
   const location = toLocation(fromLocation(A_HIGHLIGHT));

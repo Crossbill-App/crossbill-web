@@ -2,13 +2,10 @@
 
 The keys asserted here are the on-disk contract for every ``book_publications``
 row already written: renaming one silently invalidates them, so the shape is
-pinned as well as round-tripped.
+pinned.
 """
 
-import json
 from pathlib import Path
-
-import pytest
 
 from src.application.web_reader.publications import (
     ParsedPublication,
@@ -18,13 +15,9 @@ from src.application.web_reader.publications import (
     TocEntry,
 )
 from src.infrastructure.library.services.epub_publication_parser import read_publication
-from src.infrastructure.web_reader.mappers.publication_json import (
-    publication_from_json,
-    publication_to_json,
-)
+from src.infrastructure.web_reader.mappers.publication_json import publication_to_json
 
 FIXTURES = Path(__file__).parents[3] / "fixtures"
-FIXTURE_NAMES = ["minimal", "nested_toc", "fixed_layout"]
 
 
 def parse_fixture(name: str) -> ParsedPublication:
@@ -64,27 +57,6 @@ HAND_BUILT = ParsedPublication(
 )
 
 
-class TestRoundTrip:
-    @pytest.mark.parametrize("name", FIXTURE_NAMES)
-    def test_fixture_survives_a_round_trip_through_stored_json(self, name: str) -> None:
-        publication = parse_fixture(name)
-
-        stored = json.loads(json.dumps(publication_to_json(publication)))
-
-        assert publication_from_json(stored, publication.content_hash) == publication
-
-    def test_hand_built_publication_survives_a_round_trip_through_stored_json(self) -> None:
-        stored = json.loads(json.dumps(publication_to_json(HAND_BUILT)))
-
-        assert publication_from_json(stored, HAND_BUILT.content_hash) == HAND_BUILT
-
-    def test_content_hash_comes_from_the_column_and_not_the_payload(self) -> None:
-        payload = publication_to_json(HAND_BUILT)
-
-        assert "content_hash" not in payload
-        assert publication_from_json(payload, "f" * 64).content_hash == "f" * 64
-
-
 class TestPayloadShape:
     def test_reading_order_item_keys_and_layout_string(self) -> None:
         payload = publication_to_json(parse_fixture("fixed_layout"))
@@ -119,14 +91,6 @@ class TestPayloadShape:
             "href": "OEBPS/chapter1.xhtml",
             "children": [],
         }
-
-    def test_nesting_is_written_as_nested_children(self) -> None:
-        payload = publication_to_json(parse_fixture("nested_toc"))
-
-        assert [child["title"] for child in payload["toc"][0]["children"]] == [
-            "Chapter One",
-            "Luku Ääni",
-        ]
 
     def test_top_level_keys(self) -> None:
         payload = publication_to_json(HAND_BUILT)

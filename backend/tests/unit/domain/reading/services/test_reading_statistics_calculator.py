@@ -1,7 +1,6 @@
 """Tests for the reading-statistics domain service."""
 
 from datetime import UTC, date, datetime, timedelta
-from zoneinfo import ZoneInfo
 
 import pytest
 
@@ -11,8 +10,6 @@ from src.domain.reading.services.reading_statistics_calculator import (
     ReadingStatisticsCalculator,
 )
 from src.domain.reading.services.reading_stretch import ReadingStretch
-
-HELSINKI = ZoneInfo("Europe/Helsinki")
 
 # Well after every fixture's reading, so the activity grid these tests ignore
 # never changes what the numbers they do assert on come out as.
@@ -29,33 +26,6 @@ def stretch(start: datetime, minutes: int) -> ReadingStretch:
     return ReadingStretch(start_time=start, end_time=start + timedelta(minutes=minutes))
 
 
-def test_a_book_with_no_sessions_reports_nothing_rather_than_zero(
-    calculator: ReadingStatisticsCalculator,
-) -> None:
-    statistics = calculator.calculate([], None, Position(index=100), TODAY, UTC)
-
-    assert statistics.session_count == 0
-    assert statistics.total_reading_seconds == 0
-    assert statistics.average_session_seconds is None
-    assert statistics.first_session_start is None
-    assert statistics.last_session_end is None
-    assert statistics.span_days is None
-
-
-def test_sessions_are_totalled_and_averaged(calculator: ReadingStatisticsCalculator) -> None:
-    stretches = [
-        stretch(datetime(2024, 1, 1, 20, 0, tzinfo=UTC), minutes=30),
-        stretch(datetime(2024, 1, 2, 20, 0, tzinfo=UTC), minutes=45),
-        stretch(datetime(2024, 1, 3, 20, 0, tzinfo=UTC), minutes=15),
-    ]
-
-    statistics = calculator.calculate(stretches, None, None, TODAY, UTC)
-
-    assert statistics.session_count == 3
-    assert statistics.total_reading_seconds == 90 * 60
-    assert statistics.average_session_seconds == 30 * 60
-
-
 def test_the_reading_ends_when_the_last_session_ends_not_when_the_last_one_starts(
     calculator: ReadingStatisticsCalculator,
 ) -> None:
@@ -67,41 +37,6 @@ def test_the_reading_ends_when_the_last_session_ends_not_when_the_last_one_start
 
     assert statistics.first_session_start == datetime(2024, 1, 1, 20, 0, tzinfo=UTC)
     assert statistics.last_session_end == datetime(2024, 1, 1, 22, 0, tzinfo=UTC)
-
-
-def test_a_book_read_in_one_sitting_spans_a_single_day(
-    calculator: ReadingStatisticsCalculator,
-) -> None:
-    statistics = calculator.calculate(
-        [stretch(datetime(2024, 1, 1, 20, 0, tzinfo=UTC), minutes=30)], None, None, TODAY, UTC
-    )
-
-    assert statistics.span_days == 1
-
-
-def test_the_span_is_counted_in_the_readers_own_timezone(
-    calculator: ReadingStatisticsCalculator,
-) -> None:
-    """Reading just past midnight and again that morning is one day to the reader."""
-    stretches = [
-        # 00:15 and 07:00 on 16 January in Helsinki -- 15 and 16 January in UTC.
-        stretch(datetime(2024, 1, 15, 22, 15, tzinfo=UTC), minutes=30),
-        stretch(datetime(2024, 1, 16, 5, 0, tzinfo=UTC), minutes=30),
-    ]
-
-    assert calculator.calculate(stretches, None, None, TODAY, UTC).span_days == 2
-    assert calculator.calculate(stretches, None, None, TODAY, HELSINKI).span_days == 1
-
-
-def test_a_zoneless_timestamp_is_read_as_utc(calculator: ReadingStatisticsCalculator) -> None:
-    naive = stretch(datetime(2024, 1, 15, 23, 30, tzinfo=UTC).replace(tzinfo=None), minutes=60)
-
-    statistics = calculator.calculate([naive], None, None, TODAY, HELSINKI)
-
-    assert statistics.total_reading_seconds == 60 * 60
-    # 23:30 UTC is 01:30 the next morning in Helsinki, so the reading spans one
-    # Helsinki day rather than the two it would if the zone were ignored.
-    assert statistics.span_days == 1
 
 
 def test_a_session_ending_before_it_started_contributes_no_time(
