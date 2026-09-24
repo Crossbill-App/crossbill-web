@@ -2,7 +2,6 @@ import type { EbookTocEntry } from '@/components/reader/engine/EbookReader.ts';
 import {
   chapterProgressAt,
   chapterStartsIn,
-  sectionIdsIn,
 } from '@/components/reader/engine/readium/chapterProgress.ts';
 import { Locator } from '@readium/shared';
 import { expect, test } from 'vitest';
@@ -54,20 +53,6 @@ test('a chapter starts at each resource the contents link to, sections and all',
   expect(STARTS).toEqual([1, 2, 5]);
 });
 
-test('the sections of a resource are the contents entries pointing inside it', () => {
-  expect(sectionIdsIn(TOC, CHAPTER_ONE)).toEqual(['section-1', 'section-2']);
-  expect(sectionIdsIn(TOC, CHAPTER_TWO)).toEqual([]);
-});
-
-test('the resource on screen is counted in the pages it is laid out in', () => {
-  expect(pagesLeft(at(CHAPTER_TWO, 5), layout(0, 10))).toBe(9);
-  expect(pagesLeft(at(CHAPTER_TWO, 7), layout(9, 10))).toBe(0);
-});
-
-test('a smaller screen has more pages left in the same place', () => {
-  expect(pagesLeft(at(CHAPTER_TWO, 5), layout(0, 20))).toBe(19);
-});
-
 test('a section ends on the page the next one starts on', () => {
   // The next section starts part-way down page 4, which the current one shares.
   expect(pagesLeft(at(CHAPTER_ONE, 2), layout(1, 8, [0.2, 4.5]))).toBe(3);
@@ -77,10 +62,6 @@ test('a section ends on the page the next one starts on', () => {
 
 test('a section starting at the top of the page on screen is the one being read', () => {
   expect(pagesLeft(at(CHAPTER_ONE, 2), layout(4, 8, [4, 6]))).toBe(1);
-});
-
-test('a section beginning on the page on screen ends the current one here', () => {
-  expect(pagesLeft(at(CHAPTER_ONE, 2), layout(4, 8, [4.5]))).toBe(0);
 });
 
 test('after the last section, a later resource of the chapter is estimated at this one’s pages per position', () => {

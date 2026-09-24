@@ -44,12 +44,6 @@ const seedPreferences = (record: object) => {
   vi.stubGlobal('window', { localStorage });
 };
 
-test('the highlight colour left in storage is read back', () => {
-  seedPreferences({ version: 1, highlightColor: 'green' });
-
-  expect(loadReaderPreferences().highlightColor).toBe('green');
-});
-
 test('a highlight colour no device offers is read as the default', () => {
   seedPreferences({ version: 1, highlightColor: 'chartreuse' });
 

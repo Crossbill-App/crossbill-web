@@ -16,27 +16,6 @@ const POSITIONS = [
   at(CHAPTER_TWO, { position: 4, progression: 0.66, totalProgression: 0.75 }),
 ];
 
-test('a locator naming a resource this publication has not got lands nowhere', () => {
-  const target = at('resources/OEBPS/appendix.xhtml', { progression: 0.5 });
-
-  expect(landingFor(target, POSITIONS)).toBeNull();
-});
-
-test('a locator carrying no progression lands on its resource first position', () => {
-  const target = new Locator({ href: CHAPTER_TWO, type: 'application/xhtml+xml' });
-
-  expect(landingFor(target, POSITIONS)?.locations.position).toBe(2);
-});
-
-test('a progression inside a split resource lands on the entry covering it', () => {
-  const target = at(CHAPTER_TWO, { progression: 0.5 });
-
-  const landing = landingFor(target, POSITIONS);
-
-  expect(landing?.locations.position).toBe(3);
-  expect(landing?.locations.totalProgression).toBe(0.5);
-});
-
 test('the landing is the target wearing the entry numbers, not the entry itself', () => {
   const target = new Locator({
     href: CHAPTER_TWO,

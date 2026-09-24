@@ -21,7 +21,7 @@ export const caretAt = (document: CaretFinder, x: number, y: number): CaretPoint
 const WORD_CHARACTER = /[\p{L}\p{N}]/u;
 
 /** Whether a boundary has word on both sides of it, which is where a tap lands inside one. */
-export const isInsideWord = (text: string, offset: number): boolean =>
+const isInsideWord = (text: string, offset: number): boolean =>
   WORD_CHARACTER.test(text[offset - 1] ?? '') && WORD_CHARACTER.test(text[offset] ?? '');
 
 /**

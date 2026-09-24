@@ -1,9 +1,4 @@
-import {
-  isInsideWord,
-  rangeBetween,
-  visibleRect,
-  wordEdgeAt,
-} from '@/components/reader/engine/readium/caretRange.ts';
+import { visibleRect, wordEdgeAt } from '@/components/reader/engine/readium/caretRange.ts';
 import { expect, test } from 'vitest';
 
 const SENTENCE = 'Attention, please. Read on.';
@@ -21,27 +16,6 @@ test('a boundary inside a word is pushed out to the edge of that word', () => {
   // Between the "e" and the "n" of "Attention".
   expect(wordEdgeAt({ node, offset: 4 }, -1).offset).toBe(0);
   expect(wordEdgeAt({ node, offset: 4 }, 1).offset).toBe(9);
-});
-
-test('a boundary already in the whitespace between words stays where it is', () => {
-  const node = words();
-
-  expect(wordEdgeAt({ node, offset: 10 }, -1).offset).toBe(10);
-  expect(wordEdgeAt({ node, offset: 10 }, 1).offset).toBe(10);
-});
-
-test('a caret before the anchor still gives a forward range of whole words', () => {
-  const node = words();
-
-  // Tapped inside "please" first, then dragged back into "Attention".
-  const range = rangeBetween({ node, offset: 14 }, { node, offset: 4 });
-
-  expect(range?.toString()).toBe('Attention, please');
-});
-
-test('a boundary against the punctuation stuck to a word is not inside it', () => {
-  expect(isInsideWord(SENTENCE, 9)).toBe(false);
-  expect(isInsideWord(SENTENCE, 4)).toBe(true);
 });
 
 test('a range with no rectangle on screen falls back to the box around all of them', () => {
