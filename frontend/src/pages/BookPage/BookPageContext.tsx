@@ -18,6 +18,7 @@ const BookPageContext = createContext<BookPageContextValue | null>(null);
 
 export const BookPageProvider = BookPageContext.Provider;
 
+// eslint-disable-next-line react-refresh/only-export-components
 export const useBookPage = (): BookPageContextValue => {
   const context = useContext(BookPageContext);
   if (!context) {
