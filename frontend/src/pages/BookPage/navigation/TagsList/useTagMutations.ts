@@ -16,6 +16,17 @@ export const useTagMutations = (bookId: number) => {
   const cache = useCacheEvents();
   const [isProcessing, setIsProcessing] = useState(false);
 
+  const replaceBookTag = (tagId: number, update: (tag: TagInBook) => TagInBook) => {
+    queryClient.setQueryData(getGetBookDetailsQueryKey(bookId), (old: unknown) => {
+      if (!old || typeof old !== 'object') return old;
+      const bookData = old as { tags: TagInBook[] };
+      return {
+        ...bookData,
+        tags: bookData.tags.map((tag) => (tag.id === tagId ? update(tag) : tag)),
+      };
+    });
+  };
+
   const updateTagMutation = useUpdateTag({
     mutation: {
       onMutate: async (variables: {
@@ -27,31 +38,14 @@ export const useTagMutations = (bookId: number) => {
           queryKey: getGetBookDetailsQueryKey(bookId),
         });
         const previousBook = queryClient.getQueryData(getGetBookDetailsQueryKey(bookId));
-        queryClient.setQueryData(getGetBookDetailsQueryKey(bookId), (old: unknown) => {
-          if (!old || typeof old !== 'object') return old;
-          const bookData = old as { tags: TagInBook[] };
-          return {
-            ...bookData,
-            tags: bookData.tags.map((tag: TagInBook) =>
-              tag.id === variables.tagId
-                ? { ...tag, tag_group_id: variables.data.tag_group_id }
-                : tag
-            ),
-          };
-        });
+        replaceBookTag(variables.tagId, (tag) => ({
+          ...tag,
+          tag_group_id: variables.data.tag_group_id,
+        }));
         return { previousBook };
       },
       onSuccess: (updatedTag: TagInBook) => {
-        queryClient.setQueryData(getGetBookDetailsQueryKey(bookId), (old: unknown) => {
-          if (!old || typeof old !== 'object') return old;
-          const bookData = old as { tags: TagInBook[] };
-          return {
-            ...bookData,
-            tags: bookData.tags.map((tag: TagInBook) =>
-              tag.id === updatedTag.id ? updatedTag : tag
-            ),
-          };
-        });
+        replaceBookTag(updatedTag.id, () => updatedTag);
       },
       onError: (
         error: unknown,
