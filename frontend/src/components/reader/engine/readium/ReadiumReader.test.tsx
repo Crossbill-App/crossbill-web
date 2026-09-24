@@ -111,8 +111,6 @@ const centreOf = (range: Range) => {
   return { x: rect.left + rect.width / 2, y: rect.top + rect.height / 2 };
 };
 
-const frameText = () => frame()?.contentDocument?.body.textContent ?? '';
-
 const visibleFrame = () => visibleFrameIn(host);
 
 const visibleFrameText = () => visibleFrame()?.contentDocument?.body.textContent ?? '';
@@ -136,7 +134,7 @@ const tapTheBook = () => {
 
 /** What ReadiumCSS has written into the chapter for one of its user settings. */
 const userProperty = (name: string) =>
-  frame()?.contentDocument?.documentElement.style.getPropertyValue(`--USER__${name}`) ?? '';
+  visibleFrame()?.contentDocument?.documentElement.style.getPropertyValue(`--USER__${name}`) ?? '';
 
 beforeEach(() => {
   fakeTheClock();
@@ -415,7 +413,7 @@ test('a decoration in a chapter the reader has not reached is drawn when they ge
 test('a decoration applied after the book is on screen is drawn too', async () => {
   worker.use(...readiumApi());
   await openTheBook();
-  await expect.poll(frameText).toContain('On Attention');
+  await expect.poll(visibleFrameText).toContain('On Attention');
 
   reader.applyDecorations([A_HIGHLIGHT]);
 
@@ -436,7 +434,7 @@ const theBookWithAHighlightDrawn = async () => {
 test('tapping a decoration reports its id', async () => {
   const activated = await theBookWithAHighlightDrawn();
 
-  await userEvent.click(frame()!, { position: centreOf(drawnRanges(host)[0]) });
+  await userEvent.click(visibleFrame()!, { position: centreOf(drawnRanges(host)[0]) });
 
   await expect.poll(() => activated).toEqual([A_HIGHLIGHT.id]);
 });
@@ -456,7 +454,7 @@ test('a swipe ending on a decoration leaves it alone, and the tap after it still
   const highlight = drawnRanges(host)[0];
 
   swipeOnto(highlight);
-  await userEvent.click(frame()!, { position: centreOf(highlight) });
+  await userEvent.click(visibleFrame()!, { position: centreOf(highlight) });
 
   // Only the tap is reported, and it is reported once: the swipe that ended on the
   // same words would have arrived first, so nothing of it is still on its way.
@@ -775,7 +773,7 @@ test('the tap that ends an extension never reaches the book as a click', async (
   chapter.addEventListener('click', () => clicks.push('click'));
   reader.startSelectionExtension();
 
-  await userEvent.click(frame()!, { position: endOf(rangeOver(chapter, 'generosity')) });
+  await userEvent.click(visibleFrame()!, { position: endOf(rangeOver(chapter, 'generosity')) });
 
   await expect.poll(() => recorded.selections).toHaveLength(3);
   expect(clicks).toEqual([]);
@@ -788,7 +786,7 @@ test('the tap that ends an extension does not activate the decoration it lands o
   await expect.poll(() => recorded.selections).toHaveLength(1);
   reader.startSelectionExtension();
 
-  await userEvent.click(frame()!, { position: centreOf(drawnRanges(host)[0]) });
+  await userEvent.click(visibleFrame()!, { position: centreOf(drawnRanges(host)[0]) });
 
   await expect.poll(() => recorded.selections).toHaveLength(3);
   expect(activated).toEqual([]);
@@ -803,7 +801,7 @@ test('a tap that extends nothing leaves the decoration under it alone', async ()
   reader.startSelectionExtension();
 
   // Back onto where the passage starts, which picks no words at all.
-  await userEvent.click(frame()!, { position: startOf(drawnRanges(host)[0]) });
+  await userEvent.click(visibleFrame()!, { position: startOf(drawnRanges(host)[0]) });
 
   await afterTheSelectionSettles();
   expect(activated).toEqual([]);
@@ -964,7 +962,7 @@ test('a manifest that claims another origin still has its chapters resolve again
   );
 
   await openTheBook();
-  await expect.poll(frameText).toContain('On Attention');
+  await expect.poll(visibleFrameText).toContain('On Attention');
 
   const base = frame()!.contentDocument!.querySelector('base')!.href;
   expect(base.startsWith(window.location.origin)).toBe(true);
@@ -1014,10 +1012,10 @@ test('a book with no publication is reported as missing, an unreadable one as an
 test('an arrow key pressed inside the book asks for a page turn', async () => {
   worker.use(...readiumApi());
   await openTheBook();
-  await expect.poll(frameText).toContain('On Attention');
+  await expect.poll(visibleFrameText).toContain('On Attention');
   const recorded = recordEvents();
 
-  frame()!.contentWindow!.focus();
+  visibleFrame()!.contentWindow!.focus();
   await userEvent.keyboard('{ArrowRight}');
   await expect.poll(() => recorded.turns).toEqual(['next']);
 
@@ -1027,7 +1025,7 @@ test('an arrow key pressed inside the book asks for a page turn', async () => {
   expect(recorded.positions).toEqual([]);
 
   recorded.clear();
-  frame()!.blur();
+  visibleFrame()!.blur();
   await userEvent.keyboard('{ArrowRight}');
   await expect.poll(() => recorded.turns).toEqual(['next']);
 });
@@ -1038,7 +1036,7 @@ test('a book cannot run its own scripts against the page that opened it', async 
   // Unsanitised, the chapter's meta refresh navigates the frame away and the
   // open never settles; the assertions below are what has to report that.
   void openTheBook().catch(() => undefined);
-  await expect.poll(frameText, { timeout: 5_000 }).toContain('On Attention');
+  await expect.poll(visibleFrameText, { timeout: 5_000 }).toContain('On Attention');
 
   expect(document.body.getAttribute('data-pwned')).toBeNull();
   expect(frame()!.contentWindow!.location.href).toMatch(/^blob:/);
