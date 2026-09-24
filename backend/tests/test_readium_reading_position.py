@@ -44,7 +44,6 @@ CH1_POSITION = {"index": 10, "char_index": 0}
 CH1_SELECTOR = "#intro > p:nth-child(5)"
 CH2_QUOTE = "Morning arrived without ceremony"
 CH2_XPOINT = "/body/DocFragment[2]/body/div[1]/p[1]"
-CH2_POSITION = {"index": 16, "char_index": 0}
 CH2_HEADING_XPOINT = "/body/DocFragment[2]/body/div[1]/h1[1]"
 THE_SAME_TWICE = "The lantern went out at midnight"
 
