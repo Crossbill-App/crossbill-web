@@ -10,6 +10,7 @@ from src.application.library.commands.book_management.create_book_use_case impor
 )
 from src.application.library.dtos import CreateBookInput
 from src.application.library.queries.get_ereader_metadata_use_case import (
+    EreaderMetadata,
     GetEreaderMetadataUseCase,
 )
 from src.application.reading.queries.get_ereader_book_digests_use_case import (
@@ -19,7 +20,6 @@ from src.application.reading.queries.get_ereader_book_highlights_use_case import
     GetEreaderBookHighlightsUseCase,
 )
 from src.core import container
-from src.domain.common.exceptions import ValidationError
 from src.domain.common.value_objects.ids import UserId
 from src.domain.identity.entities.user import User
 from src.infrastructure.common.client_version import (
@@ -29,6 +29,7 @@ from src.infrastructure.common.client_version import (
 from src.infrastructure.common.di import inject_use_case
 from src.infrastructure.common.schemas import CollectionResponse, SuccessResponse
 from src.infrastructure.identity.dependencies import get_current_user
+from src.infrastructure.library.routers.epub_upload import read_epub_upload
 from src.infrastructure.library.schemas import (
     BookCreate,
     EreaderBookMetadata,
@@ -47,6 +48,17 @@ router = APIRouter(
     dependencies=[Depends(require_koreader_plugin)],
     responses=UPGRADE_REQUIRED_RESPONSES,
 )
+
+
+def _metadata_schema(metadata: EreaderMetadata) -> EreaderBookMetadata:
+    return EreaderBookMetadata(
+        book_id=metadata.book_id,
+        bookname=metadata.title,
+        author=metadata.author,
+        cover_file=metadata.cover_file,
+        cover_blurhash=metadata.cover_blurhash,
+        has_ebook=metadata.has_ebook,
+    )
 
 
 @router.post(
@@ -92,14 +104,7 @@ async def create_book(
     metadata = await metadata_use_case.get_metadata_for_ereader(
         book_data.client_book_id, current_user.id.value
     )
-    return EreaderBookMetadata(
-        book_id=metadata.book_id,
-        bookname=metadata.title,
-        author=metadata.author,
-        cover_file=metadata.cover_file,
-        cover_blurhash=metadata.cover_blurhash,
-        has_ebook=metadata.has_ebook,
-    )
+    return _metadata_schema(metadata)
 
 
 @router.get(
@@ -131,18 +136,7 @@ async def get_book_metadata(
         HTTPException: 404 if book is not found
     """
     metadata = await use_case.get_metadata_for_ereader(client_book_id, current_user.id.value)
-    return EreaderBookMetadata(
-        book_id=metadata.book_id,
-        bookname=metadata.title,
-        author=metadata.author,
-        cover_file=metadata.cover_file,
-        cover_blurhash=metadata.cover_blurhash,
-        has_ebook=metadata.has_ebook,
-    )
-
-
-# Maximum ebook file size (50MB - epubs can be large)
-MAX_EBOOK_SIZE = 50 * 1024 * 1024
+    return _metadata_schema(metadata)
 
 
 @router.post(
@@ -175,19 +169,8 @@ async def upload_book_epub(
     Raises:
         HTTPException: 400 for invalid file, 404 if book is not found
     """
-    # Validate content-type
-    allowed_types = {"application/epub+zip"}
-    if epub.content_type not in allowed_types:
-        raise ValidationError("Only EPUB files are allowed")
-
-    # Read file with size limit
-    content = epub.file.read(MAX_EBOOK_SIZE + 1)
-    if len(content) > MAX_EBOOK_SIZE:
-        raise ValidationError(f"File too large (max {MAX_EBOOK_SIZE // (1024 * 1024)}MB)")
-
-    await use_case.upload_ebook(
-        client_book_id, content, epub.content_type or "", current_user.id.value
-    )
+    content = read_epub_upload(epub)
+    await use_case.upload_ebook(client_book_id, content, current_user.id.value)
 
     return SuccessResponse(
         success=True,

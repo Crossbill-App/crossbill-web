@@ -21,6 +21,8 @@ import type {
 import { useMutation, useQuery } from '@tanstack/react-query';
 
 import type {
+  BodyCreateBookFromEpub,
+  Book,
   BookDetails,
   BookReadingStageUpdateRequest,
   BookUpdateRequest,
@@ -171,6 +173,94 @@ export function useGetBooks<
   return withQueryKey(query, queryOptions.queryKey);
 }
 
+/**
+ * Create a book from an uploaded EPUB and store the file, in one call.
+ *
+ * The book gets the id the KOReader plugin computes, so the plugin's later sync
+ * lands on it; an EPUB whose book already has a file answers 409.
+ * @summary Create Book From Epub
+ */
+export const createBookFromEpub = (
+  bodyCreateBookFromEpub: BodyCreateBookFromEpub,
+  signal?: AbortSignal
+) => {
+  const formData = new FormData();
+  formData.append(`epub`, bodyCreateBookFromEpub.epub);
+
+  return axiosInstance<Book>({
+    url: `/api/v1/books/`,
+    method: 'POST',
+    headers: { 'Content-Type': 'multipart/form-data' },
+    data: formData,
+    signal,
+  });
+};
+
+export const getCreateBookFromEpubMutationKey = () => ['createBookFromEpub'] as const;
+
+export const getCreateBookFromEpubMutationOptions = <
+  TError = HTTPValidationError,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof createBookFromEpub>>,
+    TError,
+    CreateBookFromEpubMutationVariables,
+    TContext
+  >;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof createBookFromEpub>>,
+  TError,
+  CreateBookFromEpubMutationVariables,
+  TContext
+> => {
+  const mutationKey = getCreateBookFromEpubMutationKey();
+  const { mutation: mutationOptions } = options
+    ? options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey } };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof createBookFromEpub>>,
+    CreateBookFromEpubMutationVariables
+  > = (props) => {
+    const { data } = props ?? {};
+
+    return createBookFromEpub(data);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type CreateBookFromEpubMutationResult = NonNullable<
+  Awaited<ReturnType<typeof createBookFromEpub>>
+>;
+export type CreateBookFromEpubMutationBody = BodyCreateBookFromEpub;
+export type CreateBookFromEpubMutationError = HTTPValidationError;
+export type CreateBookFromEpubMutationVariables = { data: BodyCreateBookFromEpub };
+
+/**
+ * @summary Create Book From Epub
+ */
+export const useCreateBookFromEpub = <TError = HTTPValidationError, TContext = unknown>(
+  options?: {
+    mutation?: UseMutationOptions<
+      Awaited<ReturnType<typeof createBookFromEpub>>,
+      TError,
+      CreateBookFromEpubMutationVariables,
+      TContext
+    >;
+  },
+  queryClient?: QueryClient
+): UseMutationResult<
+  Awaited<ReturnType<typeof createBookFromEpub>>,
+  TError,
+  CreateBookFromEpubMutationVariables,
+  TContext
+> => {
+  return useMutation(getCreateBookFromEpubMutationOptions(options), queryClient);
+};
 /**
  * Get the user's most recently touched books, with their counts.
  *

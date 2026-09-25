@@ -19,9 +19,13 @@ from src.application.web_reader.publications import (
     PublicationResource,
     TocEntry,
 )
+from src.domain.library.entities.epub_metadata import EpubMetadata
 from src.domain.library.exceptions import InvalidEbookError
 from src.infrastructure.library.services.epub_parser_service import EpubParserService
-from src.infrastructure.library.services.epub_publication_parser import read_publication
+from src.infrastructure.library.services.epub_publication_parser import (
+    read_epub_metadata,
+    read_publication,
+)
 from tests.epub_builders import (
     DOCUMENT,
     NAV_ITEM,
@@ -181,6 +185,43 @@ class TestThePublishedIdentifierIsTheDesignatedOne:
         )
 
         assert read_publication(content).metadata.identifier == "urn:isbn:9780000000001"
+
+
+class TestTheMetadataReadsAsKOReaderReadsIt:
+    """The fields a book's KOReader identity is computed from."""
+
+    def epub(self, extra_metadata: str = "", title: str | None = "Hand Built") -> bytes:
+        return build_epub(
+            CHAPTER_ITEM,
+            CHAPTER_SPINE,
+            files=("chapter1.xhtml",),
+            extra_metadata=extra_metadata,
+            title=title,
+        )
+
+    def test_every_creator_is_read_trimmed_in_document_order_and_blank_ones_dropped(
+        self,
+    ) -> None:
+        content = self.epub(
+            "<dc:creator> Author One </dc:creator><dc:creator> </dc:creator>"
+            "<dc:creator>Author Two</dc:creator>"
+        )
+
+        metadata = EpubParserService().extract_metadata(content)
+
+        assert metadata == EpubMetadata(
+            title="Hand Built", authors=("Author One", "Author Two"), language="en"
+        )
+
+    def test_a_book_with_no_creators_has_no_authors(self) -> None:
+        assert EpubParserService().extract_metadata(self.epub()).authors == ()
+
+    def test_a_book_with_no_title_has_none(self) -> None:
+        assert EpubParserService().extract_metadata(self.epub(title=None)).title is None
+
+    def test_bytes_that_are_not_an_archive_are_not_a_readable_epub(self) -> None:
+        with pytest.raises(InvalidEbookError):
+            read_epub_metadata(b"not a zip")
 
 
 class TestAnHrefNamesTheFileTheArchiveHolds:

@@ -1,4 +1,8 @@
-"""Tests for the ereader EPUB upload endpoint (multipart form parsing)."""
+"""Tests for the ereader EPUB upload route.
+
+The ingestion it shares with the web upload is proven in test_book_import.py; what
+lives here is the plugin route itself and the publication index it derives.
+"""
 
 from collections.abc import Callable, Iterator
 from pathlib import Path
@@ -73,7 +77,7 @@ async def upload_epub(client: AsyncClient, content: bytes) -> None:
 
 
 class TestEpubUpload:
-    async def test_upload_success_stores_file(
+    async def test_upload_attaches_the_file_and_its_chapters_to_the_book(
         self,
         plugin_client: AsyncClient,
         db_session: AsyncSession,
@@ -92,36 +96,8 @@ class TestEpubUpload:
         await db_session.refresh(ereader_book)
         assert ereader_book.ebook_file is not None
         assert (storage_dir / ereader_book.ebook_file).read_bytes() == epub_bytes
-
-    async def test_upload_creates_chapters_from_toc(
-        self,
-        plugin_client: AsyncClient,
-        db_session: AsyncSession,
-        ereader_book: models.Book,
-        epub_bytes: bytes,
-        storage_dir: Path,
-    ) -> None:
-        response = await plugin_client.post(
-            f"/api/v1/ereader/books/{CLIENT_BOOK_ID}/epub",
-            files={"epub": ("book.epub", epub_bytes, "application/epub+zip")},
-        )
-
-        assert response.status_code == status.HTTP_200_OK
         result = await db_session.execute(select(models.Chapter).filter_by(book_id=ereader_book.id))
-        chapter_names = [chapter.name for chapter in result.scalars().all()]
-        assert "Chapter 1" in chapter_names
-
-    async def test_upload_rejects_wrong_content_type(
-        self,
-        plugin_client: AsyncClient,
-        ereader_book: models.Book,
-    ) -> None:
-        response = await plugin_client.post(
-            f"/api/v1/ereader/books/{CLIENT_BOOK_ID}/epub",
-            files={"epub": ("book.txt", b"not an epub", "text/plain")},
-        )
-
-        assert response.status_code == status.HTTP_400_BAD_REQUEST
+        assert [chapter.name for chapter in result.scalars().all()] == ["Chapter 1"]
 
     async def test_upload_rejects_invalid_epub_content(
         self,

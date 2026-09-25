@@ -99,6 +99,51 @@
             }
           }
         }
+      },
+      "post": {
+        "tags": [
+          "books"
+        ],
+        "summary": "Create Book From Epub",
+        "description": "Create a book from an uploaded EPUB and store the file, in one call.\n\nThe book gets the id the KOReader plugin computes, so the plugin's later sync\nlands on it; an EPUB whose book already has a file answers 409.",
+        "operationId": "create_book_from_epub",
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "$ref": "#/components/schemas/Body_create_book_from_epub"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Book"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
       }
     },
     "/api/v1/books/recent": {
@@ -5035,6 +5080,20 @@
         "title": "BackfillResponse",
         "description": "What a backfill request did.\n\n``total_jobs`` is the field to key on, because it is the only one present in\nboth outcomes: it is 0 exactly when nothing needed embedding, and then\n``batch`` is null because no batch was created and there is nothing to poll."
       },
+      "Body_create_book_from_epub": {
+        "properties": {
+          "epub": {
+            "type": "string",
+            "contentMediaType": "application/octet-stream",
+            "title": "Epub"
+          }
+        },
+        "type": "object",
+        "required": [
+          "epub"
+        ],
+        "title": "Body_create_book_from_epub"
+      },
       "Body_login": {
         "properties": {
           "grant_type": {
@@ -5107,6 +5166,127 @@
           "epub"
         ],
         "title": "Body_upload_book_epub"
+      },
+      "Book": {
+        "properties": {
+          "title": {
+            "type": "string",
+            "maxLength": 500,
+            "minLength": 1,
+            "title": "Title",
+            "description": "Book title"
+          },
+          "author": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 500
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Author",
+            "description": "Book author"
+          },
+          "isbn": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 20
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Isbn",
+            "description": "Book ISBN"
+          },
+          "description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description",
+            "description": "Book description from ebook metadata"
+          },
+          "language": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 10
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Language",
+            "description": "Language code from ebook metadata"
+          },
+          "page_count": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "minimum": 1.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Page Count",
+            "description": "Total page count from ebook metadata"
+          },
+          "id": {
+            "type": "integer",
+            "title": "Id"
+          },
+          "client_book_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Client Book Id"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Updated At"
+          },
+          "last_viewed": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Viewed"
+          }
+        },
+        "type": "object",
+        "required": [
+          "title",
+          "id",
+          "created_at",
+          "updated_at"
+        ],
+        "title": "Book",
+        "description": "Schema for Book response."
       },
       "BookActivity": {
         "properties": {

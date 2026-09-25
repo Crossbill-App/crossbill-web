@@ -4,7 +4,11 @@ from datetime import datetime
 
 from pydantic import BaseModel, ConfigDict, Field
 
-from src.domain.library.entities.book import MAX_DESCRIPTION_LENGTH
+from src.domain.library.entities.book import (
+    MAX_AUTHOR_LENGTH,
+    MAX_DESCRIPTION_LENGTH,
+    MAX_TITLE_LENGTH,
+)
 from src.infrastructure.common.schemas.position_schemas import PositionResponse
 from src.infrastructure.reading.schemas.highlight_schemas import ReadingStageLiteral
 
@@ -43,8 +47,8 @@ class BookUpdateRequest(BaseModel):
 class BookBase(BaseModel):
     """Base schema for Book."""
 
-    title: str = Field(..., min_length=1, max_length=500, description="Book title")
-    author: str | None = Field(None, max_length=500, description="Book author")
+    title: str = Field(..., min_length=1, max_length=MAX_TITLE_LENGTH, description="Book title")
+    author: str | None = Field(None, max_length=MAX_AUTHOR_LENGTH, description="Book author")
     isbn: str | None = Field(None, max_length=20, description="Book ISBN")
     description: str | None = Field(None, description="Book description from ebook metadata")
     language: str | None = Field(

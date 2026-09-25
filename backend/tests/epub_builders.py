@@ -44,6 +44,7 @@ def build_epub(
     unique_identifier: str = "bookid",
     identifiers: str = DEFAULT_IDENTIFIERS,
     extra_metadata: str = "",
+    title: str | None = "Hand Built",
     opf_name: str = "content.opf",
     container: str | None = None,
     spine_toc: str | None = None,
@@ -61,7 +62,8 @@ def build_epub(
         '<package xmlns="http://www.idpf.org/2007/opf" version="3.0" '
         f'unique-identifier="{unique_identifier}">'
         '<metadata xmlns:dc="http://purl.org/dc/elements/1.1/">'
-        f"{identifiers}<dc:title>Hand Built</dc:title><dc:language>en</dc:language>"
+        f"{identifiers}{f'<dc:title>{title}</dc:title>' if title is not None else ''}"
+        "<dc:language>en</dc:language>"
         f"{extra_metadata}</metadata>"
         f"<manifest>{manifest_items}</manifest>"
         f"<spine{f' toc="{spine_toc}"' if spine_toc is not None else ''}>{spine}</spine></package>"

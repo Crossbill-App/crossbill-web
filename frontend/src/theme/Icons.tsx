@@ -67,6 +67,7 @@ export {
   Send as SendIcon,
   TextDecrease as SmallerTextIcon,
   SwapVert as SortIcon,
+  UploadFile as UploadIcon,
 } from '@mui/icons-material';
 
 // User/System icons

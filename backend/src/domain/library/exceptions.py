@@ -1,6 +1,6 @@
 """Library domain exceptions."""
 
-from src.domain.common.exceptions import EntityNotFoundError, ValidationError
+from src.domain.common.exceptions import ConflictError, EntityNotFoundError, ValidationError
 
 
 class CoverNotFoundError(EntityNotFoundError):
@@ -40,3 +40,11 @@ class InvalidEbookError(ValidationError):
         )
         self.reason = reason
         self.ebook_type = ebook_type
+
+
+class BookAlreadyExistsError(ConflictError):
+    """Raised when an uploaded EPUB's book already exists with a file of its own."""
+
+    def __init__(self, client_book_id: str) -> None:
+        super().__init__(f"A book with client id {client_book_id} already has a file")
+        self.client_book_id = client_book_id

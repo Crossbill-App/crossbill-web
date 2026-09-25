@@ -13,8 +13,12 @@ from lxml import etree
 
 from src.application.web_reader.publications import ParsedPublication
 from src.domain.library.entities.chapter import TocChapter
+from src.domain.library.entities.epub_metadata import EpubMetadata
 from src.infrastructure.common.memory import trims_memory
-from src.infrastructure.library.services.epub_publication_parser import read_publication
+from src.infrastructure.library.services.epub_publication_parser import (
+    read_epub_metadata,
+    read_publication,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -186,6 +190,11 @@ class EpubParserService:
     def parse_publication(self, epub_content: bytes) -> ParsedPublication:
         """Resolve an EPUB into its reading order, resources, TOC and metadata."""
         return read_publication(epub_content)
+
+    @trims_memory
+    def extract_metadata(self, content: bytes) -> EpubMetadata:
+        """Read the title, creators and language the EPUB's package document states."""
+        return read_epub_metadata(content)
 
     @trims_memory
     def extract_cover(self, epub_content: bytes) -> bytes | None:

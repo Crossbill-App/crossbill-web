@@ -6,6 +6,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.domain.common.value_objects.ids import BookId, ChapterId, UserId
 from src.domain.library.entities.chapter import Chapter, TocChapter
+from src.infrastructure.common.sql import commit_or_rollback
 from src.infrastructure.library.mappers.chapter_mapper import ChapterMapper
 from src.infrastructure.library.orm.book_model import Book as BookORM
 from src.infrastructure.library.orm.chapter_model import Chapter as ChapterORM
@@ -211,7 +212,7 @@ class ChapterRepository:
             end_position=ch.end_position.to_json() if ch.end_position else None,
         )
         self.db.add(chapter)
-        await self.db.commit()
+        await commit_or_rollback(self.db)
         await self.db.refresh(chapter)
         tracker.register_new(chapter)
         return chapter
@@ -295,7 +296,7 @@ class ChapterRepository:
 
         # Stage 3: Commit updates
         if updated:
-            await self.db.commit()
+            await commit_or_rollback(self.db)
             logger.info(f"Updated {len(updated)} existing chapters")
 
         logger.info(

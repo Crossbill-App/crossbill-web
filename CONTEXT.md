@@ -129,9 +129,10 @@ _Avoid_: account, owner, member
 
 **E-reader**:
 The user's reading device, running the KOReader plugin. It is the origin of
-highlight styles, of EPUB files, and of most highlights and reading sessions —
-the Web Reader makes the rest. It can pull chapter digests back down for
-reading on the device, as well as the server's copy of a book's highlights.
+highlight styles, of EPUB files (which can also be uploaded in the browser),
+and of most highlights and reading sessions — the Web Reader makes the rest. It
+can pull chapter digests back down for reading on the device, as well as the
+server's copy of a book's highlights.
 When two e-readers edit the same highlight, the newer edit wins.
 _Avoid_: client, device, KOReader (when speaking of the role rather than the
 software)
@@ -139,7 +140,8 @@ software)
 **Web Reader**:
 The reader built into Crossbill that shows a book's EPUB in the browser. Like
 the e-reader, it records reading sessions and makes highlights, which reach the
-e-reader on its next sync. It needs the book's EPUB, which only the e-reader
-uploads. Internally, the EPUB as the Web Reader serves it is a _publication_ —
-Readium's term; say Book everywhere else.
+e-reader on its next sync. It needs the book's EPUB, which the e-reader
+uploads or the user uploads in the browser, on the library page. Internally,
+the EPUB as the Web Reader serves it is a _publication_ — Readium's term; say
+Book everywhere else.
 _Avoid_: e-reader, viewer, browser reader

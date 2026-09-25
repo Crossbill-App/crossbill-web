@@ -46,7 +46,7 @@ export const RecentBooks = () => {
 
       {empty && (
         <EmptyStateText>
-          No books yet. Upload highlights from your e-reader to get started.
+          No books yet. Upload an EPUB or sync from your e-reader to get started.
         </EmptyStateText>
       )}
 
