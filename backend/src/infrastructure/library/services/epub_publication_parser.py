@@ -6,7 +6,8 @@ import logging
 import mimetypes
 import posixpath
 import zipfile
-from collections.abc import Callable, Iterable, Mapping
+from collections.abc import Callable, Iterable, Iterator, Mapping
+from contextlib import contextmanager
 from io import BytesIO
 from typing import NamedTuple, cast
 from urllib.parse import quote, unquote
@@ -21,6 +22,7 @@ from src.application.web_reader.publications import (
     TocEntry,
     epub_content_hash,
 )
+from src.domain.library.entities.epub_metadata import EpubMetadata
 from src.domain.library.exceptions import InvalidEbookError
 from src.infrastructure.common.zip_members import read_member
 
@@ -91,15 +93,10 @@ def read_publication(epub_content: bytes) -> ParsedPublication:
             document is missing or unparseable, or its spine names nothing the
             publication contains.
     """
-    try:
-        with zipfile.ZipFile(BytesIO(epub_content)) as archive:
-            package = _read_package_document(archive)
-            toc = _read_navigation(archive, package)
-            sizes = {entry.filename: entry.file_size for entry in archive.infolist()}
-    except InvalidEbookError:
-        raise
-    except Exception as e:
-        raise InvalidEbookError(f"unreadable package document: {e!s}", "epub") from e
+    with _epub_archive(epub_content) as archive:
+        package = _read_package_document(archive)
+        toc = _read_navigation(archive, package)
+        sizes = {entry.filename: entry.file_size for entry in archive.infolist()}
 
     items_by_id = {item.item_id: item for item in package.items}
     spine_ids = [idref for idref in package.spine if idref in items_by_id]
@@ -136,17 +133,46 @@ def read_publication(epub_content: bytes) -> ParsedPublication:
     )
 
 
+def read_epub_metadata(epub_content: bytes) -> EpubMetadata:
+    """Read the title, creators and language an EPUB's package document states."""
+    with _epub_archive(epub_content) as archive:
+        package, _ = _read_package(archive)
+
+    values = _dc_elements(package)
+    return EpubMetadata(
+        title=_first_metadata(values, "title"),
+        authors=tuple(
+            author
+            for element in values.get("creator", [])
+            if (author := (element.text or "").strip())
+        ),
+        language=_first_metadata(values, "language"),
+    )
+
+
+@contextmanager
+def _epub_archive(epub_content: bytes) -> Iterator[zipfile.ZipFile]:
+    try:
+        with zipfile.ZipFile(BytesIO(epub_content)) as archive:
+            yield archive
+    except InvalidEbookError:
+        raise
+    except Exception as e:
+        raise InvalidEbookError(f"unreadable package document: {e!s}", "epub") from e
+
+
 def _read_package_document(archive: zipfile.ZipFile) -> _PackageDocument:
+    package, opf_path = _read_package(archive)
+    return _parse_package_document(package, posixpath.dirname(opf_path))
+
+
+def _read_package(archive: zipfile.ZipFile) -> tuple[etree._Element, str]:
     container = etree.fromstring(_read_structural_document(archive, CONTAINER_PATH))
     rootfile = container.find(f".//{{{_CONTAINER_NS}}}rootfile")
     opf_path = rootfile.get("full-path") if rootfile is not None else None
     if not opf_path:
         raise InvalidEbookError("container.xml names no package document", "epub")
-
-    return _parse_package_document(
-        etree.fromstring(_read_structural_document(archive, opf_path)),
-        posixpath.dirname(opf_path),
-    )
+    return etree.fromstring(_read_structural_document(archive, opf_path)), opf_path
 
 
 def _read_structural_document(archive: zipfile.ZipFile, name: str) -> bytes:
@@ -207,17 +233,20 @@ def _media_type(declared: str | None, file_name: str) -> str:
 
 
 def _metadata(package: etree._Element) -> PublicationMetadata:
-    values: dict[str, list[etree._Element]] = {}
-
-    for element in _children(package.find(f"{{{_OPF_NS}}}metadata"), f"{{{_DC_NS}}}*"):
-        values.setdefault(str(element.tag).rpartition("}")[2], []).append(element)
-
+    values = _dc_elements(package)
     return PublicationMetadata(
         title=_first_metadata(values, "title"),
         author=_first_metadata(values, "creator"),
         language=_first_metadata(values, "language"),
         identifier=_identifier(package.get("unique-identifier"), values.get("identifier", [])),
     )
+
+
+def _dc_elements(package: etree._Element) -> dict[str, list[etree._Element]]:
+    values: dict[str, list[etree._Element]] = {}
+    for element in _children(package.find(f"{{{_OPF_NS}}}metadata"), f"{{{_DC_NS}}}*"):
+        values.setdefault(str(element.tag).rpartition("}")[2], []).append(element)
+    return values
 
 
 def _first_metadata(values: dict[str, list[etree._Element]], name: str) -> str | None:

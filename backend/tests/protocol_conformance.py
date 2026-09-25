@@ -29,6 +29,7 @@ from src.application.library.protocols.book_repository import (
     BookRepositoryProtocol as LibraryBookRepositoryProtocol,
 )
 from src.application.library.protocols.chapter_repository import ChapterRepositoryProtocol
+from src.application.library.protocols.epub_parser import EpubParserProtocol
 from src.application.library.queries.book_details import BookDetailsQueryProtocol
 from src.application.library.queries.book_list import BookListQueryProtocol
 from src.application.notes.protocols.note_repository import NoteRepositoryProtocol
@@ -95,6 +96,7 @@ from src.infrastructure.library.queries.book_details_query import BookDetailsQue
 from src.infrastructure.library.queries.book_list_query import BookListQuery
 from src.infrastructure.library.repositories import BookRepository
 from src.infrastructure.library.repositories.chapter_repository import ChapterRepository
+from src.infrastructure.library.services.epub_parser_service import EpubParserService
 from src.infrastructure.notes.queries.note_query import NoteQuery
 from src.infrastructure.notes.repositories.note_repository import NoteRepository
 from src.infrastructure.reading.queries.book_statistics_query import BookStatisticsQuery
@@ -133,6 +135,7 @@ def repositories_satisfy_their_protocols(
     _user: UserRepositoryProtocol = UserRepository(db)
     _refresh_token: RefreshTokenRepositoryProtocol = RefreshTokenRepository(db)
     _token_service: TokenServiceProtocol = TokenServiceAdapter()
+    _epub_parser: EpubParserProtocol = EpubParserService()
     _book_library: LibraryBookRepositoryProtocol = BookRepository(db)
     _book_reading: ReadingBookRepositoryProtocol = BookRepository(db)
     _chapter: ChapterRepositoryProtocol = ChapterRepository(db)
