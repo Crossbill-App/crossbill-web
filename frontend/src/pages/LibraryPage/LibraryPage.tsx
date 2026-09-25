@@ -6,6 +6,7 @@ import { SearchBar } from '@/components/inputs/SearchBar.tsx';
 import { PageContainer } from '@/components/layout/Layouts.tsx';
 import { PageHeader } from '@/components/layout/PageHeader.tsx';
 import { PaginationControls } from '@/components/PaginationControls.tsx';
+import { UploadEpubFab } from '@/pages/LibraryPage/UploadEpubFab.tsx';
 import { Alert, Box } from '@mui/material';
 import { useNavigate, useSearch } from '@tanstack/react-router';
 
@@ -82,7 +83,7 @@ export const LibraryPage = () => {
         <EmptyStateText variant="page">
           {searchText
             ? 'No books match your search.'
-            : 'No books yet. Upload highlights from your e-reader to get started.'}
+            : 'No books yet. Upload an EPUB or sync from your e-reader to get started.'}
         </EmptyStateText>
       )}
 
@@ -92,6 +93,8 @@ export const LibraryPage = () => {
           <PaginationControls count={totalPages} page={currentPage} onChange={handlePageChange} />
         </>
       )}
+
+      <UploadEpubFab />
     </PageContainer>
   );
 };
