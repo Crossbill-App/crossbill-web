@@ -1,5 +1,6 @@
 from dependency_injector import containers, providers
 
+from src.application.library.commands.book_files.attach_epub_use_case import AttachEpubUseCase
 from src.application.library.commands.book_files.ebook_deletion_use_case import (
     EbookDeletionUseCase,
 )
@@ -52,8 +53,8 @@ class LibraryContainer(containers.DeclarativeContainer):
     book_list_query = providers.Dependency()
 
     # Book files
-    ebook_upload_use_case = providers.Factory(
-        EbookUploadUseCase,
+    attach_epub_use_case = providers.Factory(
+        AttachEpubUseCase,
         book_repository=book_repository,
         chapter_repository=chapter_repository,
         file_repository=file_repository,
@@ -65,6 +66,11 @@ class LibraryContainer(containers.DeclarativeContainer):
         publication_parser=epub_parser_service,
         publication_repository=publication_repository,
         backfill_book_locators_use_case=backfill_book_locators_use_case,
+    )
+    ebook_upload_use_case = providers.Factory(
+        EbookUploadUseCase,
+        book_repository=book_repository,
+        attach_epub_use_case=attach_epub_use_case,
     )
     ebook_deletion_use_case = providers.Factory(
         EbookDeletionUseCase,
