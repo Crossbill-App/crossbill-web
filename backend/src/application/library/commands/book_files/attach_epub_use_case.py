@@ -112,9 +112,14 @@ class AttachEpubUseCase:
 
         cover = None
         if extract_cover:
-            cover_bytes = self.epub_parser.extract_cover(content)
-            if cover_bytes:
-                cover = self.cover_image_service.process_cover(cover_bytes)
+            # A cover is decoration and the EPUB is the book: a corrupt cover image
+            # (as in nested_toc.epub) would otherwise fail the whole upload in Pillow.
+            try:
+                cover_bytes = self.epub_parser.extract_cover(content)
+                if cover_bytes:
+                    cover = self.cover_image_service.process_cover(cover_bytes)
+            except Exception:
+                logger.exception("Failed to derive a cover for book %s", book_id.value)
 
         position_index = self.position_index_service.build_position_index(content)
         toc_chapters = [

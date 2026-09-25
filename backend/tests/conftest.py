@@ -78,16 +78,18 @@ from tests.ai_helpers import FakeAgent, digest_output
 logging.getLogger("aiosqlite").setLevel(logging.WARNING)
 
 
-def build_test_epub(path: Path) -> bytes:
+def build_test_epub(path: Path, cover: bytes | None = None) -> bytes:
     """Write a one-chapter EPUB to path and return its bytes.
 
     The single paragraph is "Some content.", reachable at the xpoint
-    "/body/DocFragment[2]/body/p[1]/text().0".
+    "/body/DocFragment[2]/body/p[1]/text().0". A ``cover`` is PNG bytes.
     """
     book = epub.EpubBook()
     book.set_identifier("upload-test-epub")
     book.set_title("Uploaded Book")
     book.set_language("en")
+    if cover is not None:
+        book.set_cover("cover.png", cover, create_page=False)
 
     chapter = epub.EpubHtml(title="Chapter 1", file_name="chap01.xhtml", lang="en")
     chapter.content = "<h1>Chapter 1</h1><p>Some content.</p>"

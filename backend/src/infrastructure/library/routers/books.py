@@ -1,8 +1,11 @@
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Depends, File, Query, UploadFile
 from starlette import status
 
+from src.application.library.commands.book_management.create_book_from_epub_use_case import (
+    CreateBookFromEpubUseCase,
+)
 from src.application.library.commands.book_management.delete_book_use_case import (
     DeleteBookUseCase,
 )
@@ -31,10 +34,12 @@ from src.infrastructure.common.schemas import CollectionResponse, PaginatedRespo
 from src.infrastructure.common.schemas.position_schemas import PositionResponse
 from src.infrastructure.identity import get_current_user
 from src.infrastructure.learning.schemas import Flashcard
+from src.infrastructure.library.routers.epub_upload import read_epub_upload
 from src.infrastructure.library.schemas import (
     BookWithHighlightCount,
 )
 from src.infrastructure.library.schemas.book_schemas import (
+    Book,
     BookReadingStageUpdateRequest,
     BookUpdateRequest,
 )
@@ -215,6 +220,36 @@ async def get_books(
         total=page.total,
         offset=offset,
         limit=limit,
+    )
+
+
+@router.post("/", response_model=Book, status_code=status.HTTP_201_CREATED)
+async def create_book_from_epub(
+    epub: Annotated[UploadFile, File(...)],
+    current_user: Annotated[User, Depends(get_current_user)],
+    use_case: CreateBookFromEpubUseCase = Depends(
+        inject_use_case(container.library.create_book_from_epub_use_case)
+    ),
+) -> Book:
+    """Create a book from an uploaded EPUB and store the file, in one call.
+
+    The book gets the id the KOReader plugin computes, so the plugin's later sync
+    lands on it; an EPUB whose book already has a file answers 409.
+    """
+    content = read_epub_upload(epub)
+    book = await use_case.create_book_from_epub(content, epub.filename, current_user.id)
+    return Book(
+        id=book.id.value,
+        client_book_id=book.client_book_id,
+        title=book.title,
+        author=book.author,
+        isbn=book.isbn,
+        description=book.description,
+        language=book.language,
+        page_count=book.page_count,
+        created_at=book.created_at,
+        updated_at=book.updated_at,
+        last_viewed=book.last_viewed,
     )
 
 

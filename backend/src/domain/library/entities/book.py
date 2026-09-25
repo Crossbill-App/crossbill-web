@@ -13,6 +13,9 @@ from src.domain.common.value_objects.position import Position
 # edits this same field, and a longer one would fail every save with no way to
 # see why.
 MAX_DESCRIPTION_LENGTH = 5000
+# The widths of the title and author columns; imported metadata is truncated to fit.
+MAX_TITLE_LENGTH = 500
+MAX_AUTHOR_LENGTH = 500
 
 
 class ReadingStage(StrEnum):
@@ -106,6 +109,12 @@ class Book(Entity[BookId]):
         self.file_type = file_type
         return self.ebook_file
 
+    def detach_file(self) -> None:
+        """Forget the ebook file and the end position derived from it."""
+        self.ebook_file = None
+        self.file_type = None
+        self.end_position = None
+
     def set_cover_file(self) -> str:
         """Set cover file reference, generating a UUID filename on first upload.
 
@@ -119,6 +128,11 @@ class Book(Entity[BookId]):
     def set_cover_blurhash(self, blurhash: str) -> None:
         """Set the blurhash string for the cover image."""
         self.cover_blurhash = blurhash
+
+    def clear_cover(self) -> None:
+        """Forget the cover image and its blurhash."""
+        self.cover_file = None
+        self.cover_blurhash = None
 
     def set_reading_stage(self, reading_stage: ReadingStage | None) -> None:
         """Set the manual reading stage."""
@@ -155,9 +169,9 @@ class Book(Entity[BookId]):
         return cls(
             id=BookId.generate(),
             user_id=user_id,
-            title=title.strip(),
+            title=title.strip()[:MAX_TITLE_LENGTH],
             client_book_id=client_book_id,
-            author=author.strip() if author else None,
+            author=author.strip()[:MAX_AUTHOR_LENGTH] if author else None,
             isbn=isbn,
             description=description[:MAX_DESCRIPTION_LENGTH] if description else None,
             language=language,

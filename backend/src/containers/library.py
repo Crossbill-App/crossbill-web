@@ -5,6 +5,9 @@ from src.application.library.commands.book_files.ebook_deletion_use_case import 
     EbookDeletionUseCase,
 )
 from src.application.library.commands.book_files.ebook_upload_use_case import EbookUploadUseCase
+from src.application.library.commands.book_management.create_book_from_epub_use_case import (
+    CreateBookFromEpubUseCase,
+)
 from src.application.library.commands.book_management.create_book_use_case import (
     CreateBookUseCase,
 )
@@ -81,6 +84,13 @@ class LibraryContainer(containers.DeclarativeContainer):
     create_book_use_case = providers.Factory(
         CreateBookUseCase,
         book_repository=book_repository,
+    )
+    create_book_from_epub_use_case = providers.Factory(
+        CreateBookFromEpubUseCase,
+        book_repository=book_repository,
+        epub_parser=epub_parser_service,
+        file_repository=file_repository,
+        attach_epub_use_case=attach_epub_use_case,
     )
     mark_book_viewed_use_case = providers.Factory(
         MarkBookViewedUseCase,

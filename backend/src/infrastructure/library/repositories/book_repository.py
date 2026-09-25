@@ -3,6 +3,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.domain.common.value_objects.ids import BookId, UserId
 from src.domain.library.entities.book import Book
+from src.infrastructure.common.sql import commit_or_rollback
 from src.infrastructure.library.mappers.book_mapper import BookMapper
 from src.infrastructure.library.orm.book_model import Book as BookORM
 
@@ -64,7 +65,7 @@ class BookRepository:
             # Create new
             orm_model = self.mapper.to_orm(book)
             self.db.add(orm_model)
-            await self.db.commit()
+            await commit_or_rollback(self.db)
             await self.db.refresh(orm_model)
             return self.mapper.to_domain(orm_model)
         # Update existing
@@ -72,7 +73,7 @@ class BookRepository:
         result = await self.db.execute(stmt)
         existing_orm = result.scalar_one()
         self.mapper.to_orm(book, existing_orm)
-        await self.db.commit()
+        await commit_or_rollback(self.db)
         await self.db.refresh(existing_orm)
         return self.mapper.to_domain(existing_orm)
 

@@ -23,3 +23,16 @@ def escape_like_pattern(text: str) -> str:
         .replace("%", LIKE_ESCAPE_CHAR + "%")
         .replace("_", LIKE_ESCAPE_CHAR + "_")
     )
+
+
+async def commit_or_rollback(session: AsyncSession) -> None:
+    """Commit, rolling the session back if the commit fails.
+
+    A caller that carries on after a failed write -- a compensation, or a derived-data
+    write allowed to fail -- would otherwise hit PendingRollbackError on its next statement.
+    """
+    try:
+        await session.commit()
+    except Exception:
+        await session.rollback()
+        raise
