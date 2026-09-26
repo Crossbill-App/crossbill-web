@@ -21,7 +21,13 @@ import {
   tapAt,
   visibleFrame as visibleFrameIn,
 } from '@tests/harness/textSelection';
-import { CHAPTER_TWO_SECOND_HALF, noPublication, readiumApi } from '@tests/msw/readiumApi';
+import {
+  CHAPTER_TWO_SECOND_HALF,
+  LINK_INTO_THE_BOOK,
+  LINK_OUT_OF_THE_BOOK,
+  noPublication,
+  readiumApi,
+} from '@tests/msw/readiumApi';
 import { worker } from '@tests/msw/worker';
 import { last } from 'lodash';
 import { http, HttpResponse } from 'msw';
@@ -366,6 +372,49 @@ test('goTo lands on the location it is given', async () => {
   await reader.goTo(aPositionList().positions[1]);
 
   await expect.poll(() => recorded.positions).toContain(2);
+});
+
+const clickTheLink = (name: string) =>
+  userEvent.click(visibleFrame()!, {
+    position: centreOf(rangeOver(visibleFrame()!.contentDocument!, name)),
+  });
+
+test('a link into the book is reported as followed before the move it causes', async () => {
+  worker.use(...readiumApi({ withLinks: true }));
+  await openTheBook();
+  const events: string[] = [];
+  reader.onLinkFollowed(() => events.push('followed'));
+  reader.onLocationChanged((location) => events.push(location.href));
+
+  await clickTheLink(LINK_INTO_THE_BOOK);
+
+  await expect.poll(() => events).toContain(CHAPTER_TWO);
+  expect(events[0]).toBe('followed');
+  expect(events.filter((event) => event === 'followed')).toHaveLength(1);
+});
+
+test('a link clicked over a selection is not reported as followed, as Readium does not follow it', async () => {
+  worker.use(...readiumApi({ withLinks: true }));
+  await openTheBook();
+  let followed = 0;
+  reader.onLinkFollowed(() => (followed += 1));
+  adjustSelectionInBook('rarest and purest');
+
+  await clickTheLink(LINK_INTO_THE_BOOK);
+
+  expect(followed).toBe(0);
+});
+
+test('a link out of the book is not reported as followed', async () => {
+  worker.use(...readiumApi({ withLinks: true }));
+  await openTheBook();
+  let followed = 0;
+  reader.onLinkFollowed(() => (followed += 1));
+
+  await clickTheLink(LINK_OUT_OF_THE_BOOK);
+
+  expect(followed).toBe(0);
+  expect(frame()!.contentWindow!.location.href).toMatch(/^blob:/);
 });
 
 test('goTo with a quote lands on its words inside the element the selector names, not on their first occurrence', async () => {

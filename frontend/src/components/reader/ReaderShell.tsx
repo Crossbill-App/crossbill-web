@@ -27,6 +27,7 @@ import {
   type ReaderTarget,
 } from '@/components/reader/opening/useReaderLanding.ts';
 import { useReaderSession } from '@/components/reader/opening/useReaderSession.ts';
+import { useLinkHistory } from '@/components/reader/position/useLinkHistory.ts';
 import { useReadingPositionWriter } from '@/components/reader/position/useReadingPositionWriter.ts';
 import {
   readerPageColors,
@@ -85,6 +86,7 @@ export const ReaderShell = ({ bookId, onClose, onOpenHighlight, target }: Reader
     [theme, pageColor, fontSize, spacing, alignment, columns]
   );
   const { seed, moved } = useReadingPositionWriter(bookId);
+  const linkHistory = useLinkHistory(bookId);
   // Latched, so that nothing done to the address after the book opens can move it.
   const [jump] = useState(target ?? null);
   const landing = useReaderLanding(bookId, jump, details?.chapters);
@@ -105,8 +107,15 @@ export const ReaderShell = ({ bookId, onClose, onOpenHighlight, target }: Reader
     appearance,
     initialLocation: landing?.locator ?? null,
     on: {
-      arrivedAt: seed,
-      movedTo: moved,
+      arrivedAt: (location) => {
+        seed(location);
+        linkHistory.record(location);
+      },
+      movedTo: (location) => {
+        moved(location);
+        linkHistory.record(location);
+      },
+      linkFollowed: linkHistory.linkFollowed,
       decorationActivated: (id) => {
         const tapped = highlightIdFrom(id);
         if (tapped !== null) onOpenHighlight?.(tapped);
@@ -135,6 +144,10 @@ export const ReaderShell = ({ bookId, onClose, onOpenHighlight, target }: Reader
   // Pushed to whichever reader is on screen, the one it opened with or a retry's.
   const applyDecorations = book.applyDecorations;
   useEffect(() => applyDecorations(decorations), [applyDecorations, decorations]);
+
+  const { onReturn } = linkHistory;
+  const { goTo } = book;
+  useEffect(() => onReturn(goTo), [onReturn, goTo]);
 
   // The preference store no longer knows the engine's range, so a size stored
   // outside it — which happens only when the range changed between versions —

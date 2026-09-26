@@ -88,6 +88,18 @@ const whenSized = (element: HTMLElement, signal: AbortSignal) =>
     observer.observe(element);
   });
 
+// Readium hands a link with one of these to `handleLocator` rather than following it.
+const LINKS_OUT_OF_THE_BOOK = ['http://', 'https://', 'mailto:', 'tel:'];
+
+/** Whether a click on this target is one Readium answers by moving the book to where a link points. */
+const followsALinkInTheBook = (target: EventTarget | null): boolean => {
+  // By node type, not `instanceof`: the target belongs to the frame's realm.
+  const node = target as Node | null;
+  const element = node?.nodeType === Node.ELEMENT_NODE ? (node as Element) : node?.parentElement;
+  const href = element?.closest('a[href]')?.getAttribute('href');
+  return href != null && !LINKS_OUT_OF_THE_BOOK.some((prefix) => href.startsWith(prefix));
+};
+
 /** The reader engine on `@readium/navigator`'s `EpubNavigator`. Single-use. */
 export class ReadiumReader implements EbookReader {
   private readonly locationListeners = listenerSet<EbookLocation>();
@@ -95,6 +107,7 @@ export class ReadiumReader implements EbookReader {
   private readonly tocEntryListeners = listenerSet<string | null>();
   private readonly chapterProgressListeners = listenerSet<EbookChapterProgress | null>();
   private readonly decorationListeners = listenerSet<string>();
+  private readonly linkListeners = listenerSet<void>();
   private readonly destruction = new AbortController();
   /** Tells a tap on the page from the swipe that turns it, for whoever acts on one. */
   private readonly gestures = new GestureWatch();
@@ -252,6 +265,10 @@ export class ReadiumReader implements EbookReader {
     return this.locationListeners.add(listener);
   }
 
+  onLinkFollowed(listener: () => void): () => void {
+    return this.linkListeners.add(listener);
+  }
+
   onPageTurnRequested(listener: (direction: PageTurnDirection) => void): () => void {
     return this.pageTurnListeners.add(listener);
   }
@@ -296,6 +313,7 @@ export class ReadiumReader implements EbookReader {
     this.tocEntryListeners.clear();
     this.chapterProgressListeners.clear();
     this.decorationListeners.clear();
+    this.linkListeners.clear();
   }
 
   /** The wrapper Readium's ResizeObserver may keep, and the container it draws into. */
@@ -374,6 +392,16 @@ export class ReadiumReader implements EbookReader {
         // Before the tracker, which asks it about the tap it is being handed.
         this.gestures.watch(frame);
         this.selection.watch(frame);
+        // Readium follows the link itself and says nothing of it, so the click is only watched.
+        frame.addEventListener(
+          'click',
+          (event) => {
+            // Readium answers a click over a selection as the end of the selection, not a link.
+            if (!frame.getSelection()?.isCollapsed) return;
+            if (followsALinkInTheBook(event.target)) this.linkListeners.notify();
+          },
+          { capture: true, signal: this.destruction.signal }
+        );
         const resource = this.resources.get(frame.document.baseURI);
         if (!resource) return;
         this.frames.set(resource.href, frame);

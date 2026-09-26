@@ -18,6 +18,13 @@ import { theme } from '@/theme/theme.ts';
 import { DEFAULT_LABEL_COLOR } from '@/utils/colorUtils.ts';
 import { ThemeProvider } from '@mui/material/styles';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import {
+  RouterContextProvider,
+  createBrowserHistory,
+  createRootRoute,
+  createRouter,
+  type AnyRouter,
+} from '@tanstack/react-router';
 import { aFakeLocation, type FakeEbookReader } from '@tests/fakes/FakeEbookReader';
 import { aBookDetails, aChapter, aHighlight } from '@tests/fixtures/book';
 import {
@@ -47,7 +54,7 @@ import {
 import { worker } from '@tests/msw/worker';
 import { DateTime } from 'luxon';
 import { HttpResponse, delay, http } from 'msw';
-import { afterEach, beforeEach, expect, test, vi } from 'vitest';
+import { afterEach, beforeEach, expect, onTestFinished, test, vi } from 'vitest';
 import { render } from 'vitest-browser-react';
 import { page, userEvent } from 'vitest/browser';
 
@@ -112,26 +119,35 @@ const setVisibility = (state: DocumentVisibilityState) => {
 const hideTheTab = () => setVisibility('hidden');
 const showTheTab = () => setVisibility('visible');
 
-// The shell asks the server where to resume and apologises when it cannot, so
-// it needs the two providers the app mounts it under.
-const shellUnder = (queryClient: QueryClient, props: Partial<ReaderShellProps>) => (
+// The shell asks the server where to resume, apologises when it cannot, and
+// pushes history entries, so it needs the providers the app mounts it under.
+const shellUnder = (
+  queryClient: QueryClient,
+  router: AnyRouter,
+  props: Partial<ReaderShellProps>
+) => (
   <QueryClientProvider client={queryClient}>
-    <ThemeProvider theme={theme}>
-      <SnackbarProvider>
-        <ReaderShell bookId={1} onClose={() => {}} {...props} />
-      </SnackbarProvider>
-    </ThemeProvider>
+    <RouterContextProvider router={router}>
+      <ThemeProvider theme={theme}>
+        <SnackbarProvider>
+          <ReaderShell bookId={1} onClose={() => {}} {...props} />
+        </SnackbarProvider>
+      </ThemeProvider>
+    </RouterContextProvider>
   </QueryClientProvider>
 );
 
 const renderShell = async (props: Partial<ReaderShellProps> = {}) => {
   const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   pendingQueryClients.push(queryClient);
-  const screen = await render(shellUnder(queryClient, props));
+  const router = createRouter({ routeTree: createRootRoute(), history: createBrowserHistory() });
+  onTestFinished(() => router.history.destroy());
+  const screen = await render(shellUnder(queryClient, router, props));
   return Object.assign(screen, {
     queryClient,
+    router,
     rerenderShell: (next: Partial<ReaderShellProps>) =>
-      screen.rerender(shellUnder(queryClient, next)),
+      screen.rerender(shellUnder(queryClient, router, next)),
   });
 };
 
@@ -640,6 +656,52 @@ test('closing the shell destroys the reader', async () => {
   screen.unmount();
 
   await expect.poll(() => readers[0].destroyed).toBe(true);
+});
+
+/** Back or Forward, once the browser has told the page it went. */
+const goThroughHistory = (step: 'back' | 'forward') =>
+  new Promise<void>((resolve) => {
+    window.addEventListener('popstate', () => resolve(), { once: true });
+    window.history[step]();
+  });
+
+test('Back after following a link returns the book to where it was followed from', async () => {
+  worker.use(...readiumApi());
+  await anOpenBook();
+
+  readers[0].followLink(aFakeLocation(2));
+  await goThroughHistory('back');
+
+  expect(readers[0].goToCalls).toEqual([aFakeLocation(1)]);
+});
+
+test('Forward after going back returns the book to where the reader read on to from the link', async () => {
+  worker.use(...readiumApi());
+  await anOpenBook();
+  const readOnFromTheLink = aFakeLocation(3);
+  readers[0].followLink(aFakeLocation(2));
+  readers[0].reportLocation(readOnFromTheLink);
+  await goThroughHistory('back');
+  readers[0].reportLocation(aFakeLocation(1));
+
+  await goThroughHistory('forward');
+
+  expect(readers[0].goToCalls).toEqual([aFakeLocation(1), readOnFromTheLink]);
+});
+
+test('Back from an entry something else pushed, as a dialog does, leaves the book where it is', async () => {
+  worker.use(...readiumApi());
+  const screen = await anOpenBook();
+  readers[0].followLink(aFakeLocation(2));
+  const { history } = screen.router;
+  history.push(history.location.href);
+  history.flush();
+
+  await goThroughHistory('back');
+  expect(readers[0].goToCalls).toEqual([]);
+
+  await goThroughHistory('back');
+  expect(readers[0].goToCalls).toEqual([aFakeLocation(1)]);
 });
 
 /**

@@ -38,6 +38,7 @@ import {
   highlightCreationApi,
   highlightLocatorApi,
   highlightLocatorsApi,
+  LINK_INTO_THE_BOOK,
   noPublication,
   readingPositionApi,
   readiumApi,
@@ -187,6 +188,31 @@ test('the next button turns the page and the label follows', async () => {
 
   await screen.getByRole('button', { name: 'Previous page' }).click();
   await expectProgress(screen, '0%');
+});
+
+test('Back from a link followed in the book returns to where it was followed from, then leaves', async () => {
+  worker.use(...aReadableBook());
+  worker.use(...readiumApi({ withLinks: true }));
+  const screen = await renderApp({ path: '/book/1' });
+  await screen.getByRole('link', { name: 'Read', exact: true }).click();
+  await expectProgress(screen, '0%');
+  const chapter = visibleFrame(document)!;
+  const link = rangeOver(chapter.contentDocument!, LINK_INTO_THE_BOOK).getClientRects()[0];
+
+  await userEvent.click(chapter, {
+    position: { x: link.left + link.width / 2, y: link.top + link.height / 2 },
+  });
+  await expectProgress(screen, '50%');
+
+  window.history.back();
+  await expectProgress(screen, '0%');
+  await expectTheReaderOpen(screen);
+
+  window.history.back();
+  await expect
+    .element(screen.getByRole('button', { name: 'Close reader' }))
+    .not.toBeInTheDocument();
+  expect(screen.router.state.location.pathname).not.toBe('/book/1/read');
 });
 
 test('the arrow keys turn the page', async () => {
@@ -1035,10 +1061,12 @@ test('the back button closes a tapped highlight, not the book', async () => {
   const before = historyIndex(screen);
   await tapTheHighlight();
   await expectTheDialogShowing(screen, PLACED_TEXT);
+  const asked = watchTheEngine();
 
   window.history.back();
 
   await expectBackAtTheBook(screen, before);
+  expect(asked()).toEqual([]);
 });
 
 test('arrow keys page between highlights without turning the book underneath', async () => {
