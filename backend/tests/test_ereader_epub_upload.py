@@ -168,6 +168,7 @@ class TestRejectedEreaderUploads:
         response = await upload(plugin_client, b"garbage bytes", client_book_id="some-book")
 
         assert response.status_code == status.HTTP_400_BAD_REQUEST
+        assert response.json()["message"] == "Invalid EPUB: EPUB structure validation failed"
         assert await book_count(db_session) == 0
 
     async def test_an_upload_without_a_client_book_id_is_rejected(

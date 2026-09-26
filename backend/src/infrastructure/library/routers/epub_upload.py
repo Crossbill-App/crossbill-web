@@ -2,7 +2,7 @@
 
 from fastapi import UploadFile
 
-from src.domain.common.exceptions import ValidationError
+from src.domain.library.exceptions import InvalidEbookError
 
 MAX_EBOOK_SIZE = 50 * 1024 * 1024
 _EPUB_CONTENT_TYPES = {"application/epub+zip", "application/epub"}
@@ -14,9 +14,11 @@ def read_epub_upload(upload: UploadFile) -> bytes:
     # any of them; the structure validation that follows is what really decides.
     named_epub = (upload.filename or "").lower().endswith(".epub")
     if upload.content_type not in _EPUB_CONTENT_TYPES and not named_epub:
-        raise ValidationError("Only EPUB files are allowed")
+        raise InvalidEbookError("not an EPUB file", ebook_type="EPUB")
 
     content = upload.file.read(MAX_EBOOK_SIZE + 1)
     if len(content) > MAX_EBOOK_SIZE:
-        raise ValidationError(f"File too large (max {MAX_EBOOK_SIZE // (1024 * 1024)}MB)")
+        raise InvalidEbookError(
+            f"file too large (max {MAX_EBOOK_SIZE // (1024 * 1024)}MB)", ebook_type="EPUB"
+        )
     return content

@@ -438,6 +438,7 @@ class TestRejectedUploads:
         response = await upload(client, epub_bytes)
 
         assert response.status_code == status.HTTP_400_BAD_REQUEST
+        assert response.json()["message"].startswith("Invalid EPUB: file too large")
         assert await library_total(client) == 0
         assert stored_files(storage_dir) == []
 
