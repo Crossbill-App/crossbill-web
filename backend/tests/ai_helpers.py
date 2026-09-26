@@ -61,3 +61,8 @@ def digest_output(
             for question, answer in (questions if questions is not None else [("Q?", "A.")])
         ],
     )
+
+
+def flashcard_output(cards: list[tuple[str, str]]) -> list[SimpleNamespace]:
+    """The shape ``generate_flashcard_suggestions`` unpacks out of its agent's output."""
+    return [SimpleNamespace(question=question, answer=answer) for question, answer in cards]

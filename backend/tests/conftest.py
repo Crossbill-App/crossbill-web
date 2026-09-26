@@ -68,7 +68,7 @@ from src.models import (
 from src.models import (
     HighlightStyle as HighlightStyleModel,
 )
-from tests.ai_helpers import FakeAgent, digest_output
+from tests.ai_helpers import FakeAgent, digest_output, flashcard_output
 from tests.fakes import FakeJobQueue, FakeTextExtraction, StubFileRepository
 
 logging.getLogger("aiosqlite").setLevel(logging.WARNING)
@@ -600,6 +600,13 @@ def quiz_agent(monkeypatch: pytest.MonkeyPatch) -> FakeAgent:
 def chat_agent(monkeypatch: pytest.MonkeyPatch) -> FakeAgent:
     """The agent ``continue_chat`` runs."""
     return install_agent(monkeypatch, "get_chat_agent", FakeAgent("Tell me more."))
+
+
+@pytest.fixture
+def flashcard_agent(monkeypatch: pytest.MonkeyPatch) -> FakeAgent:
+    """The agent ``generate_flashcard_suggestions`` runs."""
+    agent = FakeAgent(flashcard_output([("Q1", "A1"), ("Q2", "A2")]))
+    return install_agent(monkeypatch, "get_flashcard_agent", agent)
 
 
 def install_agent(monkeypatch: pytest.MonkeyPatch, factory: str, agent: FakeAgent) -> FakeAgent:
