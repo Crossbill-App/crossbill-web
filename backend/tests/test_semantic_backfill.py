@@ -1,8 +1,8 @@
 """Tests for the POST /semantic/backfill ingestion endpoint."""
 
 from datetime import UTC, datetime
-from unittest.mock import AsyncMock, patch
 
+import pytest
 from httpx import AsyncClient
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -11,11 +11,15 @@ from starlette import status
 from src.domain.jobs.entities.job_batch import JobBatchStatus, JobBatchType
 from src.infrastructure.jobs.orm.job_batch_model import JobBatchModel
 from src.models import Book, Highlight, User
-from tests.conftest import CreateBookFunc, create_test_highlight
+from tests.conftest import CreateBookFunc, create_test_book, plant_highlight, plant_note
+from tests.fakes import FakeJobQueue
 from tests.semantic_helpers import (
+    EMBEDDING_TASK,
     backfill_enqueued_ids,
+    embedded_ids,
     embeddings_disabled,
     embeddings_enabled,
+    job_content_ids,
     plant_indexed_highlight,
     upload_highlights,
 )
@@ -29,18 +33,18 @@ SLICE_SIZE = "src.application.semantic.batching.EMBEDDING_SLICE_SIZE"
 
 class TestBackfillEndpoint:
     async def test_blocked_when_embeddings_disabled(
-        self, client: AsyncClient, job_queue: AsyncMock
+        self, client: AsyncClient, job_queue: FakeJobQueue
     ) -> None:
         with embeddings_disabled():
             response = await client.post("/api/v1/semantic/backfill")
 
         assert response.status_code == status.HTTP_403_FORBIDDEN
-        job_queue.enqueue.assert_not_called()
+        assert job_queue.enqueued == []
 
     async def test_enqueues_a_batch_when_enabled(
         self,
         client: AsyncClient,
-        job_queue: AsyncMock,
+        job_queue: FakeJobQueue,
         test_book: Book,
         test_highlight: Highlight,
     ) -> None:
@@ -49,13 +53,17 @@ class TestBackfillEndpoint:
 
         assert response.status_code == status.HTTP_202_ACCEPTED
         data = response.json()
-        assert data["total_jobs"] >= 1
+        assert data["total_jobs"] == 1
         assert data["batch"]["batch_type"] == "content_embedding_backfill"
         assert data["batch"]["status"] == "pending"
-        job_queue.enqueue.assert_awaited()
+        assert data["batch"]["reference_id"] == f"user:{test_book.user_id}"
+        [job] = job_queue.jobs(EMBEDDING_TASK)
+        assert job.kwargs["content_type"] == "highlight"
+        assert job.kwargs["content_ids"] == [test_highlight.id]
+        assert job.kwargs["batch_id"] == data["batch"]["id"]
 
     async def test_reports_nothing_to_do_without_failing_the_request(
-        self, client: AsyncClient, job_queue: AsyncMock, db_session: AsyncSession
+        self, client: AsyncClient, job_queue: FakeJobQueue, db_session: AsyncSession
     ) -> None:
         """Pressing backfill twice is normal, so the second press is not an error.
 
@@ -71,14 +79,15 @@ class TestBackfillEndpoint:
         data = response.json()
         assert data["total_jobs"] == 0
         assert data["batch"] is None
-        job_queue.enqueue.assert_not_called()
+        assert job_queue.enqueued == []
 
     async def test_packs_units_into_one_job_per_slice(
         self,
         client: AsyncClient,
-        job_queue: AsyncMock,
+        job_queue: FakeJobQueue,
         db_session: AsyncSession,
         test_book: Book,
+        monkeypatch: pytest.MonkeyPatch,
     ) -> None:
         """A backfill of N units costs ceil(N / slice) jobs, not N.
 
@@ -86,26 +95,21 @@ class TestBackfillEndpoint:
         one provider round trip per unit in the worker.
         """
         for index in range(5):
-            await create_test_highlight(
-                db_session,
-                test_book,
-                test_book.user_id,
-                text=f"highlight {index}",
-                datetime_str="2024-01-15 14:30:22",
-            )
+            await plant_highlight(db_session, test_book, f"highlight {index}")
 
-        with patch(SLICE_SIZE, 2):
-            enqueued = await backfill_enqueued_ids(client, job_queue)
+        monkeypatch.setattr(SLICE_SIZE, 2)
+        enqueued = await backfill_enqueued_ids(client, job_queue)
 
         assert len(enqueued) == 5
-        assert job_queue.enqueue.await_count == 3
+        assert [len(job_content_ids(job)) for job in job_queue.enqueued] == [2, 2, 1]
 
     async def test_records_slices_it_could_not_enqueue_as_failures(
         self,
         client: AsyncClient,
-        job_queue: AsyncMock,
+        job_queue: FakeJobQueue,
         db_session: AsyncSession,
         test_book: Book,
+        monkeypatch: pytest.MonkeyPatch,
     ) -> None:
         """A backfill that breaks partway must not report the rest as done.
 
@@ -113,16 +117,11 @@ class TestBackfillEndpoint:
         completed, with nothing to say the remaining slices were dropped.
         """
         for text in ("first", "second", "third"):
-            await create_test_highlight(
-                db_session,
-                test_book,
-                test_book.user_id,
-                text=text,
-                datetime_str="2024-01-15 14:30:22",
-            )
-        job_queue.enqueue.side_effect = ["saq:1", RuntimeError("queue is down")]
+            await plant_highlight(db_session, test_book, text)
+        job_queue.fail_after = 1
+        monkeypatch.setattr(SLICE_SIZE, 1)
 
-        with embeddings_enabled(), patch(SLICE_SIZE, 1):
+        with embeddings_enabled():
             response = await client.post("/api/v1/semantic/backfill")
 
         assert response.status_code == status.HTTP_202_ACCEPTED
@@ -131,6 +130,62 @@ class TestBackfillEndpoint:
         assert data["batch"]["failed_jobs"] == 2
         assert data["batch"]["status"] == "running"
 
+    async def test_gives_each_content_type_its_own_jobs(
+        self,
+        client: AsyncClient,
+        job_queue: FakeJobQueue,
+        db_session: AsyncSession,
+        test_book: Book,
+    ) -> None:
+        """A job resolves its ids through one type's table, so a mixed slice would lose rows."""
+        first_note = await plant_note(db_session, test_book, "First")
+        highlight = await plant_highlight(db_session, test_book, "a highlight")
+        second_note = await plant_note(db_session, test_book, "Second")
+
+        await backfill_enqueued_ids(client, job_queue)
+
+        by_type = {
+            job.kwargs["content_type"]: job_content_ids(job)
+            for job in job_queue.jobs(EMBEDDING_TASK)
+        }
+        assert by_type == {"note": [first_note.id, second_note.id], "highlight": [highlight.id]}
+
+
+class TestBookScopedBackfill:
+    async def test_enqueues_only_the_books_content(
+        self,
+        client: AsyncClient,
+        job_queue: FakeJobQueue,
+        db_session: AsyncSession,
+        test_book: Book,
+    ) -> None:
+        other_book = await create_test_book(db_session, test_book.user_id, title="Other")
+        wanted = await plant_highlight(db_session, test_book, "in scope")
+        await plant_highlight(db_session, other_book, "out of scope")
+
+        with embeddings_enabled():
+            response = await client.post(f"/api/v1/semantic/backfill?book_id={test_book.id}")
+
+        assert response.status_code == status.HTTP_202_ACCEPTED, response.text
+        assert response.json()["batch"]["reference_id"] == str(test_book.id)
+        assert embedded_ids(job_queue.enqueued) == {wanted.id}
+
+    async def test_returns_404_for_another_users_book(
+        self,
+        client: AsyncClient,
+        job_queue: FakeJobQueue,
+        db_session: AsyncSession,
+        other_user: User,
+    ) -> None:
+        private = await create_test_book(db_session, other_user.id, title="Private")
+        await plant_highlight(db_session, private, "not yours")
+
+        with embeddings_enabled():
+            response = await client.post(f"/api/v1/semantic/backfill?book_id={private.id}")
+
+        assert response.status_code == status.HTTP_404_NOT_FOUND
+        assert job_queue.enqueued == []
+
 
 class TestOneBackfillAtATime:
     """The guard from issue #531: a double-tap must not double the bill."""
@@ -138,7 +193,7 @@ class TestOneBackfillAtATime:
     async def test_refuses_a_second_backfill_while_one_is_running(
         self,
         client: AsyncClient,
-        job_queue: AsyncMock,
+        job_queue: FakeJobQueue,
         test_book: Book,
         test_highlight: Highlight,
     ) -> None:
@@ -151,12 +206,12 @@ class TestOneBackfillAtATime:
         assert second.json()["error"] == "conflict"
         # The point of the guard: the refused request enqueued nothing, so the
         # units the first backfill picked up are not paid for twice.
-        assert job_queue.enqueue.await_count == 1
+        assert len(job_queue.enqueued) == 1
 
     async def test_refuses_a_book_backfill_while_a_library_one_is_running(
         self,
         client: AsyncClient,
-        job_queue: AsyncMock,
+        job_queue: FakeJobQueue,
         test_book: Book,
         test_highlight: Highlight,
     ) -> None:
@@ -166,12 +221,12 @@ class TestOneBackfillAtATime:
             scoped = await client.post(f"/api/v1/semantic/backfill?book_id={test_book.id}")
 
         assert scoped.status_code == status.HTTP_409_CONFLICT
-        assert job_queue.enqueue.await_count == 1
+        assert len(job_queue.enqueued) == 1
 
     async def test_cancelling_the_running_backfill_clears_the_way(
         self,
         client: AsyncClient,
-        job_queue: AsyncMock,
+        job_queue: FakeJobQueue,
         test_book: Book,
         test_highlight: Highlight,
     ) -> None:
@@ -198,7 +253,7 @@ class TestOneBackfillAtATime:
         self,
         client: AsyncClient,
         plugin_client: AsyncClient,
-        job_queue: AsyncMock,
+        job_queue: FakeJobQueue,
         db_session: AsyncSession,
         test_book: Book,
         test_highlight: Highlight,
@@ -217,12 +272,7 @@ class TestOneBackfillAtATime:
             await upload_highlights(plugin_client, "book-1", "fresh one", "fresh two")
 
         assert backfill.status_code == status.HTTP_202_ACCEPTED
-        uploaded = {
-            content_id
-            for call in job_queue.enqueue.await_args_list[1:]
-            for content_id in call.kwargs["content_ids"]
-        }
-        assert len(uploaded) == 2
+        assert len(embedded_ids(job_queue.enqueued[1:])) == 2
 
         batch_types = (await db_session.execute(select(JobBatchModel.batch_type))).scalars().all()
         assert sorted(batch_types) == ["content_embedding", "content_embedding_backfill"]
@@ -248,7 +298,7 @@ class TestActiveBackfillEndpoint:
     async def test_returns_the_running_backfill(
         self,
         client: AsyncClient,
-        job_queue: AsyncMock,
+        job_queue: FakeJobQueue,
         test_book: Book,
         test_highlight: Highlight,
     ) -> None:
@@ -266,7 +316,7 @@ class TestActiveBackfillEndpoint:
         self,
         client: AsyncClient,
         plugin_client: AsyncClient,
-        job_queue: AsyncMock,
+        job_queue: FakeJobQueue,
         create_book: CreateBookFunc,
     ) -> None:
         await create_book({"client_book_id": "book-1", "title": "Crime and Punishment"})
@@ -309,7 +359,7 @@ class TestBackfillReconciliation:
     async def test_enqueues_content_whose_hash_drifted_but_not_current_content(
         self,
         client: AsyncClient,
-        job_queue: AsyncMock,
+        job_queue: FakeJobQueue,
         db_session: AsyncSession,
         test_book: Book,
     ) -> None:
@@ -324,7 +374,7 @@ class TestBackfillReconciliation:
     async def test_enqueues_orphaned_embedding_so_it_gets_pruned(
         self,
         client: AsyncClient,
-        job_queue: AsyncMock,
+        job_queue: FakeJobQueue,
         db_session: AsyncSession,
         test_book: Book,
     ) -> None:

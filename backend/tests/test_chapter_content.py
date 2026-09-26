@@ -1,12 +1,11 @@
 """Tests for chapter content endpoint."""
 
-from unittest.mock import AsyncMock, patch
-
 from httpx import AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession
 from starlette import status
 
 from src.models import Book, Chapter
+from tests.fakes import FakeTextExtraction
 
 
 async def create_test_chapter(
@@ -41,6 +40,7 @@ class TestGetChapterContent:
         client: AsyncClient,
         db_session: AsyncSession,
         test_book: Book,
+        chapter_text: FakeTextExtraction,
     ) -> None:
         """Should return chapter text content from EPUB."""
         test_book.ebook_file = "test.epub"
@@ -56,20 +56,9 @@ class TestGetChapterContent:
             end_xpoint="/body/DocFragment[1]/body/div[2]",
         )
 
-        with (
-            patch(
-                "src.infrastructure.library.repositories.file_repository.FileRepository.get_epub",
-                new_callable=AsyncMock,
-            ) as mock_get_epub,
-            patch(
-                "src.infrastructure.library.services.epub_text_extraction_service."
-                "EpubTextExtractionService.extract_chapter_text"
-            ) as mock_extract,
-        ):
-            mock_get_epub.return_value = b"fake epub content"
-            mock_extract.return_value = "This is the chapter content."
+        chapter_text.text = "This is the chapter content."
 
-            response = await client.get(f"/api/v1/chapters/{chapter.id}/content")
+        response = await client.get(f"/api/v1/chapters/{chapter.id}/content")
 
         assert response.status_code == status.HTTP_200_OK
         data = response.json()

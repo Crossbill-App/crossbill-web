@@ -1,12 +1,11 @@
 """Tests for the chapter digest generation endpoint."""
 
-from unittest.mock import MagicMock
-
 from httpx import AsyncClient
 
 from src.infrastructure.ai.ai_service import MAX_CHAPTER_CONTEXT_CHARS
 from src.models import Chapter
 from tests.ai_helpers import FakeAgent
+from tests.fakes import FakeTextExtraction
 
 
 class TestGenerateChapterDigest:
@@ -15,10 +14,10 @@ class TestGenerateChapterDigest:
         client: AsyncClient,
         ai_enabled: None,
         epub_chapter: Chapter,
-        chapter_text: MagicMock,
+        chapter_text: FakeTextExtraction,
         digest_agent: FakeAgent,
     ) -> None:
-        chapter_text.return_value = "x" * (MAX_CHAPTER_CONTEXT_CHARS * 2)
+        chapter_text.text = "x" * (MAX_CHAPTER_CONTEXT_CHARS * 2)
 
         response = await client.post(f"/api/v1/chapters/{epub_chapter.id}/digest/generate")
 

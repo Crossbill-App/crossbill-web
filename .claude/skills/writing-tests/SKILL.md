@@ -20,7 +20,7 @@ through the endpoint, not the internals.
 Write a unit test (`tests/unit/`) only for pure domain logic with real branching: value
 objects, parsers, domain services (e.g. `PositionIndex`, `HighlightStyleResolver`).
 Litmus test: can you enumerate meaningful input classes without mocking anything? If the
-setup needs `AsyncMock`, the behavior belongs in an API test instead.
+setup needs a mock, the behavior belongs in an API test instead.
 
 Do NOT write mock-based tests for thin orchestration (application-layer use cases). A
 test asserting "the repository was called" mirrors the implementation: it breaks on
@@ -37,6 +37,35 @@ response = client.post("/api/notes", json={"title": "..."})
 assert response.status_code == 201
 assert response.json()["title"] == "..."
 ```
+
+## No mocks outside `tests/unit/infrastructure/`
+
+Ruff's `TID251` bans `unittest.mock` everywhere else. Only the infrastructure unit tests
+may mock, because there the thing faked is an external client (S3, SAQ).
+
+API tests stub external boundaries with the hand-written fakes in `tests/fakes.py` plus
+pytest's `monkeypatch`:
+
+- `FakeJobQueue` (the `job_queue` fixture) records `enqueued` jobs and `aborted` keys,
+  checks each enqueue against the real SAQ task signature, and fails on demand via
+  `fail_after`.
+- `FakeEmbeddingClient` returns fixed vectors and records `calls`.
+- `FakeTextExtraction` + `StubFileRepository` (the `chapter_text` fixture): set `.text`.
+- `FakeAgent` (`tests/ai_helpers.py`) stands in for the pydantic-ai agents via the
+  `digest_agent`/`quiz_agent`/`chat_agent`/`flashcard_agent` fixtures.
+
+A use case no endpoint reaches (a worker task's) is driven directly with its real
+adapters and only the external client faked — see `test_content_embedding_generation.py`.
+
+What remains in `tests/unit/application/`, and why:
+
+- `semantic/queries/test_ranking.py`: pure ranking rules with threshold edge cases.
+- `web_reader/test_publication_positions.py`: pure position-list arithmetic.
+- `web_reader/test_get_resume_position_use_case.py`: the mixed-timezone pair SQLite
+  cannot store, so no API test can build it.
+- `identity/.../test_authenticate_user_use_case.py`: every login verifies exactly one
+  hash (the dummy one for unknown or passwordless users) — a timing rule invisible
+  through the API, spied at the password-service seam.
 
 ## Assertion depth in API tests
 

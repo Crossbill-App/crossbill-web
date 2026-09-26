@@ -5,6 +5,10 @@ from typing import Any
 
 from pydantic_ai import ModelMessage
 from pydantic_ai.messages import ModelRequest, ModelResponse, TextPart, UserPromptPart
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from src.models import AIChatSession as AIChatSessionModel
 
 FAKE_MODEL_NAME = "fake-model"
 
@@ -61,3 +65,18 @@ def digest_output(
             for question, answer in (questions if questions is not None else [("Q?", "A.")])
         ],
     )
+
+
+def flashcard_output(cards: list[tuple[str, str]]) -> list[SimpleNamespace]:
+    """The shape ``generate_flashcard_suggestions`` unpacks out of its agent's output."""
+    return [SimpleNamespace(question=question, answer=answer) for question, answer in cards]
+
+
+async def seeded_history(db_session: AsyncSession, session_id: int) -> str:
+    """The message history the endpoint stored, as one searchable string."""
+    session = (
+        await db_session.execute(
+            select(AIChatSessionModel).where(AIChatSessionModel.id == session_id)
+        )
+    ).scalar_one()
+    return str(session.message_history)

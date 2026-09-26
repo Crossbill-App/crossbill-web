@@ -1,7 +1,6 @@
 """Tests that the DI container resolves a per-context database session."""
 
 import asyncio
-from unittest.mock import MagicMock
 
 import pytest
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -11,7 +10,7 @@ from src.database import bind_db_session, current_db_session
 
 
 def _fake_session() -> AsyncSession:
-    return MagicMock(spec=AsyncSession)
+    return AsyncSession()
 
 
 def test_resolving_without_a_binding_is_an_error() -> None:

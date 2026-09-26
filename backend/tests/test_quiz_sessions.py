@@ -1,14 +1,13 @@
 """Tests for quiz session endpoints."""
 
-from unittest.mock import AsyncMock, MagicMock, patch
-
 from httpx import AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.infrastructure.ai.ai_service import MAX_CHAPTER_CONTEXT_CHARS
 from src.models import AIChatSession as AIChatSessionModel
 from src.models import Book, Chapter
-from tests.ai_helpers import FakeAgent
+from tests.ai_helpers import FakeAgent, seeded_history
+from tests.fakes import FakeTextExtraction
 
 
 class TestCreateQuizSession:
@@ -17,10 +16,10 @@ class TestCreateQuizSession:
         client: AsyncClient,
         ai_enabled: None,
         epub_chapter: Chapter,
-        chapter_text: MagicMock,
+        chapter_text: FakeTextExtraction,
         quiz_agent: FakeAgent,
     ) -> None:
-        chapter_text.return_value = "Chapter content here"
+        chapter_text.text = "Chapter content here"
 
         response = await client.post(f"/api/v1/chapters/{epub_chapter.id}/quiz-sessions")
 
@@ -34,10 +33,10 @@ class TestCreateQuizSession:
         client: AsyncClient,
         ai_enabled: None,
         epub_chapter: Chapter,
-        chapter_text: MagicMock,
+        chapter_text: FakeTextExtraction,
         quiz_agent: FakeAgent,
     ) -> None:
-        chapter_text.return_value = "x" * (MAX_CHAPTER_CONTEXT_CHARS * 2)
+        chapter_text.text = "x" * (MAX_CHAPTER_CONTEXT_CHARS * 2)
 
         response = await client.post(f"/api/v1/chapters/{epub_chapter.id}/quiz-sessions")
 
@@ -73,33 +72,26 @@ class TestSendQuizMessage:
         )
         assert response.status_code == 422
 
-    @patch(
-        "src.infrastructure.ai.ai_service.AIService.continue_quiz",
-        new_callable=AsyncMock,
-    )
     async def test_send_message_success(
         self,
-        mock_continue_quiz: AsyncMock,
         client: AsyncClient,
         ai_enabled: None,
         db_session: AsyncSession,
         test_book: Book,
         epub_chapter: Chapter,
+        quiz_agent: FakeAgent,
     ) -> None:
         ai_chat_session = AIChatSessionModel(
             user_id=1,
             chapter_id=epub_chapter.id,
             session_type="quiz",
-            message_history=[{"some": "history"}],
+            message_history=[],
         )
         db_session.add(ai_chat_session)
         await db_session.commit()
         await db_session.refresh(ai_chat_session)
 
-        mock_continue_quiz.return_value = (
-            "Good answer! **Question 2/5:** What happened next?",
-            [{"updated": "history"}],
-        )
+        quiz_agent.output = "Good answer! **Question 2/5:** What happened next?"
 
         response = await client.post(
             f"/api/v1/quiz-sessions/{ai_chat_session.id}/messages",
@@ -108,3 +100,5 @@ class TestSendQuizMessage:
         assert response.status_code == 200
         data = response.json()
         assert "Question 2/5" in data["message"]
+        assert quiz_agent.received_prompts == ["The main topic is testing"]
+        assert "The main topic is testing" in await seeded_history(db_session, ai_chat_session.id)

@@ -8,11 +8,11 @@ here stops the two files repeating each other -- and stops them drifting on what
 
 import hashlib
 from collections.abc import Iterator
-from contextlib import AbstractContextManager, ExitStack, contextmanager
+from contextlib import AbstractContextManager, contextmanager
 from datetime import UTC, datetime
 from typing import Any
-from unittest.mock import AsyncMock, patch
 
+import pytest
 from httpx import AsyncClient, Response
 from httpx._types import PrimitiveData
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -23,6 +23,7 @@ from src.config import get_settings
 from src.infrastructure.notes.orm.associations import note_books
 from src.models import Book, Chapter, ChapterDigest, Embedding, Highlight, Note
 from tests.conftest import create_test_highlight
+from tests.fakes import EnqueuedJob, FakeJobQueue
 
 #: Patch targets for the feature flag, one per module that imported the name:
 #: the semantic routers' gate decorator, and the search use case that skips its
@@ -31,6 +32,8 @@ ENABLED_TARGETS = (
     "src.infrastructure.common.dependencies.is_embeddings_enabled",
     "src.application.semantic.queries.global_search_use_case.is_embeddings_enabled",
 )
+
+EMBEDDING_TASK = "generate_content_embeddings"
 
 #: The model an "indexed" fixture is indexed under, and the one the gate below
 #: configures. One constant rather than whatever the ambient config happens to
@@ -71,9 +74,9 @@ def _embedding_provider(provider: str | None) -> Iterator[None]:
     )
     container.shared.reset_singletons()
     try:
-        with ExitStack() as flags:
+        with pytest.MonkeyPatch.context() as flags:
             for target in ENABLED_TARGETS:
-                flags.enter_context(patch(target, return_value=provider is not None))
+                flags.setattr(target, lambda: provider is not None)
             yield
     finally:
         container.settings.reset_last_overriding()
@@ -313,7 +316,7 @@ async def related_groups(client: AsyncClient, **params: PrimitiveData) -> dict[s
     return response.json()
 
 
-async def backfill_enqueued_ids(client: AsyncClient, queue: AsyncMock) -> set[int]:
+async def backfill_enqueued_ids(client: AsyncClient, queue: FakeJobQueue) -> set[int]:
     """Run a backfill and return the content ids it enqueued, across every slice.
 
     Also pins the invariant that the batch is sized to the number of *jobs*
@@ -324,7 +327,17 @@ async def backfill_enqueued_ids(client: AsyncClient, queue: AsyncMock) -> set[in
         response = await client.post("/api/v1/semantic/backfill")
 
     assert response.status_code == status.HTTP_202_ACCEPTED, response.text
-    calls = queue.enqueue.await_args_list
-    enqueued = {content_id for call in calls for content_id in call.kwargs["content_ids"]}
-    assert response.json()["total_jobs"] == len(calls)
-    return enqueued
+    jobs = queue.jobs(EMBEDDING_TASK)
+    assert response.json()["total_jobs"] == len(jobs)
+    return embedded_ids(jobs)
+
+
+def embedded_ids(jobs: list[EnqueuedJob]) -> set[int]:
+    """Every content id the given embedding jobs cover."""
+    return {content_id for job in jobs for content_id in job_content_ids(job)}
+
+
+def job_content_ids(job: EnqueuedJob) -> list[int]:
+    content_ids = job.kwargs["content_ids"]
+    assert isinstance(content_ids, list)
+    return [int(content_id) for content_id in content_ids]

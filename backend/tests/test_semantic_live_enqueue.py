@@ -8,9 +8,7 @@ that a queue which is off or broken never costs the user their write.
 production reads through two doors; the helper closes both.
 """
 
-from collections.abc import AsyncGenerator
 from typing import Any
-from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 from httpx import AsyncClient
@@ -19,11 +17,12 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from starlette import status
 
 from src import models
-from src.application.reading.protocols.ai_digest_service import DigestResult
-from src.domain.reading.entities.chapter_digest import DigestQuestion
 from src.models import Book, Chapter, Note
+from tests.ai_helpers import FakeAgent, digest_output
 from tests.conftest import CreateBookFunc, create_test_chapter
+from tests.fakes import FakeJobQueue, FakeTextExtraction
 from tests.semantic_helpers import (
+    EMBEDDING_TASK,
     embeddings_disabled,
     embeddings_enabled,
     upload_highlights,
@@ -37,12 +36,11 @@ SLICE_SIZE = "src.application.semantic.batching.EMBEDDING_SLICE_SIZE"
 REHIGHLIGHTED_TEXT = "first idea"
 
 
-def embedding_calls(job_queue: AsyncMock) -> list[dict[str, Any]]:
-    """The kwargs of every embedding enqueue, ignoring any other task."""
+def embedding_calls(job_queue: FakeJobQueue) -> list[dict[str, Any]]:
+    """The arguments of every embedding enqueue, ignoring any other task."""
     return [
-        call.kwargs
-        for call in job_queue.enqueue.await_args_list
-        if call.args and call.args[0] == "generate_content_embeddings"
+        {"retries": job.retries, "timeout_seconds": job.timeout_seconds, **job.kwargs}
+        for job in job_queue.jobs(EMBEDDING_TASK)
     ]
 
 
@@ -56,12 +54,12 @@ async def create_note(client: AsyncClient, book: Book) -> dict[str, Any]:
 
 
 async def upload_one_highlight(
-    plugin_client: AsyncClient, db_session: AsyncSession, job_queue: AsyncMock
+    plugin_client: AsyncClient, db_session: AsyncSession, job_queue: FakeJobQueue
 ) -> models.Highlight:
     """Upload REHIGHLIGHTED_TEXT and hand back its row, with the queue reset after."""
     await upload_highlights(plugin_client, "book-1", REHIGHLIGHTED_TEXT)
     stored = (await db_session.execute(select(models.Highlight))).scalars().one()
-    job_queue.enqueue.reset_mock()
+    job_queue.enqueued.clear()
     return stored
 
 
@@ -89,7 +87,11 @@ async def rehighlight(
 
 class TestNoteWrites:
     async def test_create_enqueues_one_bare_job_for_the_note(
-        self, client: AsyncClient, job_queue: AsyncMock, db_session: AsyncSession, test_book: Book
+        self,
+        client: AsyncClient,
+        job_queue: FakeJobQueue,
+        db_session: AsyncSession,
+        test_book: Book,
     ) -> None:
         """One job, and no batch: a single edit has no progress worth tracking.
 
@@ -113,7 +115,7 @@ class TestNoteWrites:
         assert batches == []
 
     async def test_update_re_enqueues_the_edited_note(
-        self, client: AsyncClient, job_queue: AsyncMock, test_book: Book
+        self, client: AsyncClient, job_queue: FakeJobQueue, test_book: Book
     ) -> None:
         with embeddings_enabled():
             note = await create_note(client, test_book)
@@ -130,7 +132,11 @@ class TestNoteWrites:
         ]
 
     async def test_nothing_is_enqueued_while_embeddings_are_disabled(
-        self, client: AsyncClient, job_queue: AsyncMock, db_session: AsyncSession, test_book: Book
+        self,
+        client: AsyncClient,
+        job_queue: FakeJobQueue,
+        db_session: AsyncSession,
+        test_book: Book,
     ) -> None:
         """A server with no embedding provider: the note is written, just not indexed."""
         with embeddings_disabled():
@@ -143,14 +149,18 @@ class TestNoteWrites:
         assert stored is not None
 
     async def test_a_broken_queue_does_not_fail_the_write(
-        self, client: AsyncClient, job_queue: AsyncMock, db_session: AsyncSession, test_book: Book
+        self,
+        client: AsyncClient,
+        job_queue: FakeJobQueue,
+        db_session: AsyncSession,
+        test_book: Book,
     ) -> None:
         """The whole point of the seam: a missed embedding costs a backfill, not a note.
 
         Backfill reconciles whatever this drops, so swallowing is the correct
         behaviour rather than a shortcut.
         """
-        job_queue.enqueue.side_effect = RuntimeError("redis is down")
+        job_queue.fail_after = 0
 
         with embeddings_enabled():
             note = await create_note(client, test_book)
@@ -166,7 +176,7 @@ class TestHighlightUpload:
     async def test_enqueues_a_batch_covering_exactly_the_created_highlights(
         self,
         plugin_client: AsyncClient,
-        job_queue: AsyncMock,
+        job_queue: FakeJobQueue,
         db_session: AsyncSession,
         create_book: CreateBookFunc,
     ) -> None:
@@ -184,7 +194,7 @@ class TestHighlightUpload:
         assert {call["content_type"] for call in calls} == {"highlight"}
 
     async def test_skipped_duplicates_are_not_re_enqueued(
-        self, plugin_client: AsyncClient, job_queue: AsyncMock, create_book: CreateBookFunc
+        self, plugin_client: AsyncClient, job_queue: FakeJobQueue, create_book: CreateBookFunc
     ) -> None:
         """A KOReader sync resends the whole book, so this is the common case.
 
@@ -196,7 +206,7 @@ class TestHighlightUpload:
 
         with embeddings_enabled():
             await upload_highlights(plugin_client, "book-1", "first idea")
-            job_queue.enqueue.reset_mock()
+            job_queue.enqueued.clear()
             second = await upload_highlights(plugin_client, "book-1", "first idea", "second idea")
 
         assert (second["highlights_created"], second["highlights_skipped"]) == (1, 1)
@@ -206,14 +216,16 @@ class TestHighlightUpload:
     async def test_batch_is_sized_to_slices_not_units(
         self,
         plugin_client: AsyncClient,
-        job_queue: AsyncMock,
+        job_queue: FakeJobQueue,
         db_session: AsyncSession,
         create_book: CreateBookFunc,
+        monkeypatch: pytest.MonkeyPatch,
     ) -> None:
         """Five highlights at two per slice is three jobs, and the batch says three."""
         await create_book({"client_book_id": "book-1", "title": "Crime and Punishment"})
+        monkeypatch.setattr(SLICE_SIZE, 2)
 
-        with embeddings_enabled(), patch(SLICE_SIZE, 2):
+        with embeddings_enabled():
             await upload_highlights(plugin_client, "book-1", "a", "b", "c", "d", "e")
 
         calls = embedding_calls(job_queue)
@@ -227,12 +239,12 @@ class TestHighlightUpload:
     async def test_a_broken_queue_does_not_fail_the_upload(
         self,
         plugin_client: AsyncClient,
-        job_queue: AsyncMock,
+        job_queue: FakeJobQueue,
         db_session: AsyncSession,
         create_book: CreateBookFunc,
     ) -> None:
         await create_book({"client_book_id": "book-1", "title": "Crime and Punishment"})
-        job_queue.enqueue.side_effect = RuntimeError("redis is down")
+        job_queue.fail_after = 0
 
         with embeddings_enabled():
             result = await upload_highlights(plugin_client, "book-1", "first idea", "second idea")
@@ -245,7 +257,7 @@ class TestHighlightUpload:
         self,
         client: AsyncClient,
         plugin_client: AsyncClient,
-        job_queue: AsyncMock,
+        job_queue: FakeJobQueue,
         db_session: AsyncSession,
         create_book: CreateBookFunc,
     ) -> None:
@@ -260,7 +272,7 @@ class TestHighlightUpload:
                 json={"highlight_ids": [stored.id]},
             )
             assert deletion.json()["deleted_count"] == 1
-            job_queue.enqueue.reset_mock()
+            job_queue.enqueued.clear()
 
             revived = await rehighlight(plugin_client)
 
@@ -270,7 +282,7 @@ class TestHighlightUpload:
     async def test_a_highlight_only_returned_to_devices_is_not_enqueued_again(
         self,
         plugin_client: AsyncClient,
-        job_queue: AsyncMock,
+        job_queue: FakeJobQueue,
         db_session: AsyncSession,
         create_book: CreateBookFunc,
     ) -> None:
@@ -285,13 +297,13 @@ class TestHighlightUpload:
         assert embedding_calls(job_queue) == []
 
     async def test_an_upload_that_creates_nothing_enqueues_nothing(
-        self, plugin_client: AsyncClient, job_queue: AsyncMock, create_book: CreateBookFunc
+        self, plugin_client: AsyncClient, job_queue: FakeJobQueue, create_book: CreateBookFunc
     ) -> None:
         await create_book({"client_book_id": "book-1", "title": "Crime and Punishment"})
 
         with embeddings_enabled():
             await upload_highlights(plugin_client, "book-1", "first idea")
-            job_queue.enqueue.reset_mock()
+            job_queue.enqueued.clear()
             repeat = await upload_highlights(plugin_client, "book-1", "first idea")
 
         assert repeat["highlights_created"] == 0
@@ -300,16 +312,17 @@ class TestHighlightUpload:
 
 @pytest.fixture
 async def digest_chapter(
-    db_session: AsyncSession, test_book: Book
-) -> AsyncGenerator[Chapter, None]:
+    db_session: AsyncSession,
+    test_book: Book,
+    ai_enabled: None,
+    chapter_text: FakeTextExtraction,
+    digest_agent: FakeAgent,
+) -> Chapter:
     """A chapter that ``POST /chapters/{id}/digest/generate`` can actually digest.
 
-    Needs an EPUB-backed book and chapter positions; the AI call and the text
-    extraction are faked on the container so the endpoint is exercised without a
-    model or a real EPUB.
+    Needs an EPUB-backed book and chapter positions; the model and the text
+    extraction are faked so the endpoint is exercised without either.
     """
-    from src.core import container  # noqa: PLC0415
-
     test_book.file_type = "epub"
     test_book.ebook_file = "book.epub"
     chapter = await create_test_chapter(db_session, test_book, "Part One", chapter_number=1)
@@ -317,44 +330,28 @@ async def digest_chapter(
     chapter.end_xpoint = "/body/DocFragment[2]"
     await db_session.commit()
 
-    # MagicMock, not AsyncMock: extract_chapter_text is a synchronous protocol
-    # method, and the text is comfortably past the use case's 50-character floor
-    # for "worth digesting".
-    extraction = MagicMock()
-    extraction.extract_chapter_text.return_value = (
+    # Comfortably past the use case's 50-character floor for "worth digesting".
+    chapter_text.text = (
         "Raskolnikov paces his garret and talks himself into the theory that "
         "some men are permitted to step over the line."
     )
-
-    ai_service = AsyncMock()
-    ai_service.generate_digest.return_value = DigestResult(
+    digest_agent.output = digest_output(
         summary="Raskolnikov commits the murder",
         keypoints=["Poverty", "Theory of the extraordinary man"],
-        questions=[DigestQuestion(question="Why?", answer="Pride")],
+        questions=[("Why?", "Pride")],
     )
-
-    file_repo = AsyncMock()
-    file_repo.get_epub.return_value = b"PK\x03\x04 not really an epub"
-
-    container.shared.ebook_text_extraction_service.override(extraction)
-    container.shared.ai_service.override(ai_service)
-    container.shared.file_repository.override(file_repo)
-    yield chapter
-    container.shared.file_repository.reset_last_overriding()
-    container.shared.ai_service.reset_last_overriding()
-    container.shared.ebook_text_extraction_service.reset_last_overriding()
+    return chapter
 
 
 async def generate_chapter_digest(client: AsyncClient, chapter: Chapter) -> dict[str, Any]:
-    with patch("src.infrastructure.common.dependencies.is_ai_enabled", return_value=True):
-        response = await client.post(f"/api/v1/chapters/{chapter.id}/digest/generate")
+    response = await client.post(f"/api/v1/chapters/{chapter.id}/digest/generate")
     assert response.status_code == status.HTTP_201_CREATED, response.text
     return response.json()
 
 
 class TestDigestGeneration:
     async def test_enqueues_the_generated_digest(
-        self, client: AsyncClient, job_queue: AsyncMock, digest_chapter: Chapter, test_book: Book
+        self, client: AsyncClient, job_queue: FakeJobQueue, digest_chapter: Chapter, test_book: Book
     ) -> None:
         with embeddings_enabled():
             digest = await generate_chapter_digest(client, digest_chapter)
@@ -371,12 +368,12 @@ class TestDigestGeneration:
         ]
 
     async def test_answering_the_questions_does_not_re_enqueue(
-        self, client: AsyncClient, job_queue: AsyncMock, digest_chapter: Chapter
+        self, client: AsyncClient, job_queue: FakeJobQueue, digest_chapter: Chapter
     ) -> None:
         """Only summary and keypoints are embedded, so an answer cannot stale it."""
         with embeddings_enabled():
             await generate_chapter_digest(client, digest_chapter)
-            job_queue.enqueue.reset_mock()
+            job_queue.enqueued.clear()
             response = await client.put(
                 f"/api/v1/chapters/{digest_chapter.id}/digest/answers",
                 json={"answers": [{"question_index": 0, "user_answer": "Poverty"}]},
@@ -386,9 +383,9 @@ class TestDigestGeneration:
         assert embedding_calls(job_queue) == []
 
     async def test_a_broken_queue_does_not_fail_the_generation(
-        self, client: AsyncClient, job_queue: AsyncMock, digest_chapter: Chapter
+        self, client: AsyncClient, job_queue: FakeJobQueue, digest_chapter: Chapter
     ) -> None:
-        job_queue.enqueue.side_effect = RuntimeError("redis is down")
+        job_queue.fail_after = 0
 
         with embeddings_enabled():
             digest = await generate_chapter_digest(client, digest_chapter)
