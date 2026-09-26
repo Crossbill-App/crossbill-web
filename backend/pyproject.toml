@@ -90,6 +90,7 @@ select = [
   "ICN",   # flake8-import-conventions
   "PIE",   # flake8-pie
   "PT",    # flake8-pytest-style
+  "TID251", # flake8-tidy-imports banned-api
   "Q",     # flake8-quotes
   "RSE",   # flake8-raise
   "RET",   # flake8-return
@@ -112,6 +113,9 @@ ignore = [
   "UP047",   # Generic function should use type parameters
 ]
 
+[tool.ruff.lint.flake8-tidy-imports.banned-api]
+"unittest.mock".msg = "Mocks are allowed only in tests/unit/infrastructure/. Use an API test, a hand-written fake or monkeypatch instead (see the writing-tests skill)."
+
 [tool.ruff.lint.per-file-ignores]
 "tests/**/*.py" = [
   "S101",     # Use of assert in tests
@@ -125,6 +129,9 @@ ignore = [
 "tests/test_epub_toc_chapters.py" = [
   "ANN001", # Missing type annotation for function argument
   "ANN201", # Missing return type annotation for public function
+]
+"tests/unit/infrastructure/**/*.py" = [
+  "TID251", # external clients (S3, SAQ) are mocked at this tier by design
 ]
 "src/**/routers/*.py" = [
   "B008", # FastAPI Depends() in argument defaults is intentional
