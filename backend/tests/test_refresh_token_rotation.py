@@ -265,6 +265,26 @@ async def test_logout_without_a_session_still_succeeds(auth_client: AsyncClient)
     response = await auth_client.post("/api/v1/auth/logout")
 
     assert response.status_code == 200, response.text
+    assert response.json() == {"message": "Logged out successfully"}
+    assert "refresh_token=" in response.headers["set-cookie"]
+    assert "Max-Age=0" in response.headers["set-cookie"]
+
+
+async def test_logout_ends_only_the_session_it_came_from(
+    auth_client: AsyncClient, test_user: User
+) -> None:
+    await _login(auth_client, test_user)
+    first = _cookie(auth_client)
+    await _login(auth_client, test_user)
+    second = _cookie(auth_client)
+
+    _present(auth_client, first)
+    assert (await auth_client.post("/api/v1/auth/logout")).status_code == 200
+
+    _present(auth_client, second)
+    assert (await auth_client.post("/api/v1/auth/refresh")).status_code == 200
+    _present(auth_client, first)
+    assert (await auth_client.post("/api/v1/auth/refresh")).status_code == 401
 
 
 async def test_logout_with_a_forged_token_revokes_nothing(

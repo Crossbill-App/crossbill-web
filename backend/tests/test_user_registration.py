@@ -27,6 +27,13 @@ async def register(client: AsyncClient) -> dict[str, object]:
     return response.json()
 
 
+async def email_of(client: AsyncClient, access_token: object) -> str:
+    """The email of the account ``access_token`` authenticates."""
+    me = await client.get("/api/v1/users/me", headers={"Authorization": f"Bearer {access_token}"})
+    assert me.status_code == status.HTTP_200_OK, me.text
+    return me.json()["email"]
+
+
 async def test_registration_signs_the_new_account_in(
     browser_client: AsyncClient, monkeypatch: pytest.MonkeyPatch
 ) -> None:
@@ -34,11 +41,7 @@ async def test_registration_signs_the_new_account_in(
 
     tokens = await register(browser_client)
 
-    me = await browser_client.get(
-        "/api/v1/users/me", headers={"Authorization": f"Bearer {tokens['access_token']}"}
-    )
-    assert me.status_code == status.HTTP_200_OK, me.text
-    assert me.json()["email"] == EMAIL
+    assert await email_of(browser_client, tokens["access_token"]) == EMAIL
 
 
 async def test_registration_stores_a_refresh_token_that_rotates(
@@ -64,6 +67,7 @@ async def test_the_registered_password_logs_in(
     )
 
     assert response.status_code == status.HTTP_200_OK, response.text
+    assert await email_of(browser_client, response.json()["access_token"]) == EMAIL
 
 
 async def test_registration_is_refused_while_disabled(
