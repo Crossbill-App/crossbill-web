@@ -10,8 +10,8 @@ from starlette import status
 
 from src.domain.jobs.entities.job_batch import JobBatchStatus, JobBatchType
 from src.infrastructure.jobs.orm.job_batch_model import JobBatchModel
-from src.models import Book, Highlight, User
-from tests.conftest import CreateBookFunc, create_test_highlight
+from src.models import Book, Highlight, Note, User
+from tests.conftest import CreateBookFunc, create_test_book, create_test_highlight
 from tests.fakes import FakeJobQueue
 from tests.semantic_helpers import (
     EMBEDDING_TASK,
@@ -29,6 +29,20 @@ OTHER_USER_ID = 2
 #: Patch target for the slice size, so a test can force several slices without
 #: planting 33 highlights to get past the real one.
 SLICE_SIZE = "src.application.semantic.batching.EMBEDDING_SLICE_SIZE"
+
+
+async def plant_highlight(db: AsyncSession, book: Book, text: str) -> Highlight:
+    return await create_test_highlight(
+        db, book, book.user_id, text=text, datetime_str="2024-01-15 14:30:22"
+    )
+
+
+async def plant_note(db: AsyncSession, book: Book, title: str) -> Note:
+    note = Note(user_id=book.user_id, title=title, books=[book])
+    db.add(note)
+    await db.commit()
+    await db.refresh(note)
+    return note
 
 
 class TestBackfillEndpoint:
@@ -140,6 +154,60 @@ class TestBackfillEndpoint:
         assert data["total_jobs"] == 3
         assert data["batch"]["failed_jobs"] == 2
         assert data["batch"]["status"] == "running"
+
+    async def test_gives_each_content_type_its_own_jobs(
+        self,
+        client: AsyncClient,
+        job_queue: FakeJobQueue,
+        db_session: AsyncSession,
+        test_book: Book,
+    ) -> None:
+        """A job resolves its ids through one type's table, so a mixed slice would lose rows."""
+        first_note = await plant_note(db_session, test_book, "First")
+        highlight = await plant_highlight(db_session, test_book, "a highlight")
+        second_note = await plant_note(db_session, test_book, "Second")
+
+        await backfill_enqueued_ids(client, job_queue)
+
+        by_type = {
+            job.kwargs["content_type"]: job_content_ids(job)
+            for job in job_queue.jobs(EMBEDDING_TASK)
+        }
+        assert by_type == {"note": [first_note.id, second_note.id], "highlight": [highlight.id]}
+
+
+class TestBookScopedBackfill:
+    async def test_enqueues_only_the_books_content(
+        self,
+        client: AsyncClient,
+        job_queue: FakeJobQueue,
+        db_session: AsyncSession,
+        test_book: Book,
+    ) -> None:
+        other_book = await create_test_book(db_session, test_book.user_id, title="Other")
+        wanted = await plant_highlight(db_session, test_book, "in scope")
+        await plant_highlight(db_session, other_book, "out of scope")
+
+        with embeddings_enabled():
+            response = await client.post(f"/api/v1/semantic/backfill?book_id={test_book.id}")
+
+        assert response.status_code == status.HTTP_202_ACCEPTED, response.text
+        assert response.json()["batch"]["reference_id"] == str(test_book.id)
+        assert embedded_ids(job_queue.enqueued) == {wanted.id}
+
+    async def test_returns_404_for_another_users_book(
+        self, client: AsyncClient, job_queue: FakeJobQueue, db_session: AsyncSession
+    ) -> None:
+        db_session.add(User(id=OTHER_USER_ID, email="other@test.com"))
+        await db_session.commit()
+        private = await create_test_book(db_session, OTHER_USER_ID, title="Private")
+        await plant_highlight(db_session, private, "not yours")
+
+        with embeddings_enabled():
+            response = await client.post(f"/api/v1/semantic/backfill?book_id={private.id}")
+
+        assert response.status_code == status.HTTP_404_NOT_FOUND
+        assert job_queue.enqueued == []
 
 
 class TestOneBackfillAtATime:
