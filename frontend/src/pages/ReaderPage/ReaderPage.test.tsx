@@ -1010,6 +1010,15 @@ test('a highlight opened in the reader offers no way into the reader', async () 
   expect(dialog.getByRole('link', { name: 'Open in reader' }).query()).toBeNull();
 });
 
+test('a note can be added to a highlight opened in the reader', async () => {
+  const screen = await aBookWithAPaintedHighlight();
+
+  await tapTheHighlight();
+  await screen.getByRole('dialog').getByRole('button', { name: 'Add note' }).click();
+
+  await expect.element(screen.getByRole('dialog', { name: 'New note' })).toBeVisible();
+});
+
 test('closing a tapped highlight goes back to the book', async () => {
   const screen = await aBookWithAPaintedHighlight();
   const before = historyIndex(screen);

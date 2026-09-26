@@ -3,8 +3,10 @@ import { useGetTags } from '@/api/generated/tags/tags.ts';
 import { targetOf } from '@/components/reader/opening/useReaderLanding.ts';
 import { ReaderShell } from '@/components/reader/ReaderShell.tsx';
 import { useResetOnChange } from '@/hooks/useResetOnChange.ts';
+import { BookPageProvider } from '@/pages/BookPage/BookPageContext.tsx';
 import { HighlightViewDialog } from '@/pages/BookPage/Highlights/HighlightViewDialog';
 import { useHighlightDialog } from '@/pages/BookPage/Highlights/hooks/useHighlightDialog.ts';
+import { useMediaQuery, useTheme } from '@mui/material';
 import { useNavigate, useParams, useSearch } from '@tanstack/react-router';
 import { keyBy } from 'lodash';
 import { useEffect, useMemo, useState } from 'react';
@@ -23,6 +25,8 @@ export const ReaderPage = () => {
   );
   // `isMobile` only scrolls a list back to the highlight on close, and there is no list here.
   const highlightDialog = useHighlightDialog({ allHighlights: highlights ?? [], isMobile: false });
+  const theme = useTheme();
+  const isDesktop = useMediaQuery(theme.breakpoints.up('lg'));
 
   return (
     <>
@@ -33,13 +37,25 @@ export const ReaderPage = () => {
         target={arrival}
         onClose={() => void navigate({ to: '/book/$bookId', params: { bookId: String(bookId) } })}
       />
-      {arrival === null && highlightDialog.activeItem && (
-        <HighlightViewDialog
-          controller={highlightDialog}
-          bookId={Number(bookId)}
-          availableTags={tagsResponse?.items ?? []}
-          bookmarksByHighlightId={bookmarksByHighlightId}
-        />
+      {/* The dialog's notes read the book from the book page's context. The reader
+          has no sidebars or fab column, so those portals stay empty. */}
+      {arrival === null && book && highlightDialog.activeItem && (
+        <BookPageProvider
+          value={{
+            book,
+            isDesktop,
+            leftSidebarEl: null,
+            rightSidebarEl: null,
+            fabContainerEl: null,
+          }}
+        >
+          <HighlightViewDialog
+            controller={highlightDialog}
+            bookId={Number(bookId)}
+            availableTags={tagsResponse?.items ?? []}
+            bookmarksByHighlightId={bookmarksByHighlightId}
+          />
+        </BookPageProvider>
       )}
     </>
   );
