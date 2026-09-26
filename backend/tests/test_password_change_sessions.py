@@ -14,6 +14,23 @@ from src.infrastructure.identity.repositories.refresh_token_repository import (
 from src.infrastructure.identity.services.password_service import hash_password
 
 
+async def save_session(repository: RefreshTokenRepository, user: User, name: str) -> None:
+    await repository.save(
+        RefreshToken.create(
+            jti=f"jti-{name}",
+            user_id=UserId(user.id),
+            family_id=f"family-{name}",
+            expires_at=datetime.now(UTC) + timedelta(days=30),
+        )
+    )
+
+
+async def is_revoked(repository: RefreshTokenRepository, name: str) -> bool:
+    token = await repository.find_by_jti(f"jti-{name}")
+    assert token is not None
+    return token.is_revoked
+
+
 async def test_password_change_revokes_a_stolen_refresh_token(
     client: AsyncClient, db_session: AsyncSession, test_user: User
 ) -> None:
@@ -21,14 +38,7 @@ async def test_password_change_revokes_a_stolen_refresh_token(
     await db_session.commit()
 
     repository = RefreshTokenRepository(db_session)
-    await repository.save(
-        RefreshToken.create(
-            jti="jti-stolen",
-            user_id=UserId(test_user.id),
-            family_id="family-stolen",
-            expires_at=datetime.now(UTC) + timedelta(days=30),
-        )
-    )
+    await save_session(repository, test_user, "stolen")
 
     # Re-load: the commits above leave test_user's attributes expired, and the
     # auth fixture reads them while solving dependencies.
@@ -40,9 +50,7 @@ async def test_password_change_revokes_a_stolen_refresh_token(
     )
 
     assert response.status_code == 200
-    stolen = await repository.find_by_jti("jti-stolen")
-    assert stolen is not None
-    assert stolen.is_revoked
+    assert await is_revoked(repository, "stolen")
 
 
 async def test_wrong_current_password_leaves_sessions_intact(
@@ -52,14 +60,7 @@ async def test_wrong_current_password_leaves_sessions_intact(
     await db_session.commit()
 
     repository = RefreshTokenRepository(db_session)
-    await repository.save(
-        RefreshToken.create(
-            jti="jti-live",
-            user_id=UserId(test_user.id),
-            family_id="family-live",
-            expires_at=datetime.now(UTC) + timedelta(days=30),
-        )
-    )
+    await save_session(repository, test_user, "live")
 
     await db_session.refresh(test_user)
 
@@ -69,23 +70,14 @@ async def test_wrong_current_password_leaves_sessions_intact(
     )
 
     assert response.status_code == 401
-    live = await repository.find_by_jti("jti-live")
-    assert live is not None
-    assert not live.is_revoked
+    assert not await is_revoked(repository, "live")
 
 
 async def test_email_change_leaves_sessions_intact(
     client: AsyncClient, db_session: AsyncSession, test_user: User
 ) -> None:
     repository = RefreshTokenRepository(db_session)
-    await repository.save(
-        RefreshToken.create(
-            jti="jti-live",
-            user_id=UserId(test_user.id),
-            family_id="family-live",
-            expires_at=datetime.now(UTC) + timedelta(days=30),
-        )
-    )
+    await save_session(repository, test_user, "live")
 
     response = await client.post("/api/v1/users/me", json={"email": "renamed@example.com"})
 
@@ -93,9 +85,7 @@ async def test_email_change_leaves_sessions_intact(
     assert response.json()["email"] == "renamed@example.com"
     await db_session.refresh(test_user)
     assert test_user.email == "renamed@example.com"
-    live = await repository.find_by_jti("jti-live")
-    assert live is not None
-    assert not live.is_revoked
+    assert not await is_revoked(repository, "live")
 
 
 async def test_refresh_cookie_does_not_reach_the_profile_endpoint(
