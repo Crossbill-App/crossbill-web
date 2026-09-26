@@ -391,9 +391,9 @@
         "tags": [
           "ereader"
         ],
-        "summary": "Create Book",
-        "description": "Create or get a book by client_book_id.\n\nThis endpoint creates a new book if it doesn't exist, or returns the existing\nbook's metadata if it does. Used by KOReader to ensure a book exists before\nuploading highlights, covers, or EPUB files.\n\nArgs:\n    book_data: Book creation data (same format as highlight upload)\n    current_user: Authenticated user\n\nReturns:\n    EreaderBookMetadata with book_id, bookname, author, cover_file, has_epub",
-        "operationId": "create_book",
+        "summary": "Upload Book",
+        "description": "Create a book from its EPUB under the device's client_book_id, in one call.\n\nTitle, author and language come from the file. A book that already has its\nfile is left as it is, and its metadata is returned all the same.",
+        "operationId": "upload_book",
         "security": [
           {
             "OAuth2PasswordBearer": []
@@ -420,9 +420,9 @@
         "requestBody": {
           "required": true,
           "content": {
-            "application/json": {
+            "multipart/form-data": {
               "schema": {
-                "$ref": "#/components/schemas/BookCreate"
+                "$ref": "#/components/schemas/Body_upload_book"
               }
             }
           }
@@ -446,8 +446,8 @@
                   "detail": {
                     "code": "client_upgrade_required",
                     "client": "koreader-plugin",
-                    "min_supported_version": "0.12.0",
-                    "received_version": "0.12.0",
+                    "min_supported_version": "0.16.0",
+                    "received_version": "0.15.0",
                     "update_url": "https://github.com/Crossbill-App/koreader-plugin"
                   }
                 }
@@ -526,98 +526,8 @@
                   "detail": {
                     "code": "client_upgrade_required",
                     "client": "koreader-plugin",
-                    "min_supported_version": "0.12.0",
-                    "received_version": "0.12.0",
-                    "update_url": "https://github.com/Crossbill-App/koreader-plugin"
-                  }
-                }
-              }
-            }
-          },
-          "422": {
-            "description": "Validation Error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/api/v1/ereader/books/{client_book_id}/epub": {
-      "post": {
-        "tags": [
-          "ereader"
-        ],
-        "summary": "Upload Book Epub",
-        "description": "Upload an ebook file (EPUB) for a book using client_book_id.\n\nThis endpoint accepts an uploaded ebook file and saves it for the book.\nUsed by KOReader which identifies books by client_book_id.\n\nArgs:\n    client_book_id: The client-provided stable book identifier\n    epub: Uploaded ebook file (EPUB)\n    current_user: Authenticated user\n\nReturns:\n    SuccessResponse with success status\n\nRaises:\n    HTTPException: 400 for invalid file, 404 if book is not found",
-        "operationId": "upload_book_epub",
-        "security": [
-          {
-            "OAuth2PasswordBearer": []
-          }
-        ],
-        "parameters": [
-          {
-            "name": "client_book_id",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string",
-              "title": "Client Book Id"
-            }
-          },
-          {
-            "name": "X-Crossbill-Client",
-            "in": "header",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "X-Crossbill-Client"
-            }
-          }
-        ],
-        "requestBody": {
-          "required": true,
-          "content": {
-            "multipart/form-data": {
-              "schema": {
-                "$ref": "#/components/schemas/Body_upload_book_epub"
-              }
-            }
-          }
-        },
-        "responses": {
-          "200": {
-            "description": "Successful Response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/SuccessResponse"
-                }
-              }
-            }
-          },
-          "426": {
-            "description": "The caller is an outdated Crossbill client, or sent no X-Crossbill-Client header at all. The body names the minimum supported version and where to get it.",
-            "content": {
-              "application/json": {
-                "example": {
-                  "detail": {
-                    "code": "client_upgrade_required",
-                    "client": "koreader-plugin",
-                    "min_supported_version": "0.12.0",
-                    "received_version": "0.12.0",
+                    "min_supported_version": "0.16.0",
+                    "received_version": "0.15.0",
                     "update_url": "https://github.com/Crossbill-App/koreader-plugin"
                   }
                 }
@@ -696,8 +606,8 @@
                   "detail": {
                     "code": "client_upgrade_required",
                     "client": "koreader-plugin",
-                    "min_supported_version": "0.12.0",
-                    "received_version": "0.12.0",
+                    "min_supported_version": "0.16.0",
+                    "received_version": "0.15.0",
                     "update_url": "https://github.com/Crossbill-App/koreader-plugin"
                   }
                 }
@@ -776,8 +686,8 @@
                   "detail": {
                     "code": "client_upgrade_required",
                     "client": "koreader-plugin",
-                    "min_supported_version": "0.12.0",
-                    "received_version": "0.12.0",
+                    "min_supported_version": "0.16.0",
+                    "received_version": "0.15.0",
                     "update_url": "https://github.com/Crossbill-App/koreader-plugin"
                   }
                 }
@@ -894,8 +804,8 @@
                   "detail": {
                     "code": "client_upgrade_required",
                     "client": "koreader-plugin",
-                    "min_supported_version": "0.12.0",
-                    "received_version": "0.12.0",
+                    "min_supported_version": "0.16.0",
+                    "received_version": "0.15.0",
                     "update_url": "https://github.com/Crossbill-App/koreader-plugin"
                   }
                 }
@@ -975,8 +885,8 @@
                   "detail": {
                     "code": "client_upgrade_required",
                     "client": "koreader-plugin",
-                    "min_supported_version": "0.12.0",
-                    "received_version": "0.12.0",
+                    "min_supported_version": "0.16.0",
+                    "received_version": "0.15.0",
                     "update_url": "https://github.com/Crossbill-App/koreader-plugin"
                   }
                 }
@@ -1746,8 +1656,8 @@
                   "detail": {
                     "code": "client_upgrade_required",
                     "client": "koreader-plugin",
-                    "min_supported_version": "0.12.0",
-                    "received_version": "0.12.0",
+                    "min_supported_version": "0.16.0",
+                    "received_version": "0.15.0",
                     "update_url": "https://github.com/Crossbill-App/koreader-plugin"
                   }
                 }
@@ -1827,8 +1737,8 @@
                   "detail": {
                     "code": "client_upgrade_required",
                     "client": "koreader-plugin",
-                    "min_supported_version": "0.12.0",
-                    "received_version": "0.12.0",
+                    "min_supported_version": "0.16.0",
+                    "received_version": "0.15.0",
                     "update_url": "https://github.com/Crossbill-App/koreader-plugin"
                   }
                 }
@@ -5153,19 +5063,38 @@
         ],
         "title": "Body_login"
       },
-      "Body_upload_book_epub": {
+      "Body_upload_book": {
         "properties": {
           "epub": {
             "type": "string",
             "contentMediaType": "application/octet-stream",
             "title": "Epub"
+          },
+          "client_book_id": {
+            "type": "string",
+            "maxLength": 255,
+            "minLength": 1,
+            "title": "Client Book Id"
+          },
+          "page_count": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "minimum": 1.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Page Count"
           }
         },
         "type": "object",
         "required": [
-          "epub"
+          "epub",
+          "client_book_id"
         ],
-        "title": "Body_upload_book_epub"
+        "title": "Body_upload_book"
       },
       "Book": {
         "properties": {
@@ -5357,95 +5286,6 @@
         ],
         "title": "BookActivityDay",
         "description": "One coloured square of the reading-activity grid."
-      },
-      "BookCreate": {
-        "properties": {
-          "title": {
-            "type": "string",
-            "maxLength": 500,
-            "minLength": 1,
-            "title": "Title",
-            "description": "Book title"
-          },
-          "author": {
-            "anyOf": [
-              {
-                "type": "string",
-                "maxLength": 500
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Author",
-            "description": "Book author"
-          },
-          "isbn": {
-            "anyOf": [
-              {
-                "type": "string",
-                "maxLength": 20
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Isbn",
-            "description": "Book ISBN"
-          },
-          "description": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Description",
-            "description": "Book description from ebook metadata"
-          },
-          "language": {
-            "anyOf": [
-              {
-                "type": "string",
-                "maxLength": 10
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Language",
-            "description": "Language code from ebook metadata"
-          },
-          "page_count": {
-            "anyOf": [
-              {
-                "type": "integer",
-                "minimum": 1.0
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Page Count",
-            "description": "Total page count from ebook metadata"
-          },
-          "client_book_id": {
-            "type": "string",
-            "maxLength": 255,
-            "minLength": 1,
-            "title": "Client Book Id",
-            "description": "Client-provided stable book identifier for deduplication"
-          }
-        },
-        "type": "object",
-        "required": [
-          "title",
-          "client_book_id"
-        ],
-        "title": "BookCreate",
-        "description": "Schema for creating a Book."
       },
       "BookDetails": {
         "properties": {
