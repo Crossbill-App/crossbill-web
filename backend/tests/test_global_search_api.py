@@ -2,7 +2,6 @@
 
 from collections.abc import AsyncGenerator
 from datetime import UTC, datetime
-from unittest.mock import AsyncMock
 
 import pytest
 from httpx import AsyncClient
@@ -14,6 +13,7 @@ from src.infrastructure.semantic.routers.limits import MAX_SEARCH_ITEMS_PER_TYPE
 from src.infrastructure.semantic.routers.search import MAX_QUERY_LENGTH
 from src.models import Book, Chapter, Highlight, User
 from tests.conftest import create_test_book, create_test_highlight
+from tests.fakes import FakeEmbeddingClient
 from tests.semantic_helpers import (
     embeddings_disabled,
     get_related,
@@ -30,12 +30,11 @@ from tests.semantic_helpers import (
 
 
 @pytest.fixture
-async def override_embedding_client() -> AsyncGenerator[AsyncMock, None]:
+async def override_embedding_client() -> AsyncGenerator[FakeEmbeddingClient, None]:
     """Stub the embedding client so search embeds the query without a network call."""
     from src.core import container  # noqa: PLC0415
 
-    fake = AsyncMock()
-    fake.embed.return_value = [[1.0, 0.0]]
+    fake = FakeEmbeddingClient()
     container.shared.embedding_client.override(fake)
     yield fake
     container.shared.embedding_client.reset_override()
@@ -101,7 +100,7 @@ class TestSearchEndpoint:
     async def test_returns_ranked_results(
         self,
         client: AsyncClient,
-        override_embedding_client: AsyncMock,
+        override_embedding_client: FakeEmbeddingClient,
         db_session: AsyncSession,
         test_book: Book,
         test_highlight: Highlight,
@@ -125,7 +124,7 @@ class TestGrouping:
     async def test_returns_every_type_in_its_own_group(
         self,
         client: AsyncClient,
-        override_embedding_client: AsyncMock,
+        override_embedding_client: FakeEmbeddingClient,
         db_session: AsyncSession,
         test_book: Book,
     ) -> None:
@@ -141,7 +140,7 @@ class TestGrouping:
     async def test_a_crowded_type_does_not_starve_the_others(
         self,
         client: AsyncClient,
-        override_embedding_client: AsyncMock,
+        override_embedding_client: FakeEmbeddingClient,
         db_session: AsyncSession,
         test_book: Book,
     ) -> None:
@@ -162,7 +161,7 @@ class TestGrouping:
     async def test_empty_groups_are_present_not_omitted(
         self,
         client: AsyncClient,
-        override_embedding_client: AsyncMock,
+        override_embedding_client: FakeEmbeddingClient,
         db_session: AsyncSession,
         test_book: Book,
     ) -> None:
@@ -176,7 +175,7 @@ class TestGrouping:
     async def test_digests_are_ordered_by_score_descending(
         self,
         client: AsyncClient,
-        override_embedding_client: AsyncMock,
+        override_embedding_client: FakeEmbeddingClient,
         db_session: AsyncSession,
         test_book: Book,
     ) -> None:
@@ -199,7 +198,7 @@ class TestRenderableFields:
     async def test_highlight_item_carries_its_book_and_chapter(
         self,
         client: AsyncClient,
-        override_embedding_client: AsyncMock,
+        override_embedding_client: FakeEmbeddingClient,
         db_session: AsyncSession,
         test_book: Book,
         test_chapter: Chapter,
@@ -232,7 +231,7 @@ class TestRenderableFields:
     async def test_note_item_carries_title_body_and_every_book(
         self,
         client: AsyncClient,
-        override_embedding_client: AsyncMock,
+        override_embedding_client: FakeEmbeddingClient,
         db_session: AsyncSession,
         test_book: Book,
     ) -> None:
@@ -263,7 +262,7 @@ class TestRenderableFields:
     async def test_digest_item_carries_the_chapter_it_opens(
         self,
         client: AsyncClient,
-        override_embedding_client: AsyncMock,
+        override_embedding_client: FakeEmbeddingClient,
         db_session: AsyncSession,
         test_book: Book,
     ) -> None:
@@ -300,7 +299,7 @@ class TestRenderableFields:
     async def test_highlight_item_carries_its_books_cover(
         self,
         client: AsyncClient,
-        override_embedding_client: AsyncMock,
+        override_embedding_client: FakeEmbeddingClient,
         db_session: AsyncSession,
         test_book: Book,
     ) -> None:
@@ -318,7 +317,7 @@ class TestRenderableFields:
     async def test_digest_item_and_note_books_carry_covers_and_tolerate_none(
         self,
         client: AsyncClient,
-        override_embedding_client: AsyncMock,
+        override_embedding_client: FakeEmbeddingClient,
         db_session: AsyncSession,
         test_book: Book,
     ) -> None:
@@ -363,7 +362,7 @@ class TestBookMatches:
     async def test_matches_a_title_substring_and_carries_what_a_row_renders(
         self,
         client: AsyncClient,
-        override_embedding_client: AsyncMock,
+        override_embedding_client: FakeEmbeddingClient,
         db_session: AsyncSession,
         test_book: Book,
     ) -> None:
@@ -384,7 +383,7 @@ class TestBookMatches:
     async def test_matches_an_author_the_title_does_not_contain(
         self,
         client: AsyncClient,
-        override_embedding_client: AsyncMock,
+        override_embedding_client: FakeEmbeddingClient,
         test_book: Book,
     ) -> None:
         """The query appears only in ``Test Author``, so the title predicate cannot serve it."""
@@ -395,7 +394,7 @@ class TestBookMatches:
     async def test_matches_regardless_of_case(
         self,
         client: AsyncClient,
-        override_embedding_client: AsyncMock,
+        override_embedding_client: FakeEmbeddingClient,
         test_book: Book,
     ) -> None:
         books = await search_books(client, q="test book")
@@ -405,7 +404,7 @@ class TestBookMatches:
     async def test_group_is_present_but_empty_when_nothing_matches(
         self,
         client: AsyncClient,
-        override_embedding_client: AsyncMock,
+        override_embedding_client: FakeEmbeddingClient,
         test_book: Book,
     ) -> None:
         groups = await search_groups(client, q="nothing like a title")
@@ -415,7 +414,7 @@ class TestBookMatches:
     async def test_a_book_scoped_search_returns_no_books(
         self,
         client: AsyncClient,
-        override_embedding_client: AsyncMock,
+        override_embedding_client: FakeEmbeddingClient,
         test_book: Book,
     ) -> None:
         """The reader is already inside that book; offering it back says nothing."""
@@ -426,7 +425,7 @@ class TestBookMatches:
     async def test_does_not_return_another_users_book(
         self,
         client: AsyncClient,
-        override_embedding_client: AsyncMock,
+        override_embedding_client: FakeEmbeddingClient,
         db_session: AsyncSession,
         test_book: Book,
     ) -> None:
@@ -443,7 +442,7 @@ class TestBookMatches:
     async def test_caps_the_matches_and_takes_them_in_title_order(
         self,
         client: AsyncClient,
-        override_embedding_client: AsyncMock,
+        override_embedding_client: FakeEmbeddingClient,
         db_session: AsyncSession,
         test_book: Book,
     ) -> None:
@@ -460,7 +459,7 @@ class TestBookScoping:
     async def test_finds_a_note_linked_to_two_books(
         self,
         client: AsyncClient,
-        override_embedding_client: AsyncMock,
+        override_embedding_client: FakeEmbeddingClient,
         db_session: AsyncSession,
         test_book: Book,
     ) -> None:
@@ -484,7 +483,7 @@ class TestBookScoping:
     async def test_excludes_a_note_linked_only_to_another_book(
         self,
         client: AsyncClient,
-        override_embedding_client: AsyncMock,
+        override_embedding_client: FakeEmbeddingClient,
         db_session: AsyncSession,
         test_book: Book,
     ) -> None:
@@ -503,7 +502,7 @@ class TestBookScoping:
     async def test_excludes_another_books_highlights(
         self,
         client: AsyncClient,
-        override_embedding_client: AsyncMock,
+        override_embedding_client: FakeEmbeddingClient,
         db_session: AsyncSession,
         test_book: Book,
     ) -> None:
@@ -519,7 +518,7 @@ class TestBookScoping:
     async def test_does_not_leak_another_users_book_through_a_note_link(
         self,
         client: AsyncClient,
-        override_embedding_client: AsyncMock,
+        override_embedding_client: FakeEmbeddingClient,
         db_session: AsyncSession,
         test_book: Book,
     ) -> None:
@@ -551,7 +550,7 @@ class TestLimitValidation:
     async def test_accepts_the_maximum_per_type_limit(
         self,
         client: AsyncClient,
-        override_embedding_client: AsyncMock,
+        override_embedding_client: FakeEmbeddingClient,
         db_session: AsyncSession,
         test_book: Book,
     ) -> None:
@@ -563,12 +562,12 @@ class TestLimitValidation:
         assert len(response.json()["highlights"]) == 1
 
     async def test_rejects_a_limit_above_the_maximum(
-        self, client: AsyncClient, override_embedding_client: AsyncMock
+        self, client: AsyncClient, override_embedding_client: FakeEmbeddingClient
     ) -> None:
         response = await get_search(client, limit=MAX_SEARCH_ITEMS_PER_TYPE + 1)
 
         assert response.status_code == status.HTTP_422_UNPROCESSABLE_CONTENT
-        override_embedding_client.embed.assert_not_called()
+        assert override_embedding_client.calls == []
 
 
 class TestRelatedEndpoint:
@@ -642,7 +641,7 @@ class TestResultPaging:
     async def test_never_returns_content_whose_source_was_deleted(
         self,
         client: AsyncClient,
-        override_embedding_client: AsyncMock,
+        override_embedding_client: FakeEmbeddingClient,
         db_session: AsyncSession,
         test_book: Book,
     ) -> None:
@@ -663,7 +662,7 @@ class TestResultPaging:
     async def test_never_returns_more_than_the_requested_limit(
         self,
         client: AsyncClient,
-        override_embedding_client: AsyncMock,
+        override_embedding_client: FakeEmbeddingClient,
         db_session: AsyncSession,
         test_book: Book,
     ) -> None:
@@ -677,7 +676,7 @@ class TestResultPaging:
     async def test_does_not_return_another_users_content(
         self,
         client: AsyncClient,
-        override_embedding_client: AsyncMock,
+        override_embedding_client: FakeEmbeddingClient,
         db_session: AsyncSession,
         test_book: Book,
     ) -> None:
@@ -705,7 +704,7 @@ class TestScoreFloors:
     async def test_search_drops_a_match_below_the_floor(
         self,
         client: AsyncClient,
-        override_embedding_client: AsyncMock,
+        override_embedding_client: FakeEmbeddingClient,
         db_session: AsyncSession,
         test_book: Book,
     ) -> None:
@@ -717,7 +716,7 @@ class TestScoreFloors:
     async def test_search_answers_empty_rather_than_with_the_least_bad_rows(
         self,
         client: AsyncClient,
-        override_embedding_client: AsyncMock,
+        override_embedding_client: FakeEmbeddingClient,
         db_session: AsyncSession,
         test_book: Book,
     ) -> None:
@@ -737,7 +736,7 @@ class TestScoreFloors:
     async def test_related_holds_a_higher_floor_than_search(
         self,
         client: AsyncClient,
-        override_embedding_client: AsyncMock,
+        override_embedding_client: FakeEmbeddingClient,
         db_session: AsyncSession,
         test_book: Book,
     ) -> None:
@@ -843,26 +842,26 @@ class TestPerBookCap:
 
 class TestQueryValidation:
     async def test_rejects_empty_query_without_calling_the_model(
-        self, client: AsyncClient, override_embedding_client: AsyncMock
+        self, client: AsyncClient, override_embedding_client: FakeEmbeddingClient
     ) -> None:
         """Every query costs a model call, so an empty one must not reach it."""
         response = await get_search(client, q="")
 
         assert response.status_code == status.HTTP_422_UNPROCESSABLE_CONTENT
-        override_embedding_client.embed.assert_not_called()
+        assert override_embedding_client.calls == []
 
     async def test_rejects_overlong_query_without_calling_the_model(
-        self, client: AsyncClient, override_embedding_client: AsyncMock
+        self, client: AsyncClient, override_embedding_client: FakeEmbeddingClient
     ) -> None:
         response = await get_search(client, q="x" * (MAX_QUERY_LENGTH + 1))
 
         assert response.status_code == status.HTTP_422_UNPROCESSABLE_CONTENT
-        override_embedding_client.embed.assert_not_called()
+        assert override_embedding_client.calls == []
 
     async def test_accepts_a_query_at_the_limit(
         self,
         client: AsyncClient,
-        override_embedding_client: AsyncMock,
+        override_embedding_client: FakeEmbeddingClient,
         db_session: AsyncSession,
         test_book: Book,
     ) -> None:
@@ -871,4 +870,4 @@ class TestQueryValidation:
         response = await get_search(client, q="x" * MAX_QUERY_LENGTH)
 
         assert response.status_code == status.HTTP_200_OK
-        override_embedding_client.embed.assert_awaited_once()
+        assert override_embedding_client.calls == [["x" * MAX_QUERY_LENGTH]]

@@ -2,7 +2,6 @@
 
 from datetime import UTC, datetime
 from typing import NamedTuple
-from unittest.mock import AsyncMock, patch
 
 import pytest
 from fastapi import status
@@ -297,6 +296,7 @@ class TestDeleteHighlights:
         client: AsyncClient,
         db_session: AsyncSession,
         book_with_highlights: BookWithHighlights,
+        monkeypatch: pytest.MonkeyPatch,
     ) -> None:
         """The soft delete commits first, and the two are not one transaction.
 
@@ -307,14 +307,15 @@ class TestDeleteHighlights:
         target, _ = book_with_highlights.highlights
         await index_highlight(db_session, book, target)
 
-        with patch.object(
-            EmbeddingRepository, "delete_for", AsyncMock(side_effect=RuntimeError("boom"))
-        ):
-            response = await client.request(
-                "DELETE",
-                f"/api/v1/books/{book.id}/highlight",
-                json={"highlight_ids": [target.id]},
-            )
+        async def broken_delete_for(*_args: object, **_kwargs: object) -> None:
+            raise RuntimeError("boom")
+
+        monkeypatch.setattr(EmbeddingRepository, "delete_for", broken_delete_for)
+        response = await client.request(
+            "DELETE",
+            f"/api/v1/books/{book.id}/highlight",
+            json={"highlight_ids": [target.id]},
+        )
 
         assert response.status_code == status.HTTP_200_OK
         assert response.json()["deleted_count"] == 1
