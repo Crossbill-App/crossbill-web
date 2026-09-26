@@ -61,6 +61,23 @@ const hostileChapter = () =>
   </body>
 </html>`;
 
+/** The names of the two links in the first chapter `readiumApi({ withLinks: true })` serves. */
+export const LINK_INTO_THE_BOOK = 'the second half';
+export const LINK_OUT_OF_THE_BOOK = 'the web';
+
+/** A first chapter that links to the middle of the second, and to a page outside the book. */
+const linkingChapter = () =>
+  `<?xml version="1.0" encoding="utf-8"?>
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head><title>On Attention</title></head>
+  <body>
+    <h1>On Attention</h1>
+    <p>${PARAGRAPH}</p>
+    <p>See <a href="chapter2.xhtml#${CHAPTER_TWO_SECOND_HALF}"><em>${LINK_INTO_THE_BOOK}</em></a>, or <a href="https://example.com/">${LINK_OUT_OF_THE_BOOK}</a>.</p>
+  </body>
+</html>`;
+
 /** The files `aManifest` names, keyed by the path the resource route receives. */
 const RESOURCES: Record<string, { body: string; type: string } | undefined> = {
   'OEBPS/chapter1.xhtml': { body: chapterDocument('On Attention'), type: 'application/xhtml+xml' },
@@ -183,6 +200,8 @@ interface ReadiumApiOptions {
   expiresIn?: number;
   /** Serve the first chapter as a book that attacks the page that opened it. */
   hostile?: boolean;
+  /** Serve the first chapter with a link into the second and one out of the book. */
+  withLinks?: boolean;
   /** Told about every request these handlers answer, for tests about what was sent. */
   onRequest?: (request: Request) => void;
 }
@@ -198,6 +217,7 @@ export const readiumApi = ({
   positions,
   expiresIn = 900,
   hostile = false,
+  withLinks = false,
   onRequest = () => {},
 }: ReadiumApiOptions = {}) => [
   http.post(SESSION_PATH, ({ request }) => {
@@ -225,9 +245,10 @@ export const readiumApi = ({
   http.get(RESOURCE_PATH, ({ request, params }) => {
     onRequest(request);
     const path = String(params[0]);
+    const firstChapter = hostile ? hostileChapter() : withLinks ? linkingChapter() : undefined;
     const rewritten =
-      hostile && path === 'OEBPS/chapter1.xhtml'
-        ? { body: hostileChapter(), type: 'application/xhtml+xml' }
+      firstChapter && path === 'OEBPS/chapter1.xhtml'
+        ? { body: firstChapter, type: 'application/xhtml+xml' }
         : undefined;
     const resource = rewritten ?? RESOURCES[path];
     if (!resource) return new HttpResponse(null, { status: 404 });

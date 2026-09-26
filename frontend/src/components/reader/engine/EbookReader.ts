@@ -170,6 +170,8 @@ export interface EbookReader {
   /** A tap that could not extend the selection, which today means one in another chapter. */
   onSelectionExtensionRefused(listener: () => void): () => void;
   onLocationChanged(listener: (location: EbookLocation) => void): () => void;
+  /** The reader followed a link inside the book, before the move it causes is reported. */
+  onLinkFollowed(listener: () => void): () => void;
   onPageTurnRequested(listener: (direction: PageTurnDirection) => void): () => void;
   /** The reader has moved into a different contents entry; `OpenedEbook.tocHref` is the first. */
   onTocEntryChanged(listener: (href: string | null) => void): () => void;

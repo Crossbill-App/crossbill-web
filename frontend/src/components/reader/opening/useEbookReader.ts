@@ -32,6 +32,8 @@ interface EbookReaderListeners {
   movedTo?: (location: EbookLocation) => void;
   /** The id of a decoration the reader tapped. */
   decorationActivated?: (id: string) => void;
+  /** A link inside the book was followed; the move it causes is reported after it. */
+  linkFollowed?: () => void;
   /** A tap that could not extend the selection, the remembered start still standing. */
   selectionExtensionRefused?: () => void;
 }
@@ -128,6 +130,7 @@ export const useEbookReader = ({
   const reportArrival = useEffectEvent((location: EbookLocation) => on?.arrivedAt?.(location));
   const reportMove = useEffectEvent((location: EbookLocation) => on?.movedTo?.(location));
   const activateDecoration = useEffectEvent((id: string) => on?.decorationActivated?.(id));
+  const followLink = useEffectEvent(() => on?.linkFollowed?.());
   const refuseExtension = useEffectEvent(() => on?.selectionExtensionRefused?.());
   const finishTheLanding = useEffectEvent((opened: OpenedEbook) => finishLanding?.(opened));
   const openingOptions = useEffectEvent(() => ({ appearance, initialLocation }));
@@ -167,6 +170,7 @@ export const useEbookReader = ({
       reader.onTocEntryChanged(setCurrentTocHref),
       reader.onChapterProgressChanged(setChapterProgress),
       reader.onDecorationActivated((id) => activateDecoration(id)),
+      reader.onLinkFollowed(() => followLink()),
       reader.onSelectionExtensionRefused(() => refuseExtension()),
       reader.onPageTurnRequested((direction) => {
         // Readium's pager sets a navigating flag it never clears when it has no

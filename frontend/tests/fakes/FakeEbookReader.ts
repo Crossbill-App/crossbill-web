@@ -45,6 +45,7 @@ export class FakeEbookReader implements EbookReader {
     (progress: EbookChapterProgress | null) => void
   >();
   private readonly decorationListeners = new Set<(id: string) => void>();
+  private readonly linkListeners = new Set<() => void>();
   private readonly selectionListeners = new Set<(selection: EbookSelection | null) => void>();
   private settle: ((opened: OpenedEbook) => void) | undefined;
   private refuse: ((reason: Error) => void) | undefined;
@@ -101,6 +102,12 @@ export class FakeEbookReader implements EbookReader {
 
   reportChapterProgress(progress: EbookChapterProgress | null): void {
     for (const listener of [...this.chapterProgressListeners]) listener(progress);
+  }
+
+  /** A link in the book followed to wherever it points, as the engine reports it: first the link, then the move. */
+  followLink(destination: EbookLocation): void {
+    for (const listener of [...this.linkListeners]) listener();
+    this.reportLocation(destination);
   }
 
   activateDecoration(id: string): void {
@@ -173,6 +180,11 @@ export class FakeEbookReader implements EbookReader {
   onLocationChanged(listener: (location: EbookLocation) => void): () => void {
     this.locationListeners.add(listener);
     return () => this.locationListeners.delete(listener);
+  }
+
+  onLinkFollowed(listener: () => void): () => void {
+    this.linkListeners.add(listener);
+    return () => this.linkListeners.delete(listener);
   }
 
   onPageTurnRequested(listener: (direction: PageTurnDirection) => void): () => void {
