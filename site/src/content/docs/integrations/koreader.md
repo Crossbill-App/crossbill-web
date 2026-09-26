@@ -1,6 +1,6 @@
 ---
 title: KOReader
-description: The plugin that syncs highlights, highlight styles and reading sessions from your e-reader.
+description: The optional plugin that syncs highlights, highlight styles and reading sessions from your e-reader.
 ---
 
 [KOReader](https://koreader.rocks/) is the e-reader software Crossbill syncs
@@ -24,8 +24,10 @@ goes everywhere. See [KOReader
 plugin](../../getting-started/koreader-plugin/#deleting-a-highlight) for what
 the plugin asks before withdrawing a whole book's worth.
 
-This is the integration Crossbill depends on: it is where your content comes
-from.
+The plugin is optional. Without an e-reader, upload EPUBs from the **Library**
+page and read and highlight them in the [web reader](../../features/web-reader/).
+A book you uploaded is the same book the plugin finds when it syncs that EPUB
+later.
 
 ## Getting it
 

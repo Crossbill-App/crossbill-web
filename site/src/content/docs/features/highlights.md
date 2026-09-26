@@ -3,14 +3,15 @@ title: Highlights
 description: How highlights get into Crossbill, and how you browse, filter, label and bookmark them.
 ---
 
-A **highlight** is a passage you marked on your e-reader, imported into
-Crossbill. It carries the passage and where it sits in the book — nothing you
+A **highlight** is a passage you marked, in the
+[web reader](../web-reader/) or on your e-reader. It carries the passage and where it sits in the book — nothing you
 wrote. Your own words about it live in a [note](../notes/).
 
 ## Getting them in
 
-The [KOReader plugin](../../getting-started/koreader-plugin/) uploads highlights
-from your device. Syncing the same book again is safe: Crossbill deduplicates,
+Select a passage in the [web reader](../web-reader/#highlighting) to highlight
+it there. The [KOReader plugin](../../getting-started/koreader-plugin/) uploads
+highlights from your device. Syncing the same book again is safe: Crossbill deduplicates,
 so a highlight you already have is not added twice.
 
 A highlight you deleted on the e-reader stays here, marked **Deleted on the

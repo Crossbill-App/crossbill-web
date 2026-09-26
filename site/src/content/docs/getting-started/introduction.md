@@ -4,8 +4,13 @@ description: What Crossbill is, the active-reading ideas behind it, and the comp
 ---
 
 Crossbill is a self-hosted reading companion. It collects the passages you
-marked on your e-reader and gives you the tools to work them into
-understanding, rather than leaving them in a file you never open again.
+mark — in its own web reader or on your e-reader — and gives you the tools to
+work them into understanding, rather than leaving them in a file you never
+open again.
+
+You do not need an e-reader. Upload an EPUB, read it in the browser, and
+highlight as you go. If you read in KOReader, its plugin syncs your highlights
+in too.
 
 ## The idea
 
@@ -30,9 +35,9 @@ got to — you set it by hand; Crossbill never guesses it.
 - **Backend API** — a FastAPI server with a PostgreSQL database. It holds your
   library and serves both the web frontend and the plugins.
 - **Web frontend** — the React interface where you browse, edit and organize
-  everything.
+  everything, upload EPUBs, and read them in the web reader.
 - **[KOReader plugin](https://github.com/Crossbill-App/koreader-plugin)**
-  — runs on your e-reader and syncs highlights up to Crossbill.
+  — optional; runs on your e-reader and syncs highlights up to Crossbill.
 - **[Obsidian plugin](https://github.com/Crossbill-App/obsidian-plugin)**
   and **[Anki add-on](https://github.com/Crossbill-App/anki-addon)** —
   optional bridges to the tools you may already use for notes and study.
