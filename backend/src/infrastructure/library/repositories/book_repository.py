@@ -1,8 +1,10 @@
 from sqlalchemy import select
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.domain.common.value_objects.ids import BookId, UserId
 from src.domain.library.entities.book import Book
+from src.domain.library.exceptions import BookAlreadyExistsError
 from src.infrastructure.common.sql import commit_or_rollback
 from src.infrastructure.library.mappers.book_mapper import BookMapper
 from src.infrastructure.library.orm.book_model import Book as BookORM
@@ -62,10 +64,14 @@ class BookRepository:
     async def save(self, book: Book) -> Book:
         """Persist book to database."""
         if book.id.value == 0:
-            # Create new
             orm_model = self.mapper.to_orm(book)
             self.db.add(orm_model)
-            await commit_or_rollback(self.db)
+            try:
+                await commit_or_rollback(self.db)
+            except IntegrityError as e:
+                if book.client_book_id and "client_book_id" in str(e.orig):
+                    raise BookAlreadyExistsError(book.client_book_id) from e
+                raise
             await self.db.refresh(orm_model)
             return self.mapper.to_domain(orm_model)
         # Update existing

@@ -3,7 +3,7 @@
 from datetime import datetime as dt
 from typing import TYPE_CHECKING
 
-from sqlalchemy import DateTime, ForeignKey, String, Text, func
+from sqlalchemy import DateTime, ForeignKey, Index, String, Text, func, text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from sqlalchemy.types import JSON
 
@@ -25,6 +25,16 @@ class Book(Base):
     """Book model for storing book metadata."""
 
     __tablename__ = "books"
+    __table_args__ = (
+        Index(
+            "uq_book_client_book_id",
+            "user_id",
+            "client_book_id",
+            unique=True,
+            postgresql_where=text("client_book_id IS NOT NULL"),
+            sqlite_where=text("client_book_id IS NOT NULL"),
+        ),
+    )
 
     id: Mapped[int] = mapped_column(primary_key=True, index=True)
     user_id: Mapped[int] = mapped_column(
@@ -41,7 +51,7 @@ class Book(Base):
     language: Mapped[str | None] = mapped_column(String(10), nullable=True)
     page_count: Mapped[int | None] = mapped_column(nullable=True)
     client_book_id: Mapped[str | None] = mapped_column(
-        String(255), nullable=True, index=True
+        String(255), nullable=True
     )  # Client-provided stable book identifier
     created_at: Mapped[dt] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), nullable=False

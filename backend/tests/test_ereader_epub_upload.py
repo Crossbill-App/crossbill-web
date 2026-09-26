@@ -7,12 +7,16 @@ repeated upload answered with the book it already made.
 
 from pathlib import Path
 
+import pytest
 from fastapi import status
 from httpx import AsyncClient, Response
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src import models
+from src.domain.common.value_objects.ids import UserId
+from src.domain.library.entities.book import Book
+from src.infrastructure.library.repositories.book_repository import BookRepository
 from tests.conftest import create_test_book
 
 # md5(b"Uploaded Book|"), the id the plugin would compute from the fixture EPUB.
@@ -30,6 +34,22 @@ async def upload(plugin_client: AsyncClient, content: bytes, **fields: str) -> R
 
 async def book_count(db_session: AsyncSession) -> int:
     return await db_session.scalar(select(func.count()).select_from(models.Book)) or 0
+
+
+@pytest.fixture
+def lose_the_create_race(monkeypatch: pytest.MonkeyPatch) -> None:
+    """The upload's first lookup misses a book another request creates right after it."""
+    find = BookRepository.find_by_client_book_id
+    misses = iter([True])
+
+    async def missing_once(
+        self: BookRepository, client_book_id: str, user_id: UserId
+    ) -> Book | None:
+        if next(misses, False):
+            return None
+        return await find(self, client_book_id, user_id)
+
+    monkeypatch.setattr(BookRepository, "find_by_client_book_id", missing_once)
 
 
 class TestEreaderBookUpload:
@@ -116,6 +136,26 @@ class TestEreaderBookUpload:
         assert response.json()["book_id"] != theirs_id
         await db_session.refresh(theirs)
         assert theirs.ebook_file is None
+
+    async def test_an_upload_that_loses_a_create_race_answers_the_winners_book(
+        self,
+        plugin_client: AsyncClient,
+        db_session: AsyncSession,
+        test_user: models.User,
+        epub_bytes: bytes,
+        storage_dir: Path,
+        lose_the_create_race: None,
+    ) -> None:
+        winner = await create_test_book(
+            db_session, user_id=test_user.id, title="Winner", client_book_id=FILE_CLIENT_BOOK_ID
+        )
+        winner_id = winner.id
+
+        response = await upload(plugin_client, epub_bytes, client_book_id=FILE_CLIENT_BOOK_ID)
+
+        assert response.status_code == status.HTTP_200_OK, response.text
+        assert response.json()["book_id"] == winner_id
+        assert await book_count(db_session) == 1
 
 
 class TestRejectedEreaderUploads:
