@@ -74,6 +74,30 @@ async def test_wrong_current_password_leaves_sessions_intact(
     assert not live.is_revoked
 
 
+async def test_email_change_leaves_sessions_intact(
+    client: AsyncClient, db_session: AsyncSession, test_user: User
+) -> None:
+    repository = RefreshTokenRepository(db_session)
+    await repository.save(
+        RefreshToken.create(
+            jti="jti-live",
+            user_id=UserId(test_user.id),
+            family_id="family-live",
+            expires_at=datetime.now(UTC) + timedelta(days=30),
+        )
+    )
+
+    response = await client.post("/api/v1/users/me", json={"email": "renamed@example.com"})
+
+    assert response.status_code == 200, response.text
+    assert response.json()["email"] == "renamed@example.com"
+    await db_session.refresh(test_user)
+    assert test_user.email == "renamed@example.com"
+    live = await repository.find_by_jti("jti-live")
+    assert live is not None
+    assert not live.is_revoked
+
+
 async def test_refresh_cookie_does_not_reach_the_profile_endpoint(
     client: AsyncClient, db_session: AsyncSession, test_user: User
 ) -> None:

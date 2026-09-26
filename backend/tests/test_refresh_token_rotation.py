@@ -21,7 +21,10 @@ from src.infrastructure.identity.repositories.refresh_token_repository import (
     RefreshTokenRepository,
 )
 from src.infrastructure.identity.services.password_service import hash_password
-from src.infrastructure.identity.services.token_service import verify_refresh_token
+from src.infrastructure.identity.services.token_service import (
+    create_refresh_token,
+    verify_refresh_token,
+)
 from src.main import app
 from src.models import User
 
@@ -256,3 +259,38 @@ async def test_refresh_clears_a_users_expired_tokens(
     assert (await auth_client.post("/api/v1/auth/refresh")).status_code == 200
 
     assert await repository.find_by_jti("jti-long-expired") is None
+
+
+async def test_logout_without_a_session_still_succeeds(auth_client: AsyncClient) -> None:
+    response = await auth_client.post("/api/v1/auth/logout")
+
+    assert response.status_code == 200, response.text
+
+
+async def test_logout_with_a_forged_token_revokes_nothing(
+    auth_client: AsyncClient, test_user: User
+) -> None:
+    await _login(auth_client, test_user)
+    live = _cookie(auth_client)
+
+    _present(auth_client, "not.a.jwt")
+    assert (await auth_client.post("/api/v1/auth/logout")).status_code == 200
+
+    _present(auth_client, live)
+    assert (await auth_client.post("/api/v1/auth/refresh")).status_code == 200
+
+
+async def test_logout_with_a_signed_but_unknown_token_revokes_nothing(
+    auth_client: AsyncClient, test_user: User
+) -> None:
+    await _login(auth_client, test_user)
+    live = _cookie(auth_client)
+    unknown = create_refresh_token(
+        test_user.id, "jti-never-stored", datetime.now(UTC) + timedelta(days=1)
+    )
+
+    _present(auth_client, unknown)
+    assert (await auth_client.post("/api/v1/auth/logout")).status_code == 200
+
+    _present(auth_client, live)
+    assert (await auth_client.post("/api/v1/auth/refresh")).status_code == 200
