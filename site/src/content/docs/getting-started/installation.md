@@ -60,7 +60,6 @@ installs need nothing extra. Behind a reverse proxy, check these:
 | The book's text shows but its images are broken, in Safari only        | Served over plain HTTP, or `COOKIE_SECURE=false`                               |
 | Every book fails to open; requests under `/api/v1/readium/` answer 401 | The proxy rewrites the `/api` path, or serves the frontend from another origin |
 | Chapters fail to load; the manifest's links point at an internal host  | `PUBLIC_BASE_URL` is unset or wrong                                            |
-| Existing highlights do not show up in the reader                       | Migration failed. Upload the book again from Koreader.                         |
 
 ## What's next
 

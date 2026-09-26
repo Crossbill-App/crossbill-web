@@ -65,10 +65,7 @@ class GenerateChapterDigestUseCase:
 
         # 2. Check if chapter has XPoint data
         if not chapter.start_xpoint:
-            raise DomainError(
-                "Chapter does not have position data. "
-                "EPUB must be re-uploaded to extract chapter positions."
-            )
+            raise DomainError("Chapter does not have position data.")
 
         # 3. Resolve epub path
         book = await self.book_repo.find_by_id(chapter.book_id, user_id)

@@ -165,8 +165,8 @@ class ChapterRepository:
         chapters, we need to match them by name alone to avoid creating duplicates
         and to preserve existing highlight foreign key references.
 
-        This is migration-era logic that can be removed once all production books
-        have been re-uploaded with hierarchical TOC data.
+        This is migration-era logic that can be removed once no production book has
+        legacy flat chapters.
         """
         legacy_key = (name, None)
         chapter = tracker.find_by_key(legacy_key)

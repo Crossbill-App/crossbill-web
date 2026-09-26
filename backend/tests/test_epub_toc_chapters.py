@@ -434,8 +434,7 @@ class TestUpdatingExistingChapters:
         created_count = await sync_toc(chapter_repo, test_book_for_toc, initial_chapters)
         assert created_count == 4
 
-        # Re-upload the same TOC (simulating re-uploading the EPUB file via API)
-        # This should detect all existing chapters and update them, not try to create duplicates
+        # A second sync of the same TOC updates the existing chapters instead of duplicating them
         created_count_2 = await sync_toc(chapter_repo, test_book_for_toc, initial_chapters)
 
         # Should create 0 new chapters (all already exist)
@@ -463,12 +462,9 @@ class TestUpdatingExistingChapters:
 class TestRepeatedSyncWithRepeatedNames:
     """Test that re-syncing a TOC whose names repeat across levels is idempotent.
 
-    The KOReader plugin re-uploads the EPUB on every sync, so sync_chapters_from_toc
-    runs repeatedly over the same TOC. Resolving parents by bare name made run 2 pick a
-    different parent row than run 1 (last-write-wins over a repeated name), so the
-    (name, parent_id) keys missed and a whole subtree was created a second time. Every
-    duplicate chapter_number then breaks the plugin's digest cache and misroutes
-    highlights, which key chapters by number.
+    Resolving parents by bare name would pick a different parent row on the second run,
+    creating the subtree twice; duplicate chapter_numbers break the plugin's digest cache
+    and misroute highlights, which key chapters by number.
     """
 
     @staticmethod
