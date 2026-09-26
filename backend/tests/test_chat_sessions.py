@@ -1,26 +1,15 @@
 """Tests for chat session endpoints."""
 
 from httpx import AsyncClient
-from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.infrastructure.ai.ai_service import MAX_CHAPTER_CONTEXT_CHARS
 from src.models import AIChatSession as AIChatSessionModel
 from src.models import Chapter
-from tests.ai_helpers import FakeAgent
+from tests.ai_helpers import FakeAgent, seeded_history
 from tests.fakes import FakeTextExtraction
 
 CHAT_OPENER = "What do you want to chat about this chapter?"
-
-
-async def seeded_history(db_session: AsyncSession, session_id: int) -> str:
-    """The message history the endpoint stored, as one searchable string."""
-    session = (
-        await db_session.execute(
-            select(AIChatSessionModel).where(AIChatSessionModel.id == session_id)
-        )
-    ).scalar_one()
-    return str(session.message_history)
 
 
 class TestCreateChatSession:

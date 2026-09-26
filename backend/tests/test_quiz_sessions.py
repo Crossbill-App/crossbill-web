@@ -6,7 +6,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from src.infrastructure.ai.ai_service import MAX_CHAPTER_CONTEXT_CHARS
 from src.models import AIChatSession as AIChatSessionModel
 from src.models import Book, Chapter
-from tests.ai_helpers import FakeAgent
+from tests.ai_helpers import FakeAgent, seeded_history
 from tests.fakes import FakeTextExtraction
 
 
@@ -101,3 +101,4 @@ class TestSendQuizMessage:
         data = response.json()
         assert "Question 2/5" in data["message"]
         assert quiz_agent.received_prompts == ["The main topic is testing"]
+        assert "The main topic is testing" in await seeded_history(db_session, ai_chat_session.id)
