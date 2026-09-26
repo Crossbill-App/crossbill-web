@@ -1,6 +1,6 @@
 ---
 title: Installation
-description: Run Crossbill with the sample docker compose setup, then install the KOReader plugin on your e-reader.
+description: Run Crossbill with the sample docker compose setup, create an account, and add your books by uploading EPUBs or syncing from KOReader.
 ---
 
 The easiest way to install and run Crossbill is with the sample
@@ -25,17 +25,26 @@ cp .env.example .env
 docker compose up
 ```
 
-## 3. Install the KOReader plugin
-
-Then install the KOReader
-[plugin on your e-reader](https://github.com/Crossbill-App/koreader-plugin).
-It is what sends your highlights to Crossbill; without it, Crossbill has nothing
-to show. See [KOReader plugin](../koreader-plugin/) for what the plugin syncs.
-
-## 4. Create your account
+## 3. Create your account
 
 Crossbill is multi-user: open the web frontend in a browser, register an
-account, and everything you sync afterwards belongs to it.
+account, and every book you add afterwards belongs to it.
+
+## 4. Add your books
+
+There are two ways in. You can use either one, or both.
+
+- **Upload an EPUB.** On the **Library** page, use the upload button in the
+  bottom-right corner and pick an EPUB file. The book opens once it is in, and
+  you can read and highlight it in the [web reader](../../features/web-reader/).
+  You do not need an e-reader.
+- **Sync from KOReader.** Install the KOReader
+  [plugin on your e-reader](https://github.com/Crossbill-App/koreader-plugin)
+  and sync. See [KOReader plugin](../koreader-plugin/) for what the plugin
+  syncs.
+
+If you upload a book and later sync the same EPUB from KOReader, the plugin
+finds the uploaded book instead of adding a second copy.
 
 ## Serving the web reader
 

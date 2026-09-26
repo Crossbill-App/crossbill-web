@@ -4,8 +4,22 @@ description: Read a book in the browser, jump from a highlight to its place in t
 ---
 
 The **web reader** opens a book's EPUB file in the browser. It opens where you
-left off, on whichever device you read last. The highlights you make here reach
-your e-reader too.
+left off, on whichever device you read last. You do not need an e-reader to use
+it. If you also use the [KOReader plugin](../../getting-started/koreader-plugin/),
+the highlights you make here reach your e-reader too.
+
+## Adding a book
+
+On the **Library** page, use the upload button in the bottom-right corner and
+pick an EPUB file. Crossbill reads the book's title, chapters and cover from
+the file and opens the new book.
+
+- Only EPUB files are accepted, up to 50 MB.
+- A book already in your library is refused rather than added twice.
+- A book synced from KOReader already has its EPUB; you do not need to upload
+  it again.
+- If you later sync the same EPUB from KOReader, the plugin finds the uploaded
+  book and adds to it.
 
 ## Opening a book
 
@@ -42,7 +56,7 @@ Your existing highlights are drawn on the page, in the colours your
 To make a new one, select some text. A bar appears under the selection:
 
 - **Colour** picks the highlighter. The choices are KOReader's colours, named
-  with the labels you gave them.
+  with the labels you gave them. You can use them without KOReader.
 - **Highlight** saves the passage in that colour.
 - **Extend** lets a highlight run past the current page. Turn to where the
   passage ends and tap its last word. An extended highlight must end in the

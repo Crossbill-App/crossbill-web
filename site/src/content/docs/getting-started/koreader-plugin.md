@@ -3,9 +3,13 @@ title: KOReader plugin
 description: What the KOReader plugin syncs between your e-reader and Crossbill, and where to find its install instructions.
 ---
 
-Crossbill gets its content from your e-reader. The
-[KOReader plugin](https://github.com/Crossbill-App/koreader-plugin) runs
-inside KOReader on the device and talks to your Crossbill server.
+If you read on an e-reader, the
+[KOReader plugin](https://github.com/Crossbill-App/koreader-plugin) brings your
+reading into Crossbill. It runs inside KOReader on the device and talks to your
+Crossbill server.
+
+The plugin is optional. Without it, upload EPUBs from the **Library** page and
+read them in the [web reader](../../features/web-reader/).
 
 ## What it syncs
 

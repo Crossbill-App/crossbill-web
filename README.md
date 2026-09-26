@@ -12,20 +12,21 @@
 
 A self-hosted reading companion web app for guiding your reading process into more active activity. Create summaries of chapters for skimming, manage and organize your highlights, create flash cards and create notes from them. Inspired by [Mortimer J. Adler's How to read a Book](https://www.goodreads.com/book/show/567610.How_to_Read_a_Book)'s ideas on how to encourage more active reading practices for elevated understanding.
 
-Syncs data from e-readers using Koreader.
+Syncs data from e-readers using KOReader, or upload your EPUB files and read them in the built-in web reader — no e-reader needed.
 
 [Read docs](https://crossbill-app.github.io/crossbill-web/)
 
 ## Features
+- Upload EPUB files from the browser and read them in the web reader - KOReader is optional
 - Sync highlights from KOReader with automatic deduplication
 - Organize highlights
-- Read your books in the browser - jump from a highlight to its place in the book, and make highlights that sync back to KOReader
+- Read your books in the browser - jump from a highlight to its place in the book, and make highlights that sync back to KOReader if you use it
 - Create flash cards from your highlights and sync them to Anki or get AI suggestions from highlights.
 - Create AI summaries from epub book chapters for review and skimming. Ollama, OpenAI, Anthropic and Gemini supported.
 - Create notes and link them to the highlights, chapters etc.
 - Semantic search over highlights, notes and chapter summaries - find them by meaning instead of exact words, across books and languages. Optional, requires an embedding provider (Ollama or OpenRouter).
 - Browse a book by its own chapter structure and track what you have read chapter by chapter
-- Reading statistics from the sessions KOReader syncs - streaks, days read and total time read
+- Reading statistics from your reading sessions in the web reader and KOReader - streaks, days read and total time read
 - Supporting features to reflect on the books you have read
 - Self-hosted - your data stays on your server
 - Multi-user support
@@ -68,7 +69,7 @@ Syncs data from e-readers using Koreader.
 
 - **Backend API**: FastAPI server with PostgreSQL database
 - **Web Frontend**: Modern React interface for browsing, editing, and organizing your highlights
-- **[KOReader Plugin](https://github.com/Crossbill-App/koreader-plugin)**: Syncs highlights directly from your KOReader e-reader
+- **[KOReader Plugin](https://github.com/Crossbill-App/koreader-plugin)** (optional): Syncs highlights directly from your KOReader e-reader
 - **[Obsidian Plugin](https://github.com/Crossbill-App/obsidian-plugin)**: Integrate highlights into your Obsidian notes
 - [**Anki Plugin**](https://github.com/Crossbill-App/anki-addon): Integrate highlights into your Anki flash cards
 
@@ -89,7 +90,12 @@ cp .env.example .env
 docker compose up
 ```
 
-Then install the Koreader [plugin on your e-reader](https://github.com/Crossbill-App/koreader-plugin).
+Then add your books in one of two ways:
+
+- **Upload EPUBs in the browser.** Use the upload button on the Library page, then read and highlight the book in the web reader. No e-reader needed.
+- **Sync from KOReader.** Install the KOReader [plugin on your e-reader](https://github.com/Crossbill-App/koreader-plugin).
+
+You can use both. A book you upload is the same book the plugin finds when it later syncs it.
 
 ### Background Worker
 

@@ -1,9 +1,9 @@
 ---
 title: Crossbill
-description: A self-hosted reading companion that turns e-reader highlights into active reading — chapter digests, flashcards, notes and reflections.
+description: A self-hosted reading companion that turns your highlights into active reading — chapter digests, flashcards, notes and reflections.
 template: splash
 hero:
-  tagline: A self-hosted reading companion. Crossbill collects what you marked on your e-reader and gives you the tools to work it into understanding — chapter digests for skimming, flashcards, notes and reflections. Inspired by Mortimer J. Adler's <em>How to Read a Book</em>.
+  tagline: A self-hosted reading companion. Read your EPUBs in the browser or sync what you marked on your e-reader, and Crossbill gives you the tools to work your highlights into understanding — chapter digests for skimming, flashcards, notes and reflections. Inspired by Mortimer J. Adler's <em>How to Read a Book</em>.
   image:
     file: ../../assets/crossbill-logo.png
     alt: ''
@@ -39,14 +39,15 @@ import webReader from '../../assets/screenshots/web-reader.png';
 ## What it does
 
 <CardGrid>
-	<Card title="Sync from KOReader" icon="cloud-download">
-		The KOReader plugin uploads your highlights, their highlight styles and your
-		reading sessions. Re-syncing the same book does not duplicate anything.
-	</Card>
 	<Card title="Web ebook reader" icon="laptop">
-		Read your EPUBs in the browser, starting where you left off on any device.
-		Jump from a highlight to its place in the book, and make new highlights
-		that sync back to your e-reader.
+		Upload an EPUB and read it in the browser, starting where you left off on
+		any device. Jump from a highlight to its place in the book, and make new
+		highlights. No e-reader needed.
+	</Card>
+	<Card title="Sync from KOReader" icon="cloud-download">
+		Optional: the KOReader plugin uploads your highlights, their highlight
+		styles and your reading sessions, and web highlights sync back to the
+		device. Re-syncing the same book does not duplicate anything.
 	</Card>
 	<Card title="Organize" icon="list-format">
 		Group highlights and notes with your own tags, cluster those tags into tag
@@ -131,7 +132,7 @@ belongs to one account on your own server, and your reading stays there.
 	<LinkCard
 		title="KOReader plugin"
 		href="https://github.com/Crossbill-App/koreader-plugin"
-		description="Syncs highlights, highlight styles and reading sessions from your e-reader, and pulls chapter digests back down to it."
+		description="Optional. Syncs highlights, highlight styles and reading sessions from your e-reader, and pulls chapter digests back down to it."
 	/>
 	<LinkCard
 		title="Obsidian plugin"
