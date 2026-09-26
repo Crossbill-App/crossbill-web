@@ -57,17 +57,6 @@ class BookBase(BaseModel):
     page_count: int | None = Field(None, ge=1, description="Total page count from ebook metadata")
 
 
-class BookCreate(BookBase):
-    """Schema for creating a Book."""
-
-    client_book_id: str = Field(
-        ...,
-        min_length=1,
-        max_length=255,
-        description="Client-provided stable book identifier for deduplication",
-    )
-
-
 class Book(BookBase):
     """Schema for Book response."""
 

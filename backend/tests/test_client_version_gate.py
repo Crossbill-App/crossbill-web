@@ -26,7 +26,7 @@ from tests.conftest import create_test_book
 
 CLIENT_HEADER = "X-Crossbill-Client"
 PLUGIN = "koreader-plugin"
-MIN_VERSION = "0.12.0"
+MIN_VERSION = "0.16.0"
 UPGRADE_REQUIRED_CODE = "client_upgrade_required"
 UPDATE_URL = "https://github.com/Crossbill-App/koreader-plugin"
 
@@ -38,7 +38,6 @@ CLIENT_BOOK_ID = "gated-book"
 GATED_ROUTES: list[tuple[str, str]] = [
     ("POST", "/api/v1/ereader/books"),
     ("GET", f"/api/v1/ereader/books/{CLIENT_BOOK_ID}"),
-    ("POST", f"/api/v1/ereader/books/{CLIENT_BOOK_ID}/epub"),
     ("GET", f"/api/v1/ereader/books/{CLIENT_BOOK_ID}/digest"),
     ("GET", f"/api/v1/ereader/books/{CLIENT_BOOK_ID}/highlights"),
     ("POST", "/api/v1/highlights/sync"),
@@ -177,7 +176,7 @@ async def test_an_outdated_plugin_is_turned_away_before_it_authenticates(
 @pytest.mark.parametrize(
     "version",
     [
-        "0.11.0",
+        "0.15.0",
         # Below the minimum numerically, above it lexicographically.
         "0.9.0",
     ],
@@ -198,10 +197,10 @@ async def test_version_below_the_minimum_is_rejected(
     "version",
     [
         "banana",
-        "v0.12.0",
+        "v0.16.0",
         # A lenient parse would read two parts as newer than the minimum.
         "1.2",
-        "0.12.0-beta.1",
+        "0.16.0-beta.1",
         "",
     ],
 )
@@ -245,7 +244,7 @@ async def test_a_header_that_names_no_client_is_rejected(
     assert response.json() == expected_body(received_version=None)
 
 
-@pytest.mark.parametrize("version", [MIN_VERSION, "0.13.99", "1.0.0"])
+@pytest.mark.parametrize("version", [MIN_VERSION, "0.16.1", "1.0.0"])
 async def test_version_at_or_above_the_minimum_is_served(
     client: AsyncClient, gated_book: models.Book, version: str
 ) -> None:

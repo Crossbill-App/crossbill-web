@@ -18,9 +18,9 @@ CLIENT_BOOK_ID = "alias-book"
 async def test_highlights_upload_alias_stores_highlights(
     plugin_client: AsyncClient,
     db_session: AsyncSession,
-    create_book_via_api: CreateBookFunc,
+    create_book: CreateBookFunc,
 ) -> None:
-    await create_book_via_api({"client_book_id": CLIENT_BOOK_ID, "title": "Alias Book"})
+    await create_book({"client_book_id": CLIENT_BOOK_ID, "title": "Alias Book"})
 
     response = await plugin_client.post(
         "/api/v1/highlights/upload",
@@ -45,9 +45,9 @@ async def test_highlights_upload_alias_stores_highlights(
 async def test_reading_sessions_upload_alias_stores_sessions(
     plugin_client: AsyncClient,
     db_session: AsyncSession,
-    create_book_via_api: CreateBookFunc,
+    create_book: CreateBookFunc,
 ) -> None:
-    await create_book_via_api({"client_book_id": CLIENT_BOOK_ID, "title": "Alias Book"})
+    await create_book({"client_book_id": CLIENT_BOOK_ID, "title": "Alias Book"})
 
     response = await plugin_client.post(
         "/api/v1/reading_sessions/upload",

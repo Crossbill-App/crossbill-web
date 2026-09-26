@@ -168,9 +168,9 @@ class TestHighlightUpload:
         plugin_client: AsyncClient,
         job_queue: AsyncMock,
         db_session: AsyncSession,
-        create_book_via_api: CreateBookFunc,
+        create_book: CreateBookFunc,
     ) -> None:
-        await create_book_via_api({"client_book_id": "book-1", "title": "Crime and Punishment"})
+        await create_book({"client_book_id": "book-1", "title": "Crime and Punishment"})
 
         with embeddings_enabled():
             result = await upload_highlights(plugin_client, "book-1", "first idea", "second idea")
@@ -184,7 +184,7 @@ class TestHighlightUpload:
         assert {call["content_type"] for call in calls} == {"highlight"}
 
     async def test_skipped_duplicates_are_not_re_enqueued(
-        self, plugin_client: AsyncClient, job_queue: AsyncMock, create_book_via_api: CreateBookFunc
+        self, plugin_client: AsyncClient, job_queue: AsyncMock, create_book: CreateBookFunc
     ) -> None:
         """A KOReader sync resends the whole book, so this is the common case.
 
@@ -192,7 +192,7 @@ class TestHighlightUpload:
         in a book on every sync -- the job would find them current and skip, but
         only after a queue round trip each.
         """
-        await create_book_via_api({"client_book_id": "book-1", "title": "Crime and Punishment"})
+        await create_book({"client_book_id": "book-1", "title": "Crime and Punishment"})
 
         with embeddings_enabled():
             await upload_highlights(plugin_client, "book-1", "first idea")
@@ -208,10 +208,10 @@ class TestHighlightUpload:
         plugin_client: AsyncClient,
         job_queue: AsyncMock,
         db_session: AsyncSession,
-        create_book_via_api: CreateBookFunc,
+        create_book: CreateBookFunc,
     ) -> None:
         """Five highlights at two per slice is three jobs, and the batch says three."""
-        await create_book_via_api({"client_book_id": "book-1", "title": "Crime and Punishment"})
+        await create_book({"client_book_id": "book-1", "title": "Crime and Punishment"})
 
         with embeddings_enabled(), patch(SLICE_SIZE, 2):
             await upload_highlights(plugin_client, "book-1", "a", "b", "c", "d", "e")
@@ -229,9 +229,9 @@ class TestHighlightUpload:
         plugin_client: AsyncClient,
         job_queue: AsyncMock,
         db_session: AsyncSession,
-        create_book_via_api: CreateBookFunc,
+        create_book: CreateBookFunc,
     ) -> None:
-        await create_book_via_api({"client_book_id": "book-1", "title": "Crime and Punishment"})
+        await create_book({"client_book_id": "book-1", "title": "Crime and Punishment"})
         job_queue.enqueue.side_effect = RuntimeError("redis is down")
 
         with embeddings_enabled():
@@ -247,18 +247,16 @@ class TestHighlightUpload:
         plugin_client: AsyncClient,
         job_queue: AsyncMock,
         db_session: AsyncSession,
-        create_book_via_api: CreateBookFunc,
+        create_book: CreateBookFunc,
     ) -> None:
         """The web delete took the embedding with it, so reviving the row must bring it back."""
-        book = await create_book_via_api(
-            {"client_book_id": "book-1", "title": "Crime and Punishment"}
-        )
+        book = await create_book({"client_book_id": "book-1", "title": "Crime and Punishment"})
 
         with embeddings_enabled():
             stored = await upload_one_highlight(plugin_client, db_session, job_queue)
             deletion = await client.request(
                 "DELETE",
-                f"/api/v1/books/{book.book_id}/highlight",
+                f"/api/v1/books/{book.id}/highlight",
                 json={"highlight_ids": [stored.id]},
             )
             assert deletion.json()["deleted_count"] == 1
@@ -274,10 +272,10 @@ class TestHighlightUpload:
         plugin_client: AsyncClient,
         job_queue: AsyncMock,
         db_session: AsyncSession,
-        create_book_via_api: CreateBookFunc,
+        create_book: CreateBookFunc,
     ) -> None:
         """Removing a highlight from devices never touched its embedding."""
-        await create_book_via_api({"client_book_id": "book-1", "title": "Crime and Punishment"})
+        await create_book({"client_book_id": "book-1", "title": "Crime and Punishment"})
 
         with embeddings_enabled():
             stored = await upload_one_highlight(plugin_client, db_session, job_queue)
@@ -287,9 +285,9 @@ class TestHighlightUpload:
         assert embedding_calls(job_queue) == []
 
     async def test_an_upload_that_creates_nothing_enqueues_nothing(
-        self, plugin_client: AsyncClient, job_queue: AsyncMock, create_book_via_api: CreateBookFunc
+        self, plugin_client: AsyncClient, job_queue: AsyncMock, create_book: CreateBookFunc
     ) -> None:
-        await create_book_via_api({"client_book_id": "book-1", "title": "Crime and Punishment"})
+        await create_book({"client_book_id": "book-1", "title": "Crime and Punishment"})
 
         with embeddings_enabled():
             await upload_highlights(plugin_client, "book-1", "first idea")

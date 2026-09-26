@@ -1,6 +1,6 @@
 """Tests for creating a book from an EPUB uploaded in the browser."""
 
-from collections.abc import AsyncIterator, Iterator
+from collections.abc import AsyncIterator, Callable, Iterator
 from io import BytesIO
 from pathlib import Path
 
@@ -12,11 +12,14 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src import models
+from src.application.web_reader.publications import ParsedPublication
+from src.domain.library.exceptions import InvalidEbookError
 from src.infrastructure.library.repositories.chapter_repository import ChapterRepository
 from src.infrastructure.library.routers import epub_upload
+from src.infrastructure.library.services.epub_parser_service import EpubParserService
+from src.infrastructure.web_reader.repositories import publication_repository
 from src.main import app
 from tests.conftest import (
-    CreateBookFunc,
     build_test_epub,
     create_test_book,
     create_test_highlight,
@@ -65,6 +68,15 @@ async def stored_epub(db_session: AsyncSession, storage_dir: Path, book_id: int)
     return (storage_dir / row.ebook_file).read_bytes()
 
 
+async def assert_chapters_without_publication(db_session: AsyncSession, book_id: int) -> None:
+    chapters = await db_session.execute(select(models.Chapter).filter_by(book_id=book_id))
+    publication = await db_session.execute(
+        select(models.BookPublication).filter_by(book_id=book_id)
+    )
+    assert "Chapter 1" in [chapter.name for chapter in chapters.scalars().all()]
+    assert publication.scalar_one_or_none() is None
+
+
 async def library_total(client: AsyncClient) -> int:
     response = await client.get("/api/v1/books/")
     assert response.status_code == status.HTTP_200_OK
@@ -80,6 +92,39 @@ def break_chapter_storage() -> Iterator[pytest.MonkeyPatch]:
     with pytest.MonkeyPatch.context() as patch:
         patch.setattr(ChapterRepository, "_resolve_parent_id", staticmethod(lambda *_: 10**9))
         yield patch
+
+
+class _UnparseablePublication(EpubParserService):
+    """An EPUB parser whose publication pass fails and whose other passes do not."""
+
+    def parse_publication(self, epub_content: bytes) -> ParsedPublication:
+        raise InvalidEbookError("package document unreadable", ebook_type="EPUB")
+
+
+@pytest.fixture
+def break_publication_parsing() -> Iterator[Callable[[], None]]:
+    """Yields the switch that makes ``parse_publication`` -- and only it -- start failing."""
+    from src.core import container  # noqa: PLC0415
+
+    def start_failing() -> None:
+        container.shared.epub_parser_service.override(_UnparseablePublication())
+
+    yield start_failing
+    container.shared.epub_parser_service.reset_override()
+
+
+@pytest.fixture
+def break_publication_storage(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Makes the real repository fail where it hurts: inside its commit.
+
+    A stub raising before it touches the session would not reproduce the
+    failure that matters -- the one that leaves the session needing a rollback.
+    """
+
+    def unserialisable(publication: ParsedPublication) -> dict[str, object]:
+        return {"reading_order": object()}
+
+    monkeypatch.setattr(publication_repository, "publication_to_json", unserialisable)
 
 
 @pytest.fixture
@@ -129,18 +174,20 @@ class TestCreateBookFromEpub:
     async def test_the_plugin_finds_the_uploaded_book_instead_of_creating_one(
         self,
         client: AsyncClient,
-        create_book_via_api: CreateBookFunc,
+        plugin_client: AsyncClient,
         epub_bytes: bytes,
         storage_dir: Path,
     ) -> None:
         uploaded = (await upload(client, epub_bytes)).json()
 
-        synced = await create_book_via_api(
-            {"title": "Uploaded Book", "client_book_id": UPLOADED_BOOK_ID}
+        synced = await plugin_client.post(
+            "/api/v1/ereader/books",
+            files={"epub": ("book.epub", epub_bytes, "application/epub+zip")},
+            data={"client_book_id": UPLOADED_BOOK_ID},
         )
 
-        assert synced.book_id == uploaded["id"]
-        assert synced.has_ebook is True
+        assert synced.json()["book_id"] == uploaded["id"]
+        assert synced.json()["has_ebook"] is True
         assert await library_total(client) == 1
 
     async def test_creators_are_hashed_the_way_the_plugin_hashes_them(
@@ -300,6 +347,54 @@ class TestExistingBooks:
         retry = await upload(failing_client, covered_epub_bytes)
         assert retry.status_code == status.HTTP_201_CREATED, retry.text
         assert retry.json()["id"] == book_id
+
+
+class TestUploadDerivesPublication:
+    async def test_upload_succeeds_when_the_publication_cannot_be_parsed(
+        self,
+        client: AsyncClient,
+        db_session: AsyncSession,
+        epub_bytes: bytes,
+        storage_dir: Path,
+        break_publication_parsing: Callable[[], None],
+    ) -> None:
+        break_publication_parsing()
+
+        response = await upload(client, epub_bytes)
+
+        assert response.status_code == status.HTTP_201_CREATED, response.text
+        await assert_chapters_without_publication(db_session, response.json()["id"])
+
+    async def test_upload_succeeds_when_the_index_cannot_be_stored(
+        self,
+        client: AsyncClient,
+        db_session: AsyncSession,
+        epub_bytes: bytes,
+        storage_dir: Path,
+        break_publication_storage: None,
+    ) -> None:
+        response = await upload(client, epub_bytes)
+
+        assert response.status_code == status.HTTP_201_CREATED, response.text
+        # Chapters are synced after the derivation, on the same session: they
+        # are what a failure left needing a rollback would take down with it.
+        await assert_chapters_without_publication(db_session, response.json()["id"])
+
+    async def test_deleting_the_book_cascades_the_index_away(
+        self,
+        client: AsyncClient,
+        db_session: AsyncSession,
+        epub_bytes: bytes,
+        storage_dir: Path,
+    ) -> None:
+        # No application code deletes the row on book deletion: the FK cascade does.
+        book_id = (await upload(client, epub_bytes)).json()["id"]
+
+        response = await client.delete(f"/api/v1/books/{book_id}")
+
+        assert response.status_code == status.HTTP_204_NO_CONTENT
+        result = await db_session.execute(select(models.BookPublication).filter_by(book_id=book_id))
+        assert result.scalar_one_or_none() is None
 
 
 class TestRejectedUploads:
