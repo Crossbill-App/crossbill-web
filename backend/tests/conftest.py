@@ -53,7 +53,6 @@ from src.infrastructure.identity.dependencies import (
 )
 from src.infrastructure.identity.services.token_service import ACCESS_TOKEN_EXPIRE_MINUTES
 from src.infrastructure.library.repositories import file_repository
-from src.infrastructure.library.schemas import EreaderBookMetadata
 from src.infrastructure.reading.routers.reader_clock import reader_today
 from src.infrastructure.reading.schemas.ereader_highlight_schemas import (
     KOREADER_DATETIME_FORMAT,
@@ -571,17 +570,15 @@ async def test_tag(db_session: AsyncSession, test_book: Book, test_user: User) -
 
 
 # Type alias for the book creation fixture (used across multiple test files)
-CreateBookFunc = Callable[[dict[str, Any]], Awaitable[EreaderBookMetadata]]
+CreateBookFunc = Callable[[dict[str, Any]], Awaitable[Book]]
 
 
 @pytest.fixture
-async def create_book_via_api(plugin_client: AsyncClient) -> CreateBookFunc:
-    """Fixture factory for creating books via the plugin-only ``/ereader/books``."""
+async def create_book(db_session: AsyncSession, test_user: User) -> CreateBookFunc:
+    """Fixture factory for the test user's books, keyed by ``client_book_id`` as synced ones are."""
 
-    async def _create_book(book_data: dict[str, Any]) -> EreaderBookMetadata:
-        response = await plugin_client.post("/api/v1/ereader/books", json=book_data)
-        assert response.status_code == 200
-        return EreaderBookMetadata(**response.json())
+    async def _create_book(book_data: dict[str, Any]) -> Book:
+        return await create_test_book(db_session=db_session, user_id=test_user.id, **book_data)
 
     return _create_book
 

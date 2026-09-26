@@ -1,14 +1,13 @@
 """API routes for ereader operations."""
 
+from contextlib import suppress
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, File, UploadFile, status
+from fastapi import APIRouter, Depends, File, Form, UploadFile, status
 
-from src.application.library.commands.book_files.ebook_upload_use_case import EbookUploadUseCase
-from src.application.library.commands.book_management.create_book_use_case import (
-    CreateBookUseCase,
+from src.application.library.commands.book_management.create_book_from_epub_use_case import (
+    CreateBookFromEpubUseCase,
 )
-from src.application.library.dtos import CreateBookInput
 from src.application.library.queries.get_ereader_metadata_use_case import (
     EreaderMetadata,
     GetEreaderMetadataUseCase,
@@ -22,18 +21,16 @@ from src.application.reading.queries.get_ereader_book_highlights_use_case import
 from src.core import container
 from src.domain.common.value_objects.ids import UserId
 from src.domain.identity.entities.user import User
+from src.domain.library.exceptions import BookAlreadyExistsError
 from src.infrastructure.common.client_version import (
     UPGRADE_REQUIRED_RESPONSES,
     require_koreader_plugin,
 )
 from src.infrastructure.common.di import inject_use_case
-from src.infrastructure.common.schemas import CollectionResponse, SuccessResponse
+from src.infrastructure.common.schemas import CollectionResponse
 from src.infrastructure.identity.dependencies import get_current_user
 from src.infrastructure.library.routers.epub_upload import read_epub_upload
-from src.infrastructure.library.schemas import (
-    BookCreate,
-    EreaderBookMetadata,
-)
+from src.infrastructure.library.schemas import EreaderBookMetadata
 from src.infrastructure.reading.schemas.chapter_digest_schemas import (
     EreaderChapterDigestItem,
 )
@@ -66,43 +63,35 @@ def _metadata_schema(metadata: EreaderMetadata) -> EreaderBookMetadata:
     response_model=EreaderBookMetadata,
     status_code=status.HTTP_200_OK,
 )
-async def create_book(
-    book_data: BookCreate,
+async def upload_book(
+    epub: Annotated[UploadFile, File(...)],
+    client_book_id: Annotated[str, Form(min_length=1, max_length=255)],
     current_user: Annotated[User, Depends(get_current_user)],
-    create_use_case: CreateBookUseCase = Depends(
-        inject_use_case(container.library.create_book_use_case)
+    page_count: Annotated[int | None, Form(ge=1)] = None,
+    create_use_case: CreateBookFromEpubUseCase = Depends(
+        inject_use_case(container.library.create_book_from_epub_use_case)
     ),
     metadata_use_case: GetEreaderMetadataUseCase = Depends(
         inject_use_case(container.library.get_ereader_metadata_use_case)
     ),
 ) -> EreaderBookMetadata:
+    """Create a book from its EPUB under the device's client_book_id, in one call.
+
+    Title, author and language come from the file. A book that already has its
+    file is left as it is, and its metadata is returned all the same.
     """
-    Create or get a book by client_book_id.
-
-    This endpoint creates a new book if it doesn't exist, or returns the existing
-    book's metadata if it does. Used by KOReader to ensure a book exists before
-    uploading highlights, covers, or EPUB files.
-
-    Args:
-        book_data: Book creation data (same format as highlight upload)
-        current_user: Authenticated user
-
-    Returns:
-        EreaderBookMetadata with book_id, bookname, author, cover_file, has_epub
-    """
-    create_input = CreateBookInput(
-        title=book_data.title,
-        client_book_id=book_data.client_book_id,
-        author=book_data.author,
-        isbn=book_data.isbn,
-        description=book_data.description,
-        language=book_data.language,
-        page_count=book_data.page_count,
-    )
-    await create_use_case.create_book(create_input, current_user.id.value)
+    content = read_epub_upload(epub)
+    with suppress(BookAlreadyExistsError):
+        await create_use_case.create_book_from_epub(
+            content,
+            epub.filename,
+            current_user.id,
+            client_book_id=client_book_id,
+            page_count=page_count,
+        )
 
     metadata = await metadata_use_case.get_metadata_for_ereader(
-        book_data.client_book_id, current_user.id.value
+        client_book_id, current_user.id.value
     )
     return _metadata_schema(metadata)
 
@@ -137,45 +126,6 @@ async def get_book_metadata(
     """
     metadata = await use_case.get_metadata_for_ereader(client_book_id, current_user.id.value)
     return _metadata_schema(metadata)
-
-
-@router.post(
-    "/books/{client_book_id}/epub",
-    response_model=SuccessResponse,
-    status_code=status.HTTP_200_OK,
-)
-async def upload_book_epub(
-    client_book_id: str,
-    epub: Annotated[UploadFile, File(...)],
-    current_user: Annotated[User, Depends(get_current_user)],
-    use_case: EbookUploadUseCase = Depends(
-        inject_use_case(container.library.ebook_upload_use_case)
-    ),
-) -> SuccessResponse:
-    """
-    Upload an ebook file (EPUB) for a book using client_book_id.
-
-    This endpoint accepts an uploaded ebook file and saves it for the book.
-    Used by KOReader which identifies books by client_book_id.
-
-    Args:
-        client_book_id: The client-provided stable book identifier
-        epub: Uploaded ebook file (EPUB)
-        current_user: Authenticated user
-
-    Returns:
-        SuccessResponse with success status
-
-    Raises:
-        HTTPException: 400 for invalid file, 404 if book is not found
-    """
-    content = read_epub_upload(epub)
-    await use_case.upload_ebook(client_book_id, content, current_user.id.value)
-
-    return SuccessResponse(
-        success=True,
-        message="Ebook uploaded successfully",
-    )
 
 
 @router.get(

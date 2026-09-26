@@ -31,8 +31,6 @@ from tests.readium_helpers import fixture_bytes
 CLIENT_BOOK_ID = "locator-client-book"
 MINIMAL_EPUB = fixture_bytes("minimal")
 MINIMAL_EPUB_DIGEST = hashlib.sha256(MINIMAL_EPUB).hexdigest()
-REPLACEMENT_EPUB = fixture_bytes("fixed_layout")
-REPLACEMENT_DIGEST = hashlib.sha256(REPLACEMENT_EPUB).hexdigest()
 
 # The second of the two identical paragraphs of chapter one: #intro's children
 # are h1, p, p, p, p, so it is nth-child(4) rather than nth-child(2).
@@ -53,16 +51,6 @@ SESSION_START = "/body/DocFragment[1]/body/div/p[1]/text().0"
 SESSION_START_SELECTOR = "#intro > p:nth-child(2)"
 SESSION_END = "/body/DocFragment[2]/body/div/p[1]/text().0"
 SESSION_END_SELECTOR = "#second > p:nth-child(2)"
-
-# The first paragraph of each chapter is where the two fixture books overlap:
-# ``fixed_layout.epub`` places both of these xpointers too, in differently named
-# resources. A locator rewritten against it is therefore observable, where a null
-# one would only say the replacement could not place the position.
-REWRITTEN_TEXT = "The lantern"
-REWRITTEN_END = "/body/DocFragment[1]/body/div/p[1]/text().4"
-REPLACEMENT_SELECTOR = "body > div:nth-child(1) > p:nth-child(1)"
-REPLACEMENT_START_HREF = "page1.xhtml"
-REPLACEMENT_END_HREF = "page2.xhtml"
 
 # Three sessions that no two of share an endpoint, so a write that crossed one
 # session's key with another's would land a selector these assertions reject.
@@ -188,8 +176,9 @@ def highlight(text: str, start: str | None = None, end: str | None = None) -> di
 
 async def upload_epub(plugin_client: AsyncClient, content: bytes = MINIMAL_EPUB) -> None:
     response = await plugin_client.post(
-        f"/api/v1/ereader/books/{CLIENT_BOOK_ID}/epub",
+        "/api/v1/ereader/books",
         files={"epub": ("book.epub", content, "application/epub+zip")},
+        data={"client_book_id": CLIENT_BOOK_ID},
     )
     assert response.status_code == 200, response.text
 
@@ -588,36 +577,6 @@ async def test_an_upload_leaves_another_users_rows_on_the_same_book_alone(
     assert theirs.user_id == stranger_id
     assert theirs.locator is None
     assert theirs.locator_source_hash is None
-
-
-async def test_replacing_the_epub_rewrites_the_locators_against_the_new_file(
-    plugin_client: AsyncClient,
-    db_session: AsyncSession,
-    ereader_book: models.Book,
-    storage_dir: Path,
-) -> None:
-    await sync(plugin_client, [highlight(REWRITTEN_TEXT, SESSION_START, REWRITTEN_END)])
-    await sync_sessions(plugin_client, [reading_session("kobo-1")])
-    await upload_epub(plugin_client)
-    before = await stored(db_session, REWRITTEN_TEXT)
-    assert before.locator is not None
-    assert before.locator["href"] == "OEBPS/chapter1.xhtml"
-    assert before.locator_source_hash == MINIMAL_EPUB_DIGEST
-
-    await upload_epub(plugin_client, REPLACEMENT_EPUB)
-
-    row = await stored(db_session, REWRITTEN_TEXT)
-    assert row.locator is not None
-    assert row.locator["href"] == REPLACEMENT_START_HREF
-    assert row.locator["locations"]["cssSelector"] == REPLACEMENT_SELECTOR
-    assert row.locator["text"]["highlight"] == "One."
-    assert row.locator_source_hash == REPLACEMENT_DIGEST
-    session_row = await stored_session(db_session, "kobo-1")
-    assert session_row.start_locator is not None
-    assert session_row.start_locator["href"] == REPLACEMENT_START_HREF
-    assert session_row.end_locator is not None
-    assert session_row.end_locator["href"] == REPLACEMENT_END_HREF
-    assert session_row.locator_source_hash == REPLACEMENT_DIGEST
 
 
 async def test_an_upload_derives_once_per_kind_however_many_rows_there_are(

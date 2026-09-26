@@ -968,32 +968,6 @@ class TestUpdateBook:
         )
         assert response.status_code == status.HTTP_422_UNPROCESSABLE_CONTENT
 
-    async def test_imported_description_truncated_to_limit(
-        self, client: AsyncClient, create_book_via_api: CreateBookFunc
-    ) -> None:
-        """An over-long publisher blurb is truncated on import, not rejected.
-
-        The plugin's ``/ereader/books`` contract must not start failing on a
-        long blurb, but a blurb stored over the limit would make every save
-        from the manage dialog a 422 the reader cannot explain.
-        """
-        book = await create_book_via_api(
-            {
-                "client_book_id": "long-blurb",
-                "title": "Long Blurb",
-                "description": "x" * 6000,
-            }
-        )
-
-        details = await client.get(f"/api/v1/books/{book.book_id}")
-        assert details.json()["description"] == "x" * 5000
-
-        response = await client.patch(
-            f"/api/v1/books/{book.book_id}",
-            json={"description": details.json()["description"]},
-        )
-        assert response.status_code == status.HTTP_204_NO_CONTENT
-
     async def test_unknown_key_rejected(self, client: AsyncClient, test_book: models.Book) -> None:
         """An unrecognised key must 422, not silently no-op with a 204.
 
@@ -1055,10 +1029,10 @@ class TestBookLastSynced:
         return rows[0]
 
     async def test_created_book_has_never_synced(
-        self, client: AsyncClient, create_book_via_api: CreateBookFunc
+        self, client: AsyncClient, create_book: CreateBookFunc
     ) -> None:
         """Creating a book is not a sync: nothing has been sent for it yet."""
-        await create_book_via_api({"client_book_id": "never-synced", "title": "Never Synced"})
+        await create_book({"client_book_id": "never-synced", "title": "Never Synced"})
 
         row = await self._list_row(client, "never-synced")
 
@@ -1068,10 +1042,10 @@ class TestBookLastSynced:
         self,
         client: AsyncClient,
         plugin_client: AsyncClient,
-        create_book_via_api: CreateBookFunc,
+        create_book: CreateBookFunc,
     ) -> None:
         """A successful highlight push records when the device sent it."""
-        await create_book_via_api({"client_book_id": "synced-book", "title": "Synced Book"})
+        await create_book({"client_book_id": "synced-book", "title": "Synced Book"})
 
         upload = await plugin_client.post(
             "/api/v1/highlights/sync",
@@ -1094,10 +1068,10 @@ class TestBookLastSynced:
         self,
         client: AsyncClient,
         plugin_client: AsyncClient,
-        create_book_via_api: CreateBookFunc,
+        create_book: CreateBookFunc,
     ) -> None:
         """A push carrying only reading sessions counts as a sync too."""
-        await create_book_via_api({"client_book_id": "session-book", "title": "Session Book"})
+        await create_book({"client_book_id": "session-book", "title": "Session Book"})
 
         upload = await plugin_client.post(
             "/api/v1/reading_sessions/sync",
@@ -1123,10 +1097,10 @@ class TestBookLastSynced:
         self,
         client: AsyncClient,
         plugin_client: AsyncClient,
-        create_book_via_api: CreateBookFunc,
+        create_book: CreateBookFunc,
     ) -> None:
         """A device with a wrong clock cannot dictate where the book sorts."""
-        await create_book_via_api({"client_book_id": "clock-skew", "title": "Clock Skew"})
+        await create_book({"client_book_id": "clock-skew", "title": "Clock Skew"})
 
         upload = await plugin_client.post(
             "/api/v1/reading_sessions/sync",

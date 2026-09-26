@@ -2,6 +2,8 @@
 
 import asyncio
 
+import structlog
+
 from src.application.library.commands.book_files.attach_epub_use_case import AttachEpubUseCase
 from src.application.library.protocols.book_repository import BookRepositoryProtocol
 from src.application.library.protocols.epub_parser import EpubParserProtocol
@@ -14,6 +16,8 @@ from src.domain.library.services.book_identity import book_title_for, koreader_c
 
 # The width of the books.language column.
 _MAX_LANGUAGE_LENGTH = 10
+
+logger = structlog.get_logger(__name__)
 
 
 class CreateBookFromEpubUseCase:
@@ -32,12 +36,20 @@ class CreateBookFromEpubUseCase:
         self.attach_epub_use_case = attach_epub_use_case
 
     async def create_book_from_epub(
-        self, content: bytes, file_name: str | None, user_id: UserId
+        self,
+        content: bytes,
+        file_name: str | None,
+        user_id: UserId,
+        *,
+        client_book_id: str | None = None,
+        page_count: int | None = None,
     ) -> Book:
         """Store the EPUB on its book, creating the book unless one is waiting for a file."""
         metadata = await asyncio.to_thread(self._read_metadata, content)
         title = book_title_for(metadata.title, file_name)
-        client_book_id = koreader_client_book_id(title, metadata.authors)
+        client_book_id = self._resolve_client_book_id(
+            client_book_id, koreader_client_book_id(title, metadata.authors)
+        )
 
         existing = await self.book_repository.find_by_client_book_id(client_book_id, user_id)
         if existing is not None:
@@ -52,6 +64,7 @@ class CreateBookFromEpubUseCase:
             client_book_id=client_book_id,
             author="\n".join(metadata.authors) or None,
             language=language if language and len(language) <= _MAX_LANGUAGE_LENGTH else None,
+            page_count=page_count,
         )
         book = await self.book_repository.save(book)
         try:
@@ -62,6 +75,18 @@ class CreateBookFromEpubUseCase:
             await self.book_repository.delete(book)
             await self._delete_files(book.ebook_file, book.cover_file)
             raise
+
+    @staticmethod
+    def _resolve_client_book_id(device_id: str | None, file_id: str) -> str:
+        if device_id is None:
+            return file_id
+        if device_id != file_id:
+            logger.warning(
+                "client_book_id_mismatch",
+                device_client_book_id=device_id,
+                file_client_book_id=file_id,
+            )
+        return device_id
 
     async def _attach_to_existing(self, book: Book, content: bytes, user_id: UserId) -> Book:
         had_cover = book.cover_file is not None

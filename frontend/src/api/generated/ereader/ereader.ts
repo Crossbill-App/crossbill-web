@@ -21,13 +21,11 @@ import type {
 import { useMutation, useQuery } from '@tanstack/react-query';
 
 import type {
-  BodyUploadBookEpub,
-  BookCreate,
+  BodyUploadBook,
   CollectionResponseEreaderChapterDigestItem,
   CollectionResponseEreaderHighlightItem,
   EreaderBookMetadata,
   HTTPValidationError,
-  SuccessResponse,
 } from '../model';
 
 import { axiosInstance } from '../../axios-instance.ts';
@@ -48,49 +46,48 @@ const withQueryKey = <T extends object, K>(query: T, queryKey: K): T & { queryKe
 };
 
 /**
- * Create or get a book by client_book_id.
+ * Create a book from its EPUB under the device's client_book_id, in one call.
  *
- * This endpoint creates a new book if it doesn't exist, or returns the existing
- * book's metadata if it does. Used by KOReader to ensure a book exists before
- * uploading highlights, covers, or EPUB files.
- *
- * Args:
- *     book_data: Book creation data (same format as highlight upload)
- *     current_user: Authenticated user
- *
- * Returns:
- *     EreaderBookMetadata with book_id, bookname, author, cover_file, has_epub
- * @summary Create Book
+ * Title, author and language come from the file. A book that already has its
+ * file is left as it is, and its metadata is returned all the same.
+ * @summary Upload Book
  */
-export const createBook = (bookCreate: BookCreate, signal?: AbortSignal) => {
+export const uploadBook = (bodyUploadBook: BodyUploadBook, signal?: AbortSignal) => {
+  const formData = new FormData();
+  formData.append(`epub`, bodyUploadBook.epub);
+  formData.append(`client_book_id`, bodyUploadBook.client_book_id);
+  if (bodyUploadBook.page_count !== undefined && bodyUploadBook.page_count !== null) {
+    formData.append(`page_count`, bodyUploadBook.page_count.toString());
+  }
+
   return axiosInstance<EreaderBookMetadata>({
     url: `/api/v1/ereader/books`,
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    data: bookCreate,
+    headers: { 'Content-Type': 'multipart/form-data' },
+    data: formData,
     signal,
   });
 };
 
-export const getCreateBookMutationKey = () => ['createBook'] as const;
+export const getUploadBookMutationKey = () => ['uploadBook'] as const;
 
-export const getCreateBookMutationOptions = <
+export const getUploadBookMutationOptions = <
   TError = HTTPValidationError,
   TContext = unknown,
 >(options?: {
   mutation?: UseMutationOptions<
-    Awaited<ReturnType<typeof createBook>>,
+    Awaited<ReturnType<typeof uploadBook>>,
     TError,
-    CreateBookMutationVariables,
+    UploadBookMutationVariables,
     TContext
   >;
 }): UseMutationOptions<
-  Awaited<ReturnType<typeof createBook>>,
+  Awaited<ReturnType<typeof uploadBook>>,
   TError,
-  CreateBookMutationVariables,
+  UploadBookMutationVariables,
   TContext
 > => {
-  const mutationKey = getCreateBookMutationKey();
+  const mutationKey = getUploadBookMutationKey();
   const { mutation: mutationOptions } = options
     ? options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey
       ? options
@@ -98,42 +95,42 @@ export const getCreateBookMutationOptions = <
     : { mutation: { mutationKey } };
 
   const mutationFn: MutationFunction<
-    Awaited<ReturnType<typeof createBook>>,
-    CreateBookMutationVariables
+    Awaited<ReturnType<typeof uploadBook>>,
+    UploadBookMutationVariables
   > = (props) => {
     const { data } = props ?? {};
 
-    return createBook(data);
+    return uploadBook(data);
   };
 
   return { mutationFn, ...mutationOptions };
 };
 
-export type CreateBookMutationResult = NonNullable<Awaited<ReturnType<typeof createBook>>>;
-export type CreateBookMutationBody = BookCreate;
-export type CreateBookMutationError = HTTPValidationError;
-export type CreateBookMutationVariables = { data: BookCreate };
+export type UploadBookMutationResult = NonNullable<Awaited<ReturnType<typeof uploadBook>>>;
+export type UploadBookMutationBody = BodyUploadBook;
+export type UploadBookMutationError = HTTPValidationError;
+export type UploadBookMutationVariables = { data: BodyUploadBook };
 
 /**
- * @summary Create Book
+ * @summary Upload Book
  */
-export const useCreateBook = <TError = HTTPValidationError, TContext = unknown>(
+export const useUploadBook = <TError = HTTPValidationError, TContext = unknown>(
   options?: {
     mutation?: UseMutationOptions<
-      Awaited<ReturnType<typeof createBook>>,
+      Awaited<ReturnType<typeof uploadBook>>,
       TError,
-      CreateBookMutationVariables,
+      UploadBookMutationVariables,
       TContext
     >;
   },
   queryClient?: QueryClient
 ): UseMutationResult<
-  Awaited<ReturnType<typeof createBook>>,
+  Awaited<ReturnType<typeof uploadBook>>,
   TError,
-  CreateBookMutationVariables,
+  UploadBookMutationVariables,
   TContext
 > => {
-  return useMutation(getCreateBookMutationOptions(options), queryClient);
+  return useMutation(getUploadBookMutationOptions(options), queryClient);
 };
 /**
  * Get basic book metadata by client_book_id for ereader operations.
@@ -262,104 +259,6 @@ export function useGetBookMetadata<
   return withQueryKey(query, queryOptions.queryKey);
 }
 
-/**
- * Upload an ebook file (EPUB) for a book using client_book_id.
- *
- * This endpoint accepts an uploaded ebook file and saves it for the book.
- * Used by KOReader which identifies books by client_book_id.
- *
- * Args:
- *     client_book_id: The client-provided stable book identifier
- *     epub: Uploaded ebook file (EPUB)
- *     current_user: Authenticated user
- *
- * Returns:
- *     SuccessResponse with success status
- *
- * Raises:
- *     HTTPException: 400 for invalid file, 404 if book is not found
- * @summary Upload Book Epub
- */
-export const uploadBookEpub = (
-  clientBookId: string,
-  bodyUploadBookEpub: BodyUploadBookEpub,
-  signal?: AbortSignal
-) => {
-  const formData = new FormData();
-  formData.append(`epub`, bodyUploadBookEpub.epub);
-
-  return axiosInstance<SuccessResponse>({
-    url: `/api/v1/ereader/books/${clientBookId}/epub`,
-    method: 'POST',
-    headers: { 'Content-Type': 'multipart/form-data' },
-    data: formData,
-    signal,
-  });
-};
-
-export const getUploadBookEpubMutationKey = () => ['uploadBookEpub'] as const;
-
-export const getUploadBookEpubMutationOptions = <
-  TError = HTTPValidationError,
-  TContext = unknown,
->(options?: {
-  mutation?: UseMutationOptions<
-    Awaited<ReturnType<typeof uploadBookEpub>>,
-    TError,
-    UploadBookEpubMutationVariables,
-    TContext
-  >;
-}): UseMutationOptions<
-  Awaited<ReturnType<typeof uploadBookEpub>>,
-  TError,
-  UploadBookEpubMutationVariables,
-  TContext
-> => {
-  const mutationKey = getUploadBookEpubMutationKey();
-  const { mutation: mutationOptions } = options
-    ? options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey
-      ? options
-      : { ...options, mutation: { ...options.mutation, mutationKey } }
-    : { mutation: { mutationKey } };
-
-  const mutationFn: MutationFunction<
-    Awaited<ReturnType<typeof uploadBookEpub>>,
-    UploadBookEpubMutationVariables
-  > = (props) => {
-    const { clientBookId, data } = props ?? {};
-
-    return uploadBookEpub(clientBookId, data);
-  };
-
-  return { mutationFn, ...mutationOptions };
-};
-
-export type UploadBookEpubMutationResult = NonNullable<Awaited<ReturnType<typeof uploadBookEpub>>>;
-export type UploadBookEpubMutationBody = BodyUploadBookEpub;
-export type UploadBookEpubMutationError = HTTPValidationError;
-export type UploadBookEpubMutationVariables = { clientBookId: string; data: BodyUploadBookEpub };
-
-/**
- * @summary Upload Book Epub
- */
-export const useUploadBookEpub = <TError = HTTPValidationError, TContext = unknown>(
-  options?: {
-    mutation?: UseMutationOptions<
-      Awaited<ReturnType<typeof uploadBookEpub>>,
-      TError,
-      UploadBookEpubMutationVariables,
-      TContext
-    >;
-  },
-  queryClient?: QueryClient
-): UseMutationResult<
-  Awaited<ReturnType<typeof uploadBookEpub>>,
-  TError,
-  UploadBookEpubMutationVariables,
-  TContext
-> => {
-  return useMutation(getUploadBookEpubMutationOptions(options), queryClient);
-};
 /**
  * Get every chapter digest for a book by client_book_id.
  *

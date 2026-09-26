@@ -202,7 +202,7 @@ class TestOneBackfillAtATime:
         db_session: AsyncSession,
         test_book: Book,
         test_highlight: Highlight,
-        create_book_via_api: CreateBookFunc,
+        create_book: CreateBookFunc,
     ) -> None:
         """Uploads keep their own batch type, so the guard cannot refuse content.
 
@@ -210,7 +210,7 @@ class TestOneBackfillAtATime:
         backfill reject the batch an upload opens, and the uploaded highlights
         would go unembedded until the next reconcile.
         """
-        await create_book_via_api({"client_book_id": "book-1", "title": "Crime and Punishment"})
+        await create_book({"client_book_id": "book-1", "title": "Crime and Punishment"})
 
         with embeddings_enabled():
             backfill = await client.post("/api/v1/semantic/backfill")
@@ -267,9 +267,9 @@ class TestActiveBackfillEndpoint:
         client: AsyncClient,
         plugin_client: AsyncClient,
         job_queue: AsyncMock,
-        create_book_via_api: CreateBookFunc,
+        create_book: CreateBookFunc,
     ) -> None:
-        await create_book_via_api({"client_book_id": "book-1", "title": "Crime and Punishment"})
+        await create_book({"client_book_id": "book-1", "title": "Crime and Punishment"})
 
         with embeddings_enabled():
             await upload_highlights(plugin_client, "book-1", "just uploaded")

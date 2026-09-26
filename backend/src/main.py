@@ -30,6 +30,7 @@ from src.domain.common.exceptions import (
     EntityNotFoundError,
     ValidationError,
 )
+from src.domain.library.exceptions import InvalidEbookError
 from src.domain.web_reader.exceptions import BookFileUnreadableError, UnresolvablePositionError
 from src.infrastructure.common.client_ip import client_ip, client_ip_from_scope, proxy_chain
 from src.infrastructure.common.openapi import operation_id
@@ -381,6 +382,9 @@ SAFE_MESSAGES: dict[int, str] = {
     503: "The server cannot serve this request at the moment.",
 }
 
+# Their messages describe only a problem with the caller's own ebook file.
+PUBLIC_MESSAGE_ERRORS: tuple[type[DomainError], ...] = (InvalidEbookError,)
+
 
 # Exception handlers
 @app.exception_handler(DomainError)
@@ -418,7 +422,11 @@ async def domain_error_handler(request: Request, exc: DomainError) -> JSONRespon
         status_code=status_code,
         content={
             "error": error_key,
-            "message": SAFE_MESSAGES[status_code],
+            "message": (
+                exc.message
+                if isinstance(exc, PUBLIC_MESSAGE_ERRORS)
+                else SAFE_MESSAGES[status_code]
+            ),
         },
         headers=headers or None,
     )

@@ -24,10 +24,10 @@ class TestHighlightUploadCreatesStyles:
         self,
         plugin_client: AsyncClient,
         db_session: AsyncSession,
-        create_book_via_api: CreateBookFunc,
+        create_book: CreateBookFunc,
     ) -> None:
         """Test that uploading highlights with color and drawer creates highlight style rows."""
-        await create_book_via_api(
+        await create_book(
             {
                 "client_book_id": "test-labels-book",
                 "title": "Labels Test Book",
@@ -77,10 +77,10 @@ class TestHighlightUploadCreatesStyles:
         self,
         plugin_client: AsyncClient,
         db_session: AsyncSession,
-        create_book_via_api: CreateBookFunc,
+        create_book: CreateBookFunc,
     ) -> None:
         """Test that uploading highlights with same color+drawer reuses the same style."""
-        await create_book_via_api(
+        await create_book(
             {
                 "client_book_id": "test-dedup-styles",
                 "title": "Style Dedup Book",
@@ -135,10 +135,10 @@ class TestHighlightUploadCreatesStyles:
         client: AsyncClient,
         plugin_client: AsyncClient,
         db_session: AsyncSession,
-        create_book_via_api: CreateBookFunc,
+        create_book: CreateBookFunc,
     ) -> None:
         """Test that highlight responses include highlight_style_id field."""
-        await create_book_via_api(
+        await create_book(
             {
                 "client_book_id": "test-style-response",
                 "title": "Style Response Book",
@@ -450,10 +450,10 @@ class TestHighlightUploadWithLabels:
         client: AsyncClient,
         plugin_client: AsyncClient,
         db_session: AsyncSession,
-        create_book_via_api: CreateBookFunc,
+        create_book: CreateBookFunc,
     ) -> None:
         """End-to-end test: upload highlights, then query labels."""
-        await create_book_via_api(
+        await create_book(
             {
                 "client_book_id": "test-e2e-labels",
                 "title": "E2E Labels Book",
@@ -518,10 +518,10 @@ class TestHighlightUploadWithLabels:
         self,
         plugin_client: AsyncClient,
         db_session: AsyncSession,
-        create_book_via_api: CreateBookFunc,
+        create_book: CreateBookFunc,
     ) -> None:
         """Test that highlights without color/drawer still get a style (with None values)."""
-        await create_book_via_api(
+        await create_book(
             {
                 "client_book_id": "test-no-color",
                 "title": "No Color Book",
