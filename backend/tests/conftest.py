@@ -60,6 +60,7 @@ from src.models import (
     Chapter,
     Flashcard,
     Highlight,
+    Note,
     ReadingSession,
     Tag,
     TagGroup,
@@ -70,6 +71,8 @@ from src.models import (
 )
 from tests.ai_helpers import FakeAgent, digest_output, flashcard_output
 from tests.fakes import FakeJobQueue, FakeTextExtraction, StubFileRepository
+
+OTHER_USER_ID = 2
 
 logging.getLogger("aiosqlite").setLevel(logging.WARNING)
 
@@ -212,6 +215,29 @@ async def create_test_highlight(
     await db_session.commit()
     await db_session.refresh(highlight)
     return highlight
+
+
+async def plant_highlight(
+    db_session: AsyncSession, book: Book, text: str, *, deleted: bool = False
+) -> Highlight:
+    """A highlight owned by the book's owner, soft-deleted if asked."""
+    return await create_test_highlight(
+        db_session,
+        book,
+        book.user_id,
+        text=text,
+        datetime_str="2024-01-15 14:30:22",
+        deleted_at=dt.now(UTC) if deleted else None,
+    )
+
+
+async def plant_note(db_session: AsyncSession, book: Book, title: str, body: str = "") -> Note:
+    """A note owned by the book's owner and linked to it."""
+    note = Note(user_id=book.user_id, title=title, body=body, books=[book])
+    db_session.add(note)
+    await db_session.commit()
+    await db_session.refresh(note)
+    return note
 
 
 async def create_test_reading_session(
@@ -452,6 +478,15 @@ def job_queue(client: AsyncClient) -> FakeJobQueue:
     queue = container.job_queue_service()
     assert isinstance(queue, FakeJobQueue)
     return queue
+
+
+@pytest.fixture
+async def other_user(db_session: AsyncSession) -> User:
+    """A second account, for user-isolation cases."""
+    user = User(id=OTHER_USER_ID, email="other@test.com")
+    db_session.add(user)
+    await db_session.commit()
+    return user
 
 
 @pytest.fixture

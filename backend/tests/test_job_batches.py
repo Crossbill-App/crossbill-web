@@ -175,7 +175,8 @@ class TestEnqueueBookDigest:
 
         response = await client.post(f"/api/v1/jobs/books/{test_book.id}/digest")
 
-        assert response.is_error
+        # A bare DomainError reaches the generic handler.
+        assert response.status_code == status.HTTP_500_INTERNAL_SERVER_ERROR
         assert job_queue.enqueued == []
         active = await client.get(f"/api/v1/jobs/books/{test_book.id}/digest")
         assert active.json() is None
@@ -214,11 +215,13 @@ class TestCancelJobBatch:
         assert stored.json()["status"] == "cancelled"
 
     async def test_returns_404_for_another_users_batch(
-        self, client: AsyncClient, db_session: AsyncSession, job_queue: FakeJobQueue
+        self,
+        client: AsyncClient,
+        db_session: AsyncSession,
+        job_queue: FakeJobQueue,
+        other_user: User,
     ) -> None:
-        db_session.add(User(id=OTHER_USER_ID, email="other@test.com"))
-        await db_session.commit()
-        batch = await _add_batch(db_session, reference_id="42", user_id=OTHER_USER_ID)
+        batch = await _add_batch(db_session, reference_id="42", user_id=other_user.id)
 
         response = await client.delete(f"/api/v1/jobs/batches/{batch.id}")
 

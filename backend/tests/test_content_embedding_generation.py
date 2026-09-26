@@ -12,11 +12,11 @@ from src.application.semantic.commands.generate_content_embeddings_use_case impo
     GenerateContentEmbeddingsUseCase,
 )
 from src.application.semantic.content_type import ContentType
-from src.config import Settings, get_settings
+from src.config import get_settings
 from src.infrastructure.semantic.content.content_source import ContentSource
 from src.infrastructure.semantic.repositories.embedding_repository import EmbeddingRepository
 from src.models import Book, Embedding, Highlight
-from tests.conftest import create_test_highlight
+from tests.conftest import plant_highlight
 from tests.fakes import FakeEmbeddingClient
 from tests.semantic_helpers import TEST_MODEL_NAME, content_hash, plant_indexed_highlight
 
@@ -31,14 +31,10 @@ class ShortEmbeddingClient(FakeEmbeddingClient):
         return (await super().embed(texts))[:-1]
 
 
-def settings_for(model_name: str) -> Settings:
-    return get_settings().model_copy(update={"EMBEDDING_MODEL_NAME": model_name})
-
-
 def build_use_case(
     db: AsyncSession, client: FakeEmbeddingClient, model_name: str = TEST_MODEL_NAME
 ) -> GenerateContentEmbeddingsUseCase:
-    settings = settings_for(model_name)
+    settings = get_settings().model_copy(update={"EMBEDDING_MODEL_NAME": model_name})
     return GenerateContentEmbeddingsUseCase(
         content_source=ContentSource(db=db, settings=settings),
         client=client,
@@ -57,12 +53,6 @@ def use_case(
     db_session: AsyncSession, model: FakeEmbeddingClient
 ) -> GenerateContentEmbeddingsUseCase:
     return build_use_case(db_session, model)
-
-
-async def plant_highlight(db: AsyncSession, book: Book, text: str) -> Highlight:
-    return await create_test_highlight(
-        db, book, book.user_id, text=text, datetime_str="2024-01-15 14:30:22"
-    )
 
 
 async def stored_vectors(db: AsyncSession) -> dict[int, list[float]]:
@@ -169,12 +159,16 @@ class TestSliceHandling:
         test_book: Book,
     ) -> None:
         """The point of the slice: N units cost one provider request, not N."""
-        slice_ = [await plant_highlight(db_session, test_book, f"text {n}") for n in (1, 2, 3)]
+        vectors = {"text 1": [1.0, 0.0], "text 2": [0.0, 1.0], "text 3": [0.5, 0.5]}
+        model.vectors = vectors
+        slice_ = [await plant_highlight(db_session, test_book, text) for text in vectors]
 
         await embed(use_case, *slice_)
 
-        assert model.calls == [["text 1", "text 2", "text 3"]]
-        assert set(await stored_vectors(db_session)) == {highlight.id for highlight in slice_}
+        assert model.calls == [list(vectors)]
+        assert await stored_vectors(db_session) == {
+            highlight.id: vectors[highlight.text] for highlight in slice_
+        }
 
     async def test_embeds_only_the_stale_members_of_a_slice(
         self,
@@ -191,6 +185,11 @@ class TestSliceHandling:
         await embed(use_case, first, stale, last)
 
         assert model.calls == [["stale"]]
+        assert await stored_vectors(db_session) == {
+            first.id: PLANTED_VECTOR,
+            stale.id: FRESH_VECTOR,
+            last.id: PLANTED_VECTOR,
+        }
 
     async def test_prunes_the_dead_members_and_embeds_the_rest(
         self,

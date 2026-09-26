@@ -10,8 +10,8 @@ from starlette import status
 
 from src.domain.jobs.entities.job_batch import JobBatchStatus, JobBatchType
 from src.infrastructure.jobs.orm.job_batch_model import JobBatchModel
-from src.models import Book, Highlight, Note, User
-from tests.conftest import CreateBookFunc, create_test_book, create_test_highlight
+from src.models import Book, Highlight, User
+from tests.conftest import CreateBookFunc, create_test_book, plant_highlight, plant_note
 from tests.fakes import FakeJobQueue
 from tests.semantic_helpers import (
     EMBEDDING_TASK,
@@ -29,20 +29,6 @@ OTHER_USER_ID = 2
 #: Patch target for the slice size, so a test can force several slices without
 #: planting 33 highlights to get past the real one.
 SLICE_SIZE = "src.application.semantic.batching.EMBEDDING_SLICE_SIZE"
-
-
-async def plant_highlight(db: AsyncSession, book: Book, text: str) -> Highlight:
-    return await create_test_highlight(
-        db, book, book.user_id, text=text, datetime_str="2024-01-15 14:30:22"
-    )
-
-
-async def plant_note(db: AsyncSession, book: Book, title: str) -> Note:
-    note = Note(user_id=book.user_id, title=title, books=[book])
-    db.add(note)
-    await db.commit()
-    await db.refresh(note)
-    return note
 
 
 class TestBackfillEndpoint:
@@ -70,6 +56,7 @@ class TestBackfillEndpoint:
         assert data["total_jobs"] == 1
         assert data["batch"]["batch_type"] == "content_embedding_backfill"
         assert data["batch"]["status"] == "pending"
+        assert data["batch"]["reference_id"] == f"user:{test_book.user_id}"
         [job] = job_queue.jobs(EMBEDDING_TASK)
         assert job.kwargs["content_type"] == "highlight"
         assert job.kwargs["content_ids"] == [test_highlight.id]
@@ -108,13 +95,7 @@ class TestBackfillEndpoint:
         one provider round trip per unit in the worker.
         """
         for index in range(5):
-            await create_test_highlight(
-                db_session,
-                test_book,
-                test_book.user_id,
-                text=f"highlight {index}",
-                datetime_str="2024-01-15 14:30:22",
-            )
+            await plant_highlight(db_session, test_book, f"highlight {index}")
 
         monkeypatch.setattr(SLICE_SIZE, 2)
         enqueued = await backfill_enqueued_ids(client, job_queue)
@@ -136,13 +117,7 @@ class TestBackfillEndpoint:
         completed, with nothing to say the remaining slices were dropped.
         """
         for text in ("first", "second", "third"):
-            await create_test_highlight(
-                db_session,
-                test_book,
-                test_book.user_id,
-                text=text,
-                datetime_str="2024-01-15 14:30:22",
-            )
+            await plant_highlight(db_session, test_book, text)
         job_queue.fail_after = 1
         monkeypatch.setattr(SLICE_SIZE, 1)
 
@@ -196,11 +171,13 @@ class TestBookScopedBackfill:
         assert embedded_ids(job_queue.enqueued) == {wanted.id}
 
     async def test_returns_404_for_another_users_book(
-        self, client: AsyncClient, job_queue: FakeJobQueue, db_session: AsyncSession
+        self,
+        client: AsyncClient,
+        job_queue: FakeJobQueue,
+        db_session: AsyncSession,
+        other_user: User,
     ) -> None:
-        db_session.add(User(id=OTHER_USER_ID, email="other@test.com"))
-        await db_session.commit()
-        private = await create_test_book(db_session, OTHER_USER_ID, title="Private")
+        private = await create_test_book(db_session, other_user.id, title="Private")
         await plant_highlight(db_session, private, "not yours")
 
         with embeddings_enabled():

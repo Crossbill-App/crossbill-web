@@ -40,11 +40,10 @@ class FakeJobQueue:
         **kwargs: object,
     ) -> str:
         _check_task_signature(function_name, kwargs)
-        attempt = next(self._keys)
-        if self.fail_after is not None and attempt >= self.fail_after:
+        if self.fail_after is not None and len(self.enqueued) >= self.fail_after:
             raise RuntimeError("queue is down")
         self.enqueued.append(EnqueuedJob(function_name, retries, timeout_seconds, kwargs))
-        return f"saq:test:{attempt}"
+        return f"saq:test:{next(self._keys)}"
 
     async def abort(self, job_key: str) -> None:
         self.aborted.append(job_key)
@@ -68,14 +67,15 @@ def _check_task_signature(function_name: str, kwargs: dict[str, object]) -> None
 
 @dataclass
 class FakeEmbeddingClient:
-    """Answers every text with ``vector`` and records each batch it was asked to embed."""
+    """Answers a text from ``vectors``, else with ``vector``; records each batch it embedded."""
 
     vector: list[float] = field(default_factory=lambda: [1.0, 0.0])
+    vectors: dict[str, list[float]] = field(default_factory=dict)
     calls: list[list[str]] = field(default_factory=list)
 
     async def embed(self, texts: list[str]) -> list[list[float]]:
         self.calls.append(list(texts))
-        return [list(self.vector) for _ in texts]
+        return [list(self.vectors.get(text, self.vector)) for text in texts]
 
 
 @dataclass
