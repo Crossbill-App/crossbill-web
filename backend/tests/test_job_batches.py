@@ -21,6 +21,7 @@ async def _add_batch(
     batch_status: JobBatchStatus = JobBatchStatus.RUNNING,
     user_id: int = DEFAULT_USER_ID,
     created_at: datetime | None = None,
+    job_keys: list[str] | None = None,
 ) -> JobBatchModel:
     stamp = created_at or datetime.now(UTC)
     batch = JobBatchModel(
@@ -31,7 +32,7 @@ async def _add_batch(
         completed_jobs=1,
         failed_jobs=0,
         status=batch_status.value,
-        job_keys=["key-1"],
+        job_keys=job_keys or ["key-1"],
         created_at=stamp,
         updated_at=stamp,
     )
@@ -158,6 +159,71 @@ class TestEnqueueBookDigest:
 
         assert response.status_code == status.HTTP_404_NOT_FOUND
         assert job_queue.enqueued == []
+
+    async def test_a_book_with_nothing_left_to_digest_opens_no_batch(
+        self,
+        client: AsyncClient,
+        db_session: AsyncSession,
+        test_book: Book,
+        ai_enabled: None,
+        job_queue: FakeJobQueue,
+    ) -> None:
+        digested = await _add_digestible_chapter(db_session, test_book, "Digested", 1)
+        await _add_digest(db_session, digested)
+        db_session.add(Chapter(book_id=test_book.id, name="No EPUB position"))
+        await db_session.commit()
+
+        response = await client.post(f"/api/v1/jobs/books/{test_book.id}/digest")
+
+        assert response.is_error
+        assert job_queue.enqueued == []
+        active = await client.get(f"/api/v1/jobs/books/{test_book.id}/digest")
+        assert active.json() is None
+
+    async def test_a_queue_failing_partway_sizes_the_batch_to_what_it_took(
+        self,
+        client: AsyncClient,
+        db_session: AsyncSession,
+        test_book: Book,
+        ai_enabled: None,
+        job_queue: FakeJobQueue,
+    ) -> None:
+        first = await _add_digestible_chapter(db_session, test_book, "First", 1)
+        await _add_digestible_chapter(db_session, test_book, "Second", 2)
+        job_queue.fail_after = 1
+
+        response = await client.post(f"/api/v1/jobs/books/{test_book.id}/digest")
+
+        assert response.status_code == status.HTTP_202_ACCEPTED
+        assert response.json()["total_jobs"] == 1
+        assert enqueued_chapter_ids(job_queue) == [first.id]
+
+
+class TestCancelJobBatch:
+    async def test_aborts_every_job_and_cancels_the_batch(
+        self, client: AsyncClient, db_session: AsyncSession, job_queue: FakeJobQueue
+    ) -> None:
+        batch = await _add_batch(db_session, reference_id="42", job_keys=["key-1", "key-2"])
+
+        response = await client.delete(f"/api/v1/jobs/batches/{batch.id}")
+
+        assert response.status_code == status.HTTP_200_OK
+        assert response.json()["status"] == "cancelled"
+        assert job_queue.aborted == ["key-1", "key-2"]
+        stored = await client.get(f"/api/v1/jobs/batches/{batch.id}")
+        assert stored.json()["status"] == "cancelled"
+
+    async def test_returns_404_for_another_users_batch(
+        self, client: AsyncClient, db_session: AsyncSession, job_queue: FakeJobQueue
+    ) -> None:
+        db_session.add(User(id=OTHER_USER_ID, email="other@test.com"))
+        await db_session.commit()
+        batch = await _add_batch(db_session, reference_id="42", user_id=OTHER_USER_ID)
+
+        response = await client.delete(f"/api/v1/jobs/batches/{batch.id}")
+
+        assert response.status_code == status.HTTP_404_NOT_FOUND
+        assert job_queue.aborted == []
 
 
 class TestGetJobBatch:
