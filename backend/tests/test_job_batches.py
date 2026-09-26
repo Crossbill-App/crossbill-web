@@ -1,7 +1,6 @@
 """Tests for job batch API endpoints."""
 
 from datetime import UTC, datetime, timedelta
-from unittest.mock import AsyncMock
 
 from httpx import AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -10,6 +9,7 @@ from starlette import status
 from src.domain.jobs.entities.job_batch import JobBatchStatus, JobBatchType
 from src.infrastructure.jobs.orm.job_batch_model import JobBatchModel
 from src.models import Book, Chapter, ChapterDigest, User
+from tests.fakes import FakeJobQueue
 
 DEFAULT_USER_ID = 1
 OTHER_USER_ID = 2
@@ -86,6 +86,10 @@ async def _seed_book_with_existing_and_missing(
     return existing, missing
 
 
+def enqueued_chapter_ids(job_queue: FakeJobQueue) -> list[object]:
+    return [job.kwargs["chapter_id"] for job in job_queue.jobs("generate_chapter_digest")]
+
+
 class TestEnqueueBookDigest:
     """POST /jobs/books/{book_id}/digest chooses which chapters to enqueue."""
 
@@ -95,7 +99,7 @@ class TestEnqueueBookDigest:
         db_session: AsyncSession,
         test_book: Book,
         ai_enabled: None,
-        job_queue: AsyncMock,
+        job_queue: FakeJobQueue,
     ) -> None:
         _, missing = await _seed_book_with_existing_and_missing(db_session, test_book)
 
@@ -103,9 +107,7 @@ class TestEnqueueBookDigest:
 
         assert response.status_code == status.HTTP_202_ACCEPTED
         assert response.json()["total_jobs"] == 1
-        assert [call.kwargs["chapter_id"] for call in job_queue.enqueue.await_args_list] == [
-            missing.id
-        ]
+        assert enqueued_chapter_ids(job_queue) == [missing.id]
 
     async def test_overwrite_enqueues_existing_and_missing_summaries(
         self,
@@ -113,7 +115,7 @@ class TestEnqueueBookDigest:
         db_session: AsyncSession,
         test_book: Book,
         ai_enabled: None,
-        job_queue: AsyncMock,
+        job_queue: FakeJobQueue,
     ) -> None:
         existing, missing = await _seed_book_with_existing_and_missing(db_session, test_book)
         db_session.add(Chapter(book_id=test_book.id, name="No EPUB position"))
@@ -127,10 +129,7 @@ class TestEnqueueBookDigest:
         assert response.status_code == status.HTTP_202_ACCEPTED
         batch = response.json()
         assert batch["total_jobs"] == 2
-        assert {call.kwargs["chapter_id"] for call in job_queue.enqueue.await_args_list} == {
-            existing.id,
-            missing.id,
-        }
+        assert set(enqueued_chapter_ids(job_queue)) == {existing.id, missing.id}
 
         active = await client.get(f"/api/v1/jobs/books/{test_book.id}/digest")
         assert active.status_code == status.HTTP_200_OK
@@ -142,7 +141,7 @@ class TestEnqueueBookDigest:
         client: AsyncClient,
         db_session: AsyncSession,
         ai_enabled: None,
-        job_queue: AsyncMock,
+        job_queue: FakeJobQueue,
     ) -> None:
         db_session.add(User(id=OTHER_USER_ID, email="other@test.com"))
         await db_session.commit()
@@ -158,7 +157,7 @@ class TestEnqueueBookDigest:
         )
 
         assert response.status_code == status.HTTP_404_NOT_FOUND
-        job_queue.enqueue.assert_not_awaited()
+        assert job_queue.enqueued == []
 
 
 class TestGetJobBatch:
