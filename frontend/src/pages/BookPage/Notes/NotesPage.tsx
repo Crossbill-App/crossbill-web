@@ -111,7 +111,7 @@ export const NotesPage = () => {
           <>
             <Divider sx={{ mb: 4 }} />
             <NoteKindFilter selected={selectedKinds} onChange={handleKindsChange} />
-            <Divider sx={{ my: 4 }} />
+            <Divider sx={{ mb: 4 }} />
             <TagsList
               tags={book.tags}
               tagGroups={book.tag_groups}

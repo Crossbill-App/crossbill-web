@@ -335,6 +335,7 @@ const HighlightsSidebar = ({
     <Divider sx={{ mb: 4 }} />
     <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
       <HighlightDateFilter from={dateFrom} to={dateTo} onChange={onDateRangeChange} />
+      <Divider />
       <TagsList
         tags={tags}
         tagGroups={tagGroups}
@@ -342,6 +343,7 @@ const HighlightsSidebar = ({
         selectedTag={selectedTagId}
         onTagClick={onTagClick}
       />
+      <Divider sx={{ mt: 1 }} />
       <HighlightLabelsList
         bookId={bookId}
         selectedLabelId={selectedLabelId}
