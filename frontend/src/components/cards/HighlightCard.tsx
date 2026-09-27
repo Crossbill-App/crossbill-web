@@ -86,12 +86,6 @@ const Footer = ({ highlight, bookmark, noteCount }: FooterProps) => {
 
 /**
  * One highlight in a list, opening the highlight dialog when clicked.
- *
- * Memoised because the highlights tab renders its whole set at once
- * (ADR-0003), so a book's worth of these re-render on every filter keystroke,
- * sort toggle and dialog open. That only pays off while all four props stay
- * referentially stable — `onOpenModal` in particular must be a `useCallback`,
- * never an inline arrow, or the memo silently does nothing.
  */
 export const HighlightCard = memo(function HighlightCard({
   highlight,
@@ -106,12 +100,11 @@ export const HighlightCard = memo(function HighlightCard({
   };
 
   return (
-    // The card is a button, and a link inside a button is invalid HTML.
     <HoverableCardActionArea
       id={`highlight-${highlight.id}`}
       onClick={handleOpenModal}
       sx={{
-        py: 3.5,
+        py: 1,
         pl: 2.5,
       }}
     >

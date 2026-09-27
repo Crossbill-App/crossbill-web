@@ -44,7 +44,7 @@ export const ChapterGroupedList = <TChapter, TItem>({
 }: ChapterGroupedListProps<TChapter, TItem>) => {
   if (isLoading) {
     return (
-      <Box sx={{ display: 'flex', justifyContent: 'center', py: 4 }}>
+      <Box sx={{ display: 'flex', justifyContent: 'center', py: 2 }}>
         <Typography
           variant="body2"
           sx={{
@@ -68,7 +68,16 @@ export const ChapterGroupedList = <TChapter, TItem>({
 
             return (
               <Box key={chapterId} id={`chapter-${chapterId}`}>
-                <SectionTitle showDivider>{chapterName}</SectionTitle>
+                <SectionTitle
+                  showDivider
+                  sx={{
+                    mb: {
+                      xs: 1,
+                    },
+                  }}
+                >
+                  {chapterName}
+                </SectionTitle>
 
                 {items.length === 0 && renderEmptyChapter ? (
                   renderEmptyChapter()

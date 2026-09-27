@@ -205,7 +205,7 @@ test('places the preset above mobile tabs and exposes active date filters access
     await expect.element(filterButton).toBeVisible();
     await userEvent.click(filterButton);
 
-    await expect.element(screen.getByText('Date highlighted')).toBeVisible();
+    await expect.element(screen.getByText('Date')).toBeVisible();
     await expect.element(screen.getByRole('group', { name: 'From' })).toBeVisible();
     await expect.element(screen.getByRole('group', { name: 'To' })).toBeVisible();
     await expect.element(screen.getByRole('tab', { name: 'Chapters' })).toBeVisible();

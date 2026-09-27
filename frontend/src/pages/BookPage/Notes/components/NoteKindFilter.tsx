@@ -24,8 +24,8 @@ export const NoteKindFilter = ({ selected, onChange, hideTitle = false }: NoteKi
           display: 'flex',
           flexWrap: 'wrap',
           gap: 1,
-          mt: 2,
-          mb: 2,
+          mt: 1,
+          mb: 4.5,
           [theme.breakpoints.down('md')]: {
             flexDirection: 'column',
           },

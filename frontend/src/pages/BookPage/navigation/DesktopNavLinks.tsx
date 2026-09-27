@@ -28,6 +28,7 @@ export const DesktopNavLinks = ({ bookId }: DesktopNavLinksProps) => {
                 borderRadius: 1,
                 mb: 0.5,
                 py: 1,
+                mx: -2,
                 textDecoration: 'none',
                 color: 'inherit',
                 '&.Mui-selected': {

@@ -43,7 +43,7 @@ export const SidebarSectionHeader = ({
       display: 'flex',
       alignItems: 'center',
       justifyContent: 'space-between',
-      mb: 2,
+      mb: 1,
       flexShrink: 0,
       ...(collapse && { cursor: 'pointer' }),
     }}

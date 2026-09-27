@@ -5,8 +5,10 @@ import {
   isHighlightDateRangeReversed,
   type HighlightDateRange,
 } from '@/pages/BookPage/common/highlightDates.ts';
+import { SidebarSectionHeader } from '@/pages/BookPage/navigation/SidebarSectionHeader.tsx';
+import { CalendarIcon } from '@/theme/Icons.tsx';
 import { browserLocale } from '@/utils/date.ts';
-import { Box, Button, FormHelperText, Typography } from '@mui/material';
+import { Box, Button, FormHelperText } from '@mui/material';
 import { AdapterLuxon } from '@mui/x-date-pickers/AdapterLuxon';
 import { DatePicker } from '@mui/x-date-pickers/DatePicker';
 import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
@@ -75,38 +77,40 @@ export const HighlightDateFilter = ({ from, to, onChange }: HighlightDateFilterP
 
   return (
     <LocalizationProvider dateAdapter={AdapterLuxon} adapterLocale={dateLocale}>
-      <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.5 }}>
-        <Typography variant="h6">Date highlighted</Typography>
-        <DatePicker
-          label="From"
-          value={fromValue}
-          maxDate={rangeIsReversed ? undefined : (appliedToValue ?? undefined)}
-          onChange={(value, context) => commitDate('from', value, context)}
-          onError={setFromError}
-          slotProps={{
-            field: { clearable: true },
-            textField: {
-              fullWidth: true,
-              size: 'small',
-              helperText: validationMessage(fromError, 'from', to),
-            },
-          }}
-        />
-        <DatePicker
-          label="To"
-          value={toValue}
-          minDate={rangeIsReversed ? undefined : (appliedFromValue ?? undefined)}
-          onChange={(value, context) => commitDate('to', value, context)}
-          onError={setToError}
-          slotProps={{
-            field: { clearable: true },
-            textField: {
-              fullWidth: true,
-              size: 'small',
-              helperText: validationMessage(toError, 'to', from),
-            },
-          }}
-        />
+      <Box sx={{ display: 'flex', flexDirection: 'column' }}>
+        <SidebarSectionHeader icon={CalendarIcon} title="Date" />
+        <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.5 }}>
+          <DatePicker
+            label="From"
+            value={fromValue}
+            maxDate={rangeIsReversed ? undefined : (appliedToValue ?? undefined)}
+            onChange={(value, context) => commitDate('from', value, context)}
+            onError={setFromError}
+            slotProps={{
+              field: { clearable: true },
+              textField: {
+                fullWidth: true,
+                size: 'small',
+                helperText: validationMessage(fromError, 'from', to),
+              },
+            }}
+          />
+          <DatePicker
+            label="To"
+            value={toValue}
+            minDate={rangeIsReversed ? undefined : (appliedFromValue ?? undefined)}
+            onChange={(value, context) => commitDate('to', value, context)}
+            onError={setToError}
+            slotProps={{
+              field: { clearable: true },
+              textField: {
+                fullWidth: true,
+                size: 'small',
+                helperText: validationMessage(toError, 'to', from),
+              },
+            }}
+          />
+        </Box>
         {rangeIsReversed && <FormHelperText error>From must be on or before To.</FormHelperText>}
         <Button
           variant="text"
