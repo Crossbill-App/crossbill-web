@@ -111,7 +111,7 @@ export const HighlightCard = memo(function HighlightCard({
       id={`highlight-${highlight.id}`}
       onClick={handleOpenModal}
       sx={{
-        py: 3.5,
+        py: 1,
         pl: 2.5,
       }}
     >

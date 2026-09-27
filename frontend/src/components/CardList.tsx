@@ -12,7 +12,7 @@ export const CardList = ({ children, sx, 'aria-label': ariaLabel }: CardListProp
   <Stack
     component="ul"
     aria-label={ariaLabel}
-    sx={[{ gap: 2, listStyle: 'none', p: 0, m: 0 }, ...(Array.isArray(sx) ? sx : [sx])]}
+    sx={[{ listStyle: 'none', p: 0, m: 0 }, ...(Array.isArray(sx) ? sx : [sx])]}
   >
     {children}
   </Stack>

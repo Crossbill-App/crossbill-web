@@ -1,4 +1,5 @@
-import { Box, Typography } from '@mui/material';
+import { Box, SxProps, Typography } from '@mui/material';
+import { Theme } from '@mui/material/styles';
 
 export interface SectionTitleProps {
   children: React.ReactNode;
@@ -9,6 +10,7 @@ export interface SectionTitleProps {
   showDivider?: boolean;
   /** Off for headings whose own container owns the spacing. */
   gutterBottom?: boolean;
+  sx?: SxProps<Theme> | undefined;
 }
 
 /**
@@ -23,6 +25,7 @@ export const SectionTitle = ({
   component = 'h2',
   showDivider = false,
   gutterBottom = true,
+  sx,
 }: SectionTitleProps) => {
   const heading = (
     <Typography
@@ -40,7 +43,7 @@ export const SectionTitle = ({
   }
 
   return (
-    <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 2.5, px: 0.5 }}>
+    <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 2.5, px: 0.5, ...sx }}>
       {heading}
       <Box
         sx={(theme) => ({

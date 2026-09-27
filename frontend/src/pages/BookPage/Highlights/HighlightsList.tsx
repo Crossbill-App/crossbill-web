@@ -37,7 +37,7 @@ export const HighlightsList = ({
     ariaLabel={(chapter) => `Highlights in ${chapter.name}`}
     isLoading={isLoading}
     emptyState={emptyState}
-    cardListSx={{ gap: 2.5 }}
+    cardListSx={{ gap: 1, mb: 4 }}
     renderItem={(highlight) => (
       <HighlightCard
         highlight={highlight}
