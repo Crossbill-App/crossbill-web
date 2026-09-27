@@ -29,6 +29,7 @@ export {
   MenuBook as BookCoverIcon,
   Bookmark as BookmarkFilledIcon,
   BookmarkBorder as BookmarkIcon,
+  CalendarMonthRounded as CalendarIcon,
   List as ChapterListIcon,
   StyleOutlined as FlashcardsIcon,
   // One glyph, one name: the quote mark on a card and the Highlights nav item
