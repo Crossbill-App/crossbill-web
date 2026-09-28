@@ -8,6 +8,7 @@ import { FlashcardCard } from '@/pages/BookPage/Flashcards/FlashcardCard.tsx';
 import { NoteViewDialog } from '@/pages/BookPage/Notes/NoteViewDialog.tsx';
 import { DeleteIcon, EditIcon, NotesIcon } from '@/theme/Icons.tsx';
 import { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 
 export interface FlashcardListCardProps {
   flashcard: FlashcardWithContext;
@@ -28,6 +29,7 @@ export const FlashcardListCard = ({
   showSourceHighlight = true,
   noteId,
 }: FlashcardListCardProps) => {
+  const { t } = useTranslation();
   const [isDeleting, setIsDeleting] = useState(false);
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
   const [isViewingNote, setIsViewingNote] = useState(false);
@@ -41,7 +43,7 @@ export const FlashcardListCard = ({
       onSuccess: () => {
         cache.flashcardsChanged(bookId, noteId ?? flashcard.note_id ?? undefined);
       },
-      onError: mutationErrorHandler('delete flashcard'),
+      onError: mutationErrorHandler(t('flashcards.errorActions.delete')),
     },
   });
 
@@ -76,20 +78,20 @@ export const FlashcardListCard = ({
           <>
             {linkedNoteId != null && (
               <IconButtonWithTooltip
-                label="View linked note"
+                label={t('flashcards.actions.viewLinkedNote')}
                 onClick={handleViewNoteClick}
                 disabled={isDeleting}
                 icon={<NotesIcon fontSize="small" />}
               />
             )}
             <IconButtonWithTooltip
-              label="Edit flashcard"
+              label={t('flashcards.actions.edit')}
               onClick={onEdit}
               disabled={isDeleting}
               icon={<EditIcon fontSize="small" />}
             />
             <IconButtonWithTooltip
-              label="Delete flashcard"
+              label={t('flashcards.actions.delete')}
               onClick={handleDeleteClick}
               disabled={isDeleting}
               icon={<DeleteIcon fontSize="small" />}
@@ -102,8 +104,8 @@ export const FlashcardListCard = ({
         open={deleteConfirmOpen}
         onClose={() => setDeleteConfirmOpen(false)}
         onConfirm={handleConfirmDelete}
-        message="Delete this flashcard?"
-        confirmText="Delete"
+        message={t('flashcards.listCard.deleteConfirm')}
+        confirmText={t('common.actions.delete')}
         confirmColor="error"
         isLoading={isDeleting}
       />

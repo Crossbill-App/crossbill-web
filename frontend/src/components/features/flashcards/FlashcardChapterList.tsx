@@ -3,6 +3,7 @@ import { EmptyStateText } from '@/components/EmptyStateText.tsx';
 import { ChapterGroupedList } from '@/pages/BookPage/common/ChapterGroupedList.tsx';
 import { FlashcardListCard } from '@/pages/BookPage/Flashcards/FlashcardListCard.tsx';
 import type { ReactNode } from 'react';
+import { useTranslation } from 'react-i18next';
 
 export interface FlashcardWithContext extends Flashcard {
   highlight: Highlight | null;
@@ -32,24 +33,31 @@ export const FlashcardChapterList = ({
   chapters,
   bookId,
   isLoading,
-  emptyState = <EmptyStateText>No flashcards found.</EmptyStateText>,
+  emptyState,
   onEditFlashcard,
-}: FlashcardChapterListProps) => (
-  <ChapterGroupedList
-    chapters={chapters}
-    getChapterId={(chapter) => chapter.id}
-    getChapterName={(chapter) => chapter.name}
-    getItems={(chapter) => chapter.flashcards}
-    getItemKey={(flashcard) => flashcard.id}
-    ariaLabel={(chapter) => chapter.listLabel ?? `Flashcards in ${chapter.name}`}
-    isLoading={isLoading}
-    emptyState={emptyState}
-    renderItem={(flashcard) => (
-      <FlashcardListCard
-        flashcard={flashcard}
-        bookId={bookId}
-        onEdit={() => onEditFlashcard(flashcard)}
-      />
-    )}
-  />
-);
+}: FlashcardChapterListProps) => {
+  const { t } = useTranslation();
+  return (
+    <ChapterGroupedList
+      chapters={chapters}
+      getChapterId={(chapter) => chapter.id}
+      getChapterName={(chapter) => chapter.name}
+      getItems={(chapter) => chapter.flashcards}
+      getItemKey={(flashcard) => flashcard.id}
+      ariaLabel={(chapter) =>
+        chapter.listLabel ?? t('flashcards.chapterList.listLabel', { chapter: chapter.name })
+      }
+      isLoading={isLoading}
+      emptyState={
+        emptyState ?? <EmptyStateText>{t('flashcards.chapterList.emptyState')}</EmptyStateText>
+      }
+      renderItem={(flashcard) => (
+        <FlashcardListCard
+          flashcard={flashcard}
+          bookId={bookId}
+          onEdit={() => onEditFlashcard(flashcard)}
+        />
+      )}
+    />
+  );
+};

@@ -3,6 +3,7 @@ import { AIActionButton } from '@/components/buttons/AIActionButton';
 import { CardList } from '@/components/CardList.tsx';
 import { FlashcardSuggestionCard } from '@/pages/BookPage/Flashcards/FlashcardSuggestionCard.tsx';
 import { Box, CircularProgress, Typography } from '@mui/material';
+import { useTranslation } from 'react-i18next';
 
 interface FlashcardSuggestionsProps {
   suggestions: FlashcardSuggestionItem[];
@@ -21,6 +22,7 @@ export const FlashcardSuggestions = ({
   onAcceptSuggestion,
   onRejectSuggestion,
 }: FlashcardSuggestionsProps) => {
+  const { t } = useTranslation();
   return (
     <>
       {suggestions.length ? (
@@ -31,11 +33,11 @@ export const FlashcardSuggestions = ({
             color: 'text.secondary',
           }}
         >
-          Suggested flashcards
+          {t('flashcards.aiSuggestions.title')}
         </Typography>
       ) : (
         <AIActionButton
-          text={'Suggest flashcards'}
+          text={t('flashcards.aiSuggestions.suggest')}
           onClick={onFetchSuggestions}
           disabled={disabled || isLoading}
         />

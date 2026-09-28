@@ -2,6 +2,7 @@ import { useUpdateFlashcard } from '@/api/generated/flashcards/flashcards.ts';
 import { useMutationErrorHandler } from '@/hooks/useMutationErrorHandler.ts';
 import { useCacheEvents } from '@/lib/cacheEvents.ts';
 import { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 
 interface UseFlashcardMutationsOptions {
   bookId: number;
@@ -21,6 +22,7 @@ export const useFlashcardMutations = ({
   createFlashcard,
   noteId,
 }: UseFlashcardMutationsOptions) => {
+  const { t } = useTranslation();
   const cache = useCacheEvents();
   const mutationErrorHandler = useMutationErrorHandler();
   const [isProcessing, setIsProcessing] = useState(false);
@@ -30,7 +32,7 @@ export const useFlashcardMutations = ({
   const updateFlashcardMutation = useUpdateFlashcard({
     mutation: {
       onSuccess: invalidateFlashcardQueries,
-      onError: mutationErrorHandler('update flashcard'),
+      onError: mutationErrorHandler(t('flashcards.errorActions.update')),
     },
   });
 
@@ -43,7 +45,7 @@ export const useFlashcardMutations = ({
       invalidateFlashcardQueries();
       return true;
     } catch (error) {
-      mutationErrorHandler('create flashcard')(error);
+      mutationErrorHandler(t('flashcards.errorActions.create'))(error);
       return false;
     } finally {
       setIsProcessing(false);

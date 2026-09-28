@@ -4,6 +4,7 @@ import type {
 } from '@/api/generated/model';
 import { useSnackbar } from '@/context/SnackbarContext.tsx';
 import { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 
 /**
  * Holds AI flashcard suggestion state for an entity view modal.
@@ -12,6 +13,7 @@ import { useState } from 'react';
 export const useAIFlashcardSuggestions = (
   fetchFn: () => Promise<CollectionResponseFlashcardSuggestionItem | undefined>
 ) => {
+  const { t } = useTranslation();
   const { showSnackbar } = useSnackbar();
   const [isLoading, setIsLoading] = useState(false);
   const [suggestions, setSuggestions] = useState<FlashcardSuggestionItem[]>([]);
@@ -25,7 +27,7 @@ export const useAIFlashcardSuggestions = (
       }
     } catch (error) {
       console.error('Failed to fetch flashcard suggestions:', error);
-      showSnackbar('Failed to fetch suggestions. Please try again.', 'error');
+      showSnackbar(t('common.errors.fetchFlashcardSuggestions'), 'error');
     } finally {
       setIsLoading(false);
     }
