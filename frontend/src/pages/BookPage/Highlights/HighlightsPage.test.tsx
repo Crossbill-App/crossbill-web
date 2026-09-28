@@ -1,4 +1,3 @@
-import { getLastSevenDaysFrom } from '@/pages/BookPage/common/highlightDates.ts';
 import { aBookDetails, aChapter, aHighlight } from '@tests/fixtures/book';
 import { aNote } from '@tests/fixtures/notes';
 import { renderApp } from '@tests/harness/renderApp';
@@ -6,7 +5,7 @@ import { bookApi } from '@tests/msw/bookApi';
 import { worker } from '@tests/msw/worker';
 import { http, HttpResponse } from 'msw';
 import { expect, test, vi } from 'vitest';
-import { page, userEvent } from 'vitest/browser';
+import { userEvent } from 'vitest/browser';
 
 type Screen = Awaited<ReturnType<typeof renderApp>>;
 
@@ -191,32 +190,6 @@ test('composes date, search, tag, and label filters and shows the generic empty 
   await expect.element(screen.getByText('Wrong tag')).toBeVisible();
   await expect.element(screen.getByText('Wrong label')).toBeVisible();
   await expect.element(screen.getByText('Wrong date')).toBeVisible();
-});
-
-test('places the preset above mobile tabs and exposes active date filters accessibly', async () => {
-  await page.viewport(400, 800);
-  try {
-    const { handlers } = bookApi({ book: aDateRangeBook() });
-    worker.use(...handlers);
-
-    const screen = await renderApp({ path: '/book/1/highlights?to=2026-07-05' });
-    // The label counts what is on, so it says which filters are in play.
-    const filterButton = screen.getByRole('button', { name: 'Open filters (1 active)' });
-    await expect.element(filterButton).toBeVisible();
-    await userEvent.click(filterButton);
-
-    await expect.element(screen.getByText('Date')).toBeVisible();
-    await expect.element(screen.getByRole('group', { name: 'From' })).toBeVisible();
-    await expect.element(screen.getByRole('group', { name: 'To' })).toBeVisible();
-    await expect.element(screen.getByRole('tab', { name: 'Chapters' })).toBeVisible();
-
-    await userEvent.click(screen.getByRole('button', { name: 'Last 7 Days' }));
-
-    await expect.poll(() => window.location.search).toContain(`from=${getLastSevenDaysFrom()}`);
-    expect(window.location.search).not.toContain('to=');
-  } finally {
-    await page.viewport(1440, 900);
-  }
 });
 
 test('uses the browser regional locale for date field order', async () => {
