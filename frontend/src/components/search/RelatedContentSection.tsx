@@ -22,7 +22,7 @@ export const RelatedContentSection = ({ title, rows }: RelatedContentSectionProp
   if (rows.length === 0) return null;
 
   return (
-    <Box sx={{ gap: 2, display: 'flex', flexDirection: 'column' }}>
+    <Box sx={{ gap: 1, display: 'flex', flexDirection: 'column' }}>
       <SectionTitle component="h3">{title}</SectionTitle>
       <Carousel aria-label={title}>
         {rows.map((row) => (

@@ -66,7 +66,17 @@ export const LinkedNotesSection = ({
 
   return (
     <Box>
-      <DialogToolbar sx={{ mb: 2 }}>
+      {isLoading && <Spinner />}
+      {!isLoading && notes.length === 0 && (
+        <EmptyStateText>{t(`notes.linkedNotesSection.empty.${target.kind}`)}</EmptyStateText>
+      )}
+      <LinkedNoteList
+        notes={notes}
+        onOpen={noteDialogs.openView}
+        onUnlink={handleUnlink}
+        disabled={isDisabled}
+      />
+      <DialogToolbar sx={{ mt: 2 }}>
         <Button
           variant="outlined"
           size="small"
@@ -86,16 +96,6 @@ export const LinkedNotesSection = ({
           {t('notes.shared.addNote')}
         </Button>
       </DialogToolbar>
-      {isLoading && <Spinner />}
-      {!isLoading && notes.length === 0 && (
-        <EmptyStateText>{t(`notes.linkedNotesSection.empty.${target.kind}`)}</EmptyStateText>
-      )}
-      <LinkedNoteList
-        notes={notes}
-        onOpen={noteDialogs.openView}
-        onUnlink={handleUnlink}
-        disabled={isDisabled}
-      />
       <NoteDialogs
         controller={noteDialogs}
         initialChapterIds={initialChapterIds}
