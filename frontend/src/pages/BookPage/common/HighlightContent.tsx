@@ -5,6 +5,7 @@ import { DateIcon, HighlightsIcon } from '@/theme/Icons.tsx';
 import { ICON_SIZE } from '@/theme/iconSizes.ts';
 import { formatDate } from '@/utils/date.ts';
 import { Box, Typography } from '@mui/material';
+import { useTranslation } from 'react-i18next';
 
 interface HighlightContentProps {
   highlight: Highlight;
@@ -14,6 +15,7 @@ interface HighlightContentProps {
 }
 
 export const HighlightContent = ({ highlight, onLabelClick, labelRef }: HighlightContentProps) => {
+  const { t } = useTranslation();
   const startsWithLowercase =
     highlight.text.length > 0 &&
     highlight.text[0] === highlight.text[0].toLowerCase() &&
@@ -84,7 +86,7 @@ export const HighlightContent = ({ highlight, onLabelClick, labelRef }: Highligh
           }}
         >
           {formatDate(highlight.datetime)}
-          {highlight.page && ` • Page ${highlight.page}`}
+          {highlight.page && ` • ${t('common.labels.page', { page: highlight.page })}`}
         </Typography>
         <Box ref={labelRef} sx={{ display: 'flex', alignItems: 'center' }}>
           <LabelIndicator label={highlight.label} onClick={onLabelClick} size="medium" />

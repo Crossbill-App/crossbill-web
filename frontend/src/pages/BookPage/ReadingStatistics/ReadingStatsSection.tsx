@@ -2,10 +2,10 @@ import { useGetBookStatistics } from '@/api/generated/statistics/statistics';
 import { ReadingActivityGrid } from '@/components/reading/ReadingActivityGrid.tsx';
 import { Stat, type StatProps } from '@/components/reading/Stat.tsx';
 import { useSnackbar } from '@/context/SnackbarContext.tsx';
-import { countLabel } from '@/utils/counts.ts';
 import { browserTimeZone, formatDate, formatSeconds } from '@/utils/date.ts';
 import { Box, LinearProgress, Typography } from '@mui/material';
 import { useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 
 interface ReadingStatsSectionProps {
   bookId: number;
@@ -19,24 +19,28 @@ interface StatsGridProps {
   stats: StatProps[];
 }
 
-const ReadingProgress = ({ percent }: ReadingProgressProps) => (
-  <Box sx={{ mb: 3 }}>
-    <Box sx={{ display: 'flex', alignItems: 'baseline', gap: 1 }}>
-      <Typography variant="h1" component="p">
-        {percent}%
-      </Typography>
-      <Typography variant="body2" sx={{ color: 'text.secondary' }}>
-        through the book
-      </Typography>
+const ReadingProgress = ({ percent }: ReadingProgressProps) => {
+  const { t } = useTranslation();
+
+  return (
+    <Box sx={{ mb: 3 }}>
+      <Box sx={{ display: 'flex', alignItems: 'baseline', gap: 1 }}>
+        <Typography variant="h1" component="p">
+          {t('book.statistics.progress.percent', { percent })}
+        </Typography>
+        <Typography variant="body2" sx={{ color: 'text.secondary' }}>
+          {t('book.statistics.progress.throughTheBook')}
+        </Typography>
+      </Box>
+      <LinearProgress
+        variant="determinate"
+        value={percent}
+        aria-label={t('book.statistics.progress.ariaLabel')}
+        sx={{ mt: 1, height: 8, borderRadius: 1 }}
+      />
     </Box>
-    <LinearProgress
-      variant="determinate"
-      value={percent}
-      aria-label="Reading progress"
-      sx={{ mt: 1, height: 8, borderRadius: 1 }}
-    />
-  </Box>
-);
+  );
+};
 
 const StatsGrid = ({ stats }: StatsGridProps) => (
   <Box
@@ -64,15 +68,16 @@ const StatsGrid = ({ stats }: StatsGridProps) => (
  */
 export const ReadingStatsSection = ({ bookId }: ReadingStatsSectionProps) => {
   const { data, isError } = useGetBookStatistics(bookId, { tz: browserTimeZone() });
+  const { t } = useTranslation();
   const { showSnackbar } = useSnackbar();
 
   // The summary is the smaller half of the tab, so a failure is reported
   // beside the sessions rather than in place of them.
   useEffect(() => {
     if (isError) {
-      showSnackbar('Failed to load reading statistics.', 'error');
+      showSnackbar(t('book.statistics.loadError'), 'error');
     }
-  }, [isError, showSnackbar]);
+  }, [isError, showSnackbar, t]);
 
   if (!data) {
     return null;
@@ -83,16 +88,29 @@ export const ReadingStatsSection = ({ bookId }: ReadingStatsSectionProps) => {
   const progress = data.progress_percent ?? (data.session_count === 0 ? 0 : null);
 
   const stats: StatProps[] = [
-    { value: formatSeconds(data.total_reading_seconds), label: 'Time read' },
-    { value: String(data.session_count), label: 'Sessions' },
+    {
+      value: formatSeconds(data.total_reading_seconds),
+      label: t('book.statistics.stats.timeRead'),
+    },
+    { value: String(data.session_count), label: t('common.entities.sessions') },
     ...(data.average_session_seconds != null
-      ? [{ value: formatSeconds(data.average_session_seconds), label: 'Average session' }]
+      ? [
+          {
+            value: formatSeconds(data.average_session_seconds),
+            label: t('book.statistics.stats.averageSession'),
+          },
+        ]
       : []),
     ...(data.span_days != null
-      ? [{ value: countLabel(data.span_days, 'day'), label: 'Reading span' }]
+      ? [
+          {
+            value: t('common.counts.days', { count: data.span_days }),
+            label: t('book.statistics.stats.readingSpan'),
+          },
+        ]
       : []),
     ...(data.last_session_end != null
-      ? [{ value: formatDate(data.last_session_end), label: 'Last read' }]
+      ? [{ value: formatDate(data.last_session_end), label: t('common.labels.lastRead') }]
       : []),
   ];
 

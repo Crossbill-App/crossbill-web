@@ -1,6 +1,7 @@
 import type { HighlightLabel } from '@/api/generated/model';
 import { getContrastColor } from '@/utils/colorUtils.ts';
 import { Box, Chip } from '@mui/material';
+import { useTranslation } from 'react-i18next';
 
 interface LabelIndicatorProps {
   label: HighlightLabel | null | undefined;
@@ -9,6 +10,8 @@ interface LabelIndicatorProps {
 }
 
 export const LabelIndicator = ({ label, onClick, size = 'small' }: LabelIndicatorProps) => {
+  const { t } = useTranslation();
+
   if (!label?.ui_color) {
     return null;
   }
@@ -38,7 +41,7 @@ export const LabelIndicator = ({ label, onClick, size = 'small' }: LabelIndicato
     <Box
       component={isClickable ? 'button' : 'span'}
       onClick={onClick}
-      aria-label={isClickable ? 'Change highlight colour' : undefined}
+      aria-label={isClickable ? t('book.common.labelIndicator.changeColour') : undefined}
       tabIndex={isClickable ? 0 : undefined}
       sx={{
         width: dotSize,

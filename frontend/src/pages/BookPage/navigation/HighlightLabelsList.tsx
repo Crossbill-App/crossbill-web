@@ -5,6 +5,7 @@ import { EditIcon, PaletteIcon } from '@/theme/Icons.tsx';
 import { DEFAULT_LABEL_COLOR } from '@/utils/colorUtils.ts';
 import { Box, Button } from '@mui/material';
 import { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 
 import { HighlightLabelsDialog } from './HighlightLabelsDialog.tsx';
 import { SidebarSectionHeader } from './SidebarSectionHeader.tsx';
@@ -16,12 +17,12 @@ interface HighlightLabelsListProps {
   hideTitle?: boolean;
 }
 
-const getLabelDisplayName = (label: HighlightLabelInBook): string => {
+const getLabelDisplayName = (label: HighlightLabelInBook, unlabeled: string): string => {
   if (label.label) {
     return label.label;
   }
   const parts = [label.device_color, label.device_style].filter(Boolean);
-  return parts.length > 0 ? parts.join(' / ') : 'Unlabeled';
+  return parts.length > 0 ? parts.join(' / ') : unlabeled;
 };
 
 const getLabelColor = (label: HighlightLabelInBook): string => {
@@ -34,6 +35,7 @@ export const HighlightLabelsList = ({
   onLabelClick,
   hideTitle,
 }: HighlightLabelsListProps) => {
+  const { t } = useTranslation();
   const { data } = useGetBookHighlightLabels(bookId);
   const [isEditing, setIsEditing] = useState(false);
   const labels = data?.items;
@@ -47,7 +49,7 @@ export const HighlightLabelsList = ({
 
   const editButton = (
     <Button size="small" startIcon={<EditIcon />} onClick={() => setIsEditing(true)}>
-      Edit labels
+      {t('book.navigation.labels.editLabels')}
     </Button>
   );
 
@@ -56,14 +58,18 @@ export const HighlightLabelsList = ({
       {hideTitle ? (
         <Box sx={{ display: 'flex', justifyContent: 'flex-end', mb: 1 }}>{editButton}</Box>
       ) : (
-        <SidebarSectionHeader icon={PaletteIcon} title="Labels" action={editButton} />
+        <SidebarSectionHeader
+          icon={PaletteIcon}
+          title={t('book.navigation.labels.title')}
+          action={editButton}
+        />
       )}
 
       <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.75 }}>
         {labels.map((label) => (
           <LabelChip
             key={label.id}
-            name={getLabelDisplayName(label)}
+            name={getLabelDisplayName(label, t('book.navigation.labels.unlabeled'))}
             color={getLabelColor(label)}
             count={label.highlight_count}
             isSelected={selectedLabelId === label.id}

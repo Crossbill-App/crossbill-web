@@ -1,1 +1,146 @@
-{}
+{
+  "shared": {
+    "manageBook": "Manage book"
+  },
+  "page": {
+    "loadError": "Failed to load book details. Please try again later."
+  },
+  "title": {
+    "progress": "{{progress}}% progress"
+  },
+  "statsStrip": {
+    "added": "Added {{date}}",
+    "lastRead": "Last read {{date}}"
+  },
+  "editDialog": {
+    "isbn": "ISBN: {{isbn}}",
+    "blurb": {
+      "label": "Blurb",
+      "helper": "Markdown is supported. Shown under the book's title.",
+      "helperShortened": "Shortened to the {{limit}}-character limit. Markdown is supported."
+    },
+    "deleteConfirm": {
+      "message": "Delete the book \"{{title}}\"? Its highlights go too."
+    },
+    "errors": {
+      "deleteBook": "delete book",
+      "saveBlurb": "save blurb"
+    }
+  },
+  "common": {
+    "chapterGroupedList": {
+      "noChapters": "No chapters found.",
+      "searching": "Searching..."
+    },
+    "filterFab": {
+      "openFilters": "Open filters",
+      "openFiltersActive": "Open filters ({{activeCount}} active)"
+    },
+    "filteredEmptyState": {
+      "clearFilters": "Clear filters"
+    },
+    "labelIndicator": {
+      "changeColour": "Change highlight colour"
+    },
+    "notOnDevice": {
+      "tooltip": "Deleted on the e-reader."
+    },
+    "sortToggle": {
+      "oldestFirst": "Show oldest first",
+      "newestFirst": "Show newest first"
+    }
+  },
+  "navigation": {
+    "tabs": {
+      "structure": "Structure",
+      "read": "Read",
+      "statistics": "Statistics"
+    },
+    "sidebarSection": {
+      "collapse": "Collapse {{section}}",
+      "expand": "Expand {{section}}"
+    },
+    "filterDrawer": {
+      "close": "close"
+    },
+    "chapters": {
+      "sectionLabel": "chapters list"
+    },
+    "bookmarks": {
+      "sectionLabel": "bookmark list",
+      "emptyFiltered": "No bookmarks match the active filters.",
+      "empty": "No bookmarks yet."
+    },
+    "labels": {
+      "title": "Labels",
+      "editLabels": "Edit labels",
+      "unlabeled": "Unlabeled"
+    },
+    "labelsDialog": {
+      "title": "Highlight labels",
+      "unlabelled": "Unlabelled",
+      "nameFor": "Name for {{style}}",
+      "colourFor": "Colour for {{style}}"
+    },
+    "tags": {
+      "addGroup": "Add group",
+      "empty": "No tagged highlights yet.",
+      "groupNamePlaceholder": "Group name...",
+      "ungrouped": "Ungrouped",
+      "groupHeader": {
+        "groupName": "Group name",
+        "editTags": "Edit tags",
+        "renameGroup": "Rename group",
+        "deleteGroup": "Delete group"
+      },
+      "groupSection": {
+        "emptyGroup": "No tags yet — click to add",
+        "deleteConfirm": {
+          "message": "Delete the group \"{{name}}\"?",
+          "messageWithTags_one": "Delete the group \"{{name}}\"? Its {{count}} tag stays on your highlights and moves to Ungrouped.",
+          "messageWithTags_other": "Delete the group \"{{name}}\"? Its {{count}} tags stay on your highlights and move to Ungrouped."
+        }
+      },
+      "groupTagsDialog": {
+        "title": "Tags in {{name}}",
+        "saveWithChanges": "Save ({{changes}})",
+        "searchPlaceholder": "Search tags...",
+        "inGroup": "in {{name}}",
+        "noMatches": "No matching tags."
+      },
+      "moveMenu": {
+        "moveTo": "Move to {{name}}",
+        "removeFromGroup": "Remove from group"
+      },
+      "errors": {
+        "moveTag": "move tag",
+        "saveTagGroup": "save tag group",
+        "deleteTagGroup": "delete tag group",
+        "updateTags": "update tags"
+      }
+    }
+  },
+  "statistics": {
+    "loadError": "Failed to load reading statistics.",
+    "progress": {
+      "percent": "{{percent}}%",
+      "throughTheBook": "through the book",
+      "ariaLabel": "Reading progress"
+    },
+    "stats": {
+      "timeRead": "Time read",
+      "averageSession": "Average session",
+      "readingSpan": "Reading span"
+    },
+    "sessions": {
+      "loadError": "Failed to load reading sessions. Please try again later.",
+      "empty": "No reading sessions recorded yet.",
+      "listLabel": "Reading sessions"
+    },
+    "sessionCard": {
+      "title": "Session {{date}} {{time}}",
+      "pages": "Pages {{start}} – {{end}}",
+      "duration": "Duration {{duration}}"
+    }
+  }
+}

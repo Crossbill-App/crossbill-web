@@ -4,6 +4,7 @@ import { AddIcon, TagIcon } from '@/theme/Icons.tsx';
 import { Box, Button } from '@mui/material';
 import { sortBy } from 'lodash';
 import { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 
 import { SidebarSectionHeader } from '../SidebarSectionHeader.tsx';
 import { AddGroupForm } from './AddGroupForm.tsx';
@@ -29,6 +30,7 @@ export const TagsList = ({
   hideTitle,
   hideEmptyGroups,
 }: TagsProps) => {
+  const { t } = useTranslation();
   const [showAddGroup, setShowAddGroup] = useState(false);
   const [newGroupIds, setNewGroupIds] = useState<Set<number>>(new Set());
 
@@ -55,7 +57,7 @@ export const TagsList = ({
 
   const addGroupButton = (
     <Button size="small" startIcon={<AddIcon />} onClick={() => setShowAddGroup(true)}>
-      Add group
+      {t('book.navigation.tags.addGroup')}
     </Button>
   );
 
@@ -64,7 +66,11 @@ export const TagsList = ({
       {/* The same labelled button either way: the sidebar has room for it, and
           the action should not change shape with the layout. */}
       {!hideTitle ? (
-        <SidebarSectionHeader icon={TagIcon} title="Tags" action={addGroupButton} />
+        <SidebarSectionHeader
+          icon={TagIcon}
+          title={t('common.entities.tags')}
+          action={addGroupButton}
+        />
       ) : (
         !showAddGroup && (
           <Box sx={{ display: 'flex', justifyContent: 'flex-end', mb: 1 }}>{addGroupButton}</Box>
@@ -112,7 +118,7 @@ export const TagsList = ({
           )}
         </Box>
       ) : (
-        <EmptyStateText>No tagged highlights yet.</EmptyStateText>
+        <EmptyStateText>{t('book.navigation.tags.empty')}</EmptyStateText>
       )}
     </Box>
   );

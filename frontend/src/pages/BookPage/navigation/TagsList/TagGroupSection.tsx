@@ -5,6 +5,7 @@ import { useSaveStatus } from '@/hooks/useSaveStatus.ts';
 import { Box, Typography } from '@mui/material';
 import { motion } from 'motion/react';
 import { useId, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 
 import { GroupTagsDialog } from './GroupTagsDialog.tsx';
 import { TagChip } from './TagChip.tsx';
@@ -60,6 +61,7 @@ export const TagGroupSection = ({
   onTagClick,
   onMove,
 }: TagGroupSectionProps) => {
+  const { t } = useTranslation();
   const [isExpanded, setIsExpanded] = useState(true);
   const tagsId = useId();
   const [isDialogOpen, setIsDialogOpen] = useState(false);
@@ -135,7 +137,7 @@ export const TagGroupSection = ({
                   fontStyle: 'italic',
                 }}
               >
-                No tags yet — click to add
+                {t('book.navigation.tags.groupSection.emptyGroup')}
               </Typography>
             </Box>
           )}
@@ -155,12 +157,13 @@ export const TagGroupSection = ({
         onConfirm={handleConfirmDelete}
         message={
           tags.length > 0
-            ? `Delete the group "${group.name}"? Its ${tags.length} ${
-                tags.length === 1 ? 'tag stays' : 'tags stay'
-              } on your highlights and ${tags.length === 1 ? 'moves' : 'move'} to Ungrouped.`
-            : `Delete the group "${group.name}"?`
+            ? t('book.navigation.tags.groupSection.deleteConfirm.messageWithTags', {
+                name: group.name,
+                count: tags.length,
+              })
+            : t('book.navigation.tags.groupSection.deleteConfirm.message', { name: group.name })
         }
-        confirmText="Delete"
+        confirmText={t('common.actions.delete')}
         confirmColor="error"
         isLoading={isProcessing}
       />
@@ -183,6 +186,7 @@ export const UngroupedTagsSection = ({
   onTagClick,
   onMove,
 }: UngroupedTagsSectionProps) => {
+  const { t } = useTranslation();
   const [isExpanded, setIsExpanded] = useState(true);
   const tagsId = useId();
   const shouldHide = tags.length === 0;
@@ -208,7 +212,7 @@ export const UngroupedTagsSection = ({
       >
         <Box sx={{ mb: isExpanded ? 1 : 0 }}>
           <TagGroupTitle
-            title="Ungrouped"
+            title={t('book.navigation.tags.ungrouped')}
             count={tags.length}
             isExpanded={isExpanded}
             onToggleCollapse={() => setIsExpanded(!isExpanded)}

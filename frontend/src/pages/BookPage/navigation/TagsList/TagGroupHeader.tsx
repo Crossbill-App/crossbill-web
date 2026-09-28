@@ -9,6 +9,7 @@ import { ICON_SIZE } from '@/theme/iconSizes.ts';
 import { createAdaptiveHoverStyles } from '@/utils/adaptiveHover.ts';
 import { Box, ButtonBase, IconButton, TextField, Tooltip } from '@mui/material';
 import { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 
 interface TagGroupTitleProps {
   title: string;
@@ -78,6 +79,7 @@ const TagGroupNameEditForm = ({
   onSubmit,
   onClose,
 }: TagGroupNameEditFormProps) => {
+  const { t } = useTranslation();
   // Clicking away blurs the input, which is what saves the name — the shared
   // hook also keeps that from renaming twice when the field is left again
   // while the first rename is still in flight.
@@ -96,7 +98,7 @@ const TagGroupNameEditForm = ({
       disabled={isProcessing}
       // The field replaces the group's title in place, so it has no visible
       // label of its own to be named by.
-      slotProps={{ htmlInput: { 'aria-label': 'Group name' } }}
+      slotProps={{ htmlInput: { 'aria-label': t('book.navigation.tags.groupHeader.groupName') } }}
       sx={{ flex: 1, mr: 1 }}
     />
   );
@@ -129,6 +131,7 @@ export const TagGroupHeader = ({
   saveStatus,
   controlsId,
 }: TagGroupHeaderProps) => {
+  const { t } = useTranslation();
   const [isEditing, setIsEditing] = useState(false);
 
   const adaptiveStyles = createAdaptiveHoverStyles({
@@ -177,11 +180,11 @@ export const TagGroupHeader = ({
               gap: 0.5,
             }}
           >
-            <Tooltip title="Edit tags">
+            <Tooltip title={t('book.navigation.tags.groupHeader.editTags')}>
               <span>
                 <IconButton
                   size="small"
-                  aria-label="Edit tags"
+                  aria-label={t('book.navigation.tags.groupHeader.editTags')}
                   onClick={(e) => {
                     e.stopPropagation();
                     onEditTags();
@@ -192,11 +195,11 @@ export const TagGroupHeader = ({
                 </IconButton>
               </span>
             </Tooltip>
-            <Tooltip title="Rename group">
+            <Tooltip title={t('book.navigation.tags.groupHeader.renameGroup')}>
               <span>
                 <IconButton
                   size="small"
-                  aria-label="Rename group"
+                  aria-label={t('book.navigation.tags.groupHeader.renameGroup')}
                   onClick={(e) => {
                     e.stopPropagation();
                     setIsEditing(true);
@@ -207,11 +210,11 @@ export const TagGroupHeader = ({
                 </IconButton>
               </span>
             </Tooltip>
-            <Tooltip title="Delete group">
+            <Tooltip title={t('book.navigation.tags.groupHeader.deleteGroup')}>
               <span>
                 <IconButton
                   size="small"
-                  aria-label="Delete group"
+                  aria-label={t('book.navigation.tags.groupHeader.deleteGroup')}
                   onClick={(e) => {
                     e.stopPropagation();
                     onDelete();

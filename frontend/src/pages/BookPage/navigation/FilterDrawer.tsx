@@ -2,6 +2,7 @@ import { useBodyScrollLock } from '@/hooks/useBodyScrollLock.ts';
 import { CloseIcon } from '@/theme/Icons.tsx';
 import { Box, Drawer, IconButton, Tab, Tabs } from '@mui/material';
 import { type ReactNode, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 
 export interface FilterTab {
   label: string;
@@ -16,6 +17,7 @@ interface FilterDrawerProps {
 }
 
 export const FilterDrawer = ({ open, onClose, tabs, header }: FilterDrawerProps) => {
+  const { t } = useTranslation();
   const [activeTab, setActiveTab] = useState(0);
 
   useBodyScrollLock(open);
@@ -48,7 +50,12 @@ export const FilterDrawer = ({ open, onClose, tabs, header }: FilterDrawerProps)
 
         {/* Close button */}
         <Box sx={{ display: 'flex', justifyContent: 'flex-end', mb: 1 }}>
-          <IconButton edge="end" onClick={handleClose} aria-label="close" size="small">
+          <IconButton
+            edge="end"
+            onClick={handleClose}
+            aria-label={t('book.navigation.filterDrawer.close')}
+            size="small"
+          >
             <CloseIcon />
           </IconButton>
         </Box>

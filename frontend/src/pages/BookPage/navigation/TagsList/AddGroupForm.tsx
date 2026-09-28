@@ -1,6 +1,7 @@
 import { Box, Button, ClickAwayListener, TextField } from '@mui/material';
 import { AnimatePresence, motion } from 'motion/react';
 import { KeyboardEvent, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 
 interface AddGroupFormProps {
   isVisible: boolean;
@@ -15,6 +16,7 @@ export const AddGroupForm = ({
   onSubmit,
   onCancel,
 }: AddGroupFormProps) => {
+  const { t } = useTranslation();
   const [groupName, setGroupName] = useState('');
 
   const handleSubmit = () => {
@@ -56,7 +58,7 @@ export const AddGroupForm = ({
                 value={groupName}
                 onChange={(e) => setGroupName(e.target.value)}
                 onKeyDown={handleKeyDown}
-                placeholder="Group name..."
+                placeholder={t('book.navigation.tags.groupNamePlaceholder')}
                 size="small"
                 autoFocus
                 disabled={isProcessing}
@@ -68,7 +70,7 @@ export const AddGroupForm = ({
                 beside a contained primary. */}
             <Box sx={{ display: 'flex', justifyContent: 'flex-end', gap: 1 }}>
               <Button size="small" onClick={onCancel}>
-                Cancel
+                {t('common.actions.cancel')}
               </Button>
               <Button
                 size="small"
@@ -76,7 +78,7 @@ export const AddGroupForm = ({
                 onClick={handleSubmit}
                 disabled={isProcessing}
               >
-                Add group
+                {t('book.navigation.tags.addGroup')}
               </Button>
             </Box>
           </Box>

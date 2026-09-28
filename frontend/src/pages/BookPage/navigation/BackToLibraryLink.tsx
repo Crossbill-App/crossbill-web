@@ -1,6 +1,7 @@
 import { ArrowBackIcon } from '@/theme/Icons.tsx';
 import { Button } from '@mui/material';
 import { createLink } from '@tanstack/react-router';
+import { useTranslation } from 'react-i18next';
 
 const BackButton = createLink(Button);
 
@@ -13,18 +14,22 @@ const BackButton = createLink(Button);
  * Hidden from `md` up, where the bar's own Library link is already on screen a
  * few pixels above this one.
  */
-export const BackToLibraryLink = () => (
-  <BackButton
-    to="/library"
-    size="small"
-    startIcon={<ArrowBackIcon />}
-    sx={{
-      display: { xs: 'inline-flex', md: 'none' },
-      mb: 2,
-      ml: -1,
-      color: 'text.secondary',
-    }}
-  >
-    Library
-  </BackButton>
-);
+export const BackToLibraryLink = () => {
+  const { t } = useTranslation();
+
+  return (
+    <BackButton
+      to="/library"
+      size="small"
+      startIcon={<ArrowBackIcon />}
+      sx={{
+        display: { xs: 'inline-flex', md: 'none' },
+        mb: 2,
+        ml: -1,
+        color: 'text.secondary',
+      }}
+    >
+      {t('common.nav.library')}
+    </BackButton>
+  );
+};

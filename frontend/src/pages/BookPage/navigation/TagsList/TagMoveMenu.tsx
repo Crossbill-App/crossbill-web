@@ -1,6 +1,7 @@
 import { TagGroupInBook, TagInBook } from '@/api/generated/model';
 import { LinkOffIcon } from '@/theme/Icons.tsx';
 import { ListItemIcon, ListItemText, Menu, MenuItem } from '@mui/material';
+import { useTranslation } from 'react-i18next';
 
 interface TagMoveMenuProps {
   tag: TagInBook;
@@ -17,6 +18,7 @@ export const TagMoveMenu = ({
   onClose,
   onMove,
 }: TagMoveMenuProps) => {
+  const { t } = useTranslation();
   const targetGroups = tagGroups.filter((group) => group.id !== tag.tag_group_id);
 
   const handleMove = (groupId: number | null) => {
@@ -33,7 +35,7 @@ export const TagMoveMenu = ({
     >
       {targetGroups.map((group) => (
         <MenuItem key={group.id} onClick={() => handleMove(group.id)}>
-          <ListItemText primary={`Move to ${group.name}`} />
+          <ListItemText primary={t('book.navigation.tags.moveMenu.moveTo', { name: group.name })} />
         </MenuItem>
       ))}
       {tag.tag_group_id != null && (
@@ -41,7 +43,7 @@ export const TagMoveMenu = ({
           <ListItemIcon>
             <LinkOffIcon fontSize="small" />
           </ListItemIcon>
-          <ListItemText primary="Remove from group" />
+          <ListItemText primary={t('book.navigation.tags.moveMenu.removeFromGroup')} />
         </MenuItem>
       )}
     </Menu>

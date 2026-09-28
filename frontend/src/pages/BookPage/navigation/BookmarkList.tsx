@@ -4,6 +4,7 @@ import { EmptyStateText } from '@/components/EmptyStateText.tsx';
 import { BookmarkFilledIcon } from '@/theme/Icons.tsx';
 import { Box, Button, Typography } from '@mui/material';
 import { useId, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 
 import { SidebarSectionHeader } from './SidebarSectionHeader.tsx';
 
@@ -22,6 +23,7 @@ export const BookmarkList = ({
   hideTitle,
   filterActive = false,
 }: BookmarkListProps) => {
+  const { t } = useTranslation();
   const [isExpanded, setIsExpanded] = useState(true);
   const bookmarksId = useId();
   const effectiveIsExpanded = hideTitle ? true : isExpanded;
@@ -66,11 +68,11 @@ export const BookmarkList = ({
       {!hideTitle && (
         <SidebarSectionHeader
           icon={BookmarkFilledIcon}
-          title="Bookmarks"
+          title={t('common.entities.bookmarks')}
           collapse={{
             isExpanded,
             onToggle: () => setIsExpanded((prev) => !prev),
-            sectionLabel: 'bookmark list',
+            sectionLabel: t('book.navigation.bookmarks.sectionLabel'),
             controlsId: bookmarksId,
           }}
         />
@@ -90,7 +92,7 @@ export const BookmarkList = ({
               p: 0,
               m: 0,
             }}
-            aria-label="Bookmarks"
+            aria-label={t('common.entities.bookmarks')}
           >
             {bookmarkedHighlights.map(({ bookmark, highlight }) => {
               if (!highlight) return null;
@@ -150,7 +152,7 @@ export const BookmarkList = ({
                             display: 'block',
                           }}
                         >
-                          Page {highlight.page}
+                          {t('common.labels.page', { page: highlight.page })}
                         </Typography>
                       )}
                     </Box>
@@ -161,7 +163,9 @@ export const BookmarkList = ({
           </Box>
         ) : (
           <EmptyStateText>
-            {filterActive ? 'No bookmarks match the active filters.' : 'No bookmarks yet.'}
+            {filterActive
+              ? t('book.navigation.bookmarks.emptyFiltered')
+              : t('book.navigation.bookmarks.empty')}
           </EmptyStateText>
         )}
       </Collapsable>

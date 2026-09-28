@@ -9,8 +9,10 @@ import { useMutationErrorHandler } from '@/hooks/useMutationErrorHandler.ts';
 import { useCacheEvents } from '@/lib/cacheEvents.ts';
 import { useQueryClient } from '@tanstack/react-query';
 import { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 
 export const useTagMutations = (bookId: number) => {
+  const { t } = useTranslation();
   const queryClient = useQueryClient();
   const mutationErrorHandler = useMutationErrorHandler();
   const cache = useCacheEvents();
@@ -55,7 +57,7 @@ export const useTagMutations = (bookId: number) => {
         if (context?.previousBook) {
           queryClient.setQueryData(getGetBookDetailsQueryKey(bookId), context.previousBook);
         }
-        mutationErrorHandler('move tag')(error);
+        mutationErrorHandler(t('book.navigation.tags.errors.moveTag'))(error);
       },
     },
   });
@@ -63,14 +65,14 @@ export const useTagMutations = (bookId: number) => {
   const createOrUpdateGroupMutation = useCreateOrUpdateTagGroup({
     mutation: {
       onSuccess: () => cache.tagsChanged(bookId),
-      onError: mutationErrorHandler('save tag group'),
+      onError: mutationErrorHandler(t('book.navigation.tags.errors.saveTagGroup')),
     },
   });
 
   const deleteGroupMutation = useDeleteTagGroup({
     mutation: {
       onSuccess: () => cache.tagsChanged(bookId),
-      onError: mutationErrorHandler('delete tag group'),
+      onError: mutationErrorHandler(t('book.navigation.tags.errors.deleteTagGroup')),
     },
   });
 

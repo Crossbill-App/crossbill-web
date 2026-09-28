@@ -20,11 +20,13 @@ import { useTabContentSnap } from '@/pages/BookPage/navigation/useTabContentSnap
 import { Alert, Box, useMediaQuery, useTheme } from '@mui/material';
 import { Outlet, useLocation, useParams } from '@tanstack/react-router';
 import { useEffect, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 
 /** Air between a snapped-to tab heading and the app bar above it. */
 const SNAP_AIR = '24px';
 
 export const BookPage = () => {
+  const { t } = useTranslation();
   const { bookId } = useParams({ strict: false });
   // Keys the tab fade below. Search params are excluded on purpose: filtering
   // or searching within a tab must not replay the animation.
@@ -60,7 +62,7 @@ export const BookPage = () => {
     return (
       <PageContainer maxWidth="xl">
         <Box sx={{ pt: 4 }}>
-          <Alert severity="error">Failed to load book details. Please try again later.</Alert>
+          <Alert severity="error">{t('book.page.loadError')}</Alert>
         </Box>
       </PageContainer>
     );

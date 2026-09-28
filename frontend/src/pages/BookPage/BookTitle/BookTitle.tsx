@@ -5,6 +5,7 @@ import { ReadingStageChip } from '@/pages/BookPage/Reflection/ReadingStageChip.t
 import { ManageIcon } from '@/theme/Icons.tsx';
 import { Box, Divider, LinearProgress, Tooltip, Typography } from '@mui/material';
 import { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { BookBlurb } from './BookBlurb.tsx';
 import { BookEditDialog } from './BookEditDialog.tsx';
 import { BookStatsStrip } from './BookStatsStrip.tsx';
@@ -21,6 +22,7 @@ const titleActionSx = {
 } as const;
 
 export const BookTitle = ({ book }: BookTitleProps) => {
+  const { t } = useTranslation();
   const [editDialogOpen, setEditDialogOpen] = useState(false);
 
   const handleEdit = () => {
@@ -73,7 +75,7 @@ export const BookTitle = ({ book }: BookTitleProps) => {
               }}
             />
           </Box>
-          <Tooltip title={`${progress}% progress`} arrow>
+          <Tooltip title={t('book.title.progress', { progress })} arrow>
             <LinearProgress
               variant="determinate"
               value={progress}
@@ -100,7 +102,7 @@ export const BookTitle = ({ book }: BookTitleProps) => {
             <Typography variant="h1" component="h1" aria-label={book.title} sx={{ mb: 0 }}>
               {book.title}
               <IconButtonWithTooltip
-                label="Manage book"
+                label={t('book.shared.manageBook')}
                 onClick={handleEdit}
                 icon={<ManageIcon />}
                 size="small"
@@ -117,7 +119,7 @@ export const BookTitle = ({ book }: BookTitleProps) => {
               }}
               gutterBottom
             >
-              {book.author || 'Unknown author'}
+              {book.author || t('common.fallbacks.unknownAuthor')}
             </Typography>
 
             <BookBlurb description={book.description ?? null} />
