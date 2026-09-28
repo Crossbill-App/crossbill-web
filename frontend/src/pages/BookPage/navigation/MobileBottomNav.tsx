@@ -11,7 +11,8 @@ import {
 } from '@mui/material';
 import { useNavigate, useParams, useRouterState } from '@tanstack/react-router';
 import { useLayoutEffect, useState } from 'react';
-import { BOOK_PAGE_LABELS, BOOK_PAGE_ROUTES } from './bookPageRoutes.ts';
+import { useTranslation } from 'react-i18next';
+import { BOOK_PAGE_LABEL_KEYS, BOOK_PAGE_ROUTES } from './bookPageRoutes.ts';
 
 const MORE_VALUE = 'more';
 
@@ -24,6 +25,7 @@ const getActivePage = (pathname: string): string => {
 };
 
 export const MobileBottomNav = () => {
+  const { t } = useTranslation();
   const { bookId } = useParams({ strict: false });
   const { location } = useRouterState();
   const navigate = useNavigate();
@@ -83,14 +85,14 @@ export const MobileBottomNav = () => {
             <BottomNavigationAction
               key={route.segment}
               value={route.segment}
-              label={BOOK_PAGE_LABELS[route.segment]}
+              label={t(BOOK_PAGE_LABEL_KEYS[route.segment])}
               icon={<Icon />}
             />
           );
         })}
         <BottomNavigationAction
           value={MORE_VALUE}
-          label="More"
+          label={t('common.actions.more')}
           icon={<MoreIcon />}
           onClick={(event) => setAnchorEl(event.currentTarget)}
         />
@@ -113,7 +115,7 @@ export const MobileBottomNav = () => {
               <ListItemIcon>
                 <Icon fontSize="small" />
               </ListItemIcon>
-              <ListItemText>{BOOK_PAGE_LABELS[route.segment]}</ListItemText>
+              <ListItemText>{t(BOOK_PAGE_LABEL_KEYS[route.segment])}</ListItemText>
             </MenuItem>
           );
         })}

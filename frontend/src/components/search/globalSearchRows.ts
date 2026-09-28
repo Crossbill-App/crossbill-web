@@ -30,13 +30,13 @@ type RankedSearchRow = GlobalSearchRow & { score: number };
 
 export const MAX_GLOBAL_SEARCH_ROWS = 10;
 
-/** What a row's type is called wherever one is labelled to the reader. */
-export const SEARCH_ROW_TYPE_LABELS: Record<GlobalSearchRowType, string> = {
-  highlight: 'Highlight',
-  note: 'Note',
-  chapter: 'Chapter',
-  book: 'Book',
-};
+/** What a row's type is called wherever one is labelled to the reader, as translation keys. */
+export const SEARCH_ROW_TYPE_LABEL_KEYS = {
+  highlight: 'common.entities.highlight',
+  note: 'common.entities.note',
+  chapter: 'search.rowTypes.chapter',
+  book: 'search.rowTypes.book',
+} as const satisfies Record<GlobalSearchRowType, string>;
 
 const highlightRows = (hits: HighlightSearchItem[]): RankedSearchRow[] =>
   hits.map((hit) => ({

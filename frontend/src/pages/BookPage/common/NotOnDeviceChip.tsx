@@ -1,5 +1,6 @@
 import { NotOnDeviceIcon } from '@/theme/Icons.tsx';
 import { Chip, Tooltip } from '@mui/material';
+import { useTranslation } from 'react-i18next';
 
 interface NotOnDeviceChipProps {
   removed: boolean | undefined;
@@ -7,12 +8,14 @@ interface NotOnDeviceChipProps {
 }
 
 export const NotOnDeviceChip = ({ removed, size = 'small' }: NotOnDeviceChipProps) => {
+  const { t } = useTranslation();
+
   if (!removed) {
     return null;
   }
 
   return (
-    <Tooltip title="Deleted on the e-reader.">
+    <Tooltip title={t('book.common.notOnDevice.tooltip')}>
       <Chip
         variant="outlined"
         icon={<NotOnDeviceIcon />}

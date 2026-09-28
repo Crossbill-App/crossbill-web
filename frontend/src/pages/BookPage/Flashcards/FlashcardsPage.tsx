@@ -23,6 +23,7 @@ import { Divider } from '@mui/material';
 import { flatMap } from 'lodash';
 import { useMemo, useState } from 'react';
 import { createPortal } from 'react-dom';
+import { useTranslation } from 'react-i18next';
 import { FilterFab } from '../common/FilterFab.tsx';
 import { FilterDrawer, type FilterTab } from '../navigation/FilterDrawer.tsx';
 import { TagsList } from '../navigation/TagsList/TagsList.tsx';
@@ -30,14 +31,8 @@ import { FlashcardEditDialog } from './FlashcardEditDialog.tsx';
 
 const BOOK_FLASHCARDS_KEY = -1;
 
-/**
- * Heading for the group of cards tied to no chapter. Named for what the group
- * is rather than for the API's `book_flashcards`, which read as a chapter with
- * an odd name under the same heading style as the real ones.
- */
-const NOT_IN_A_CHAPTER = 'Not in a chapter';
-
 export const FlashcardsPage = () => {
+  const { t } = useTranslation();
   const { book, isDesktop, leftSidebarEl, rightSidebarEl, fabContainerEl } = useBookPage();
 
   const {
@@ -58,10 +53,10 @@ export const FlashcardsPage = () => {
   const chapterNameMap = useMemo(() => {
     const map: Record<number, string> = {};
     for (const ch of bookChapters) {
-      map[ch.id] = ch.name || 'Unknown chapter';
+      map[ch.id] = ch.name || t('common.fallbacks.unknownChapter');
     }
     return map;
-  }, [bookChapters]);
+  }, [bookChapters, t]);
 
   // Extract all flashcards with context from book chapters
   const allFlashcardsWithContext = useMemo((): FlashcardWithContext[] => {
@@ -70,7 +65,7 @@ export const FlashcardsPage = () => {
         highlight.flashcards.map((flashcard: Flashcard) => ({
           ...flashcard,
           highlight: highlight,
-          chapterName: chapter.name || 'Unknown chapter',
+          chapterName: chapter.name || t('common.fallbacks.unknownChapter'),
           chapterId: chapter.id,
           tags: highlight.tags,
         }))
@@ -82,15 +77,18 @@ export const FlashcardsPage = () => {
     const bookLevelFlashcards: FlashcardWithContext[] = (book.book_flashcards ?? []).map((fc) => ({
       ...fc,
       highlight: null,
+      // Heading for the group of cards tied to no chapter. Named for what the
+      // group is rather than for the API's `book_flashcards`, which read as a
+      // chapter with an odd name under the same heading style as the real ones.
       chapterName: fc.chapter_id
-        ? (chapterNameMap[fc.chapter_id] ?? 'Unknown chapter')
-        : NOT_IN_A_CHAPTER,
+        ? (chapterNameMap[fc.chapter_id] ?? t('common.fallbacks.unknownChapter'))
+        : t('flashcards.page.notInAChapter'),
       chapterId: fc.chapter_id ?? null,
       tags: [],
     }));
 
     return [...highlightFlashcards, ...bookLevelFlashcards];
-  }, [bookChapters, book.book_flashcards, chapterNameMap]);
+  }, [bookChapters, book.book_flashcards, chapterNameMap, t]);
 
   // Filter flashcards by tag and search
   const filteredFlashcards = useMemo((): FlashcardWithContext[] => {
@@ -141,8 +139,8 @@ export const FlashcardsPage = () => {
     if (bookFlashcardsGroup && bookFlashcardsGroup.length > 0) {
       chapterResults.push({
         id: BOOK_FLASHCARDS_KEY,
-        name: NOT_IN_A_CHAPTER,
-        listLabel: 'Flashcards not in a chapter',
+        name: t('flashcards.page.notInAChapter'),
+        listLabel: t('flashcards.page.notInAChapterListLabel'),
         flashcards: bookFlashcardsGroup,
       });
     }
@@ -155,15 +153,16 @@ export const FlashcardsPage = () => {
     }
 
     return chapterResults;
-  }, [filteredFlashcards, isReversed]);
+  }, [filteredFlashcards, isReversed, t]);
 
   const emptyState =
     searchText || selectedTagId ? (
-      <FilteredEmptyState noun="flashcards" onClearFilters={() => clearFilters()} />
+      <FilteredEmptyState
+        message={t('flashcards.page.filteredEmpty')}
+        onClearFilters={() => clearFilters()}
+      />
     ) : (
-      <EmptyStateText>
-        No flashcards yet. Create flashcards from your highlights to start studying.
-      </EmptyStateText>
+      <EmptyStateText>{t('flashcards.page.emptyState')}</EmptyStateText>
     );
 
   const navData = useFlashcardsPageData(
@@ -205,11 +204,11 @@ export const FlashcardsPage = () => {
         search={
           <SearchBar
             onSearch={handleSearch}
-            placeholder="Search flashcards..."
+            placeholder={t('flashcards.page.searchPlaceholder')}
             initialValue={searchText}
           />
         }
-        count={{ value: filteredFlashcards.length, noun: 'flashcard' }}
+        count={{ value: filteredFlashcards.length, unit: 'flashcards' }}
         sort={<SortToggle isReversed={isReversed} onToggle={() => setIsReversed(!isReversed)} />}
       />
 
@@ -309,11 +308,12 @@ const useFlashcardsFilterTabs = ({
   handleChapterClick,
   handleTagClick,
   setFilterDrawerOpen,
-}: UseFlashcardsFilterTabsParams): FilterTab[] =>
-  useMemo(
+}: UseFlashcardsFilterTabsParams): FilterTab[] => {
+  const { t } = useTranslation();
+  return useMemo(
     () => [
       {
-        label: 'Chapters',
+        label: t('common.entities.chapters'),
         content: (
           <ChapterNav
             chapters={navChapters}
@@ -326,7 +326,7 @@ const useFlashcardsFilterTabs = ({
         ),
       },
       {
-        label: 'Tags',
+        label: t('common.entities.tags'),
         content: (
           <TagsList
             tags={tags}
@@ -352,8 +352,10 @@ const useFlashcardsFilterTabs = ({
       selectedTagId,
       handleTagClick,
       setFilterDrawerOpen,
+      t,
     ]
   );
+};
 
 // --- Private hooks ---
 

@@ -1,10 +1,11 @@
 import type { BookActivityUnit } from '@/api/generated/model';
-import { countLabel } from '@/utils/counts.ts';
 import { browserLocale, formatDate } from '@/utils/date.ts';
 import { Box, useTheme } from '@mui/material';
+import type { TFunction } from 'i18next';
 import { DateTime, Info } from 'luxon';
 import { cloneElement, useEffect, useMemo, useRef } from 'react';
 import { ActivityCalendar, type Activity, type DayIndex } from 'react-activity-calendar';
+import { useTranslation } from 'react-i18next';
 // Shipped separately; the library imports none of it itself.
 import 'react-activity-calendar/tooltips.css';
 
@@ -42,8 +43,6 @@ const SCROLL_CONTAINER = 'react-activity-calendar__scroll-container';
 
 /** The footer slot the calendar keeps for a total. */
 const FOOTER_CAPTION = 'react-activity-calendar__count';
-
-const UNIT_NOUN = { pages: 'page', minutes: 'minute' } as const;
 
 /**
  * The backend sends only the days worth drawing, so the window's own bounds go
@@ -91,13 +90,22 @@ const useCalendarLocale = () =>
  * Labels the square and fills its tooltip both, since a phone has no pointer to
  * hover with and the label is its only way to the number.
  */
-const dayLabel = (activity: ActivityGridData | null, day: Activity, note?: string) => {
+const dayLabel = (
+  t: TFunction,
+  activity: ActivityGridData | null,
+  day: Activity,
+  note?: string
+) => {
+  const date = formatDate(day.date);
   if (!activity) {
-    return `Nothing read on ${formatDate(day.date)}`;
+    return t('components.readingActivityGrid.dayLabel.empty', { date });
   }
 
-  const reading = `${countLabel(day.count, UNIT_NOUN[activity.unit])} on ${formatDate(day.date)}`;
-  return note ? `${reading} — ${note}` : reading;
+  const reading = t(`components.readingActivityGrid.dayLabel.${activity.unit}`, {
+    count: day.count,
+    date,
+  });
+  return note ? t('components.readingActivityGrid.dayLabel.withNote', { reading, note }) : reading;
 };
 
 /**
@@ -113,6 +121,7 @@ export const ReadingActivityGrid = ({
   dayNote,
   blockSize = DEFAULT_BLOCK_SIZE,
 }: ReadingActivityGridProps) => {
+  const { t } = useTranslation();
   const theme = useTheme();
   const { locale, months, weekStart } = useCalendarLocale();
   // A reader with nothing read still gets a year of squares, all uncoloured.
@@ -136,7 +145,10 @@ export const ReadingActivityGrid = ({
   const asMonth = (date: string) =>
     DateTime.fromISO(date).setLocale(locale).toLocaleString({ month: 'short', year: 'numeric' });
 
-  const period = `${asMonth(span.range_start)} – ${asMonth(span.range_end)}`;
+  const period = t('components.readingActivityGrid.period', {
+    start: asMonth(span.range_start),
+    end: asMonth(span.range_end),
+  });
 
   return (
     <Box
@@ -165,18 +177,21 @@ export const ReadingActivityGrid = ({
         showColorLegend={activity !== null}
         labels={{
           months,
-          legend: { less: 'Less', more: 'More' },
+          legend: {
+            less: t('components.readingActivityGrid.legend.less'),
+            more: t('components.readingActivityGrid.legend.more'),
+          },
           totalCount: activity
-            ? `${period} · ${activity.unit} read`
-            : `${period} · nothing read yet`,
+            ? t(`components.readingActivityGrid.totalCount.${activity.unit}`, { period })
+            : t('components.readingActivityGrid.totalCount.empty', { period }),
         }}
         renderBlock={(block, day) =>
           cloneElement(block, {
             role: 'img',
-            'aria-label': dayLabel(activity, day, dayNote?.(day.date)),
+            'aria-label': dayLabel(t, activity, day, dayNote?.(day.date)),
           })
         }
-        tooltips={{ activity: { text: (day) => dayLabel(activity, day, dayNote?.(day.date)) } }}
+        tooltips={{ activity: { text: (day) => dayLabel(t, activity, day, dayNote?.(day.date)) } }}
         weekStart={weekStart}
       />
     </Box>

@@ -5,23 +5,28 @@ import { IconButtonWithTooltip } from '@/components/buttons/IconButtonWithToolti
 import { SectionTitle } from '@/components/typography/SectionTitle.tsx';
 import { useSnackbar } from '@/context/SnackbarContext';
 import { useJobBatchProgress } from '@/hooks/useJobBatchProgress';
+import { i18n } from '@/i18n';
 import { useCacheEvents } from '@/lib/cacheEvents.ts';
 import { CloseIcon } from '@/theme/Icons';
 import { Box, CircularProgress, Typography } from '@mui/material';
 import type { AxiosError } from 'axios';
+import { useTranslation } from 'react-i18next';
 
 type ShowSnackbar = ReturnType<typeof useSnackbar>['showSnackbar'];
 
 function reportOutcome(batch: JobBatchResponse, showSnackbar: ShowSnackbar) {
   if (batch.status === 'completed') {
-    showSnackbar('Library indexed.', 'success');
+    showSnackbar(i18n.t('settings.embeddingBackfill.completed'), 'success');
   } else if (batch.status === 'completed_with_errors') {
     showSnackbar(
-      `Indexed ${batch.completed_jobs}/${batch.total_jobs} items. Some failed.`,
+      i18n.t('settings.embeddingBackfill.completedWithErrors', {
+        completed: batch.completed_jobs,
+        total: batch.total_jobs,
+      }),
       'warning'
     );
   } else if (batch.status === 'failed') {
-    showSnackbar('Indexing failed.', 'error');
+    showSnackbar(i18n.t('settings.embeddingBackfill.failed'), 'error');
   }
 }
 
@@ -33,6 +38,7 @@ function reportOutcome(batch: JobBatchResponse, showSnackbar: ShowSnackbar) {
  * started.
  */
 export const EmbeddingBackfillSection = () => {
+  const { t } = useTranslation();
   const cache = useCacheEvents();
   const { showSnackbar } = useSnackbar();
   const { data: activeBatch } = useGetActiveBackfill();
@@ -45,7 +51,7 @@ export const EmbeddingBackfillSection = () => {
     },
     onCancelled: () => {
       cache.embeddingBackfillChanged();
-      showSnackbar('Indexing cancelled.', 'info');
+      showSnackbar(t('settings.embeddingBackfill.cancelled'), 'info');
     },
   });
 
@@ -55,7 +61,7 @@ export const EmbeddingBackfillSection = () => {
         if (response.batch) {
           track(response.batch.id);
         } else {
-          showSnackbar('Everything in your library is already indexed.', 'info');
+          showSnackbar(t('settings.embeddingBackfill.alreadyIndexed'), 'info');
         }
       },
       onError: (error) => {
@@ -63,9 +69,9 @@ export const EmbeddingBackfillSection = () => {
           // Someone else's tab, or another device, got there first — refetch so
           // this page picks up the run it is being told about.
           cache.embeddingBackfillChanged();
-          showSnackbar('Indexing is already in progress.', 'warning');
+          showSnackbar(t('settings.embeddingBackfill.alreadyRunning'), 'warning');
         } else {
-          showSnackbar('Failed to start indexing.', 'error');
+          showSnackbar(t('settings.embeddingBackfill.startFailed'), 'error');
         }
       },
     },
@@ -76,15 +82,14 @@ export const EmbeddingBackfillSection = () => {
 
   return (
     <Box sx={{ mt: 6 }}>
-      <SectionTitle showDivider>Semantic search</SectionTitle>
+      <SectionTitle showDivider>{t('settings.embeddingBackfill.title')}</SectionTitle>
       <Typography variant="body2" sx={{ mb: 3, color: 'text.secondary' }}>
-        Index your library for semantic search. Only content that has not been embedded yet is
-        processed.
+        {t('settings.embeddingBackfill.description')}
       </Typography>
 
       <Box sx={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: 2 }}>
         <AIActionButton
-          text="Index library"
+          text={t('settings.embeddingBackfill.start')}
           disabled={isBusy}
           onClick={() => {
             // No `book_id`: the whole library.
@@ -96,9 +101,15 @@ export const EmbeddingBackfillSection = () => {
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
             <CircularProgress size={20} />
             <Typography variant="body2" sx={{ color: 'text.secondary' }}>
-              {batch ? `Indexing (${done}/${batch.total_jobs})` : 'Starting...'}
+              {batch
+                ? t('settings.embeddingBackfill.progress', { done, total: batch.total_jobs })
+                : t('settings.embeddingBackfill.starting')}
             </Typography>
-            <IconButtonWithTooltip label="Cancel indexing" onClick={cancel} icon={<CloseIcon />} />
+            <IconButtonWithTooltip
+              label={t('settings.embeddingBackfill.cancel')}
+              onClick={cancel}
+              icon={<CloseIcon />}
+            />
           </Box>
         )}
       </Box>

@@ -1,13 +1,13 @@
 import { ChoiceSection } from '@/components/inputs/ChoiceSection.tsx';
 import {
-  READER_ALIGNMENT_LABELS,
   READER_ALIGNMENTS,
-  READER_COLUMN_LABELS,
   READER_COLUMNS,
-  READER_PAGE_COLOR_LABELS,
   READER_PAGE_COLORS,
-  READER_SPACING_LABELS,
   READER_SPACINGS,
+  readerAlignmentLabels,
+  readerColumnLabels,
+  readerPageColorLabels,
+  readerSpacingLabels,
   type ReaderPreferences,
 } from '@/components/reader/preferences/readerPreferences.ts';
 import { SectionTitle } from '@/components/typography/SectionTitle.tsx';
@@ -15,6 +15,7 @@ import { LargerTextIcon, SmallerTextIcon } from '@/theme/Icons.tsx';
 import { ICON_SIZE } from '@/theme/iconSizes.ts';
 import { Box, IconButton, InputAdornment, Popover, Stack, TextField } from '@mui/material';
 import { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 
 const FONT_SIZE_STEP = 0.25;
 
@@ -37,6 +38,7 @@ interface FontSizeSectionProps {
 }
 
 const FontSizeSection = ({ range, value, onChange }: FontSizeSectionProps) => {
+  const { t } = useTranslation();
   const [typed, setTyped] = useState(asPercent(value));
   const apply = (fontSize: number) => {
     setTyped(asPercent(fontSize));
@@ -59,9 +61,13 @@ const FontSizeSection = ({ range, value, onChange }: FontSizeSectionProps) => {
 
   return (
     <Box>
-      <SectionTitle>Font size</SectionTitle>
+      <SectionTitle>{t('reader.preferences.fontSize.heading')}</SectionTitle>
       <Stack direction="row" spacing={1} sx={{ alignItems: 'center' }}>
-        <IconButton aria-label="Smaller text" disabled={value <= range[0]} onClick={() => step(-1)}>
+        <IconButton
+          aria-label={t('reader.preferences.fontSize.smaller')}
+          disabled={value <= range[0]}
+          onClick={() => step(-1)}
+        >
           <SmallerTextIcon sx={{ fontSize: ICON_SIZE.ui }} />
         </IconButton>
         <TextField
@@ -77,12 +83,19 @@ const FontSizeSection = ({ range, value, onChange }: FontSizeSectionProps) => {
             if (event.key === 'ArrowDown') step(-1);
           }}
           slotProps={{
-            htmlInput: { 'aria-label': 'Font size in percent', inputMode: 'numeric' },
+            htmlInput: {
+              'aria-label': t('reader.preferences.fontSize.inputLabel'),
+              inputMode: 'numeric',
+            },
             input: { endAdornment: <InputAdornment position="end">%</InputAdornment> },
           }}
           sx={{ flex: 1 }}
         />
-        <IconButton aria-label="Larger text" disabled={value >= range[1]} onClick={() => step(1)}>
+        <IconButton
+          aria-label={t('reader.preferences.fontSize.larger')}
+          disabled={value >= range[1]}
+          onClick={() => step(1)}
+        >
           <LargerTextIcon sx={{ fontSize: ICON_SIZE.ui }} />
         </IconButton>
       </Stack>
@@ -105,53 +118,61 @@ export const ReaderSettings = ({
   preferences,
   onChange,
   fontSizeRange,
-}: ReaderSettingsProps) => (
-  <Popover
-    open={anchorEl !== null}
-    anchorEl={anchorEl}
-    onClose={onClose}
-    anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
-    transformOrigin={{ vertical: 'top', horizontal: 'right' }}
-    // Readium suppresses a page turn while an interactive element has focus, and
-    // `role=dialog` is what makes this paper — which holds it — count as one.
-    slotProps={{
-      paper: { role: 'dialog', 'aria-label': 'Appearance', sx: { p: 2.5, width: 320 } },
-    }}
-  >
-    <Stack spacing={2}>
-      <FontSizeSection
-        range={fontSizeRange}
-        value={preferences.fontSize}
-        onChange={(fontSize) => onChange({ ...preferences, fontSize })}
-      />
-      <ChoiceSection
-        heading="Text alignment"
-        options={READER_ALIGNMENTS}
-        labels={READER_ALIGNMENT_LABELS}
-        value={preferences.alignment}
-        onSelect={(alignment) => onChange({ ...preferences, alignment })}
-      />
-      <ChoiceSection
-        heading="Spacing"
-        options={READER_SPACINGS}
-        labels={READER_SPACING_LABELS}
-        value={preferences.spacing}
-        onSelect={(spacing) => onChange({ ...preferences, spacing })}
-      />
-      <ChoiceSection
-        heading="Columns"
-        options={READER_COLUMNS}
-        labels={READER_COLUMN_LABELS}
-        value={preferences.columns}
-        onSelect={(columns) => onChange({ ...preferences, columns })}
-      />
-      <ChoiceSection
-        heading="Page colour"
-        options={READER_PAGE_COLORS}
-        labels={READER_PAGE_COLOR_LABELS}
-        value={preferences.pageColor}
-        onSelect={(pageColor) => onChange({ ...preferences, pageColor })}
-      />
-    </Stack>
-  </Popover>
-);
+}: ReaderSettingsProps) => {
+  const { t } = useTranslation();
+
+  return (
+    <Popover
+      open={anchorEl !== null}
+      anchorEl={anchorEl}
+      onClose={onClose}
+      anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
+      transformOrigin={{ vertical: 'top', horizontal: 'right' }}
+      // Readium suppresses a page turn while an interactive element has focus, and
+      // `role=dialog` is what makes this paper — which holds it — count as one.
+      slotProps={{
+        paper: {
+          role: 'dialog',
+          'aria-label': t('reader.shared.appearance'),
+          sx: { p: 2.5, width: 320 },
+        },
+      }}
+    >
+      <Stack spacing={2}>
+        <FontSizeSection
+          range={fontSizeRange}
+          value={preferences.fontSize}
+          onChange={(fontSize) => onChange({ ...preferences, fontSize })}
+        />
+        <ChoiceSection
+          heading={t('reader.preferences.alignment.heading')}
+          options={READER_ALIGNMENTS}
+          labels={readerAlignmentLabels()}
+          value={preferences.alignment}
+          onSelect={(alignment) => onChange({ ...preferences, alignment })}
+        />
+        <ChoiceSection
+          heading={t('reader.preferences.spacing.heading')}
+          options={READER_SPACINGS}
+          labels={readerSpacingLabels()}
+          value={preferences.spacing}
+          onSelect={(spacing) => onChange({ ...preferences, spacing })}
+        />
+        <ChoiceSection
+          heading={t('reader.preferences.columns.heading')}
+          options={READER_COLUMNS}
+          labels={readerColumnLabels()}
+          value={preferences.columns}
+          onSelect={(columns) => onChange({ ...preferences, columns })}
+        />
+        <ChoiceSection
+          heading={t('reader.preferences.pageColor.heading')}
+          options={READER_PAGE_COLORS}
+          labels={readerPageColorLabels()}
+          value={preferences.pageColor}
+          onSelect={(pageColor) => onChange({ ...preferences, pageColor })}
+        />
+      </Stack>
+    </Popover>
+  );
+};

@@ -5,6 +5,7 @@ import { ICON_SIZE } from '@/theme/iconSizes.ts';
 import { tabularNums } from '@/theme/theme.ts';
 import { alpha, Box, Stack, Typography, type SvgIconProps } from '@mui/material';
 import type { ComponentType } from 'react';
+import { useTranslation } from 'react-i18next';
 
 export interface ReaderFooterProps {
   progression: number | undefined;
@@ -36,43 +37,47 @@ const FooterStat = ({ Icon, label, value, colors }: FooterStatProps) => (
 );
 
 /** The strip under the page: how much of the chapter is left, and how far into the book. */
-export const ReaderFooter = ({ progression, chapterProgress, colors }: ReaderFooterProps) => (
-  <Box
-    component="footer"
-    sx={{
-      display: 'flex',
-      alignItems: 'center',
-      justifyContent: 'right',
-      gap: 2,
-      // Held open before the position is known, so the page is not laid out
-      // twice when the label arrives.
-      minHeight: 'calc(32px + env(safe-area-inset-bottom))',
-      px: 2,
-      // Clear of an iPhone's home indicator, which the page runs under.
-      pb: 'env(safe-area-inset-bottom)',
-      borderTop: 1,
-      borderColor: alpha(colors.text, 0.12),
-    }}
-  >
-    <Box>
-      {chapterProgress && (
-        <FooterStat
-          Icon={PagesLeftIcon}
-          label="Pages left in chapter"
-          value={String(chapterProgress.pagesLeft)}
-          colors={colors}
-        />
-      )}
+export const ReaderFooter = ({ progression, chapterProgress, colors }: ReaderFooterProps) => {
+  const { t } = useTranslation();
+
+  return (
+    <Box
+      component="footer"
+      sx={{
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'right',
+        gap: 2,
+        // Held open before the position is known, so the page is not laid out
+        // twice when the label arrives.
+        minHeight: 'calc(32px + env(safe-area-inset-bottom))',
+        px: 2,
+        // Clear of an iPhone's home indicator, which the page runs under.
+        pb: 'env(safe-area-inset-bottom)',
+        borderTop: 1,
+        borderColor: alpha(colors.text, 0.12),
+      }}
+    >
+      <Box>
+        {chapterProgress && (
+          <FooterStat
+            Icon={PagesLeftIcon}
+            label={t('reader.footer.pagesLeftInChapter')}
+            value={String(chapterProgress.pagesLeft)}
+            colors={colors}
+          />
+        )}
+      </Box>
+      <Box>
+        {progression !== undefined && (
+          <FooterStat
+            Icon={BookCoverIcon}
+            label={t('reader.footer.readOfBook')}
+            value={`${Math.round(progression * 100)}%`}
+            colors={colors}
+          />
+        )}
+      </Box>
     </Box>
-    <Box>
-      {progression !== undefined && (
-        <FooterStat
-          Icon={BookCoverIcon}
-          label="Read of book"
-          value={`${Math.round(progression * 100)}%`}
-          colors={colors}
-        />
-      )}
-    </Box>
-  </Box>
-);
+  );
+};

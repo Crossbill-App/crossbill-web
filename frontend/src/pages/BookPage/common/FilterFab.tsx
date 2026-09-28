@@ -1,6 +1,7 @@
 import { FilterListIcon } from '@/theme/Icons';
 import { Badge, Zoom } from '@mui/material';
 import Fab from '@mui/material/Fab';
+import { useTranslation } from 'react-i18next';
 
 interface FilterFabProps {
   /** How many filters are on; the badge says it outright, the colour echoes it. */
@@ -9,6 +10,7 @@ interface FilterFabProps {
 }
 
 export const FilterFab = ({ activeFilterCount, onClick }: FilterFabProps) => {
+  const { t } = useTranslation();
   const isFiltered = activeFilterCount > 0;
 
   return (
@@ -22,7 +24,11 @@ export const FilterFab = ({ activeFilterCount, onClick }: FilterFabProps) => {
         <Fab
           size="small"
           color={isFiltered ? 'primary' : 'default'}
-          aria-label={isFiltered ? `Open filters (${activeFilterCount} active)` : 'Open filters'}
+          aria-label={
+            isFiltered
+              ? t('book.common.filterFab.openFiltersActive', { activeCount: activeFilterCount })
+              : t('book.common.filterFab.openFilters')
+          }
           onClick={() => onClick()}
         >
           <FilterListIcon />

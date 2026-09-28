@@ -1,6 +1,7 @@
 import { markdownStyles } from '@/theme/theme';
 import { Box, Button, useTheme } from '@mui/material';
 import { useEffect, useRef, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import ReactMarkdown from 'react-markdown';
 import rehypeRaw from 'rehype-raw';
 import rehypeSanitize from 'rehype-sanitize';
@@ -20,6 +21,7 @@ const COLLAPSED_LINES = 3;
  * by the reader, so unsanitised raw HTML here would be stored XSS.
  */
 export const BookBlurb = ({ description }: BookBlurbProps) => {
+  const { t } = useTranslation();
   const theme = useTheme();
   const [expanded, setExpanded] = useState(false);
   const clamped = useRef<HTMLDivElement>(null);
@@ -63,7 +65,7 @@ export const BookBlurb = ({ description }: BookBlurbProps) => {
           onClick={() => setExpanded(!expanded)}
           aria-expanded={expanded}
         >
-          {expanded ? 'Show less' : 'Show more'}
+          {expanded ? t('common.actions.showLess') : t('common.actions.showMore')}
         </Button>
       )}
     </Box>

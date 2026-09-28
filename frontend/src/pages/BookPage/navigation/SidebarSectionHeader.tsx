@@ -4,6 +4,7 @@ import { ICON_SIZE } from '@/theme/iconSizes.ts';
 import type { SvgIconComponent } from '@mui/icons-material';
 import { Box, IconButton } from '@mui/material';
 import type { ReactNode } from 'react';
+import { useTranslation } from 'react-i18next';
 
 interface SidebarSectionCollapse {
   isExpanded: boolean;
@@ -36,40 +37,48 @@ export const SidebarSectionHeader = ({
   title,
   action,
   collapse,
-}: SidebarSectionHeaderProps) => (
-  <Box
-    onClick={collapse?.onToggle}
-    sx={{
-      display: 'flex',
-      alignItems: 'center',
-      justifyContent: 'space-between',
-      mb: 1,
-      flexShrink: 0,
-      ...(collapse && { cursor: 'pointer' }),
-    }}
-  >
-    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-      <Icon sx={{ fontSize: ICON_SIZE.ui, color: 'primary.main' }} />
-      <SectionTitle component="h3" gutterBottom={false}>
-        {title}
-      </SectionTitle>
+}: SidebarSectionHeaderProps) => {
+  const { t } = useTranslation();
+
+  return (
+    <Box
+      onClick={collapse?.onToggle}
+      sx={{
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        mb: 1,
+        flexShrink: 0,
+        ...(collapse && { cursor: 'pointer' }),
+      }}
+    >
+      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+        <Icon sx={{ fontSize: ICON_SIZE.ui, color: 'primary.main' }} />
+        <SectionTitle component="h3" gutterBottom={false}>
+          {title}
+        </SectionTitle>
+      </Box>
+      <Box sx={{ display: 'flex', alignItems: 'center' }}>
+        {action}
+        {collapse && (
+          <IconButton
+            size="small"
+            aria-label={
+              collapse.isExpanded
+                ? t('book.navigation.sidebarSection.collapse', { section: collapse.sectionLabel })
+                : t('book.navigation.sidebarSection.expand', { section: collapse.sectionLabel })
+            }
+            aria-expanded={collapse.isExpanded}
+            aria-controls={collapse.controlsId}
+            onClick={(event) => {
+              event.stopPropagation();
+              collapse.onToggle();
+            }}
+          >
+            <CollapseChevron isExpanded={collapse.isExpanded} sx={{ display: 'block' }} />
+          </IconButton>
+        )}
+      </Box>
     </Box>
-    <Box sx={{ display: 'flex', alignItems: 'center' }}>
-      {action}
-      {collapse && (
-        <IconButton
-          size="small"
-          aria-label={`${collapse.isExpanded ? 'Collapse' : 'Expand'} ${collapse.sectionLabel}`}
-          aria-expanded={collapse.isExpanded}
-          aria-controls={collapse.controlsId}
-          onClick={(event) => {
-            event.stopPropagation();
-            collapse.onToggle();
-          }}
-        >
-          <CollapseChevron isExpanded={collapse.isExpanded} sx={{ display: 'block' }} />
-        </IconButton>
-      )}
-    </Box>
-  </Box>
-);
+  );
+};

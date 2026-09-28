@@ -1,3 +1,4 @@
+import { i18n } from '@/i18n';
 import {
   ChapterListIcon,
   FlashcardsIcon,
@@ -23,17 +24,47 @@ type BookPageRoute =
  * the page's own title all read this, so a tab cannot be named one thing in the
  * nav and another on the page it opens.
  */
-export const BOOK_PAGE_LABELS = {
-  structure: 'Structure',
-  highlights: 'Highlights',
-  flashcards: 'Flashcards',
-  notes: 'Notes',
-  read: 'Read',
-  reflection: 'Reflection',
-  statistics: 'Statistics',
+export const BOOK_PAGE_LABEL_KEYS = {
+  structure: 'book.navigation.tabs.structure',
+  highlights: 'common.entities.highlights',
+  flashcards: 'common.entities.flashcards',
+  notes: 'common.entities.notes',
+  read: 'book.navigation.tabs.read',
+  reflection: 'common.entities.reflection',
+  statistics: 'book.navigation.tabs.statistics',
 } as const;
 
-type BookPageSegment = keyof typeof BOOK_PAGE_LABELS;
+type BookPageSegment = keyof typeof BOOK_PAGE_LABEL_KEYS;
+
+const bookPageLabel = (segment: BookPageSegment): string => i18n.t(BOOK_PAGE_LABEL_KEYS[segment]);
+
+/**
+ * The tab names as text, for pages titling themselves. Getters, so each read
+ * translates at render time rather than once at module load.
+ */
+export const BOOK_PAGE_LABELS: Readonly<Record<BookPageSegment, string>> = {
+  get structure() {
+    return bookPageLabel('structure');
+  },
+  get highlights() {
+    return bookPageLabel('highlights');
+  },
+  get flashcards() {
+    return bookPageLabel('flashcards');
+  },
+  get notes() {
+    return bookPageLabel('notes');
+  },
+  get read() {
+    return bookPageLabel('read');
+  },
+  get reflection() {
+    return bookPageLabel('reflection');
+  },
+  get statistics() {
+    return bookPageLabel('statistics');
+  },
+};
 
 export interface BookPageRouteConfig {
   to: BookPageRoute;

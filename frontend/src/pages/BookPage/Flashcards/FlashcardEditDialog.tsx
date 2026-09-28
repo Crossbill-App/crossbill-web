@@ -8,6 +8,7 @@ import { HighlightContent } from '@/pages/BookPage/common/HighlightContent.tsx';
 import { Box, Button } from '@mui/material';
 import { useEffect, useState } from 'react';
 import { useForm } from 'react-hook-form';
+import { useTranslation } from 'react-i18next';
 
 import { useGetNote } from '@/api/generated/notes/notes.ts';
 import { useCacheEvents } from '@/lib/cacheEvents.ts';
@@ -28,6 +29,7 @@ export const FlashcardEditDialog = ({
   open,
   onClose,
 }: FlashcardEditDialogProps) => {
+  const { t } = useTranslation();
   const mutationErrorHandler = useMutationErrorHandler();
   const cache = useCacheEvents();
   const [isViewingNote, setIsViewingNote] = useState(false);
@@ -53,7 +55,7 @@ export const FlashcardEditDialog = ({
         cache.flashcardsChanged(bookId, flashcard.note_id ?? undefined);
         onClose();
       },
-      onError: mutationErrorHandler('update flashcard'),
+      onError: mutationErrorHandler(t('flashcards.errors.update')),
     },
   });
 
@@ -79,20 +81,20 @@ export const FlashcardEditDialog = ({
     <CommonDialog
       open={open}
       onClose={onClose}
-      title="Edit flashcard"
+      title={t('flashcards.actions.edit')}
       maxWidth="md"
       isLoading={isSaving}
       footerActions={
         <Box sx={{ display: 'flex', gap: 1, width: '100%', justifyContent: 'flex-end' }}>
           <Button onClick={onClose} disabled={isSaving}>
-            Cancel
+            {t('common.actions.cancel')}
           </Button>
           <Button
             variant="contained"
             onClick={handleSubmit(onSubmit)}
             disabled={!isDirty || !isValid || isSaving}
           >
-            {isSaving ? 'Saving...' : 'Save'}
+            {isSaving ? t('common.status.saving') : t('common.actions.save')}
           </Button>
         </Box>
       }
@@ -109,31 +111,37 @@ export const FlashcardEditDialog = ({
         )}
 
         <Box>
-          <Eyebrow sx={{ mb: 1 }}>Question</Eyebrow>
+          <Eyebrow sx={{ mb: 1 }}>{t('flashcards.fields.question')}</Eyebrow>
           <RHFTextField
             name="question"
             control={control}
-            rules={{ validate: (value) => value.trim().length > 0 || 'Question is required' }}
+            rules={{
+              validate: (value) =>
+                value.trim().length > 0 || t('flashcards.editDialog.validation.questionRequired'),
+            }}
             fullWidth
             multiline
             minRows={2}
             maxRows={4}
-            placeholder="Enter your question..."
+            placeholder={t('flashcards.editDialog.questionPlaceholder')}
             disabled={isSaving}
           />
         </Box>
 
         <Box>
-          <Eyebrow sx={{ mb: 1 }}>Answer</Eyebrow>
+          <Eyebrow sx={{ mb: 1 }}>{t('flashcards.fields.answer')}</Eyebrow>
           <RHFTextField
             name="answer"
             control={control}
-            rules={{ validate: (value) => value.trim().length > 0 || 'Answer is required' }}
+            rules={{
+              validate: (value) =>
+                value.trim().length > 0 || t('flashcards.editDialog.validation.answerRequired'),
+            }}
             fullWidth
             multiline
             minRows={3}
             maxRows={6}
-            placeholder="Enter your answer..."
+            placeholder={t('flashcards.editDialog.answerPlaceholder')}
             disabled={isSaving}
           />
         </Box>

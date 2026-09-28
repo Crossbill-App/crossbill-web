@@ -1,5 +1,6 @@
 import { Box, CircularProgress, Typography, useTheme } from '@mui/material';
 import { useEffect, useRef } from 'react';
+import { useTranslation } from 'react-i18next';
 import ReactMarkdown from 'react-markdown';
 
 import { IconButtonWithTooltip } from '@/components/buttons/IconButtonWithTooltip.tsx';
@@ -24,6 +25,7 @@ export const ChatMessageList = ({
   error,
   onSaveNote,
 }: ChatMessageListProps) => {
+  const { t } = useTranslation();
   const theme = useTheme();
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
@@ -61,7 +63,7 @@ export const ChatMessageList = ({
               {onSaveNote && (
                 <Box sx={{ display: 'flex', justifyContent: 'flex-end', mt: 0.5 }}>
                   <IconButtonWithTooltip
-                    label="Save as note"
+                    label={t('structure.chapterDetail.chat.saveAsNote')}
                     onClick={() => onSaveNote(msg.content)}
                     icon={<NoteAddIcon fontSize="small" />}
                   />

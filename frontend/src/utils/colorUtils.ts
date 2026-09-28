@@ -1,3 +1,6 @@
+import { i18n } from '@/i18n';
+import type { en } from '@/i18n/locales/en';
+
 export const getContrastColor = (hexColor: string): string => {
   const hex = hexColor.replace('#', '');
   const r = parseInt(hex.substring(0, 2), 16);
@@ -28,21 +31,33 @@ const HEX_COLOR = /^#?[0-9a-f]{6}$/i;
 export const hexTint = (color: string | null | undefined, fallback: string): string =>
   color && HEX_COLOR.test(color) ? `#${color.replace('#', '')}` : fallback;
 
+type ColorName = keyof typeof en.components.colors;
+
+// `name` is a getter, so each read resolves the copy in the current language
+// rather than freezing whatever it was when this module loaded.
+const colorOption = (value: string, nameKey: ColorName, device_color?: string): ColorOption => ({
+  value,
+  get name() {
+    return i18n.t(`components.colors.${nameKey}`);
+  },
+  ...(device_color && { device_color }),
+});
+
 export const LABEL_COLORS: readonly ColorOption[] = [
-  { value: '#F59E0B', name: 'Yellow', device_color: 'yellow' },
-  { value: '#F97316', name: 'Orange', device_color: 'orange' },
-  { value: '#EF4444', name: 'Red', device_color: 'red' },
-  { value: '#EC4899', name: 'Pink' },
-  { value: '#8B5CF6', name: 'Purple', device_color: 'purple' },
-  { value: '#6366F1', name: 'Indigo' },
-  { value: '#3B82F6', name: 'Blue', device_color: 'blue' },
-  { value: '#06B6D4', name: 'Cyan', device_color: 'cyan' },
-  { value: '#14B8A6', name: 'Teal' },
-  { value: '#10B981', name: 'Green', device_color: 'green' },
-  { value: '#84CC16', name: 'Olive', device_color: 'olive' },
-  { value: '#059669', name: 'Emerald' },
-  { value: DEFAULT_LABEL_COLOR, name: 'Gray', device_color: 'gray' },
-  { value: '#475569', name: 'Slate' },
+  colorOption('#F59E0B', 'yellow', 'yellow'),
+  colorOption('#F97316', 'orange', 'orange'),
+  colorOption('#EF4444', 'red', 'red'),
+  colorOption('#EC4899', 'pink'),
+  colorOption('#8B5CF6', 'purple', 'purple'),
+  colorOption('#6366F1', 'indigo'),
+  colorOption('#3B82F6', 'blue', 'blue'),
+  colorOption('#06B6D4', 'cyan', 'cyan'),
+  colorOption('#14B8A6', 'teal'),
+  colorOption('#10B981', 'green', 'green'),
+  colorOption('#84CC16', 'olive', 'olive'),
+  colorOption('#059669', 'emerald'),
+  colorOption(DEFAULT_LABEL_COLOR, 'gray', 'gray'),
+  colorOption('#475569', 'slate'),
 ];
 
 /** The names KOReader stores for the nine colours it offers. */

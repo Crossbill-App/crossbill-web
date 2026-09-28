@@ -1,11 +1,12 @@
 import type { SaveStatus } from '@/hooks/useSaveStatus.ts';
 import { Box, Typography, type SxProps, type Theme } from '@mui/material';
 import { AnimatePresence, motion } from 'motion/react';
+import { useTranslation } from 'react-i18next';
 
-const LABELS: Record<Exclude<SaveStatus, 'idle'>, string> = {
-  saving: 'Saving...',
-  saved: 'Saved',
-};
+const LABEL_KEYS = {
+  saving: 'common.status.saving',
+  saved: 'common.status.saved',
+} as const satisfies Record<Exclude<SaveStatus, 'idle'>, string>;
 
 /**
  * Pinned on the container and on the text alike, so the space reserved for the
@@ -31,37 +32,41 @@ interface SavedIndicatorProps {
  * constant key, so "Saving..." becoming "Saved" swaps the text in place rather
  * than fading the marker out and back in mid-save.
  */
-export const SavedIndicator = ({ status, sx }: SavedIndicatorProps) => (
-  <Box
-    aria-live="polite"
-    sx={[
-      {
-        // Reserved whether or not there is anything to say, so a save does not
-        // shift the layout around the field.
-        minHeight: LINE_HEIGHT,
-        lineHeight: LINE_HEIGHT,
-        fontSize: '0.75rem',
-      },
-      ...(Array.isArray(sx) ? sx : [sx]),
-    ]}
-  >
-    <AnimatePresence>
-      {status !== 'idle' && (
-        <motion.div
-          key="saved-indicator"
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          exit={{ opacity: 0 }}
-          transition={{ duration: 0.25, ease: 'easeInOut' }}
-        >
-          <Typography
-            variant="caption"
-            sx={{ display: 'block', lineHeight: LINE_HEIGHT, color: 'text.secondary' }}
+export const SavedIndicator = ({ status, sx }: SavedIndicatorProps) => {
+  const { t } = useTranslation();
+
+  return (
+    <Box
+      aria-live="polite"
+      sx={[
+        {
+          // Reserved whether or not there is anything to say, so a save does not
+          // shift the layout around the field.
+          minHeight: LINE_HEIGHT,
+          lineHeight: LINE_HEIGHT,
+          fontSize: '0.75rem',
+        },
+        ...(Array.isArray(sx) ? sx : [sx]),
+      ]}
+    >
+      <AnimatePresence>
+        {status !== 'idle' && (
+          <motion.div
+            key="saved-indicator"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.25, ease: 'easeInOut' }}
           >
-            {LABELS[status]}
-          </Typography>
-        </motion.div>
-      )}
-    </AnimatePresence>
-  </Box>
-);
+            <Typography
+              variant="caption"
+              sx={{ display: 'block', lineHeight: LINE_HEIGHT, color: 'text.secondary' }}
+            >
+              {t(LABEL_KEYS[status])}
+            </Typography>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </Box>
+  );
+};

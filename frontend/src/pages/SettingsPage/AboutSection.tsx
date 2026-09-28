@@ -2,9 +2,11 @@ import { SectionTitle } from '@/components/typography/SectionTitle.tsx';
 import { useSettings } from '@/context/SettingsContext';
 import { ExternalLinkIcon } from '@/theme/Icons.tsx';
 import { Box, Link, Typography } from '@mui/material';
+import { useTranslation } from 'react-i18next';
 
 const REPOSITORY_URL = 'https://github.com/Crossbill-App/crossbill-web';
 const DOCUMENTATION_URL = 'https://crossbill-app.github.io/crossbill-web/';
+/** The version `SettingsContext` reports when the server could not be asked. */
 const UNKNOWN_VERSION = 'unknown';
 
 const ExternalValue = ({ href, children }: { href: string; children: string }) => (
@@ -30,12 +32,13 @@ const Row = ({ label, children }: { label: string; children: React.ReactNode }) 
 );
 
 export const AboutSection = () => {
+  const { t } = useTranslation();
   const { settings } = useSettings();
   const version = settings?.version ?? UNKNOWN_VERSION;
 
   return (
     <Box sx={{ mt: 6 }}>
-      <SectionTitle showDivider>About</SectionTitle>
+      <SectionTitle showDivider>{t('settings.about.title')}</SectionTitle>
 
       <Box
         sx={{
@@ -46,10 +49,10 @@ export const AboutSection = () => {
           alignItems: 'start',
         }}
       >
-        <Row label="Version">
+        <Row label={t('settings.about.version')}>
           {version === UNKNOWN_VERSION ? (
             <Typography variant="body2" sx={{ color: 'text.primary' }}>
-              {UNKNOWN_VERSION}
+              {t('settings.about.unknownVersion')}
             </Typography>
           ) : (
             <ExternalValue href={`${REPOSITORY_URL}/releases/tag/v${version}`}>
@@ -58,16 +61,14 @@ export const AboutSection = () => {
           )}
         </Row>
 
-        <Row label="Documentation">
+        <Row label={t('settings.about.documentation')}>
           <ExternalValue href={DOCUMENTATION_URL}>
-            crossbill-app.github.io/crossbill-web
+            {t('settings.about.documentationLink')}
           </ExternalValue>
         </Row>
 
-        <Row label="Source code">
-          <ExternalValue href={REPOSITORY_URL}>
-            github.com/Crossbill-App/crossbill-web
-          </ExternalValue>
+        <Row label={t('settings.about.sourceCode')}>
+          <ExternalValue href={REPOSITORY_URL}>{t('settings.about.sourceCodeLink')}</ExternalValue>
         </Row>
       </Box>
     </Box>

@@ -16,6 +16,7 @@ import { copyUrlWithSearchParam } from '@/utils/clipboard.ts';
 import { Box, Button, Chip, Stack, Typography, useTheme } from '@mui/material';
 import { useNavigate } from '@tanstack/react-router';
 import { useMemo, useRef, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import ReactMarkdown from 'react-markdown';
 
 import { NoteTabs } from './components/NoteTabs';
@@ -59,6 +60,7 @@ export const NoteViewDialog = ({
   initiallyEditing = false,
   guidance,
 }: NoteViewDialogProps) => {
+  const { t } = useTranslation();
   const theme = useTheme();
   const { book } = useBookPage();
   const { showSnackbar } = useSnackbar();
@@ -114,14 +116,14 @@ export const NoteViewDialog = ({
         setDeleteConfirmOpen(false);
         onClose();
       },
-      onError: mutationErrorHandler('delete note'),
+      onError: mutationErrorHandler(t('notes.errors.deleteNote')),
     },
   });
 
   const handleCopy = async () => {
     if (!activeNote) return;
     await navigator.clipboard.writeText(activeNote.body);
-    showSnackbar('Note copied to clipboard.', 'success');
+    showSnackbar(t('notes.noteViewDialog.copied'), 'success');
   };
 
   // Copy a link that works from any context: `noteId` is only a validated
@@ -164,14 +166,14 @@ export const NoteViewDialog = ({
   const footerActions = isEditing ? (
     <Box sx={{ display: 'flex', gap: 1 }}>
       <Button onClick={() => setIsEditing(false)} disabled={formStatus.isSaving}>
-        Cancel
+        {t('common.actions.cancel')}
       </Button>
       <Button
         variant="contained"
         onClick={() => formRef.current?.submit()}
         disabled={!formStatus.canSave}
       >
-        {formStatus.isSaving ? 'Saving...' : 'Save'}
+        {formStatus.isSaving ? t('common.status.saving') : t('common.actions.save')}
       </Button>
     </Box>
   ) : undefined;
@@ -189,7 +191,9 @@ export const NoteViewDialog = ({
       }
       title={
         <CommonDialogTitle>
-          {isEditing ? 'Edit note' : (activeNote?.title ?? 'Note')}
+          {isEditing
+            ? t('notes.shared.editNote')
+            : (activeNote?.title ?? t('common.entities.note'))}
           <NoteKindChip kind={activeNote?.kind} sx={{ mb: 0.5, ml: 1 }} />
         </CommonDialogTitle>
       }
@@ -260,7 +264,7 @@ export const NoteViewDialog = ({
               color: 'text.secondary',
             }}
           >
-            This note could not be found. It may have been deleted.
+            {t('notes.noteViewDialog.notFound')}
           </Typography>
         ) : (
           isLoading && <Spinner />
@@ -269,8 +273,8 @@ export const NoteViewDialog = ({
 
       <ConfirmationDialog
         open={deleteConfirmOpen}
-        message={`Delete the note "${activeNote?.title ?? ''}"?`}
-        confirmText="Delete"
+        message={t('notes.noteViewDialog.deleteConfirm', { title: activeNote?.title ?? '' })}
+        confirmText={t('common.actions.delete')}
         confirmColor="error"
         onConfirm={handleConfirmDelete}
         onClose={() => setDeleteConfirmOpen(false)}

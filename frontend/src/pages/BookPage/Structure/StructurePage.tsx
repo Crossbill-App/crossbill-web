@@ -17,6 +17,7 @@ import { BOOK_PAGE_LABELS } from '@/pages/BookPage/navigation/bookPageRoutes.ts'
 import { Alert } from '@mui/material';
 import { keyBy } from 'lodash';
 import { useMemo } from 'react';
+import { useTranslation } from 'react-i18next';
 import { BatchDigestToolbar } from './BatchDigestToolbar';
 import { ChapterAccordion } from './ChapterAccordion';
 import { ChapterDetailDialog } from './ChapterDetailDialog/ChapterDetailDialog.tsx';
@@ -55,6 +56,7 @@ const currentChapterIdsAlongReadingPath = (
 };
 
 export const StructurePage = () => {
+  const { t } = useTranslation();
   const { book } = useBookPage();
 
   const { data: bookDigest } = useGetBookDigest(book.id);
@@ -199,7 +201,7 @@ export const StructurePage = () => {
             <ContentSearchField
               value={searchText}
               onChange={handleSearch}
-              placeholder="Search chapters by meaning..."
+              placeholder={t('structure.page.searchPlaceholder')}
             />
           </EmbeddingFeature>
         }
@@ -214,16 +216,16 @@ export const StructurePage = () => {
 
       {search.isError && (
         <Alert severity="warning" sx={{ mb: 2 }}>
-          Search failed. Showing all chapters.
+          {t('structure.page.searchFailed')}
         </Alert>
       )}
 
       {book.chapters.length === 0 ? (
-        <EmptyStateText variant="page">
-          No chapter structure available for this book.
-        </EmptyStateText>
+        <EmptyStateText variant="page">{t('structure.page.noStructure')}</EmptyStateText>
       ) : search.hasQuery && topLevelChapters.length === 0 ? (
-        <EmptyStateText variant="page">No chapters match “{searchText}”.</EmptyStateText>
+        <EmptyStateText variant="page">
+          {t('structure.page.noMatches', { query: searchText })}
+        </EmptyStateText>
       ) : (
         topLevelChapters.map((chapter) => (
           <ChapterAccordion

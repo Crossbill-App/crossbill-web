@@ -1,0 +1,79 @@
+{
+  "shared": {
+    "addNote": "Add note",
+    "editNote": "Edit note",
+    "linkExistingNote": "Link existing note",
+    "linkRemoved": "Link removed.",
+    "none": "None",
+    "title": "Title",
+    "types": "Types"
+  },
+  "kinds": {
+    "character": "Character",
+    "term": "Term",
+    "concept": "Concept",
+    "gist": "Gist",
+    "reflection": "Reflection",
+    "other": "Other"
+  },
+  "notesPage": {
+    "searchPlaceholder": "Search notes by meaning...",
+    "searchFailed": "Search failed. Showing all notes.",
+    "loadFailed": "Failed to load notes.",
+    "empty": "No notes yet. Create notes about characters, terms, and concepts as you read.",
+    "filteredEmpty": "No notes match the current filters."
+  },
+  "noteEditorDialog": {
+    "title": "New note"
+  },
+  "noteEditorForm": {
+    "typeLabel": "Type",
+    "bodyLabel": "Note (markdown)",
+    "gistPrompt": "1–2 sentences: what was this chapter about, in your words?"
+  },
+  "noteViewDialog": {
+    "copied": "Note copied to clipboard.",
+    "notFound": "This note could not be found. It may have been deleted.",
+    "deleteConfirm": "Delete the note \"{{title}}\"?"
+  },
+  "noteToolbar": {
+    "copyLink": "Copy link to note",
+    "copyContent": "Copy note content",
+    "delete": "Delete note"
+  },
+  "noteTabs": {
+    "noHighlights": "No highlights linked to this note.",
+    "noChapters": "No chapters linked to this note.",
+    "unlinkHighlight": "Remove link to this highlight",
+    "unlinkChapter": "Remove link to this chapter"
+  },
+  "linkedNoteList": {
+    "unlink": "Remove link to this note"
+  },
+  "linkedNotesSection": {
+    "empty": {
+      "highlight": "No notes linked to this highlight.",
+      "chapter": "No notes linked to this chapter."
+    }
+  },
+  "notePickerDialog": {
+    "title": "Link a note",
+    "subtitle": {
+      "highlight": "Choose a note to link to this highlight.",
+      "chapter": "Choose a note to link to this chapter.",
+      "reflection": "Choose a note to link to this reflection."
+    },
+    "empty": "No notes in this book yet."
+  },
+  "noteLinks": {
+    "highlightAdded": "Highlight added to note.",
+    "chapterAdded": "Chapter added to note."
+  },
+  "errors": {
+    "createNote": "Failed to create note. Please try again.",
+    "createTag": "Failed to create tag. Please try again.",
+    "deleteNote": "Failed to delete note. Please try again.",
+    "updateNote": "Failed to update note. Please try again.",
+    "updateNoteLinks": "Failed to update note links. Please try again."
+  }
+}

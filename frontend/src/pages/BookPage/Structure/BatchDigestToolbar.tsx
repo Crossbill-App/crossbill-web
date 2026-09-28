@@ -5,6 +5,7 @@ import { ConfirmationDialog } from '@/components/dialogs/ConfirmationDialog.tsx'
 import { AIFeature } from '@/components/features/AIFeature';
 import { useSnackbar } from '@/context/SnackbarContext';
 import { useJobBatchProgress } from '@/hooks/useJobBatchProgress';
+import { i18n } from '@/i18n';
 import { useCacheEvents } from '@/lib/cacheEvents.ts';
 import { AIIcon, CloseIcon, DropdownIcon, RegenerateIcon } from '@/theme/Icons';
 import {
@@ -22,6 +23,7 @@ import {
   Typography,
 } from '@mui/material';
 import { useCallback, useState, type MouseEvent } from 'react';
+import { useTranslation } from 'react-i18next';
 
 interface BatchDigestToolbarProps {
   bookId: number;
@@ -34,24 +36,26 @@ function showCompletionMessage(
   showSnackbar: (msg: string, severity: 'error' | 'warning' | 'info' | 'success') => void
 ) {
   if (batch.status === 'completed') {
-    showSnackbar('All chapter summaries are up to date.', 'success');
+    showSnackbar(i18n.t('structure.batchDigestToolbar.snackbar.completed'), 'success');
   } else if (batch.status === 'completed_with_errors') {
     showSnackbar(
-      `Updated ${batch.completed_jobs}/${batch.total_jobs} summaries. Some chapters failed.`,
+      i18n.t('structure.batchDigestToolbar.snackbar.completedWithErrors', {
+        completed: batch.completed_jobs,
+        total: batch.total_jobs,
+      }),
       'warning'
     );
   } else if (batch.status === 'failed') {
-    showSnackbar('Summary update failed.', 'error');
+    showSnackbar(i18n.t('structure.batchDigestToolbar.snackbar.failed'), 'error');
   }
 }
-
-const summaryWord = (count: number) => (count === 1 ? 'summary' : 'summaries');
 
 export const BatchDigestToolbar = ({
   bookId,
   eligibleChapterCount,
   existingSummaryCount,
 }: BatchDigestToolbarProps) => {
+  const { t } = useTranslation();
   const cache = useCacheEvents();
   const { showSnackbar } = useSnackbar();
   const [menuAnchor, setMenuAnchor] = useState<HTMLElement | null>(null);
@@ -68,7 +72,7 @@ export const BatchDigestToolbar = ({
     },
     onCancelled: () => {
       cache.digestBatchCancelled(bookId);
-      showSnackbar('Summary update cancelled. Completed changes were kept.', 'info');
+      showSnackbar(t('structure.batchDigestToolbar.snackbar.cancelled'), 'info');
     },
   });
 
@@ -78,7 +82,7 @@ export const BatchDigestToolbar = ({
         track(response.id);
       },
       onError: () => {
-        showSnackbar('Failed to start summary update.', 'error');
+        showSnackbar(t('structure.batchDigestToolbar.snackbar.startFailed'), 'error');
       },
     },
   });
@@ -115,10 +119,12 @@ export const BatchDigestToolbar = ({
               color: 'text.secondary',
             }}
           >
-            Updating summaries{total > 0 ? ` (${completed}/${total})` : '...'}
+            {total > 0
+              ? t('structure.batchDigestToolbar.updatingProgress', { completed, total })
+              : t('structure.batchDigestToolbar.updating')}
           </Typography>
           <IconButtonWithTooltip
-            label="Cancel summary update"
+            label={t('structure.batchDigestToolbar.cancelUpdate')}
             onClick={cancel}
             icon={<CloseIcon />}
           />
@@ -134,7 +140,7 @@ export const BatchDigestToolbar = ({
   const canRegenerate = countsLoaded && existingCount > 0;
   const generateMissingButton = (
     <Button
-      aria-label="Generate missing summaries"
+      aria-label={t('structure.batchDigestToolbar.generateMissing')}
       onClick={handleGenerateMissing}
       disabled={!canGenerateMissing}
       sx={{ minWidth: 40 }}
@@ -144,7 +150,7 @@ export const BatchDigestToolbar = ({
   );
   const moreActionsButton = (
     <Button
-      aria-label="More summary actions"
+      aria-label={t('structure.batchDigestToolbar.moreActions')}
       onClick={handleMenuOpen}
       disabled={!canRegenerate}
       aria-controls={menuAnchor ? 'summary-actions-menu' : undefined}
@@ -158,14 +164,22 @@ export const BatchDigestToolbar = ({
 
   return (
     <AIFeature>
-      <ButtonGroup variant="text" size="small" aria-label="Summary generation actions">
+      <ButtonGroup
+        variant="text"
+        size="small"
+        aria-label={t('structure.batchDigestToolbar.actionsLabel')}
+      >
         {canGenerateMissing ? (
-          <Tooltip title="Generate missing summaries">{generateMissingButton}</Tooltip>
+          <Tooltip title={t('structure.batchDigestToolbar.generateMissing')}>
+            {generateMissingButton}
+          </Tooltip>
         ) : (
           generateMissingButton
         )}
         {canRegenerate ? (
-          <Tooltip title="More summary actions">{moreActionsButton}</Tooltip>
+          <Tooltip title={t('structure.batchDigestToolbar.moreActions')}>
+            {moreActionsButton}
+          </Tooltip>
         ) : (
           moreActionsButton
         )}
@@ -181,7 +195,7 @@ export const BatchDigestToolbar = ({
           <ListItemIcon>
             <RegenerateIcon fontSize="small" />
           </ListItemIcon>
-          <ListItemText>Regenerate all summaries</ListItemText>
+          <ListItemText>{t('structure.batchDigestToolbar.regenerateAll')}</ListItemText>
         </MenuItem>
       </Menu>
 
@@ -189,17 +203,22 @@ export const BatchDigestToolbar = ({
         open={confirmationOpen}
         onClose={() => setConfirmationOpen(false)}
         onConfirm={handleRegenerateAll}
-        confirmText="Regenerate all"
+        confirmText={t('structure.batchDigestToolbar.regenerateConfirm.confirm')}
         confirmColor="error"
         message={
           <Stack spacing={2}>
             <DialogContentText>
-              This will replace {existingCount} existing {summaryWord(existingCount)} and generate{' '}
-              {missingCount} missing {summaryWord(missingCount)}.
+              {t('structure.batchDigestToolbar.regenerateConfirm.message', {
+                existing: t('structure.batchDigestToolbar.regenerateConfirm.existingSummaries', {
+                  count: existingCount,
+                }),
+                missing: t('structure.batchDigestToolbar.regenerateConfirm.missingSummaries', {
+                  count: missingCount,
+                }),
+              })}
             </DialogContentText>
             <DialogContentText>
-              The current summaries, key points, and questions will be replaced. Any saved answers
-              to those questions will be deleted.
+              {t('structure.batchDigestToolbar.regenerateConfirm.warning')}
             </DialogContentText>
           </Stack>
         }

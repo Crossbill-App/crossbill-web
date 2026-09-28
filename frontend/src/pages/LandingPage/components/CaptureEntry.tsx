@@ -11,6 +11,7 @@ import { formatTime } from '@/utils/date.ts';
 import { buildPreviewText } from '@/utils/highlightPreview.ts';
 import { Box, Link, Typography, useTheme } from '@mui/material';
 import { createLink } from '@tanstack/react-router';
+import { useTranslation } from 'react-i18next';
 import ReactMarkdown from 'react-markdown';
 
 import { captureLinkProps, moreInBookLinkProps } from './captureLinks.ts';
@@ -31,6 +32,7 @@ interface CaptureEntryProps {
  * two markers once.
  */
 export const CaptureEntry = ({ capture }: CaptureEntryProps) => {
+  const { t } = useTranslation();
   const theme = useTheme();
   const isHighlight = capture.kind === 'highlight';
 
@@ -86,7 +88,7 @@ export const CaptureEntry = ({ capture }: CaptureEntryProps) => {
               items={[
                 capture.book_title,
                 capture.chapter_name,
-                capture.page && `Page ${capture.page}`,
+                capture.page && t('common.labels.page', { page: capture.page }),
               ]}
             />
           </Box>
@@ -110,7 +112,10 @@ export const CaptureEntry = ({ capture }: CaptureEntryProps) => {
             '&:hover': { textDecoration: 'underline' },
           }}
         >
-          {`+${capture.more_in_book} more in ${capture.book_title} that day`}
+          {t('landing.captureEntry.moreInBook', {
+            count: capture.more_in_book,
+            book: capture.book_title,
+          })}
         </RouterLink>
       )}
     </Box>

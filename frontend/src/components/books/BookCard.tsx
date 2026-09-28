@@ -6,6 +6,7 @@ import { ReadingStageIcon } from '@/components/readingStage/ReadingStageIcon.tsx
 import { FlashcardsIcon, HighlightsIcon, NotesIcon } from '@/theme/Icons.tsx';
 import { Box, Typography } from '@mui/material';
 import { Link } from '@tanstack/react-router';
+import { useTranslation } from 'react-i18next';
 
 /** Cover width, and therefore the card's width. Grids that lay these out
  *  need the same number to size their columns. */
@@ -30,9 +31,9 @@ export interface BookCardProps {
  */
 const BookCounts = ({ book }: BookCardProps) => {
   const counts = [
-    { icon: HighlightsIcon, count: book.highlight_count, noun: 'highlight' },
-    { icon: NotesIcon, count: book.note_count ?? 0, noun: 'note' },
-    { icon: FlashcardsIcon, count: book.flashcard_count ?? 0, noun: 'flashcard' },
+    { icon: HighlightsIcon, count: book.highlight_count, unit: 'highlights' as const },
+    { icon: NotesIcon, count: book.note_count ?? 0, unit: 'notes' as const },
+    { icon: FlashcardsIcon, count: book.flashcard_count ?? 0, unit: 'flashcards' as const },
   ];
 
   if (counts.every(({ count }) => count === 0)) return null;
@@ -59,8 +60,8 @@ const BookCounts = ({ book }: BookCardProps) => {
         borderBottomRightRadius: theme.shape.borderRadius,
       })}
     >
-      {counts.map(({ icon, count, noun }) => (
-        <CountWithIcon key={noun} icon={icon} count={count} noun={noun} />
+      {counts.map(({ icon, count, unit }) => (
+        <CountWithIcon key={unit} icon={icon} count={count} unit={unit} />
       ))}
     </Box>
   );
@@ -72,6 +73,9 @@ const truncateText = (text: string, maxLength: number) => {
 };
 
 export const BookCard = ({ book, animateOnMount }: BookCardProps) => {
+  const { t } = useTranslation();
+  const author = book.author || t('common.fallbacks.unknownAuthor');
+
   return (
     <FadeInOut ekey={book.id} animateOnMount={animateOnMount}>
       <Link
@@ -134,14 +138,14 @@ export const BookCard = ({ book, animateOnMount }: BookCardProps) => {
           {/* Book author */}
           <Typography
             variant="body2"
-            title={book.author || 'Unknown author'}
+            title={author}
             sx={{
               color: 'text.secondary',
               maxWidth: BOOK_CARD_WIDTH,
               mt: 0.5,
             }}
           >
-            {truncateText(book.author || 'Unknown author', 30)}
+            {truncateText(author, 30)}
           </Typography>
         </Box>
       </Link>

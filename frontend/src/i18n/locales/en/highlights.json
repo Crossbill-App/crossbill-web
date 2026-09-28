@@ -1,0 +1,56 @@
+{
+  "page": {
+    "searchPlaceholder": "Search highlights...",
+    "noChapters": "No chapters found for this book.",
+    "filteredEmpty": "No highlights match the current filters."
+  },
+  "list": {
+    "chapterAriaLabel": "Highlights in {{chapter}}",
+    "emptyChapter": "No highlights found in this chapter."
+  },
+  "dateFilter": {
+    "title": "Date",
+    "from": "From",
+    "to": "To",
+    "lastSevenDays": "Last 7 Days",
+    "errors": {
+      "fromAfterTo": "From must be on or before To.",
+      "toBeforeFrom": "To must be on or after From.",
+      "outOfRange": "Enter a date in the allowed range.",
+      "invalid": "Enter a valid date."
+    }
+  },
+  "viewDialog": {
+    "deleteConfirm": {
+      "message": "Delete this highlight?"
+    },
+    "errors": {
+      "deleteHighlight": "Failed to delete highlight. Please try again."
+    }
+  },
+  "toolbar": {
+    "copyLink": "Copy link to highlight",
+    "copyContent": "Copy highlight content",
+    "addBookmark": "Add bookmark",
+    "removeBookmark": "Remove bookmark",
+    "deleteHighlight": "Delete highlight",
+    "errors": {
+      "createBookmark": "Failed to create bookmark. Please try again.",
+      "deleteBookmark": "Failed to delete bookmark. Please try again."
+    }
+  },
+  "stylePopover": {
+    "title": "Highlight label",
+    "labelFor": "Label for {{colour}}",
+    "fallbackColourName": "this colour",
+    "errors": {
+      "changeColour": "Failed to change the highlight colour. Please try again."
+    }
+  },
+  "tagMutation": {
+    "errors": {
+      "addTag": "Failed to add tag. Please try again.",
+      "removeTag": "Failed to remove tag. Please try again."
+    }
+  }
+}

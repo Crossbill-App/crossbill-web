@@ -11,6 +11,7 @@ import { Box, Button, Typography } from '@mui/material';
 import { useNavigate } from '@tanstack/react-router';
 import { useEffect, useState } from 'react';
 import { useForm } from 'react-hook-form';
+import { useTranslation } from 'react-i18next';
 
 const BLURB_MAX_LENGTH = 5000;
 
@@ -24,6 +25,7 @@ interface BookEditDialogProps {
 }
 
 export const BookEditDialog = ({ book, open, onClose }: BookEditDialogProps) => {
+  const { t } = useTranslation();
   const cache = useCacheEvents();
   const navigate = useNavigate();
   const mutationErrorHandler = useMutationErrorHandler();
@@ -36,7 +38,7 @@ export const BookEditDialog = ({ book, open, onClose }: BookEditDialogProps) => 
         onClose();
         navigate({ to: '/library' });
       },
-      onError: mutationErrorHandler('delete book'),
+      onError: mutationErrorHandler(t('book.editDialog.errors.deleteBook')),
     },
   });
 
@@ -71,7 +73,7 @@ export const BookEditDialog = ({ book, open, onClose }: BookEditDialogProps) => 
         cache.bookChanged(book.id);
         onClose();
       },
-      onError: mutationErrorHandler('save blurb'),
+      onError: mutationErrorHandler(t('book.editDialog.errors.saveBlurb')),
     },
   });
 
@@ -89,18 +91,18 @@ export const BookEditDialog = ({ book, open, onClose }: BookEditDialogProps) => 
       onClose={onClose}
       maxWidth="sm"
       isLoading={isDeleting || isSaving}
-      title="Manage book"
+      title={t('book.shared.manageBook')}
       footerActions={
         <Box sx={{ display: 'flex', gap: 1, width: '100%', justifyContent: 'flex-end' }}>
           <Button onClick={onClose} disabled={isSaving || isDeleting}>
-            Cancel
+            {t('common.actions.cancel')}
           </Button>
           <Button
             onClick={handleSubmit(onSubmit)}
             variant="contained"
             disabled={!isDirty || isSaving || isDeleting}
           >
-            {isSaving ? 'Saving...' : 'Save'}
+            {isSaving ? t('common.status.saving') : t('common.actions.save')}
           </Button>
         </Box>
       }
@@ -148,7 +150,7 @@ export const BookEditDialog = ({ book, open, onClose }: BookEditDialogProps) => 
                 color: 'text.secondary',
               }}
             >
-              {book.author || 'Unknown author'}
+              {book.author || t('common.fallbacks.unknownAuthor')}
             </Typography>
             {book.isbn && (
               <Typography
@@ -158,7 +160,7 @@ export const BookEditDialog = ({ book, open, onClose }: BookEditDialogProps) => 
                   color: 'text.secondary',
                 }}
               >
-                ISBN: {book.isbn}
+                {t('book.editDialog.isbn', { isbn: book.isbn })}
               </Typography>
             )}
             <Button
@@ -169,7 +171,7 @@ export const BookEditDialog = ({ book, open, onClose }: BookEditDialogProps) => 
               disabled={isDeleting || isSaving}
               sx={{ mt: 1 }}
             >
-              {isDeleting ? 'Deleting...' : 'Delete'}
+              {isDeleting ? t('common.status.deleting') : t('common.actions.delete')}
             </Button>
           </Box>
         </Box>
@@ -177,7 +179,7 @@ export const BookEditDialog = ({ book, open, onClose }: BookEditDialogProps) => 
         <RHFTextField
           name="description"
           control={control}
-          label="Blurb"
+          label={t('book.editDialog.blurb.label')}
           multiline
           minRows={4}
           maxRows={5}
@@ -186,8 +188,8 @@ export const BookEditDialog = ({ book, open, onClose }: BookEditDialogProps) => 
           slotProps={{ htmlInput: { maxLength: BLURB_MAX_LENGTH } }}
           helperText={
             (book.description?.length ?? 0) > BLURB_MAX_LENGTH
-              ? `Shortened to the ${BLURB_MAX_LENGTH}-character limit. Markdown is supported.`
-              : "Markdown is supported. Shown under the book's title."
+              ? t('book.editDialog.blurb.helperShortened', { limit: BLURB_MAX_LENGTH })
+              : t('book.editDialog.blurb.helper')
           }
         />
       </Box>
@@ -196,8 +198,8 @@ export const BookEditDialog = ({ book, open, onClose }: BookEditDialogProps) => 
         open={deleteConfirmOpen}
         onClose={() => setDeleteConfirmOpen(false)}
         onConfirm={handleConfirmDelete}
-        message={`Delete the book "${book.title}"? Its highlights go too.`}
-        confirmText="Delete"
+        message={t('book.editDialog.deleteConfirm.message', { title: book.title })}
+        confirmText={t('common.actions.delete')}
         confirmColor="error"
         isLoading={isDeleting}
       />

@@ -4,6 +4,7 @@ import { HighlightsIcon } from '@/theme/Icons';
 import { ICON_SIZE } from '@/theme/iconSizes.ts';
 import { Box, ButtonBase, styled, Typography } from '@mui/material';
 import { ReactNode, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 
 export interface FlashcardCardProps {
   question: string;
@@ -62,6 +63,7 @@ export const FlashcardCard = ({
   borderStyle = 'solid',
   borderColor = 'primary',
 }: FlashcardCardProps) => {
+  const { t } = useTranslation();
   const [isExpanded, setIsExpanded] = useState(false);
 
   return (
@@ -86,7 +88,7 @@ export const FlashcardCard = ({
 
       <Collapsable isExpanded={isExpanded}>
         <Box sx={{ mt: 1.5 }}>
-          <Eyebrow sx={{ mb: 0.5 }}>Answer</Eyebrow>
+          <Eyebrow sx={{ mb: 0.5 }}>{t('flashcards.fields.answer')}</Eyebrow>
 
           <Typography variant="body1" sx={{ color: 'text.secondary', lineHeight: 1.5 }}>
             {answer}

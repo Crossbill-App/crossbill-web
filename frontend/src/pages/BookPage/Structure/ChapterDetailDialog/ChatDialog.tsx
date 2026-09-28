@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 
 import { CommonDialog } from '@/components/dialogs/CommonDialog.tsx';
 import { CommonDialogTitle } from '@/components/dialogs/CommonDialogTitle.tsx';
@@ -16,8 +17,6 @@ interface ChatDialogProps {
   variant: ChatVariant;
   onSaveNote?: (content: string) => void;
 }
-
-const ERROR_MESSAGE = 'Something went wrong. The AI service may be temporarily unavailable.';
 
 /** Wrapper that remounts inner content each time the dialog opens, giving fresh state. */
 export const ChatDialog = ({
@@ -44,6 +43,7 @@ interface ChatContentProps {
 }
 
 const ChatContent = ({ chapterId, variant, onSaveNote }: ChatContentProps) => {
+  const { t } = useTranslation();
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [input, setInput] = useState('');
   const [sessionId, setSessionId] = useState<number | null>(null);
@@ -57,7 +57,7 @@ const ChatContent = ({ chapterId, variant, onSaveNote }: ChatContentProps) => {
         setMessages([{ role: 'assistant', content: data.message }]);
       },
       onError: () => {
-        setError(ERROR_MESSAGE);
+        setError(t('structure.chapterDetail.chat.error'));
       },
     },
   });
@@ -78,7 +78,7 @@ const ChatContent = ({ chapterId, variant, onSaveNote }: ChatContentProps) => {
           }
           return prev;
         });
-        setError(ERROR_MESSAGE);
+        setError(t('structure.chapterDetail.chat.error'));
       },
     },
   });
@@ -122,7 +122,7 @@ const ChatContent = ({ chapterId, variant, onSaveNote }: ChatContentProps) => {
       />
       <ChatInput
         value={input}
-        placeholder={variant.inputPlaceholder}
+        placeholder={variant.inputPlaceholder()}
         onChange={setInput}
         onSend={handleSend}
         disabled={isSending || isCreating || hasSessionError}

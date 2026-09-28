@@ -1,9 +1,10 @@
 import { EmptyStateText } from '@/components/EmptyStateText.tsx';
 import { Box, Button } from '@mui/material';
+import { useTranslation } from 'react-i18next';
 
 interface FilteredEmptyStateProps {
-  /** What the list holds, plural and lower case: "highlights", "notes". */
-  noun: string;
+  /** The whole sentence, naming what the list holds: "No highlights match...". */
+  message: string;
   onClearFilters: () => void;
 }
 
@@ -12,11 +13,15 @@ interface FilteredEmptyStateProps {
  * control that undoes them. Without it the only way back is to find and unset
  * each chip, across a sidebar and a drawer.
  */
-export const FilteredEmptyState = ({ noun, onClearFilters }: FilteredEmptyStateProps) => (
-  <Box sx={{ py: 4, textAlign: 'center' }}>
-    <EmptyStateText>No {noun} match the current filters.</EmptyStateText>
-    <Button size="small" onClick={onClearFilters} sx={{ mt: 1 }}>
-      Clear filters
-    </Button>
-  </Box>
-);
+export const FilteredEmptyState = ({ message, onClearFilters }: FilteredEmptyStateProps) => {
+  const { t } = useTranslation();
+
+  return (
+    <Box sx={{ py: 4, textAlign: 'center' }}>
+      <EmptyStateText>{message}</EmptyStateText>
+      <Button size="small" onClick={onClearFilters} sx={{ mt: 1 }}>
+        {t('book.common.filteredEmptyState.clearFilters')}
+      </Button>
+    </Box>
+  );
+};

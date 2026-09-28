@@ -3,6 +3,7 @@ import { BookCoverIcon } from '@/theme/Icons.tsx';
 import { Box, type SxProps, type Theme, useTheme } from '@mui/material';
 import { useState } from 'react';
 import { Blurhash } from 'react-blurhash';
+import { useTranslation } from 'react-i18next';
 
 /** Neutral gray fallback for books without a generated blurhash. */
 const FALLBACK_BLURHASH = 'L6PZfSi_.AyE_3t7t7R**0o#DgR4';
@@ -29,6 +30,7 @@ export const BookCover = ({
   objectFit = 'contain',
   sx,
 }: BookCoverProps) => {
+  const { t } = useTranslation();
   const theme = useTheme();
 
   const coverUrl = coverFile ? `${API_BASE_URL}/api/v1/covers/${coverFile}` : null;
@@ -67,7 +69,7 @@ export const BookCover = ({
           {/* Actual cover image */}
           <img
             src={coverUrl}
-            alt={`${title} cover`}
+            alt={t('components.bookCover.alt', { title })}
             style={{
               width: '100%',
               height: '100%',

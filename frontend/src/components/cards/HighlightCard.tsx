@@ -65,12 +65,12 @@ const Footer = ({ highlight, bookmark, noteCount }: FooterProps) => {
                 sx={{ fontSize: ICON_SIZE.inline, verticalAlign: 'middle', ml: 1, mt: -0.5 }}
               />
             ),
-            !!noteCount && <CountWithIcon icon={NotesIcon} count={noteCount} noun="note" />,
+            !!noteCount && <CountWithIcon icon={NotesIcon} count={noteCount} unit="notes" />,
             !!highlight.flashcards.length && (
               <CountWithIcon
                 icon={FlashcardsIcon}
                 count={highlight.flashcards.length}
-                noun="flashcard"
+                unit="flashcards"
               />
             ),
           ]}

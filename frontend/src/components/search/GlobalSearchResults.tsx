@@ -6,6 +6,7 @@ import {
   type GlobalSearchRow,
 } from '@/components/search/globalSearchRows.ts';
 import { Box, CircularProgress, LinearProgress, List, Typography } from '@mui/material';
+import { useTranslation } from 'react-i18next';
 
 interface GlobalSearchResultsProps {
   rows: GlobalSearchRow[];
@@ -32,11 +33,13 @@ export const GlobalSearchResults = ({
   onSelect,
   listboxId,
 }: GlobalSearchResultsProps) => {
+  const { t } = useTranslation();
+
   if (isError) {
     return (
       <Box sx={{ px: GLOBAL_SEARCH_INSET_X, py: 2.5 }}>
         <Typography role="alert" variant="body2" color="error">
-          Search failed. Try again.
+          {t('search.globalSearchResults.failed')}
         </Typography>
       </Box>
     );
@@ -45,7 +48,7 @@ export const GlobalSearchResults = ({
   if (isFetching && rows.length === 0) {
     return (
       <Box sx={{ display: 'flex', justifyContent: 'center', py: 4 }}>
-        <CircularProgress size={24} aria-label="Searching" />
+        <CircularProgress size={24} aria-label={t('search.globalSearchResults.searching')} />
       </Box>
     );
   }
@@ -53,7 +56,7 @@ export const GlobalSearchResults = ({
   if (rows.length === 0) {
     return (
       <Box sx={{ px: GLOBAL_SEARCH_INSET_X, py: 2.5 }}>
-        <EmptyStateText>No matches</EmptyStateText>
+        <EmptyStateText>{t('search.globalSearchResults.noMatches')}</EmptyStateText>
       </Box>
     );
   }
@@ -65,7 +68,12 @@ export const GlobalSearchResults = ({
     <Box>
       {/* Old rows stay put while the next query runs; this is the only hint. */}
       {isFetching && <LinearProgress />}
-      <List id={listboxId} role="listbox" aria-label="Search results" disablePadding>
+      <List
+        id={listboxId}
+        role="listbox"
+        aria-label={t('search.globalSearchResults.listLabel')}
+        disablePadding
+      >
         {rows.map((row, index) => (
           <GlobalSearchResultRow
             key={row.key}
@@ -81,7 +89,7 @@ export const GlobalSearchResults = ({
           color="text.secondary"
           sx={{ display: 'block', px: GLOBAL_SEARCH_INSET_X, py: 2 }}
         >
-          Showing top {MAX_GLOBAL_SEARCH_ROWS}
+          {t('search.globalSearchResults.showingTop', { max: MAX_GLOBAL_SEARCH_ROWS })}
         </Typography>
       )}
     </Box>

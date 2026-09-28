@@ -4,6 +4,7 @@ import { PageContainer } from '@/components/layout/Layouts.tsx';
 import { PageTitle } from '@/components/typography/PageTitle.tsx';
 import { Box, Typography } from '@mui/material';
 import { motion } from 'motion/react';
+import { useTranslation } from 'react-i18next';
 import {
   useReadingActivity,
   useRecentBooks,
@@ -23,6 +24,7 @@ import { RecentCaptures } from './components/RecentCaptures';
  * The spinner waits out a fast load, so it only shows when the wait is felt.
  */
 export const LandingPage = () => {
+  const { t } = useTranslation();
   const loading = [useRecentBooks(), useReadingActivity(), useRecentCaptures()].some(
     (query) => query.isLoading
   );
@@ -40,7 +42,7 @@ export const LandingPage = () => {
       ) : (
         <FadeInOut ekey="landing">
           <Box sx={{ mt: { xs: 6, md: 8 }, mb: 6, textAlign: 'center' }}>
-            <PageTitle text="Welcome to Crossbill" component="h1" />
+            <PageTitle text={t('landing.page.title')} component="h1" />
             <Typography
               variant="body1"
               sx={{
@@ -48,7 +50,7 @@ export const LandingPage = () => {
                 fontSize: '1.1rem',
               }}
             >
-              Your reading companion
+              {t('landing.page.subtitle')}
             </Typography>
           </Box>
 

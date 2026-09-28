@@ -1,6 +1,7 @@
 import { IconButtonWithTooltip } from '@/components/buttons/IconButtonWithTooltip';
 import { FlashcardCard } from '@/pages/BookPage/Flashcards/FlashcardCard.tsx';
 import { AcceptIcon, RejectIcon } from '@/theme/Icons.tsx';
+import { useTranslation } from 'react-i18next';
 
 export interface FlashcardSuggestionCardProps {
   question: string;
@@ -15,6 +16,7 @@ export const FlashcardSuggestionCard = ({
   onAccept,
   onReject,
 }: FlashcardSuggestionCardProps) => {
+  const { t } = useTranslation();
   const handleAccept = (e: React.MouseEvent) => {
     e.stopPropagation();
     onAccept();
@@ -33,12 +35,12 @@ export const FlashcardSuggestionCard = ({
       renderActions={() => (
         <>
           <IconButtonWithTooltip
-            label="Accept suggestion"
+            label={t('flashcards.aiSuggestions.accept')}
             onClick={handleAccept}
             icon={<AcceptIcon fontSize="small" />}
           />
           <IconButtonWithTooltip
-            label="Reject suggestion"
+            label={t('flashcards.aiSuggestions.reject')}
             onClick={handleReject}
             icon={<RejectIcon fontSize="small" />}
           />

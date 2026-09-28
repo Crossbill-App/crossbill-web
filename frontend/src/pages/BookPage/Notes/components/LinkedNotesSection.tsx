@@ -10,6 +10,7 @@ import { useNoteLinks } from '@/pages/BookPage/Notes/hooks/useNoteLinks';
 import { AddIcon, LinkIcon } from '@/theme/Icons.tsx';
 import { Box, Button } from '@mui/material';
 import { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 
 type NoteLinkTarget =
   { kind: 'highlight'; id: number; chapterId?: number | null } | { kind: 'chapter'; id: number };
@@ -37,6 +38,7 @@ export const LinkedNotesSection = ({
   isLoading,
   disabled = false,
 }: LinkedNotesSectionProps) => {
+  const { t } = useTranslation();
   const noteDialogs = useNoteDialogs({ syncToUrl: false });
   const [pickerOpen, setPickerOpen] = useState(false);
   const noteLinks = useNoteLinks({ bookId });
@@ -72,7 +74,7 @@ export const LinkedNotesSection = ({
           onClick={() => setPickerOpen(true)}
           disabled={isDisabled}
         >
-          Link existing note
+          {t('notes.shared.linkExistingNote')}
         </Button>
         <Button
           variant="outlined"
@@ -81,12 +83,12 @@ export const LinkedNotesSection = ({
           onClick={noteDialogs.openCreate}
           disabled={isDisabled}
         >
-          Add note
+          {t('notes.shared.addNote')}
         </Button>
       </DialogToolbar>
       {isLoading && <Spinner />}
       {!isLoading && notes.length === 0 && (
-        <EmptyStateText>No notes linked to this {target.kind}.</EmptyStateText>
+        <EmptyStateText>{t(`notes.linkedNotesSection.empty.${target.kind}`)}</EmptyStateText>
       )}
       <LinkedNoteList
         notes={notes}

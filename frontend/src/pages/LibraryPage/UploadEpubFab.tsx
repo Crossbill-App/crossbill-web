@@ -9,17 +9,22 @@ import { Box, CircularProgress, Fab, Tooltip, Zoom } from '@mui/material';
 import { useNavigate } from '@tanstack/react-router';
 import type { AxiosError } from 'axios';
 import { ChangeEvent, useRef } from 'react';
+import { useTranslation } from 'react-i18next';
 
 /** The server's own ceiling; checked here too so a doomed upload is never sent. */
 const MAX_EPUB_BYTES = 50 * 1024 * 1024;
 
-const REFUSALS: Record<number, string | undefined> = {
-  409: 'This book is already in your library.',
-  400: 'That file is not a valid EPUB.',
+const REFUSAL_KEYS: Record<
+  number,
+  'library.uploadEpubFab.alreadyInLibrary' | 'library.uploadEpubFab.invalidEpub' | undefined
+> = {
+  409: 'library.uploadEpubFab.alreadyInLibrary',
+  400: 'library.uploadEpubFab.invalidEpub',
 };
 
 /** Picks an EPUB, adds it to the library as a new book, and opens that book. */
 export const UploadEpubFab = () => {
+  const { t } = useTranslation();
   const inputRef = useRef<HTMLInputElement>(null);
   const navigate = useNavigate();
   const cache = useCacheEvents();
@@ -30,13 +35,13 @@ export const UploadEpubFab = () => {
     mutation: {
       onSuccess: (book) => {
         cache.booksListChanged();
-        showSnackbar(`Added "${book.title}" to your library.`, 'success');
+        showSnackbar(t('library.uploadEpubFab.added', { title: book.title }), 'success');
         void navigate({ to: '/book/$bookId', params: { bookId: String(book.id) } });
       },
       onError: (error) => {
-        const message = REFUSALS[error.response?.status ?? 0];
-        if (message) showSnackbar(message, 'error');
-        else handleMutationError('upload the book')(error);
+        const messageKey = REFUSAL_KEYS[error.response?.status ?? 0];
+        if (messageKey) showSnackbar(t(messageKey), 'error');
+        else handleMutationError(t('library.uploadEpubFab.failed'))(error);
       },
     },
   });
@@ -48,9 +53,9 @@ export const UploadEpubFab = () => {
     if (!file) return;
 
     if (!file.name.toLowerCase().endsWith('.epub')) {
-      showSnackbar('Only EPUB files can be uploaded.', 'error');
+      showSnackbar(t('library.uploadEpubFab.notEpub'), 'error');
     } else if (file.size > MAX_EPUB_BYTES) {
-      showSnackbar('That file is over the 50 MB limit.', 'error');
+      showSnackbar(t('library.uploadEpubFab.tooLarge'), 'error');
     } else {
       upload({ data: { epub: file } });
     }
@@ -77,12 +82,12 @@ export const UploadEpubFab = () => {
             zIndex: (theme) => theme.zIndex.fab,
           }}
         >
-          <Tooltip title="Upload EPUB">
+          <Tooltip title={t('library.uploadEpubFab.label')}>
             {/* A disabled button fires no events, so the tooltip listens on this wrapper. */}
             <span>
               <Fab
                 color="primary"
-                aria-label="Upload EPUB"
+                aria-label={t('library.uploadEpubFab.label')}
                 disabled={isPending}
                 onClick={() => inputRef.current?.click()}
               >

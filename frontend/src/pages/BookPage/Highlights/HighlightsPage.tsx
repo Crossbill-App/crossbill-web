@@ -29,6 +29,7 @@ import { useLocation, useNavigate, useSearch } from '@tanstack/react-router';
 import { keyBy, sumBy } from 'lodash';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { createPortal } from 'react-dom';
+import { useTranslation } from 'react-i18next';
 import { FilterFab } from '../common/FilterFab.tsx';
 import { BookmarkList } from '../navigation/BookmarkList.tsx';
 import { ChapterNav, type ChapterNavigationData } from '../navigation/ChapterNav.tsx';
@@ -40,6 +41,7 @@ import { HighlightsList, type ChapterData } from './HighlightsList.tsx';
 import { HighlightViewDialog } from './HighlightViewDialog';
 
 export const HighlightsPage = () => {
+  const { t } = useTranslation();
   const { book, isDesktop, leftSidebarEl, rightSidebarEl, fabContainerEl } = useBookPage();
 
   const {
@@ -143,7 +145,7 @@ export const HighlightsPage = () => {
       { from: dateFrom, to: dateTo }
     ).map((chapter) => ({
       id: chapter.id,
-      name: chapter.name || 'Unknown chapter',
+      name: chapter.name || t('common.fallbacks.unknownChapter'),
       chapterNumber: chapter.chapter_number ?? undefined,
       highlights: chapter.highlights,
     }));
@@ -165,6 +167,7 @@ export const HighlightsPage = () => {
     selectedLabelId,
     dateFrom,
     dateTo,
+    t,
   ]);
 
   const allHighlights = useMemo(() => {
@@ -181,14 +184,14 @@ export const HighlightsPage = () => {
     bookSearch.showSearchResults || !!selectedTagId || !!selectedLabelId || hasDateValues;
   const emptyState = listFilterActive ? (
     <FilteredEmptyState
-      noun="highlights"
+      message={t('highlights.page.filteredEmpty')}
       onClearFilters={() => {
         setSelectedLabelId(undefined);
         clearFilters(['labelId', 'from', 'to']);
       }}
     />
   ) : (
-    <EmptyStateText>No chapters found for this book.</EmptyStateText>
+    <EmptyStateText>{t('highlights.page.noChapters')}</EmptyStateText>
   );
 
   const filterTabs = useHighlightsFilterTabs({
@@ -234,11 +237,11 @@ export const HighlightsPage = () => {
         search={
           <SearchBar
             onSearch={handleSearch}
-            placeholder="Search highlights..."
+            placeholder={t('highlights.page.searchPlaceholder')}
             initialValue={searchText}
           />
         }
-        count={{ value: allHighlights.length, noun: 'highlight' }}
+        count={{ value: allHighlights.length, unit: 'highlights' }}
         sort={<SortToggle isReversed={isReversed} onToggle={() => setIsReversed(!isReversed)} />}
       />
 
@@ -385,11 +388,12 @@ const useHighlightsFilterTabs = ({
   handleLabelClick,
   handleBookmarkClick,
   setFilterDrawerOpen,
-}: UseHighlightsFilterTabsParams): FilterTab[] =>
-  useMemo(
+}: UseHighlightsFilterTabsParams): FilterTab[] => {
+  const { t } = useTranslation();
+  return useMemo(
     () => [
       {
-        label: 'Chapters',
+        label: t('common.entities.chapters'),
         content: (
           <ChapterNav
             chapters={navChapters}
@@ -402,7 +406,7 @@ const useHighlightsFilterTabs = ({
         ),
       },
       {
-        label: 'Tags',
+        label: t('common.entities.tags'),
         content: (
           <Box>
             <TagsList
@@ -430,7 +434,7 @@ const useHighlightsFilterTabs = ({
         ),
       },
       {
-        label: 'Bookmarks',
+        label: t('common.entities.bookmarks'),
         content: (
           <BookmarkList
             bookmarks={bookmarks}
@@ -460,8 +464,10 @@ const useHighlightsFilterTabs = ({
       allHighlights,
       handleBookmarkClick,
       setFilterDrawerOpen,
+      t,
     ]
   );
+};
 
 // --- Private hooks and helpers ---
 

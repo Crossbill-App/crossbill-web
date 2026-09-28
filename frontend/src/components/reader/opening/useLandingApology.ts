@@ -7,20 +7,24 @@ import { landingOfAJump, type MissedJump } from '@/components/reader/opening/jum
 import type { EbookReaderState } from '@/components/reader/opening/useEbookReader.ts';
 import type { ReaderLanding, ReaderTarget } from '@/components/reader/opening/useReaderLanding.ts';
 import { useSnackbar } from '@/context/SnackbarContext.tsx';
+import type { ParseKeys } from 'i18next';
 import { useEffect, useRef } from 'react';
+import { useTranslation } from 'react-i18next';
 
 /** Said once, over the open book, for a place that could not be restored. */
-const LOST_THE_BOOKMARK = "Couldn't restore your last position, so the book opened at the start.";
+const LOST_THE_BOOKMARK = 'reader.opening.positionLost';
 
 /** What each kind of jump owes the reader where it could not reach where it was sent. */
-const MISSED_JUMP_APOLOGIES: Record<ReaderTarget['kind'], Partial<Record<MissedJump, string>>> = {
+const MISSED_JUMP_APOLOGIES: Record<
+  ReaderTarget['kind'],
+  Partial<Record<MissedJump, ParseKeys>>
+> = {
   highlight: {
-    chapter:
-      "Couldn't find this highlight's exact place, so the book opened at the start of its chapter.",
-    start: "Couldn't find this highlight's place, so the book opened at the start.",
+    chapter: 'reader.opening.missedJump.highlightChapter',
+    start: 'reader.opening.missedJump.highlightStart',
   },
   // A chapter jump that landed on the chapter arrived; only the start is a miss.
-  chapter: { start: "Couldn't find this chapter in the book, so it opened at the start." },
+  chapter: { start: 'reader.opening.missedJump.chapterStart' },
 };
 
 export const useLandingApology = (
@@ -28,6 +32,7 @@ export const useLandingApology = (
   landing: ReaderLanding | undefined,
   target: ReaderTarget | null
 ): void => {
+  const { t } = useTranslation();
   const { showSnackbar } = useSnackbar();
   const apologised = useRef(false);
   useEffect(() => {
@@ -54,6 +59,6 @@ export const useLandingApology = (
         : missed && MISSED_JUMP_APOLOGIES[target.kind][missed];
     if (!message) return;
     apologised.current = true;
-    showSnackbar(message, 'info');
-  }, [book.status, book.landedAt, book.toc, landing, target, showSnackbar]);
+    showSnackbar(t(message), 'info');
+  }, [book.status, book.landedAt, book.toc, landing, target, showSnackbar, t]);
 };

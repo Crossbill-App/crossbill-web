@@ -3,6 +3,7 @@ import { ReadingSessionIcon } from '@/theme/Icons.tsx';
 import { ICON_SIZE } from '@/theme/iconSizes.ts';
 import { formatDate, formatDuration, formatTime } from '@/utils/date.ts';
 import { Box, Stack, Typography } from '@mui/material';
+import { useTranslation } from 'react-i18next';
 
 interface SessionCardProps {
   session: ReadingSession;
@@ -19,6 +20,7 @@ interface SessionCardProps {
  * view the tab does not have.
  */
 export const SessionCard = ({ session }: SessionCardProps) => {
+  const { t } = useTranslation();
   const { start_page: startPage, end_page: endPage } = session;
   const hasPageRange = startPage != null && endPage != null;
 
@@ -36,7 +38,10 @@ export const SessionCard = ({ session }: SessionCardProps) => {
           sx={{ fontSize: ICON_SIZE.ui, color: 'primary.main', opacity: 0.7, flexShrink: 0 }}
         />
         <Typography variant="h3">
-          Session {formatDate(session.start_time)} {formatTime(session.start_time)}
+          {t('book.statistics.sessionCard.title', {
+            date: formatDate(session.start_time),
+            time: formatTime(session.start_time),
+          })}
         </Typography>
       </Stack>
 
@@ -44,11 +49,13 @@ export const SessionCard = ({ session }: SessionCardProps) => {
       <Box sx={{ pl: 3.5 }}>
         {hasPageRange && (
           <Typography variant="body2" sx={{ color: 'text.secondary' }}>
-            Pages {startPage} – {endPage}
+            {t('book.statistics.sessionCard.pages', { start: startPage, end: endPage })}
           </Typography>
         )}
         <Typography variant="body2" sx={{ color: 'text.secondary' }}>
-          Duration {formatDuration(session.start_time, session.end_time)}
+          {t('book.statistics.sessionCard.duration', {
+            duration: formatDuration(session.start_time, session.end_time),
+          })}
         </Typography>
       </Box>
     </Box>

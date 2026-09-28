@@ -1,14 +1,14 @@
 import { ICON_SIZE } from '@/theme/iconSizes';
 import { tabularNums } from '@/theme/theme.ts';
-import { countLabel } from '@/utils/counts';
+import { countLabel, type CountUnit } from '@/utils/counts';
 import type { SvgIconComponent } from '@mui/icons-material';
 import { Box } from '@mui/material';
 
 interface CountWithIconProps {
   icon: SvgIconComponent;
   count: number;
-  /** Singular noun, for the label a screen reader reads instead of the glyph. */
-  noun: string;
+  /** What is counted, for the label a screen reader reads instead of the glyph. */
+  unit: CountUnit;
 }
 
 /**
@@ -17,12 +17,12 @@ interface CountWithIconProps {
  * Inline so it sits inside a metadata line as happily as in a flex row, and it
  * inherits its font size from whatever wraps it.
  */
-export const CountWithIcon = ({ icon: Icon, count, noun }: CountWithIconProps) =>
+export const CountWithIcon = ({ icon: Icon, count, unit }: CountWithIconProps) =>
   count > 0 ? (
     <Box
       component="span"
       role="img"
-      aria-label={countLabel(count, noun)}
+      aria-label={countLabel(count, unit)}
       sx={{
         ...tabularNums,
         display: 'inline-flex',

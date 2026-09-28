@@ -1,9 +1,9 @@
 import { Collapsable } from '@/components/animations/Collapsable.tsx';
 import { MetadataRow } from '@/components/cards/MetadataRow.tsx';
 import { ChapterListIcon } from '@/theme/Icons.tsx';
-import { countLabel } from '@/utils/counts.ts';
 import { Box, Button, Typography } from '@mui/material';
 import { useId, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 
 import { SidebarSectionHeader } from './SidebarSectionHeader.tsx';
 
@@ -20,11 +20,8 @@ interface ChapterNavProps {
   hideTitle?: boolean;
 }
 
-/** Omitted at zero, so a chapter reads the same on whichever tab lists it. */
-const countOrNothing = (count: number, noun: string) =>
-  count > 0 ? countLabel(count, noun) : null;
-
 export const ChapterNav = ({ chapters, onChapterClick, hideTitle }: ChapterNavProps) => {
+  const { t } = useTranslation();
   const [isExpanded, setIsExpanded] = useState(() => true);
   const chaptersId = useId();
   const effectiveIsExpanded = hideTitle ? true : isExpanded;
@@ -44,11 +41,11 @@ export const ChapterNav = ({ chapters, onChapterClick, hideTitle }: ChapterNavPr
       {!hideTitle && (
         <SidebarSectionHeader
           icon={ChapterListIcon}
-          title="Chapters"
+          title={t('common.entities.chapters')}
           collapse={{
             isExpanded,
             onToggle: () => setIsExpanded((prev) => !prev),
-            sectionLabel: 'chapters list',
+            sectionLabel: t('book.navigation.chapters.sectionLabel'),
             controlsId: chaptersId,
           }}
         />
@@ -68,7 +65,7 @@ export const ChapterNav = ({ chapters, onChapterClick, hideTitle }: ChapterNavPr
             p: 0,
             m: 0,
           }}
-          aria-label="Chapters"
+          aria-label={t('common.entities.chapters')}
         >
           {chapters.map((chapter) => (
             <Box component="li" key={chapter.id}>
@@ -109,9 +106,15 @@ export const ChapterNav = ({ chapters, onChapterClick, hideTitle }: ChapterNavPr
                   </Typography>
                   <MetadataRow
                     variant="caption"
+                    // Counts are omitted at zero, so a chapter reads the same on
+                    // whichever tab lists it.
                     items={[
-                      countOrNothing(chapter.highlightCount, 'highlight'),
-                      countOrNothing(chapter.flashcardCount, 'flashcard'),
+                      chapter.highlightCount > 0
+                        ? t('common.counts.highlights', { count: chapter.highlightCount })
+                        : null,
+                      chapter.flashcardCount > 0
+                        ? t('common.counts.flashcards', { count: chapter.flashcardCount })
+                        : null,
                     ]}
                     sx={{ fontSize: '0.75rem', mt: 0.25, display: 'block' }}
                   />

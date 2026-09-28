@@ -1,4 +1,5 @@
 import { useTheme } from '@mui/material';
+import { useTranslation } from 'react-i18next';
 
 type ReadStatus = 'read' | 'current' | 'unread';
 
@@ -11,13 +12,8 @@ interface ChapterReadIndicatorProps {
 
 const SIZE = 20;
 
-const STATUS_LABEL: Record<ReadStatus, string> = {
-  read: 'Read chapter',
-  current: 'Current chapter',
-  unread: 'Unread chapter',
-};
-
 export const ChapterReadIndicator = ({ status, chapterName }: ChapterReadIndicatorProps) => {
+  const { t } = useTranslation();
   const theme = useTheme();
   const brown = theme.palette.secondary.dark;
   const gray = theme.palette.text.disabled;
@@ -25,7 +21,7 @@ export const ChapterReadIndicator = ({ status, chapterName }: ChapterReadIndicat
   return (
     <svg
       role="img"
-      aria-label={`${chapterName}: ${STATUS_LABEL[status]}`}
+      aria-label={t(`structure.chapterReadIndicator.${status}`, { chapterName })}
       width={SIZE}
       height={SIZE}
       viewBox={`0 0 ${SIZE} ${SIZE}`}

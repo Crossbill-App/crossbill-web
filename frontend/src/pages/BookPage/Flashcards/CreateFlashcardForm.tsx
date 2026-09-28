@@ -1,6 +1,7 @@
 import { RHFTextField } from '@/components/inputs/RHFTextField.tsx';
 import { Box, Button } from '@mui/material';
 import { useForm, useWatch } from 'react-hook-form';
+import { useTranslation } from 'react-i18next';
 
 export interface FlashcardFormValues {
   question: string;
@@ -26,6 +27,7 @@ export const CreateFlashcardForm = ({
   onSave,
   onCancelEdit,
 }: CreateFlashcardFormProps) => {
+  const { t } = useTranslation();
   const { control, handleSubmit, reset } = useForm<FlashcardFormValues>({
     defaultValues: initialValues ?? EMPTY_FORM,
   });
@@ -62,7 +64,7 @@ export const CreateFlashcardForm = ({
         control={control}
         fullWidth
         size="small"
-        placeholder="Question..."
+        placeholder={t('flashcards.form.questionPlaceholder')}
         disabled={isDisabled}
       />
       <RHFTextField
@@ -73,7 +75,7 @@ export const CreateFlashcardForm = ({
         multiline
         minRows={2}
         maxRows={4}
-        placeholder="Answer..."
+        placeholder={t('flashcards.form.answerPlaceholder')}
         disabled={isDisabled}
       />
       <Box sx={{ display: 'flex', justifyContent: 'flex-end', gap: 1, width: '100%' }}>
@@ -85,7 +87,7 @@ export const CreateFlashcardForm = ({
             disabled={isDisabled}
             sx={{ flexShrink: 0, height: 'fit-content', mt: 0.5 }}
           >
-            Cancel
+            {t('common.actions.cancel')}
           </Button>
         )}
         <Button
@@ -95,7 +97,11 @@ export const CreateFlashcardForm = ({
           disabled={!canSave}
           sx={{ flexShrink: 0, height: 'fit-content', mt: 0.5 }}
         >
-          {isProcessing ? 'Saving...' : editingFlashcardId ? 'Save' : 'Add flashcard'}
+          {isProcessing
+            ? t('common.status.saving')
+            : editingFlashcardId
+              ? t('common.actions.save')
+              : t('flashcards.actions.add')}
         </Button>
       </Box>
     </Box>

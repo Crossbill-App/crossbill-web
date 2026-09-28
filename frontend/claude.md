@@ -60,6 +60,33 @@ is stale. Never hand-edit files under `src/api/generated`.
   form is one of several controls on screen. Pending states are the verb in
   sentence case plus an ellipsis — `Saving...`, never `Updating...`.
 
+## UI copy (i18n)
+
+Every user-facing string lives in `src/i18n/locales/en/`, read through
+react-i18next — never written inline in a component. That is what lets the
+copy be translated, and edited in one place. A lint rule rejects text between
+JSX tags and literal `aria-label`/`title`/`placeholder`/`label`/`alt`/
+`helperText`/`tooltip` values in `src/`.
+
+- **One JSON file per area** (`highlights.json`, `reader.json`, …); the file
+  name is its top-level key and `locales/en/index.ts` lists them. Keys nest by
+  screen, then component, then purpose, so a key says where its text appears:
+  `highlights.viewDialog.deleteConfirm.message`.
+- **Shared text is defined once** in `common.json`: action verbs (`Save`,
+  `Cancel`), states (`Saving...`), entity names (`Highlights`), fallbacks
+  (`Unknown author`), form fields and validation. Reuse a common key only when
+  the meaning is the same, not merely the spelling; text shared within one
+  area goes under that area's `shared` key.
+- **Components** call `const { t } = useTranslation()`. Plain modules import
+  `i18n` from `@/i18n` and call `i18n.t` lazily, inside a function — never at
+  module load, where it would freeze the language. Label maps hold keys, not
+  text.
+- **Never concatenate copy.** Interpolate (`{{count}}`, `{{title}}`) and use
+  i18next plurals (`key_one` / `key_other`) with `count`; wrap sentences that
+  contain markup in `<Trans>`.
+- **Keys are typed** (`src/i18n/i18next.d.ts`): a missing or misspelled key
+  fails `npm run type-check`. A dynamic key must be a union of literal keys.
+
 ## Testing
 
 Three tiers. Which one a test belongs to is a decision about the code under it,

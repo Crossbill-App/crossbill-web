@@ -28,6 +28,7 @@ import { markdownStyles } from '@/theme/theme';
 import { Box, Button, Stack, Typography, useTheme } from '@mui/material';
 import { useQueryClient } from '@tanstack/react-query';
 import { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import ReactMarkdown from 'react-markdown';
 import { ReflectionNotesSection } from './ReflectionNotesSection.tsx';
 import {
@@ -42,15 +43,19 @@ interface AnswerEditState {
   noteId: number;
 }
 
-const EditNoteButton = ({ onClick }: { onClick: () => void }) => (
-  <Box sx={{ position: 'absolute', top: 8, right: 8 }}>
-    <IconButtonWithTooltip
-      label="Edit answer"
-      icon={<EditIcon fontSize="small" />}
-      onClick={onClick}
-    />
-  </Box>
-);
+const EditNoteButton = ({ onClick }: { onClick: () => void }) => {
+  const { t } = useTranslation();
+
+  return (
+    <Box sx={{ position: 'absolute', top: 8, right: 8 }}>
+      <IconButtonWithTooltip
+        label={t('reflection.reflectionPage.editAnswer')}
+        icon={<EditIcon fontSize="small" />}
+        onClick={onClick}
+      />
+    </Box>
+  );
+};
 
 const AnswerNote = ({ note, onEdit }: { note: NoteWithLinks; onEdit: () => void }) => {
   const theme = useTheme();
@@ -65,13 +70,18 @@ const AnswerNote = ({ note, onEdit }: { note: NoteWithLinks; onEdit: () => void 
   );
 };
 
-const AnswerButton = ({ onClick }: { onClick: () => void }) => (
-  <Button variant="outlined" size="small" onClick={onClick}>
-    Answer
-  </Button>
-);
+const AnswerButton = ({ onClick }: { onClick: () => void }) => {
+  const { t } = useTranslation();
+
+  return (
+    <Button variant="outlined" size="small" onClick={onClick}>
+      {t('reflection.reflectionPage.answer')}
+    </Button>
+  );
+};
 
 export const ReflectionPage = () => {
+  const { t } = useTranslation();
   const { book } = useBookPage();
   const bookId = book.id;
   const queryClient = useQueryClient();
@@ -93,7 +103,7 @@ export const ReflectionPage = () => {
       onSuccess: (updated) => {
         queryClient.setQueryData<BookReflectionResponse>(queryKey, updated);
       },
-      onError: mutationErrorHandler('save reflection'),
+      onError: mutationErrorHandler(t('reflection.errors.saveReflection')),
     },
   });
 
@@ -118,6 +128,13 @@ export const ReflectionPage = () => {
   const handleNoteIdsChange = (noteIds: number[]) => {
     persist({ note_ids: noteIds });
   };
+
+  const questionTitle = (question: ReflectionQuestion) =>
+    t(`reflection.questions.${question.key}.title`);
+  const questionGuidance = (question: ReflectionQuestion) => ({
+    title: questionTitle(question),
+    text: t(`reflection.questions.${question.key}.guide`),
+  });
 
   const stageHint = book.reading_stage
     ? READING_STAGE_HINTS[book.reading_stage as ReadingStageValue]
@@ -153,7 +170,7 @@ export const ReflectionPage = () => {
 
             return (
               <Box key={question.noteIdField}>
-                <SectionTitle>{question.title}</SectionTitle>
+                <SectionTitle>{questionTitle(question)}</SectionTitle>
                 <Typography
                   variant="body2"
                   sx={{
@@ -161,7 +178,7 @@ export const ReflectionPage = () => {
                     mb: 1.5,
                   }}
                 >
-                  {question.guide}
+                  {t(`reflection.questions.${question.key}.guide`)}
                 </Typography>
 
                 {noteId != null && !answerNote && <Spinner size={24} />}
@@ -196,8 +213,8 @@ export const ReflectionPage = () => {
           open
           onClose={() => setNewAnswer(null)}
           initialKind="reflection"
-          initialTitle={newAnswer.title}
-          guidance={{ title: newAnswer.title, text: newAnswer.guide }}
+          initialTitle={questionTitle(newAnswer)}
+          guidance={questionGuidance(newAnswer)}
           onCreated={(note) => handleCreated(newAnswer, note)}
         />
       )}
@@ -206,7 +223,7 @@ export const ReflectionPage = () => {
         <NoteViewDialog
           noteId={answerEdit.noteId}
           initiallyEditing
-          guidance={{ title: answerEdit.question.title, text: answerEdit.question.guide }}
+          guidance={questionGuidance(answerEdit.question)}
           onClose={() => setAnswerEdit(null)}
         />
       )}

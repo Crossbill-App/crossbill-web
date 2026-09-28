@@ -42,6 +42,15 @@ import {
 
 const DESTROY_TIMEOUT_MS = 2000;
 
+/**
+ * How long a jump waits for a move Readium is already making — one it started
+ * itself to follow a link in the book — before giving up on the jump.
+ */
+const BUSY_WAIT_MS = 2000;
+const BUSY_RETRY_MS = 50;
+
+const NOT_A_PLACE = 'That location does not name a place in this book.';
+
 const CONTAINER_MARKER = 'data-ebook-reader';
 
 // Readium keys decorations by group, replacing a whole group at a time and
@@ -228,8 +237,30 @@ export class ReadiumReader implements EbookReader {
 
   async goTo(location: EbookLocation): Promise<void> {
     const locator = fromLocation(location);
-    const arrived = await this.move((navigator, done) => navigator.go(locator, false, done));
-    if (!arrived) throw new Error('That location does not name a place in this book.');
+    const href = locator.href.split('#')[0];
+    if (this.navigator && !this.navigator.publication.readingOrder.findWithHref(href)) {
+      throw new Error(NOT_A_PLACE);
+    }
+    // Readium refuses a move while another is under way, answering at once rather than
+    // queueing it. A link it follows itself is such a move and outlasts the page it
+    // reports, so a Back straight after one would otherwise be refused.
+    const deadline = Date.now() + BUSY_WAIT_MS;
+    for (;;) {
+      // A refusal comes back before `go` returns; a move that ran answers later.
+      const answer = { hasReturned: false, atOnce: false };
+      const arrived = this.move((navigator, done) => {
+        navigator.go(locator, false, (ok) => {
+          answer.atOnce = !answer.hasReturned;
+          done(ok);
+        });
+        answer.hasReturned = true;
+      });
+      if (await arrived) return;
+      if (!answer.atOnce || this.isDestroyed || Date.now() > deadline) {
+        throw new Error(NOT_A_PLACE);
+      }
+      await new Promise((resolve) => setTimeout(resolve, BUSY_RETRY_MS));
+    }
   }
 
   applyDecorations(decorations: EbookDecoration[]): void {

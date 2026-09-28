@@ -9,6 +9,7 @@ import { AddIcon, LinkIcon } from '@/theme/Icons.tsx';
 import { Box, Button } from '@mui/material';
 import { compact, includes } from 'lodash';
 import { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 
 interface ReflectionNotesSectionProps {
   bookId: number;
@@ -33,6 +34,7 @@ export const ReflectionNotesSection = ({
   onChange,
   disabled = false,
 }: ReflectionNotesSectionProps) => {
+  const { t } = useTranslation();
   const noteDialogs = useNoteDialogs({ syncToUrl: false });
   const [pickerOpen, setPickerOpen] = useState(false);
 
@@ -64,7 +66,7 @@ export const ReflectionNotesSection = ({
           onClick={() => setPickerOpen(true)}
           disabled={disabled}
         >
-          Link existing note
+          {t('notes.shared.linkExistingNote')}
         </Button>
         <Button
           variant="outlined"
@@ -73,10 +75,12 @@ export const ReflectionNotesSection = ({
           onClick={noteDialogs.openCreate}
           disabled={disabled}
         >
-          Add note
+          {t('notes.shared.addNote')}
         </Button>
       </DialogToolbar>
-      {linkedNotes.length === 0 && <EmptyStateText>No notes linked yet.</EmptyStateText>}
+      {linkedNotes.length === 0 && (
+        <EmptyStateText>{t('reflection.reflectionNotesSection.empty')}</EmptyStateText>
+      )}
       <LinkedNoteList
         notes={linkedNotes}
         onOpen={noteDialogs.openView}

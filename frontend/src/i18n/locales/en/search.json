@@ -1,0 +1,13 @@
+{
+  "rowTypes": {
+    "chapter": "Chapter",
+    "book": "Book"
+  },
+  "globalSearchResults": {
+    "failed": "Search failed. Try again.",
+    "searching": "Searching",
+    "noMatches": "No matches",
+    "listLabel": "Search results",
+    "showingTop": "Showing top {{max}}"
+  }
+}

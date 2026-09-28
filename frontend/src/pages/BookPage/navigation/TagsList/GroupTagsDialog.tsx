@@ -16,6 +16,7 @@ import {
 } from '@mui/material';
 import { sortBy } from 'lodash';
 import { useMemo, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 
 interface GroupTagsDialogProps {
   group: TagGroupInBook;
@@ -36,6 +37,7 @@ export const GroupTagsDialog = ({
   open,
   onClose,
 }: GroupTagsDialogProps) => {
+  const { t } = useTranslation();
   const mutationErrorHandler = useMutationErrorHandler();
   const cache = useCacheEvents();
   const updateMutation = useUpdateTag();
@@ -108,7 +110,9 @@ export const GroupTagsDialog = ({
       cache.tagsChanged(bookId);
       const firstError = results.find((result) => result.status === 'rejected');
       if (firstError) {
-        mutationErrorHandler('update tags')((firstError as PromiseRejectedResult).reason);
+        mutationErrorHandler(t('book.navigation.tags.errors.updateTags'))(
+          (firstError as PromiseRejectedResult).reason
+        );
       }
       onClose();
     } finally {
@@ -120,20 +124,24 @@ export const GroupTagsDialog = ({
     <CommonDialog
       open={open}
       onClose={onClose}
-      title={`Tags in ${group.name}`}
+      title={t('book.navigation.tags.groupTagsDialog.title', { name: group.name })}
       maxWidth="xs"
       isLoading={isSaving}
       footerActions={
         <Box sx={{ display: 'flex', gap: 1, width: '100%', justifyContent: 'flex-end' }}>
           <Button onClick={onClose} disabled={isSaving}>
-            Cancel
+            {t('common.actions.cancel')}
           </Button>
           <Button
             variant="contained"
             onClick={handleSave}
             disabled={pendingChanges.length === 0 || isSaving}
           >
-            {pendingChanges.length > 0 ? `Save (${pendingChanges.length})` : 'Save'}
+            {pendingChanges.length > 0
+              ? t('book.navigation.tags.groupTagsDialog.saveWithChanges', {
+                  changes: pendingChanges.length,
+                })
+              : t('common.actions.save')}
           </Button>
         </Box>
       }
@@ -143,7 +151,7 @@ export const GroupTagsDialog = ({
           <TextField
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            placeholder="Search tags..."
+            placeholder={t('book.navigation.tags.groupTagsDialog.searchPlaceholder')}
             size="small"
             fullWidth
             sx={{ mb: 1 }}
@@ -154,7 +162,9 @@ export const GroupTagsDialog = ({
             const otherGroupId = tag.tag_group_id;
             const secondary =
               otherGroupId != null && otherGroupId !== group.id
-                ? `in ${groupNameById.get(otherGroupId) ?? ''}`
+                ? t('book.navigation.tags.groupTagsDialog.inGroup', {
+                    name: groupNameById.get(otherGroupId) ?? '',
+                  })
                 : undefined;
             return (
               <ListItemButton key={tag.id} onClick={() => toggle(tag.id)} dense sx={{ px: 0 }}>
@@ -176,7 +186,7 @@ export const GroupTagsDialog = ({
                 py: 2,
               }}
             >
-              No matching tags.
+              {t('book.navigation.tags.groupTagsDialog.noMatches')}
             </Typography>
           )}
         </List>

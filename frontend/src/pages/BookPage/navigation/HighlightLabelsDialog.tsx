@@ -9,14 +9,8 @@ import { useSaveStatus } from '@/hooks/useSaveStatus.ts';
 import { DEFAULT_LABEL_COLOR, LABEL_COLORS } from '@/utils/colorUtils.ts';
 import { Box, Button, Divider, Stack, TextField, Typography } from '@mui/material';
 import { useState } from 'react';
-
-/** What the book calls a highlighter before the reader names it: `yellow / lighten`. */
-const styleName = (label: HighlightLabelInBook): string => {
-  const parts = [label.device_color, label.device_style].filter(Boolean);
-  return parts.length > 0 ? parts.join(' / ') : 'Unlabelled';
-};
-
-const countOf = (count: number): string => (count === 1 ? '1 highlight' : `${count} highlights`);
+import { useTranslation } from 'react-i18next';
+import { labelStyleName } from './labelStyleName.ts';
 
 interface LabelRowProps {
   bookId: number;
@@ -24,9 +18,12 @@ interface LabelRowProps {
 }
 
 const LabelRow = ({ bookId, label }: LabelRowProps) => {
+  const { t } = useTranslation();
   const [name, setName] = useState(label.label || '');
   const saveStatus = useSaveStatus();
   const edits = useHighlightLabelSave(bookId, saveStatus);
+
+  const style = labelStyleName(label);
 
   const submitName = () => {
     if (edits.isSaving) return;
@@ -43,10 +40,10 @@ const LabelRow = ({ bookId, label }: LabelRowProps) => {
       <Stack direction="row" spacing={1} sx={{ alignItems: 'center', mb: 1 }}>
         <ColorDot color={label.ui_color || DEFAULT_LABEL_COLOR} />
         <Typography variant="subtitle2" sx={{ fontWeight: 600 }}>
-          {styleName(label)}
+          {style}
         </Typography>
         <Typography variant="caption" sx={{ color: 'text.secondary' }}>
-          {countOf(label.highlight_count)}
+          {t('common.counts.highlights', { count: label.highlight_count })}
         </Typography>
       </Stack>
       <TextField
@@ -59,16 +56,18 @@ const LabelRow = ({ bookId, label }: LabelRowProps) => {
             submitName();
           }
         }}
-        placeholder="Label name..."
+        placeholder={t('common.placeholders.labelName')}
         // Named per row: several of these fields sit in one dialog, and
         // "Label name..." alone would leave them indistinguishable.
-        slotProps={{ htmlInput: { 'aria-label': `Name for ${styleName(label)}` } }}
+        slotProps={{
+          htmlInput: { 'aria-label': t('book.navigation.labelsDialog.nameFor', { style }) },
+        }}
         size="small"
         fullWidth
         sx={{ mb: 1.5 }}
       />
       <ColorSwatchPicker
-        label={`Colour for ${styleName(label)}`}
+        label={t('book.navigation.labelsDialog.colourFor', { style })}
         colors={LABEL_COLORS}
         value={label.ui_color}
         onChange={changeColor}
@@ -89,6 +88,7 @@ interface HighlightLabelsDialogProps {
  * cover.
  */
 export const HighlightLabelsDialog = ({ bookId, open, onClose }: HighlightLabelsDialogProps) => {
+  const { t } = useTranslation();
   const { data } = useGetBookHighlightLabels(bookId, { query: { enabled: open } });
   const labels = data?.items ?? [];
 
@@ -96,11 +96,11 @@ export const HighlightLabelsDialog = ({ bookId, open, onClose }: HighlightLabels
     <CommonDialog
       open={open}
       onClose={onClose}
-      title="Highlight labels"
+      title={t('book.navigation.labelsDialog.title')}
       maxWidth="xs"
       footerActions={
         <Box sx={{ display: 'flex', width: '100%', justifyContent: 'flex-end' }}>
-          <Button onClick={onClose}>Done</Button>
+          <Button onClick={onClose}>{t('common.actions.done')}</Button>
         </Box>
       }
     >

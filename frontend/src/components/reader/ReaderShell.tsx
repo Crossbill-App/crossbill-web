@@ -40,6 +40,7 @@ import { useSnackbar } from '@/context/SnackbarContext.tsx';
 import { useBodyScrollLock } from '@/hooks/useBodyScrollLock.ts';
 import { Box, useTheme } from '@mui/material';
 import { useEffect, useMemo, useRef, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 
 export interface ReaderShellProps {
   bookId: number;
@@ -50,13 +51,11 @@ export interface ReaderShellProps {
   target?: ReaderTarget | null;
 }
 
-/** Said over the open book for a tap that landed in a chapter the passage cannot reach. */
-const ONE_CHAPTER_ONLY = 'A highlight has to stay inside one chapter.';
-
 /** The reader's full-viewport frame: a title bar, a way out, and the book. */
 export const ReaderShell = ({ bookId, onClose, onOpenHighlight, target }: ReaderShellProps) => {
   // A fixed overlay never scrolls the body, which is what arms pull-to-refresh.
   useBodyScrollLock(true);
+  const { t } = useTranslation();
   const { status: sessionStatus, isRenewing } = useReaderSession(bookId);
   const { data: details } = useGetBookDetails(bookId);
   const title = details?.title ?? '';
@@ -121,7 +120,7 @@ export const ReaderShell = ({ bookId, onClose, onOpenHighlight, target }: Reader
         if (tapped !== null) onOpenHighlight?.(tapped);
       },
       // The engine keeps the remembered start, so the bar stays up for a tap in its chapter.
-      selectionExtensionRefused: () => showSnackbar(ONE_CHAPTER_ONLY, 'info'),
+      selectionExtensionRefused: () => showSnackbar(t('reader.shell.oneChapterOnly'), 'info'),
     },
     // On to the passage, which opening at its locator can leave a page short of, or else to
     // its chapter.
@@ -166,31 +165,22 @@ export const ReaderShell = ({ bookId, onClose, onOpenHighlight, target }: Reader
   useLandingApology(book, landing, jump);
 
   if (sessionStatus === 'error') {
-    return (
-      <ReaderMessage onClose={onClose}>
-        The reader could not start a session for this book. Please try again later.
-      </ReaderMessage>
-    );
+    return <ReaderMessage onClose={onClose}>{t('reader.shell.sessionFailed')}</ReaderMessage>;
   }
   if (book.status === 'missing') {
-    return (
-      <ReaderMessage onClose={onClose}>
-        This book has no EPUB file, so there is nothing to read here yet. Upload one to read it in
-        the browser.
-      </ReaderMessage>
-    );
+    return <ReaderMessage onClose={onClose}>{t('reader.shell.noEpubFile')}</ReaderMessage>;
   }
   if (book.status === 'error') {
     return (
       <ReaderMessage onClose={onClose} onRetry={book.retry}>
-        The book could not be opened. Please try again later.
+        {t('reader.shell.openFailed')}
       </ReaderMessage>
     );
   }
   if (book.status === 'timeout') {
     return (
       <ReaderMessage onClose={onClose} onRetry={book.retry}>
-        This book could not be opened in the reader.
+        {t('reader.shell.openTimedOut')}
       </ReaderMessage>
     );
   }

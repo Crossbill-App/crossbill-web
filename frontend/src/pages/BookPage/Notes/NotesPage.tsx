@@ -15,6 +15,7 @@ import { Alert, Divider, IconButton } from '@mui/material';
 import { useNavigate, useSearch } from '@tanstack/react-router';
 import { useState } from 'react';
 import { createPortal } from 'react-dom';
+import { useTranslation } from 'react-i18next';
 
 import { BOOK_PAGE_LABELS } from '@/pages/BookPage/navigation/bookPageRoutes.ts';
 import { FilterFab } from '../common/FilterFab.tsx';
@@ -32,6 +33,7 @@ import {
 } from './noteKinds';
 
 export const NotesPage = () => {
+  const { t } = useTranslation();
   const { book, isDesktop, leftSidebarEl, fabContainerEl } = useBookPage();
   const navigate = useNavigate({ from: '/book/$bookId/notes' });
   const { kinds, chapterId } = useSearch({ from: '/book/$bookId/notes' });
@@ -81,11 +83,11 @@ export const NotesPage = () => {
 
   const filterTabs: FilterTab[] = [
     {
-      label: 'Types',
+      label: t('notes.shared.types'),
       content: <NoteKindFilter selected={selectedKinds} onChange={handleKindsChange} hideTitle />,
     },
     {
-      label: 'Tags',
+      label: t('common.entities.tags'),
       content: (
         <TagsList
           tags={book.tags}
@@ -131,13 +133,17 @@ export const NotesPage = () => {
             <ContentSearchField
               value={searchText}
               onChange={handleSearch}
-              placeholder="Search notes by meaning..."
+              placeholder={t('notes.notesPage.searchPlaceholder')}
             />
           </EmbeddingFeature>
         }
-        count={{ value: notesToShow.length, noun: 'note' }}
+        count={{ value: notesToShow.length, unit: 'notes' }}
         action={
-          <IconButton aria-label="Add note" color="primary" onClick={noteDialogs.openCreate}>
+          <IconButton
+            aria-label={t('notes.shared.addNote')}
+            color="primary"
+            onClick={noteDialogs.openCreate}
+          >
             <AddIcon />
           </IconButton>
         }
@@ -145,24 +151,22 @@ export const NotesPage = () => {
 
       {search.isError && (
         <Alert severity="warning" sx={{ mb: 2 }}>
-          Search failed. Showing all notes.
+          {t('notes.notesPage.searchFailed')}
         </Alert>
       )}
 
       {isLoading && <Spinner />}
-      {isError && <Alert severity="error">Failed to load notes.</Alert>}
+      {isError && <Alert severity="error">{t('notes.notesPage.loadFailed')}</Alert>}
       {!isLoading &&
         !isError &&
         notesToShow.length === 0 &&
         (filtersActive ? (
           <FilteredEmptyState
-            noun="notes"
+            message={t('notes.notesPage.filteredEmpty')}
             onClearFilters={() => clearFilters(['kinds', 'chapterId'])}
           />
         ) : (
-          <EmptyStateText>
-            No notes yet. Create notes about characters, terms, and concepts as you read.
-          </EmptyStateText>
+          <EmptyStateText>{t('notes.notesPage.empty')}</EmptyStateText>
         ))}
 
       <CardList>

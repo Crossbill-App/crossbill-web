@@ -1,0 +1,101 @@
+{
+  "page": {
+    "searchPlaceholder": "Search chapters by meaning...",
+    "searchFailed": "Search failed. Showing all chapters.",
+    "noStructure": "No chapter structure available for this book.",
+    "noMatches": "No chapters match “{{query}}”."
+  },
+  "chapterAccordion": {
+    "expand": "Expand {{chapterName}}",
+    "collapse": "Collapse {{chapterName}}"
+  },
+  "chapterReadIndicator": {
+    "read": "{{chapterName}}: Read chapter",
+    "current": "{{chapterName}}: Current chapter",
+    "unread": "{{chapterName}}: Unread chapter"
+  },
+  "digestContent": {
+    "generating": "Generating summary...",
+    "keyPoints": "Key Points:",
+    "generatedOn": "Generated on {{date}}"
+  },
+  "batchDigestToolbar": {
+    "actionsLabel": "Summary generation actions",
+    "generateMissing": "Generate missing summaries",
+    "moreActions": "More summary actions",
+    "regenerateAll": "Regenerate all summaries",
+    "updating": "Updating summaries...",
+    "updatingProgress": "Updating summaries ({{completed}}/{{total}})",
+    "cancelUpdate": "Cancel summary update",
+    "regenerateConfirm": {
+      "confirm": "Regenerate all",
+      "message": "This will replace {{existing}} and generate {{missing}}.",
+      "existingSummaries_one": "{{count}} existing summary",
+      "existingSummaries_other": "{{count}} existing summaries",
+      "missingSummaries_one": "{{count}} missing summary",
+      "missingSummaries_other": "{{count}} missing summaries",
+      "warning": "The current summaries, key points, and questions will be replaced. Any saved answers to those questions will be deleted."
+    },
+    "snackbar": {
+      "completed": "All chapter summaries are up to date.",
+      "completedWithErrors": "Updated {{completed}}/{{total}} summaries. Some chapters failed.",
+      "failed": "Summary update failed.",
+      "cancelled": "Summary update cancelled. Completed changes were kept.",
+      "startFailed": "Failed to start summary update."
+    }
+  },
+  "chapterDetail": {
+    "sectionTitleWithCount": "{{title}} ({{total}})",
+    "related": "Related",
+    "tabs": {
+      "questions": "Questions"
+    },
+    "gist": {
+      "heading": "Gist",
+      "placeholder": "What was this chapter about?",
+      "deleted": "Gist deleted.",
+      "notSaved": "Not saved — try again.",
+      "errors": {
+        "delete": "Failed to delete gist. Please try again.",
+        "save": "Failed to save gist. Please try again."
+      }
+    },
+    "summary": {
+      "title": "Chapter summary",
+      "empty": "No chapter summary available"
+    },
+    "toolbar": {
+      "copyLink": "Copy link to chapter",
+      "generateSummary": "Generate summary",
+      "regenerateSummary": "Regenerate summary and questions",
+      "regenerateConfirm": {
+        "confirm": "Regenerate",
+        "message": "Regenerating this chapter replaces its summary, key points, and questions. Any saved answers to the current questions will be deleted."
+      },
+      "generateSummaryFailed": "Failed to generate summary. Please try again."
+    },
+    "review": {
+      "generateQuestions": "Generate questions",
+      "noQuestions": "No questions generated for this chapter.",
+      "questionsTitle": "Questions to think about while reading",
+      "answerPlaceholder": "Write your answer...",
+      "quizMe": "Quiz me",
+      "chatAboutChapter": "Chat about the chapter",
+      "errors": {
+        "generateQuestions": "Failed to generate questions. Please try again.",
+        "saveAnswer": "Failed to save answer. Please try again."
+      }
+    },
+    "highlights": {
+      "empty": "No highlights in this chapter yet."
+    },
+    "chat": {
+      "chatTitle": "Chat: {{chapterName}}",
+      "chatPlaceholder": "Ask about this chapter...",
+      "quizTitle": "Quiz: {{chapterName}}",
+      "quizPlaceholder": "Type your answer...",
+      "error": "Something went wrong. The AI service may be temporarily unavailable.",
+      "saveAsNote": "Save as note"
+    }
+  }
+}

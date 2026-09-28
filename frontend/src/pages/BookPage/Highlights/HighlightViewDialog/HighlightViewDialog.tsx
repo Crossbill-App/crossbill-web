@@ -14,6 +14,7 @@ import { useImmediateTagMutation } from '@/pages/BookPage/Highlights/HighlightVi
 import type { HighlightDialogController } from '@/pages/BookPage/Highlights/hooks/useHighlightDialog.ts';
 import { Box, Stack } from '@mui/material';
 import { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { HighlightContent } from '../../common/HighlightContent.tsx';
 import { HighlightStylePopover } from './components/HighlightStylePopover.tsx';
 import { HighlightTabs } from './components/HighlightTabs.tsx';
@@ -32,6 +33,7 @@ export const HighlightViewDialog = ({
   availableTags,
   bookmarksByHighlightId,
 }: HighlightViewDialogProps) => {
+  const { t } = useTranslation();
   const cache = useCacheEvents();
   const mutationErrorHandler = useMutationErrorHandler();
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
@@ -62,7 +64,7 @@ export const HighlightViewDialog = ({
         cache.bookChanged(bookId);
         controller.close();
       },
-      onError: mutationErrorHandler('delete highlight'),
+      onError: mutationErrorHandler(t('highlights.viewDialog.errors.deleteHighlight')),
     },
   });
 
@@ -91,7 +93,7 @@ export const HighlightViewDialog = ({
 
   const isLoading = deleteHighlightMutation.isPending;
 
-  const titleText = highlight.chapter ? `${highlight.chapter}` : 'Highlight';
+  const titleText = highlight.chapter ? `${highlight.chapter}` : t('common.entities.highlight');
   const title = <CommonDialogTitle>{titleText}</CommonDialogTitle>;
 
   // Shared content for both layouts
@@ -152,8 +154,8 @@ export const HighlightViewDialog = ({
         open={deleteConfirmOpen}
         onClose={() => setDeleteConfirmOpen(false)}
         onConfirm={handleConfirmDelete}
-        message="Delete this highlight?"
-        confirmText="Delete"
+        message={t('highlights.viewDialog.deleteConfirm.message')}
+        confirmText={t('common.actions.delete')}
         confirmColor="error"
         isLoading={isLoading}
       />
