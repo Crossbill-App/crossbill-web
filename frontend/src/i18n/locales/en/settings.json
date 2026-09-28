@@ -1,1 +1,54 @@
-{}
+{
+  "emailForm": {
+    "title": "Profile",
+    "updated": "Email updated.",
+    "updateFailed": "Failed to update email",
+    "emailEmpty": "Email cannot be empty",
+    "save": "Save email"
+  },
+  "passwordForm": {
+    "title": "Change password",
+    "description": "Update your password to keep your account secure",
+    "updated": "Password updated. Signing you out.",
+    "updateFailed": "Failed to update password. Check your current password.",
+    "currentPassword": {
+      "label": "Current password",
+      "required": "Current password is required"
+    },
+    "newPassword": {
+      "label": "New password",
+      "required": "New password is required",
+      "minLength": "New password must be at least 8 characters",
+      "helper": "Minimum 8 characters"
+    },
+    "confirmPassword": {
+      "label": "Confirm new password",
+      "required": "Please confirm your new password"
+    },
+    "save": "Save password"
+  },
+  "embeddingBackfill": {
+    "title": "Semantic search",
+    "description": "Index your library for semantic search. Only content that has not been embedded yet is processed.",
+    "start": "Index library",
+    "starting": "Starting...",
+    "progress": "Indexing ({{done}}/{{total}})",
+    "cancel": "Cancel indexing",
+    "completed": "Library indexed.",
+    "completedWithErrors": "Indexed {{completed}}/{{total}} items. Some failed.",
+    "failed": "Indexing failed.",
+    "cancelled": "Indexing cancelled.",
+    "alreadyIndexed": "Everything in your library is already indexed.",
+    "alreadyRunning": "Indexing is already in progress.",
+    "startFailed": "Failed to start indexing."
+  },
+  "about": {
+    "title": "About",
+    "version": "Version",
+    "unknownVersion": "unknown",
+    "documentation": "Documentation",
+    "documentationLink": "crossbill-app.github.io/crossbill-web",
+    "sourceCode": "Source code",
+    "sourceCodeLink": "github.com/Crossbill-App/crossbill-web"
+  }
+}

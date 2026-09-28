@@ -1,1 +1,16 @@
-{}
+{
+  "libraryPage": {
+    "searchPlaceholder": "Search books by title or author...",
+    "loadFailed": "Failed to load books. Please try again later.",
+    "noSearchMatches": "No books match your search."
+  },
+  "uploadEpubFab": {
+    "label": "Upload EPUB",
+    "added": "Added \"{{title}}\" to your library.",
+    "alreadyInLibrary": "This book is already in your library.",
+    "invalidEpub": "That file is not a valid EPUB.",
+    "notEpub": "Only EPUB files can be uploaded.",
+    "tooLarge": "That file is over the 50 MB limit.",
+    "errorAction": "upload the book"
+  }
+}

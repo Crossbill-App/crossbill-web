@@ -1,4 +1,5 @@
 import { useUpdateMe } from '@/api/generated/users/users';
+import { FormErrorAlert } from '@/components/FormErrorAlert.tsx';
 import { EmbeddingFeature } from '@/components/features/EmbeddingFeature.tsx';
 import { RHFTextField } from '@/components/inputs/RHFTextField.tsx';
 import { PageContainer } from '@/components/layout/Layouts.tsx';
@@ -6,8 +7,9 @@ import { PageTitle } from '@/components/typography/PageTitle.tsx';
 import { SectionTitle } from '@/components/typography/SectionTitle.tsx';
 import { useAuth } from '@/context/AuthContext';
 import { useSnackbar } from '@/context/SnackbarContext';
-import { Alert, Box, Button, Typography } from '@mui/material';
+import { Box, Button, Typography } from '@mui/material';
 import { useForm } from 'react-hook-form';
+import { useTranslation } from 'react-i18next';
 import { AboutSection } from './AboutSection.tsx';
 import { EmbeddingBackfillSection } from './EmbeddingBackfillSection.tsx';
 
@@ -16,6 +18,7 @@ interface EmailFormValues {
 }
 
 const EmailForm = () => {
+  const { t } = useTranslation();
   const { user, refreshUser } = useAuth();
   const { showSnackbar } = useSnackbar();
 
@@ -34,31 +37,27 @@ const EmailForm = () => {
     try {
       await updateMutation.mutateAsync({ data: { email: email.trim() } });
       await refreshUser();
-      showSnackbar('Email updated.', 'success');
+      showSnackbar(t('settings.emailForm.updated'), 'success');
     } catch {
-      setError('root', { message: 'Failed to update email' });
+      setError('root', { message: t('settings.emailForm.updateFailed') });
     }
   };
 
   return (
     <Box sx={{ mb: 6 }}>
-      <SectionTitle showDivider>Profile</SectionTitle>
+      <SectionTitle showDivider>{t('settings.emailForm.title')}</SectionTitle>
 
-      {errors.root && (
-        <Alert severity="error" sx={{ mb: 2 }}>
-          {errors.root.message}
-        </Alert>
-      )}
+      <FormErrorAlert message={errors.root?.message} />
 
       <Box component="form" onSubmit={handleSubmit(onSubmit)}>
         <RHFTextField
           name="email"
           control={control}
           rules={{
-            required: 'Email cannot be empty',
-            validate: (value) => value.trim().length > 0 || 'Email cannot be empty',
+            required: t('settings.emailForm.emailEmpty'),
+            validate: (value) => value.trim().length > 0 || t('settings.emailForm.emailEmpty'),
           }}
-          label="Email"
+          label={t('common.fields.email')}
           fullWidth
           margin="normal"
           slotProps={{ htmlInput: { maxLength: 100 } }}
@@ -69,7 +68,7 @@ const EmailForm = () => {
           disabled={updateMutation.isPending || !isDirty}
           sx={{ mt: 2 }}
         >
-          {updateMutation.isPending ? 'Saving...' : 'Save email'}
+          {updateMutation.isPending ? t('common.status.saving') : t('settings.emailForm.save')}
         </Button>
       </Box>
     </Box>
@@ -89,6 +88,7 @@ const EMPTY_PASSWORD_FORM: PasswordFormValues = {
 };
 
 const PasswordForm = () => {
+  const { t } = useTranslation();
   const { logout } = useAuth();
   const { showSnackbar } = useSnackbar();
 
@@ -112,7 +112,7 @@ const PasswordForm = () => {
           new_password: newPassword,
         },
       });
-      showSnackbar('Password updated. Signing you out.', 'success');
+      showSnackbar(t('settings.passwordForm.updated'), 'success');
       reset(EMPTY_PASSWORD_FORM);
       // The server revokes every session on a password change, this one
       // included. Sign out now rather than let the access token expire into a
@@ -120,30 +120,26 @@ const PasswordForm = () => {
       await logout();
     } catch {
       setError('root', {
-        message: 'Failed to update password. Check your current password.',
+        message: t('settings.passwordForm.updateFailed'),
       });
     }
   };
 
   return (
     <Box>
-      <SectionTitle showDivider>Change password</SectionTitle>
+      <SectionTitle showDivider>{t('settings.passwordForm.title')}</SectionTitle>
       <Typography variant="body2" sx={{ mb: 3, color: 'text.secondary' }}>
-        Update your password to keep your account secure
+        {t('settings.passwordForm.description')}
       </Typography>
 
-      {errors.root && (
-        <Alert severity="error" sx={{ mb: 2 }}>
-          {errors.root.message}
-        </Alert>
-      )}
+      <FormErrorAlert message={errors.root?.message} />
 
       <Box component="form" onSubmit={handleSubmit(onSubmit)}>
         <RHFTextField
           name="currentPassword"
           control={control}
-          rules={{ required: 'Current password is required' }}
-          label="Current password"
+          rules={{ required: t('settings.passwordForm.currentPassword.required') }}
+          label={t('settings.passwordForm.currentPassword.label')}
           type="password"
           fullWidth
           margin="normal"
@@ -153,24 +149,25 @@ const PasswordForm = () => {
           name="newPassword"
           control={control}
           rules={{
-            required: 'New password is required',
-            minLength: { value: 8, message: 'New password must be at least 8 characters' },
+            required: t('settings.passwordForm.newPassword.required'),
+            minLength: { value: 8, message: t('settings.passwordForm.newPassword.minLength') },
           }}
-          label="New password"
+          label={t('settings.passwordForm.newPassword.label')}
           type="password"
           fullWidth
           margin="normal"
           autoComplete="new-password"
-          helperText="Minimum 8 characters"
+          helperText={t('settings.passwordForm.newPassword.helper')}
         />
         <RHFTextField
           name="confirmPassword"
           control={control}
           rules={{
-            required: 'Please confirm your new password',
-            validate: (value, values) => value === values.newPassword || 'Passwords do not match',
+            required: t('settings.passwordForm.confirmPassword.required'),
+            validate: (value, values) =>
+              value === values.newPassword || t('common.validation.passwordsDoNotMatch'),
           }}
-          label="Confirm new password"
+          label={t('settings.passwordForm.confirmPassword.label')}
           type="password"
           fullWidth
           margin="normal"
@@ -182,7 +179,7 @@ const PasswordForm = () => {
           disabled={updateMutation.isPending}
           sx={{ mt: 2 }}
         >
-          {updateMutation.isPending ? 'Saving...' : 'Save password'}
+          {updateMutation.isPending ? t('common.status.saving') : t('settings.passwordForm.save')}
         </Button>
       </Box>
     </Box>
@@ -190,9 +187,11 @@ const PasswordForm = () => {
 };
 
 export const SettingsPage = () => {
+  const { t } = useTranslation();
+
   return (
     <PageContainer maxWidth="sm">
-      <PageTitle text="Settings" component="h1" />
+      <PageTitle text={t('common.nav.settings')} component="h1" />
 
       <EmailForm />
       <PasswordForm />

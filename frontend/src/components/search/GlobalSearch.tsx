@@ -22,8 +22,7 @@ import {
 } from '@mui/material';
 import { useNavigate } from '@tanstack/react-router';
 import { useCallback, useId, useMemo, useState } from 'react';
-
-const GLOBAL_SEARCH_PLACEHOLDER = 'Search...';
+import { useTranslation } from 'react-i18next';
 
 const appBarFieldSx: SxProps<Theme> = (theme) => ({
   '& .MuiOutlinedInput-root': {
@@ -61,6 +60,7 @@ const RESULTS_PER_TYPE = 10;
  * come back empty.
  */
 export const GlobalSearch = () => {
+  const { t } = useTranslation();
   const navigate = useNavigate();
   const theme = useTheme();
   const isCompact = useMediaQuery(theme.breakpoints.down('md'));
@@ -157,7 +157,7 @@ export const GlobalSearch = () => {
     return (
       <>
         <IconButton
-          aria-label="Search"
+          aria-label={t('common.actions.search')}
           onClick={() => setIsMobileOpen(true)}
           sx={{ color: 'primary.contrastText' }}
         >
@@ -175,12 +175,17 @@ export const GlobalSearch = () => {
               <ContentSearchField
                 value={query}
                 onChange={handleSearch}
-                placeholder={GLOBAL_SEARCH_PLACEHOLDER}
+                placeholder={t('common.placeholders.search')}
                 autoFocus
                 slotProps={{ htmlInput: comboboxHtmlInputProps }}
               />
             </Box>
-            <IconButton edge="end" color="inherit" onClick={closeMobile} aria-label="Close dialog">
+            <IconButton
+              edge="end"
+              color="inherit"
+              onClick={closeMobile}
+              aria-label={t('common.actions.closeDialog')}
+            >
               <CloseIcon />
             </IconButton>
           </Box>
@@ -238,7 +243,7 @@ export const GlobalSearch = () => {
         <ContentSearchField
           value={query}
           onChange={handleSearch}
-          placeholder={GLOBAL_SEARCH_PLACEHOLDER}
+          placeholder={t('common.placeholders.search')}
           sx={appBarFieldSx}
           slotProps={{ htmlInput: comboboxHtmlInputProps }}
         />
