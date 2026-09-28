@@ -1,0 +1,53 @@
+{
+  "appName": "Crossbill",
+  "actions": {
+    "add": "Add",
+    "back": "Back",
+    "cancel": "Cancel",
+    "close": "Close",
+    "collapse": "Collapse",
+    "confirm": "Confirm",
+    "delete": "Delete",
+    "done": "Done",
+    "edit": "Edit",
+    "expand": "Expand",
+    "more": "More",
+    "next": "Next",
+    "previous": "Previous",
+    "save": "Save",
+    "search": "Search",
+    "showLess": "Show less",
+    "showMore": "Show more"
+  },
+  "status": {
+    "deleting": "Deleting...",
+    "saved": "Saved",
+    "saving": "Saving..."
+  },
+  "entities": {
+    "bookmarks": "Bookmarks",
+    "chapters": "Chapters",
+    "flashcards": "Flashcards",
+    "highlight": "Highlight",
+    "highlights": "Highlights",
+    "note": "Note",
+    "notes": "Notes",
+    "reflection": "Reflection",
+    "sessions": "Sessions",
+    "tags": "Tags"
+  },
+  "fallbacks": {
+    "unknownAuthor": "Unknown author",
+    "unknownChapter": "Unknown chapter",
+    "untitled": "Untitled"
+  },
+  "fields": {
+    "email": "Email",
+    "password": "Password"
+  },
+  "validation": {
+    "emailRequired": "Email is required",
+    "passwordRequired": "Password is required",
+    "passwordsDoNotMatch": "Passwords do not match"
+  }
+}

@@ -3,6 +3,9 @@ import { API_BASE_URL } from '@/api/base-url';
 import { clearTokens } from '@/api/token-manager';
 import { afterAll, afterEach, beforeAll, beforeEach } from 'vitest';
 import { cleanup } from 'vitest-browser-react';
+// The one app module loaded from here: it only registers the bundled copy with
+// i18next, holds nothing a test would `vi.mock`, and every render needs it.
+import '@/i18n';
 // No app module may load from here: one loaded before a test file is out of
 // reach of that file's `vi.mock`.
 import {

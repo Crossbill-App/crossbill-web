@@ -13,6 +13,7 @@ import {
   useTheme,
 } from '@mui/material';
 import { useEffect, type ReactNode } from 'react';
+import { useTranslation } from 'react-i18next';
 
 interface CommonDialogProps {
   open: boolean;
@@ -39,6 +40,7 @@ interface NavArrowProps {
 }
 
 const NavArrow = ({ direction, navigation, disabled }: NavArrowProps) => {
+  const { t } = useTranslation();
   const isPrevious = direction === 'previous';
   const enabled = isPrevious ? navigation.hasPrevious : navigation.hasNext;
 
@@ -46,7 +48,7 @@ const NavArrow = ({ direction, navigation, disabled }: NavArrowProps) => {
     <IconButton
       onClick={isPrevious ? navigation.onPrevious : navigation.onNext}
       disabled={!enabled || disabled}
-      aria-label={isPrevious ? 'Previous' : 'Next'}
+      aria-label={isPrevious ? t('common.actions.previous') : t('common.actions.next')}
     >
       {isPrevious ? <ArrowBackIcon /> : <ArrowForwardIcon />}
     </IconButton>

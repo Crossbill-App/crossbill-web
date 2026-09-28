@@ -1,5 +1,6 @@
 import { Button, Dialog, DialogActions, DialogContent, DialogContentText } from '@mui/material';
 import { useId, type ReactNode } from 'react';
+import { useTranslation } from 'react-i18next';
 
 interface ConfirmationDialogProps {
   open: boolean;
@@ -17,11 +18,12 @@ export const ConfirmationDialog = ({
   onClose,
   onConfirm,
   message,
-  confirmText = 'Confirm',
-  cancelText = 'Cancel',
+  confirmText,
+  cancelText,
   confirmColor = 'primary',
   isLoading = false,
 }: ConfirmationDialogProps) => {
+  const { t } = useTranslation();
   const messageId = useId();
 
   return (
@@ -38,7 +40,7 @@ export const ConfirmationDialog = ({
       </DialogContent>
       <DialogActions sx={{ px: 3, pb: 2 }}>
         <Button onClick={onClose} disabled={isLoading}>
-          {cancelText}
+          {cancelText ?? t('common.actions.cancel')}
         </Button>
         <Button
           onClick={onConfirm}
@@ -47,7 +49,7 @@ export const ConfirmationDialog = ({
           disabled={isLoading}
           autoFocus
         >
-          {confirmText}
+          {confirmText ?? t('common.actions.confirm')}
         </Button>
       </DialogActions>
     </Dialog>
