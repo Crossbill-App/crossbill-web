@@ -98,10 +98,10 @@ export const HighlightViewDialog = ({
 
   // Shared content for both layouts
   const renderContent = () => (
-    <Box key={highlight.id} sx={{ mt: 4 }}>
+    <Box key={highlight.id}>
       <Stack
         sx={{
-          gap: 2,
+          gap: 1,
         }}
       >
         <Box>
