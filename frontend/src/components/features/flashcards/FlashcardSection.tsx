@@ -8,9 +8,8 @@ import {
 } from '@/pages/BookPage/Flashcards/CreateFlashcardForm.tsx';
 import { FlashcardListCard } from '@/pages/BookPage/Flashcards/FlashcardListCard.tsx';
 import { FlashcardSuggestions } from '@/pages/BookPage/Flashcards/FlashcardSuggestions.tsx';
-import { Box, Typography } from '@mui/material';
+import { Box } from '@mui/material';
 import { useState } from 'react';
-import { useTranslation } from 'react-i18next';
 
 /**
  * Source-agnostic flashcard section for entity view modals (highlights, notes).
@@ -79,7 +78,6 @@ export const FlashcardSection = ({
   onRemoveSuggestion,
   noteId,
 }: FlashcardSectionProps) => {
-  const { t } = useTranslation();
   const [editingFlashcardId, setEditingFlashcardId] = useState<number | null>(null);
 
   const editingFlashcard =
@@ -106,16 +104,6 @@ export const FlashcardSection = ({
 
   return (
     <Box>
-      <Typography
-        variant="subtitle2"
-        gutterBottom
-        sx={{
-          color: 'text.secondary',
-        }}
-      >
-        {t('common.entities.flashcards')}
-      </Typography>
-
       <FlashcardsList
         flashcardsWithContext={flashcards}
         bookId={bookId}

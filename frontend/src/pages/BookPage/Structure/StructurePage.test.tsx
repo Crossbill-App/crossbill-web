@@ -319,10 +319,10 @@ test('a digest answer says it saved when the field is left', async () => {
   expect(dialog.getByText('Saved').elements()).toHaveLength(0);
 
   // The marker's space is reserved, so appearing must not push what is under
-  // it. Measured as the gap between the field and the next control rather than
-  // an absolute position, which the dialog's own scrolling would move.
+  // it. Measured as the gap between the field and the bottom of its tab panel
+  // rather than an absolute position, which the dialog's own scrolling would move.
   const gapBelowField = () =>
-    dialog.getByRole('button', { name: 'Quiz me' }).element().getBoundingClientRect().top -
+    dialog.getByRole('tabpanel').element().getBoundingClientRect().bottom -
     answer.element().getBoundingClientRect().bottom;
   const restingGap = gapBelowField();
 

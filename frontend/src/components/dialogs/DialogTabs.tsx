@@ -42,7 +42,7 @@ export const DialogTabs = ({ tabs, activeTab, onTabChange }: DialogTabsProps) =>
   const safeActiveTab = Math.min(currentTab, tabs.length - 1);
 
   return (
-    <Box>
+    <Box sx={{ mb: 4 }}>
       <Tabs
         value={safeActiveTab}
         onChange={(_, newValue: number) => setTab(newValue)}

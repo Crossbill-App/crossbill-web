@@ -45,7 +45,6 @@
     }
   },
   "chapterDetail": {
-    "sectionTitleWithCount": "{{title}} ({{total}})",
     "related": "Related",
     "tabs": {
       "questions": "Questions"
@@ -66,6 +65,8 @@
     },
     "toolbar": {
       "copyLink": "Copy link to chapter",
+      "quizMe": "Quiz me",
+      "chatAboutChapter": "Chat about the chapter",
       "generateSummary": "Generate summary",
       "regenerateSummary": "Regenerate summary and questions",
       "regenerateConfirm": {
@@ -75,14 +76,9 @@
       "generateSummaryFailed": "Failed to generate summary. Please try again."
     },
     "review": {
-      "generateQuestions": "Generate questions",
       "noQuestions": "No questions generated for this chapter.",
-      "questionsTitle": "Questions to think about while reading",
       "answerPlaceholder": "Write your answer...",
-      "quizMe": "Quiz me",
-      "chatAboutChapter": "Chat about the chapter",
       "errors": {
-        "generateQuestions": "Failed to generate questions. Please try again.",
         "saveAnswer": "Failed to save answer. Please try again."
       }
     },

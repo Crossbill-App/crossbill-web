@@ -7,7 +7,7 @@ import { DialogToolbar } from '@/components/dialogs/DialogToolbar.tsx';
 import { AIFeature } from '@/components/features/AIFeature.tsx';
 import { useMutationErrorHandler } from '@/hooks/useMutationErrorHandler.ts';
 import { useCacheEvents } from '@/lib/cacheEvents.ts';
-import { AIIcon, LinkIcon, RegenerateIcon } from '@/theme/Icons.tsx';
+import { AIIcon, ChatIcon, LinkIcon, QuizIcon, RegenerateIcon } from '@/theme/Icons.tsx';
 import { copyUrlWithSearchParam } from '@/utils/clipboard.ts';
 import { CircularProgress } from '@mui/material';
 import { useState } from 'react';
@@ -17,9 +17,17 @@ interface ChapterToolbarProps {
   chapterId: number;
   bookId: number;
   hasSummary: boolean;
+  onStartQuiz: () => void;
+  onStartChat: () => void;
 }
 
-export const ChapterToolbar = ({ chapterId, bookId, hasSummary }: ChapterToolbarProps) => {
+export const ChapterToolbar = ({
+  chapterId,
+  bookId,
+  hasSummary,
+  onStartQuiz,
+  onStartChat,
+}: ChapterToolbarProps) => {
   const { t } = useTranslation();
   const cache = useCacheEvents();
   const mutationErrorHandler = useMutationErrorHandler();
@@ -62,7 +70,7 @@ export const ChapterToolbar = ({ chapterId, bookId, hasSummary }: ChapterToolbar
     );
   };
 
-  // The toolbar itself is not an AI feature — only the generate button is, and
+  // The toolbar itself is not an AI feature — only the AI buttons are, and
   // gating the whole row would take copy-link away with it.
   return (
     <>
@@ -74,6 +82,18 @@ export const ChapterToolbar = ({ chapterId, bookId, hasSummary }: ChapterToolbar
           icon={<LinkIcon />}
         />
         <AIFeature>
+          <AIActionButton
+            text={t('structure.chapterDetail.toolbar.quizMe')}
+            onClick={onStartQuiz}
+            iconOnly
+            icon={<QuizIcon />}
+          />
+          <AIActionButton
+            text={t('structure.chapterDetail.toolbar.chatAboutChapter')}
+            onClick={onStartChat}
+            iconOnly
+            icon={<ChatIcon />}
+          />
           {isPending ? (
             <CircularProgress size={24} sx={{ m: '4px' }} />
           ) : (

@@ -45,7 +45,7 @@ export const DigestContent = ({ content, isGenerating }: DigestContentProps) => 
   }
 
   return (
-    <Box sx={(theme) => ({ mb: theme.spacing(2) })}>
+    <Box>
       <Typography variant="body1" sx={(theme) => ({ mb: theme.spacing(2.5) })}>
         {content.summary}
       </Typography>
@@ -60,20 +60,6 @@ export const DigestContent = ({ content, isGenerating }: DigestContentProps) => 
           </li>
         ))}
       </MarkdownList>
-
-      <Typography
-        variant="caption"
-        sx={[
-          {
-            color: 'text.secondary',
-          },
-          (theme) => ({ display: 'block', mt: theme.spacing(3) }),
-        ]}
-      >
-        {t('structure.digestContent.generatedOn', {
-          date: new Date(content.generated_at).toLocaleDateString(),
-        })}
-      </Typography>
     </Box>
   );
 };

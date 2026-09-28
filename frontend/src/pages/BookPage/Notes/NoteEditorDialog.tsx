@@ -62,19 +62,26 @@ export const NoteEditorDialog = ({
         </Box>
       }
     >
-      <NoteEditorForm
-        ref={formRef}
-        open={open}
-        initialChapterIds={initialChapterIds}
-        initialHighlightIds={initialHighlightIds}
-        initialBody={initialBody}
-        initialKind={initialKind}
-        initialTitle={initialTitle}
-        guidance={guidance}
-        onCreated={onCreated}
-        onSaved={onClose}
-        onStatusChange={setStatus}
-      />
+      <Box
+        sx={{
+          mt: 2,
+          mb: 2,
+        }}
+      >
+        <NoteEditorForm
+          ref={formRef}
+          open={open}
+          initialChapterIds={initialChapterIds}
+          initialHighlightIds={initialHighlightIds}
+          initialBody={initialBody}
+          initialKind={initialKind}
+          initialTitle={initialTitle}
+          guidance={guidance}
+          onCreated={onCreated}
+          onSaved={onClose}
+          onStatusChange={setStatus}
+        />
+      </Box>
     </CommonDialog>
   );
 };

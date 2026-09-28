@@ -1,24 +1,17 @@
-import {
-  getGetBookDigestQueryKey,
-  useGenerateChapterDigest,
-  useUpdateDigestAnswers,
-} from '@/api/generated/digest/digest';
+import { getGetBookDigestQueryKey, useUpdateDigestAnswers } from '@/api/generated/digest/digest';
 import type {
   ChapterDigestResponse,
   CollectionResponseChapterDigestResponse,
 } from '@/api/generated/model';
-import { AIActionButton } from '@/components/buttons/AIActionButton.tsx';
 import { AIFeature } from '@/components/features/AIFeature.tsx';
 import { SavedIndicator } from '@/components/SavedIndicator.tsx';
 import { useCommitOnBlur } from '@/hooks/useCommitOnBlur.ts';
 import { useMutationErrorHandler } from '@/hooks/useMutationErrorHandler.ts';
 import { useSaveStatus } from '@/hooks/useSaveStatus.ts';
-import { useCacheEvents } from '@/lib/cacheEvents.ts';
-import { Box, CircularProgress, Stack, TextField, Typography } from '@mui/material';
+import { Box, Stack, TextField, Typography } from '@mui/material';
 import { useQueryClient } from '@tanstack/react-query';
 import { useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
-import { CollapsibleSection } from './CollapsibleSection.tsx';
 
 interface SaveCallbacks {
   onSuccess: () => void;
@@ -49,7 +42,7 @@ const DigestAnswerField = ({ question, savedAnswer, onSave }: DigestAnswerFieldP
   const field = useCommitOnBlur({ saved: savedAnswer, onCommit: save, submitOnEnter: false });
 
   return (
-    <Box sx={{ py: 1 }}>
+    <Box sx={{ pt: 1 }}>
       <Typography variant="body2" sx={{ fontWeight: 600, mb: 1.5 }}>
         {question}
       </Typography>
@@ -70,35 +63,21 @@ interface ChapterReviewSectionProps {
   chapterId: number;
   bookId: number;
   digestSummary?: ChapterDigestResponse;
-  onStartQuiz: () => void;
-  onStartChat: () => void;
 }
 
 export const ChapterReviewSection = ({
   chapterId,
   bookId,
   digestSummary,
-  onStartQuiz,
-  onStartChat,
 }: ChapterReviewSectionProps) => {
   const { t } = useTranslation();
   const queryClient = useQueryClient();
-  const cache = useCacheEvents();
   const mutationErrorHandler = useMutationErrorHandler();
 
   const answers = useMemo<Record<number, string>>(() => {
     if (!digestSummary) return {};
     return Object.fromEntries(digestSummary.questions.map((q, index) => [index, q.user_answer]));
   }, [digestSummary]);
-
-  const { mutate: generate, isPending } = useGenerateChapterDigest({
-    mutation: {
-      onError: mutationErrorHandler(t('structure.chapterDetail.review.errors.generateQuestions')),
-      onSuccess: () => {
-        cache.digestChanged(bookId);
-      },
-    },
-  });
 
   const queryKey = getGetBookDigestQueryKey(bookId);
 
@@ -121,10 +100,6 @@ export const ChapterReviewSection = ({
     },
   });
 
-  const handleGenerate = () => {
-    generate({ chapterId });
-  };
-
   // The endpoint patches by question index, so one field's save leaves the
   // other answers as they are.
   const handleAnswerSave = (index: number, answer: string, callbacks: SaveCallbacks) => {
@@ -137,22 +112,7 @@ export const ChapterReviewSection = ({
   return (
     <>
       <AIFeature>
-        {isPending && (
-          <Box sx={{ display: 'flex', justifyContent: 'center', py: 3 }}>
-            <CircularProgress size={24} />
-          </Box>
-        )}
-
-        {!isPending && !digestSummary && (
-          <Box sx={{ py: 1 }}>
-            <AIActionButton
-              text={t('structure.chapterDetail.review.generateQuestions')}
-              onClick={handleGenerate}
-            />
-          </Box>
-        )}
-
-        {!isPending && digestSummary && digestSummary.questions.length === 0 && (
+        {(!digestSummary || digestSummary.questions.length === 0) && (
           <Typography
             variant="body2"
             sx={{
@@ -163,37 +123,20 @@ export const ChapterReviewSection = ({
           </Typography>
         )}
 
-        {!isPending && digestSummary && digestSummary.questions.length > 0 && (
-          <CollapsibleSection
-            title={t('structure.chapterDetail.review.questionsTitle')}
-            defaultExpanded
-          >
-            <Stack
-              sx={{
-                gap: 1,
-              }}
-            >
-              {digestSummary.questions.map((q, index) => (
-                <DigestAnswerField
-                  // Keyed by chapter as well, so navigating chapters starts the
-                  // fields fresh rather than carrying one chapter's text over.
-                  key={`${chapterId}-${index}`}
-                  question={q.question}
-                  savedAnswer={answers[index] ?? ''}
-                  onSave={(answer, callbacks) => handleAnswerSave(index, answer, callbacks)}
-                />
-              ))}
-            </Stack>
-          </CollapsibleSection>
+        {digestSummary && digestSummary.questions.length > 0 && (
+          <Stack>
+            {digestSummary.questions.map((q, index) => (
+              <DigestAnswerField
+                // Keyed by chapter as well, so navigating chapters starts the
+                // fields fresh rather than carrying one chapter's text over.
+                key={`${chapterId}-${index}`}
+                question={q.question}
+                savedAnswer={answers[index] ?? ''}
+                onSave={(answer, callbacks) => handleAnswerSave(index, answer, callbacks)}
+              />
+            ))}
+          </Stack>
         )}
-
-        <Box sx={{ py: 1, display: 'flex', flexWrap: 'wrap', gap: 1 }}>
-          <AIActionButton text={t('structure.chapterDetail.review.quizMe')} onClick={onStartQuiz} />
-          <AIActionButton
-            text={t('structure.chapterDetail.review.chatAboutChapter')}
-            onClick={onStartChat}
-          />
-        </Box>
       </AIFeature>
     </>
   );

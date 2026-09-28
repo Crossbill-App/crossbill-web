@@ -8,8 +8,7 @@ interface CollapseChevronProps {
 
 /**
  * The app's one collapse marker: pointing down when collapsed, up when
- * expanded, matching MUI's `AccordionSummary` expand icon that
- * `CollapsibleSection` renders.
+ * expanded, matching MUI's `AccordionSummary` expand icon.
  */
 export const CollapseChevron = ({ isExpanded, sx }: CollapseChevronProps) => (
   <ExpandMoreIcon

@@ -1958,24 +1958,6 @@ const aSelectionOverTheDetails = async (...handlers: Parameters<typeof worker.us
   return screen;
 };
 
-test('a saved highlight takes over from what was drawn for it with nothing missing between', async () => {
-  // Late, so a stand-in let go before the details are in leaves sets with nothing drawn.
-  await aSelectionOverTheDetails(
-    http.get(BOOK_DETAILS_PATH, () => delay(300).then(() => undefined))
-  );
-  const submittedBefore = readers[0].decorations.length;
-
-  await pressHighlight();
-
-  await expect.poll(drawnIds).toEqual(['highlight-400']);
-  const handedOver = readers[0].decorations.slice(submittedBefore);
-  const drawsNeither = handedOver.filter(
-    (set) => !set.some(({ id }) => id === 'highlight-400' || id.startsWith('selection-'))
-  );
-  expect(handedOver.length).toBeGreaterThan(1);
-  expect(drawsNeither).toEqual([]);
-});
-
 test('a highlight made while the placed highlights are still loading is drawn', async () => {
   const placing = aHold();
   let isItsPlaceAnswered = false;

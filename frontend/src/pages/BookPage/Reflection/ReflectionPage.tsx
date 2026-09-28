@@ -161,7 +161,7 @@ export const ReflectionPage = () => {
       {!isLoading && (
         <Stack
           sx={{
-            gap: 4,
+            gap: 6,
           }}
         >
           {REFLECTION_QUESTIONS.map((question) => {
@@ -170,12 +170,14 @@ export const ReflectionPage = () => {
 
             return (
               <Box key={question.noteIdField}>
-                <SectionTitle>{questionTitle(question)}</SectionTitle>
+                <SectionTitle gutterBottom={false} sx={{ mb: 0 }}>
+                  {questionTitle(question)}
+                </SectionTitle>
                 <Typography
                   variant="body2"
                   sx={{
                     color: 'text.secondary',
-                    mb: 1.5,
+                    mb: 2,
                   }}
                 >
                   {t(`reflection.questions.${question.key}.guide`)}

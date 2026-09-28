@@ -21,9 +21,6 @@
       "guide": "If the book is true, what follows? What will you do or think differently? How does it connect with other books you've read?"
     }
   },
-  "reflectionNotesSection": {
-    "empty": "No notes linked yet."
-  },
   "readingStageChip": {
     "setStage": "Set stage",
     "clearStage": "Clear stage"

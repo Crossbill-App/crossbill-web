@@ -101,17 +101,9 @@ export const HighlightViewDialog = ({
     <Box key={highlight.id}>
       <Stack
         sx={{
-          gap: 2,
+          gap: 1,
         }}
       >
-        <Toolbar
-          highlightId={highlight.id}
-          bookId={bookId}
-          highlightText={highlight.text}
-          bookmark={currentBookmark}
-          onDelete={handleDelete}
-          disabled={isLoading}
-        />
         <Box>
           <TagInput
             value={currentTags}
@@ -146,6 +138,16 @@ export const HighlightViewDialog = ({
           highlight={highlight}
           onLabelClick={handleLabelClick}
           labelRef={setLabelAnchorEl}
+          actions={
+            <Toolbar
+              highlightId={highlight.id}
+              bookId={bookId}
+              highlightText={highlight.text}
+              bookmark={currentBookmark}
+              onDelete={handleDelete}
+              disabled={isLoading}
+            />
+          }
         />
       </FadeInOut>
       {renderContent()}

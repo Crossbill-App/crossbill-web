@@ -1,5 +1,4 @@
 import type { Note, NoteWithLinks } from '@/api/generated/model';
-import { EmptyStateText } from '@/components/EmptyStateText.tsx';
 import { DialogToolbar } from '@/components/dialogs/DialogToolbar.tsx';
 import { NoteDialogs } from '@/pages/BookPage/Notes/NoteDialogs';
 import { LinkedNoteList } from '@/pages/BookPage/Notes/components/LinkedNoteList.tsx';
@@ -78,9 +77,6 @@ export const ReflectionNotesSection = ({
           {t('notes.shared.addNote')}
         </Button>
       </DialogToolbar>
-      {linkedNotes.length === 0 && (
-        <EmptyStateText>{t('reflection.reflectionNotesSection.empty')}</EmptyStateText>
-      )}
       <LinkedNoteList
         notes={linkedNotes}
         onOpen={noteDialogs.openView}

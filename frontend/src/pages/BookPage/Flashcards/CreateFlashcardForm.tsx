@@ -55,7 +55,6 @@ export const CreateFlashcardForm = ({
       sx={{
         display: 'flex',
         flexDirection: 'column',
-        gap: 1,
         alignItems: 'flex-start',
       }}
     >
@@ -73,6 +72,7 @@ export const CreateFlashcardForm = ({
         fullWidth
         size="small"
         multiline
+        sx={{ mt: 1 }}
         minRows={2}
         maxRows={4}
         placeholder={t('flashcards.form.answerPlaceholder')}
@@ -85,7 +85,7 @@ export const CreateFlashcardForm = ({
             size="small"
             onClick={handleCancel}
             disabled={isDisabled}
-            sx={{ flexShrink: 0, height: 'fit-content', mt: 0.5 }}
+            sx={{ flexShrink: 0, height: 'fit-content' }}
           >
             {t('common.actions.cancel')}
           </Button>
@@ -95,7 +95,7 @@ export const CreateFlashcardForm = ({
           variant="text"
           size="small"
           disabled={!canSave}
-          sx={{ flexShrink: 0, height: 'fit-content', mt: 0.5 }}
+          sx={{ flexShrink: 0, height: 'fit-content' }}
         >
           {isProcessing
             ? t('common.status.saving')
