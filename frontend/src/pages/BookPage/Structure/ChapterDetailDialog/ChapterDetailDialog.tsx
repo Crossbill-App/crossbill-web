@@ -101,8 +101,6 @@ export const ChapterDetailDialog = ({
           chapterId={chapter.id}
           bookId={bookId}
           digestSummary={digestSummary}
-          onStartQuiz={() => setQuizOpen(true)}
-          onStartChat={() => setChatOpen(true)}
         />
       ),
     },
@@ -153,7 +151,13 @@ export const ChapterDetailDialog = ({
 
       <DigestSummarySection digestSummary={digestSummary} defaultExpanded={true} />
 
-      <ChapterToolbar chapterId={chapter.id} bookId={bookId} hasSummary={!!digestSummary} />
+      <ChapterToolbar
+        chapterId={chapter.id}
+        bookId={bookId}
+        hasSummary={!!digestSummary}
+        onStartQuiz={() => setQuizOpen(true)}
+        onStartChat={() => setChatOpen(true)}
+      />
 
       <DialogTabs tabs={tabs} activeTab={activeTab} onTabChange={setActiveTab} />
 

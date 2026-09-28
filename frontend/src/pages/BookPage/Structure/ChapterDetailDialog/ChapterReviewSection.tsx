@@ -70,16 +70,12 @@ interface ChapterReviewSectionProps {
   chapterId: number;
   bookId: number;
   digestSummary?: ChapterDigestResponse;
-  onStartQuiz: () => void;
-  onStartChat: () => void;
 }
 
 export const ChapterReviewSection = ({
   chapterId,
   bookId,
   digestSummary,
-  onStartQuiz,
-  onStartChat,
 }: ChapterReviewSectionProps) => {
   const { t } = useTranslation();
   const queryClient = useQueryClient();
@@ -186,14 +182,6 @@ export const ChapterReviewSection = ({
             </Stack>
           </CollapsibleSection>
         )}
-
-        <Box sx={{ py: 1, display: 'flex', flexWrap: 'wrap', gap: 1 }}>
-          <AIActionButton text={t('structure.chapterDetail.review.quizMe')} onClick={onStartQuiz} />
-          <AIActionButton
-            text={t('structure.chapterDetail.review.chatAboutChapter')}
-            onClick={onStartChat}
-          />
-        </Box>
       </AIFeature>
     </>
   );
