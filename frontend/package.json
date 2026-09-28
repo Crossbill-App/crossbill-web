@@ -41,7 +41,7 @@
     "react-activity-calendar": "^3.2.1",
     "react-blurhash": "^0.3.0",
     "react-dom": "^19.2.8",
-    "react-hook-form": "^7.83.0",
+    "react-hook-form": "^7.88.0",
     "react-i18next": "^17.0.15",
     "react-markdown": "^10.1.0",
     "rehype-raw": "^7.0.0",
