@@ -1,39 +1,40 @@
 import type { EbookAppearance } from '@/components/reader/engine/EbookReader.ts';
+import { i18n } from '@/i18n';
 import type { Theme } from '@mui/material/styles';
 
 /** The page colours the reader can choose between. */
 export const READER_PAGE_COLORS = ['light', 'dark'] as const;
 export type ReaderPageColor = (typeof READER_PAGE_COLORS)[number];
-export const READER_PAGE_COLOR_LABELS: Record<ReaderPageColor, string> = {
-  light: 'Light',
-  dark: 'Dark',
-};
+export const readerPageColorLabels = (): Record<ReaderPageColor, string> => ({
+  light: i18n.t('reader.preferences.pageColor.light'),
+  dark: i18n.t('reader.preferences.pageColor.dark'),
+});
 
 /** How far apart the text is set, `default` leaving the book's own spacing alone. */
 export const READER_SPACINGS = ['tight', 'default', 'loose'] as const;
 type ReaderSpacing = (typeof READER_SPACINGS)[number];
-export const READER_SPACING_LABELS: Record<ReaderSpacing, string> = {
-  tight: 'Tight',
-  default: 'Default',
-  loose: 'Loose',
-};
+export const readerSpacingLabels = (): Record<ReaderSpacing, string> => ({
+  tight: i18n.t('reader.preferences.spacing.tight'),
+  default: i18n.t('reader.preferences.default'),
+  loose: i18n.t('reader.preferences.spacing.loose'),
+});
 
 /** How lines are set, `default` leaving the book's own stylesheet in charge. */
 export const READER_ALIGNMENTS = ['default', 'left', 'justified'] as const;
 type ReaderAlignment = (typeof READER_ALIGNMENTS)[number];
-export const READER_ALIGNMENT_LABELS: Record<ReaderAlignment, string> = {
-  default: 'Default',
-  left: 'Left',
-  justified: 'Justified',
-};
+export const readerAlignmentLabels = (): Record<ReaderAlignment, string> => ({
+  default: i18n.t('reader.preferences.default'),
+  left: i18n.t('reader.preferences.alignment.left'),
+  justified: i18n.t('reader.preferences.alignment.justified'),
+});
 
 /** How many columns the page is set in. */
 export const READER_COLUMNS = ['single', 'auto'] as const;
 type ReaderColumns = (typeof READER_COLUMNS)[number];
-export const READER_COLUMN_LABELS: Record<ReaderColumns, string> = {
-  single: '1 column',
-  auto: 'Auto',
-};
+export const readerColumnLabels = (): Record<ReaderColumns, string> => ({
+  single: i18n.t('reader.preferences.columns.single'),
+  auto: i18n.t('reader.preferences.columns.auto'),
+});
 
 export interface ReaderPreferences {
   pageColor: ReaderPageColor;

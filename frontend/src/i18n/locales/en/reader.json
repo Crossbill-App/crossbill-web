@@ -1,1 +1,85 @@
-{}
+{
+  "shared": {
+    "appearance": "Appearance",
+    "contents": "Contents"
+  },
+  "shell": {
+    "oneChapterOnly": "A highlight has to stay inside one chapter.",
+    "sessionFailed": "The reader could not start a session for this book. Please try again later.",
+    "noEpubFile": "This book has no EPUB file, so there is nothing to read here yet. Upload one to read it in the browser.",
+    "openFailed": "The book could not be opened. Please try again later.",
+    "openTimedOut": "This book could not be opened in the reader."
+  },
+  "message": {
+    "backToBook": "Back to book"
+  },
+  "toolbar": {
+    "closeReader": "Close reader"
+  },
+  "readingSurface": {
+    "previousPage": "Previous page",
+    "nextPage": "Next page",
+    "reconnecting": "Reconnecting…",
+    "loading": "Loading the book"
+  },
+  "footer": {
+    "pagesLeftInChapter": "Pages left in chapter",
+    "readOfBook": "Read of book"
+  },
+  "tocDrawer": {
+    "navigationLabel": "Table of contents",
+    "close": "Close contents",
+    "empty": "This book has no table of contents."
+  },
+  "selectionPopover": {
+    "toolbarLabel": "Selected text",
+    "highlight": "Highlight",
+    "extend": "Extend"
+  },
+  "extensionBar": {
+    "label": "Extending the highlight",
+    "hint": "Tap where the highlight ends"
+  },
+  "preferences": {
+    "default": "Default",
+    "fontSize": {
+      "heading": "Font size",
+      "smaller": "Smaller text",
+      "larger": "Larger text",
+      "inputLabel": "Font size in percent"
+    },
+    "alignment": {
+      "heading": "Text alignment",
+      "left": "Left",
+      "justified": "Justified"
+    },
+    "spacing": {
+      "heading": "Spacing",
+      "tight": "Tight",
+      "loose": "Loose"
+    },
+    "columns": {
+      "heading": "Columns",
+      "single": "1 column",
+      "auto": "Auto"
+    },
+    "pageColor": {
+      "heading": "Page colour",
+      "light": "Light",
+      "dark": "Dark"
+    }
+  },
+  "highlightCreation": {
+    "passageNotFound": "Couldn't find where this passage is in the book, so it wasn't highlighted. Try selecting a little more text.",
+    "fileUnreadable": "The book's file couldn't be read, so the highlight wasn't saved.",
+    "errorAction": "save the highlight"
+  },
+  "opening": {
+    "positionLost": "Couldn't restore your last position, so the book opened at the start.",
+    "missedJump": {
+      "highlightChapter": "Couldn't find this highlight's exact place, so the book opened at the start of its chapter.",
+      "highlightStart": "Couldn't find this highlight's place, so the book opened at the start.",
+      "chapterStart": "Couldn't find this chapter in the book, so it opened at the start."
+    }
+  }
+}

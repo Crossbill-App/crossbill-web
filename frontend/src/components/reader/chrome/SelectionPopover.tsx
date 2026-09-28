@@ -14,6 +14,7 @@ import {
   type SelectProps,
 } from '@mui/material';
 import { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 
 export interface SelectionPopoverProps {
   /** Where the selected words sit on screen, `null` when nothing is selected. */
@@ -77,6 +78,7 @@ const SelectionActions = ({
 }: SelectionActionsProps) => {
   // Held here because the dropdown is opened from a mousedown of our own; the
   // Select's own one focuses the dropdown before opening it.
+  const { t } = useTranslation();
   const [isChoosingColor, setIsChoosingColor] = useState(false);
   // Once the reader has tabbed to the dropdown, focus has already left the book's
   // frame: there is no selection left to protect, so the menu may take focus as usual.
@@ -85,14 +87,19 @@ const SelectionActions = ({
   return (
     // Never takes focus: away from the book's frame, the browser stops showing the selection.
     <Paper elevation={8} onMouseDown={keepFocus} sx={{ maxWidth: 'calc(100vw - 16px)', p: 0.5 }}>
-      <Stack role="toolbar" aria-label="Selected text" direction="row" spacing={0.5}>
+      <Stack
+        role="toolbar"
+        aria-label={t('reader.selectionPopover.toolbarLabel')}
+        direction="row"
+        spacing={0.5}
+      >
         <Select
           size="small"
           sx={{ maxWidth: COLOR_WIDTH_PX, minWidth: 0 }}
           value={selected.device_color}
           // MUI puts this on the display element, which is what carries the
           // combobox role; `slotProps.htmlInput` would label the hidden input.
-          inputProps={{ 'aria-label': 'Highlight colour' }}
+          inputProps={{ 'aria-label': t('common.labels.highlightColour') }}
           MenuProps={openedByPointer ? MENU_LEAVES_FOCUS_ALONE : undefined}
           open={isChoosingColor}
           // Only the keyboard arrives here: the mousedown below opens the menu itself.
@@ -120,13 +127,13 @@ const SelectionActions = ({
           ))}
         </Select>
         <Button size="small" onClick={onHighlight}>
-          Highlight
+          {t('reader.selectionPopover.highlight')}
         </Button>
         <Button size="small" onClick={onExtend}>
-          Extend
+          {t('reader.selectionPopover.extend')}
         </Button>
         <Button size="small" onClick={onCancel}>
-          Cancel
+          {t('common.actions.cancel')}
         </Button>
       </Stack>
     </Paper>

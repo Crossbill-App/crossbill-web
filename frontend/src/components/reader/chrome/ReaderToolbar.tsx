@@ -4,6 +4,7 @@ import type { readerPageColors } from '@/components/reader/preferences/readerPre
 import { ChapterListIcon, CloseIcon, PaletteIcon } from '@/theme/Icons.tsx';
 import { ICON_SIZE } from '@/theme/iconSizes.ts';
 import { alpha, Box, Toolbar, Typography } from '@mui/material';
+import { useTranslation } from 'react-i18next';
 
 export interface ReaderToolbarProps {
   title: string;
@@ -31,13 +32,14 @@ export const ReaderToolbar = ({
   onOpenAppearance,
   onClose,
 }: ReaderToolbarProps) => {
+  const { t } = useTranslation();
   const controlSx = readerControlSx(colors);
 
   return (
     <Box sx={{ borderBottom: 1, borderColor: alpha(colors.text, 0.12) }}>
       <Toolbar variant="dense">
         <IconButtonWithTooltip
-          label="Contents"
+          label={t('reader.shared.contents')}
           onClick={onOpenContents}
           disabled={!isOpen}
           edge="start"
@@ -49,7 +51,7 @@ export const ReaderToolbar = ({
           {title}
         </Typography>
         <IconButtonWithTooltip
-          label="Appearance"
+          label={t('reader.shared.appearance')}
           onClick={(event) => onOpenAppearance(event.currentTarget)}
           disabled={!isOpen}
           color="inherit"
@@ -57,7 +59,7 @@ export const ReaderToolbar = ({
           icon={<PaletteIcon sx={{ fontSize: ICON_SIZE.ui }} />}
         />
         <IconButtonWithTooltip
-          label="Close reader"
+          label={t('reader.toolbar.closeReader')}
           onClick={onClose}
           edge="end"
           color="inherit"

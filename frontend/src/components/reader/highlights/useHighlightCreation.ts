@@ -17,13 +17,15 @@ import { useMutationErrorHandler } from '@/hooks/useMutationErrorHandler.ts';
 import { useCacheEvents } from '@/lib/cacheEvents.ts';
 import { useQueryClient } from '@tanstack/react-query';
 import type { AxiosError } from 'axios';
+import type { ParseKeys } from 'i18next';
 import { DateTime } from 'luxon';
 import { useRef, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 
 // 422: the words matched in several places or none, and more context settles the first.
-const REFUSALS: Record<number, string | undefined> = {
-  422: "Couldn't find where this passage is in the book, so it wasn't highlighted. Try selecting a little more text.",
-  503: "The book's file couldn't be read, so the highlight wasn't saved.",
+const REFUSALS: Record<number, ParseKeys | undefined> = {
+  422: 'reader.highlightCreation.passageNotFound',
+  503: 'reader.highlightCreation.fileUnreadable',
 };
 
 const withLocator = (
@@ -45,6 +47,7 @@ export interface HighlightCreation {
 
 /** Highlights made from selections in one book, each drawn before the server has answered. */
 export const useHighlightCreation = (bookId: number): HighlightCreation => {
+  const { t } = useTranslation();
   const queryClient = useQueryClient();
   const { highlightCreated } = useCacheEvents();
   const { showSnackbar } = useSnackbar();
@@ -85,8 +88,8 @@ export const useHighlightCreation = (bookId: number): HighlightCreation => {
         await highlightCreated(bookId);
       } catch (error) {
         const message = REFUSALS[(error as AxiosError).response?.status ?? 0];
-        if (message) showSnackbar(message, 'error');
-        else handleMutationError('save the highlight')(error);
+        if (message) showSnackbar(t(message), 'error');
+        else handleMutationError(t('reader.highlightCreation.errorAction'))(error);
       } finally {
         setStandIns((current) => current.filter((candidate) => candidate !== standIn));
       }

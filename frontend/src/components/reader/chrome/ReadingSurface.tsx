@@ -5,6 +5,7 @@ import { NextPageIcon, PreviousPageIcon } from '@/theme/Icons.tsx';
 import { ICON_SIZE } from '@/theme/iconSizes.ts';
 import { Box, IconButton, Stack, Typography } from '@mui/material';
 import type { ReactNode, RefObject } from 'react';
+import { useTranslation } from 'react-i18next';
 
 /** The width the page-turn buttons need beside the text on anything but a phone. */
 const PAGE_TURN_GUTTER = '48px';
@@ -20,31 +21,39 @@ interface PageTurnButtonProps {
   colors: ReturnType<typeof readerPageColors>;
 }
 
-const PageTurnButton = ({ edge, onClick, disabled, colors }: PageTurnButtonProps) => (
-  <IconButton
-    onClick={onClick}
-    disabled={disabled}
-    color="inherit"
-    aria-label={edge === 'left' ? 'Previous page' : 'Next page'}
-    sx={{
-      position: 'absolute',
-      top: '50%',
-      transform: 'translateY(-50%)',
-      [edge]: 4,
-      zIndex: 1,
-      // Gone on a phone, where they cover the page they turn and swiping is
-      // the gesture at hand; the gutter they need goes with them.
-      display: { xs: 'none', sm: 'inline-flex' },
-      ...readerControlSx(colors),
-    }}
-  >
-    {edge === 'left' ? (
-      <PreviousPageIcon sx={{ fontSize: ICON_SIZE.prominent }} />
-    ) : (
-      <NextPageIcon sx={{ fontSize: ICON_SIZE.prominent }} />
-    )}
-  </IconButton>
-);
+const PageTurnButton = ({ edge, onClick, disabled, colors }: PageTurnButtonProps) => {
+  const { t } = useTranslation();
+
+  return (
+    <IconButton
+      onClick={onClick}
+      disabled={disabled}
+      color="inherit"
+      aria-label={
+        edge === 'left'
+          ? t('reader.readingSurface.previousPage')
+          : t('reader.readingSurface.nextPage')
+      }
+      sx={{
+        position: 'absolute',
+        top: '50%',
+        transform: 'translateY(-50%)',
+        [edge]: 4,
+        zIndex: 1,
+        // Gone on a phone, where they cover the page they turn and swiping is
+        // the gesture at hand; the gutter they need goes with them.
+        display: { xs: 'none', sm: 'inline-flex' },
+        ...readerControlSx(colors),
+      }}
+    >
+      {edge === 'left' ? (
+        <PreviousPageIcon sx={{ fontSize: ICON_SIZE.prominent }} />
+      ) : (
+        <NextPageIcon sx={{ fontSize: ICON_SIZE.prominent }} />
+      )}
+    </IconButton>
+  );
+};
 
 export interface ReadingSurfaceProps {
   /** The box the engine lays the book out in. */
@@ -69,6 +78,7 @@ export const ReadingSurface = ({
   onPrevious,
   notice,
 }: ReadingSurfaceProps) => {
+  const { t } = useTranslation();
   const pageTurnsDisabled = isRenewing || !isOpen;
 
   return (
@@ -128,7 +138,9 @@ export const ReadingSurface = ({
             ...(isRenewing && { backgroundColor: colors.background, opacity: 0.9 }),
           }}
         >
-          {isRenewing && <Typography variant="body2">Reconnecting…</Typography>}
+          {isRenewing && (
+            <Typography variant="body2">{t('reader.readingSurface.reconnecting')}</Typography>
+          )}
         </Stack>
       )}
     </Box>
