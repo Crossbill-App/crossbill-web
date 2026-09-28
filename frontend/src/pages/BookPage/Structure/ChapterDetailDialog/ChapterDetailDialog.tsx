@@ -149,14 +149,17 @@ export const ChapterDetailDialog = ({
     <Box>
       <ChapterGistSection chapterId={chapter.id} chapterName={chapter.name} notes={notes} />
 
-      <DigestSummarySection digestSummary={digestSummary} />
-
-      <ChapterToolbar
-        chapterId={chapter.id}
-        bookId={bookId}
-        hasSummary={!!digestSummary}
-        onStartQuiz={() => setQuizOpen(true)}
-        onStartChat={() => setChatOpen(true)}
+      <DigestSummarySection
+        digestSummary={digestSummary}
+        toolbar={
+          <ChapterToolbar
+            chapterId={chapter.id}
+            bookId={bookId}
+            hasSummary={!!digestSummary}
+            onStartQuiz={() => setQuizOpen(true)}
+            onStartChat={() => setChatOpen(true)}
+          />
+        }
       />
 
       <DialogTabs tabs={tabs} activeTab={activeTab} onTabChange={setActiveTab} />

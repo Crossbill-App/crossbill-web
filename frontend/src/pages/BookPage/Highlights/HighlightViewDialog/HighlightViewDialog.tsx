@@ -98,20 +98,12 @@ export const HighlightViewDialog = ({
 
   // Shared content for both layouts
   const renderContent = () => (
-    <Box key={highlight.id}>
+    <Box key={highlight.id} sx={{ mt: 4 }}>
       <Stack
         sx={{
           gap: 2,
         }}
       >
-        <Toolbar
-          highlightId={highlight.id}
-          bookId={bookId}
-          highlightText={highlight.text}
-          bookmark={currentBookmark}
-          onDelete={handleDelete}
-          disabled={isLoading}
-        />
         <Box>
           <TagInput
             value={currentTags}
@@ -146,6 +138,16 @@ export const HighlightViewDialog = ({
           highlight={highlight}
           onLabelClick={handleLabelClick}
           labelRef={setLabelAnchorEl}
+          actions={
+            <Toolbar
+              highlightId={highlight.id}
+              bookId={bookId}
+              highlightText={highlight.text}
+              bookmark={currentBookmark}
+              onDelete={handleDelete}
+              disabled={isLoading}
+            />
+          }
         />
       </FadeInOut>
       {renderContent()}

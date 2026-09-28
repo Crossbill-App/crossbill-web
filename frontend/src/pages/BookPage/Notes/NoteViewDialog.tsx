@@ -228,21 +228,30 @@ export const NoteViewDialog = ({
                     <ReactMarkdown>{activeNote.body}</ReactMarkdown>
                   </Box>
                 )}
-                {tags.length > 0 && (
-                  <Stack direction="row" spacing={1} sx={{ mt: 2, flexWrap: 'wrap', gap: 0.5 }}>
+                <Box
+                  sx={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    gap: 2,
+                    mt: 2,
+                    mb: 2,
+                  }}
+                >
+                  <Stack direction="row" sx={{ flexWrap: 'wrap', gap: 0.5 }}>
                     {tags.map((tag) => (
                       <Chip key={`tag-${tag.id}`} variant="outlined" label={`#${tag.name}`} />
                     ))}
                   </Stack>
-                )}
+                  <NoteToolbar
+                    onCopyLink={() => void handleCopyLink()}
+                    onEdit={() => setIsEditing(true)}
+                    onCopy={() => void handleCopy()}
+                    onDelete={() => setDeleteConfirmOpen(true)}
+                    disabled={isDeleting}
+                  />
+                </Box>
               </Box>
-              <NoteToolbar
-                onCopyLink={() => void handleCopyLink()}
-                onEdit={() => setIsEditing(true)}
-                onCopy={() => void handleCopy()}
-                onDelete={() => setDeleteConfirmOpen(true)}
-                disabled={isDeleting}
-              />
               <NoteTabs
                 note={activeNote}
                 bookId={book.id}
