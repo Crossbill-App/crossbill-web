@@ -1,10 +1,11 @@
+import { AuthEmailField, AuthFormCard, AuthFormFooter } from '@/components/auth/AuthFormCard.tsx';
 import { FeatureGate } from '@/components/features/FeatureGate.tsx';
 import { RHFTextField } from '@/components/inputs/RHFTextField.tsx';
-import { PageTitle } from '@/components/typography/PageTitle.tsx';
 import { useAuth } from '@/context/AuthContext';
-import { Alert, Box, Button, Card, Container, Link, Typography } from '@mui/material';
+import { Link } from '@mui/material';
 import { Link as RouterLink, useNavigate } from '@tanstack/react-router';
 import { useForm } from 'react-hook-form';
+import { Trans, useTranslation } from 'react-i18next';
 
 interface LoginFormValues {
   email: string;
@@ -12,6 +13,7 @@ interface LoginFormValues {
 }
 
 export const LoginPage = () => {
+  const { t } = useTranslation();
   const { login } = useAuth();
   const navigate = useNavigate();
 
@@ -29,93 +31,42 @@ export const LoginPage = () => {
       await login(email, password);
       navigate({ to: '/' });
     } catch {
-      setError('root', { message: 'Invalid email or password' });
+      setError('root', { message: t('auth.login.invalidCredentials') });
     }
   };
 
   return (
-    <Container maxWidth="sm">
-      <Box
-        sx={{
-          minHeight: '80vh',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-        }}
-      >
-        <Card
-          sx={{
-            p: 4,
-            width: '100%',
-            maxWidth: 400,
-          }}
-        >
-          <Box sx={{ textAlign: 'center', mb: 3 }}>
-            <Box
-              component="img"
-              src="/icon-transparent.png"
-              alt="Crossbill"
-              sx={{ height: 64, width: 64, mb: 2 }}
+    <AuthFormCard
+      title={t('auth.login.title')}
+      error={errors.root?.message}
+      onSubmit={handleSubmit(onSubmit)}
+      isSubmitting={isSubmitting}
+      submitLabel={t('auth.shared.signIn')}
+      submittingLabel={t('auth.login.submitting')}
+      footer={
+        <FeatureGate flag="user_registrations" value={true}>
+          <AuthFormFooter>
+            <Trans
+              i18nKey="auth.login.noAccount"
+              components={{
+                link: <Link component={RouterLink} to="/register" underline="hover" />,
+              }}
             />
-            <PageTitle text="Sign in to Crossbill" component="h1" />
-          </Box>
-
-          {errors.root && (
-            <Alert severity="error" sx={{ mb: 2 }}>
-              {errors.root.message}
-            </Alert>
-          )}
-
-          <Box component="form" onSubmit={handleSubmit(onSubmit)}>
-            <RHFTextField
-              name="email"
-              control={control}
-              rules={{ required: 'Email is required' }}
-              label="Email"
-              fullWidth
-              margin="normal"
-              autoComplete="email"
-              autoFocus
-            />
-            <RHFTextField
-              name="password"
-              control={control}
-              rules={{ required: 'Password is required' }}
-              label="Password"
-              type="password"
-              fullWidth
-              margin="normal"
-              autoComplete="current-password"
-            />
-            <Button
-              type="submit"
-              variant="contained"
-              fullWidth
-              size="large"
-              disabled={isSubmitting}
-              sx={{ mt: 3 }}
-            >
-              {isSubmitting ? 'Signing in...' : 'Sign in'}
-            </Button>
-          </Box>
-
-          <FeatureGate flag="user_registrations" value={true}>
-            <Box sx={{ mt: 3, textAlign: 'center' }}>
-              <Typography
-                variant="body2"
-                sx={{
-                  color: 'text.secondary',
-                }}
-              >
-                Don't have an account?{' '}
-                <Link component={RouterLink} to="/register" underline="hover">
-                  Create one
-                </Link>
-              </Typography>
-            </Box>
-          </FeatureGate>
-        </Card>
-      </Box>
-    </Container>
+          </AuthFormFooter>
+        </FeatureGate>
+      }
+    >
+      <AuthEmailField control={control} />
+      <RHFTextField
+        name="password"
+        control={control}
+        rules={{ required: t('common.validation.passwordRequired') }}
+        label={t('common.fields.password')}
+        type="password"
+        fullWidth
+        margin="normal"
+        autoComplete="current-password"
+      />
+    </AuthFormCard>
   );
 };

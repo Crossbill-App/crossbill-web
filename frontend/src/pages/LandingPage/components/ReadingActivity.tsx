@@ -2,10 +2,11 @@ import type { LibraryActivity, LibraryStats } from '@/api/generated/model';
 import { EmptyStateText } from '@/components/EmptyStateText.tsx';
 import { ReadingActivityGrid } from '@/components/reading/ReadingActivityGrid.tsx';
 import { Stat, type StatProps } from '@/components/reading/Stat.tsx';
-import { countLabel } from '@/utils/counts.ts';
 import { formatDay, formatSeconds } from '@/utils/date.ts';
 import { Alert, Box, useMediaQuery } from '@mui/material';
+import type { TFunction } from 'i18next';
 import { useMemo } from 'react';
+import { useTranslation } from 'react-i18next';
 import { DashboardSection } from './DashboardSection.tsx';
 import { useReadingActivity } from './landingQueries.ts';
 import { RECENT_ROW_WIDTH } from './RecentBooks.tsx';
@@ -34,37 +35,55 @@ const ROOMY_SLACK = 40;
 const ROOMY_VIEWPORT = 53 * (ROOMY_BLOCK_SIZE + 5) + STATS_COLUMN + STATS_GAP + 48 + ROOMY_SLACK;
 
 /** The books of one day, as the reader would say them. */
-const booksLabel = (titles: string[]) => {
+const booksLabel = (t: TFunction, titles: string[]) => {
   if (titles.length <= NAMED_PER_DAY) {
     return titles.join(', ');
   }
   const rest = titles.length - NAMED_PER_DAY;
-  return `${titles.slice(0, NAMED_PER_DAY).join(', ')} and ${rest} more`;
+  return t('landing.readingActivity.booksAndMore', {
+    titles: titles.slice(0, NAMED_PER_DAY).join(', '),
+    count: rest,
+  });
 };
 
 /**
  * What was read on each day. The response names each book once and references
  * it by id, so the titles are joined back up here.
  */
-const booksByDay = (activity: LibraryActivity | null | undefined): Map<string, string> => {
+const booksByDay = (
+  t: TFunction,
+  activity: LibraryActivity | null | undefined
+): Map<string, string> => {
   const titles = new Map((activity?.books ?? []).map((book) => [book.id, book.title]));
 
   return new Map(
     (activity?.days ?? []).map((day) => [
       day.date,
-      booksLabel(day.book_ids.map((id) => titles.get(id)).filter((title) => title !== undefined)),
+      booksLabel(
+        t,
+        day.book_ids.map((id) => titles.get(id)).filter((title) => title !== undefined)
+      ),
     ])
   );
 };
 
 /** The year said in numbers, in the order a reader would ask for them. */
-const summary = (stats: LibraryStats): StatProps[] => [
-  { value: formatSeconds(stats.seconds_today), label: 'Time read today' },
-  { value: formatDay(stats.last_read), label: 'Last read' },
-  { value: countLabel(stats.streak_days, 'day'), label: 'Current streak' },
-  { value: String(stats.days_read), label: 'Days read' },
-  { value: String(stats.books_read), label: 'Books read' },
-  { value: formatSeconds(stats.total_seconds), label: 'Total time read' },
+const summary = (t: TFunction, stats: LibraryStats): StatProps[] => [
+  {
+    value: formatSeconds(stats.seconds_today),
+    label: t('landing.readingActivity.stats.timeReadToday'),
+  },
+  { value: formatDay(stats.last_read), label: t('common.labels.lastRead') },
+  {
+    value: t('common.counts.days', { count: stats.streak_days }),
+    label: t('landing.readingActivity.stats.currentStreak'),
+  },
+  { value: String(stats.days_read), label: t('landing.readingActivity.stats.daysRead') },
+  { value: String(stats.books_read), label: t('landing.readingActivity.stats.booksRead') },
+  {
+    value: formatSeconds(stats.total_seconds),
+    label: t('landing.readingActivity.stats.totalTimeRead'),
+  },
 ];
 
 /**
@@ -74,27 +93,26 @@ const summary = (stats: LibraryStats): StatProps[] => [
  * The numbers wait until there is something to count.
  */
 export const ReadingActivity = () => {
+  const { t } = useTranslation();
   const { data, isError } = useReadingActivity();
   const activity = data?.activity;
   const stats = data?.stats;
-  const read = useMemo(() => booksByDay(activity), [activity]);
+  const read = useMemo(() => booksByDay(t, activity), [t, activity]);
   const roomy = useMediaQuery(`(min-width: ${ROOMY_VIEWPORT}px)`);
 
   const empty = !isError && !activity;
 
   return (
-    <DashboardSection title="Reading activity">
+    <DashboardSection title={t('landing.readingActivity.title')}>
       {isError && (
         <Box sx={{ py: 3 }}>
-          <Alert severity="error">Failed to load reading activity.</Alert>
+          <Alert severity="error">{t('landing.readingActivity.loadError')}</Alert>
         </Box>
       )}
 
       {empty && (
         <>
-          <EmptyStateText>
-            No reading recorded yet. Your reading days fill in here once you sync your e-reader.
-          </EmptyStateText>
+          <EmptyStateText>{t('landing.readingActivity.empty')}</EmptyStateText>
 
           <Box sx={{ mt: 3, maxWidth: { lg: `${RECENT_ROW_WIDTH}px` } }}>
             <ReadingActivityGrid activity={null} blockSize={roomy ? ROOMY_BLOCK_SIZE : undefined} />
@@ -140,7 +158,7 @@ export const ReadingActivity = () => {
                 alignContent: 'center',
               }}
             >
-              {summary(stats).map((stat) => (
+              {summary(t, stats).map((stat) => (
                 <Stat key={stat.label} value={stat.value} label={stat.label} />
               ))}
             </Box>

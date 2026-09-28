@@ -4,6 +4,7 @@ import { Eyebrow } from '@/components/typography/Eyebrow.tsx';
 import { formatDay } from '@/utils/date.ts';
 import { Alert, Box } from '@mui/material';
 import { useMemo } from 'react';
+import { useTranslation } from 'react-i18next';
 
 import { CaptureEntry } from './CaptureEntry.tsx';
 import { DashboardSection } from './DashboardSection.tsx';
@@ -28,6 +29,7 @@ const byDay = (captures: RecentCapture[]): [string, RecentCapture[]][] => {
  * fill it, the way the activity grid keeps its squares with nothing on them.
  */
 export const RecentCaptures = () => {
+  const { t } = useTranslation();
   const { data, isError } = useRecentCaptures();
   const captures = data?.items;
   const days = useMemo(() => byDay(captures ?? []), [captures]);
@@ -35,18 +37,14 @@ export const RecentCaptures = () => {
   const empty = !isError && days.length === 0;
 
   return (
-    <DashboardSection title="Recent highlights and notes">
+    <DashboardSection title={t('landing.recentCaptures.title')}>
       {isError && (
         <Box sx={{ py: 3 }}>
-          <Alert severity="error">Failed to load recent highlights and notes.</Alert>
+          <Alert severity="error">{t('landing.recentCaptures.loadError')}</Alert>
         </Box>
       )}
 
-      {empty && (
-        <EmptyStateText>
-          No highlights or notes yet. They appear here once you sync your e-reader.
-        </EmptyStateText>
-      )}
+      {empty && <EmptyStateText>{t('landing.recentCaptures.empty')}</EmptyStateText>}
 
       {days.map(([day, dayCaptures]) => (
         <Box key={day} sx={{ mb: 1 }}>

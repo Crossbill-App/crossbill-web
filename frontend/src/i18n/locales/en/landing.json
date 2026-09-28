@@ -1,1 +1,33 @@
-{}
+{
+  "page": {
+    "title": "Welcome to Crossbill",
+    "subtitle": "Your reading companion"
+  },
+  "recentBooks": {
+    "title": "Recent books",
+    "loadError": "Failed to load recent books."
+  },
+  "readingActivity": {
+    "title": "Reading activity",
+    "loadError": "Failed to load reading activity.",
+    "empty": "No reading recorded yet. Your reading days fill in here once you sync your e-reader.",
+    "booksAndMore_one": "{{titles}} and {{count}} more",
+    "booksAndMore_other": "{{titles}} and {{count}} more",
+    "stats": {
+      "timeReadToday": "Time read today",
+      "currentStreak": "Current streak",
+      "daysRead": "Days read",
+      "booksRead": "Books read",
+      "totalTimeRead": "Total time read"
+    }
+  },
+  "recentCaptures": {
+    "title": "Recent highlights and notes",
+    "loadError": "Failed to load recent highlights and notes.",
+    "empty": "No highlights or notes yet. They appear here once you sync your e-reader."
+  },
+  "captureEntry": {
+    "moreInBook_one": "+{{count}} more in {{book}} that day",
+    "moreInBook_other": "+{{count}} more in {{book}} that day"
+  }
+}

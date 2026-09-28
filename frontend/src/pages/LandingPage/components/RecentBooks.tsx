@@ -4,6 +4,7 @@ import { CarouselItem } from '@/components/carousel/CarouselItem.tsx';
 import { EmptyStateText } from '@/components/EmptyStateText.tsx';
 import { PAGE_GUTTER } from '@/components/layout/Layouts.tsx';
 import { Alert, Box } from '@mui/material';
+import { useTranslation } from 'react-i18next';
 import { DashboardSection } from './DashboardSection.tsx';
 import { RECENT_BOOKS_LIMIT, useRecentBooks } from './landingQueries.ts';
 
@@ -32,26 +33,27 @@ export const RECENT_ROW_WIDTH =
  * than meeting a dashboard with a heading missing from it.
  */
 export const RecentBooks = () => {
+  const { t } = useTranslation();
   const { data, isError } = useRecentBooks();
   const books = data?.items;
   const empty = !isError && !books?.length;
 
   return (
-    <DashboardSection title="Recent books">
+    <DashboardSection title={t('landing.recentBooks.title')}>
       {isError && (
         <Box sx={{ py: 3 }}>
-          <Alert severity="error">Failed to load recent books.</Alert>
+          <Alert severity="error">{t('landing.recentBooks.loadError')}</Alert>
         </Box>
       )}
 
-      {empty && (
-        <EmptyStateText>
-          No books yet. Upload an EPUB or sync from your e-reader to get started.
-        </EmptyStateText>
-      )}
+      {empty && <EmptyStateText>{t('common.emptyStates.noBooks')}</EmptyStateText>}
 
       {books && books.length > 0 && (
-        <Carousel aria-label="Recent books" gap={CAROUSEL_GAP} bleed={PAGE_GUTTER}>
+        <Carousel
+          aria-label={t('landing.recentBooks.title')}
+          gap={CAROUSEL_GAP}
+          bleed={PAGE_GUTTER}
+        >
           {books.map((book) => (
             <CarouselItem key={book.id}>
               <BookCard book={book} animateOnMount={false} />
