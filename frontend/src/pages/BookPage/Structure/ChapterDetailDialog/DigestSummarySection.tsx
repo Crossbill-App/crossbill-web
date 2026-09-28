@@ -1,25 +1,19 @@
 import type { ChapterDigestResponse } from '@/api/generated/model';
+import { SectionTitle } from '@/components/typography/SectionTitle.tsx';
 import { DigestContent } from '@/pages/BookPage/Structure/DigestContent.tsx';
-import { Typography } from '@mui/material';
+import { Box, Typography } from '@mui/material';
 import { useTranslation } from 'react-i18next';
-import { CollapsibleSection } from './CollapsibleSection.tsx';
 
 interface DigestSummarySectionProps {
   digestSummary?: ChapterDigestResponse;
-  defaultExpanded: boolean;
 }
 
-export const DigestSummarySection = ({
-  digestSummary,
-  defaultExpanded,
-}: DigestSummarySectionProps) => {
+export const DigestSummarySection = ({ digestSummary }: DigestSummarySectionProps) => {
   const { t } = useTranslation();
 
   return (
-    <CollapsibleSection
-      title={t('structure.chapterDetail.summary.title')}
-      defaultExpanded={defaultExpanded}
-    >
+    <Box sx={{ py: 1.5 }}>
+      <SectionTitle component="h3">{t('structure.chapterDetail.summary.title')}</SectionTitle>
       {digestSummary ? (
         <DigestContent content={digestSummary} />
       ) : (
@@ -32,6 +26,6 @@ export const DigestSummarySection = ({
           {t('structure.chapterDetail.summary.empty')}
         </Typography>
       )}
-    </CollapsibleSection>
+    </Box>
   );
 };

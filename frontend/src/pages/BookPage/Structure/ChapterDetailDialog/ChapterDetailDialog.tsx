@@ -149,7 +149,7 @@ export const ChapterDetailDialog = ({
     <Box>
       <ChapterGistSection chapterId={chapter.id} chapterName={chapter.name} notes={notes} />
 
-      <DigestSummarySection digestSummary={digestSummary} defaultExpanded={true} />
+      <DigestSummarySection digestSummary={digestSummary} />
 
       <ChapterToolbar
         chapterId={chapter.id}

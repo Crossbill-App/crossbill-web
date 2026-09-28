@@ -45,7 +45,6 @@
     }
   },
   "chapterDetail": {
-    "sectionTitleWithCount": "{{title}} ({{total}})",
     "related": "Related",
     "tabs": {
       "questions": "Questions"

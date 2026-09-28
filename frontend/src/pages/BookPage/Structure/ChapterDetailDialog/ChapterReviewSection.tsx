@@ -10,6 +10,7 @@ import type {
 import { AIActionButton } from '@/components/buttons/AIActionButton.tsx';
 import { AIFeature } from '@/components/features/AIFeature.tsx';
 import { SavedIndicator } from '@/components/SavedIndicator.tsx';
+import { SectionTitle } from '@/components/typography/SectionTitle.tsx';
 import { useCommitOnBlur } from '@/hooks/useCommitOnBlur.ts';
 import { useMutationErrorHandler } from '@/hooks/useMutationErrorHandler.ts';
 import { useSaveStatus } from '@/hooks/useSaveStatus.ts';
@@ -18,7 +19,6 @@ import { Box, CircularProgress, Stack, TextField, Typography } from '@mui/materi
 import { useQueryClient } from '@tanstack/react-query';
 import { useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
-import { CollapsibleSection } from './CollapsibleSection.tsx';
 
 interface SaveCallbacks {
   onSuccess: () => void;
@@ -160,10 +160,10 @@ export const ChapterReviewSection = ({
         )}
 
         {!isPending && digestSummary && digestSummary.questions.length > 0 && (
-          <CollapsibleSection
-            title={t('structure.chapterDetail.review.questionsTitle')}
-            defaultExpanded
-          >
+          <Box>
+            <SectionTitle component="h3">
+              {t('structure.chapterDetail.review.questionsTitle')}
+            </SectionTitle>
             <Stack
               sx={{
                 gap: 1,
@@ -180,7 +180,7 @@ export const ChapterReviewSection = ({
                 />
               ))}
             </Stack>
-          </CollapsibleSection>
+          </Box>
         )}
       </AIFeature>
     </>
