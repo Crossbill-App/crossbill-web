@@ -1,6 +1,7 @@
 import { TagInBook } from '@/api/generated/model';
 import { Autocomplete, Box, Chip, TextField, Typography } from '@mui/material';
 import { useRef } from 'react';
+import { useTranslation } from 'react-i18next';
 
 /**
  * Base props shared by both form and immediate modes of TagInput
@@ -140,13 +141,14 @@ export interface TagInputProps extends BaseTagInputProps {
 export const TagInput = ({
   value,
   onChange,
-  label = 'Tags',
-  placeholder = 'Add tags...',
+  label,
+  placeholder,
   disabled = false,
   availableTags = [],
   isProcessing = false,
-  chipAriaDescription = 'Selected tag, click to remove',
+  chipAriaDescription,
 }: TagInputProps) => {
+  const { t } = useTranslation();
   const isDisabled = disabled || isProcessing;
 
   return (
@@ -156,14 +158,14 @@ export const TagInput = ({
       options={availableTags}
       disabled={isDisabled}
       blurOnSelect={false}
-      placeholder={placeholder}
+      placeholder={placeholder ?? t('components.tagInput.placeholder')}
       preventParentNavigation={true}
-      chipAriaDescription={chipAriaDescription}
+      chipAriaDescription={chipAriaDescription ?? t('components.tagInput.chipAriaDescription')}
       getOptionLabel={(option) => (typeof option === 'string' ? option : option.name)}
       isOptionEqualToValue={(option, value) =>
         typeof value === 'string' ? option.name === value : option.id === value.id
       }
-      label={label}
+      label={label ?? t('common.entities.tags')}
       showLabelAsTypography={true}
     />
   );

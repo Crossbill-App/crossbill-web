@@ -2,6 +2,7 @@ import { PULL_THRESHOLD_PX, usePullToRefresh } from '@/hooks/usePullToRefresh';
 import { useCacheEvents } from '@/lib/cacheEvents';
 import { Box, CircularProgress } from '@mui/material';
 import { type ReactNode } from 'react';
+import { useTranslation } from 'react-i18next';
 
 /** How far the content rests below its normal position while refreshing. */
 const REFRESH_OFFSET_PX = 56;
@@ -12,6 +13,7 @@ const REFRESH_OFFSET_PX = 56;
  * provides in the browser.
  */
 export function PullToRefresh({ children }: { children: ReactNode }) {
+  const { t } = useTranslation();
   const { refreshRequested } = useCacheEvents();
   const { pullDistance, isRefreshing } = usePullToRefresh(refreshRequested);
 
@@ -38,7 +40,7 @@ export function PullToRefresh({ children }: { children: ReactNode }) {
         >
           <CircularProgress
             size={28}
-            aria-label="Refreshing"
+            aria-label={t('layout.pullToRefresh.refreshing')}
             variant={isRefreshing ? 'indeterminate' : 'determinate'}
             value={Math.min(pullDistance / PULL_THRESHOLD_PX, 1) * 100}
           />

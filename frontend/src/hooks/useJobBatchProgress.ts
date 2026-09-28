@@ -2,6 +2,7 @@ import { useCancelJobBatch, useGetJobBatch } from '@/api/generated/jobs/jobs';
 import type { JobBatchResponse } from '@/api/generated/model';
 import { useSnackbar } from '@/context/SnackbarContext';
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 
 const TERMINAL_STATUSES = ['completed', 'completed_with_errors', 'failed', 'cancelled'];
 const POLL_INTERVAL = 3000;
@@ -43,6 +44,7 @@ export const useJobBatchProgress = ({
   onFinished,
   onCancelled,
 }: UseJobBatchProgressOptions): JobBatchProgress => {
+  const { t } = useTranslation();
   const { showSnackbar } = useSnackbar();
   const [batchId, setBatchId] = useState<number | null>(null);
   // Batches whose outcome has already been reported. Without this, a stale
@@ -82,7 +84,7 @@ export const useJobBatchProgress = ({
         onCancelled();
       },
       onError: () => {
-        showSnackbar('Failed to cancel batch.', 'error');
+        showSnackbar(t('components.jobBatchProgress.cancelFailed'), 'error');
       },
     },
   });

@@ -1,6 +1,7 @@
 import { APP_ROUTES, isAppRouteActive } from '@/components/layout/appRoutes.ts';
 import { alpha, Box, Button } from '@mui/material';
 import { createLink, useLocation } from '@tanstack/react-router';
+import { useTranslation } from 'react-i18next';
 
 const NavButton = createLink(Button);
 
@@ -9,12 +10,13 @@ const NavButton = createLink(Button);
  * viewports with room for them. Below `md` the same list is in the drawer.
  */
 export const AppBarNavLinks = () => {
+  const { t } = useTranslation();
   const pathname = useLocation({ select: (location) => location.pathname });
 
   return (
     <Box
       component="nav"
-      aria-label="Global navigation"
+      aria-label={t('layout.globalNavigation.ariaLabel')}
       sx={{ display: { xs: 'none', md: 'flex' }, alignItems: 'center', gap: 0.5, ml: 3 }}
     >
       {APP_ROUTES.map((route) => {
@@ -44,7 +46,7 @@ export const AppBarNavLinks = () => {
               },
             }}
           >
-            {route.label}
+            {t(route.labelKey)}
           </NavButton>
         );
       })}

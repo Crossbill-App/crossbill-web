@@ -1,3 +1,4 @@
+import { i18n } from '@/i18n';
 import { DateTime } from 'luxon';
 
 /**
@@ -37,10 +38,10 @@ export const formatDay = (date: string): string => {
   );
 
   if (days === 0) {
-    return 'Today';
+    return i18n.t('components.date.today');
   }
   if (days === -1) {
-    return 'Yesterday';
+    return i18n.t('components.date.yesterday');
   }
   return formatDate(date);
 };
@@ -64,9 +65,9 @@ export const formatSeconds = (seconds: number): string => {
   const minutes = totalMinutes % 60;
 
   if (hours > 0) {
-    return `${hours}h ${minutes}m`;
+    return i18n.t('components.date.duration.hoursMinutes', { hours, minutes });
   }
-  return `${minutes}m`;
+  return i18n.t('components.date.duration.minutes', { minutes });
 };
 
 /**

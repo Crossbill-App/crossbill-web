@@ -1,6 +1,8 @@
 import { Box, Chip } from '@mui/material';
+import { useTranslation } from 'react-i18next';
 
 export const TagChipList: React.FC<{ tags?: { id: number; name: string }[] }> = ({ tags }) => {
+  const { t } = useTranslation();
   if (!tags || tags.length === 0) {
     return null;
   }
@@ -17,7 +19,7 @@ export const TagChipList: React.FC<{ tags?: { id: number; name: string }[] }> = 
         p: 0,
         m: 0,
       }}
-      aria-label="Tags"
+      aria-label={t('common.entities.tags')}
     >
       {tags.map((tag) => (
         <Box component="li" key={tag.id}>

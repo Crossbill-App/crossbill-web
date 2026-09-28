@@ -1,3 +1,5 @@
+import { i18n } from '@/i18n';
+
 export const READING_STAGE_PROGRESSION = [
   'to_read',
   'skimming',
@@ -8,17 +10,37 @@ export const READING_STAGE_PROGRESSION = [
 
 export type ReadingStageValue = (typeof READING_STAGE_PROGRESSION)[number] | 'did_not_finish';
 
-export const READING_STAGE_LABELS: Record<ReadingStageValue, string> = {
-  to_read: 'To read',
-  skimming: 'Skimming',
-  reading: 'Reading',
-  finished: 'Finished',
-  reflected: 'Reflected',
-  did_not_finish: 'Did not finish',
+// Getters, so each read resolves the copy in the current language rather than
+// freezing whatever it was when this module loaded.
+export const READING_STAGE_LABELS: Readonly<Record<ReadingStageValue, string>> = {
+  get to_read() {
+    return i18n.t('components.readingStage.labels.toRead');
+  },
+  get skimming() {
+    return i18n.t('components.readingStage.labels.skimming');
+  },
+  get reading() {
+    return i18n.t('components.readingStage.labels.reading');
+  },
+  get finished() {
+    return i18n.t('components.readingStage.labels.finished');
+  },
+  get reflected() {
+    return i18n.t('components.readingStage.labels.reflected');
+  },
+  get did_not_finish() {
+    return i18n.t('components.readingStage.labels.didNotFinish');
+  },
 };
 
-export const READING_STAGE_HINTS: Partial<Record<ReadingStageValue, string>> = {
-  skimming: 'After skimming, try stating what the book is about.',
-  finished: "You've finished the book — a good time for 'Do I agree?'",
-  reflected: "You've reflected on this book — revisit your answers whenever it comes up again.",
+export const READING_STAGE_HINTS: Readonly<Partial<Record<ReadingStageValue, string>>> = {
+  get skimming() {
+    return i18n.t('components.readingStage.hints.skimming');
+  },
+  get finished() {
+    return i18n.t('components.readingStage.hints.finished');
+  },
+  get reflected() {
+    return i18n.t('components.readingStage.hints.reflected');
+  },
 };

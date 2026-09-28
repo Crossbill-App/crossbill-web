@@ -1,1 +1,94 @@
-{}
+{
+  "shared": {
+    "labelWithCount": "{{label}} ({{total}})"
+  },
+  "bookCover": {
+    "alt": "{{title}} cover"
+  },
+  "openInReaderButton": {
+    "book": "Open in reader",
+    "chapter": "Open chapter in reader"
+  },
+  "scrollToTopButton": {
+    "label": "Scroll to top"
+  },
+  "carousel": {
+    "scrollBack": "Scroll back",
+    "scrollForward": "Scroll forward"
+  },
+  "searchBar": {
+    "clear": "Clear search"
+  },
+  "tagInput": {
+    "placeholder": "Add tags...",
+    "chipAriaDescription": "Selected tag, click to remove"
+  },
+  "readingActivityGrid": {
+    "period": "{{start}} – {{end}}",
+    "legend": {
+      "less": "Less",
+      "more": "More"
+    },
+    "totalCount": {
+      "pages": "{{period}} · pages read",
+      "minutes": "{{period}} · minutes read",
+      "empty": "{{period}} · nothing read yet"
+    },
+    "dayLabel": {
+      "pages_one": "{{count}} page on {{date}}",
+      "pages_other": "{{count}} pages on {{date}}",
+      "minutes_one": "{{count}} minute on {{date}}",
+      "minutes_other": "{{count}} minutes on {{date}}",
+      "empty": "Nothing read on {{date}}",
+      "withNote": "{{reading}} — {{note}}"
+    }
+  },
+  "readingStage": {
+    "labels": {
+      "toRead": "To read",
+      "skimming": "Skimming",
+      "reading": "Reading",
+      "finished": "Finished",
+      "reflected": "Reflected",
+      "didNotFinish": "Did not finish"
+    },
+    "hints": {
+      "skimming": "After skimming, try stating what the book is about.",
+      "finished": "You've finished the book — a good time for 'Do I agree?'",
+      "reflected": "You've reflected on this book — revisit your answers whenever it comes up again."
+    }
+  },
+  "highlightLabelSave": {
+    "errorAction": "update label"
+  },
+  "colors": {
+    "yellow": "Yellow",
+    "orange": "Orange",
+    "red": "Red",
+    "pink": "Pink",
+    "purple": "Purple",
+    "indigo": "Indigo",
+    "blue": "Blue",
+    "cyan": "Cyan",
+    "teal": "Teal",
+    "green": "Green",
+    "olive": "Olive",
+    "emerald": "Emerald",
+    "gray": "Gray",
+    "slate": "Slate"
+  },
+  "mutationErrorHandler": {
+    "message": "Failed to {{action}}. Please try again."
+  },
+  "jobBatchProgress": {
+    "cancelFailed": "Failed to cancel batch."
+  },
+  "date": {
+    "today": "Today",
+    "yesterday": "Yesterday",
+    "duration": {
+      "hoursMinutes": "{{hours}}h {{minutes}}m",
+      "minutes": "{{minutes}}m"
+    }
+  }
+}

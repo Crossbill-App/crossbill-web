@@ -74,6 +74,7 @@ export const CommonDialog = ({
   isLoading = false,
   headerElement,
 }: CommonDialogProps) => {
+  const { t } = useTranslation();
   const theme = useTheme();
   const fullScreen = useMediaQuery(theme.breakpoints.down('sm'));
   const isTopmostDialog = useDialogStackEntry(open);
@@ -198,7 +199,7 @@ export const CommonDialog = ({
             edge="end"
             color="inherit"
             onClick={onClose}
-            aria-label="Close dialog"
+            aria-label={t('common.actions.closeDialog')}
             disabled={isLoading}
           >
             <CloseIcon />

@@ -3,6 +3,7 @@ import type { HighlightLabelUpdate } from '@/api/generated/model';
 import { useMutationErrorHandler } from '@/hooks/useMutationErrorHandler.ts';
 import type { SaveStatusHandle } from '@/hooks/useSaveStatus.ts';
 import { useCacheEvents } from '@/lib/cacheEvents.ts';
+import { useTranslation } from 'react-i18next';
 
 export interface HighlightLabelSave {
   /** True while a save is in flight, so a field can decline to start a second. */
@@ -15,6 +16,7 @@ export const useHighlightLabelSave = (
   bookId: number,
   saveStatus: SaveStatusHandle
 ): HighlightLabelSave => {
+  const { t } = useTranslation();
   const cache = useCacheEvents();
   const mutationErrorHandler = useMutationErrorHandler();
 
@@ -26,7 +28,7 @@ export const useHighlightLabelSave = (
       },
       onError: (error: unknown) => {
         saveStatus.reset();
-        mutationErrorHandler('update label')(error);
+        mutationErrorHandler(t('components.highlightLabelSave.errorAction'))(error);
       },
     },
   });

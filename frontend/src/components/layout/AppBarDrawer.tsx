@@ -11,6 +11,7 @@ import {
   ListItemText,
 } from '@mui/material';
 import { createLink, useLocation } from '@tanstack/react-router';
+import { useTranslation } from 'react-i18next';
 
 const NavListItemButton = createLink(ListItemButton);
 
@@ -30,6 +31,7 @@ interface AppBarDrawerProps {
  * drawer overlays whatever is underneath and leaves it alone.
  */
 export const AppBarDrawer = ({ open, onClose }: AppBarDrawerProps) => {
+  const { t } = useTranslation();
   const { logout } = useAuth();
   const pathname = useLocation({ select: (location) => location.pathname });
 
@@ -41,7 +43,7 @@ export const AppBarDrawer = ({ open, onClose }: AppBarDrawerProps) => {
   return (
     <Drawer anchor="left" open={open} onClose={onClose}>
       <Box sx={{ width: DRAWER_WIDTH }} role="presentation">
-        <Box component="nav" aria-label="Global navigation">
+        <Box component="nav" aria-label={t('layout.globalNavigation.ariaLabel')}>
           <List>
             {APP_ROUTES.map((route) => {
               const isActive = isAppRouteActive(route, pathname);
@@ -59,7 +61,7 @@ export const AppBarDrawer = ({ open, onClose }: AppBarDrawerProps) => {
                     <Icon />
                   </ListItemIcon>
                   <ListItemText
-                    primary={route.label}
+                    primary={t(route.labelKey)}
                     slotProps={{
                       primary: {
                         sx: {
@@ -82,13 +84,13 @@ export const AppBarDrawer = ({ open, onClose }: AppBarDrawerProps) => {
             <ListItemIcon sx={{ color: 'text.secondary' }}>
               <SettingsIcon />
             </ListItemIcon>
-            <ListItemText primary="Settings" />
+            <ListItemText primary={t('common.nav.settings')} />
           </NavListItemButton>
           <ListItemButton onClick={handleLogout}>
             <ListItemIcon sx={{ color: 'text.secondary' }}>
               <LogoutIcon />
             </ListItemIcon>
-            <ListItemText primary="Log out" />
+            <ListItemText primary={t('layout.accountMenu.logOut')} />
           </ListItemButton>
         </List>
       </Box>

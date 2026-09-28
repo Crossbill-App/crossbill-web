@@ -1,4 +1,5 @@
 import { useSnackbar } from '@/context/SnackbarContext.tsx';
+import { useTranslation } from 'react-i18next';
 
 /**
  * Standard failure feedback for mutations: log the error and show the
@@ -10,10 +11,11 @@ import { useSnackbar } from '@/context/SnackbarContext.tsx';
  * ```
  */
 export const useMutationErrorHandler = () => {
+  const { t } = useTranslation();
   const { showSnackbar } = useSnackbar();
 
   return (actionLabel: string) => (error: unknown) => {
     console.error(`Failed to ${actionLabel}:`, error);
-    showSnackbar(`Failed to ${actionLabel}. Please try again.`, 'error');
+    showSnackbar(t('components.mutationErrorHandler.message', { action: actionLabel }), 'error');
   };
 };

@@ -18,9 +18,11 @@ import {
 } from '@mui/material';
 import { Link } from '@tanstack/react-router';
 import { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useAuth } from '../../context/AuthContext.tsx';
 
 export function AppBar() {
+  const { t } = useTranslation();
   const { logout } = useAuth();
   const theme = useTheme();
   const isWide = useMediaQuery(theme.breakpoints.up('md'));
@@ -59,7 +61,7 @@ export function AppBar() {
               room for them. */}
           <IconButton
             edge="start"
-            aria-label="Open navigation"
+            aria-label={t('layout.appBar.openNavigation')}
             onClick={() => setIsDrawerOpen(true)}
             sx={{
               display: { xs: 'inline-flex', md: 'none' },
@@ -88,7 +90,7 @@ export function AppBar() {
             <Box
               component="img"
               src="/icon-transparent.png"
-              alt="Crossbill"
+              alt={t('common.appName')}
               sx={{
                 height: 40,
                 width: 40,
@@ -103,7 +105,7 @@ export function AppBar() {
                 color: 'primary.contrastText',
               }}
             >
-              Crossbill
+              {t('common.appName')}
             </Typography>
           </Box>
 
@@ -120,7 +122,7 @@ export function AppBar() {
               toolbar keeps to one row of controls. */}
           <IconButton
             color="inherit"
-            aria-label="Account"
+            aria-label={t('layout.appBar.account')}
             onClick={handleMenuOpen}
             sx={{
               display: { xs: 'none', md: 'inline-flex' },
@@ -147,13 +149,13 @@ export function AppBar() {
               <ListItemIcon>
                 <SettingsIcon fontSize="small" />
               </ListItemIcon>
-              <ListItemText>Settings</ListItemText>
+              <ListItemText>{t('common.nav.settings')}</ListItemText>
             </MenuItem>
             <MenuItem onClick={handleLogout}>
               <ListItemIcon>
                 <LogoutIcon fontSize="small" />
               </ListItemIcon>
-              <ListItemText>Log out</ListItemText>
+              <ListItemText>{t('layout.accountMenu.logOut')}</ListItemText>
             </MenuItem>
           </Menu>
         </Toolbar>

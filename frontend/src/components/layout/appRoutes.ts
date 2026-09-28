@@ -1,11 +1,12 @@
 import { HomeIcon, LibraryIcon } from '@/theme/Icons.tsx';
 import type { SvgIconComponent } from '@mui/icons-material';
+import type { ParseKeys } from 'i18next';
 
 type AppRoute = '/' | '/library';
 
 export interface AppRouteConfig {
   to: AppRoute;
-  label: string;
+  labelKey: ParseKeys;
   icon: SvgIconComponent;
   /** Paths that belong to this destination, including detail pages whose URL
    * is not nested below the destination itself. */
@@ -25,10 +26,10 @@ export interface AppRouteConfig {
  * destination cannot exist on one and not the other.
  */
 export const APP_ROUTES: AppRouteConfig[] = [
-  { to: '/', label: 'Home', icon: HomeIcon, activePathPrefixes: ['/'] },
+  { to: '/', labelKey: 'layout.appRoutes.home', icon: HomeIcon, activePathPrefixes: ['/'] },
   {
     to: '/library',
-    label: 'Library',
+    labelKey: 'common.nav.library',
     icon: LibraryIcon,
     activePathPrefixes: ['/library', '/book'],
   },

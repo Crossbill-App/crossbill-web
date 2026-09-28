@@ -2,6 +2,7 @@ import { useResetOnChange } from '@/hooks/useResetOnChange.ts';
 import { CloseIcon } from '@/theme/Icons.tsx';
 import { Box, IconButton, TextField, type SxProps, type Theme } from '@mui/material';
 import { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 
 interface SearchBarProps {
   /**
@@ -27,12 +28,13 @@ interface SearchBarProps {
  */
 export const SearchBar = ({
   onSearch,
-  placeholder = 'Search...',
+  placeholder,
   initialValue = '',
   sx,
   autoFocus = false,
   slotProps,
 }: SearchBarProps) => {
+  const { t } = useTranslation();
   const [searchInput, setSearchInput] = useState(initialValue);
 
   // Update search input when initialValue changes (e.g., browser back/forward)
@@ -52,7 +54,7 @@ export const SearchBar = ({
       <TextField
         fullWidth
         autoFocus={autoFocus}
-        placeholder={placeholder}
+        placeholder={placeholder ?? t('common.placeholders.search')}
         value={searchInput}
         onChange={(event) => setSearchInput(event.target.value)}
         sx={sx}
@@ -70,7 +72,7 @@ export const SearchBar = ({
             endAdornment: searchInput && (
               <IconButton
                 size="small"
-                aria-label="Clear search"
+                aria-label={t('components.searchBar.clear')}
                 // Keep the focus in the field: a blur here would commit the
                 // text the click is about to throw away.
                 onMouseDown={(e: React.MouseEvent) => e.preventDefault()}

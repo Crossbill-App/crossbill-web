@@ -1,5 +1,7 @@
 import { Box, Tab, Tabs } from '@mui/material';
+import type { TFunction } from 'i18next';
 import { type ReactNode, useId, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 
 export interface DialogTabItem {
   key: string;
@@ -19,8 +21,10 @@ interface DialogTabsProps {
   onTabChange?: (index: number) => void;
 }
 
-const formatTabLabel = (label: string, count?: number) =>
-  count !== undefined && count > 0 ? `${label} (${count})` : label;
+const formatTabLabel = (t: TFunction, label: string, count?: number) =>
+  count !== undefined && count > 0
+    ? t('components.shared.labelWithCount', { label, total: count })
+    : label;
 
 /**
  * Shared tab strip + panel for the entity detail modals (highlight, note,
@@ -28,6 +32,7 @@ const formatTabLabel = (label: string, count?: number) =>
  * active tab's content is mounted, so sections can keep fetching lazily.
  */
 export const DialogTabs = ({ tabs, activeTab, onTabChange }: DialogTabsProps) => {
+  const { t } = useTranslation();
   const [internalTab, setInternalTab] = useState(0);
   const instanceId = useId();
   const currentTab = activeTab ?? internalTab;
@@ -53,7 +58,7 @@ export const DialogTabs = ({ tabs, activeTab, onTabChange }: DialogTabsProps) =>
             key={tab.key}
             id={`${instanceId}-tab-${index}`}
             aria-controls={`${instanceId}-panel-${index}`}
-            label={formatTabLabel(tab.label, tab.count)}
+            label={formatTabLabel(t, tab.label, tab.count)}
           />
         ))}
       </Tabs>

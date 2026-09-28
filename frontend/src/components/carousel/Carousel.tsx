@@ -3,6 +3,7 @@ import { TOUCH_POINTER_QUERY } from '@/utils/adaptiveHover.ts';
 import { Box, IconButton, type Breakpoint, type SxProps, type Theme } from '@mui/material';
 import { AnimatePresence, motion } from 'motion/react';
 import type { ReactNode } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useCarouselScroll } from './useCarouselScroll';
 
 type Spacing = number | Partial<Record<Breakpoint, number>>;
@@ -34,8 +35,20 @@ const controlWrapperStyle = (side: 'left' | 'right'): React.CSSProperties => ({
 });
 
 const CONTROLS = [
-  { key: 'back', side: 'left', label: 'Scroll back', direction: -1, Icon: ArrowBackIcon },
-  { key: 'forward', side: 'right', label: 'Scroll forward', direction: 1, Icon: ArrowForwardIcon },
+  {
+    key: 'back',
+    side: 'left',
+    labelKey: 'components.carousel.scrollBack',
+    direction: -1,
+    Icon: ArrowBackIcon,
+  },
+  {
+    key: 'forward',
+    side: 'right',
+    labelKey: 'components.carousel.scrollForward',
+    direction: 1,
+    Icon: ArrowForwardIcon,
+  },
 ] as const;
 
 const viewportSx: SxProps<Theme> = {
@@ -89,6 +102,7 @@ export const Carousel = ({
   bleed = 0,
   sx,
 }: CarouselProps) => {
+  const { t } = useTranslation();
   const { viewportRef, isOverflowing, canScrollBack, canScrollForward, scrollByPage } =
     useCarouselScroll();
 
@@ -131,7 +145,7 @@ export const Carousel = ({
 
       <AnimatePresence>
         {CONTROLS.filter((control) => canScroll[control.key]).map(
-          ({ key, side, label, direction, Icon }) => (
+          ({ key, side, labelKey, direction, Icon }) => (
             <motion.div
               key={key}
               {...CONTROL_FADE}
@@ -139,7 +153,7 @@ export const Carousel = ({
               style={controlWrapperStyle(side)}
             >
               <IconButton
-                aria-label={label}
+                aria-label={t(labelKey)}
                 onClick={() => scrollByPage(direction)}
                 sx={controlSx(bleed)}
               >

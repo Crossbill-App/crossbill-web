@@ -17,7 +17,9 @@
     "save": "Save",
     "search": "Search",
     "showLess": "Show less",
-    "showMore": "Show more"
+    "showMore": "Show more",
+    "closeDialog": "Close dialog",
+    "tryAgain": "Try again"
   },
   "status": {
     "deleting": "Deleting...",
@@ -49,5 +51,42 @@
     "emailRequired": "Email is required",
     "passwordRequired": "Password is required",
     "passwordsDoNotMatch": "Passwords do not match"
+  },
+  "counts": {
+    "books_one": "{{count}} book",
+    "books_other": "{{count}} books",
+    "pages_one": "{{count}} page",
+    "pages_other": "{{count}} pages",
+    "highlights_one": "{{count}} highlight",
+    "highlights_other": "{{count}} highlights",
+    "notes_one": "{{count}} note",
+    "notes_other": "{{count}} notes",
+    "flashcards_one": "{{count}} flashcard",
+    "flashcards_other": "{{count}} flashcards",
+    "bookmarks_one": "{{count}} bookmark",
+    "bookmarks_other": "{{count}} bookmarks",
+    "sessions_one": "{{count}} session",
+    "sessions_other": "{{count}} sessions",
+    "days_one": "{{count}} day",
+    "days_other": "{{count}} days"
+  },
+  "labels": {
+    "page": "Page {{page}}",
+    "lastRead": "Last read",
+    "highlightColour": "Highlight colour"
+  },
+  "nav": {
+    "library": "Library",
+    "settings": "Settings"
+  },
+  "placeholders": {
+    "labelName": "Label name...",
+    "search": "Search..."
+  },
+  "emptyStates": {
+    "noBooks": "No books yet. Upload an EPUB or sync from your e-reader to get started."
+  },
+  "errors": {
+    "fetchFlashcardSuggestions": "Failed to fetch suggestions. Please try again."
   }
 }

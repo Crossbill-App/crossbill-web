@@ -1,6 +1,7 @@
 import { ReaderIcon } from '@/theme/Icons.tsx';
 import { IconButton, Tooltip, type IconButtonProps } from '@mui/material';
 import { createLink, useMatch } from '@tanstack/react-router';
+import { useTranslation } from 'react-i18next';
 
 // A link rather than a click handler, so the reader can be opened in a new tab
 // and its address copied.
@@ -25,6 +26,7 @@ export const OpenInReaderButton = ({
   size,
   sx,
 }: OpenInReaderButtonProps) => {
+  const { t } = useTranslation();
   // Selected down to the book id, so a list of these does not re-render on every search change.
   const readingBookId = useMatch({
     from: '/book_/$bookId/read',
@@ -34,7 +36,10 @@ export const OpenInReaderButton = ({
 
   if (readingBookId === String(bookId)) return null;
 
-  const label = chapterId === undefined ? 'Open in reader' : 'Open chapter in reader';
+  const label =
+    chapterId === undefined
+      ? t('components.openInReaderButton.book')
+      : t('components.openInReaderButton.chapter');
 
   return (
     <Tooltip title={label}>

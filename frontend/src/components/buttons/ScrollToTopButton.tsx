@@ -1,6 +1,7 @@
 import { ScrollToTopIcon } from '@/theme/Icons.tsx';
 import { Fab, Zoom } from '@mui/material';
 import { useEffect, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 
 interface ScrollToTopButtonProps {
   /**
@@ -19,6 +20,7 @@ export const ScrollToTopButton = ({
   scrollThreshold = 300,
   scrollBehavior = 'smooth',
 }: ScrollToTopButtonProps) => {
+  const { t } = useTranslation();
   const [isVisible, setIsVisible] = useState(false);
 
   useEffect(() => {
@@ -45,7 +47,7 @@ export const ScrollToTopButton = ({
     <Zoom in={isVisible} mountOnEnter unmountOnExit>
       {/* Deliberately neutral: in this stack amber means "something is
           filtered", and scrolling to the top is not a state. */}
-      <Fab size="small" aria-label="Scroll to top" onClick={handleClick}>
+      <Fab size="small" aria-label={t('components.scrollToTopButton.label')} onClick={handleClick}>
         <ScrollToTopIcon />
       </Fab>
     </Zoom>
