@@ -25,7 +25,7 @@
       "message": "Delete this highlight?"
     },
     "errors": {
-      "deleteHighlight": "delete highlight"
+      "deleteHighlight": "Failed to delete highlight. Please try again."
     }
   },
   "toolbar": {
@@ -35,8 +35,8 @@
     "removeBookmark": "Remove bookmark",
     "deleteHighlight": "Delete highlight",
     "errors": {
-      "createBookmark": "create bookmark",
-      "deleteBookmark": "delete bookmark"
+      "createBookmark": "Failed to create bookmark. Please try again.",
+      "deleteBookmark": "Failed to delete bookmark. Please try again."
     }
   },
   "stylePopover": {
@@ -44,13 +44,13 @@
     "labelFor": "Label for {{colour}}",
     "fallbackColourName": "this colour",
     "errors": {
-      "changeColour": "change the highlight colour"
+      "changeColour": "Failed to change the highlight colour. Please try again."
     }
   },
   "tagMutation": {
     "errors": {
-      "addTag": "add tag",
-      "removeTag": "remove tag"
+      "addTag": "Failed to add tag. Please try again.",
+      "removeTag": "Failed to remove tag. Please try again."
     }
   }
 }

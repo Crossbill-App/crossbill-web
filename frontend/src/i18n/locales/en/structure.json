@@ -55,9 +55,9 @@
       "placeholder": "What was this chapter about?",
       "deleted": "Gist deleted.",
       "notSaved": "Not saved — try again.",
-      "errorActions": {
-        "save": "save gist",
-        "delete": "delete gist"
+      "errors": {
+        "delete": "Failed to delete gist. Please try again.",
+        "save": "Failed to save gist. Please try again."
       }
     },
     "summary": {
@@ -68,11 +68,11 @@
       "copyLink": "Copy link to chapter",
       "generateSummary": "Generate summary",
       "regenerateSummary": "Regenerate summary and questions",
-      "errorActionGenerateSummary": "generate summary",
       "regenerateConfirm": {
         "confirm": "Regenerate",
         "message": "Regenerating this chapter replaces its summary, key points, and questions. Any saved answers to the current questions will be deleted."
-      }
+      },
+      "generateSummaryFailed": "Failed to generate summary. Please try again."
     },
     "review": {
       "generateQuestions": "Generate questions",
@@ -81,9 +81,9 @@
       "answerPlaceholder": "Write your answer...",
       "quizMe": "Quiz me",
       "chatAboutChapter": "Chat about the chapter",
-      "errorActions": {
-        "generateQuestions": "generate questions",
-        "saveAnswer": "save answer"
+      "errors": {
+        "generateQuestions": "Failed to generate questions. Please try again.",
+        "saveAnswer": "Failed to save answer. Please try again."
       }
     },
     "highlights": {

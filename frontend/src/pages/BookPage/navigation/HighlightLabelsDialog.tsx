@@ -10,12 +10,7 @@ import { DEFAULT_LABEL_COLOR, LABEL_COLORS } from '@/utils/colorUtils.ts';
 import { Box, Button, Divider, Stack, TextField, Typography } from '@mui/material';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
-
-/** What the book calls a highlighter before the reader names it: `yellow / lighten`. */
-const styleName = (label: HighlightLabelInBook, unlabelled: string): string => {
-  const parts = [label.device_color, label.device_style].filter(Boolean);
-  return parts.length > 0 ? parts.join(' / ') : unlabelled;
-};
+import { labelStyleName } from './labelStyleName.ts';
 
 interface LabelRowProps {
   bookId: number;
@@ -28,7 +23,7 @@ const LabelRow = ({ bookId, label }: LabelRowProps) => {
   const saveStatus = useSaveStatus();
   const edits = useHighlightLabelSave(bookId, saveStatus);
 
-  const style = styleName(label, t('book.navigation.labelsDialog.unlabelled'));
+  const style = labelStyleName(label);
 
   const submitName = () => {
     if (edits.isSaving) return;

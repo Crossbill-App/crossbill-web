@@ -1,8 +1,4 @@
 {
-  "errorActions": {
-    "saveReflection": "save reflection",
-    "updateReadingStage": "update reading stage"
-  },
   "reflectionPage": {
     "answer": "Answer",
     "editAnswer": "Edit answer"
@@ -31,5 +27,9 @@
   "readingStageChip": {
     "setStage": "Set stage",
     "clearStage": "Clear stage"
+  },
+  "errors": {
+    "saveReflection": "Failed to save reflection. Please try again.",
+    "updateReadingStage": "Failed to update reading stage. Please try again."
   }
 }

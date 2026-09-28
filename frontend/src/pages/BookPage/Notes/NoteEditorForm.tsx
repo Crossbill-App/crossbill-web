@@ -132,7 +132,7 @@ export const NoteEditorForm = forwardRef<NoteEditorFormHandle, NoteEditorFormPro
           onCreated?.(response.note);
           onSaved();
         },
-        onError: mutationErrorHandler(t('notes.errorActions.createNote')),
+        onError: mutationErrorHandler(t('notes.errors.createNote')),
       },
     });
     const updateMutation = useUpdateNote({
@@ -141,7 +141,7 @@ export const NoteEditorForm = forwardRef<NoteEditorFormHandle, NoteEditorFormPro
           invalidateNotes();
           onSaved();
         },
-        onError: mutationErrorHandler(t('notes.errorActions.updateNote')),
+        onError: mutationErrorHandler(t('notes.errors.updateNote')),
       },
     });
 

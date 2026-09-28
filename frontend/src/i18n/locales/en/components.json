@@ -59,7 +59,7 @@
     }
   },
   "highlightLabelSave": {
-    "errorAction": "update label"
+    "failed": "Failed to update label. Please try again."
   },
   "colors": {
     "yellow": "Yellow",
@@ -76,9 +76,6 @@
     "emerald": "Emerald",
     "gray": "Gray",
     "slate": "Slate"
-  },
-  "mutationErrorHandler": {
-    "message": "Failed to {{action}}. Please try again."
   },
   "jobBatchProgress": {
     "cancelFailed": "Failed to cancel batch."

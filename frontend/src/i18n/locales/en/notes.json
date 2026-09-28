@@ -16,13 +16,6 @@
     "reflection": "Reflection",
     "other": "Other"
   },
-  "errorActions": {
-    "createNote": "create note",
-    "updateNote": "update note",
-    "deleteNote": "delete note",
-    "updateNoteLinks": "update note links",
-    "createTag": "create tag"
-  },
   "notesPage": {
     "searchPlaceholder": "Search notes by meaning...",
     "searchFailed": "Search failed. Showing all notes.",
@@ -75,5 +68,12 @@
   "noteLinks": {
     "highlightAdded": "Highlight added to note.",
     "chapterAdded": "Chapter added to note."
+  },
+  "errors": {
+    "createNote": "Failed to create note. Please try again.",
+    "createTag": "Failed to create tag. Please try again.",
+    "deleteNote": "Failed to delete note. Please try again.",
+    "updateNote": "Failed to update note. Please try again.",
+    "updateNoteLinks": "Failed to update note links. Please try again."
   }
 }

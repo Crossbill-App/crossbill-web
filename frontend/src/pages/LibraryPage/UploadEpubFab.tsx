@@ -41,7 +41,7 @@ export const UploadEpubFab = () => {
       onError: (error) => {
         const messageKey = REFUSAL_KEYS[error.response?.status ?? 0];
         if (messageKey) showSnackbar(t(messageKey), 'error');
-        else handleMutationError(t('library.uploadEpubFab.errorAction'))(error);
+        else handleMutationError(t('library.uploadEpubFab.failed'))(error);
       },
     },
   });

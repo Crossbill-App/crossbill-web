@@ -9,11 +9,6 @@
     "delete": "Delete flashcard",
     "viewLinkedNote": "View linked note"
   },
-  "errorActions": {
-    "create": "create flashcard",
-    "update": "update flashcard",
-    "delete": "delete flashcard"
-  },
   "page": {
     "searchPlaceholder": "Search flashcards...",
     "emptyState": "No flashcards yet. Create flashcards from your highlights to start studying.",
@@ -45,5 +40,10 @@
     "suggest": "Suggest flashcards",
     "accept": "Accept suggestion",
     "reject": "Reject suggestion"
+  },
+  "errors": {
+    "create": "Failed to create flashcard. Please try again.",
+    "delete": "Failed to delete flashcard. Please try again.",
+    "update": "Failed to update flashcard. Please try again."
   }
 }

@@ -96,7 +96,7 @@ test('closing the drawer by hand leaves the page scrollable', async () => {
   await onMobile(async () => {
     const screen = await openFilterDrawer();
 
-    await userEvent.click(screen.getByRole('button', { name: 'close' }));
+    await userEvent.click(screen.getByRole('button', { name: 'Close' }));
     await drawerGone(screen);
 
     expect(bodyLockStyles()).toEqual(UNLOCKED);

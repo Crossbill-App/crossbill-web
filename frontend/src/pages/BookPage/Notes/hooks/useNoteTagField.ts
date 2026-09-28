@@ -32,7 +32,7 @@ export const useNoteTagField = (bookId: number): NoteTagField => {
   const createTagMutation = useCreateTag({
     mutation: {
       onSuccess: () => cache.tagsChanged(bookId),
-      onError: mutationErrorHandler(t('notes.errorActions.createTag')),
+      onError: mutationErrorHandler(t('notes.errors.createTag')),
     },
   });
 

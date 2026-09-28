@@ -11,6 +11,6 @@
     "invalidEpub": "That file is not a valid EPUB.",
     "notEpub": "Only EPUB files can be uploaded.",
     "tooLarge": "That file is over the 50 MB limit.",
-    "errorAction": "upload the book"
+    "failed": "Failed to upload the book. Please try again."
   }
 }

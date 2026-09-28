@@ -103,7 +103,7 @@ export const ReflectionPage = () => {
       onSuccess: (updated) => {
         queryClient.setQueryData<BookReflectionResponse>(queryKey, updated);
       },
-      onError: mutationErrorHandler(t('reflection.errorActions.saveReflection')),
+      onError: mutationErrorHandler(t('reflection.errors.saveReflection')),
     },
   });
 

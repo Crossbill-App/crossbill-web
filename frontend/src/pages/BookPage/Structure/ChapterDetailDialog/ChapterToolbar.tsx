@@ -27,9 +27,7 @@ export const ChapterToolbar = ({ chapterId, bookId, hasSummary }: ChapterToolbar
 
   const { mutate: generate, isPending } = useGenerateChapterDigest({
     mutation: {
-      onError: mutationErrorHandler(
-        t('structure.chapterDetail.toolbar.errorActionGenerateSummary')
-      ),
+      onError: mutationErrorHandler(t('structure.chapterDetail.toolbar.generateSummaryFailed')),
       onSuccess: () => {
         cache.digestChanged(bookId);
       },

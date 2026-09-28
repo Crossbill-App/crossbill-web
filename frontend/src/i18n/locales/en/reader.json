@@ -72,7 +72,7 @@
   "highlightCreation": {
     "passageNotFound": "Couldn't find where this passage is in the book, so it wasn't highlighted. Try selecting a little more text.",
     "fileUnreadable": "The book's file couldn't be read, so the highlight wasn't saved.",
-    "errorAction": "save the highlight"
+    "failed": "Failed to save the highlight. Please try again."
   },
   "opening": {
     "positionLost": "Couldn't restore your last position, so the book opened at the start.",

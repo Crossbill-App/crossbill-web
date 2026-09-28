@@ -55,7 +55,7 @@ export const FlashcardEditDialog = ({
         cache.flashcardsChanged(bookId, flashcard.note_id ?? undefined);
         onClose();
       },
-      onError: mutationErrorHandler(t('flashcards.errorActions.update')),
+      onError: mutationErrorHandler(t('flashcards.errors.update')),
     },
   });
 

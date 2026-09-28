@@ -53,7 +53,7 @@ export const FilterDrawer = ({ open, onClose, tabs, header }: FilterDrawerProps)
           <IconButton
             edge="end"
             onClick={handleClose}
-            aria-label={t('book.navigation.filterDrawer.close')}
+            aria-label={t('common.actions.close')}
             size="small"
           >
             <CloseIcon />

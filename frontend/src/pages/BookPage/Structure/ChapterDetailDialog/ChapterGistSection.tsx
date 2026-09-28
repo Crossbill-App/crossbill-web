@@ -76,8 +76,8 @@ export const ChapterGistSection = ({ chapterId, chapterName, notes }: ChapterGis
     saveStatus.reset();
   });
 
-  const failed = (action: string) => (error: unknown) => {
-    mutationErrorHandler(action)(error);
+  const failed = (message: string) => (error: unknown) => {
+    mutationErrorHandler(message)(error);
     saveStatus.reset();
     setSaveFailed(true);
     setIsEditing(true);
@@ -94,13 +94,13 @@ export const ChapterGistSection = ({ chapterId, chapterName, notes }: ChapterGis
   const createMutation = useCreateNote({
     mutation: {
       onSuccess: saved,
-      onError: failed(t('structure.chapterDetail.gist.errorActions.save')),
+      onError: failed(t('structure.chapterDetail.gist.errors.save')),
     },
   });
   const updateMutation = useUpdateNote({
     mutation: {
       onSuccess: saved,
-      onError: failed(t('structure.chapterDetail.gist.errorActions.save')),
+      onError: failed(t('structure.chapterDetail.gist.errors.save')),
     },
   });
   const deleteMutation = useDeleteNote({
@@ -110,7 +110,7 @@ export const ChapterGistSection = ({ chapterId, chapterName, notes }: ChapterGis
         cache.noteDeleted(book.id, variables.noteId);
         showSnackbar(t('structure.chapterDetail.gist.deleted'), 'info');
       },
-      onError: failed(t('structure.chapterDetail.gist.errorActions.delete')),
+      onError: failed(t('structure.chapterDetail.gist.errors.delete')),
     },
   });
 

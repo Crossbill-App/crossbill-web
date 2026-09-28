@@ -89,7 +89,7 @@ export const useHighlightCreation = (bookId: number): HighlightCreation => {
       } catch (error) {
         const message = REFUSALS[(error as AxiosError).response?.status ?? 0];
         if (message) showSnackbar(t(message), 'error');
-        else handleMutationError(t('reader.highlightCreation.errorAction'))(error);
+        else handleMutationError(t('reader.highlightCreation.failed'))(error);
       } finally {
         setStandIns((current) => current.filter((candidate) => candidate !== standIn));
       }

@@ -93,9 +93,7 @@ export const ChapterReviewSection = ({
 
   const { mutate: generate, isPending } = useGenerateChapterDigest({
     mutation: {
-      onError: mutationErrorHandler(
-        t('structure.chapterDetail.review.errorActions.generateQuestions')
-      ),
+      onError: mutationErrorHandler(t('structure.chapterDetail.review.errors.generateQuestions')),
       onSuccess: () => {
         cache.digestChanged(bookId);
       },
@@ -106,7 +104,7 @@ export const ChapterReviewSection = ({
 
   const { mutate: saveAnswers } = useUpdateDigestAnswers({
     mutation: {
-      onError: mutationErrorHandler(t('structure.chapterDetail.review.errorActions.saveAnswer')),
+      onError: mutationErrorHandler(t('structure.chapterDetail.review.errors.saveAnswer')),
       onSuccess: (updatedChapter) => {
         queryClient.setQueryData<CollectionResponseChapterDigestResponse>(queryKey, (old) => {
           if (!old) return old;

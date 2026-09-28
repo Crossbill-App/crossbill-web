@@ -33,7 +33,7 @@ export const ReadingStageChip = ({ bookId, readingStage }: ReadingStageChipProps
       },
       onError: (error: unknown) => {
         saveStatus.reset();
-        mutationErrorHandler(t('reflection.errorActions.updateReadingStage'))(error);
+        mutationErrorHandler(t('reflection.errors.updateReadingStage'))(error);
       },
     },
   });

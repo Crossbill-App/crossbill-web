@@ -43,7 +43,7 @@ export const FlashcardListCard = ({
       onSuccess: () => {
         cache.flashcardsChanged(bookId, noteId ?? flashcard.note_id ?? undefined);
       },
-      onError: mutationErrorHandler(t('flashcards.errorActions.delete')),
+      onError: mutationErrorHandler(t('flashcards.errors.delete')),
     },
   });
 

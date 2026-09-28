@@ -8,6 +8,7 @@ import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import { HighlightLabelsDialog } from './HighlightLabelsDialog.tsx';
+import { labelStyleName } from './labelStyleName.ts';
 import { SidebarSectionHeader } from './SidebarSectionHeader.tsx';
 
 interface HighlightLabelsListProps {
@@ -17,13 +18,8 @@ interface HighlightLabelsListProps {
   hideTitle?: boolean;
 }
 
-const getLabelDisplayName = (label: HighlightLabelInBook, unlabeled: string): string => {
-  if (label.label) {
-    return label.label;
-  }
-  const parts = [label.device_color, label.device_style].filter(Boolean);
-  return parts.length > 0 ? parts.join(' / ') : unlabeled;
-};
+const getLabelDisplayName = (label: HighlightLabelInBook): string =>
+  label.label || labelStyleName(label);
 
 const getLabelColor = (label: HighlightLabelInBook): string => {
   return label.ui_color || DEFAULT_LABEL_COLOR;
@@ -69,7 +65,7 @@ export const HighlightLabelsList = ({
         {labels.map((label) => (
           <LabelChip
             key={label.id}
-            name={getLabelDisplayName(label, t('book.navigation.labels.unlabeled'))}
+            name={getLabelDisplayName(label)}
             color={getLabelColor(label)}
             count={label.highlight_count}
             isSelected={selectedLabelId === label.id}

@@ -116,7 +116,7 @@ export const NoteViewDialog = ({
         setDeleteConfirmOpen(false);
         onClose();
       },
-      onError: mutationErrorHandler(t('notes.errorActions.deleteNote')),
+      onError: mutationErrorHandler(t('notes.errors.deleteNote')),
     },
   });
 

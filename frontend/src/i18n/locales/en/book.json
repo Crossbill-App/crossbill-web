@@ -23,8 +23,8 @@
       "message": "Delete the book \"{{title}}\"? Its highlights go too."
     },
     "errors": {
-      "deleteBook": "delete book",
-      "saveBlurb": "save blurb"
+      "deleteBook": "Failed to delete book. Please try again.",
+      "saveBlurb": "Failed to save blurb. Please try again."
     }
   },
   "common": {
@@ -60,9 +60,6 @@
       "collapse": "Collapse {{section}}",
       "expand": "Expand {{section}}"
     },
-    "filterDrawer": {
-      "close": "close"
-    },
     "chapters": {
       "sectionLabel": "chapters list"
     },
@@ -74,11 +71,10 @@
     "labels": {
       "title": "Labels",
       "editLabels": "Edit labels",
-      "unlabeled": "Unlabeled"
+      "unlabelled": "Unlabelled"
     },
     "labelsDialog": {
       "title": "Highlight labels",
-      "unlabelled": "Unlabelled",
       "nameFor": "Name for {{style}}",
       "colourFor": "Colour for {{style}}"
     },
@@ -113,10 +109,10 @@
         "removeFromGroup": "Remove from group"
       },
       "errors": {
-        "moveTag": "move tag",
-        "saveTagGroup": "save tag group",
-        "deleteTagGroup": "delete tag group",
-        "updateTags": "update tags"
+        "deleteTagGroup": "Failed to delete tag group. Please try again.",
+        "moveTag": "Failed to move tag. Please try again.",
+        "saveTagGroup": "Failed to save tag group. Please try again.",
+        "updateTags": "Failed to update tags. Please try again."
       }
     }
   },

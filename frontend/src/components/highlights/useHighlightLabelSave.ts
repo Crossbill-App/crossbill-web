@@ -28,7 +28,7 @@ export const useHighlightLabelSave = (
       },
       onError: (error: unknown) => {
         saveStatus.reset();
-        mutationErrorHandler(t('components.highlightLabelSave.errorAction'))(error);
+        mutationErrorHandler(t('components.highlightLabelSave.failed'))(error);
       },
     },
   });

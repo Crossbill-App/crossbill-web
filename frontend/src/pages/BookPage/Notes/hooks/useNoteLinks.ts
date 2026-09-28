@@ -28,7 +28,7 @@ export const useNoteLinks = ({ bookId }: UseNoteLinksOptions) => {
   const updateNoteMutation = useUpdateNote({
     mutation: {
       onSuccess: (_data, { noteId }) => cache.noteChanged(bookId, noteId),
-      onError: mutationErrorHandler(t('notes.errorActions.updateNoteLinks')),
+      onError: mutationErrorHandler(t('notes.errors.updateNoteLinks')),
     },
   });
 

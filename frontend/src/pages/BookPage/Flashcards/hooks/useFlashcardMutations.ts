@@ -32,7 +32,7 @@ export const useFlashcardMutations = ({
   const updateFlashcardMutation = useUpdateFlashcard({
     mutation: {
       onSuccess: invalidateFlashcardQueries,
-      onError: mutationErrorHandler(t('flashcards.errorActions.update')),
+      onError: mutationErrorHandler(t('flashcards.errors.update')),
     },
   });
 
@@ -45,7 +45,7 @@ export const useFlashcardMutations = ({
       invalidateFlashcardQueries();
       return true;
     } catch (error) {
-      mutationErrorHandler(t('flashcards.errorActions.create'))(error);
+      mutationErrorHandler(t('flashcards.errors.create'))(error);
       return false;
     } finally {
       setIsProcessing(false);
