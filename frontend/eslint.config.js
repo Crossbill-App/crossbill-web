@@ -85,6 +85,24 @@ const CACHE_INVALIDATION = [
   },
 ];
 
+// User-facing copy lives in src/i18n/locales, so it can be translated and
+// edited in one place. Catches the two shapes copy most often takes in a
+// component: text between tags, and the attributes a user reads or hears.
+const HARDCODED_COPY_MESSAGE =
+  'Move user-facing text into src/i18n/locales/en/ and read it with t() from useTranslation().';
+
+const HARDCODED_COPY = [
+  {
+    selector: 'JSXText[value=/[A-Za-z]/]',
+    message: HARDCODED_COPY_MESSAGE,
+  },
+  {
+    selector:
+      'JSXAttribute[name.name=/^(aria-label|title|placeholder|label|alt|helperText|tooltip)$/] > Literal[value=/[A-Za-z]/]',
+    message: HARDCODED_COPY_MESSAGE,
+  },
+];
+
 // A test that quotes a whole sentence of copy back at the app breaks on every
 // rewording, and the sentence-case and ellipsis conventions in claude.md mean
 // rewording keeps happening. Trailing `.`, `?` or `!` is what tells a sentence
@@ -200,16 +218,17 @@ export default tseslint.config(
     },
   },
   {
-    // The one module allowed to invalidate, since it is where the keys live.
-    files: ['src/lib/cacheEvents.ts'],
-    rules: { 'no-restricted-syntax': 'off' },
-  },
-  {
     files: ['src/**/*.{ts,tsx}'],
     rules: {
+      'no-restricted-syntax': restrictSyntax(CACHE_INVALIDATION, HARDCODED_COPY),
       // The typescript-eslint variant, for `allowTypeImports`.
       '@typescript-eslint/no-restricted-imports': restrictImports(ICON_REGISTRY, READIUM_SEAM),
     },
+  },
+  {
+    // The one module allowed to invalidate, since it is where the keys live.
+    files: ['src/lib/cacheEvents.ts'],
+    rules: { 'no-restricted-syntax': restrictSyntax(HARDCODED_COPY) },
   },
   {
     // The registry itself, which is where the icons are imported.
