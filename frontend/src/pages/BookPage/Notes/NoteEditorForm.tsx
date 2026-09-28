@@ -8,10 +8,11 @@ import { useBookPage } from '@/pages/BookPage/BookPageContext';
 import { Autocomplete, Box, MenuItem, TextField, Typography } from '@mui/material';
 import { forwardRef, useEffect, useImperativeHandle, type ReactNode } from 'react';
 import { Controller, useForm } from 'react-hook-form';
+import { useTranslation } from 'react-i18next';
 
 import { GistHelperText } from './GistHelperText';
 import { useNoteTagField } from './hooks/useNoteTagField';
-import { NOTE_KIND_LABELS, NOTE_KINDS, type NoteKindValue } from './noteKinds';
+import { NOTE_KINDS, type NoteKindValue } from './noteKinds';
 
 export interface NoteEditorFormHandle {
   submit: () => void;
@@ -80,6 +81,7 @@ export const NoteEditorForm = forwardRef<NoteEditorFormHandle, NoteEditorFormPro
     },
     ref
   ) {
+    const { t } = useTranslation();
     const { book } = useBookPage();
     const mutationErrorHandler = useMutationErrorHandler();
     const cache = useCacheEvents();
@@ -130,7 +132,7 @@ export const NoteEditorForm = forwardRef<NoteEditorFormHandle, NoteEditorFormPro
           onCreated?.(response.note);
           onSaved();
         },
-        onError: mutationErrorHandler('create note'),
+        onError: mutationErrorHandler(t('notes.errorActions.createNote')),
       },
     });
     const updateMutation = useUpdateNote({
@@ -139,7 +141,7 @@ export const NoteEditorForm = forwardRef<NoteEditorFormHandle, NoteEditorFormPro
           invalidateNotes();
           onSaved();
         },
-        onError: mutationErrorHandler('update note'),
+        onError: mutationErrorHandler(t('notes.errorActions.updateNote')),
       },
     });
 
@@ -149,10 +151,7 @@ export const NoteEditorForm = forwardRef<NoteEditorFormHandle, NoteEditorFormPro
     const isGist = watch('kind') === 'gist';
     const bodyLength = watch('body').length;
     const gistHelperText: ReactNode = isGist ? (
-      <GistHelperText
-        length={bodyLength}
-        message="1–2 sentences: what was this chapter about, in your words?"
-      />
+      <GistHelperText length={bodyLength} message={t('notes.noteEditorForm.gistPrompt')} />
     ) : undefined;
 
     useEffect(() => {
@@ -207,19 +206,31 @@ export const NoteEditorForm = forwardRef<NoteEditorFormHandle, NoteEditorFormPro
             </Typography>
           </Box>
         )}
-        <RHFTextField name="title" control={control} label="Title" fullWidth autoFocus />
-        <RHFTextField name="kind" control={control} select label="Type" fullWidth>
-          <MenuItem value="">None</MenuItem>
+        <RHFTextField
+          name="title"
+          control={control}
+          label={t('notes.shared.title')}
+          fullWidth
+          autoFocus
+        />
+        <RHFTextField
+          name="kind"
+          control={control}
+          select
+          label={t('notes.noteEditorForm.typeLabel')}
+          fullWidth
+        >
+          <MenuItem value="">{t('notes.shared.none')}</MenuItem>
           {NOTE_KINDS.map((value) => (
             <MenuItem key={value} value={value}>
-              {NOTE_KIND_LABELS[value]}
+              {t(`notes.kinds.${value}`)}
             </MenuItem>
           ))}
         </RHFTextField>
         <RHFTextField
           name="body"
           control={control}
-          label="Note (markdown)"
+          label={t('notes.noteEditorForm.bodyLabel')}
           fullWidth
           multiline
           minRows={5}
@@ -236,7 +247,9 @@ export const NoteEditorForm = forwardRef<NoteEditorFormHandle, NoteEditorFormPro
               isOptionEqualToValue={(option, value) => option.id === value.id}
               value={field.value}
               onChange={(_, value) => field.onChange(value)}
-              renderInput={(params) => <TextField {...params} label="Chapters" />}
+              renderInput={(params) => (
+                <TextField {...params} label={t('common.entities.chapters')} />
+              )}
             />
           )}
         />

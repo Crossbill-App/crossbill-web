@@ -10,6 +10,7 @@ import { useSaveStatus } from '@/hooks/useSaveStatus.ts';
 import { useCacheEvents } from '@/lib/cacheEvents.ts';
 import { Box, Chip, Divider, Menu, MenuItem } from '@mui/material';
 import { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 
 interface ReadingStageChipProps {
   bookId: number;
@@ -17,6 +18,7 @@ interface ReadingStageChipProps {
 }
 
 export const ReadingStageChip = ({ bookId, readingStage }: ReadingStageChipProps) => {
+  const { t } = useTranslation();
   const [anchorEl, setAnchorEl] = useState<HTMLElement | null>(null);
   const mutationErrorHandler = useMutationErrorHandler();
   const cache = useCacheEvents();
@@ -31,7 +33,7 @@ export const ReadingStageChip = ({ bookId, readingStage }: ReadingStageChipProps
       },
       onError: (error: unknown) => {
         saveStatus.reset();
-        mutationErrorHandler('update reading stage')(error);
+        mutationErrorHandler(t('reflection.errorActions.updateReadingStage'))(error);
       },
     },
   });
@@ -49,7 +51,11 @@ export const ReadingStageChip = ({ bookId, readingStage }: ReadingStageChipProps
     <>
       <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mt: 1.5 }}>
         <Chip
-          label={readingStage ? READING_STAGE_LABELS[readingStage] : 'Set stage'}
+          label={
+            readingStage
+              ? READING_STAGE_LABELS[readingStage]
+              : t('reflection.readingStageChip.setStage')
+          }
           color={readingStage && !abandoned ? 'primary' : 'default'}
           variant={readingStage ? 'filled' : 'outlined'}
           onClick={(event) => setAnchorEl(event.currentTarget)}
@@ -74,7 +80,7 @@ export const ReadingStageChip = ({ bookId, readingStage }: ReadingStageChipProps
         {readingStage && [
           <Divider key="clear-divider" />,
           <MenuItem key="clear" onClick={() => handleSelect(null)}>
-            Clear stage
+            {t('reflection.readingStageChip.clearStage')}
           </MenuItem>,
         ]}
       </Menu>

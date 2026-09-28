@@ -7,6 +7,7 @@ import { DialogTabs, type DialogTabItem } from '@/components/dialogs/DialogTabs.
 import { NoteFlashcardSection } from '@/pages/BookPage/Notes/components/NoteFlashcardSection.tsx';
 import { useNoteCountsByHighlight } from '@/pages/BookPage/Notes/hooks/useNoteCountsByHighlight.ts';
 import { Box, List, ListItem, ListItemButton, ListItemText } from '@mui/material';
+import { useTranslation } from 'react-i18next';
 
 interface NoteTabsProps {
   note: NoteWithLinks;
@@ -37,16 +38,17 @@ export const NoteTabs = ({
   onUnlinkChapter,
   disabled = false,
 }: NoteTabsProps) => {
+  const { t } = useTranslation();
   const noteCountByHighlightId = useNoteCountsByHighlight();
 
   const tabs: DialogTabItem[] = [
     {
       key: 'highlights',
-      label: 'Highlights',
+      label: t('common.entities.highlights'),
       count: highlights.length,
       content:
         highlights.length === 0 ? (
-          <EmptyStateText>No highlights linked to this note.</EmptyStateText>
+          <EmptyStateText>{t('notes.noteTabs.noHighlights')}</EmptyStateText>
         ) : (
           <CardList>
             {highlights.map((highlight) => (
@@ -58,7 +60,7 @@ export const NoteTabs = ({
                 />
                 {onUnlinkHighlight && (
                   <UnlinkButton
-                    label="Remove link to this highlight"
+                    label={t('notes.noteTabs.unlinkHighlight')}
                     disabled={disabled}
                     onClick={() => onUnlinkHighlight(highlight.id)}
                     sx={{ position: 'absolute', bottom: 8, right: 8 }}
@@ -71,11 +73,11 @@ export const NoteTabs = ({
     },
     {
       key: 'chapters',
-      label: 'Chapters',
+      label: t('common.entities.chapters'),
       count: chapters.length,
       content:
         chapters.length === 0 ? (
-          <EmptyStateText>No chapters linked to this note.</EmptyStateText>
+          <EmptyStateText>{t('notes.noteTabs.noChapters')}</EmptyStateText>
         ) : (
           <List disablePadding>
             {chapters.map((chapter) => (
@@ -86,7 +88,7 @@ export const NoteTabs = ({
                   onUnlinkChapter && (
                     <UnlinkButton
                       edge="end"
-                      label="Remove link to this chapter"
+                      label={t('notes.noteTabs.unlinkChapter')}
                       disabled={disabled}
                       onClick={() => onUnlinkChapter(chapter.id)}
                     />
@@ -103,7 +105,7 @@ export const NoteTabs = ({
     },
     {
       key: 'flashcards',
-      label: 'Flashcards',
+      label: t('common.entities.flashcards'),
       count: note.flashcards?.length ?? 0,
       content: <NoteFlashcardSection note={note} bookId={bookId} disabled={disabled} />,
     },

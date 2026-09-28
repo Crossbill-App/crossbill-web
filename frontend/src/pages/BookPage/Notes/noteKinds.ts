@@ -2,15 +2,6 @@ export const NOTE_KINDS = ['character', 'term', 'concept', 'gist', 'reflection',
 
 export type NoteKindValue = (typeof NOTE_KINDS)[number];
 
-export const NOTE_KIND_LABELS: Record<NoteKindValue, string> = {
-  character: 'Character',
-  term: 'Term',
-  concept: 'Concept',
-  gist: 'Gist',
-  reflection: 'Reflection',
-  other: 'Other',
-};
-
 /** Kinds shown when the user hasn't set an explicit filter. Gists are excluded because they are usually very short. */
 export const DEFAULT_NOTE_KINDS: NoteKindValue[] = NOTE_KINDS.filter((kind) => kind !== 'gist');
 

@@ -2,6 +2,7 @@ import type { TagInBook } from '@/api/generated/model';
 import { useCreateTag } from '@/api/generated/tags/tags.ts';
 import { useMutationErrorHandler } from '@/hooks/useMutationErrorHandler.ts';
 import { useCacheEvents } from '@/lib/cacheEvents.ts';
+import { useTranslation } from 'react-i18next';
 
 /**
  * Tag-field logic for the note editor: resolve the `(tag | string)` values from
@@ -24,13 +25,14 @@ export interface NoteTagField {
 }
 
 export const useNoteTagField = (bookId: number): NoteTagField => {
+  const { t } = useTranslation();
   const mutationErrorHandler = useMutationErrorHandler();
   const cache = useCacheEvents();
 
   const createTagMutation = useCreateTag({
     mutation: {
       onSuccess: () => cache.tagsChanged(bookId),
-      onError: mutationErrorHandler('create tag'),
+      onError: mutationErrorHandler(t('notes.errorActions.createTag')),
     },
   });
 

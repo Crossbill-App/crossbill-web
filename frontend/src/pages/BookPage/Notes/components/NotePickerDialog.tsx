@@ -5,6 +5,7 @@ import { CommonDialog } from '@/components/dialogs/CommonDialog.tsx';
 import { EmptyStateText } from '@/components/EmptyStateText.tsx';
 import { NoteKindChip } from '@/pages/BookPage/Notes/NoteKindChip.tsx';
 import { Box, List, ListItemButton, ListItemText, Typography } from '@mui/material';
+import { useTranslation } from 'react-i18next';
 
 /** What the picked note gets linked to, named in the dialog's subtitle. */
 type NoteLinkTargetKind = 'highlight' | 'chapter' | 'reflection';
@@ -24,6 +25,7 @@ export const NotePickerDialog = ({
   target,
   onSelect,
 }: NotePickerDialogProps) => {
+  const { t } = useTranslation();
   const { data, isLoading } = useGetNotesForBook(bookId, undefined, {
     query: { enabled: open },
   });
@@ -38,9 +40,9 @@ export const NotePickerDialog = ({
       onClose={onClose}
       title={
         <Box>
-          Link a note
+          {t('notes.notePickerDialog.title')}
           <Typography variant="body2" sx={{ color: 'text.secondary' }}>
-            {`Choose a note to link to this ${target}.`}
+            {t(`notes.notePickerDialog.subtitle.${target}`)}
           </Typography>
         </Box>
       }
@@ -48,7 +50,7 @@ export const NotePickerDialog = ({
     >
       {isLoading && <Spinner />}
       {!isLoading && notes.length === 0 && (
-        <EmptyStateText>No notes in this book yet.</EmptyStateText>
+        <EmptyStateText>{t('notes.notePickerDialog.empty')}</EmptyStateText>
       )}
       <List>
         {notes.map((note) => (

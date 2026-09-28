@@ -2,6 +2,7 @@ import type { Note } from '@/api/generated/model';
 import { CommonDialog } from '@/components/dialogs/CommonDialog.tsx';
 import { Box, Button } from '@mui/material';
 import { useRef, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 
 import { NoteEditorForm, type NoteEditorFormHandle, type NoteGuidance } from './NoteEditorForm';
 import type { NoteKindValue } from './noteKinds';
@@ -35,6 +36,7 @@ export const NoteEditorDialog = ({
   guidance,
   onCreated,
 }: NoteEditorDialogProps) => {
+  const { t } = useTranslation();
   const formRef = useRef<NoteEditorFormHandle>(null);
   const [status, setStatus] = useState({ isSaving: false, canSave: false });
 
@@ -42,20 +44,20 @@ export const NoteEditorDialog = ({
     <CommonDialog
       open={open}
       onClose={onClose}
-      title="New note"
+      title={t('notes.noteEditorDialog.title')}
       maxWidth="md"
       isLoading={status.isSaving}
       footerActions={
         <Box sx={{ display: 'flex', gap: 1 }}>
           <Button onClick={onClose} disabled={status.isSaving}>
-            Cancel
+            {t('common.actions.cancel')}
           </Button>
           <Button
             variant="contained"
             onClick={() => formRef.current?.submit()}
             disabled={!status.canSave}
           >
-            {status.isSaving ? 'Saving...' : 'Save'}
+            {status.isSaving ? t('common.status.saving') : t('common.actions.save')}
           </Button>
         </Box>
       }

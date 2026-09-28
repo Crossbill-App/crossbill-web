@@ -3,6 +3,7 @@ import { useUpdateNote } from '@/api/generated/notes/notes.ts';
 import { useSnackbar } from '@/context/SnackbarContext.tsx';
 import { useMutationErrorHandler } from '@/hooks/useMutationErrorHandler.ts';
 import { useCacheEvents } from '@/lib/cacheEvents.ts';
+import { useTranslation } from 'react-i18next';
 
 interface UseNoteLinksOptions {
   bookId: number;
@@ -19,6 +20,7 @@ interface MutateOptions {
  * to or filtered out of the relevant array.
  */
 export const useNoteLinks = ({ bookId }: UseNoteLinksOptions) => {
+  const { t } = useTranslation();
   const cache = useCacheEvents();
   const { showSnackbar } = useSnackbar();
   const mutationErrorHandler = useMutationErrorHandler();
@@ -26,7 +28,7 @@ export const useNoteLinks = ({ bookId }: UseNoteLinksOptions) => {
   const updateNoteMutation = useUpdateNote({
     mutation: {
       onSuccess: (_data, { noteId }) => cache.noteChanged(bookId, noteId),
-      onError: mutationErrorHandler('update note links'),
+      onError: mutationErrorHandler(t('notes.errorActions.updateNoteLinks')),
     },
   });
 
@@ -60,7 +62,7 @@ export const useNoteLinks = ({ bookId }: UseNoteLinksOptions) => {
     updateLinks(
       note,
       { highlight_ids: [...new Set([...note.highlight_ids, highlightId])] },
-      'Highlight added to note.',
+      t('notes.noteLinks.highlightAdded'),
       options
     );
   };
@@ -69,7 +71,7 @@ export const useNoteLinks = ({ bookId }: UseNoteLinksOptions) => {
     updateLinks(
       note,
       { highlight_ids: note.highlight_ids.filter((id) => id !== highlightId) },
-      'Link removed.'
+      t('notes.shared.linkRemoved')
     );
   };
 
@@ -77,7 +79,7 @@ export const useNoteLinks = ({ bookId }: UseNoteLinksOptions) => {
     updateLinks(
       note,
       { chapter_ids: [...new Set([...note.chapter_ids, chapterId])] },
-      'Chapter added to note.',
+      t('notes.noteLinks.chapterAdded'),
       options
     );
   };
@@ -86,7 +88,7 @@ export const useNoteLinks = ({ bookId }: UseNoteLinksOptions) => {
     updateLinks(
       note,
       { chapter_ids: note.chapter_ids.filter((id) => id !== chapterId) },
-      'Link removed.'
+      t('notes.shared.linkRemoved')
     );
   };
 
