@@ -1,5 +1,6 @@
 import { RetryIcon } from '@/theme/Icons.tsx';
 import { Alert, Box, Button, CircularProgress } from '@mui/material';
+import { useTranslation } from 'react-i18next';
 
 interface SessionErrorProps {
   error: string | null;
@@ -9,6 +10,8 @@ interface SessionErrorProps {
 }
 
 export const SessionError = ({ error, hasSession, isCreating, onRetry }: SessionErrorProps) => {
+  const { t } = useTranslation();
+
   if (isCreating) {
     return (
       <Box sx={{ display: 'flex', justifyContent: 'center', mt: 4 }}>
@@ -24,7 +27,7 @@ export const SessionError = ({ error, hasSession, isCreating, onRetry }: Session
           {error}
         </Alert>
         <Button variant="outlined" startIcon={<RetryIcon />} onClick={onRetry}>
-          Try again
+          {t('common.actions.tryAgain')}
         </Button>
       </Box>
     );

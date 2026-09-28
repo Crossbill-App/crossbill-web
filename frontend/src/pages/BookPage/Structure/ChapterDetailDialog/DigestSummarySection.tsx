@@ -1,6 +1,7 @@
 import type { ChapterDigestResponse } from '@/api/generated/model';
 import { DigestContent } from '@/pages/BookPage/Structure/DigestContent.tsx';
 import { Typography } from '@mui/material';
+import { useTranslation } from 'react-i18next';
 import { CollapsibleSection } from './CollapsibleSection.tsx';
 
 interface DigestSummarySectionProps {
@@ -12,8 +13,13 @@ export const DigestSummarySection = ({
   digestSummary,
   defaultExpanded,
 }: DigestSummarySectionProps) => {
+  const { t } = useTranslation();
+
   return (
-    <CollapsibleSection title="Chapter summary" defaultExpanded={defaultExpanded}>
+    <CollapsibleSection
+      title={t('structure.chapterDetail.summary.title')}
+      defaultExpanded={defaultExpanded}
+    >
       {digestSummary ? (
         <DigestContent content={digestSummary} />
       ) : (
@@ -23,7 +29,7 @@ export const DigestSummarySection = ({
             color: 'text.secondary',
           }}
         >
-          No chapter summary available
+          {t('structure.chapterDetail.summary.empty')}
         </Typography>
       )}
     </CollapsibleSection>

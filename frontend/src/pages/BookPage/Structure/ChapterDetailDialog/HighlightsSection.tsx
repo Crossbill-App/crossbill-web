@@ -5,6 +5,7 @@ import { HighlightCard } from '@/components/cards/HighlightCard.tsx';
 import { HighlightViewDialog } from '@/pages/BookPage/Highlights/HighlightViewDialog/HighlightViewDialog.tsx';
 import { useHighlightDialog } from '@/pages/BookPage/Highlights/hooks/useHighlightDialog.ts';
 import { useNoteCountsByHighlight } from '@/pages/BookPage/Notes/hooks/useNoteCountsByHighlight.ts';
+import { useTranslation } from 'react-i18next';
 
 interface HighlightsSectionProps {
   chapter: ChapterWithHighlights;
@@ -19,6 +20,7 @@ export const HighlightsSection = ({
   bookmarksByHighlightId,
   availableTags,
 }: HighlightsSectionProps) => {
+  const { t } = useTranslation();
   const highlights = chapter.highlights;
   const noteCountByHighlightId = useNoteCountsByHighlight();
 
@@ -29,7 +31,7 @@ export const HighlightsSection = ({
   });
 
   if (highlights.length === 0) {
-    return <EmptyStateText>No highlights in this chapter yet.</EmptyStateText>;
+    return <EmptyStateText>{t('structure.chapterDetail.highlights.empty')}</EmptyStateText>;
   }
 
   return (

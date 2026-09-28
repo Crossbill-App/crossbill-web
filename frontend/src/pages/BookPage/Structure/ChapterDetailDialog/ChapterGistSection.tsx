@@ -12,8 +12,7 @@ import { GistHelperText } from '@/pages/BookPage/Notes/GistHelperText.tsx';
 import { ButtonBase, TextField, Typography } from '@mui/material';
 import { find } from 'lodash';
 import { useState } from 'react';
-
-const PLACEHOLDER = 'What was this chapter about?';
+import { useTranslation } from 'react-i18next';
 
 interface ExistingGistTextProps {
   text: string;
@@ -47,6 +46,7 @@ interface ChapterGistSectionProps {
 }
 
 export const ChapterGistSection = ({ chapterId, chapterName, notes }: ChapterGistSectionProps) => {
+  const { t } = useTranslation();
   const { book } = useBookPage();
   const cache = useCacheEvents();
   const { showSnackbar } = useSnackbar();
@@ -92,19 +92,25 @@ export const ChapterGistSection = ({ chapterId, chapterName, notes }: ChapterGis
   };
 
   const createMutation = useCreateNote({
-    mutation: { onSuccess: saved, onError: failed('save gist') },
+    mutation: {
+      onSuccess: saved,
+      onError: failed(t('structure.chapterDetail.gist.errorActions.save')),
+    },
   });
   const updateMutation = useUpdateNote({
-    mutation: { onSuccess: saved, onError: failed('save gist') },
+    mutation: {
+      onSuccess: saved,
+      onError: failed(t('structure.chapterDetail.gist.errorActions.save')),
+    },
   });
   const deleteMutation = useDeleteNote({
     mutation: {
       onSuccess: (_data, variables) => {
         saveStatus.reset();
         cache.noteDeleted(book.id, variables.noteId);
-        showSnackbar('Gist deleted.', 'info');
+        showSnackbar(t('structure.chapterDetail.gist.deleted'), 'info');
       },
-      onError: failed('delete gist'),
+      onError: failed(t('structure.chapterDetail.gist.errorActions.delete')),
     },
   });
 
@@ -147,7 +153,7 @@ export const ChapterGistSection = ({ chapterId, chapterName, notes }: ChapterGis
   return (
     <>
       <Typography variant="body1" sx={{ fontWeight: 600, color: 'primary.main', py: 1.5 }}>
-        Gist
+        {t('structure.chapterDetail.gist.heading')}
       </Typography>
       {gist && !isEditing ? (
         <ExistingGistText text={field.value} onEdit={() => setIsEditing(true)} />
@@ -160,12 +166,12 @@ export const ChapterGistSection = ({ chapterId, chapterName, notes }: ChapterGis
           disabled={createMutation.isPending}
           autoFocus={isEditing}
           error={saveFailed}
-          placeholder={PLACEHOLDER}
+          placeholder={t('structure.chapterDetail.gist.placeholder')}
           {...field.inputProps}
           helperText={
             <GistHelperText
               length={field.value.length}
-              message={saveFailed ? 'Not saved — try again.' : undefined}
+              message={saveFailed ? t('structure.chapterDetail.gist.notSaved') : undefined}
             />
           }
         />

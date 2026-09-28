@@ -2,6 +2,7 @@ import { SectionTitle } from '@/components/typography/SectionTitle.tsx';
 import { ExpandMoreIcon } from '@/theme/Icons.tsx';
 import { Accordion, AccordionDetails, AccordionSummary } from '@mui/material';
 import type { ReactNode } from 'react';
+import { useTranslation } from 'react-i18next';
 
 interface CollapsibleSectionProps {
   title: string;
@@ -16,7 +17,11 @@ export const CollapsibleSection = ({
   defaultExpanded = false,
   children,
 }: CollapsibleSectionProps) => {
-  const headerText = count !== undefined ? `${title} (${count})` : title;
+  const { t } = useTranslation();
+  const headerText =
+    count !== undefined
+      ? t('structure.chapterDetail.sectionTitleWithCount', { title, total: count })
+      : title;
 
   return (
     <Accordion

@@ -5,6 +5,7 @@ import { FlashcardsIcon, HighlightsIcon, NotesIcon } from '@/theme/Icons.tsx';
 import { Box, ButtonBase, Collapse, IconButton, Typography, type Theme } from '@mui/material';
 import { sumBy } from 'lodash';
 import { useId, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { ChapterReadIndicator } from './ChapterReadIndicator';
 
 type ReadStatus = 'read' | 'current' | 'unread';
@@ -93,12 +94,12 @@ const ChapterCounts = ({
       typography: 'caption',
     }}
   >
-    <CountWithIcon icon={HighlightsIcon} count={chapter.highlights.length} noun="highlight" />
-    <CountWithIcon icon={NotesIcon} count={noteCount} noun="note" />
+    <CountWithIcon icon={HighlightsIcon} count={chapter.highlights.length} unit="highlights" />
+    <CountWithIcon icon={NotesIcon} count={noteCount} unit="notes" />
     <CountWithIcon
       icon={FlashcardsIcon}
       count={sumBy(chapter.highlights, (h) => h.flashcards.length)}
-      noun="flashcard"
+      unit="flashcards"
     />
   </Box>
 );
@@ -184,34 +185,42 @@ const ParentChapterRow = ({
   expanded,
   onToggle,
   childrenId,
-}: ParentChapterRowProps) => (
-  <Box sx={[rowSx(depth), { cursor: 'pointer' }]} onClick={onToggle}>
-    <Box sx={rowBodySx}>
-      <ButtonBase
+}: ParentChapterRowProps) => {
+  const { t } = useTranslation();
+
+  return (
+    <Box sx={[rowSx(depth), { cursor: 'pointer' }]} onClick={onToggle}>
+      <Box sx={rowBodySx}>
+        <ButtonBase
+          onClick={(event) => {
+            event.stopPropagation();
+            onOpen();
+          }}
+          sx={[{ borderRadius: 1, mx: -0.5, px: 0.5, minWidth: 0 }, hoverSx]}
+        >
+          <ChapterLabel chapter={chapter} gist={gist} readStatus={readStatus} />
+        </ButtonBase>
+        <ChapterCounts chapter={chapter} noteCount={noteCount} />
+      </Box>
+      <IconButton
         onClick={(event) => {
           event.stopPropagation();
-          onOpen();
+          onToggle();
         }}
-        sx={[{ borderRadius: 1, mx: -0.5, px: 0.5, minWidth: 0 }, hoverSx]}
+        aria-label={
+          expanded
+            ? t('structure.chapterAccordion.collapse', { chapterName: chapter.name })
+            : t('structure.chapterAccordion.expand', { chapterName: chapter.name })
+        }
+        aria-expanded={expanded}
+        aria-controls={childrenId}
+        sx={{ mr: 1 }}
       >
-        <ChapterLabel chapter={chapter} gist={gist} readStatus={readStatus} />
-      </ButtonBase>
-      <ChapterCounts chapter={chapter} noteCount={noteCount} />
+        <CollapseChevron isExpanded={expanded} />
+      </IconButton>
     </Box>
-    <IconButton
-      onClick={(event) => {
-        event.stopPropagation();
-        onToggle();
-      }}
-      aria-label={`${expanded ? 'Collapse' : 'Expand'} ${chapter.name}`}
-      aria-expanded={expanded}
-      aria-controls={childrenId}
-      sx={{ mr: 1 }}
-    >
-      <CollapseChevron isExpanded={expanded} />
-    </IconButton>
-  </Box>
-);
+  );
+};
 
 export const ChapterAccordion = ({
   chapter,

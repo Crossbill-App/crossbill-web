@@ -1,6 +1,7 @@
 import type { ChapterDigestResponse } from '@/api/generated/model';
 import { markdownStyles } from '@/theme/theme';
 import { Box, CircularProgress, Typography, styled } from '@mui/material';
+import { useTranslation } from 'react-i18next';
 import ReactMarkdown from 'react-markdown';
 
 interface DigestContentProps {
@@ -18,6 +19,8 @@ const MarkdownList = styled('ul')(({ theme }) => ({
 }));
 
 export const DigestContent = ({ content, isGenerating }: DigestContentProps) => {
+  const { t } = useTranslation();
+
   if (isGenerating) {
     return (
       <Box sx={(theme) => ({ p: theme.spacing(2), textAlign: 'center' })}>
@@ -31,7 +34,7 @@ export const DigestContent = ({ content, isGenerating }: DigestContentProps) => 
             (theme) => ({ mt: theme.spacing(1) }),
           ]}
         >
-          Generating summary...
+          {t('structure.digestContent.generating')}
         </Typography>
       </Box>
     );
@@ -48,7 +51,7 @@ export const DigestContent = ({ content, isGenerating }: DigestContentProps) => 
       </Typography>
 
       <Typography variant="body1" sx={(theme) => ({ mb: theme.spacing(1.5), fontWeight: 600 })}>
-        Key Points:
+        {t('structure.digestContent.keyPoints')}
       </Typography>
       <MarkdownList>
         {content.keypoints.map((point, idx) => (
@@ -67,7 +70,9 @@ export const DigestContent = ({ content, isGenerating }: DigestContentProps) => 
           (theme) => ({ display: 'block', mt: theme.spacing(3) }),
         ]}
       >
-        Generated on {new Date(content.generated_at).toLocaleDateString()}
+        {t('structure.digestContent.generatedOn', {
+          date: new Date(content.generated_at).toLocaleDateString(),
+        })}
       </Typography>
     </Box>
   );

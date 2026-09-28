@@ -20,6 +20,7 @@ import { NoteEditorDialog } from '@/pages/BookPage/Notes/NoteEditorDialog';
 import { Box } from '@mui/material';
 import { sumBy } from 'lodash';
 import { useMemo, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { ChapterGistSection } from './ChapterGistSection.tsx';
 import { ChapterReviewSection } from './ChapterReviewSection.tsx';
 import { ChapterToolbar } from './ChapterToolbar.tsx';
@@ -46,6 +47,7 @@ export const ChapterDetailDialog = ({
   availableTags,
   bookFlashcards,
 }: ChapterDetailDialogProps) => {
+  const { t } = useTranslation();
   const [quizOpen, setQuizOpen] = useState(false);
   const [chatOpen, setChatOpen] = useState(false);
   // Lifted out of DialogTabs so the active tab survives chapter navigation
@@ -93,7 +95,7 @@ export const ChapterDetailDialog = ({
   const tabs: DialogTabItem[] = [
     {
       key: 'review',
-      label: 'Questions',
+      label: t('structure.chapterDetail.tabs.questions'),
       content: (
         <ChapterReviewSection
           chapterId={chapter.id}
@@ -106,7 +108,7 @@ export const ChapterDetailDialog = ({
     },
     {
       key: 'notes',
-      label: 'Notes',
+      label: t('common.entities.notes'),
       count: notes.length,
       content: (
         <LinkedNotesSection
@@ -119,7 +121,7 @@ export const ChapterDetailDialog = ({
     },
     {
       key: 'highlights',
-      label: 'Highlights',
+      label: t('common.entities.highlights'),
       count: highlightCount,
       content: (
         <HighlightsSection
@@ -132,7 +134,7 @@ export const ChapterDetailDialog = ({
     },
     {
       key: 'flashcards',
-      label: 'Flashcards',
+      label: t('common.entities.flashcards'),
       count: flashcardCount,
       content: (
         <FlashcardsSection
@@ -155,7 +157,7 @@ export const ChapterDetailDialog = ({
 
       <DialogTabs tabs={tabs} activeTab={activeTab} onTabChange={setActiveTab} />
 
-      <RelatedContentSection title="Related" rows={related.rows} />
+      <RelatedContentSection title={t('structure.chapterDetail.related')} rows={related.rows} />
     </Box>
   );
 

@@ -22,6 +22,7 @@ import { FlashcardSuggestions } from '@/pages/BookPage/Flashcards/FlashcardSugge
 import { useFlashcardMutations } from '@/pages/BookPage/Flashcards/hooks/useFlashcardMutations.ts';
 import { flatMap } from 'lodash';
 import { useCallback, useMemo, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 
 interface FlashcardsSectionProps {
   chapter: ChapterWithHighlights;
@@ -34,6 +35,7 @@ const useAIFlashcardSuggestions = (
   chapterId: number,
   showSnackbar: (message: string, severity: 'error' | 'warning' | 'info' | 'success') => void
 ) => {
+  const { t } = useTranslation();
   const [isLoading, setIsLoading] = useState(false);
   const [suggestions, setSuggestions] = useState<FlashcardSuggestionItem[]>([]);
 
@@ -52,7 +54,7 @@ const useAIFlashcardSuggestions = (
       }
     } catch (error) {
       console.error('Failed to fetch flashcard suggestions:', error);
-      showSnackbar('Failed to fetch suggestions. Please try again.', 'error');
+      showSnackbar(t('common.errors.fetchFlashcardSuggestions'), 'error');
     } finally {
       setIsLoading(false);
     }

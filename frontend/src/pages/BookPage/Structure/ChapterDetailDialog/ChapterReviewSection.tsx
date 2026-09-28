@@ -17,6 +17,7 @@ import { useCacheEvents } from '@/lib/cacheEvents.ts';
 import { Box, CircularProgress, Stack, TextField, Typography } from '@mui/material';
 import { useQueryClient } from '@tanstack/react-query';
 import { useMemo } from 'react';
+import { useTranslation } from 'react-i18next';
 import { CollapsibleSection } from './CollapsibleSection.tsx';
 
 interface SaveCallbacks {
@@ -31,6 +32,7 @@ interface DigestAnswerFieldProps {
 }
 
 const DigestAnswerField = ({ question, savedAnswer, onSave }: DigestAnswerFieldProps) => {
+  const { t } = useTranslation();
   const saveStatus = useSaveStatus();
 
   function save(answer: string) {
@@ -56,7 +58,7 @@ const DigestAnswerField = ({ question, savedAnswer, onSave }: DigestAnswerFieldP
         minRows={2}
         fullWidth
         size="small"
-        placeholder="Write your answer..."
+        placeholder={t('structure.chapterDetail.review.answerPlaceholder')}
         {...field.inputProps}
       />
       <SavedIndicator status={saveStatus.status} sx={{ textAlign: 'right', mt: 0.5 }} />
@@ -79,6 +81,7 @@ export const ChapterReviewSection = ({
   onStartQuiz,
   onStartChat,
 }: ChapterReviewSectionProps) => {
+  const { t } = useTranslation();
   const queryClient = useQueryClient();
   const cache = useCacheEvents();
   const mutationErrorHandler = useMutationErrorHandler();
@@ -90,7 +93,9 @@ export const ChapterReviewSection = ({
 
   const { mutate: generate, isPending } = useGenerateChapterDigest({
     mutation: {
-      onError: mutationErrorHandler('generate questions'),
+      onError: mutationErrorHandler(
+        t('structure.chapterDetail.review.errorActions.generateQuestions')
+      ),
       onSuccess: () => {
         cache.digestChanged(bookId);
       },
@@ -101,7 +106,7 @@ export const ChapterReviewSection = ({
 
   const { mutate: saveAnswers } = useUpdateDigestAnswers({
     mutation: {
-      onError: mutationErrorHandler('save answer'),
+      onError: mutationErrorHandler(t('structure.chapterDetail.review.errorActions.saveAnswer')),
       onSuccess: (updatedChapter) => {
         queryClient.setQueryData<CollectionResponseChapterDigestResponse>(queryKey, (old) => {
           if (!old) return old;
@@ -142,7 +147,10 @@ export const ChapterReviewSection = ({
 
         {!isPending && !digestSummary && (
           <Box sx={{ py: 1 }}>
-            <AIActionButton text="Generate questions" onClick={handleGenerate} />
+            <AIActionButton
+              text={t('structure.chapterDetail.review.generateQuestions')}
+              onClick={handleGenerate}
+            />
           </Box>
         )}
 
@@ -153,12 +161,15 @@ export const ChapterReviewSection = ({
               color: 'text.secondary',
             }}
           >
-            No questions generated for this chapter.
+            {t('structure.chapterDetail.review.noQuestions')}
           </Typography>
         )}
 
         {!isPending && digestSummary && digestSummary.questions.length > 0 && (
-          <CollapsibleSection title="Questions to think about while reading" defaultExpanded>
+          <CollapsibleSection
+            title={t('structure.chapterDetail.review.questionsTitle')}
+            defaultExpanded
+          >
             <Stack
               sx={{
                 gap: 1,
@@ -179,8 +190,11 @@ export const ChapterReviewSection = ({
         )}
 
         <Box sx={{ py: 1, display: 'flex', flexWrap: 'wrap', gap: 1 }}>
-          <AIActionButton text="Quiz me" onClick={onStartQuiz} />
-          <AIActionButton text="Chat about the chapter" onClick={onStartChat} />
+          <AIActionButton text={t('structure.chapterDetail.review.quizMe')} onClick={onStartQuiz} />
+          <AIActionButton
+            text={t('structure.chapterDetail.review.chatAboutChapter')}
+            onClick={onStartChat}
+          />
         </Box>
       </AIFeature>
     </>
