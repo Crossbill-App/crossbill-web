@@ -2,6 +2,7 @@ import type { Highlight } from '@/api/generated/model';
 import { useGetNotesForBook } from '@/api/generated/notes/notes.ts';
 import { DialogTabs, type DialogTabItem } from '@/components/dialogs/DialogTabs.tsx';
 import { LinkedNotesSection } from '@/pages/BookPage/Notes/components/LinkedNotesSection.tsx';
+import { useTranslation } from 'react-i18next';
 import { HighlightFlashcardSection } from './HighlightFlashcardSection.tsx';
 
 interface HighlightTabsProps {
@@ -15,6 +16,7 @@ interface HighlightTabsProps {
  * mirroring the tabbed composition of `NoteViewDialog` and `ChapterDetailDialog`.
  */
 export const HighlightTabs = ({ highlight, bookId, disabled = false }: HighlightTabsProps) => {
+  const { t } = useTranslation();
   const { data, isLoading } = useGetNotesForBook(bookId, {
     highlight_id: highlight.id,
   });
@@ -25,7 +27,7 @@ export const HighlightTabs = ({ highlight, bookId, disabled = false }: Highlight
   const tabs: DialogTabItem[] = [
     {
       key: 'notes',
-      label: 'Notes',
+      label: t('common.entities.notes'),
       count: notes.length,
       content: (
         <LinkedNotesSection
@@ -39,7 +41,7 @@ export const HighlightTabs = ({ highlight, bookId, disabled = false }: Highlight
     },
     {
       key: 'flashcards',
-      label: 'Flashcards',
+      label: t('common.entities.flashcards'),
       count: highlight.flashcards.length,
       content: (
         <HighlightFlashcardSection highlight={highlight} bookId={bookId} disabled={disabled} />

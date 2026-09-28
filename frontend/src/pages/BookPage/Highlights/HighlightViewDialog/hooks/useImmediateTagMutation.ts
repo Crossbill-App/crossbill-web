@@ -6,6 +6,7 @@ import { useSaveStatus, type SaveStatus } from '@/hooks/useSaveStatus.ts';
 import { useCacheEvents } from '@/lib/cacheEvents.ts';
 import { filter, map } from 'lodash';
 import { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 
 export interface UseImmediateTagMutationParams {
   /** Book ID for API calls */
@@ -57,6 +58,7 @@ export const useImmediateTagMutation = ({
   highlightId,
   initialTags,
 }: UseImmediateTagMutationParams): UseImmediateTagMutationReturn => {
+  const { t } = useTranslation();
   const mutationErrorHandler = useMutationErrorHandler();
   const cache = useCacheEvents();
   const [currentTags, setCurrentTags] = useState<TagInBook[]>(initialTags);
@@ -71,7 +73,7 @@ export const useImmediateTagMutation = ({
         setCurrentTags(data.tags);
         cache.tagsChanged(bookId);
       },
-      onError: mutationErrorHandler('add tag'),
+      onError: mutationErrorHandler(t('highlights.tagMutation.errors.addTag')),
     },
   });
 
@@ -81,7 +83,7 @@ export const useImmediateTagMutation = ({
         setCurrentTags(data.tags);
         cache.tagsChanged(bookId);
       },
-      onError: mutationErrorHandler('remove tag'),
+      onError: mutationErrorHandler(t('highlights.tagMutation.errors.removeTag')),
     },
   });
 

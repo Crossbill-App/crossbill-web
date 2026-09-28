@@ -14,6 +14,7 @@ import {
 } from '@/theme/Icons.tsx';
 import { copyUrlWithSearchParam } from '@/utils/clipboard.ts';
 import { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 
 interface ToolbarProps {
   highlightId: number;
@@ -32,6 +33,7 @@ export const Toolbar = ({
   onDelete,
   disabled = false,
 }: ToolbarProps) => {
+  const { t } = useTranslation();
   const { handleBookmarkToggle, isProcessing } = useBookmarkMutations(
     bookmark,
     bookId,
@@ -59,25 +61,27 @@ export const Toolbar = ({
     <DialogToolbar>
       <OpenInReaderButton bookId={bookId} highlightId={highlightId} />
       <IconButtonWithTooltip
-        label="Copy link to highlight"
+        label={t('highlights.toolbar.copyLink')}
         onClick={handleCopyLink}
         disabled={isDisabled}
         icon={<LinkIcon />}
       />
       <IconButtonWithTooltip
-        label="Copy highlight content"
+        label={t('highlights.toolbar.copyContent')}
         onClick={handleCopyContent}
         disabled={isDisabled}
         icon={<CopyIcon />}
       />
       <IconButtonWithTooltip
-        label={bookmark ? 'Remove bookmark' : 'Add bookmark'}
+        label={
+          bookmark ? t('highlights.toolbar.removeBookmark') : t('highlights.toolbar.addBookmark')
+        }
         onClick={handleBookmarkToggle}
         disabled={isDisabled}
         icon={bookmark ? <BookmarkFilledIcon /> : <BookmarkIcon />}
       />
       <IconButtonWithTooltip
-        label="Delete highlight"
+        label={t('highlights.toolbar.deleteHighlight')}
         onClick={onDelete}
         disabled={isDisabled}
         icon={<DeleteIcon />}
@@ -91,6 +95,7 @@ const useBookmarkMutations = (
   bookId: number,
   highlightId: number
 ) => {
+  const { t } = useTranslation();
   const mutationErrorHandler = useMutationErrorHandler();
   const cache = useCacheEvents();
   const [isProcessing, setIsProcessing] = useState(false);
@@ -98,14 +103,14 @@ const useBookmarkMutations = (
   const createBookmarkMutation = useCreateBookmark({
     mutation: {
       onSuccess: () => cache.bookChanged(bookId),
-      onError: mutationErrorHandler('create bookmark'),
+      onError: mutationErrorHandler(t('highlights.toolbar.errors.createBookmark')),
     },
   });
 
   const deleteBookmarkMutation = useDeleteBookmark({
     mutation: {
       onSuccess: () => cache.bookChanged(bookId),
-      onError: mutationErrorHandler('delete bookmark'),
+      onError: mutationErrorHandler(t('highlights.toolbar.errors.deleteBookmark')),
     },
   });
 

@@ -11,6 +11,7 @@ import { useCacheEvents } from '@/lib/cacheEvents.ts';
 import { LABEL_COLORS, type ColorOption } from '@/utils/colorUtils.ts';
 import { Box, Divider, Popover, TextField, Typography } from '@mui/material';
 import { useEffect, useRef, useState, type MutableRefObject } from 'react';
+import { useTranslation } from 'react-i18next';
 
 /** The nine colours KOReader draws with, the ones a highlight can be marked in. */
 const DEVICE_COLOR_OPTIONS: readonly ColorOption[] = LABEL_COLORS.filter(
@@ -18,10 +19,8 @@ const DEVICE_COLOR_OPTIONS: readonly ColorOption[] = LABEL_COLORS.filter(
 );
 
 /** What a KOReader colour is called before the book gives it a name of its own. */
-const deviceColorName = (device_color: string | null | undefined): string =>
-  DEVICE_COLOR_OPTIONS.find((option) => option.device_color === device_color)?.name ??
-  device_color ??
-  'this colour';
+const deviceColorName = (device_color: string | null | undefined): string | null | undefined =>
+  DEVICE_COLOR_OPTIONS.find((option) => option.device_color === device_color)?.name ?? device_color;
 
 /** The swatch standing for a KOReader colour, which is how the picker marks it chosen. */
 const deviceColorSwatch = (device_color: string | null | undefined): string | null =>
@@ -47,6 +46,7 @@ const HighlightStyleContent = ({
   submitRef,
   onClose,
 }: HighlightStyleContentProps) => {
+  const { t } = useTranslation();
   const cache = useCacheEvents();
   const mutationErrorHandler = useMutationErrorHandler();
   const [labelText, setLabelText] = useState(currentLabel || '');
@@ -67,7 +67,7 @@ const HighlightStyleContent = ({
       },
       onError: (error: unknown) => {
         saveStatus.reset();
-        mutationErrorHandler('change the highlight colour')(error);
+        mutationErrorHandler(t('highlights.stylePopover.errors.changeColour'))(error);
       },
     },
   });
@@ -95,15 +95,16 @@ const HighlightStyleContent = ({
     });
   };
 
-  const colorName = deviceColorName(style?.device_color);
+  const colorName =
+    deviceColorName(style?.device_color) ?? t('highlights.stylePopover.fallbackColourName');
 
   return (
     <Box sx={{ p: 2, width: 300 }}>
       <Typography variant="subtitle2" sx={{ fontWeight: 600, mb: 1 }}>
-        Highlight label
+        {t('highlights.stylePopover.title')}
       </Typography>
       <ColorSwatchPicker
-        label="Highlight colour"
+        label={t('common.labels.highlightColour')}
         colors={DEVICE_COLOR_OPTIONS}
         value={deviceColorSwatch(style?.device_color)}
         onChange={handleDeviceColorChange}
@@ -112,7 +113,7 @@ const HighlightStyleContent = ({
       <Divider sx={{ my: 2 }} />
 
       <Typography variant="subtitle2" sx={{ fontWeight: 600, mb: 1 }}>
-        {`Label for ${colorName}`}
+        {t('highlights.stylePopover.labelFor', { colour: colorName })}
       </Typography>
       <TextField
         value={labelText}
@@ -125,7 +126,7 @@ const HighlightStyleContent = ({
             onClose();
           }
         }}
-        placeholder="Label name..."
+        placeholder={t('common.placeholders.labelName')}
         size="small"
         fullWidth
       />
