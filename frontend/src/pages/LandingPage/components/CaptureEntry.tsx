@@ -60,7 +60,8 @@ export const CaptureEntry = ({ capture }: CaptureEntryProps) => {
           />
         )}
 
-        <Box sx={{ flex: 1, minWidth: 0 }}>
+        {/* Baseline-aligned with the time, so the time reads level with the first line. */}
+        <Box sx={{ flex: 1, minWidth: 0, alignSelf: 'baseline' }}>
           {/* An h4: the day this capture sits under is the h3 above it. */}
           {capture.title && (
             <Typography variant="h3" component="h4">
@@ -92,7 +93,10 @@ export const CaptureEntry = ({ capture }: CaptureEntryProps) => {
           </Box>
         </Box>
 
-        <Typography variant="caption" sx={{ color: 'text.secondary', whiteSpace: 'nowrap' }}>
+        <Typography
+          variant="caption"
+          sx={{ color: 'text.secondary', whiteSpace: 'nowrap', alignSelf: 'baseline' }}
+        >
           {formatTime(capture.captured_at)}
         </Typography>
       </LinkCardActionArea>
