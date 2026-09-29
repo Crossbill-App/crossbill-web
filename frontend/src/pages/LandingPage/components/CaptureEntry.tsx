@@ -27,9 +27,8 @@ interface CaptureEntryProps {
 /**
  * One highlight or note in the dashboard's feed.
  *
- * A highlight is marked by the quote glyph and a note by the rail down its
- * left, which is how the book page marks each of them: the reader learns the
- * two markers once.
+ * A highlight is marked by the quote glyph, as on the book page; a note by
+ * its title and kind chip.
  */
 export const CaptureEntry = ({ capture }: CaptureEntryProps) => {
   const { t } = useTranslation();
@@ -47,7 +46,6 @@ export const CaptureEntry = ({ capture }: CaptureEntryProps) => {
           textAlign: 'left',
           py: 1.5,
           px: 1.5,
-          ...(isHighlight ? {} : { borderLeft: '3px solid', borderColor: 'primary.main', pl: 2 }),
         }}
       >
         {isHighlight && (

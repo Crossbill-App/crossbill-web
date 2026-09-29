@@ -40,7 +40,7 @@ export const HighlightsList = ({
       ariaLabel={(chapter) => t('highlights.list.chapterAriaLabel', { chapter: chapter.name })}
       isLoading={isLoading}
       emptyState={emptyState}
-      cardListSx={{ gap: 1, mb: 4 }}
+      cardListSx={{ mb: 4 }}
       renderItem={(highlight) => (
         <HighlightCard
           highlight={highlight}
