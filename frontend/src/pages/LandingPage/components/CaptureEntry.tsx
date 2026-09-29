@@ -27,9 +27,8 @@ interface CaptureEntryProps {
 /**
  * One highlight or note in the dashboard's feed.
  *
- * A highlight is marked by the quote glyph and a note by the rail down its
- * left, which is how the book page marks each of them: the reader learns the
- * two markers once.
+ * A highlight is marked by the quote glyph, as on the book page; a note by
+ * its title and kind chip.
  */
 export const CaptureEntry = ({ capture }: CaptureEntryProps) => {
   const { t } = useTranslation();
@@ -47,7 +46,6 @@ export const CaptureEntry = ({ capture }: CaptureEntryProps) => {
           textAlign: 'left',
           py: 1.5,
           px: 1.5,
-          ...(isHighlight ? {} : { borderLeft: '3px solid', borderColor: 'primary.main', pl: 2 }),
         }}
       >
         {isHighlight && (
@@ -62,7 +60,8 @@ export const CaptureEntry = ({ capture }: CaptureEntryProps) => {
           />
         )}
 
-        <Box sx={{ flex: 1, minWidth: 0 }}>
+        {/* Baseline-aligned with the time, so the time reads level with the first line. */}
+        <Box sx={{ flex: 1, minWidth: 0, alignSelf: 'baseline' }}>
           {/* An h4: the day this capture sits under is the h3 above it. */}
           {capture.title && (
             <Typography variant="h3" component="h4">
@@ -94,7 +93,10 @@ export const CaptureEntry = ({ capture }: CaptureEntryProps) => {
           </Box>
         </Box>
 
-        <Typography variant="caption" sx={{ color: 'text.secondary', whiteSpace: 'nowrap' }}>
+        <Typography
+          variant="caption"
+          sx={{ color: 'text.secondary', whiteSpace: 'nowrap', alignSelf: 'baseline' }}
+        >
           {formatTime(capture.captured_at)}
         </Typography>
       </LinkCardActionArea>

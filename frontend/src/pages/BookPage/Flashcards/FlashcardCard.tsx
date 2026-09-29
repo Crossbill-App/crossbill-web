@@ -12,27 +12,23 @@ export interface FlashcardCardProps {
   showSourceHighlight?: boolean;
   sourceHighlightText?: string;
   renderActions: () => ReactNode;
-  borderStyle?: 'solid' | 'dashed';
-  borderColor?: 'primary' | 'grey';
 }
 
-const FlashcardStyled = styled(Box, {
-  shouldForwardProp: (prop) => prop !== 'borderStyle' && prop !== 'borderColor',
-})<{ borderStyle?: 'solid' | 'dashed'; borderColor?: 'primary' | 'grey' }>(
-  ({ theme, borderStyle = 'solid', borderColor = 'primary' }) => ({
-    borderLeft: `3px ${borderStyle} ${borderColor === 'grey' ? theme.palette.divider : theme.palette.primary.main}`,
-    paddingLeft: theme.spacing(2),
-    paddingTop: theme.spacing(1),
-    paddingBottom: theme.spacing(1),
-    transition: 'all 0.2s ease',
-    '@media (hover: hover)': {
-      '&:hover': {
-        backgroundColor: theme.palette.action.hover,
-        boxShadow: theme.shadows[2],
-      },
+/** The highlight card's shell, minus the action area: the question and the actions are separate buttons. */
+const FlashcardStyled = styled(Box)(({ theme }) => ({
+  borderRadius: theme.spacing(0.75),
+  paddingLeft: theme.spacing(2.5),
+  paddingRight: theme.spacing(1),
+  paddingTop: theme.spacing(1),
+  paddingBottom: theme.spacing(1),
+  transition: 'all 0.2s ease',
+  '@media (hover: hover)': {
+    '&:hover': {
+      backgroundColor: theme.palette.action.hover,
+      boxShadow: theme.shadows[2],
     },
-  })
-);
+  },
+}));
 
 /**
  * In the flow beside the question rather than floating over it: the cluster is
@@ -60,14 +56,12 @@ export const FlashcardCard = ({
   showSourceHighlight,
   sourceHighlightText,
   renderActions,
-  borderStyle = 'solid',
-  borderColor = 'primary',
 }: FlashcardCardProps) => {
   const { t } = useTranslation();
   const [isExpanded, setIsExpanded] = useState(false);
 
   return (
-    <FlashcardStyled borderStyle={borderStyle} borderColor={borderColor}>
+    <FlashcardStyled>
       <Box sx={{ display: 'flex', alignItems: 'flex-start', gap: 0.5 }}>
         <ButtonBase
           onClick={() => setIsExpanded(!isExpanded)}

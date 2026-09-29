@@ -109,7 +109,7 @@ export const HighlightCard = memo(function HighlightCard({
       }}
     >
       <Box sx={{ flex: 1, minWidth: 0 }}>
-        <Box sx={{ display: 'flex', alignItems: 'start', gap: 1.5, mb: 2 }}>
+        <Box sx={{ display: 'flex', alignItems: 'start', gap: 1.5 }}>
           <HighlightsIcon
             sx={{
               fontSize: ICON_SIZE.prominent,

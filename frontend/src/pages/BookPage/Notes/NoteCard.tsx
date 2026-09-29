@@ -1,7 +1,12 @@
 import type { NoteWithLinks } from '@/api/generated/model';
 import { HoverableCardActionArea } from '@/components/cards/HoverableCardActionArea';
+import { MetadataRow } from '@/components/cards/MetadataRow.tsx';
+import { TagChipList } from '@/components/TagChipList.tsx';
+import { DateIcon } from '@/theme/Icons.tsx';
+import { ICON_SIZE } from '@/theme/iconSizes.ts';
 import { markdownStyles } from '@/theme/theme';
-import { Box, Stack, Typography, useTheme } from '@mui/material';
+import { formatDate } from '@/utils/date.ts';
+import { Box, Typography, useTheme } from '@mui/material';
 import type { ReactNode } from 'react';
 import ReactMarkdown from 'react-markdown';
 
@@ -26,21 +31,16 @@ export const NoteCard = ({ note, onClick, action }: NoteCardProps) => {
       <HoverableCardActionArea
         onClick={onClick}
         sx={{
-          // The rail is the type marker, per B9; hover is the tint and lift
-          // the shared action area already carries.
-          borderLeft: `3px solid ${theme.palette.primary.main}`,
-          borderRadius: 0,
           display: 'block',
           textAlign: 'left',
-          pl: 2,
-          py: 2,
-          pr: action ? 6 : 0,
+          pl: 2.5,
+          py: 1,
+          pr: action ? 6 : 2.5,
         }}
       >
-        <Stack direction="row" spacing={1} sx={{ alignItems: 'center', mb: 0.5 }}>
-          <Typography variant="h3">{note.title}</Typography>
-          <NoteKindChip kind={note.kind} />
-        </Stack>
+        <Typography variant="h3" sx={{ mb: 0.5 }}>
+          {note.title}
+        </Typography>
         {note.body && (
           <Box
             sx={{
@@ -54,6 +54,15 @@ export const NoteCard = ({ note, onClick, action }: NoteCardProps) => {
             <ReactMarkdown>{note.body}</ReactMarkdown>
           </Box>
         )}
+        {/* After the content, as on the highlight card: the footer marks where one card ends. */}
+        <Box sx={{ display: 'flex', flexDirection: { xs: 'column', sm: 'row' }, gap: 2, mt: 1 }}>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flexShrink: 0 }}>
+            <DateIcon sx={{ fontSize: ICON_SIZE.inline, color: 'text.secondary' }} />
+            <MetadataRow variant="caption" items={[formatDate(note.created_at)]} />
+            <NoteKindChip kind={note.kind} />
+          </Box>
+          <TagChipList tags={note.tags} />
+        </Box>
       </HoverableCardActionArea>
       {action && <Box sx={{ position: 'absolute', top: 8, right: 8 }}>{action}</Box>}
     </Box>

@@ -31,7 +31,6 @@ export const FlashcardSuggestionCard = ({
     <FlashcardCard
       question={question}
       answer={answer}
-      borderColor="grey"
       renderActions={() => (
         <>
           <IconButtonWithTooltip
