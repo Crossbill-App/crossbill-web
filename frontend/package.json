@@ -65,14 +65,14 @@
     "jscpd": "^5.3.2",
     "knip": "^6.31.0",
     "msw": "^2.15.0",
-    "orval": "8.28.1",
+    "orval": "8.39.0",
     "playwright": "^1.63.0",
     "prettier": "^3.9.6",
     "prettier-plugin-organize-imports": "^4.3.0",
     "typescript": "^7.0.2",
     "typescript-eslint": "^8.65.0",
     "vite": "^8.2.2",
-    "vitest": "^4.1.10",
+    "vitest": "^5.0.3",
     "vitest-browser-react": "^2.3.0"
   }
 }
