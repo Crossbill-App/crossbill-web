@@ -44,6 +44,7 @@ async def test_a_refresh_token_is_not_accepted_as_an_access_token(
     response = await _me(browser_client, token)
 
     assert response.status_code == 401, response.text
+    assert response.json()["error"] == "authentication_error"
 
 
 async def test_a_token_without_a_type_claim_is_refused(
@@ -54,6 +55,7 @@ async def test_a_token_without_a_type_claim_is_refused(
     response = await _me(browser_client, token)
 
     assert response.status_code == 401, response.text
+    assert response.json()["error"] == "authentication_error"
 
 
 async def test_a_token_of_another_type_is_refused(
@@ -64,6 +66,7 @@ async def test_a_token_of_another_type_is_refused(
     response = await _me(browser_client, token)
 
     assert response.status_code == 401, response.text
+    assert response.json()["error"] == "authentication_error"
 
 
 async def test_a_token_without_an_expiry_is_refused(
@@ -74,6 +77,7 @@ async def test_a_token_without_an_expiry_is_refused(
     response = await _me(browser_client, token)
 
     assert response.status_code == 401, response.text
+    assert response.json()["error"] == "authentication_error"
 
 
 async def test_the_claims_report_the_expiry_the_token_was_minted_with(
@@ -100,3 +104,4 @@ async def test_a_token_whose_expiry_is_not_a_number_is_refused(
     response = await _me(browser_client, token)
 
     assert response.status_code == 401, response.text
+    assert response.json()["error"] == "authentication_error"

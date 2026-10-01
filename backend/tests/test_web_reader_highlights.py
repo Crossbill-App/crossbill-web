@@ -200,6 +200,7 @@ async def test_a_timestamp_without_an_offset_is_refused(
     response = await post(client, readable_book, datetime="2026-07-14T18:30:00")
 
     assert response.status_code == status.HTTP_422_UNPROCESSABLE_ENTITY
+    assert [error["loc"][-1] for error in response.json()["detail"]] == ["datetime"]
 
 
 async def test_the_selection_locator_is_stored_with_the_grade_it_resolved_at(
@@ -521,11 +522,13 @@ async def test_a_book_whose_file_cannot_be_read_is_answered_apart_from_a_bad_sel
 
 
 async def test_a_book_with_no_epub_is_not_found(
-    client: AsyncClient, test_book: models.Book
+    client: AsyncClient, db_session: AsyncSession, test_book: models.Book
 ) -> None:
     response = await post(client, test_book)
 
     assert response.status_code == status.HTTP_404_NOT_FOUND, response.text
+    assert response.json()["error"] == "not_found"
+    assert await stored_highlights(db_session, test_book) == []
 
 
 async def test_another_users_book_is_not_found(

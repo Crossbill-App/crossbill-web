@@ -477,6 +477,7 @@ async def test_another_users_book_is_not_found(
     response = await client.get(url(theirs.id))
 
     assert response.status_code == status.HTTP_404_NOT_FOUND, response.text
+    assert response.json()["error"] == "not_found"
 
 
 async def test_the_publication_cookie_alone_is_refused(

@@ -418,6 +418,8 @@ async def test_a_book_with_no_epub_is_not_found(
     response = await write(client, test_book, locator(CH1_HREF, quote=CH1_QUOTE))
 
     assert response.status_code == status.HTTP_404_NOT_FOUND, response.text
+    assert response.json()["error"] == "not_found"
+    assert await stored_position(db_session, test_book) is None
 
 
 async def test_another_users_book_is_not_found(
@@ -428,6 +430,8 @@ async def test_another_users_book_is_not_found(
     response = await write(client, theirs, locator(CH1_HREF, quote=CH1_QUOTE))
 
     assert response.status_code == status.HTTP_404_NOT_FOUND, response.text
+    assert response.json()["error"] == "not_found"
+    assert await stored_position(db_session, theirs) is None
 
 
 async def test_the_publication_cookie_alone_is_refused(

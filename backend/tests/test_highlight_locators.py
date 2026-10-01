@@ -232,6 +232,7 @@ async def test_another_users_book_is_not_found(
     response = await client.get(url(theirs.id))
 
     assert response.status_code == status.HTTP_404_NOT_FOUND, response.text
+    assert response.json()["error"] == "not_found"
 
 
 async def test_the_publication_cookie_is_not_a_key_to_this_route(
@@ -349,6 +350,7 @@ async def test_a_deleted_highlight_is_not_found(
     response = await client.get(highlight_url(highlight.id))
 
     assert response.status_code == status.HTTP_404_NOT_FOUND, response.text
+    assert response.json()["error"] == "not_found"
 
 
 async def test_another_users_highlight_on_this_book_is_not_found(
@@ -367,6 +369,7 @@ async def test_another_users_highlight_on_this_book_is_not_found(
     response = await client.get(highlight_url(theirs.id))
 
     assert response.status_code == status.HTTP_404_NOT_FOUND, response.text
+    assert response.json()["error"] == "not_found"
 
 
 async def test_the_publication_cookie_is_not_a_key_to_one_highlights_locator(
