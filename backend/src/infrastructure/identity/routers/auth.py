@@ -119,10 +119,14 @@ async def refresh(
         set_refresh_cookie(response, token_pair.refresh_token)
         return token_pair_to_response(token_pair)
     except InvalidCredentialsError:
-        clear_refresh_cookie(response)
+        # A raised HTTPException builds its own response, discarding headers set on
+        # the injected one, so the cookie deletion has to travel on the exception.
+        cleared = Response()
+        clear_refresh_cookie(cleared)
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid or expired refresh token",
+            headers={"set-cookie": cleared.headers["set-cookie"]},
         ) from None
 
 
