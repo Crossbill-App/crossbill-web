@@ -214,6 +214,8 @@ async def test_a_forged_refresh_token_is_rejected(auth_client: AsyncClient) -> N
     _present(auth_client, "not.a.jwt")
     response = await auth_client.post("/api/v1/auth/refresh")
     assert response.status_code == 401, response.text
+    # The client is told to drop the dead token rather than keep presenting it.
+    assert "refresh_token" not in auth_client.cookies
 
 
 async def test_rotation_records_the_successor_it_handed_out(

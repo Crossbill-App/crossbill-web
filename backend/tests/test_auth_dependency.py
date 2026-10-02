@@ -43,3 +43,4 @@ async def test_real_get_current_user_rejects_unknown_user(
         "/api/v1/users/me", headers={"Authorization": f"Bearer {token}"}
     )
     assert response.status_code == 401, response.text
+    assert response.json()["error"] == "authentication_error"

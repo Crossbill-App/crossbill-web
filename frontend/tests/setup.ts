@@ -11,6 +11,7 @@ import '@/i18n';
 import {
   openApiRequests,
   startCountingForANewTest,
+  trackMswRequests,
   trackOpenApiRequests,
 } from './harness/openRequests';
 import { pendingQueryClients } from './harness/pendingQueryClients';
@@ -21,6 +22,7 @@ import { worker } from './msw/worker';
 AXIOS_INSTANCE.defaults.baseURL = '';
 
 trackOpenApiRequests();
+trackMswRequests(worker);
 
 const unhandledRequests: string[] = [];
 

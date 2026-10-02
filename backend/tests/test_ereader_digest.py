@@ -150,6 +150,7 @@ async def test_unknown_client_book_id_returns_404(plugin_client: AsyncClient) ->
     response = await plugin_client.get("/api/v1/ereader/books/does-not-exist/digest")
 
     assert response.status_code == 404
+    assert response.json()["error"] == "not_found"
 
 
 async def test_questions_contain_only_question_strings(

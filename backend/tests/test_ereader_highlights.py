@@ -113,6 +113,7 @@ async def test_unknown_client_book_id_returns_404(plugin_client: AsyncClient) ->
     response = await plugin_client.get("/api/v1/ereader/books/does-not-exist/highlights")
 
     assert response.status_code == 404
+    assert response.json()["error"] == "not_found"
 
 
 async def test_another_users_book_with_the_same_client_id_is_invisible(
@@ -171,6 +172,7 @@ async def test_a_client_book_id_only_another_user_owns_is_a_404(
     response = await plugin_client.get("/api/v1/ereader/books/client-theirs/highlights")
 
     assert response.status_code == 404
+    assert response.json()["error"] == "not_found"
 
 
 async def test_chapter_fields_come_from_the_books_chapters(
