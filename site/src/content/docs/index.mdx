@@ -1,9 +1,9 @@
 ---
 title: Crossbill
-description: A self-hosted reading companion that turns your highlights into active reading — chapter digests, flashcards, notes and reflections.
+description: A self-hosted reading companion with chapter digests, flashcards, notes and reflections for your highlights.
 template: splash
 hero:
-  tagline: A self-hosted reading companion. Read your EPUBs in the browser or sync what you marked on your e-reader, and Crossbill gives you the tools to work your highlights into understanding — chapter digests for skimming, flashcards, notes and reflections. Inspired by Mortimer J. Adler's <em>How to Read a Book</em>.
+  tagline: A self-hosted reading companion. Read EPUBs in the browser or sync highlights from your e-reader. Then study them with chapter digests, flashcards, notes and reflections. Inspired by Mortimer J. Adler's <em>How to Read a Book</em>.
   image:
     file: ../../assets/crossbill-logo.png
     alt: ''
@@ -31,8 +31,8 @@ import webReader from '../../assets/screenshots/web-reader.png';
 		alt="Crossbill's home page: a row of recent book covers, a year of reading activity drawn as a heat map, and a timeline of the newest highlights and notes."
 	/>
 	<figcaption>
-		Home — what you are reading now, a year of reading activity, and the
-		highlights and notes you added most recently.
+		Home: the books you are reading, a year of reading activity, and your
+		latest highlights and notes.
 	</figcaption>
 </figure>
 
@@ -40,45 +40,44 @@ import webReader from '../../assets/screenshots/web-reader.png';
 
 <CardGrid>
 	<Card title="Web ebook reader" icon="laptop">
-		Upload an EPUB and read it in the browser, starting where you left off on
-		any device. Jump from a highlight to its place in the book, and make new
-		highlights. No e-reader needed.
+		Upload an EPUB and read it in the browser. The reader opens where you left
+		off on any device. Jump from a highlight to its place in the book, and
+		make new highlights.
 	</Card>
 	<Card title="Sync from KOReader" icon="cloud-download">
-		Optional: the KOReader plugin uploads your highlights, their highlight
-		styles and your reading sessions, and web highlights sync back to the
-		device. Re-syncing the same book does not duplicate anything.
+		Optional. The KOReader plugin uploads your highlights, highlight styles and
+		reading sessions. Highlights you make in the web reader sync back to the
+		device.
 	</Card>
 	<Card title="Organize" icon="list-format">
 		Group highlights and notes with your own tags, cluster those tags into tag
 		groups, and name the labels your e-reader's highlight styles stand for.
 	</Card>
 	<Card title="Write notes" icon="pencil">
-		Author notes about a term, a character, a concept or the gist of a chapter,
-		and link them to the book's chapters, highlights and tags.
+		Write notes about a term, a character, a concept or the gist of a chapter.
+		Link them to the book's chapters, highlights and tags.
 	</Card>
 	<Card title="Chapter digests" icon="open-book">
-		Generate a summary, key points and comprehension questions for a chapter —
-		read them before the chapter to skim, or after it as review. Ollama, OpenAI,
-		Anthropic and Gemini are supported.
+		Generate a summary, key points and comprehension questions for a chapter.
+		Read them before the chapter to skim it, or after it for review. Works with
+		Ollama, OpenAI, Anthropic and Gemini.
 	</Card>
 	<Card title="Flashcards" icon="random">
-		Turn highlights, chapters and notes into question-and-answer cards, let the
-		AI suggest them for you, and study them in Anki.
+		Make question-and-answer cards from highlights, chapters and notes, or let
+		the AI suggest them. Study them in Anki.
 	</Card>
 	<Card title="Search by meaning" icon="magnifier">
-		Find a highlight, note or chapter by what it was about rather than by the
-		words in it — across every book, and across languages. Optional: it needs an
-		embedding provider.
+		Find highlights, notes and chapters by meaning, across all books and
+		languages. Optional. Needs an embedding provider.
 	</Card>
 	<Card title="Book reflections" icon="approve-check-circle">
-		Answer Adler's four analytical-reading questions about a book, and track
-		where each book stands with a reading stage.
+		Answer Adler's four analytical-reading questions about a book. Track how
+		far you are with each book with a reading stage.
 	</Card>
 </CardGrid>
 
-Crossbill is **self-hosted and multi-user** — every book, highlight and note
-belongs to one account on your own server, and your reading stays there.
+Crossbill is **self-hosted and multi-user**. Your data stays on your own
+server.
 
 ## A closer look
 
@@ -88,8 +87,8 @@ belongs to one account on your own server, and your reading stays there.
 		alt="A book's highlights page: highlights grouped under their chapter headings, each with a date, page number and tag, with tag groups in the left sidebar and a chapter list on the right."
 	/>
 	<figcaption>
-		Every highlight from a book, grouped by chapter and filterable by tag, date
-		or highlight style. Search within the book, or jump straight to a chapter.
+		A book's highlights, grouped by chapter. Filter by tag, date or highlight
+		style, search the book, or jump to a chapter.
 	</figcaption>
 </figure>
 
@@ -99,8 +98,8 @@ belongs to one account on your own server, and your reading stays there.
 		alt="A book's structure page: the table of contents as a nested tree, each chapter marked read, reading or unread, with a one-line gist and counts of its highlights and notes."
 	/>
 	<figcaption>
-		The book's structure — its real table of contents, with what you have read,
-		a one-line gist per chapter and the highlights and notes attached to each.
+		The book's structure: its table of contents, what you have read, a one-line
+		gist per chapter, and the highlights and notes of each chapter.
 	</figcaption>
 </figure>
 
@@ -110,8 +109,8 @@ belongs to one account on your own server, and your reading stays there.
 		alt="A chapter dialog: a gist, a generated chapter summary with key points, and comprehension questions with the reader's own written answers below each."
 	/>
 	<figcaption>
-		Open a chapter for its digest — summary, key points and questions to think
-		about while reading, with room to answer them in your own words.
+		A chapter digest: summary, key points and questions to think about while
+		reading. You can write your answers below each question.
 	</figcaption>
 </figure>
 
@@ -121,8 +120,8 @@ belongs to one account on your own server, and your reading stays there.
 		alt="The web reader showing chapter X of Frankenstein in the browser: two passages highlighted in place, one in pink and one in orange, the book's title and a contents button in the top bar, page-turn arrows at either edge, and pages left in the chapter and percent read in the footer."
 	/>
 	<figcaption>
-		The web ebook reader — the book itself, with your highlights drawn in place
-		in the colours you gave them. Select a passage to highlight it here too.
+		The web reader shows your highlights in their colours. Select a passage to
+		highlight it.
 	</figcaption>
 </figure>
 
@@ -152,6 +151,6 @@ belongs to one account on your own server, and your reading stays there.
 	<LinkCard
 		title="Docker image"
 		href="https://hub.docker.com/r/tumetsu/crossbill"
-		description="tumetsu/crossbill — the published image the sample docker compose setup runs."
+		description="tumetsu/crossbill, the image the sample docker compose setup runs."
 	/>
 </CardGrid>
