@@ -12,23 +12,49 @@ a PostgreSQL database.
 
 ## 1. Configure the environment
 
-Copy the example environment file to the project root and fill in your values:
+Copy the example environment file to the project root:
 
 ```bash
 cp .env.example .env
-# Edit .env with your configuration
 ```
 
-## 2. Start the services
+Fill in the required values at the top of `.env`:
+
+| Variable                   | Value                                                       |
+| -------------------------- | ----------------------------------------------------------- |
+| `SECRET_KEY`               | A random string of at least 32 bytes                        |
+| `REFRESH_TOKEN_SECRET_KEY` | A different random string of at least 32 bytes              |
+| `ADMIN_PASSWORD`           | The password for the first admin user                       |
+| `PUBLIC_BASE_URL`          | The address you open Crossbill at, `http://localhost:8000` |
+
+Generate each secret with:
 
 ```bash
-docker compose up
+openssl rand -hex 32
 ```
 
-## 3. Create your account
+All other settings in `.env` are optional and explained in the file.
 
-Open the web frontend in a browser and register an account. Crossbill supports
-multiple users, so others can register their own accounts on the same server.
+## 2. Set the book files folder
+
+If you store book files on local disk, which is the default, change the
+`source` path of the `app` service's volume in `docker-compose.yml` to a folder
+on your host. If you use [S3-compatible storage](../optional-components/#s3-compatible-storage),
+you can skip this step.
+
+## 3. Start the services
+
+```bash
+docker compose up -d
+```
+
+Open `http://localhost:8000` and log in with the username `admin` and your
+`ADMIN_PASSWORD`. To use a different username, set `ADMIN_USERNAME` in `.env`
+before the first start. Change the password in the app after you log in.
+
+Crossbill supports multiple users. To let others create their own accounts,
+set `ALLOW_USER_REGISTRATIONS=true` in `.env` and run `docker compose up -d`
+again.
 
 ## 4. Add your books
 
@@ -71,9 +97,7 @@ proxy, check these settings:
 
 ## What's next
 
-- To set up the background worker for AI jobs or S3-compatible storage, see
-  [Optional components](../optional-components/).
-- The interactive API documentation is at `<backend host>/api/v1/docs` while
-  the backend is running.
+- To run the background worker in its own container or use S3-compatible
+  storage, see [Optional components](../optional-components/).
 - To run Crossbill from source, see `backend/README.md` and
   `frontend/README.md` in the repository.

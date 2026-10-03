@@ -77,18 +77,23 @@ Read EPUBs in the built-in web reader, or sync highlights from an e-reader with 
 
 The easiest way to run Crossbill is with the sample `docker-compose.yml` at the top level of this repository.
 
-1. Copy the example environment file to the project root and fill in your values:
+1. Copy the example environment file to the project root:
 
 ```bash
 cp .env.example .env
-# Edit .env with your configuration
 ```
 
-2. Then start the services:
+2. Fill in the required values at the top of `.env`: `SECRET_KEY`, `REFRESH_TOKEN_SECRET_KEY`, `ADMIN_PASSWORD` and `PUBLIC_BASE_URL` (`http://localhost:8000` for a local install).
+
+3. If you store book files on local disk (the default), change the `source` path of the `app` service's volume in `docker-compose.yml` to a folder on your host. Skip this if you use S3 storage.
+
+4. Start the services:
 
 ```bash
-docker compose up
+docker compose up -d
 ```
+
+5. Open `http://localhost:8000` and log in with the username `admin` and your `ADMIN_PASSWORD`. To let others create accounts, set `ALLOW_USER_REGISTRATIONS=true` in `.env` and run `docker compose up -d` again.
 
 Then add your books. You can use one or both of these:
 
@@ -99,9 +104,11 @@ If you upload a book and later sync the same EPUB from KOReader, the plugin adds
 
 ### Background Worker
 
-The `docker-compose.yml` includes an optional `worker` service that runs background jobs, such as generating chapter digests for a whole book. It uses the same Docker image as the main app with a different entrypoint.
+The background worker runs long jobs, such as generating chapter digests for a whole book and writing semantic search embeddings. By default the app runs it in its own process, so you do not need to set anything up.
 
-For AI jobs, the worker needs an AI provider (`AI_PROVIDER` and its API key). Set the number of parallel jobs with `WORKER_CONCURRENCY` (default: 5).
+To run the worker in a separate container instead, uncomment the `worker` service in `docker-compose.yml`, set `EMBEDDED_WORKER=false` in `.env`, and run `docker compose up -d`.
+
+For AI jobs, the worker needs an AI provider (`AI_PROVIDER` and its API key). Set the number of jobs it runs at the same time with `WORKER_CONCURRENCY` (default: 2).
 
 For development, run the worker separately:
 
@@ -148,7 +155,7 @@ deleted. You can follow its progress in the job-batch views.
 
 By default, Crossbill stores ebook files and covers on the local filesystem. If the app and worker containers cannot share a filesystem, for example on Railway, use S3-compatible storage so both containers can read the same files.
 
-To use S3 storage, set these environment variables:
+To use S3 storage, set these environment variables in `.env`:
 
 ```
 S3_ENDPOINT_URL=https://your-s3-endpoint.example.com
@@ -158,19 +165,16 @@ S3_BUCKET_NAME=crossbill-files
 S3_REGION=your-region
 ```
 
-When these are set, Crossbill uses S3. Otherwise it stores files in the `book-files` volume.
+When these are set, Crossbill uses S3. Otherwise it stores files in the folder mounted at `/app/book-files`. Files already on local disk are not moved to S3.
 
-For local development or a self-hosted server, you can use [Garage](https://garagehq.deuxfleurs.fr/) as the S3-compatible server. The `docker-compose.yml` includes an optional `garage` service. Start it and run the one-time setup script:
+For local development or a self-hosted server, you can use [Garage](https://garagehq.deuxfleurs.fr/) as the S3-compatible server. The `docker-compose.yml` includes a `garage` service, which starts only when you name it. Start it and run the one-time setup script:
 
 ```bash
 docker compose up -d garage
 ./scripts/setup_garage.sh
-
-# After setting the environment variables restart containers if they are already running:
-docker restart crossbill-app crossbill-worker
 ```
 
-The script creates the bucket and API key, then prints the credentials to add to your `.env`. To run Garage in production, see the [Garage documentation](https://garagehq.deuxfleurs.fr/) for the `garage.toml` settings.
+The script creates the bucket and API key, then prints the values to add to `.env`. When Crossbill runs in Docker, use `S3_ENDPOINT_URL=http://garage:3900`. When the backend runs on your machine for development, use `http://localhost:3900`. Then apply the settings with `docker compose up -d`. (`docker restart` does not read `.env` again.) Commands that act on all services skip Garage unless you add `--profile s3`, so stop everything with `docker compose --profile s3 down`. To run Garage in production, see the [Garage documentation](https://garagehq.deuxfleurs.fr/) for the `garage.toml` settings.
 
 ## Development
 
@@ -179,7 +183,7 @@ Each component has its own installation instructions for development:
 - **Backend**: See [backend/README.md](backend/README.md)
 - **Frontend**: See [frontend/README.md](frontend/README.md)
 
-The API documentation is at `<backend host>/api/v1/docs` while the backend is running.
+In development, the API documentation is at `<backend host>/api/v1/docs`. It is turned off in production.
 
 ## Contributions
 

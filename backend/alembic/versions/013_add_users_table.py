@@ -46,7 +46,7 @@ def upgrade() -> None:
 
     # 2. Insert default admin user
     # Use ADMIN_USERNAME from environment or default to 'admin'
-    admin_username = os.getenv("ADMIN_USERNAME", "admin")
+    admin_username = os.getenv("ADMIN_USERNAME") or "admin"
     op.execute(
         sa.text("INSERT INTO users (id, name) VALUES (1, :username)").bindparams(
             username=admin_username

@@ -60,7 +60,11 @@ def normalize_database_url(url: str) -> str:
 class Settings(BaseSettings):
     """Application settings."""
 
-    model_config = SettingsConfigDict(env_file=("../.env", ".env"), env_file_encoding="utf-8")
+    # env_ignore_empty: docker compose passes `${VAR:-}` as an empty string, which
+    # must mean "unset" (S3 off, default admin name), not an empty value.
+    model_config = SettingsConfigDict(
+        env_file=("../.env", ".env"), env_file_encoding="utf-8", env_ignore_empty=True
+    )
 
     # Database
     DATABASE_URL: str = "postgresql://crossbill:crossbill_dev_password@localhost:5432/crossbill"

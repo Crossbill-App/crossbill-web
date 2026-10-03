@@ -44,8 +44,9 @@ Two tabs on a book page have their own search field:
 
 Crossbill indexes new content in the background. Uploading highlights, writing
 or editing a [note](../notes/), and generating a
-[chapter digest](../chapter-digests/) each start an indexing job. The optional
-[background worker](../../getting-started/optional-components/) runs these jobs.
+[chapter digest](../chapter-digests/) each start an indexing job. The
+[background worker](../../getting-started/optional-components/#background-worker)
+runs these jobs.
 
 Content that existed before you turned on semantic search needs to be indexed
 once. Go to **Settings → Background processes** and choose **Run text embedding
@@ -77,12 +78,9 @@ EMBEDDING_MODEL_NAME=baai/bge-m3
 `EMBEDDING_BASE_URL` is required for `ollama`. For `openrouter` it is optional
 and defaults to `https://openrouter.ai/api/v1`.
 
-Semantic search also needs:
-
-- **PostgreSQL with the `vector` extension, version 0.8 or newer.** The
-  `docker-compose.yml` uses the `pgvector/pgvector:pg18` image, which includes
-  it.
-- **The background worker**, which writes the embeddings.
+Semantic search also needs PostgreSQL with the `vector` extension, version 0.8
+or newer. The `docker-compose.yml` uses the `pgvector/pgvector:pg18` image,
+which includes it.
 
 Crossbill stores vectors with 1024 dimensions, which is what `bge-m3` produces.
 Switching to a model with a different size requires a database migration and

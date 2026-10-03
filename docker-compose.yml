@@ -24,49 +24,26 @@ services:
 
   app:
     image: tumetsu/crossbill:latest
+    # The image is built for amd64 only. This line lets Apple Silicon and other
+    # ARM hosts run it through emulation, which is slower.
+    platform: linux/amd64
     container_name: crossbill-app
     restart: unless-stopped
     pull_policy: always
+    # All settings come from .env. Copy .env.example to .env and fill in the
+    # required values listed at the top of it.
     env_file: .env
     ports:
       - "8000:8000"
     environment:
-      # Refer to all possible environment variables in /.env.example with explanations!
       MALLOC_ARENA_MAX: 2 # Prevents libxml2 parsing memory "leak" on epub file processing
+      # Points at the postgres service below, replacing the localhost URL in .env.
       DATABASE_URL: postgresql://crossbill:${POSTGRES_PASSWORD:-crossbill_secure_password}@postgres:5432/crossbill
-      ENVIRONMENT: production
-      ADMIN_USERNAME: ${ADMIN_USERNAME}
-      ADMIN_PASSWORD: ${ADMIN_PASSWORD}
-      CORS_ORIGINS: '["https://yourdomain.com"]'
-      # The public origin this API is reached at. Required here because
-      # ENVIRONMENT is production: the backend refuses to start without it,
-      # since a request that only ever saw the proxy's internal scheme and host
-      # cannot say where a browser reaches this app.
-      PUBLIC_BASE_URL: ${PUBLIC_BASE_URL}
-      # Set to 1 if an *appending* reverse proxy (nginx, Caddy) terminates TLS in
-      # front of this container, so per-IP rate limiting keys on the real client
-      # instead of the proxy. Behind a proxy that rewrites X-Forwarded-For and
-      # reports the client in X-Real-IP (Railway, nginx) leave this at 0 and set
-      # TRUSTED_PROXY_CIDRS to the address it connects from — see .env.example.
-      TRUSTED_PROXY_HOPS: ${TRUSTED_PROXY_HOPS:-0}
-      TRUSTED_PROXY_CIDRS: ${TRUSTED_PROXY_CIDRS:-[]}
-      # Temporarily set true to log each request's peer and headers, to check the
-      # two settings above against what your proxy actually sends.
-      LOG_PROXY_CHAIN: ${LOG_PROXY_CHAIN:-false}
-      SECRET_KEY: ${SECRET_KEY}
-      ACCESS_TOKEN_EXPIRE_MINUTES: 15
-      REFRESH_TOKEN_EXPIRE_DAYS: 30
-      REFRESH_TOKEN_SECRET_KEY: ${REFRESH_TOKEN_SECRET_KEY}
-      PUBLICATION_TOKEN_SECRET_KEY: ${PUBLICATION_TOKEN_SECRET_KEY:-}
-      COOKIE_SECURE: true
-      ALLOW_USER_REGISTRATIONS: false
+      ENVIRONMENT: ${ENVIRONMENT:-production}
       PORT: 8000
-      S3_ENDPOINT_URL: ${S3_ENDPOINT_URL:-}
-      S3_ACCESS_KEY_ID: ${S3_ACCESS_KEY_ID:-}
-      S3_SECRET_ACCESS_KEY: ${S3_SECRET_ACCESS_KEY:-}
-      S3_BUCKET_NAME: ${S3_BUCKET_NAME:-}
-      S3_REGION: ${S3_REGION:-us-east-1}
     volumes:
+      # Book files are stored here unless S3 storage is configured in .env.
+      # Change the source to a folder on your host.
       - type: bind
         source: /path/on/host/for/crossbill/book-files
         target: /app/book-files
@@ -76,15 +53,15 @@ services:
     networks:
       - crossbill-network
 
-  # Background job worker (SAQ) — processes async tasks like batch AI digest generation.
-  # Uses the same image as the app with a different entrypoint. Requires AI_PROVIDER config for AI tasks.
+  # Separate background worker (SAQ).
   #
-  # NOT NEEDED by default — the app runs the worker in-process (EMBEDDED_WORKER=true).
-  # Uncomment this service and set EMBEDDED_WORKER=false in the app if you need process isolation
-  # or want to scale the worker independently.
+  # NOT NEEDED by default: the app runs the worker in its own process
+  # (EMBEDDED_WORKER=true). To run the worker in its own container instead,
+  # uncomment this service and set EMBEDDED_WORKER=false in .env.
   #
   # worker:
   #   image: tumetsu/crossbill:latest
+  #   platform: linux/amd64
   #   container_name: crossbill-worker
   #   restart: unless-stopped
   #   pull_policy: always
@@ -92,20 +69,7 @@ services:
   #   command: ["saq", "src.worker.worker_settings"]
   #   environment:
   #     DATABASE_URL: postgresql://crossbill:${POSTGRES_PASSWORD:-crossbill_secure_password}@postgres:5432/crossbill
-  #     ENVIRONMENT: production
-  #     AI_PROVIDER: ${AI_PROVIDER:-}
-  #     AI_MODEL_NAME: ${AI_MODEL_NAME:-}
-  #     OPENAI_API_KEY: ${OPENAI_API_KEY:-}
-  #     ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
-  #     GEMINI_API_KEY: ${GEMINI_API_KEY:-}
-  #     OPENROUTER_API_KEY: ${OPENROUTER_API_KEY:-}
-  #     OPENAI_BASE_URL: ${OPENAI_BASE_URL:-}
-  #     WORKER_CONCURRENCY: ${WORKER_CONCURRENCY:-5}
-  #     S3_ENDPOINT_URL: ${S3_ENDPOINT_URL:-}
-  #     S3_ACCESS_KEY_ID: ${S3_ACCESS_KEY_ID:-}
-  #     S3_SECRET_ACCESS_KEY: ${S3_SECRET_ACCESS_KEY:-}
-  #     S3_BUCKET_NAME: ${S3_BUCKET_NAME:-}
-  #     S3_REGION: ${S3_REGION:-us-east-1}
+  #     ENVIRONMENT: ${ENVIRONMENT:-production}
   #   volumes:
   #     - type: bind
   #       source: /path/on/host/for/crossbill/book-files
@@ -116,10 +80,12 @@ services:
   #   networks:
   #     - crossbill-network
 
-  # Optional: S3-compatible object storage for shared file access between app and worker.
-  # Not needed if using an external S3 service (e.g., Railway Object Storage, AWS S3).
+  # Optional S3-compatible storage. Starts only when named:
+  #   docker compose up -d garage
+  # Not needed if you use an external S3 service (e.g. Railway Object Storage, AWS S3).
   garage:
     image: dxflrs/garage:v2.2.0
+    profiles: ["s3"]
     container_name: crossbill-garage
     restart: unless-stopped
     ports:
