@@ -174,7 +174,7 @@ docker compose up -d garage
 ./scripts/setup_garage.sh
 ```
 
-The script creates the bucket and API key, then prints the values to add to `.env`. When Crossbill runs in Docker, use `S3_ENDPOINT_URL=http://garage:3900`. When the backend runs on your machine for development, use `http://localhost:3900`. Then apply the settings with `docker compose up -d`. (`docker restart` does not read `.env` again.) To run Garage in production, see the [Garage documentation](https://garagehq.deuxfleurs.fr/) for the `garage.toml` settings.
+The script creates the bucket and API key, then prints the values to add to `.env`. When Crossbill runs in Docker, use `S3_ENDPOINT_URL=http://garage:3900`. When the backend runs on your machine for development, use `http://localhost:3900`. Then apply the settings with `docker compose up -d`. (`docker restart` does not read `.env` again.) Commands that act on all services skip Garage unless you add `--profile s3`, so stop everything with `docker compose --profile s3 down`. To run Garage in production, see the [Garage documentation](https://garagehq.deuxfleurs.fr/) for the `garage.toml` settings.
 
 ## Development
 

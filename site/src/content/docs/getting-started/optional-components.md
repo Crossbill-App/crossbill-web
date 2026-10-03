@@ -98,6 +98,14 @@ name it.
 
    `docker restart` does not read `.env` again, so use `docker compose up -d`.
 
+Commands that act on all services skip Garage unless you add `--profile s3`.
+For example, `docker compose down` leaves Garage running, so stop everything
+with:
+
+```bash
+docker compose --profile s3 down
+```
+
 To run Garage in production, see the
 [Garage documentation](https://garagehq.deuxfleurs.fr/) for the `garage.toml`
 settings.
