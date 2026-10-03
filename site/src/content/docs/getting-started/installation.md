@@ -27,30 +27,29 @@ docker compose up
 
 ## 3. Create your account
 
-Crossbill is multi-user: open the web frontend in a browser, register an
-account, and every book you add afterwards belongs to it.
+Open the web frontend in a browser and register an account. Crossbill supports
+multiple users, so others can register their own accounts on the same server.
 
 ## 4. Add your books
 
-There are two ways in. You can use either one, or both.
+You can add books in two ways, and use both:
 
 - **Upload an EPUB.** On the **Library** page, use the upload button in the
-  bottom-right corner and pick an EPUB file. The book opens once it is in, and
-  you can read and highlight it in the [web reader](../../features/web-reader/).
-  You do not need an e-reader.
+  bottom-right corner and pick an EPUB file. You can then read and highlight it
+  in the [web reader](../../features/web-reader/).
 - **Sync from KOReader.** Install the KOReader
   [plugin on your e-reader](https://github.com/Crossbill-App/koreader-plugin)
   and sync. See [KOReader plugin](../koreader-plugin/) for what the plugin
   syncs.
 
 If you upload a book and later sync the same EPUB from KOReader, the plugin
-finds the uploaded book instead of adding a second copy.
+adds to the uploaded book. You do not get a second copy.
 
 ## Serving the web reader
 
 The [web reader](../../features/web-reader/) loads a book's files with a
-short-lived cookie, `publication_access`, instead of the login token. Most
-installs need nothing extra. Behind a reverse proxy, check these:
+short-lived cookie, `publication_access`. If you run Crossbill behind a reverse
+proxy, check these settings:
 
 - **One origin.** Serve the frontend and `/api` from the same origin, as the
   Docker image does. Do not rewrite the `/api/v1` path: each book's cookie is
@@ -72,10 +71,9 @@ installs need nothing extra. Behind a reverse proxy, check these:
 
 ## What's next
 
-- Turn on the extras you want — the background worker for AI or S3-compatible
-  storage: [Optional components](../optional-components/).
-- Find out what the API offers: the interactive documentation is served at
-  `<backend host>/api/v1/docs` while the backend is running.
-- Running Crossbill from source instead? Each component has its own development
-  instructions, in `backend/README.md` and `frontend/README.md` in the
-  repository.
+- To set up the background worker for AI jobs or S3-compatible storage, see
+  [Optional components](../optional-components/).
+- The interactive API documentation is at `<backend host>/api/v1/docs` while
+  the backend is running.
+- To run Crossbill from source, see `backend/README.md` and
+  `frontend/README.md` in the repository.
