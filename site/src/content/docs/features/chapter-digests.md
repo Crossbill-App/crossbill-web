@@ -22,9 +22,9 @@ if you wrote one.
 - To generate digests for the whole book, choose **Generate summaries for all
   chapters**. The tab shows the progress, and you can cancel the run.
 
-Whole-book generation runs in the optional
-[background worker](../../getting-started/optional-components/), so you can
-close the page while it runs.
+Whole-book generation runs in the
+[background worker](../../getting-started/optional-components/#background-worker),
+so you can close the page while it runs.
 
 The Structure tab also has a [semantic search](../semantic-search/) field. It
 shows the chapters whose digest matches your search.

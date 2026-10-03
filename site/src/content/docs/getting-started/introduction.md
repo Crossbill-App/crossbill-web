@@ -41,8 +41,9 @@ set the stage yourself.
   **[Anki add-on](https://github.com/Crossbill-App/anki-addon)** (optional):
   bring your highlights and flashcards into Obsidian and Anki.
 
-Two more services are optional: a **background worker** for long-running AI
-jobs, and **S3-compatible storage** for setups where the app and the worker
-cannot share a filesystem. See [Optional components](../optional-components/).
+The app also runs a **background worker** for long AI jobs. By default it runs
+inside the app, and you can move it to a separate container. For setups where
+the app and the worker cannot share a filesystem, you can use
+**S3-compatible storage**. See [Optional components](../optional-components/).
 
 To install Crossbill, go to [Installation](../installation/).

@@ -202,7 +202,7 @@ only when you pass it to `create_flashcard`.
 
 `generate_chapter_digest` makes one AI call and can take tens of seconds.
 `generate_book_digests` queues the whole book as a job batch for the
-[background worker](../../getting-started/optional-components/). Check its
+[background worker](../../getting-started/optional-components/#background-worker). Check its
 progress with `get_digest_generation_status`.
 
 ### Bookmarks
