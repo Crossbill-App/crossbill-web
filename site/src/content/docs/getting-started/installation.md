@@ -18,8 +18,7 @@ Copy the example environment file to the project root:
 cp .env.example .env
 ```
 
-Fill in the required values at the top of `.env`. Crossbill does not start
-without them:
+Fill in the required values at the top of `.env`:
 
 | Variable                   | Value                                                       |
 | -------------------------- | ----------------------------------------------------------- |
@@ -28,10 +27,10 @@ without them:
 | `ADMIN_PASSWORD`           | The password for the first admin user                       |
 | `PUBLIC_BASE_URL`          | The address you open Crossbill at, `http://localhost:8000` |
 
-Generate the secrets with:
+Generate each secret with:
 
 ```bash
-python3 -c "import secrets; print(secrets.token_urlsafe(32))"
+openssl rand -hex 32
 ```
 
 All other settings in `.env` are optional and explained in the file.
@@ -48,9 +47,6 @@ you can skip this step.
 ```bash
 docker compose up -d
 ```
-
-The image is built for amd64. On Apple Silicon and other ARM machines, Docker
-runs it through emulation, so the first start takes about a minute.
 
 Open `http://localhost:8000` and log in with the username `admin` and your
 `ADMIN_PASSWORD`. To use a different username, set `ADMIN_USERNAME` in `.env`

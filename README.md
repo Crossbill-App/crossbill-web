@@ -83,7 +83,7 @@ The easiest way to run Crossbill is with the sample `docker-compose.yml` at the 
 cp .env.example .env
 ```
 
-2. Fill in the required values at the top of `.env`: `SECRET_KEY`, `REFRESH_TOKEN_SECRET_KEY`, `ADMIN_PASSWORD` and `PUBLIC_BASE_URL` (`http://localhost:8000` for a local install). Crossbill does not start without them.
+2. Fill in the required values at the top of `.env`: `SECRET_KEY`, `REFRESH_TOKEN_SECRET_KEY`, `ADMIN_PASSWORD` and `PUBLIC_BASE_URL` (`http://localhost:8000` for a local install).
 
 3. If you store book files on local disk (the default), change the `source` path of the `app` service's volume in `docker-compose.yml` to a folder on your host. Skip this if you use S3 storage.
 
@@ -92,8 +92,6 @@ cp .env.example .env
 ```bash
 docker compose up -d
 ```
-
-The image is built for amd64. On Apple Silicon and other ARM machines, Docker runs it through emulation, so the first start takes about a minute.
 
 5. Open `http://localhost:8000` and log in with the username `admin` and your `ADMIN_PASSWORD`. To let others create accounts, set `ALLOW_USER_REGISTRATIONS=true` in `.env` and run `docker compose up -d` again.
 
