@@ -127,3 +127,52 @@ class TestPublicBaseUrlValidation:
     def test_query_rejected(self) -> None:
         with pytest.raises(ValueError, match="must be a bare origin"):
             _build_settings(PUBLIC_BASE_URL="https://example.com?a=1")
+
+
+class TestEmptyEnvironmentVariables:
+    """Docker compose passes an unset `${VAR:-}` as an empty string."""
+
+    _REQUIRED_ENV = {
+        "SECRET_KEY": "test-secret-key-at-least-32-bytes-long",
+        "REFRESH_TOKEN_SECRET_KEY": "test-refresh-token-secret-key-at-least-32-bytes",
+        "ADMIN_PASSWORD": "test-admin-password",
+    }
+
+    def _settings(self, monkeypatch: pytest.MonkeyPatch, **env: str) -> Settings:
+        for key, value in {**self._REQUIRED_ENV, **env}.items():
+            monkeypatch.setenv(key, value)
+        return Settings(_env_file="")  # pyright: ignore[reportCallIssue]
+
+    def test_empty_s3_variables_leave_s3_disabled(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        settings = self._settings(
+            monkeypatch,
+            S3_ENDPOINT_URL="",
+            S3_ACCESS_KEY_ID="",
+            S3_SECRET_ACCESS_KEY="",
+            S3_BUCKET_NAME="",
+        )
+        assert settings.S3_ENDPOINT_URL is None
+        assert settings.s3_enabled is False
+
+    def test_set_s3_variables_enable_s3(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        settings = self._settings(
+            monkeypatch,
+            S3_ENDPOINT_URL="http://garage:3900",
+            S3_ACCESS_KEY_ID="key",
+            S3_SECRET_ACCESS_KEY="secret",
+            S3_BUCKET_NAME="crossbill-files",
+        )
+        assert settings.s3_enabled is True
+
+    def test_empty_providers_leave_ai_and_embeddings_disabled(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        settings = self._settings(monkeypatch, AI_PROVIDER="", EMBEDDING_PROVIDER="")
+        assert settings.ai_enabled is False
+        assert settings.embeddings_enabled is False
+
+    def test_empty_admin_username_falls_back_to_admin(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        settings = self._settings(monkeypatch, ADMIN_USERNAME="")
+        assert settings.ADMIN_USERNAME == "admin"
