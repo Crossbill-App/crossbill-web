@@ -4,14 +4,15 @@ import pytest
 
 from src.config import Settings
 
+_REQUIRED_ENV = {
+    "SECRET_KEY": "test-secret-key-at-least-32-bytes-long",
+    "REFRESH_TOKEN_SECRET_KEY": "test-refresh-token-secret-key-at-least-32-bytes-long",
+    "ADMIN_PASSWORD": "test-admin-password",
+}
+
 
 def _build_settings(**overrides: object) -> Settings:
-    defaults: dict[str, object] = {
-        "SECRET_KEY": "test-secret-key-at-least-32-bytes-long",
-        "REFRESH_TOKEN_SECRET_KEY": "test-refresh-token-secret-key-at-least-32-bytes-long",
-        "ADMIN_PASSWORD": "test-admin-password",
-    }
-    defaults.update(overrides)
+    defaults: dict[str, object] = {**_REQUIRED_ENV, **overrides}
     return Settings(**defaults)  # type: ignore[arg-type]
 
 
@@ -132,14 +133,8 @@ class TestPublicBaseUrlValidation:
 class TestEmptyEnvironmentVariables:
     """Docker compose passes an unset `${VAR:-}` as an empty string."""
 
-    _REQUIRED_ENV = {
-        "SECRET_KEY": "test-secret-key-at-least-32-bytes-long",
-        "REFRESH_TOKEN_SECRET_KEY": "test-refresh-token-secret-key-at-least-32-bytes",
-        "ADMIN_PASSWORD": "test-admin-password",
-    }
-
     def _settings(self, monkeypatch: pytest.MonkeyPatch, **env: str) -> Settings:
-        for key, value in {**self._REQUIRED_ENV, **env}.items():
+        for key, value in {**_REQUIRED_ENV, **env}.items():
             monkeypatch.setenv(key, value)
         return Settings(_env_file="")  # pyright: ignore[reportCallIssue]
 
