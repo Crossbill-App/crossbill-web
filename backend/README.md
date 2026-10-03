@@ -45,6 +45,8 @@ Copy the example environment file to the project root directory (used by both `d
 cp ../.env.example ../.env
 ```
 
+Then comment out `PUBLIC_BASE_URL` in `.env`. Its example value is for the Docker setup, and in development it makes the web reader fail to open books.
+
 For local backend development, you can also source the `.env` file before running commands:
 
 ```bash
