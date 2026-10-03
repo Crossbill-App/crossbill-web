@@ -1,72 +1,65 @@
 ---
 title: Semantic search
-description: Searching your highlights, notes and chapter digests by meaning — across every book, and across languages.
+description: Search your highlights, notes and chapter digests by meaning, across all books and languages.
 ---
 
-Semantic search finds content by **meaning** rather than by the words you typed.
-Searching for *attention* surfaces a highlight about staying focused even though
-it never uses the word, and a query in one language matches content written in
-another.
+Semantic search finds content by **meaning**. A search for *attention* finds a
+highlight about staying focused even if the highlight does not contain the word.
+A search in one language also finds content in other languages.
 
-It is optional: the search fields do not appear at all until an embedding
-provider is configured. See [Turning it on](#turning-it-on).
+Semantic search is optional. The search fields appear only after you set an
+embedding provider. See [Turning it on](#turning-it-on).
 
-## Searching every book
+## Searching all books
 
 The search field in the app bar searches your whole library. Type a query and
-press Enter — the search runs when you submit it, not on every keystroke,
-because each query is a call to the embedding model.
+press Enter. The search runs only when you press Enter, because each search
+calls the embedding model.
 
-**Books** whose title or author contains what you typed are listed first.
-Those are matched on the name, not on meaning, so typing a title you half
-remember finds the book itself rather than only the passages inside it.
+**Books** whose title or author contains your query are listed first. These
+match by text, so you can find a book by typing part of its title.
 
-Below them the results are one ranked list, best match first, mixing three kinds
-of content:
+Below the books is one list of results, best match first. It contains:
 
-- **Highlights**, with the book and chapter they came from.
+- **Highlights**, with their book and chapter.
 - **Notes**, with their title and the start of the body.
-- **Chapters**, matched through their [chapter digest](../chapter-digests/).
+- **Chapters**, matched by their [chapter digest](../chapter-digests/).
 
-Pick a row to open the book, highlight, note or chapter it came from. The arrow
-keys move through the list, Enter opens the row you are on, and Escape closes it.
-On a narrow screen the app bar shows a search icon instead, which opens the same
-search full-screen.
+Click a result to open it. You can also use the arrow keys to move through the
+list, Enter to open a result, and Escape to close the list. On a narrow screen,
+the app bar shows a search icon that opens the search in full screen.
 
-Matches that are only weakly similar are dropped, so a query with nothing to
-match comes back empty rather than showing ten confident-looking non-answers.
+Weak matches are left out, so a search with no good matches shows no results.
 
-## Searching inside one book
+## Searching one book
 
-Two of a book's tabs have a search field of their own, scoped to that book:
+Two tabs on a book page have their own search field:
 
-- The **Notes** tab filters the notes by meaning. It combines with the kind and
-  tag filters — a note has to pass all of them — and orders the survivors best
-  match first.
-- The **Structure** tab searches the chapter digests and keeps the chapters
-  whose digest matched, so a chapter is findable this way once it has a digest.
+- **Notes**: filters the notes by meaning. It works together with the kind and
+  tag filters, and sorts the notes by best match.
+- **Structure**: shows the chapters whose digest matches. Chapters without a
+  digest do not show up.
 
 ## Indexing your library
 
-Content is embedded in the background as you produce it: uploading highlights,
-writing or editing a [note](../notes/), and generating a
-[chapter digest](../chapter-digests/) each queue an embedding job. This is work
-for the optional
-[background worker](../../getting-started/optional-components/).
+Crossbill indexes new content in the background. Uploading highlights, writing
+or editing a [note](../notes/), and generating a
+[chapter digest](../chapter-digests/) each start an indexing job. The optional
+[background worker](../../getting-started/optional-components/) runs these jobs.
 
-Anything that existed before you switched semantic search on needs a one-time
-pass. In **Settings → Background processes**, choose **Run text embedding for
-the library**. Progress is shown while it runs and you can cancel it partway.
-Only content that has not been embedded yet is processed, so running it again
-later — after importing a few more books, say — is cheap.
+Content that existed before you turned on semantic search needs to be indexed
+once. Go to **Settings → Background processes** and choose **Run text embedding
+for the library**. The page shows the progress, and you can cancel the run. The
+run skips content that is already indexed, so you can run it again after you
+add more books.
 
 ## Turning it on
 
-Semantic search is off unless `EMBEDDING_PROVIDER` is set. The settings are
-independent of the `AI_*` ones, so chapter digests and embeddings can use
-different providers.
+Semantic search is off until you set `EMBEDDING_PROVIDER`. These settings are
+separate from the `AI_*` settings, so chapter digests and semantic search can
+use different providers.
 
-Local, through Ollama:
+Local, with Ollama:
 
 ```
 EMBEDDING_PROVIDER=ollama
@@ -74,22 +67,24 @@ EMBEDDING_MODEL_NAME=bge-m3
 EMBEDDING_BASE_URL=http://localhost:11434/v1
 ```
 
-Hosted, through OpenRouter, reusing `OPENROUTER_API_KEY`:
+Hosted, with OpenRouter, using your existing `OPENROUTER_API_KEY`:
 
 ```
 EMBEDDING_PROVIDER=openrouter
 EMBEDDING_MODEL_NAME=baai/bge-m3
 ```
 
-`EMBEDDING_BASE_URL` is required for `ollama` and optional for `openrouter`,
-where it defaults to `https://openrouter.ai/api/v1`.
+`EMBEDDING_BASE_URL` is required for `ollama`. For `openrouter` it is optional
+and defaults to `https://openrouter.ai/api/v1`.
 
-Two more things the feature needs:
+Semantic search also needs:
 
 - **PostgreSQL with the `vector` extension, version 0.8 or newer.** The
-  `docker-compose.yml` uses the `pgvector/pgvector:pg18` image, which has it.
-- **The background worker**, which is what writes the embeddings.
+  `docker-compose.yml` uses the `pgvector/pgvector:pg18` image, which includes
+  it.
+- **The background worker**, which writes the embeddings.
 
-The stored vectors are 1024 numbers wide, which is what `bge-m3` produces.
-A model of a different width is a database migration and a full re-index rather
-than a change of setting, so pick the model before you index the library.
+Crossbill stores vectors with 1024 dimensions, which is what `bge-m3` produces.
+Switching to a model with a different size requires a database migration and
+indexing the whole library again. Choose the model before you index your
+library.

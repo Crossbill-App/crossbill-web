@@ -3,32 +3,32 @@ title: MCP server
 description: Let Claude and other AI assistants read and work with your Crossbill library through the Model Context Protocol.
 ---
 
-The Crossbill MCP server exposes your library to AI assistants that speak the
-[Model Context Protocol](https://modelcontextprotocol.io/) — Claude Desktop,
-Claude Code, and any other MCP client. The assistant gets the same operations
-the web UI has: your books, highlights, notes, tags, flashcards, digests and
-reflections, through the Crossbill REST API.
+The Crossbill MCP server gives AI assistants access to your library through
+the [Model Context Protocol](https://modelcontextprotocol.io/). It works with
+Claude Desktop, Claude Code and other MCP clients. The assistant can work with
+your books, highlights, notes, tags, flashcards, digests and reflections, the
+same as in the web app.
 
-It runs on your machine, talks to your own Crossbill server, and logs in as you
-with your own account. Nothing is shared with anyone your assistant is not
-already talking to.
+The server runs on your machine and logs in to your Crossbill server with your
+account. It sends your data only to the assistant you connect it to.
 
 ## What you can do with it
 
-Once the server is connected, you ask in plain language and the assistant picks
-the tools. Some things it is good at:
+Once the server is connected, ask the assistant in plain language. It chooses
+the tools. Some examples:
 
 - **Work through a book's highlights.** "Find every highlight in *Thinking, Fast
   and Slow* about base rates and tag them `statistics`."
-- **Collaborate on notes** "Read chapter 4 and draft a note, linked to the
+- **Write notes together.** "Read chapter 4 and draft a note, linked to the
   chapter and to the three highlights it builds on."
-- **Answer from your library rather than from the model.** With
+- **Search your own library.** With
   [semantic search](../../features/semantic-search/) on, "what have I read about
   deliberate practice?" searches your own highlights, notes and digests.
 - **Turn reading into cards.** Ask for [flashcard](../../features/flashcards/)
   suggestions from a chapter, a highlight or a note, then create the ones worth
   keeping.
-- **Analyze your reading patterns over time.** Check which topics in the book interested you over time if you kept returning into it in different life situations.
+- **Look at your reading over time.** "Which topics in this book did I
+  highlight on each reread?"
 
 ## Installing
 
@@ -44,13 +44,11 @@ pip install -e .
 uv tool install --editable .
 ```
 
-That installs a `crossbill-mcp` command, which is what your MCP client will
-run.
+This installs the `crossbill-mcp` command. Your MCP client runs it.
 
 ## Configuring
 
-The server takes three environment variables, and refuses to start without all
-three:
+The server needs all three of these environment variables:
 
 | Variable             | What it is                    | Example                 |
 | -------------------- | ----------------------------- | ----------------------- |
@@ -58,8 +56,7 @@ three:
 | `CROSSBILL_EMAIL`    | The email you registered with | `user@example.com`      |
 | `CROSSBILL_PASSWORD` | That account's password       |                         |
 
-It logs in with those credentials, then keeps the session alive by refreshing
-its token, so you configure it once.
+The server logs in with these and refreshes its token as needed.
 
 ### Claude Desktop
 
@@ -94,7 +91,7 @@ claude mcp add crossbill \
 
 ### Running it directly
 
-Useful for checking that it starts and can log in:
+To check that the server starts and can log in:
 
 ```bash
 export CROSSBILL_URL=http://localhost:8000
@@ -103,38 +100,36 @@ export CROSSBILL_PASSWORD=your-password
 crossbill-mcp
 ```
 
-It speaks MCP over stdio, so on its own it will just sit there waiting for a
-client.
+The server uses MCP over stdio, so after it starts it waits for a client.
 
 ## Deleting data
 
-Seven tools delete things. Five of them — `delete_note`, `delete_flashcard`,
-`delete_tag`, `delete_tag_group` and `delete_bookmark` — throw away something
-you can write again. Two of them throw away more:
+Seven tools delete data. Five of them delete things you can create again:
+`delete_note`, `delete_flashcard`, `delete_tag`, `delete_tag_group` and
+`delete_bookmark`. The other two delete more:
 
 - **`delete_book`** removes a book with all its chapters and highlights. Syncing
   the book from KOReader again recreates it, but the notes, flashcards, tags and
   digests Crossbill kept alongside it are gone.
-- **`delete_highlights`** removes highlights from a book along with their
-  flashcards and bookmarks. Syncing the book again does not bring them back;
-  marking one of the passages again on the e-reader restores the highlight
-  itself, but the flashcards and bookmarks stay gone.
+- **`delete_highlights`** removes highlights from a book with their
+  flashcards and bookmarks. Syncing the book again does not restore them. If
+  you highlight a passage again on the e-reader, the highlight comes back
+  without its flashcards and bookmarks.
 
-Neither of those two runs on the assistant's say-so. Before calling the API, the
-server asks *you* to confirm through MCP elicitation, spelling out what is about
-to go — the book's title with its chapter and highlight counts, or how many
-highlights and from which book. Only an explicit yes goes through; declining or
-dismissing the prompt leaves everything in place.
+Before either of these runs, the server asks you to confirm through MCP
+elicitation. The prompt shows what will be deleted: the book's title with its
+chapter and highlight counts, or the number of highlights and their book. The
+deletion runs only if you confirm. If you decline or close the prompt, nothing
+is deleted.
 
-The prompt comes from the server rather than from the assistant, so it cannot be
-talked around. If your MCP client does not support elicitation, the deletion is
-refused outright and you are pointed at the Crossbill web UI instead — a client
-that cannot ask you is a client that cannot delete.
+The server shows this prompt itself, so the assistant cannot skip it. If your
+MCP client does not support elicitation, the server refuses the deletion and
+tells you to use the Crossbill web app.
 
 All seven deletion tools are annotated `destructiveHint: true` (so is
 `cancel_job_batch`), and every read-only tool is annotated `readOnlyHint: true`,
-so clients can treat the groups differently. If you allowlist the whole Crossbill server in Claude Code,
-keep the deletions behind a prompt:
+so clients can treat them differently. If you allow the whole Crossbill server
+in Claude Code, keep a permission prompt for the deletions:
 
 ```json
 {
@@ -146,8 +141,8 @@ keep the deletions behind a prompt:
 
 ## Tools that need a provider
 
-Some tools depend on what your Crossbill server has configured, and say so
-rather than failing obscurely:
+Some tools need a provider configured on your Crossbill server. Without it,
+they return a message that says what is missing:
 
 - **AI provider** (`AI_PROVIDER`): chapter digest generation and the three
   flashcard-suggestion tools. Without one, they answer that AI features are not
@@ -182,8 +177,8 @@ The server registers 50 tools. Full descriptions and arguments are in
 
 `create_note`, `get_note`, `get_book_notes`, `update_note`, `delete_note`
 
-`update_note` replaces a note in full — anything you omit is cleared, so read
-the note with `get_note` first and resend what you want to keep.
+`update_note` replaces the whole note and clears any field you leave out. Read
+the note with `get_note` first and send back the fields you want to keep.
 
 ### Tags
 
@@ -196,8 +191,8 @@ the note with `get_note` first and resend what you want to keep.
 `suggest_flashcards_for_chapter`, `suggest_flashcards_for_highlight`,
 `suggest_flashcards_for_note`
 
-The three suggestion tools only propose question-and-answer pairs; nothing is
-saved until one is passed to `create_flashcard`.
+The three suggestion tools only suggest questions and answers. A card is saved
+only when you pass it to `create_flashcard`.
 
 ### Chapter digests and background jobs
 
@@ -206,9 +201,9 @@ saved until one is passed to `create_flashcard`.
 `get_job_batch`, `cancel_job_batch`
 
 `generate_chapter_digest` makes one AI call and can take tens of seconds.
-`generate_book_digests` instead enqueues the whole book as a job batch for the
-[background worker](../../getting-started/optional-components/), which you then
-poll.
+`generate_book_digests` queues the whole book as a job batch for the
+[background worker](../../getting-started/optional-components/). Check its
+progress with `get_digest_generation_status`.
 
 ### Bookmarks
 
@@ -226,4 +221,4 @@ poll.
 
 `get_book_reflection`, `update_book_reflection`
 
-Like `update_note`, `update_book_reflection` replaces the reflection in full.
+`update_book_reflection` replaces the whole reflection, like `update_note`.

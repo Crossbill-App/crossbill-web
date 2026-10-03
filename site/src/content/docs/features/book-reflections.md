@@ -3,13 +3,13 @@ title: Book reflections
 description: Adler's four analytical-reading questions, reflection notes, and the reading stage on each book.
 ---
 
-A **book reflection** is your answers to Mortimer J. Adler's four
-analytical-reading questions about one book. There is one reflection per book,
-and it is a container: each answer is itself a [note](../notes/).
+A **book reflection** holds your answers to Mortimer J. Adler's four
+analytical-reading questions about a book. Each book has one reflection, and
+each answer in it is a [note](../notes/).
 
 ## The four questions
 
-Open a book's **Reflection** tab and answer them in your own time.
+Open a book's **Reflection** tab to answer them.
 
 1. **What is the book about?** State what the whole book is about in a single
    sentence. Then outline its major parts, and name the problems the author set
@@ -17,27 +17,26 @@ Open a book's **Reflection** tab and answer them in your own time.
 2. **What does it say in detail?** The author's key terms, most important
    propositions, and the arguments behind them.
 3. **Do I agree?** Judge the book. Is the author uninformed, misinformed, or
-   illogical? If none of those apply, you are obligated to agree — say so.
+   illogical? If none of those apply, Adler says you must agree.
 4. **So what?** If the book is true, what follows? What will you do or think
    differently, and how does it connect with other books you have read?
 
-Answering a question opens the note editor with the question as the title and
-the guidance in view. Once answered, the answer renders in place, with an edit
-button when you want to revise it.
+When you answer a question, the note editor opens with the question as the
+title and its guidance shown. The saved answer shows on the tab, with an
+edit button.
 
 ## Reflection notes
 
-An answer within a reflection is a **reflection note** — the reflection is the
-whole; a reflection note is a part.
+Each answer in a reflection is a **reflection note**.
 
-The second question also gathers the **term and concept notes** you wrote while
-reading. Link them to the reflection, or write a new one from there. That is
-what coming to terms with the author looks like once it is written down.
+The second question also lists the **term and concept notes** you wrote while
+reading. You can link existing notes to the reflection or write a new one from
+there.
 
 ## Reading stages
 
-A **reading stage** records where a book stands with you. You set it by hand on
-the book's header; Crossbill never infers it from activity.
+A **reading stage** shows how far you are with a book. You set it yourself in
+the book's header. Crossbill does not change it based on your reading activity.
 
 - **To read**
 - **Skimming**
@@ -45,12 +44,12 @@ the book's header; Crossbill never infers it from activity.
 - **Finished**
 - **Reflected**
 
-Putting a book down is a reading decision too, so there is a sixth stage
-outside that progression:
+A sixth stage, **Did not finish**, is for books you stopped reading.
 
-- **Did not finish**
+The Reflection tab suggests a next step based on the stage:
 
-The Reflection tab uses the stage to nudge you: after skimming it suggests
-stating what the book is about; once you have finished it points you at "Do I
-agree?"; once reflected it invites you to revisit your answers whenever the book
-comes up again. You can clear a stage at any time.
+- **Skimming**: state what the book is about.
+- **Finished**: answer "Do I agree?".
+- **Reflected**: revisit your answers when the book comes up again.
+
+You can clear the stage at any time.

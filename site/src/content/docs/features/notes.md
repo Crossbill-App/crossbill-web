@@ -3,42 +3,44 @@ title: Notes
 description: Writing notes about terms, characters and concepts, and linking them to chapters, highlights and tags.
 ---
 
-A **note** is a piece of writing you authored — about a term, a character, a
-concept, the gist of something, or as a reflection. Highlights hold the author's
-words; notes hold yours.
+A **note** is text you write about a book. It can be about a term, a character,
+a concept, a chapter's gist, or a reflection. Highlights store the author's
+text. Notes store your own.
 
-Every note belongs to at least one book, and can link to that book's chapters,
+Every note belongs to at least one book. It can link to that book's chapters,
 highlights and tags.
 
-## Writing one
+## Writing a note
 
-Open a book's **Notes** tab and start a new note. A note has:
+Open a book's **Notes** tab and create a note. A note has:
 
 - A **title**.
 - A **kind**: Character, Term, Concept, Gist, Reflection or Other. The kind is
-  optional, and it is what the filters work on.
+  optional. You can filter notes by kind.
 - A **body**, written in Markdown.
-- **Chapters** it relates to, chosen from the book's table of contents.
-- **Tags**, which you can create as you type.
+- **Chapters** it is about, chosen from the book's table of contents.
+- **Tags**. You can create new tags as you type.
 
-A **Gist** note is meant to be short: one or two sentences saying what a chapter
-was about, in your own words. A **Reflection** note is one of the four answers
-in a [book reflection](../book-reflections/).
+A **Gist** note is short: one or two sentences about what a chapter says, in
+your own words. A **Reflection** note is one of the four answers in a
+[book reflection](../book-reflections/).
 
-## Linking
+## Linking notes
 
-Notes are most useful attached to something.
+- From a **highlight** or a **chapter**, add a new note or link an existing one.
+- A note shows everything it is linked to. You can remove any link.
 
-- From a **highlight** or a **chapter**, add a note or link an existing one.
-- From a note, you can see everything it is linked to, and unlink any of it.
-- Coming to terms with an author is exactly this: writing Term and Concept notes
-  and hanging them off the highlights that prompted them.
+For example, write a Term note about a word the author uses, and link it to the
+highlights where the word appears.
 
-## Finding them again
+## Finding notes
 
 The Notes tab has a [semantic search](../semantic-search/) field that finds
-notes by meaning rather than by wording, and it filters by note kind and by tag.
-Each note opens in a reader
-view where you can step to the next and previous note, copy its content or a
-link to it, edit it, or delete it. Notes can also be turned into
-[flashcards](../flashcards/).
+notes by meaning. You can also filter by note kind and by tag.
+
+When you open a note, you can:
+
+- go to the previous or next note
+- copy its content or a link to it
+- edit or delete it
+- make [flashcards](../flashcards/) from it
