@@ -24,6 +24,9 @@ services:
 
   app:
     image: tumetsu/crossbill:latest
+    # The image is built for amd64 only. This line lets Apple Silicon and other
+    # ARM hosts run it through emulation, which is slower.
+    platform: linux/amd64
     container_name: crossbill-app
     restart: unless-stopped
     pull_policy: always
@@ -58,6 +61,7 @@ services:
   #
   # worker:
   #   image: tumetsu/crossbill:latest
+  #   platform: linux/amd64
   #   container_name: crossbill-worker
   #   restart: unless-stopped
   #   pull_policy: always

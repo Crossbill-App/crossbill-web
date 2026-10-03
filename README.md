@@ -93,6 +93,8 @@ cp .env.example .env
 docker compose up -d
 ```
 
+The image is built for amd64. On Apple Silicon and other ARM machines, Docker runs it through emulation, so the first start takes about a minute.
+
 5. Open `http://localhost:8000` and log in with the username `admin` and your `ADMIN_PASSWORD`. To let others create accounts, set `ALLOW_USER_REGISTRATIONS=true` in `.env` and run `docker compose up -d` again.
 
 Then add your books. You can use one or both of these:

@@ -49,6 +49,9 @@ you can skip this step.
 docker compose up -d
 ```
 
+The image is built for amd64. On Apple Silicon and other ARM machines, Docker
+runs it through emulation, so the first start takes about a minute.
+
 Open `http://localhost:8000` and log in with the username `admin` and your
 `ADMIN_PASSWORD`. To use a different username, set `ADMIN_USERNAME` in `.env`
 before the first start. Change the password in the app after you log in.
