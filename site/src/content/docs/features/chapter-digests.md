@@ -1,51 +1,48 @@
 ---
 title: Chapter digests
-description: AI summaries, key points and comprehension questions for a chapter — for skimming before, or review after.
+description: AI summaries, key points and comprehension questions for a chapter, for skimming before reading or for review after.
 ---
 
-A **chapter digest** is an AI-generated condensation of one chapter: a summary,
-its key points, and comprehension questions you can answer. Read it before the
-chapter to support **skimming** — finding out what the chapter contains before
-reading it properly — or after the chapter as review. The artifact is the same
-either way.
+A **chapter digest** is an AI-generated summary of one chapter, with key points
+and comprehension questions. Read it before the chapter to **skim**, that is,
+to find out what the chapter contains. Or read it after the chapter as review.
 
-Digests are generated from the book's EPUB file, so a book needs its file
-uploaded for this to work.
+Crossbill generates digests from the book's EPUB file, so the book needs its
+file uploaded.
 
-## Generating one
+## Generating a digest
 
-Open a book's **Structure** tab. It shows the book's chapters as a tree, with
-each chapter's highlight and flashcard counts, whether you have read past it,
-and its gist if you wrote one.
+Open a book's **Structure** tab. It shows the chapters as a tree. Each chapter
+shows its highlight and flashcard counts, whether you have read it, and its gist
+if you wrote one.
 
-- Open a chapter and choose **Generate summary**. The summary and its key points
-  appear in the chapter, with the date they were generated.
-- **Regenerate** replaces a digest you already have.
-- **Generate summaries for all chapters** runs the whole book at once. Progress
-  is shown as it goes, and you can cancel a run partway.
+- To generate a digest, open a chapter and choose **Generate summary**. The
+  summary and key points appear in the chapter with the date they were made.
+- To replace a digest, choose **Regenerate**.
+- To generate digests for the whole book, choose **Generate summaries for all
+  chapters**. The tab shows the progress, and you can cancel the run.
 
-The Structure tab also has a [semantic search](../semantic-search/) field, which
-keeps the chapters whose digest matches what you are looking for.
+Whole-book generation runs in the optional
+[background worker](../../getting-started/optional-components/), so you can
+close the page while it runs.
 
-Batch generation is what the optional
-[background worker](../../getting-started/optional-components/) is for — it
-processes the jobs outside the request, so you can close the page.
+The Structure tab also has a [semantic search](../semantic-search/) field. It
+shows the chapters whose digest matches your search.
 
-## Working with a digest
+## Using a digest
 
-- The **key points** are a bullet list you can skim in a few seconds.
-- The **comprehension questions** each have an answer box. Write your answer as
-  you read; it saves when you click away.
-- You can also **quiz yourself** on the chapter or **chat about it** with the AI
-  in a conversation.
-- Anything worth keeping can become a [note](../notes/) or a
-  [flashcard](../flashcards/) from the same chapter view.
+- The **key points** are a short bullet list.
+- Each **comprehension question** has an answer box. Your answer saves when you
+  click outside the box.
+- You can **quiz yourself** on the chapter or **chat about it** with the AI.
+- You can make a [note](../notes/) or a [flashcard](../flashcards/) from the
+  same chapter view.
 
-The [KOReader plugin](../../getting-started/koreader-plugin/) can pull digests
-back down to the e-reader, so you can read them next to the chapter itself.
+The [KOReader plugin](../../getting-started/koreader-plugin/) can download
+digests to your e-reader, so you can read them next to the chapter.
 
 ## AI providers
 
-Ollama, OpenAI, Anthropic and Gemini are supported. Configure a provider with
-`AI_PROVIDER` and its API key; the AI features only appear in the interface once
-one is set up.
+Crossbill supports Ollama, OpenAI, Anthropic and Gemini. Set the provider with
+`AI_PROVIDER` and its API key. The AI features appear in the app only after you
+set a provider.

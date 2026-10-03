@@ -3,40 +3,44 @@ title: Flashcards
 description: Making question-and-answer cards from highlights, chapters and notes, with AI suggestions and Anki sync.
 ---
 
-A **flashcard** is a question-and-answer study card you made from a highlight, a
-chapter, or a note, for review by spaced repetition.
+A **flashcard** is a question-and-answer card made from a highlight, a chapter
+or a note.
 
-## Making them
+## Making flashcards
 
-Flashcards are created where the material is, not from a blank page:
+You make a flashcard from the material it is about:
 
-- From a **highlight**, open it and switch to its Flashcards tab.
-- From a **chapter**, open it in the Structure tab and do the same.
-- From a **note**, add one alongside the note.
+- **Highlight**: open the highlight and go to its Flashcards tab.
+- **Chapter**: open the chapter in the Structure tab and go to its Flashcards
+  tab.
+- **Note**: add a flashcard from the note.
 
-Fill in a question and an answer, and the card is attached to whatever you made
-it from.
+Write a question and an answer. The card is linked to the highlight, chapter or
+note you made it from.
 
 ### AI suggestions
 
-Instead of writing cards yourself, ask the AI to **suggest flashcards** from a
-highlight or a chapter. Suggestions appear as a list you review one at a time,
-accepting the ones worth keeping and rejecting the rest. Nothing is saved until
-you accept it.
+You can ask the AI to **suggest flashcards** for a highlight or a chapter. You
+go through the suggestions one at a time and accept or reject each. Crossbill
+saves only the cards you accept.
 
-AI suggestions need an AI provider configured — see
-[Chapter digests](../chapter-digests/).
+AI suggestions need an AI provider. See [Chapter digests](../chapter-digests/).
 
-## Reviewing the deck
+## Browsing a book's flashcards
 
-A book's **Flashcards** tab lists every card it has, grouped by the chapter it
-came from, with cards not tied to a chapter under their own heading. Click a
-card to reveal its answer. You can search the deck by question or answer text,
-sort it newest- or oldest-first, and filter by tag — cards inherit the tags of
-the highlight they came from. Each card can be edited or deleted.
+A book's **Flashcards** tab lists all its cards, grouped by chapter. Cards that
+are not linked to a chapter have their own group. Click a card to show its
+answer.
+
+You can:
+
+- search the cards by question or answer text
+- sort them newest or oldest first
+- filter them by tag. A card has the tags of the highlight it was made from.
+- edit or delete a card
 
 ## Studying in Anki
 
-Crossbill is a good place to make cards and a poor place to drill them, so the
-[Anki add-on](../../integrations/anki/) syncs your Crossbill flashcards into
-your Anki collection and lets Anki's scheduler do the spaced repetition.
+Crossbill does not schedule reviews. The [Anki add-on](../../integrations/anki/)
+syncs your flashcards into Anki, and you study them there with spaced
+repetition.

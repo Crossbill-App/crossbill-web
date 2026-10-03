@@ -1,48 +1,46 @@
 ---
 title: Tags and organization
-description: Tags, tag groups, and how a label differs from a tag.
+description: Tags, tag groups, and how labels differ from tags.
 ---
 
-Crossbill gives you two ways of saying what a highlight means: **tags**, which
-you create, and **labels**, which come from your e-reader.
+Crossbill has two ways to categorize highlights: **tags**, which you create, and
+**labels**, which come from your e-reader's highlight styles.
 
 ## Tags
 
-A **tag** is a category you created and applied to highlights and notes. Tags
-are scoped to a single book — the same word used in two books is two separate
-tags, so a book's tag list stays about that book.
+A **tag** is a category you add to highlights and notes. Each tag belongs to
+one book. If you use the same word in two books, they are two separate tags.
 
-- Add tags to a highlight from its dialog, or to a note while you edit it. Both
-  inputs will create a tag that does not exist yet.
-- The book's tags appear in the sidebar of the Highlights, Notes and Flashcards
-  tabs. Click one to filter the list to it; click it again to clear.
-- Tags are listed alphabetically.
+- Add tags to a highlight in its dialog, or to a note while you edit it. If the
+  tag does not exist yet, Crossbill creates it.
+- The book's tags are listed alphabetically in the sidebar of the Highlights,
+  Notes and Flashcards tabs. Click a tag to filter the list. Click it again to
+  clear the filter.
 
 ## Tag groups
 
-Once a book has a lot of tags, cluster them. A **tag group** is a named cluster
-of one book's tags.
+A **tag group** is a named set of a book's tags. Use groups when a book has many
+tags.
 
-- **Add a new group** from the sidebar, giving it a name.
-- **Edit tags** on a group opens a searchable checklist for adding and removing
-  its tags.
-- Right-click (or long-press) a tag chip to move it to another group, or out of
-  its group again.
-- Groups are listed by name, with everything else under **Ungrouped**.
+- To create a group, choose **Add a new group** in the sidebar and give it a
+  name.
+- To add or remove tags in a group, choose **Edit tags** on the group.
+- To move a tag to another group or out of its group, right-click or
+  long-press the tag.
+- Groups are listed by name. Tags without a group are under **Ungrouped**.
 
-You can also **rename** or **delete** a group; deleting a group does not delete
-its tags.
+You can **rename** or **delete** a group. Deleting a group keeps its tags.
 
-## Labels are not tags
+## Tags and labels
 
-A **label** is the meaning you assigned to a **highlight style** — the colour or
-drawing style you used on the device. The distinction matters:
+A **label** is the name you give a **highlight style**, the colour or drawing
+style you used on the device.
 
-|                | Tag                          | Label                              |
-| -------------- | ---------------------------- | ---------------------------------- |
-| Where it comes from | You create it in Crossbill | Your e-reader's highlight style |
-| How many per highlight | As many as you like | At most one                     |
-| Scope          | One book                     | Per book, or globally              |
+|                        | Tag                        | Label                           |
+| ---------------------- | -------------------------- | ------------------------------- |
+| Where it comes from    | You create it in Crossbill | Your e-reader's highlight style |
+| How many per highlight | As many as you like        | At most one                     |
+| Scope                  | One book                   | One book or all books           |
 
-Labels are named and recoloured from the coloured dot on any highlight — see
+To name or recolour a label, click the coloured dot on a highlight. See
 [Highlights](../highlights/).
