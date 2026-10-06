@@ -46,11 +46,11 @@ export const ReaderFooter = ({ progression, chapterProgress, colors }: ReaderFoo
       sx={{
         display: 'flex',
         alignItems: 'center',
-        // Centred on both axes: a phone's rounded corners would clip or crowd
-        // stats pushed to an edge. The extra height clears an iPhone's home
-        // indicator, which the page runs under, and the stats sit in the
-        // middle of the whole strip rather than above the inset.
-        justifyContent: 'center',
+        // Centred on phones, whose rounded corners would crowd stats pushed to
+        // an edge; right-aligned on larger screens. The extra height clears an
+        // iPhone's home indicator, which the page runs under, and the stats sit
+        // in the middle of the whole strip rather than above the inset.
+        justifyContent: { xs: 'center', sm: 'flex-end' },
         gap: 2,
         // Held open before the position is known, so the page is not laid out
         // twice when the label arrives.
