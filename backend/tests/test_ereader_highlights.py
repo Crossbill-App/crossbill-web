@@ -47,8 +47,8 @@ async def test_returns_uploaded_highlights_with_device_fields(
                 "page": 10,
                 "datetime": "2024-01-15 14:30:22",
                 "datetime_updated": "2024-01-16 09:05:00",
-                "start_xpoint": "/body/div[1]/p[5]/text()[1].0",
-                "end_xpoint": "/body/div[1]/p[5]/text()[1].42",
+                "start_xpoint": "/body/DocFragment[3]/body/div[1]/p[5]/text().0",
+                "end_xpoint": "/body/DocFragment[3]/body/div[1]/p[5]/text()[1].42",
                 "color": "yellow",
                 "drawer": "lighten",
                 "note": "Come back to this",
@@ -69,9 +69,9 @@ async def test_returns_uploaded_highlights_with_device_fields(
     assert [i["text"] for i in items] == ["Placeable one", "No xpoints here"]
 
     placeable, unplaceable = items
-    # XPoint normalises the device's strings on store; the device gets those back.
-    assert placeable["start_xpoint"] == "/body/DocFragment[1]/body/div[1]/p[5]"
-    assert placeable["end_xpoint"] == "/body/DocFragment[1]/body/div[1]/p[5]/text().42"
+    # The device's own spelling, which is how it recognises the highlight as its own
+    assert placeable["start_xpoint"] == "/body/DocFragment[3]/body/div[1]/p[5]/text().0"
+    assert placeable["end_xpoint"] == "/body/DocFragment[3]/body/div[1]/p[5]/text()[1].42"
     assert placeable["datetime"] == "2024-01-15 14:30:22"
     assert placeable["datetime_updated"] == "2024-01-16 09:05:00"
     assert placeable["page"] == 10
@@ -87,6 +87,46 @@ async def test_returns_uploaded_highlights_with_device_fields(
     # Never edited on the device, so it has no edit time of its own.
     assert unplaceable["datetime_updated"] is None
     assert unplaceable["placeable"] is False
+
+
+async def test_a_web_edit_keeps_the_xpoints_the_device_sent(
+    plugin_client: AsyncClient, client: AsyncClient, ereader_book: Book
+) -> None:
+    """Recolouring on the web saves the whole row, xpoints included, as the device spelt them.
+
+    KOReader writes ``text()[1]`` and a ``.0`` offset that name the same place as
+    ``text()`` and no offset at all. A rewritten spelling reads to the device as a
+    highlight it has never held, so it reported its own highlights as pulled.
+    """
+    start = "/body/DocFragment[7]/body/p[12]/text()[1].0"
+    end = "/body/DocFragment[7]/body/p[12]/text()[1].57"
+    await _upload(
+        plugin_client,
+        "client-pull",
+        [
+            {
+                "text": "Made on the device",
+                "datetime": "2024-01-15 14:30:22",
+                "start_xpoint": start,
+                "end_xpoint": end,
+                "color": "yellow",
+                "drawer": "lighten",
+            }
+        ],
+    )
+    pulled = await plugin_client.get("/api/v1/ereader/books/client-pull/highlights")
+    (item,) = pulled.json()["items"]
+
+    recoloured = await client.patch(
+        f"/api/v1/books/{ereader_book.id}/highlights/{item['id']}/color",
+        json={"device_color": "red", "device_style": "lighten"},
+    )
+    assert recoloured.status_code == 200, recoloured.text
+
+    response = await plugin_client.get("/api/v1/ereader/books/client-pull/highlights")
+    (item,) = response.json()["items"]
+    assert item["device_color"] == "red"
+    assert (item["start_xpoint"], item["end_xpoint"]) == (start, end)
 
 
 async def test_highlights_without_a_page_sort_last(
