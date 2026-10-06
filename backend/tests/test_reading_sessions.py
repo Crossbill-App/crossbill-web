@@ -152,8 +152,8 @@ class TestUploadReadingSessions:
         # Compare with timezone-aware datetimes (use replace to normalize for SQLite)
         assert session.start_time.replace(tzinfo=UTC) == datetime(2024, 1, 15, 10, 0, 0, tzinfo=UTC)
         assert session.end_time.replace(tzinfo=UTC) == datetime(2024, 1, 15, 11, 0, 0, tzinfo=UTC)
-        assert session.start_xpoint == "/body/DocFragment[1]/body/div[1]/p[1]"
-        assert session.end_xpoint == "/body/DocFragment[1]/body/div[1]/p[50]"
+        assert session.start_xpoint == "/body/div[1]/p[1]"
+        assert session.end_xpoint == "/body/div[1]/p[50]"
 
     async def test_upload_naive_timestamps_as_utc(
         self, plugin_client: AsyncClient, db_session: AsyncSession, test_book: models.Book

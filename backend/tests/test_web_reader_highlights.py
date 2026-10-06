@@ -28,13 +28,14 @@ MEDIA_TYPE = "application/xhtml+xml"
 
 # One sentence per chapter that occurs nowhere else, and where each one sits.
 CH1_QUOTE = "Nothing else in the house moved"
-CH1_START_XPOINT = "/body/DocFragment[1]/body/div[1]/p[4]"
+CH1_PARAGRAPH = "/body/DocFragment[1]/body/div[1]/p[4]"
+CH1_START_XPOINT = f"{CH1_PARAGRAPH}/text().0"
 CH2_QUOTE = "Morning arrived without ceremony"
 CH2_START_XPOINT = "/body/DocFragment[2]/body/div[1]/p[1]"
 THE_SAME_TWICE = "The lantern went out at midnight"
 # What runs into chapter one's second copy of that sentence, and so tells it from the first.
 BEFORE_THE_SECOND = "She wrote the same sentence twice, and meant it both times."
-SECOND_COPY_XPOINT = "/body/DocFragment[1]/body/div[1]/p[3]"
+SECOND_COPY_XPOINT = "/body/DocFragment[1]/body/div[1]/p[3]/text().0"
 # What surrounds chapter one's unique sentence, as a navigator sends a selection.
 BEFORE_CH1_QUOTE = "The lantern went out at midnight."
 AFTER_CH1_QUOTE = " until morning."
@@ -173,7 +174,7 @@ async def test_a_selection_is_stored_as_a_highlight_the_e_reader_will_recognise(
 
     assert body["text"] == CH1_QUOTE
     assert body["start_xpoint"] == CH1_START_XPOINT
-    assert body["end_xpoint"].startswith(CH1_START_XPOINT)
+    assert body["end_xpoint"].startswith(f"{CH1_PARAGRAPH}/text().")
 
     rows = await stored_highlights(db_session, readable_book)
     assert len(rows) == 1

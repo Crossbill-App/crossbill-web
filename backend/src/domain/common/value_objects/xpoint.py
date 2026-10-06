@@ -8,7 +8,7 @@ Used by KOReader to identify precise locations in books.
 from __future__ import annotations
 
 import re
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, TypedDict
 
 if TYPE_CHECKING:
@@ -65,12 +65,18 @@ class XPoint:
         xpath: XPath to the element (without text() selector)
         text_node_index: 1-based index of text node within element (default 1)
         char_offset: 0-based character offset within text node (default 0)
+        source: The string this xpoint was parsed from, if any. Several spellings
+            name the same position -- ``text()[1].57`` and ``text().57``,
+            ``p/text().0`` and ``p`` -- and KOReader recognises its own highlights
+            by comparing the strings, so the spelling it sent is the one handed
+            back. It takes no part in equality.
     """
 
     doc_fragment_index: int
     xpath: str
     text_node_index: int
     char_offset: int
+    source: str | None = field(default=None, compare=False, repr=False)
 
     @classmethod
     def parse(cls, xpoint: str) -> Self:
@@ -117,15 +123,22 @@ class XPoint:
             xpath=xpath,
             text_node_index=text_node_index,
             char_offset=char_offset,
+            source=xpoint,
         )
 
     def to_string(self) -> str:
         """
         Convert XPoint back to KOReader xpoint string format.
 
+        A parsed xpoint answers with the string it was parsed from, verbatim; only
+        one built from its parts composes a string.
+
         Returns:
             XPoint string like "/body/DocFragment[12]/body/div/p[88]/text().223"
         """
+        if self.source is not None:
+            return self.source
+
         parts = []
 
         # Add DocFragment

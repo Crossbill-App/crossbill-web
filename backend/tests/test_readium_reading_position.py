@@ -39,12 +39,12 @@ MEDIA_TYPE = "application/xhtml+xml"
 # One sentence per chapter that occurs nowhere else in the book, and the place each
 # one resolves to. `THE_SAME_TWICE` is chapter one's repeated sentence.
 CH1_QUOTE = "Nothing else in the house moved"
-CH1_XPOINT = "/body/DocFragment[1]/body/div[1]/p[4]"
+CH1_XPOINT = "/body/DocFragment[1]/body/div[1]/p[4]/text().0"
 CH1_POSITION = {"index": 10, "char_index": 0}
 CH1_SELECTOR = "#intro > p:nth-child(5)"
 CH2_QUOTE = "Morning arrived without ceremony"
-CH2_XPOINT = "/body/DocFragment[2]/body/div[1]/p[1]"
-CH2_HEADING_XPOINT = "/body/DocFragment[2]/body/div[1]/h1[1]"
+CH2_XPOINT = "/body/DocFragment[2]/body/div[1]/p[1]/text().0"
+CH2_HEADING_XPOINT = "/body/DocFragment[2]/body/div[1]/h1[1]/text().0"
 THE_SAME_TWICE = "The lantern went out at midnight"
 
 IDLE_SECONDS = 1800

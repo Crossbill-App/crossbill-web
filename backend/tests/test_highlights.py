@@ -220,10 +220,9 @@ class TestHighlightsUpload:
         highlights = result.scalars().all()
         assert len(highlights) == 2
 
-        # First highlight should have xpoints
-        # Note: XPoint value object normalizes text()[1].0 (defaults) to just xpath
-        assert highlights[0].start_xpoint == "/body/DocFragment[1]/body/div[1]/p[5]"
-        assert highlights[0].end_xpoint == "/body/DocFragment[1]/body/div[1]/p[5]/text().42"
+        # First highlight should have xpoints, stored as the device spelt them
+        assert highlights[0].start_xpoint == "/body/div[1]/p[5]/text()[1].0"
+        assert highlights[0].end_xpoint == "/body/div[1]/p[5]/text()[1].42"
 
         # Second highlight should have null xpoints
         assert highlights[1].start_xpoint is None
@@ -662,7 +661,7 @@ class TestHighlightsUpload:
             select(models.Highlight).filter_by(text="Passage without xpoints")
         )
         stored = result.scalar_one()
-        assert stored.start_xpoint == "/body/DocFragment[2]/body/p[1]"
+        assert stored.start_xpoint == "/body/DocFragment[2]/body/p[1]/text().0"
         assert stored.end_xpoint == "/body/DocFragment[2]/body/p[1]/text().13"
 
     async def test_reupload_does_not_overwrite_existing_xpoints(
@@ -715,7 +714,7 @@ class TestHighlightsUpload:
             select(models.Highlight).filter_by(text="Passage anchored once")
         )
         stored = result.scalar_one()
-        assert stored.start_xpoint == "/body/DocFragment[2]/body/p[1]"
+        assert stored.start_xpoint == "/body/DocFragment[2]/body/p[1]/text().0"
         assert stored.end_xpoint == "/body/DocFragment[2]/body/p[1]/text().13"
 
     async def test_reupload_with_xpoints_resolves_position_when_epub_present(

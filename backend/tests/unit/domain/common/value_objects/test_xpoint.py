@@ -134,20 +134,40 @@ class TestXPoint:
         result = XPoint.parse("/body/div[1]/p[5]/text()[1].42")
         assert result.doc_fragment_index == 1
 
-    def test_to_string_simple_xpoint(self) -> None:
-        """Convert XPoint back to string — always includes DocFragment."""
-        xpoint = XPoint.parse("/body/div[1]/p[5]/text()[1].42")
-        assert xpoint.to_string() == "/body/DocFragment[1]/body/div[1]/p[5]/text().42"
+    @pytest.mark.parametrize(
+        "spelling",
+        [
+            "/body/DocFragment[12]/body/div/p[88]/text()[1].223",
+            "/body/DocFragment[12]/body/div/p[88]/text().0",
+            "/body/DocFragment[20]/body/div/p[1]/img.0",
+            "/body/div[1]/p[5]/text().42",
+        ],
+    )
+    def test_to_string_of_a_parsed_xpoint_is_the_string_it_was_parsed_from(
+        self, spelling: str
+    ) -> None:
+        """KOReader recognises its own highlights by the string, so no spelling is rewritten."""
+        assert XPoint.parse(spelling).to_string() == spelling
 
-    def test_to_string_with_doc_fragment(self) -> None:
-        """Convert XPoint with DocFragment to string."""
-        xpoint = XPoint.parse("/body/DocFragment[12]/body/div/p[88]/text().223")
-        assert xpoint.to_string() == "/body/DocFragment[12]/body/div/p[88]/text().223"
+    def test_spellings_of_one_position_are_equal(self) -> None:
+        assert XPoint.parse("/body/DocFragment[2]/body/p/text()[1].0") == XPoint.parse(
+            "/body/DocFragment[2]/body/p"
+        )
 
-    def test_to_string_element_boundary(self) -> None:
-        """Convert element boundary XPoint to string — always includes DocFragment."""
-        xpoint = XPoint.parse("/body/div/p")
-        assert xpoint.to_string() == "/body/DocFragment[1]/body/div/p"
+    def test_to_string_composes_an_xpoint_built_from_its_parts(self) -> None:
+        """Only an xpoint with no source string is composed — always with a DocFragment."""
+        assert (
+            XPoint(
+                doc_fragment_index=1, xpath="/body/div/p", text_node_index=1, char_offset=0
+            ).to_string()
+            == "/body/DocFragment[1]/body/div/p"
+        )
+        assert (
+            XPoint(
+                doc_fragment_index=12, xpath="/body/p[3]", text_node_index=2, char_offset=7
+            ).to_string()
+            == "/body/DocFragment[12]/body/p[3]/text()[2].7"
+        )
 
     def test_to_dict_and_from_dict(self) -> None:
         """XPoint can be serialized to dict and back."""
