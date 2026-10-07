@@ -36,7 +36,7 @@
     "i18next": "^26.4.2",
     "lodash": "^4.18.1",
     "luxon": "^3.7.2",
-    "motion": "^13.4.3",
+    "motion": "^14.0.0",
     "react": "^19.3.0",
     "react-activity-calendar": "^3.2.1",
     "react-blurhash": "^0.3.0",
