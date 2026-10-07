@@ -79,11 +79,19 @@ export const ReaderShell = ({ bookId, onClose, onOpenHighlight, target }: Reader
   // A new object submits the same appearance to the engine again, which reflows
   // the book rather than costing nothing. Keyed on the fields an appearance is
   // made of, so the highlight colour stored beside them buys no reflow.
-  const { pageColor, fontSize, spacing, alignment, hyphenation, columns } = preferences;
+  const { pageColor, fontSize, typeface, spacing, alignment, hyphenation, columns } = preferences;
   const appearance = useMemo(
     () =>
-      toEbookAppearance(theme, { pageColor, fontSize, spacing, alignment, hyphenation, columns }),
-    [theme, pageColor, fontSize, spacing, alignment, hyphenation, columns]
+      toEbookAppearance(theme, {
+        pageColor,
+        fontSize,
+        typeface,
+        spacing,
+        alignment,
+        hyphenation,
+        columns,
+      }),
+    [theme, pageColor, fontSize, typeface, spacing, alignment, hyphenation, columns]
   );
   const { seed, moved } = useReadingPositionWriter(bookId);
   const linkHistory = useLinkHistory(bookId);

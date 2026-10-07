@@ -40,6 +40,7 @@ const MANIFEST_URL = `${window.location.origin}/api/v1/readium/books/1/manifest.
 /** The reader's defaults as the seam carries them: the light page, at the book's own size. */
 const AN_APPEARANCE: EbookAppearance = {
   fontSize: 1,
+  typeface: null,
   lineHeight: null,
   paragraphSpacing: null,
   paragraphIndent: null,
@@ -246,9 +247,10 @@ test('opening with an appearance paints it into the book', async () => {
   await expect.poll(() => userProperty('fontSize')).toBe('100%');
   expect(userProperty('backgroundColor')).toBe(AN_APPEARANCE.pageBackgroundColor);
   expect(userProperty('textColor')).toBe(AN_APPEARANCE.pageTextColor);
-  // The book's own stylesheet is still the one setting lines.
+  // The book's own stylesheet is still the one setting lines and typefaces.
   expect(userProperty('textAlign')).toBe('');
   expect(userProperty('bodyHyphens')).toBe('');
+  expect(userProperty('fontFamily')).toBe('');
   expect(userProperty('lineHeight')).toBe('');
 });
 
@@ -259,6 +261,7 @@ test('setAppearance reaches a book already on screen', async () => {
 
   await reader.setAppearance({
     fontSize: 1.5,
+    typeface: 'humanist',
     lineHeight: 1.8,
     paragraphSpacing: 1,
     paragraphIndent: 1.5,
@@ -277,6 +280,7 @@ test('setAppearance reaches a book already on screen', async () => {
   await expect.poll(() => userProperty('textColor')).toBe('#f5f5f4');
   await expect.poll(() => userProperty('fontSize')).toBe('150%');
   await expect.poll(() => userProperty('bodyHyphens')).toBe('auto');
+  await expect.poll(() => userProperty('fontFamily')).toBe('var(--RS__humanistTf)');
 });
 
 test('next and previous turn the page and report where the reader is', async () => {

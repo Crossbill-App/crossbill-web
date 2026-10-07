@@ -3,6 +3,7 @@ import type {
   EbookDecoration,
   EbookLocation,
   EbookTocEntry,
+  EbookTypeface,
 } from '@/components/reader/engine/EbookReader.ts';
 import {
   DecorationStyleType,
@@ -19,6 +20,15 @@ export const PAGE_TURN_KEYS: IKeyboardPeripheralsConfig = [
   { type: 'previous_page', keyCombos: [{ keyCode: 37, suppressOnInteractiveElement: true }] },
 ];
 
+// Readium CSS's own stacks, each ending in a generic family, so the stack lives
+// in one place and a device without the first choice still gets the right kind.
+const FONT_FAMILIES: Record<EbookTypeface, string> = {
+  oldStyle: 'var(--RS__oldStyleTf)',
+  modern: 'var(--RS__modernTf)',
+  sans: 'var(--RS__sansTf)',
+  humanist: 'var(--RS__humanistTf)',
+};
+
 const TEXT_ALIGNMENTS: Record<NonNullable<EbookAppearance['textAlign']>, TextAlignment> = {
   start: TextAlignment.start,
   justify: TextAlignment.justify,
@@ -30,6 +40,7 @@ const TEXT_ALIGNMENTS: Record<NonNullable<EbookAppearance['textAlign']>, TextAli
 export const toEpubPreferences = (appearance: EbookAppearance): EpubPreferences =>
   new EpubPreferences({
     fontSize: appearance.fontSize,
+    fontFamily: appearance.typeface === null ? null : FONT_FAMILIES[appearance.typeface],
     lineHeight: appearance.lineHeight,
     paragraphSpacing: appearance.paragraphSpacing,
     paragraphIndent: appearance.paragraphIndent,

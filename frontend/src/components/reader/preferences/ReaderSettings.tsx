@@ -5,18 +5,28 @@ import {
   READER_HYPHENATIONS,
   READER_PAGE_COLORS,
   READER_SPACINGS,
+  READER_TYPEFACES,
   readerAlignmentLabels,
   readerColumnLabels,
   readerHyphenationLabels,
   readerPageColorLabels,
   readerSpacingLabels,
+  readerTypefaceLabels,
   type ReaderPreferences,
 } from '@/components/reader/preferences/readerPreferences.ts';
 import { SectionTitle } from '@/components/typography/SectionTitle.tsx';
 import { LargerTextIcon, SmallerTextIcon } from '@/theme/Icons.tsx';
 import { ICON_SIZE } from '@/theme/iconSizes.ts';
-import { Box, IconButton, InputAdornment, Popover, Stack, TextField } from '@mui/material';
-import { useState } from 'react';
+import {
+  Box,
+  IconButton,
+  InputAdornment,
+  MenuItem,
+  Popover,
+  Stack,
+  TextField,
+} from '@mui/material';
+import { useId, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
 const FONT_SIZE_STEP = 0.25;
@@ -105,6 +115,38 @@ const FontSizeSection = ({ range, value, onChange }: FontSizeSectionProps) => {
   );
 };
 
+interface TypefaceSectionProps {
+  value: ReaderPreferences['typeface'];
+  onChange: (typeface: ReaderPreferences['typeface']) => void;
+}
+
+// A menu rather than a row of buttons: five names do not fit across the popover.
+const TypefaceSection = ({ value, onChange }: TypefaceSectionProps) => {
+  const { t } = useTranslation();
+  const headingId = useId();
+  const labels = readerTypefaceLabels();
+
+  return (
+    <Box>
+      <SectionTitle id={headingId}>{t('reader.preferences.typeface.heading')}</SectionTitle>
+      <TextField
+        select
+        fullWidth
+        size="small"
+        value={value}
+        onChange={(event) => onChange(event.target.value as ReaderPreferences['typeface'])}
+        slotProps={{ select: { labelId: headingId } }}
+      >
+        {READER_TYPEFACES.map((typeface) => (
+          <MenuItem key={typeface} value={typeface}>
+            {labels[typeface]}
+          </MenuItem>
+        ))}
+      </TextField>
+    </Box>
+  );
+};
+
 interface ReaderSettingsProps {
   anchorEl: Element | null;
   onClose: () => void;
@@ -113,7 +155,7 @@ interface ReaderSettingsProps {
   fontSizeRange: [number, number];
 }
 
-/** What the page looks like: text size, colour, how the lines are set and broken, and in how many columns. */
+/** What the page looks like: text size and typeface, colour, how the lines are set and broken, and in how many columns. */
 export const ReaderSettings = ({
   anchorEl,
   onClose,
@@ -145,6 +187,10 @@ export const ReaderSettings = ({
           range={fontSizeRange}
           value={preferences.fontSize}
           onChange={(fontSize) => onChange({ ...preferences, fontSize })}
+        />
+        <TypefaceSection
+          value={preferences.typeface}
+          onChange={(typeface) => onChange({ ...preferences, typeface })}
         />
         <ChoiceSection
           heading={t('reader.preferences.alignment.heading')}

@@ -569,6 +569,38 @@ test('hyphenation set back to default gives the book its own again', async () =>
   await expect.poll(() => userProperty('bodyHyphens')).toBe('');
 });
 
+/** The typeface the words of the chapter on screen are actually set in. */
+const pageFontFamily = () => {
+  const body = visibleFrame(document)?.contentDocument?.body;
+  return body ? getComputedStyle(body).fontFamily : '';
+};
+
+test('a typeface chosen from the menu sets the words on the page', async () => {
+  const screen = await aBookWithItsAppearanceOpen();
+  // The default says nothing at all, which is what leaves the publisher's typefaces.
+  expect(userProperty('fontFamily')).toBe('');
+
+  await screen.getByRole('combobox', { name: /Typeface/ }).click();
+  await screen.getByRole('option', { name: 'Old-style serif' }).click();
+
+  await expect.poll(() => userProperty('fontFamily')).toBe('var(--RS__oldStyleTf)');
+  // The stack is Readium CSS's own, so this is what proves it resolves in the frame.
+  expect(pageFontFamily()).toMatch(/^"Iowan Old Style", Sitka/);
+});
+
+test('a typeface set back to default gives the book its own again', async () => {
+  const screen = await aBookWithItsAppearanceOpen();
+  const typeface = screen.getByRole('combobox', { name: /Typeface/ });
+  await typeface.click();
+  await screen.getByRole('option', { name: 'Sans-serif' }).click();
+  await expect.poll(() => userProperty('fontFamily')).toBe('var(--RS__sansTf)');
+
+  await typeface.click();
+  await screen.getByRole('option', { name: 'Default' }).click();
+
+  await expect.poll(() => userProperty('fontFamily')).toBe('');
+});
+
 test('the automatic column count gives a wide page two columns', async () => {
   const screen = await aBookWithItsAppearanceOpen();
 

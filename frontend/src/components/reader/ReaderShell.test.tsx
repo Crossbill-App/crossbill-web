@@ -214,6 +214,7 @@ test("the book is opened with the reader's appearance", async () => {
   await expect.poll(() => readers.length).toBe(1);
   expect(readers[0].openedWith[0].appearance).toEqual({
     fontSize: 1,
+    typeface: null,
     lineHeight: null,
     paragraphSpacing: null,
     paragraphIndent: null,
