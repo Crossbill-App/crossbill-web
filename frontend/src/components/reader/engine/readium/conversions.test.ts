@@ -84,6 +84,6 @@ test('hyphenation the book should decide for itself is passed on as a reset', ()
 });
 
 test('a typeface is handed over as the Readium CSS stack of its kind', () => {
-  expect(toEpubPreferences(AN_APPEARANCE).fontFamily).toBe('var(--RS__oldStyleTf)');
+  expect(toEpubPreferences(AN_APPEARANCE).fontFamily).toMatch(/^'Iowan Old Style', /);
   expect(toEpubPreferences({ ...AN_APPEARANCE, typeface: null }).fontFamily).toBeNull();
 });

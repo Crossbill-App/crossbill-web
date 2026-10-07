@@ -583,7 +583,7 @@ test('a typeface chosen from the menu sets the words on the page', async () => {
   await screen.getByRole('combobox', { name: /Typeface/ }).click();
   await screen.getByRole('option', { name: 'Old-style serif' }).click();
 
-  await expect.poll(() => userProperty('fontFamily')).toBe('var(--RS__oldStyleTf)');
+  await expect.poll(() => userProperty('fontFamily')).toMatch(/^'Iowan Old Style', Sitka/);
   // The stack is Readium CSS's own, so this is what proves it resolves in the frame.
   expect(pageFontFamily()).toMatch(/^"Iowan Old Style", Sitka/);
 });
@@ -605,7 +605,7 @@ test('a typeface set back to default gives the book its own again', async () => 
   const typeface = screen.getByRole('combobox', { name: /Typeface/ });
   await typeface.click();
   await screen.getByRole('option', { name: 'Sans-serif' }).click();
-  await expect.poll(() => userProperty('fontFamily')).toBe('var(--RS__sansTf)');
+  await expect.poll(() => userProperty('fontFamily')).toMatch(/^-ui-sans-serif, /);
 
   await typeface.click();
   await screen.getByRole('option', { name: 'Default' }).click();

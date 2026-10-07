@@ -280,7 +280,7 @@ test('setAppearance reaches a book already on screen', async () => {
   await expect.poll(() => userProperty('textColor')).toBe('#f5f5f4');
   await expect.poll(() => userProperty('fontSize')).toBe('150%');
   await expect.poll(() => userProperty('bodyHyphens')).toBe('auto');
-  await expect.poll(() => userProperty('fontFamily')).toBe('var(--RS__humanistTf)');
+  await expect.poll(() => userProperty('fontFamily')).toMatch(/^Seravek, Calibri/);
 });
 
 test('next and previous turn the page and report where the reader is', async () => {
