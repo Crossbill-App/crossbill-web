@@ -218,6 +218,7 @@ test("the book is opened with the reader's appearance", async () => {
     paragraphSpacing: null,
     paragraphIndent: null,
     textAlign: null,
+    hyphens: null,
     columnCount: 1,
     // The light page is the app's own off-white rather than publisher white.
     pageBackgroundColor: theme.palette.background.default,

@@ -2,6 +2,7 @@ import {
   DEFAULT_READER_PREFERENCES,
   READER_ALIGNMENTS,
   READER_COLUMNS,
+  READER_HYPHENATIONS,
   READER_PAGE_COLORS,
   READER_SPACINGS,
   type ReaderPreferences,
@@ -55,6 +56,11 @@ export const loadReaderPreferences = (): ReaderPreferences => {
     fontSize: storedFontSize(stored.fontSize),
     spacing: offered(READER_SPACINGS, stored.spacing, DEFAULT_READER_PREFERENCES.spacing),
     alignment: offered(READER_ALIGNMENTS, stored.alignment, DEFAULT_READER_PREFERENCES.alignment),
+    hyphenation: offered(
+      READER_HYPHENATIONS,
+      stored.hyphenation,
+      DEFAULT_READER_PREFERENCES.hyphenation
+    ),
     columns: offered(READER_COLUMNS, stored.columns, DEFAULT_READER_PREFERENCES.columns),
     highlightColor: offered(
       DEVICE_COLORS,

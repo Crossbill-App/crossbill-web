@@ -32,6 +32,7 @@ const AN_APPEARANCE: EbookAppearance = {
   paragraphSpacing: 1,
   paragraphIndent: 0,
   textAlign: 'start',
+  hyphens: true,
   columnCount: 1,
   pageBackgroundColor: '#fffaf0',
   pageTextColor: '#1a1a1a',
@@ -73,4 +74,10 @@ test('a hex tint and an opacity become the rgba Readium paints with', () => {
 test('an alignment the book should decide for itself is passed on as a reset', () => {
   expect(toEpubPreferences({ ...AN_APPEARANCE, textAlign: null }).textAlign).toBeNull();
   expect(toEpubPreferences(AN_APPEARANCE).textAlign).toBe(TextAlignment.start);
+});
+
+test('hyphenation the book should decide for itself is passed on as a reset', () => {
+  expect(toEpubPreferences({ ...AN_APPEARANCE, hyphens: null }).hyphens).toBeNull();
+  expect(toEpubPreferences({ ...AN_APPEARANCE, hyphens: false }).hyphens).toBe(false);
+  expect(toEpubPreferences(AN_APPEARANCE).hyphens).toBe(true);
 });

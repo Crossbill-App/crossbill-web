@@ -53,6 +53,11 @@
       "left": "Left",
       "justified": "Justified"
     },
+    "hyphenation": {
+      "heading": "Hyphenation",
+      "on": "On",
+      "off": "Off"
+    },
     "spacing": {
       "heading": "Spacing",
       "tight": "Tight",

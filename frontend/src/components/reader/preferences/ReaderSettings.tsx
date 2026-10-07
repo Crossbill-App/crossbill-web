@@ -2,10 +2,12 @@ import { ChoiceSection } from '@/components/inputs/ChoiceSection.tsx';
 import {
   READER_ALIGNMENTS,
   READER_COLUMNS,
+  READER_HYPHENATIONS,
   READER_PAGE_COLORS,
   READER_SPACINGS,
   readerAlignmentLabels,
   readerColumnLabels,
+  readerHyphenationLabels,
   readerPageColorLabels,
   readerSpacingLabels,
   type ReaderPreferences,
@@ -111,7 +113,7 @@ interface ReaderSettingsProps {
   fontSizeRange: [number, number];
 }
 
-/** What the page looks like: text size, colour, how the lines are set, and in how many columns. */
+/** What the page looks like: text size, colour, how the lines are set and broken, and in how many columns. */
 export const ReaderSettings = ({
   anchorEl,
   onClose,
@@ -150,6 +152,13 @@ export const ReaderSettings = ({
           labels={readerAlignmentLabels()}
           value={preferences.alignment}
           onSelect={(alignment) => onChange({ ...preferences, alignment })}
+        />
+        <ChoiceSection
+          heading={t('reader.preferences.hyphenation.heading')}
+          options={READER_HYPHENATIONS}
+          labels={readerHyphenationLabels()}
+          value={preferences.hyphenation}
+          onSelect={(hyphenation) => onChange({ ...preferences, hyphenation })}
         />
         <ChoiceSection
           heading={t('reader.preferences.spacing.heading')}

@@ -115,6 +115,8 @@ export interface EbookAppearance {
   paragraphIndent: number | null;
   /** `null` says nothing at all, leaving the book's own stylesheet in charge. */
   textAlign: 'start' | 'justify' | null;
+  /** Whether long words break across lines; `null` leaves the book's own stylesheet in charge. */
+  hyphens: boolean | null;
   /** `null` fits as many columns as the width allows. */
   columnCount: number | null;
   pageBackgroundColor: string;
