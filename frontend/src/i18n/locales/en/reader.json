@@ -48,6 +48,15 @@
       "larger": "Larger text",
       "inputLabel": "Font size in percent"
     },
+    "typeface": {
+      "heading": "Typeface",
+      "oldStyle": "Old-style serif",
+      "modern": "Modern serif",
+      "sans": "Sans-serif",
+      "humanist": "Humanist sans",
+      "libron": "Libron",
+      "openDyslexic": "OpenDyslexic"
+    },
     "alignment": {
       "heading": "Text alignment",
       "left": "Left",

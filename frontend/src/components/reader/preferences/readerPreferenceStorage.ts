@@ -5,6 +5,7 @@ import {
   READER_HYPHENATIONS,
   READER_PAGE_COLORS,
   READER_SPACINGS,
+  READER_TYPEFACES,
   type ReaderPreferences,
 } from '@/components/reader/preferences/readerPreferences.ts';
 import { DEVICE_COLORS } from '@/utils/colorUtils.ts';
@@ -54,6 +55,7 @@ export const loadReaderPreferences = (): ReaderPreferences => {
   return {
     pageColor: offered(READER_PAGE_COLORS, stored.pageColor, DEFAULT_READER_PREFERENCES.pageColor),
     fontSize: storedFontSize(stored.fontSize),
+    typeface: offered(READER_TYPEFACES, stored.typeface, DEFAULT_READER_PREFERENCES.typeface),
     spacing: offered(READER_SPACINGS, stored.spacing, DEFAULT_READER_PREFERENCES.spacing),
     alignment: offered(READER_ALIGNMENTS, stored.alignment, DEFAULT_READER_PREFERENCES.alignment),
     hyphenation: offered(

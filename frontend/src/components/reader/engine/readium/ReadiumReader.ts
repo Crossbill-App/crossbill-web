@@ -12,6 +12,7 @@ import {
   type PageTurnDirection,
 } from '@/components/reader/engine/EbookReader.ts';
 import { listenerSet } from '@/components/reader/engine/listeners.ts';
+import { bundledFontInjectables } from '@/components/reader/engine/readium/bundledFonts.ts';
 import {
   chapterProgressAt,
   chapterStartsIn,
@@ -183,6 +184,7 @@ export class ReadiumReader implements EbookReader {
         preferences: toEpubPreferences(appearance),
         defaults: {},
         keyboardPeripherals: PAGE_TURN_KEYS,
+        injectables: bundledFontInjectables(),
       }
     );
     this.navigator = navigator;

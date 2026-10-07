@@ -103,10 +103,15 @@ export interface OpenedEbook {
   fontSizeRange: [number, number];
 }
 
+/** A family of typefaces the page can be set in, each a stack that falls back to what the device has. */
+export type EbookTypeface = 'oldStyle' | 'modern' | 'sans' | 'humanist' | 'libron' | 'openDyslexic';
+
 /** How the page should look, in terms any engine can honour. */
 export interface EbookAppearance {
   /** A multiplier on the publication's own font size; 1 is the book as its publisher set it. */
   fontSize: number;
+  /** `null` leaves the book in its publisher's own typefaces. */
+  typeface: EbookTypeface | null;
   /** A multiplier on the font size; `null` leaves the book's own spacing alone. */
   lineHeight: number | null;
   /** The gap between paragraphs in rem; `null` leaves the book's own alone. */

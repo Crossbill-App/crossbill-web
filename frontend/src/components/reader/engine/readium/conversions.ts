@@ -3,6 +3,7 @@ import type {
   EbookDecoration,
   EbookLocation,
   EbookTocEntry,
+  EbookTypeface,
 } from '@/components/reader/engine/EbookReader.ts';
 import {
   DecorationStyleType,
@@ -19,6 +20,27 @@ export const PAGE_TURN_KEYS: IKeyboardPeripheralsConfig = [
   { type: 'previous_page', keyCombos: [{ keyCode: 37, suppressOnInteractiveElement: true }] },
 ];
 
+// Readium CSS's own stacks, each ending in a generic family so a device without
+// the first choice still gets the right kind. Spelled out rather than named by
+// their `var(--RS__…)`: Readium sizes the column by measuring this value on a
+// canvas, which rejects a `var()` and measures in its 10px default instead.
+const OLD_STYLE =
+  "'Iowan Old Style', Sitka, 'Sitka Text', Palatino, 'Book Antiqua', 'URW Palladio L', P052, serif";
+const SANS =
+  "-ui-sans-serif, -apple-system, system-ui, BlinkMacSystemFont, 'Segoe UI Variable', 'Segoe UI', Inter, Roboto, 'Helvetica Neue', 'Arial Nova', 'Liberation Sans', Arial, sans-serif";
+
+const FONT_FAMILIES: Record<EbookTypeface, string> = {
+  oldStyle: OLD_STYLE,
+  modern:
+    "Athelas, Constantia, Charter, 'Bitstream Charter', Cambria, 'Georgia Pro', Georgia, serif",
+  sans: SANS,
+  humanist:
+    "Seravek, Calibri, 'Gill Sans Nova', Roboto, Ubuntu, 'DejaVu Sans', source-sans-pro, sans-serif",
+  // The faces the app ships, declared in each frame by `bundledFonts.ts`.
+  libron: `"Libron", ${OLD_STYLE}`,
+  openDyslexic: `"OpenDyslexic", ${SANS}`,
+};
+
 const TEXT_ALIGNMENTS: Record<NonNullable<EbookAppearance['textAlign']>, TextAlignment> = {
   start: TextAlignment.start,
   justify: TextAlignment.justify,
@@ -30,6 +52,7 @@ const TEXT_ALIGNMENTS: Record<NonNullable<EbookAppearance['textAlign']>, TextAli
 export const toEpubPreferences = (appearance: EbookAppearance): EpubPreferences =>
   new EpubPreferences({
     fontSize: appearance.fontSize,
+    fontFamily: appearance.typeface === null ? null : FONT_FAMILIES[appearance.typeface],
     lineHeight: appearance.lineHeight,
     paragraphSpacing: appearance.paragraphSpacing,
     paragraphIndent: appearance.paragraphIndent,

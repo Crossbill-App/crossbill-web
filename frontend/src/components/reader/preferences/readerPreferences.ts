@@ -1,4 +1,4 @@
-import type { EbookAppearance } from '@/components/reader/engine/EbookReader.ts';
+import type { EbookAppearance, EbookTypeface } from '@/components/reader/engine/EbookReader.ts';
 import { i18n } from '@/i18n';
 import type { Theme } from '@mui/material/styles';
 
@@ -8,6 +8,27 @@ export type ReaderPageColor = (typeof READER_PAGE_COLORS)[number];
 export const readerPageColorLabels = (): Record<ReaderPageColor, string> => ({
   light: i18n.t('reader.preferences.pageColor.light'),
   dark: i18n.t('reader.preferences.pageColor.dark'),
+});
+
+/** Which typefaces the text is set in, `default` leaving the publisher's own. */
+export const READER_TYPEFACES = [
+  'default',
+  'oldStyle',
+  'modern',
+  'sans',
+  'humanist',
+  'libron',
+  'openDyslexic',
+] as const;
+type ReaderTypeface = (typeof READER_TYPEFACES)[number];
+export const readerTypefaceLabels = (): Record<ReaderTypeface, string> => ({
+  default: i18n.t('reader.preferences.default'),
+  oldStyle: i18n.t('reader.preferences.typeface.oldStyle'),
+  modern: i18n.t('reader.preferences.typeface.modern'),
+  sans: i18n.t('reader.preferences.typeface.sans'),
+  humanist: i18n.t('reader.preferences.typeface.humanist'),
+  libron: i18n.t('reader.preferences.typeface.libron'),
+  openDyslexic: i18n.t('reader.preferences.typeface.openDyslexic'),
 });
 
 /** How far apart the text is set, `default` leaving the book's own spacing alone. */
@@ -48,6 +69,7 @@ export const readerColumnLabels = (): Record<ReaderColumns, string> => ({
 export interface ReaderPreferences {
   pageColor: ReaderPageColor;
   fontSize: number;
+  typeface: ReaderTypeface;
   spacing: ReaderSpacing;
   alignment: ReaderAlignment;
   hyphenation: ReaderHyphenation;
@@ -59,6 +81,7 @@ export interface ReaderPreferences {
 export const DEFAULT_READER_PREFERENCES: ReaderPreferences = {
   pageColor: 'light',
   fontSize: 1,
+  typeface: 'default',
   spacing: 'default',
   alignment: 'default',
   hyphenation: 'default',
@@ -76,6 +99,16 @@ const SPACINGS: Record<
   tight: { lineHeight: 1.2, paragraphSpacing: null, paragraphIndent: null },
   default: { lineHeight: null, paragraphSpacing: null, paragraphIndent: null },
   loose: { lineHeight: 1.8, paragraphSpacing: 1, paragraphIndent: 1 },
+};
+
+const TYPEFACES: Record<ReaderTypeface, EbookTypeface | null> = {
+  default: null,
+  oldStyle: 'oldStyle',
+  modern: 'modern',
+  sans: 'sans',
+  humanist: 'humanist',
+  libron: 'libron',
+  openDyslexic: 'openDyslexic',
 };
 
 // `left` is `start`: in a right-to-left book the ragged edge belongs on the
@@ -106,6 +139,7 @@ export const toEbookAppearance = (
   const colors = readerPageColors(theme, preferences.pageColor);
   return {
     fontSize: preferences.fontSize,
+    typeface: TYPEFACES[preferences.typeface],
     ...SPACINGS[preferences.spacing],
     textAlign: TEXT_ALIGNMENTS[preferences.alignment],
     hyphens: HYPHENS[preferences.hyphenation],

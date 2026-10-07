@@ -28,6 +28,7 @@ const A_HIGHLIGHT: EbookLocation = {
 
 const AN_APPEARANCE: EbookAppearance = {
   fontSize: 1.2,
+  typeface: 'oldStyle',
   lineHeight: 1.5,
   paragraphSpacing: 1,
   paragraphIndent: 0,
@@ -80,4 +81,9 @@ test('hyphenation the book should decide for itself is passed on as a reset', ()
   expect(toEpubPreferences({ ...AN_APPEARANCE, hyphens: null }).hyphens).toBeNull();
   expect(toEpubPreferences({ ...AN_APPEARANCE, hyphens: false }).hyphens).toBe(false);
   expect(toEpubPreferences(AN_APPEARANCE).hyphens).toBe(true);
+});
+
+test('a typeface is handed over as the Readium CSS stack of its kind', () => {
+  expect(toEpubPreferences(AN_APPEARANCE).fontFamily).toMatch(/^'Iowan Old Style', /);
+  expect(toEpubPreferences({ ...AN_APPEARANCE, typeface: null }).fontFamily).toBeNull();
 });
