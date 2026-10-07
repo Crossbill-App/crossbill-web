@@ -529,6 +529,46 @@ test('a spacing set back to default gives the book its own again', async () => {
   await expect.poll(() => userProperty('paraIndent')).toBe('');
 });
 
+/** One hyphenation option, scoped past the other sections' own "Default". */
+const hyphenationOption = (screen: Screen, name: string) =>
+  screen.getByRole('group', { name: 'Hyphenation' }).getByRole('button', { name });
+
+/** How the chapter on screen breaks its words, as the browser has resolved it. */
+const pageHyphens = () => {
+  const root = visibleFrame(document)?.contentDocument?.documentElement;
+  return root ? getComputedStyle(root).hyphens : '';
+};
+
+test('hyphenation turned on reaches the words on the page', async () => {
+  const screen = await aBookWithItsAppearanceOpen();
+  // The default says nothing at all, which is what leaves the book in charge.
+  expect(userProperty('bodyHyphens')).toBe('');
+
+  await hyphenationOption(screen, 'On').click();
+
+  await expect.poll(() => userProperty('bodyHyphens')).toBe('auto');
+  expect(pageHyphens()).toBe('auto');
+});
+
+test('hyphenation turned off overrides the book', async () => {
+  const screen = await aBookWithItsAppearanceOpen();
+
+  await hyphenationOption(screen, 'Off').click();
+
+  await expect.poll(() => userProperty('bodyHyphens')).toBe('none');
+  expect(pageHyphens()).toBe('none');
+});
+
+test('hyphenation set back to default gives the book its own again', async () => {
+  const screen = await aBookWithItsAppearanceOpen();
+  await hyphenationOption(screen, 'On').click();
+  await expect.poll(() => userProperty('bodyHyphens')).toBe('auto');
+
+  await hyphenationOption(screen, 'Default').click();
+
+  await expect.poll(() => userProperty('bodyHyphens')).toBe('');
+});
+
 test('the automatic column count gives a wide page two columns', async () => {
   const screen = await aBookWithItsAppearanceOpen();
 

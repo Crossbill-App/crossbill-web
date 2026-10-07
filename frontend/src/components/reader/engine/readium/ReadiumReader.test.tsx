@@ -44,6 +44,7 @@ const AN_APPEARANCE: EbookAppearance = {
   paragraphSpacing: null,
   paragraphIndent: null,
   textAlign: null,
+  hyphens: null,
   columnCount: 1,
   pageBackgroundColor: '#fafaf9',
   pageTextColor: '#1c1917',
@@ -247,6 +248,7 @@ test('opening with an appearance paints it into the book', async () => {
   expect(userProperty('textColor')).toBe(AN_APPEARANCE.pageTextColor);
   // The book's own stylesheet is still the one setting lines.
   expect(userProperty('textAlign')).toBe('');
+  expect(userProperty('bodyHyphens')).toBe('');
   expect(userProperty('lineHeight')).toBe('');
 });
 
@@ -261,6 +263,7 @@ test('setAppearance reaches a book already on screen', async () => {
     paragraphSpacing: 1,
     paragraphIndent: 1.5,
     textAlign: 'justify',
+    hyphens: true,
     columnCount: null,
     pageBackgroundColor: '#1c1917',
     pageTextColor: '#f5f5f4',
@@ -273,6 +276,7 @@ test('setAppearance reaches a book already on screen', async () => {
   await expect.poll(() => userProperty('backgroundColor')).toBe('#1c1917');
   await expect.poll(() => userProperty('textColor')).toBe('#f5f5f4');
   await expect.poll(() => userProperty('fontSize')).toBe('150%');
+  await expect.poll(() => userProperty('bodyHyphens')).toBe('auto');
 });
 
 test('next and previous turn the page and report where the reader is', async () => {

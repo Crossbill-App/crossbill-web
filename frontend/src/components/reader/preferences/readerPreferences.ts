@@ -28,6 +28,15 @@ export const readerAlignmentLabels = (): Record<ReaderAlignment, string> => ({
   justified: i18n.t('reader.preferences.alignment.justified'),
 });
 
+/** Whether long words break across lines, `default` leaving the book's own stylesheet in charge. */
+export const READER_HYPHENATIONS = ['default', 'on', 'off'] as const;
+type ReaderHyphenation = (typeof READER_HYPHENATIONS)[number];
+export const readerHyphenationLabels = (): Record<ReaderHyphenation, string> => ({
+  default: i18n.t('reader.preferences.default'),
+  on: i18n.t('reader.preferences.hyphenation.on'),
+  off: i18n.t('reader.preferences.hyphenation.off'),
+});
+
 /** How many columns the page is set in. */
 export const READER_COLUMNS = ['single', 'auto'] as const;
 type ReaderColumns = (typeof READER_COLUMNS)[number];
@@ -41,6 +50,7 @@ export interface ReaderPreferences {
   fontSize: number;
   spacing: ReaderSpacing;
   alignment: ReaderAlignment;
+  hyphenation: ReaderHyphenation;
   columns: ReaderColumns;
   /** The KOReader colour a highlight made from a selection is filed under. */
   highlightColor: string;
@@ -51,6 +61,7 @@ export const DEFAULT_READER_PREFERENCES: ReaderPreferences = {
   fontSize: 1,
   spacing: 'default',
   alignment: 'default',
+  hyphenation: 'default',
   columns: 'single',
   // KOReader's own default, so a highlight made here is filed as one made there.
   highlightColor: 'yellow',
@@ -75,6 +86,14 @@ const TEXT_ALIGNMENTS: Record<ReaderAlignment, EbookAppearance['textAlign']> = {
   justified: 'justify',
 };
 
+// The browser breaks words by the document's language, so a book that names
+// none is left as it is even with hyphenation on.
+const HYPHENS: Record<ReaderHyphenation, EbookAppearance['hyphens']> = {
+  default: null,
+  on: true,
+  off: false,
+};
+
 /** The page colours of one reading colour, for the reader's chrome and its content alike. */
 export const readerPageColors = (theme: Theme, name: ReaderPageColor) =>
   theme.customColors.readerPage[name];
@@ -89,6 +108,7 @@ export const toEbookAppearance = (
     fontSize: preferences.fontSize,
     ...SPACINGS[preferences.spacing],
     textAlign: TEXT_ALIGNMENTS[preferences.alignment],
+    hyphens: HYPHENS[preferences.hyphenation],
     columnCount: preferences.columns === 'single' ? 1 : null,
     pageBackgroundColor: colors.background,
     pageTextColor: colors.text,
