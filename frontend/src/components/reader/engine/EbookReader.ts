@@ -104,7 +104,7 @@ export interface OpenedEbook {
 }
 
 /** A family of typefaces the page can be set in, each a stack that falls back to what the device has. */
-export type EbookTypeface = 'oldStyle' | 'modern' | 'sans' | 'humanist';
+export type EbookTypeface = 'oldStyle' | 'modern' | 'sans' | 'humanist' | 'libron' | 'openDyslexic';
 
 /** How the page should look, in terms any engine can honour. */
 export interface EbookAppearance {

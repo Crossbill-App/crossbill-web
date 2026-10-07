@@ -11,7 +11,15 @@ export const readerPageColorLabels = (): Record<ReaderPageColor, string> => ({
 });
 
 /** Which typefaces the text is set in, `default` leaving the publisher's own. */
-export const READER_TYPEFACES = ['default', 'oldStyle', 'modern', 'sans', 'humanist'] as const;
+export const READER_TYPEFACES = [
+  'default',
+  'oldStyle',
+  'modern',
+  'sans',
+  'humanist',
+  'libron',
+  'openDyslexic',
+] as const;
 type ReaderTypeface = (typeof READER_TYPEFACES)[number];
 export const readerTypefaceLabels = (): Record<ReaderTypeface, string> => ({
   default: i18n.t('reader.preferences.default'),
@@ -19,6 +27,8 @@ export const readerTypefaceLabels = (): Record<ReaderTypeface, string> => ({
   modern: i18n.t('reader.preferences.typeface.modern'),
   sans: i18n.t('reader.preferences.typeface.sans'),
   humanist: i18n.t('reader.preferences.typeface.humanist'),
+  libron: i18n.t('reader.preferences.typeface.libron'),
+  openDyslexic: i18n.t('reader.preferences.typeface.openDyslexic'),
 });
 
 /** How far apart the text is set, `default` leaving the book's own spacing alone. */
@@ -97,6 +107,8 @@ const TYPEFACES: Record<ReaderTypeface, EbookTypeface | null> = {
   modern: 'modern',
   sans: 'sans',
   humanist: 'humanist',
+  libron: 'libron',
+  openDyslexic: 'openDyslexic',
 };
 
 // `left` is `start`: in a right-to-left book the ragged edge belongs on the

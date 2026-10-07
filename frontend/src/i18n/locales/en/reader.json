@@ -53,7 +53,9 @@
       "oldStyle": "Old-style serif",
       "modern": "Modern serif",
       "sans": "Sans-serif",
-      "humanist": "Humanist sans"
+      "humanist": "Humanist sans",
+      "libron": "Libron",
+      "openDyslexic": "OpenDyslexic"
     },
     "alignment": {
       "heading": "Text alignment",

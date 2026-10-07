@@ -588,6 +588,18 @@ test('a typeface chosen from the menu sets the words on the page', async () => {
   expect(pageFontFamily()).toMatch(/^"Iowan Old Style", Sitka/);
 });
 
+test.each(['Libron', 'OpenDyslexic'])('the bundled %s typeface loads in the page', async (name) => {
+  const screen = await aBookWithItsAppearanceOpen();
+
+  await screen.getByRole('combobox', { name: /Typeface/ }).click();
+  await screen.getByRole('option', { name }).click();
+
+  await expect.poll(() => pageFontFamily()).toMatch(new RegExp(`^"?${name}"?, `));
+  // Resolves to no faces when nothing declares the family, and rejects when its file fails.
+  const faces = await visibleFrame(document)!.contentDocument!.fonts.load(`1em "${name}"`);
+  expect(faces.map((face) => face.status)).toEqual(['loaded']);
+});
+
 test('a typeface set back to default gives the book its own again', async () => {
   const screen = await aBookWithItsAppearanceOpen();
   const typeface = screen.getByRole('combobox', { name: /Typeface/ });

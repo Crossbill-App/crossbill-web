@@ -27,6 +27,9 @@ const FONT_FAMILIES: Record<EbookTypeface, string> = {
   modern: 'var(--RS__modernTf)',
   sans: 'var(--RS__sansTf)',
   humanist: 'var(--RS__humanistTf)',
+  // The faces the app ships, declared in each frame by `bundledFonts.ts`.
+  libron: '"Libron", var(--RS__oldStyleTf)',
+  openDyslexic: '"OpenDyslexic", var(--RS__sansTf)',
 };
 
 const TEXT_ALIGNMENTS: Record<NonNullable<EbookAppearance['textAlign']>, TextAlignment> = {
