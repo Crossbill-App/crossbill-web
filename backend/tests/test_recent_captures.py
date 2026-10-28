@@ -305,12 +305,12 @@ class TestRecentCaptures:
         await note(db_session, test_book, "Late one", datetime(2026, 8, 30, 22, 30, tzinfo=UTC))
 
         (in_utc,) = await get_captures(client)
-        (in_helsinki,) = await get_captures(client, {"tz": "Europe/Helsinki"})
+        (in_tokyo,) = await get_captures(client, {"tz": "Asia/Tokyo"})
 
         assert in_utc["day"] == "2026-08-30"
         assert in_utc["captured_at"] == "2026-08-30T22:30:00"
-        assert in_helsinki["day"] == "2026-08-31"
-        assert in_helsinki["captured_at"] == "2026-08-31T01:30:00"
+        assert in_tokyo["day"] == "2026-08-31"
+        assert in_tokyo["captured_at"] == "2026-08-31T07:30:00"
 
     async def test_another_readers_captures_are_invisible(
         self, client: AsyncClient, db_session: AsyncSession, test_user: User
