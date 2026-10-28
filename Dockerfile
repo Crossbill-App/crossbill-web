@@ -39,8 +39,9 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
   libffi-dev \
   && rm -rf /var/lib/apt/lists/*
 
-# Install uv for faster dependency installation
-RUN pip install --no-cache-dir uv
+# Copied from the uv image rather than pip-installed: the base image's pip
+# bundles a certifi that still trusts the compromised eMudhra CAs.
+COPY --from=ghcr.io/astral-sh/uv:0.13.5 /uv /usr/local/bin/uv
 
 # Copy backend dependency files
 COPY backend/pyproject.toml backend/uv.lock ./
