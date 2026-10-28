@@ -6,5 +6,5 @@
  */
 
 export interface BodyCreateBookFromEpub {
-  epub: Blob;
+  epub: Blob | File;
 }
