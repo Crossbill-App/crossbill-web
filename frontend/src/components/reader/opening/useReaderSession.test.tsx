@@ -60,7 +60,7 @@ const Probe = () => {
 type Screen = Awaited<ReturnType<typeof render>>;
 
 const expectStatus = (screen: Screen, status: ReaderSession['status']) =>
-  expect.element(screen.getByTestId('status')).toHaveTextContent(status);
+  expect.element(screen.getByTestId('status')).toMatchTextContent(status);
 
 /** A mint the last session wrongly sent would reach the server before this one's and be counted. */
 const expectTheNextSessionToMintAfter = async (earlier: string[]) => {
@@ -118,13 +118,13 @@ test('a failed renewal keeps the session and retries', async () => {
   worker.use(aRefusedSession(500, { once: true }));
   window.dispatchEvent(new Event('focus'));
 
-  await expect.element(screen.getByTestId('renewing')).toHaveTextContent('true');
+  await expect.element(screen.getByTestId('renewing')).toMatchTextContent('true');
   await expect.poll(() => posts).toEqual(['minted', 'refused']);
   await expectStatus(screen, 'ready');
 
   await vi.advanceTimersByTimeAsync(1_000);
 
-  await expect.element(screen.getByTestId('renewing')).toHaveTextContent('false');
+  await expect.element(screen.getByTestId('renewing')).toMatchTextContent('false');
   expect(posts).toEqual(['minted', 'refused', 'minted']);
 });
 

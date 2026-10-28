@@ -206,7 +206,7 @@ test('uses the browser regional locale for date field order', async () => {
     const screen = await renderApp({ path: '/book/1/highlights?from=2026-07-05' });
     const field = screen.getByRole('group', { name: 'From' });
     await expect.element(field).toBeVisible();
-    await expect.element(field).toHaveTextContent('05.07.2026');
+    await expect.element(field).toMatchTextContent('05.07.2026');
 
     const sections = field
       .getByRole('spinbutton')

@@ -1619,7 +1619,7 @@ const toolbarButtonNames = () =>
 test("the popover highlights in KOReader's own yellow until another colour is chosen", async () => {
   await aBookWithASelection();
 
-  await expect.element(theColorChoice()).toHaveTextContent('Yellow');
+  await expect.element(theColorChoice()).toMatchTextContent('Yellow');
   expect(toolbarButtonNames()).toEqual(['Highlight', 'Extend', 'Cancel']);
 });
 
@@ -1644,7 +1644,7 @@ test('the dropdown opens, walks and closes from the keyboard', async () => {
   await expect.poll(colorOptions).toEqual(KOREADER_COLORS);
   await userEvent.keyboard('{ArrowDown}{ArrowDown}{Enter}');
 
-  await expect.element(theColorChoice()).toHaveTextContent('Red');
+  await expect.element(theColorChoice()).toMatchTextContent('Red');
   // Polled rather than read: the menu takes its closing transition to go.
   await expect.poll(() => colorOptions().length).toBe(0);
 
@@ -1662,7 +1662,7 @@ test('choosing a colour marks it without making a highlight', async () => {
 
   await chooseColor('Green');
 
-  await expect.element(theColorChoice()).toHaveTextContent('Green');
+  await expect.element(theColorChoice()).toMatchTextContent('Green');
   await afterTheAnswersRender(screen.queryClient);
   expect(bodies).toEqual([]);
   expect(standIns()).toEqual([]);
@@ -1715,7 +1715,7 @@ test('choosing a colour does not lay the book out again', async () => {
 
   await chooseColor('Green');
 
-  await expect.element(theColorChoice()).toHaveTextContent('Green');
+  await expect.element(theColorChoice()).toMatchTextContent('Green');
   expect(readers[0].appearances).toHaveLength(laidOutTimes);
 });
 
@@ -1724,7 +1724,7 @@ test('the colour left in storage is the one the popover highlights in', async ()
   worker.use(...handlers);
   seedPreferences({ ...A_STORED_APPEARANCE, highlightColor: 'blue' });
   await aBookWithASelection();
-  await expect.element(theColorChoice()).toHaveTextContent('Blue');
+  await expect.element(theColorChoice()).toMatchTextContent('Blue');
 
   await pressHighlight();
 
@@ -1744,7 +1744,7 @@ test('a colour the book has labelled wears the label', async () => {
     })
   );
   await aBookWithASelection();
-  await expect.element(theColorChoice()).toHaveTextContent('Important');
+  await expect.element(theColorChoice()).toMatchTextContent('Important');
   await theColorChoice().click();
   await expect.poll(colorOptions).toEqual(['Important', ...KOREADER_COLORS.slice(1)]);
 
@@ -1789,7 +1789,7 @@ test('a label longer than the row keeps the popover inside a narrow phone', asyn
 
   readers[0].select(A_NARROW_SELECTION);
 
-  await expect.element(theColorChoice()).toHaveTextContent(A_LONG_LABEL);
+  await expect.element(theColorChoice()).toMatchTextContent(A_LONG_LABEL);
   await expect
     .poll(() => theSelectionToolbar().element().getBoundingClientRect().right)
     .toBeLessThanOrEqual(window.innerWidth);
@@ -1876,7 +1876,7 @@ test('Extend asks the engine for one and says what to do next', async () => {
   await pressExtend();
 
   expect(readers[0].startSelectionExtensionCalls).toBe(1);
-  await expect.element(theExtensionBar()).toHaveTextContent('Tap where the highlight ends');
+  await expect.element(theExtensionBar()).toMatchTextContent('Tap where the highlight ends');
   await expect.element(theSelectionToolbar()).not.toBeInTheDocument();
 });
 
