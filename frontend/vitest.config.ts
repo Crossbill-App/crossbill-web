@@ -61,6 +61,9 @@ export default mergeConfig(
               provider: playwright(),
               instances: [{ browser: 'chromium' }],
               viewport: { width: 1440, height: 900 },
+              // Vitest 5 made text locators exact by default; the suite is
+              // written against the substring matching of Vitest 4.
+              locators: { exact: false },
             },
           },
         },

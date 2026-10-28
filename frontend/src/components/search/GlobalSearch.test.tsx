@@ -84,9 +84,9 @@ test('results from every type are ranked together, not grouped by type', async (
   await search(screen, 'attention');
 
   const rows = screen.getByRole('option');
-  await expect.element(rows.nth(0)).toHaveTextContent('The best note');
-  await expect.element(rows.nth(1)).toHaveTextContent('A decent chapter');
-  await expect.element(rows.nth(2)).toHaveTextContent('A middling highlight');
+  await expect.element(rows.nth(0)).toMatchTextContent('The best note');
+  await expect.element(rows.nth(1)).toMatchTextContent('A decent chapter');
+  await expect.element(rows.nth(2)).toMatchTextContent('A middling highlight');
 });
 
 test('the list is capped at ten rows after merging, not per type', async () => {
@@ -131,10 +131,10 @@ test('a book matched by name leads the list, whatever the ranked hits scored', a
   await search(screen, 'attention');
 
   const rows = screen.getByRole('option');
-  await expect.element(rows.nth(0)).toHaveTextContent('Deep Work');
-  await expect.element(rows.nth(0)).toHaveTextContent('Cal Newport');
+  await expect.element(rows.nth(0)).toMatchTextContent('Deep Work');
+  await expect.element(rows.nth(0)).toMatchTextContent('Cal Newport');
   await expect.element(rows.nth(0).getByText('Book')).toBeVisible();
-  await expect.element(rows.nth(1)).toHaveTextContent('A near-perfect highlight');
+  await expect.element(rows.nth(1)).toMatchTextContent('A near-perfect highlight');
 });
 
 test('books sit above the ten-row cap, which the ranked rows alone fill', async () => {
@@ -429,7 +429,7 @@ test('a query in the mobile dialog shows the same result rows as desktop', async
     await userEvent.click(screen.getByRole('button', { name: 'Search' }));
     await search(screen, 'attention');
 
-    await expect.element(screen.getByRole('option')).toHaveTextContent('Ada Lovelace');
+    await expect.element(screen.getByRole('option')).toMatchTextContent('Ada Lovelace');
   });
 });
 

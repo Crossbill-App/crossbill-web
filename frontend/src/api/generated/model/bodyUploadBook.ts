@@ -6,7 +6,7 @@
  */
 
 export interface BodyUploadBook {
-  epub: Blob;
+  epub: Blob | File;
   /**
    * @minLength 1
    * @maxLength 255

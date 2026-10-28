@@ -42,11 +42,13 @@ beforeAll(async () => {
     // MSW's own 'error' strategy only fails the request, which a component can
     // swallow. Recording them and failing in afterEach means a test can never
     // pass while silently talking to an endpoint nobody mocked.
-    onUnhandledRequest(request, print) {
+    onUnhandledFrame({ frame, defaults }) {
+      if (frame.protocol !== 'http') return;
+      const { request } = frame.data as { request: Request };
       const url = new URL(request.url);
       if (!url.pathname.startsWith('/api/')) return;
       unhandledRequests.push(`${request.method} ${url.pathname}`);
-      print.error();
+      defaults.error();
     },
   });
 });
