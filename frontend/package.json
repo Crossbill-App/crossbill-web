@@ -30,7 +30,7 @@
     "@mui/x-date-pickers": "^9.12.0",
     "@readium/navigator": "2.10.3",
     "@readium/shared": "2.5.1",
-    "@tanstack/react-query": "^5.103.2",
+    "@tanstack/react-query": "^5.105.0",
     "@tanstack/react-router": "^1.170.41",
     "axios": "^1.20.0",
     "i18next": "^26.4.2",
