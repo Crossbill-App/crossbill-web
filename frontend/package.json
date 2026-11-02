@@ -31,7 +31,7 @@
     "@readium/navigator": "2.10.3",
     "@readium/shared": "2.5.1",
     "@tanstack/react-query": "^5.103.2",
-    "@tanstack/react-router": "^1.170.41",
+    "@tanstack/react-router": "^1.170.46",
     "axios": "^1.20.0",
     "i18next": "^26.4.2",
     "lodash": "^4.18.1",
