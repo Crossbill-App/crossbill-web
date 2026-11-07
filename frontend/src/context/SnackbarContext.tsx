@@ -29,12 +29,15 @@ export function SnackbarProvider({ children }: { children: ReactNode }) {
     setSnackbar({ open: true, message, severity });
   }, []);
 
-  const handleClose = useCallback((_event?: React.SyntheticEvent | Event, reason?: string) => {
-    if (reason === 'clickaway') {
-      return;
-    }
-    setSnackbar((prev) => ({ ...prev, open: false }));
-  }, []);
+  const handleClose = useCallback(
+    (_event?: React.SyntheticEvent | Event | null, reason?: string) => {
+      if (reason === 'clickaway') {
+        return;
+      }
+      setSnackbar((prev) => ({ ...prev, open: false }));
+    },
+    []
+  );
 
   return (
     <SnackbarContext.Provider value={{ showSnackbar, isSnackbarOpen: snackbar.open }}>

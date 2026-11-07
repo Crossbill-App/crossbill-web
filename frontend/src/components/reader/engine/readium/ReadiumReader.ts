@@ -444,6 +444,7 @@ export class ReadiumReader implements EbookReader {
         this.locationListeners.notify(toLocation(locator));
         this.reportChapterProgress(locator);
       },
+      viewportChanged: () => {},
       timelineItemChanged: (item) => this.tocEntryListeners.notify(this.tocEntryHrefFor(item)),
       // Claimed so Readium's own quarter-screen pager does not turn pages
       // behind the UI's back.
