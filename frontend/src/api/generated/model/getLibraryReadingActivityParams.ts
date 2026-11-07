@@ -6,8 +6,6 @@
  */
 
 export type GetLibraryReadingActivityParams = {
-  /**
-   * IANA timezone the reader's calendar days are counted in
-   */
+  /** IANA timezone the reader's calendar days are counted in */
   tz?: string;
 };

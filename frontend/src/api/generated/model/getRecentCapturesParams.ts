@@ -12,8 +12,6 @@ export type GetRecentCapturesParams = {
    * @maximum 50
    */
   limit?: number;
-  /**
-   * IANA timezone the reader's calendar days are counted in
-   */
+  /** IANA timezone the reader's calendar days are counted in */
   tz?: string;
 };

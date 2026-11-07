@@ -17,12 +17,8 @@ export type GetBooksParams = {
    * @maximum 1000
    */
   limit?: number;
-  /**
-   * Return only books with flashcards
-   */
+  /** Return only books with flashcards */
   only_with_flashcards?: boolean;
-  /**
-   * Search text to filter books by title or author
-   */
+  /** Search text to filter books by title or author */
   search?: string | null;
 };
