@@ -42,7 +42,7 @@
     "react-blurhash": "^0.3.0",
     "react-dom": "^19.3.0",
     "react-hook-form": "^7.91.0",
-    "react-i18next": "^17.0.15",
+    "react-i18next": "^17.1.13",
     "react-markdown": "^10.1.0",
     "rehype-raw": "^7.0.0",
     "rehype-sanitize": "^6.0.0"
