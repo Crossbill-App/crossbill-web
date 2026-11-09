@@ -40,7 +40,7 @@
     "react": "^19.3.0",
     "react-activity-calendar": "^3.2.1",
     "react-blurhash": "^0.3.0",
-    "react-dom": "^19.3.0",
+    "react-dom": "^19.3.1",
     "react-hook-form": "^7.91.0",
     "react-i18next": "^17.0.15",
     "react-markdown": "^10.1.0",
