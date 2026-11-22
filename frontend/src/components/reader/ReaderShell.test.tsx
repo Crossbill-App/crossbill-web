@@ -1824,10 +1824,12 @@ test('tapping a highlight still being saved opens nothing', async () => {
 });
 
 test('two highlights made before either is answered are each settled on their own', async () => {
+  const rejecting = aHold();
+  const saving = aHold();
   worker.use(
     ...highlightCreationApi([
-      { status: 422, delayMs: 200 },
-      { id: 400, delayMs: 800 },
+      { status: 422, until: rejecting.released },
+      { id: 400, until: saving.released },
     ]).handlers
   );
   const screen = await aBookWithASelection();
@@ -1840,9 +1842,11 @@ test('two highlights made before either is answered are each settled on their ow
   await pressHighlight();
   await expect.poll(standInWords).toEqual(['rarest and purest', 'form of generosity']);
 
+  rejecting.release();
   await expectToBeTold(screen, 'Try selecting a little more text.');
   expect(standInWords()).toEqual(['form of generosity']);
 
+  saving.release();
   await expect.poll(standInWords).toEqual([]);
   expect(screen.getByRole('alert').filter({ hasText: 'Failed' }).query()).toBeNull();
 });
