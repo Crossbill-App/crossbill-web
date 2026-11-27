@@ -1,6 +1,6 @@
 ---
-name: writing-tests
-description: Backend testing policy — API-first tiering, assertion depth, and test-quality rules
+name: writing-backend-tests
+description: Backend testing policy — API-first tiering, when a unit test is earned, fakes instead of mocks, and assertion depth. Use when writing, changing or reviewing a backend test (`backend/tests/`).
 ---
 
 # Backend testing policy

@@ -50,7 +50,7 @@ const DIRECT_RENDER = {
       name: 'vitest-browser-react',
       importNames: ['render'],
       message:
-        'Behaviour tests drive a real route: use renderApp from @tests/harness/renderApp. Rendering a component on its own is the component tier, which is limited to the allowlist in frontend/claude.md > Testing.',
+        'Behaviour tests drive a real route: use renderApp from @tests/harness/renderApp. Rendering a component on its own is the component tier, which is limited to the COMPONENT_TIER allowlist in frontend/eslint.config.js; the writing-frontend-tests skill says what earns an entry.',
     },
   ],
 };
@@ -58,7 +58,7 @@ const DIRECT_RENDER = {
 /**
  * The directories whose `.test.tsx` files may render a component directly.
  * Each earns it by having behaviour a route test could not pin down — see
- * `frontend/claude.md > Testing` for what each one is and why.
+ * the `writing-frontend-tests` skill for what each one is and why.
  */
 const COMPONENT_TIER = [
   'src/components/reader/**/*.test.tsx',
@@ -104,7 +104,7 @@ const HARDCODED_COPY = [
 ];
 
 // A test that quotes a whole sentence of copy back at the app breaks on every
-// rewording, and the sentence-case and ellipsis conventions in claude.md mean
+// rewording, and the sentence-case and ellipsis conventions in frontend/CLAUDE.md mean
 // rewording keeps happening. Trailing `.`, `?` or `!` is what tells a sentence
 // from the formatted values `getByText` is for — `Duration 1h 11m`, `63%`,
 // `Pages 102 – 115` — which stay allowed, because there the format is the

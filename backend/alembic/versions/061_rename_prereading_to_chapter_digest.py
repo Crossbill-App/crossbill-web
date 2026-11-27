@@ -1,7 +1,7 @@
 """Rename chapter_prereading_contents to chapter_digests
 
 The artifact is read both before a chapter (to support skimming) and after it
-as review, so naming it after one of its two uses was wrong. See CONTEXT.md.
+as review, so naming it after one of its two uses was wrong. See GLOSSARY.md.
 
 Also renames the job_batches.batch_type value, which is stored as a plain
 string, so existing rows have to be rewritten alongside the table.

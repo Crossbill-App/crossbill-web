@@ -42,6 +42,6 @@ repository's Pages source must be set to **GitHub Actions**.
 
 ## Writing docs
 
-Use the project's ubiquitous language from `CONTEXT.md` at the repository root —
+Use the project's ubiquitous language from `GLOSSARY.md` at the repository root —
 Highlight, Tag, Label, Chapter Digest, Note, Book Reflection, Flashcard, Reading
 Stage, Reading Session, Bookmark. Do not describe features that do not exist.

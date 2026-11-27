@@ -7,7 +7,8 @@ description: Use when a ticket is large enough to want breaking into commits, or
 
 One ticket, one PR, several commits a reviewer can read in order. Each commit
 ends green: `ruff check`, `pyright`, `lint-imports`, `ruff format --check`,
-the test suite, and jscpd under its threshold (CLAUDE.md has the commands).
+the test suite, and jscpd under its threshold. The hooks run all but the
+test suite.
 
 ## 1. Plan with the user before touching code
 

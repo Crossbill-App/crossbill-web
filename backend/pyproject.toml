@@ -114,7 +114,7 @@ ignore = [
 ]
 
 [tool.ruff.lint.flake8-tidy-imports.banned-api]
-"unittest.mock".msg = "Mocks are allowed only in tests/unit/infrastructure/. Use an API test, a hand-written fake or monkeypatch instead (see the writing-tests skill)."
+"unittest.mock".msg = "Mocks are allowed only in tests/unit/infrastructure/. Use an API test, a hand-written fake or monkeypatch instead (see the writing-backend-tests skill)."
 
 [tool.ruff.lint.per-file-ignores]
 "tests/**/*.py" = [
