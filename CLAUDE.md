@@ -62,7 +62,7 @@ the `koreader-plugin` minimum **in the same PR** — never out of band.
 
 Run the full test suite after any migration or refactoring; do not declare work
 complete until it passes. Test policy (API-first tiering, assertion depth, when
-unit tests are warranted): load the `writing-tests` skill before writing or
+unit tests are warranted): load the `writing-backend-tests` skill before writing or
 reviewing tests.
 
 ## Duplication (jscpd)
