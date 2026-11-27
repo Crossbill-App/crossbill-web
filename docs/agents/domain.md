@@ -9,7 +9,7 @@ This repo is **single-context**: one `GLOSSARY.md` and one `docs/adr/` at the ro
 - **`GLOSSARY.md`** at the repo root — the ubiquitous language.
 - **`docs/adr/`** — the ADRs that touch the area you're about to work in.
 
-The architectural rules live in the root `CLAUDE.md`; treat it as authoritative where they overlap with anything here.
+The architectural rules live in `backend/CLAUDE.md`, the cross-cutting ones in the root `CLAUDE.md`; treat both as authoritative where they overlap with anything here.
 
 ## Use the glossary's vocabulary
 
