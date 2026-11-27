@@ -223,3 +223,6 @@ worktrees/
 
 # Local production backups (`make backup-production`)
 /backups/
+
+# Claude Code auto memory is machine-local
+.claude/projects/
