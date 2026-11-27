@@ -201,6 +201,7 @@ class ReadingContainer(containers.DeclarativeContainer):
         ReadingSessionUploadUseCase,
         session_repository=reading_session_repository,
         book_repository=book_repository,
+        chapter_repository=chapter_repository,
         highlight_repository=highlight_repository,
         position_index_service=epub_position_index_service,
         position_anchor_service=position_anchor_service,

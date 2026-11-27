@@ -21,6 +21,10 @@ class ChapterRepositoryProtocol(Protocol):
         """Find all chapters for a book, ordered by chapter_number."""
         ...
 
+    async def set_start_offsets(self, offsets: dict[ChapterId, int]) -> None:
+        """Stage each chapter's start offset; the next commit stores them."""
+        ...
+
     async def sync_chapters_from_toc(
         self,
         book_id: BookId,

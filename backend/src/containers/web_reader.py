@@ -89,6 +89,7 @@ class WebReaderContainer(containers.DeclarativeContainer):
     save_reading_position_use_case = providers.Factory(
         SaveReadingPositionUseCase,
         book_repository=book_repository,
+        chapter_repository=chapter_repository,
         position_repository=web_reading_position_repository,
         session_repository=reading_session_repository,
         position_anchor_service=position_anchor_service,

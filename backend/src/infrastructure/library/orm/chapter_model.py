@@ -35,6 +35,7 @@ class Chapter(Base):
     end_xpoint: Mapped[str | None] = mapped_column(Text, nullable=True)
     start_position: Mapped[list[int] | None] = mapped_column(JSON, nullable=True)
     end_position: Mapped[list[int] | None] = mapped_column(JSON, nullable=True)
+    start_offset: Mapped[int | None] = mapped_column(nullable=True)
     created_at: Mapped[dt] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), nullable=False
     )

@@ -5,7 +5,9 @@ from datetime import datetime
 
 import structlog
 
+from src.application.library.commands.book_files.backfill_book_length import backfill_book_length
 from src.application.library.protocols.book_repository import BookRepositoryProtocol
+from src.application.library.protocols.chapter_repository import ChapterRepositoryProtocol
 from src.application.library.protocols.file_repository import FileRepositoryProtocol
 from src.application.library.protocols.position_index_service import PositionIndexServiceProtocol
 from src.application.reading.protocols.highlight_repository import (
@@ -69,6 +71,7 @@ class ReadingSessionUploadUseCase:
         self,
         session_repository: ReadingSessionRepositoryProtocol,
         book_repository: BookRepositoryProtocol,
+        chapter_repository: ChapterRepositoryProtocol,
         highlight_repository: HighlightRepositoryProtocol,
         position_index_service: PositionIndexServiceProtocol,
         position_anchor_service: PositionAnchorServiceProtocol,
@@ -76,6 +79,7 @@ class ReadingSessionUploadUseCase:
     ) -> None:
         self.session_repository = session_repository
         self.book_repository = book_repository
+        self.chapter_repository = chapter_repository
         self.highlight_repository = highlight_repository
         self.position_index_service = position_index_service
         self._position_anchor_service = position_anchor_service
@@ -136,12 +140,10 @@ class ReadingSessionUploadUseCase:
             if epub_content:
                 position_index = self.position_index_service.build_position_index(epub_content)
 
-        # Lazy backfill: set end_position if not yet set
-        if position_index is not None and book.end_position is None:
-            total = position_index.total_elements
-            if total > 0:
-                book.update_end_position(Position(index=total, char_index=0))
-                await self.book_repository.save(book)
+        if position_index is not None:
+            await backfill_book_length(
+                book, position_index, self.book_repository, self.chapter_repository
+            )
 
         # Resolve positions for all sessions upfront
         sessions_with_positions = self._worth_storing(

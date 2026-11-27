@@ -31,6 +31,7 @@ class BookMapper:
             end_position=Position.from_json(orm_model.end_position)
             if orm_model.end_position
             else None,
+            total_characters=orm_model.total_characters,
             reading_stage=ReadingStage(orm_model.reading_stage)
             if orm_model.reading_stage
             else None,
@@ -60,6 +61,7 @@ class BookMapper:
         orm_model.end_position = (
             domain_entity.end_position.to_json() if domain_entity.end_position else None
         )
+        orm_model.total_characters = domain_entity.total_characters
         orm_model.reading_stage = (
             domain_entity.reading_stage.value if domain_entity.reading_stage else None
         )

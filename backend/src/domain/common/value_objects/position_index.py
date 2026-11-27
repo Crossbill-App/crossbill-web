@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import re
+from dataclasses import dataclass
 
 from src.domain.common.value_objects.position import Position
 from src.domain.common.value_objects.xpoint import XPoint
@@ -47,22 +48,53 @@ def _normalize_xpath(xpath: str) -> str:
     return "/".join(normalized)
 
 
+@dataclass(frozen=True, slots=True)
+class ElementText:
+    """Where an element's text lies, in characters from the start of the book.
+
+    ``start`` and ``end`` bound the element's whole text, its descendants'
+    included. ``text_nodes`` holds ``(start, length)`` for each of the element's
+    own text nodes in document order, so ``text()[N]`` is entry ``N - 1``.
+    """
+
+    start: int
+    end: int
+    text_nodes: tuple[tuple[int, int], ...] = ()
+
+
 class PositionIndex:
-    """Maps xpoint strings to document-order positions.
+    """Maps xpoint strings to document-order positions and character offsets.
 
     Built by infrastructure services (e.g., EpubPositionIndexService).
     Used by application layer use cases to assign positions to entities.
     """
 
-    def __init__(self, element_positions: dict[tuple[int, str], int]) -> None:
+    def __init__(
+        self,
+        element_positions: dict[tuple[int, str], int],
+        element_texts: dict[tuple[int, str], ElementText] | None = None,
+        total_characters: int = 0,
+    ) -> None:
         """
         Args:
             element_positions: mapping from (doc_fragment_index, xpath) to element index.
                 Xpaths are normalized (explicit [1] indices added) on construction.
+            element_texts: mapping from the same keys to where each element's text lies.
+            total_characters: the number of characters in the whole book.
         """
         self._element_positions = {
             (frag, _normalize_xpath(xpath)): idx for (frag, xpath), idx in element_positions.items()
         }
+        self._element_texts = {
+            (frag, _normalize_xpath(xpath)): text
+            for (frag, xpath), text in (element_texts or {}).items()
+        }
+        self._total_characters = total_characters
+
+    @property
+    def total_characters(self) -> int:
+        """Return the number of characters in the book."""
+        return self._total_characters
 
     @property
     def total_elements(self) -> int:
@@ -96,3 +128,28 @@ class PositionIndex:
         char_index = xpoint.char_offset
 
         return Position(index=element_index, char_index=char_index)
+
+    def character_offset(self, xpoint_str: str) -> int | None:
+        """Count the characters from the start of the book to an xpoint.
+
+        The xpoint's offset is clamped to the text it points into, so it never
+        reaches past the end of its text node, or of its element when it names none.
+
+        Returns:
+            The offset, or None if the xpoint cannot be resolved
+        """
+        try:
+            xpoint = XPoint.parse(xpoint_str)
+        except Exception:
+            return None
+
+        text = self._element_texts.get((xpoint.doc_fragment_index, _normalize_xpath(xpoint.xpath)))
+        if text is None:
+            return None
+
+        # XPoint defaults text_node_index to 1 for "p.0" too, and the element's
+        # first text node can follow a child element, so only text() picks a node.
+        if "/text()" in xpoint_str and xpoint.text_node_index <= len(text.text_nodes):
+            start, length = text.text_nodes[xpoint.text_node_index - 1]
+            return start + min(xpoint.char_offset, length)
+        return text.start + min(xpoint.char_offset, text.end - text.start)

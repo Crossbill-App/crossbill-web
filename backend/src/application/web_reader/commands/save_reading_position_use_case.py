@@ -8,7 +8,9 @@ from typing import Any
 
 import structlog
 
+from src.application.library.commands.book_files.backfill_book_length import backfill_book_length
 from src.application.library.protocols.book_repository import BookRepositoryProtocol
+from src.application.library.protocols.chapter_repository import ChapterRepositoryProtocol
 from src.application.library.protocols.file_repository import FileRepositoryProtocol
 from src.application.library.protocols.position_index_service import PositionIndexServiceProtocol
 from src.application.reading.protocols.reading_session_repository import (
@@ -114,6 +116,7 @@ class SaveReadingPositionUseCase:
     def __init__(
         self,
         book_repository: BookRepositoryProtocol,
+        chapter_repository: ChapterRepositoryProtocol,
         position_repository: WebReadingPositionRepositoryProtocol,
         session_repository: ReadingSessionRepositoryProtocol,
         position_anchor_service: PositionAnchorServiceProtocol,
@@ -121,6 +124,7 @@ class SaveReadingPositionUseCase:
         position_index_service: PositionIndexServiceProtocol,
     ) -> None:
         self.book_repository = book_repository
+        self.chapter_repository = chapter_repository
         self.position_repository = position_repository
         self.session_repository = session_repository
         self.position_anchor_service = position_anchor_service
@@ -273,9 +277,7 @@ class SaveReadingPositionUseCase:
         index = await asyncio.to_thread(
             self.position_index_service.build_position_index, epub_content
         )
-        if book.end_position is None and index.total_elements > 0:
-            book.update_end_position(Position(index=index.total_elements, char_index=0))
-            await self.book_repository.save(book)
+        await backfill_book_length(book, index, self.book_repository, self.chapter_repository)
         return index.resolve(xpoint.to_string())
 
     async def _continue_session(
