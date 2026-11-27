@@ -1,7 +1,7 @@
 import logging
 from collections.abc import Sequence
 
-from sqlalchemy import select
+from sqlalchemy import select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.domain.common.value_objects.ids import BookId, ChapterId, UserId
@@ -140,6 +140,14 @@ class ChapterRepository:
 
         return result_dict
 
+    async def set_start_offsets(self, offsets: dict[ChapterId, int]) -> None:
+        """Stage each chapter's start offset; the next commit stores them."""
+        if offsets:
+            await self.db.execute(
+                update(ChapterORM),
+                [{"id": key.value, "start_offset": value} for key, value in offsets.items()],
+            )
+
     @staticmethod
     def _apply_field_updates(orm: ChapterORM, toc: TocChapter, parent_id: int | None) -> bool:
         """Apply field values from TOC entry to existing ORM. Returns True if anything changed."""
@@ -151,6 +159,7 @@ class ChapterRepository:
             ("end_xpoint", toc.end_xpoint),
             ("start_position", toc.start_position.to_json() if toc.start_position else None),
             ("end_position", toc.end_position.to_json() if toc.end_position else None),
+            ("start_offset", toc.start_offset),
         ]:
             if getattr(orm, attr) != new_val:
                 setattr(orm, attr, new_val)
@@ -210,6 +219,7 @@ class ChapterRepository:
             end_xpoint=ch.end_xpoint,
             start_position=ch.start_position.to_json() if ch.start_position else None,
             end_position=ch.end_position.to_json() if ch.end_position else None,
+            start_offset=ch.start_offset,
         )
         self.db.add(chapter)
         await commit_or_rollback(self.db)

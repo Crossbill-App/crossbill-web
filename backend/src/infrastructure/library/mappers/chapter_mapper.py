@@ -28,6 +28,7 @@ class ChapterMapper:
             end_xpoint=orm_model.end_xpoint,
             start_position=start_position,
             end_position=end_position,
+            start_offset=orm_model.start_offset,
         )
 
     def to_orm(self, domain_entity: Chapter, orm_model: ChapterORM | None = None) -> ChapterORM:
@@ -49,4 +50,5 @@ class ChapterMapper:
         orm_model.end_position = (
             domain_entity.end_position.to_json() if domain_entity.end_position else None
         )
+        orm_model.start_offset = domain_entity.start_offset
         return orm_model

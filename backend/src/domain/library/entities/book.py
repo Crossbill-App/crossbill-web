@@ -62,6 +62,7 @@ class Book(Entity[BookId]):
     last_viewed: datetime | None = None
     last_synced: datetime | None = None
     end_position: Position | None = None
+    total_characters: int | None = None
     reading_stage: ReadingStage | None = None
 
     def __post_init__(self) -> None:
@@ -95,6 +96,10 @@ class Book(Entity[BookId]):
         """Update the book's end position (total document length)."""
         self.end_position = position
 
+    def update_total_characters(self, total_characters: int) -> None:
+        """Update the number of characters in the book's text."""
+        self.total_characters = total_characters
+
     def set_file(self, file_type: str) -> str:
         """Set ebook file reference, generating a UUID filename on first upload.
 
@@ -110,10 +115,11 @@ class Book(Entity[BookId]):
         return self.ebook_file
 
     def detach_file(self) -> None:
-        """Forget the ebook file and the end position derived from it."""
+        """Forget the ebook file and the length derived from it."""
         self.ebook_file = None
         self.file_type = None
         self.end_position = None
+        self.total_characters = None
 
     def set_cover_file(self) -> str:
         """Set cover file reference, generating a UUID filename on first upload.
@@ -209,6 +215,7 @@ class Book(Entity[BookId]):
         last_viewed: datetime | None = None,
         last_synced: datetime | None = None,
         end_position: Position | None = None,
+        total_characters: int | None = None,
         reading_stage: ReadingStage | None = None,
     ) -> "Book":
         """Factory for reconstituting book from persistence."""
@@ -231,5 +238,6 @@ class Book(Entity[BookId]):
             last_viewed=last_viewed,
             last_synced=last_synced,
             end_position=end_position,
+            total_characters=total_characters,
             reading_stage=reading_stage,
         )

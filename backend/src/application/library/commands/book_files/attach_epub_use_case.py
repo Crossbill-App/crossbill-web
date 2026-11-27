@@ -91,6 +91,7 @@ class AttachEpubUseCase:
         total = derived.position_index.total_elements
         if total > 0:
             book.update_end_position(Position(index=total, char_index=0))
+            book.update_total_characters(derived.position_index.total_characters)
         book = await self.book_repository.save(book)
 
         await self._store_publication(book.id, epub_filename, derived.publication)
@@ -130,6 +131,11 @@ class AttachEpubUseCase:
                 ),
                 end_position=(
                     position_index.resolve(chapter.end_xpoint) if chapter.end_xpoint else None
+                ),
+                start_offset=(
+                    position_index.character_offset(chapter.start_xpoint)
+                    if chapter.start_xpoint
+                    else None
                 ),
             )
             for chapter in self.epub_parser.parse_toc(content)

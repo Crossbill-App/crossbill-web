@@ -25,6 +25,7 @@ class TocChapter:
     start_position: Position | None = None
     end_position: Position | None = None
     parent_index: int | None = None
+    start_offset: int | None = None
 
 
 @dataclass
@@ -53,6 +54,7 @@ class Chapter(Entity[ChapterId]):
     end_xpoint: str | None = None
     start_position: Position | None = None
     end_position: Position | None = None
+    start_offset: int | None = None
 
     def __post_init__(self) -> None:
         """Validate invariants."""
@@ -74,6 +76,7 @@ class Chapter(Entity[ChapterId]):
         end_xpoint: str | None = None,
         start_position: Position | None = None,
         end_position: Position | None = None,
+        start_offset: int | None = None,
     ) -> "Chapter":
         """Factory for creating new chapter."""
         return cls(
@@ -86,6 +89,7 @@ class Chapter(Entity[ChapterId]):
             end_xpoint=end_xpoint,
             start_position=start_position,
             end_position=end_position,
+            start_offset=start_offset,
             created_at=datetime.now(UTC),
         )
 
@@ -102,6 +106,7 @@ class Chapter(Entity[ChapterId]):
         end_xpoint: str | None = None,
         start_position: Position | None = None,
         end_position: Position | None = None,
+        start_offset: int | None = None,
     ) -> "Chapter":
         """Factory for reconstituting chapter from persistence."""
         return cls(
@@ -114,5 +119,6 @@ class Chapter(Entity[ChapterId]):
             end_xpoint=end_xpoint,
             start_position=start_position,
             end_position=end_position,
+            start_offset=start_offset,
             created_at=created_at,
         )
