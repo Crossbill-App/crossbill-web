@@ -1,93 +1,9 @@
-# Frontend Development Guidelines
+---
+name: writing-frontend-tests
+description: Frontend testing policy — which tier a test belongs to, what to assert, how to wait without timers, and how the MSW harness is wired. Use when writing, changing or reviewing a frontend test (`*.test.ts`, `*.test.tsx`).
+---
 
-## Quality gates
-
-`npm run lint:fix`, `npm run format`, `npm run type-check`, `npm run knip`, and
-`npm run duplication-check` must all pass before work is done — Husky runs
-lint/format on staged files, CI runs everything.
-
-### Dead code (knip)
-
-`npm run knip` reports files, exports and dependencies nothing references. CI
-fails on any finding, and a Stop hook runs it when frontend files are dirty.
-Three ways a finding is legitimately resolved, in order of preference:
-
-1. **Delete it** — the usual answer.
-2. **Un-export it** — if the symbol is used inside its own file, drop the
-   `export` rather than the code.
-3. **Ignore it** — only for things knip cannot see (assets loaded by a runner,
-   generated output). Add it to `frontend/knip.config.ts` with a comment saying
-   why.
-
-Never silence a finding by adding a fake import or re-export.
-
-### Duplication (jscpd)
-
-`npm run duplication-check` — same ratchet rules as `CLAUDE.md > Duplication`
-at the repo root. The generated API client and route tree are excluded: Orval
-and TanStack Router emit repetitive code that is not ours to refactor.
-
-## API client (Orval)
-
-The client is generated from the committed `backend/openapi.json` (no running
-backend needed). After changing backend endpoints, run `make api-client` from
-the repo root and commit the schema + regenerated client — CI fails if either
-is stale. Never hand-edit files under `src/api/generated`.
-
-## Conventions
-
-- Functional style: pure functions, immutable data, functional components with
-  hooks; lodash for functional utilities (`groupBy`, `debounce`, `memoize`, …).
-- Prefer interfaces over types for object shapes.
-- Server state via TanStack Query; invalidate queries after mutations.
-- Styling: MUI components, the `sx` prop, and theme tokens — conventions and
-  the theme source of truth are in the `frontend-design` skill.
-- Never native `alert()`/`confirm()`: use `useSnackbar` from
-  `@/context/SnackbarContext.tsx` for transient feedback and
-  `ConfirmationDialog` from `@/components/common/ConfirmationDialog.tsx` for
-  destructive actions.
-- User-facing copy uses three periods for an ellipsis (`Saving...`,
-  `Search highlights...`), never the `…` character. Prose in comments and docs
-  may use either.
-- User-facing copy is sentence case — dialog titles, tooltips, buttons, form
-  labels, section headings, tab labels. `Delete highlight`, not
-  `Delete Highlight`; `Confirm new password`, not `Confirm New Password`. Only
-  proper nouns keep their capitals (Crossbill, KOReader, and whatever the
-  reader's own books and chapters are called). There is no lint rule for this:
-  a checker cannot tell a proper noun from Title Case, so it is on review.
-- One label for committing a form: **Save** for editing something that already
-  exists, and a named create (**Add flashcard**, **Add group**) only where the
-  form is one of several controls on screen. Pending states are the verb in
-  sentence case plus an ellipsis — `Saving...`, never `Updating...`.
-
-## UI copy (i18n)
-
-Every user-facing string lives in `src/i18n/locales/en/`, read through
-react-i18next — never written inline in a component. That is what lets the
-copy be translated, and edited in one place. A lint rule rejects text between
-JSX tags and literal `aria-label`/`title`/`placeholder`/`label`/`alt`/
-`helperText`/`tooltip` values in `src/`.
-
-- **One JSON file per area** (`highlights.json`, `reader.json`, …); the file
-  name is its top-level key and `locales/en/index.ts` lists them. Keys nest by
-  screen, then component, then purpose, so a key says where its text appears:
-  `highlights.viewDialog.deleteConfirm.message`.
-- **Shared text is defined once** in `common.json`: action verbs (`Save`,
-  `Cancel`), states (`Saving...`), entity names (`Highlights`), fallbacks
-  (`Unknown author`), form fields and validation. Reuse a common key only when
-  the meaning is the same, not merely the spelling; text shared within one
-  area goes under that area's `shared` key.
-- **Components** call `const { t } = useTranslation()`. Plain modules import
-  `i18n` from `@/i18n` and call `i18n.t` lazily, inside a function — never at
-  module load, where it would freeze the language. Label maps hold keys, not
-  text.
-- **Never concatenate copy.** Interpolate (`{{count}}`, `{{title}}`) and use
-  i18next plurals (`key_one` / `key_other`) with `count`; wrap sentences that
-  contain markup in `<Trans>`.
-- **Keys are typed** (`src/i18n/i18next.d.ts`): a missing or misspelled key
-  fails `npm run type-check`. A dynamic key must be a union of literal keys.
-
-## Testing
+# Frontend testing policy
 
 Three tiers. Which one a test belongs to is a decision about the code under it,
 not a matter of taste.
@@ -135,7 +51,7 @@ Vitest runs two projects, and the file extension picks the project:
 
 `npm run test` runs both, and so does CI.
 
-### What belongs in a test
+## What belongs in a test
 
 - User-visible flows: open a dialog, edit, save, and assert the **list or page**
   reflects the change — not merely that the dialog closed.
@@ -149,7 +65,7 @@ Vitest runs two projects, and the file extension picks the project:
 - `getByText` for formatted **values** — `Duration 1h 11m`, `Pages 102 – 115`,
   `63%` — where the format is the behaviour. Never for a sentence of copy: a
   test that quotes the app's wording back at it breaks on every rewrite, and
-  the sentence-case and ellipsis conventions above mean rewrites keep coming.
+  the sentence-case and ellipsis conventions in `frontend/CLAUDE.md` mean rewrites keep coming.
   Ask for the state instead: `getByRole('status')` for an empty state,
   `getByRole('alert')` for a failure, `getByRole('alertdialog', { name:
 /delete/i })` for a confirmation, or the affordance the state puts on screen
@@ -162,7 +78,7 @@ Vitest runs two projects, and the file extension picks the project:
   its own fixture, and a message that is itself the behaviour under test —
   asserted from a constant, once, in the one test that is about it.
 
-### What does not
+## What does not
 
 - Shallow renders, snapshots, coverage targets.
 - Rendering a component on its own outside the component tier above. Fold the
@@ -171,7 +87,7 @@ Vitest runs two projects, and the file extension picks the project:
 - Mocking hooks, contexts or modules. Mock **the network**, never the app.
   If a test needs a context stubbed, the test is at the wrong level.
 
-### Waiting
+## Waiting
 
 A test never waits on the clock. `setTimeout`, `setInterval` and
 `timers/promises` are lint errors in `src/**/*.test.*`, and so is a `timeout`
@@ -191,7 +107,7 @@ what the test is waiting for instead:
 The Vitest plugin's rules are on too: every test asserts (a helper named
 `expect…` or `assert…` counts), and nothing is skipped or focused.
 
-### How it is wired
+## How it is wired
 
 - `tests/harness/renderApp.tsx` — `renderApp({ path })` mounts the whole app at
   a path with a fresh QueryClient. Real browser history, because dialogs close

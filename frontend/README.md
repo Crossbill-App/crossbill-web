@@ -183,13 +183,8 @@ function BooksList() {
 
 ## Development Guidelines
 
-See [claude.md](./claude.md) for detailed development guidelines, including:
-
-- Functional programming patterns
-- Lodash usage examples
-- Code quality requirements
-- TypeScript best practices
-- Component patterns
+See [CLAUDE.md](./CLAUDE.md) for the conventions (dead code, generated code, UI copy and i18n),
+and [the frontend testing skill](../.claude/skills/writing-frontend-tests/SKILL.md) for the test policy.
 
 ### Key Principles
 
