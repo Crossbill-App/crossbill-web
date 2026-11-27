@@ -9283,6 +9283,40 @@
         "title": "NoteWithLinks",
         "description": "Note response with linked entity summaries."
       },
+      "PageViewSyncItem": {
+        "properties": {
+          "start_xpoint": {
+            "type": "string",
+            "title": "Start Xpoint",
+            "description": "Where the text on screen starts (xpoint string)"
+          },
+          "end_xpoint": {
+            "type": "string",
+            "title": "End Xpoint",
+            "description": "Where the text on screen ends (xpoint string)"
+          },
+          "shown_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Shown At",
+            "description": "When the page appeared on screen"
+          },
+          "duration_seconds": {
+            "type": "integer",
+            "title": "Duration Seconds",
+            "description": "How long the page stayed on screen"
+          }
+        },
+        "type": "object",
+        "required": [
+          "start_xpoint",
+          "end_xpoint",
+          "shown_at",
+          "duration_seconds"
+        ],
+        "title": "PageViewSyncItem",
+        "description": "Schema for one Page View of a synced reading session."
+      },
       "PaginatedResponse_BookWithHighlightCount_": {
         "properties": {
           "items": {
@@ -9667,6 +9701,14 @@
             ],
             "title": "Device Id",
             "description": "Device identifier"
+          },
+          "page_views": {
+            "items": {
+              "$ref": "#/components/schemas/PageViewSyncItem"
+            },
+            "type": "array",
+            "title": "Page Views",
+            "description": "Pages on screen during the session. One that does not fit inside the session's span or does not resolve in the book is dropped."
           }
         },
         "type": "object",

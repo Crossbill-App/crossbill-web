@@ -48,6 +48,15 @@ class ReadingSession(ReadingSessionBase):
     model_config = {"from_attributes": True}
 
 
+class PageViewSyncItem(BaseModel):
+    """Schema for one Page View of a synced reading session."""
+
+    start_xpoint: str = Field(..., description="Where the text on screen starts (xpoint string)")
+    end_xpoint: str = Field(..., description="Where the text on screen ends (xpoint string)")
+    shown_at: _SyncDatetime = Field(..., description="When the page appeared on screen")
+    duration_seconds: int = Field(..., description="How long the page stayed on screen")
+
+
 class ReadingSessionSyncItem(BaseModel):
     """Schema for a single reading session in the sync request."""
 
@@ -58,6 +67,13 @@ class ReadingSessionSyncItem(BaseModel):
     start_page: int | None = Field(None, ge=0, description="Start page number")
     end_page: int | None = Field(None, ge=0, description="End page number")
     device_id: str | None = Field(None, max_length=100, description="Device identifier")
+    page_views: list[PageViewSyncItem] = Field(
+        default_factory=list,
+        description=(
+            "Pages on screen during the session. One that does not fit inside the "
+            "session's span or does not resolve in the book is dropped."
+        ),
+    )
 
     @model_validator(mode="after")
     def check_position_fields(self) -> Self:
