@@ -15,6 +15,17 @@ logger = logging.getLogger(__name__)
 
 _UNREAD_TAGS = frozenset({"head", "script", "style"})
 _DOCUMENT_TYPES = frozenset({"application/xhtml+xml", "text/html"})
+# Elements displayed as blocks by default, pre aside as it keeps its whitespace;
+# crengine decides by the computed CSS display
+_BLOCK_TAGS = frozenset(
+    {
+        *("address", "article", "aside", "blockquote", "body", "caption", "center", "dd"),
+        *("details", "dialog", "dir", "div", "dl", "dt", "fieldset", "figcaption", "figure"),
+        *("footer", "form", "h1", "h2", "h3", "h4", "h5", "h6", "header", "hgroup", "hr"),
+        *("html", "legend", "li", "main", "menu", "nav", "ol", "p", "section", "summary"),
+        *("table", "tbody", "td", "tfoot", "th", "thead", "tr", "ul"),
+    }
+)
 
 
 def _character_count(text: str | None) -> int:
@@ -64,7 +75,10 @@ class _Walk:
 
         start = self.characters
         nodes: list[tuple[int, int]] = []
-        self._text_node(element.text, counted, nodes)
+        leading = element.text
+        # crengine drops a block's leading whitespace-only node, so KOReader's text()[1] is the next
+        if not (leading and leading.isspace() and element.tag in _BLOCK_TAGS):
+            self._text_node(leading, counted, nodes)
         for child in element:
             # The stubs type every tag as str, but a comment's is a function
             if isinstance(child.tag, str):  # pyright: ignore[reportUnnecessaryIsInstance]

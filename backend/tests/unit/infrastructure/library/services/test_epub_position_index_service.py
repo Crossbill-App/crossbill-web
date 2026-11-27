@@ -133,3 +133,17 @@ def test_an_xpoint_the_book_lacks_has_no_offset() -> None:
 
     assert index.character_offset("/body/DocFragment[2]/body/p/text().1") is None
     assert index.character_offset("not an xpoint") is None
+
+
+def test_a_blocks_leading_whitespace_is_not_a_text_node() -> None:
+    # crengine drops it, so KOReader numbers the text after <em> as text()[1]
+    index = index_of("<p>\n  <em>a</em>bc</p>")
+
+    assert index.character_offset("/body/DocFragment[1]/body/p/text().1") == 2
+
+
+def test_an_inline_or_preformatted_elements_leading_whitespace_is_a_text_node() -> None:
+    index = index_of("<p><span> <em>a</em>b</span></p><pre>  <em>c</em>d</pre>")
+
+    assert index.character_offset("/body/DocFragment[1]/body/p/span/text()[2].0") == 1
+    assert index.character_offset("/body/DocFragment[1]/body/pre/text()[2].0") == 3
