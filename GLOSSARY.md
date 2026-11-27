@@ -66,8 +66,9 @@ reads this.
 _Avoid_: progress (see Reading Stage), bookmark, last page
 
 **Page View**:
-One page on screen during a Reading Session: where the page starts in the book,
-and how long it stayed on screen.
+One appearance of a page on screen during a Reading Session: where the text on
+screen starts and ends in the book, when it appeared, and how long it stayed.
+Returning to a page is a new Page View. A two-page spread is one.
 _Avoid_: page turn, page visit, seen page
 
 **Chapter Coverage**:

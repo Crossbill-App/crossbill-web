@@ -3,7 +3,8 @@
 - **Status:** Accepted
 - **Date:** 2026-09-07
 - **Amended:** 2026-09-13 — *Amendment 6* reverses §4; 2026-09-15 — *Amendment 7*
-  settles what that amendment left open; 2026-09-15 — *Amendment 8* narrows *Amendment 2*
+  settles what that amendment left open; 2026-09-15 — *Amendment 8* narrows *Amendment 2*;
+  2026-11-27 — *Amendment 9* measures Page Views in the frame
 - **Applies to:** `backend/`, `frontend/`, and the `xpoint-cfi` library
 - **Resolves:** #730 (M0.1, part of the web reader epic #729)
 - **Ground truth verified:** 2026-09-06
@@ -1169,3 +1170,27 @@ Measured by replaying about 7,150 random browser-style selections through
 `locator_to_xpoint_range` across the library's 13 test books: v0.1.0 placed
 7,124 at `BOTH_CONTEXTS` and 3 on the wrong text, all at block breaks; v0.1.1
 places 7,135 and none on the wrong text.
+
+## Amendment 9: Page Views are measured in the frame
+
+**Date:** 2026-11-27. **Decided in:** #1020, part of map #1010.
+
+A Page View records the start and end of each screen the reader saw, and how
+long it stayed on screen. Chapter Coverage and book progress are computed from
+them, so they need the place the text on screen begins and ends, not the
+approximate place a reading position settles for.
+
+The Web Reader therefore measures both in the frame on each settled page: the
+first and last text on screen, found with `caretPositionFromPoint`, sent as a
+quote plus a `cssSelector`. The backend resolves them through the anchor
+service at `QUOTE` or `ELEMENT` confidence.
+
+*Amendment 3* rejected scraping the iframe's DOM on every page turn. That
+rejection was about the reading position, which tolerates `PROGRESSION`
+because a position that is off costs only a moment finding one's place. It
+does not cover Page Views. Readium's `progression` divides by
+`scrollWidth − innerWidth`, so the last page of a resource always reports
+`1.0`, and the backend reads a layout fraction as a character fraction. Both
+errors are largest at a chapter's end, which is where a chapter would cross the
+Read Chapter threshold. The reading position keeps *Amendment 3*'s rule.
+
