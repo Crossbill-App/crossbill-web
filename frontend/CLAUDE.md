@@ -1,9 +1,9 @@
 # Frontend
 
-Hooks lint and format each edit and run knip and jscpd when a turn ends.
-`npm run type-check` and `npm run test` are not hooked: run them before
-calling work done. Before writing, changing or reviewing a test, load the
-`writing-frontend-tests` skill.
+Hooks lint and format each edit and run knip, tsc and jscpd when a turn ends.
+`npm run test` is not hooked: run it before calling work done. Before
+writing, changing or reviewing a test, load the `writing-frontend-tests`
+skill.
 
 ## Dead code (knip)
 
