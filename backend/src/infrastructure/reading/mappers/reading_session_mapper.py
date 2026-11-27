@@ -1,5 +1,8 @@
 """Mapper for ReadingSession ORM ↔ Domain conversion."""
 
+from datetime import timedelta
+from typing import Any
+
 from src.domain.common.value_objects import (
     BookId,
     ReadingSessionId,
@@ -8,6 +11,7 @@ from src.domain.common.value_objects import (
 )
 from src.domain.common.value_objects.position import Position
 from src.domain.reading.entities.reading_session import ReadingSession
+from src.domain.reading.value_objects.page_view import PageView
 from src.infrastructure.common.mappers import orm_id
 from src.infrastructure.reading.orm.reading_session_model import ReadingSession as ReadingSessionORM
 
@@ -86,3 +90,18 @@ class ReadingSessionMapper:
         )
         orm_model.device_id = domain_entity.device_id
         return orm_model
+
+    def page_view_values(self, reading_session_id: int, page_view: PageView) -> dict[str, Any]:
+        """Convert a Page View to the row it is inserted as."""
+        return {
+            "reading_session_id": reading_session_id,
+            "start_xpoint": page_view.start_xpoint.to_string(),
+            "end_xpoint": page_view.end_xpoint.to_string(),
+            "start_position": page_view.start_position.to_json(),
+            "end_position": page_view.end_position.to_json(),
+            "start_offset": page_view.start_offset,
+            "end_offset": page_view.end_offset,
+            "position_source_hash": page_view.position_source_hash,
+            "shown_at": page_view.shown_at,
+            "duration_ms": page_view.duration // timedelta(milliseconds=1),
+        }

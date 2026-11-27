@@ -8,8 +8,8 @@ Uses ReadingSessionMapper internally for conversions.
 import logging
 from collections.abc import Mapping
 
-from sqlalchemy import func, literal, select, update
-from sqlalchemy.dialects.postgresql import insert
+from sqlalchemy import func, insert, literal, select, update
+from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.application.reading.protocols.reading_session_repository import BulkCreateResult
@@ -20,6 +20,7 @@ from src.domain.reading.entities.reading_session import ReadingSession
 from src.domain.reading.exceptions import ReadingSessionNotFoundError
 from src.infrastructure.reading.mappers.reading_session_mapper import ReadingSessionMapper
 from src.infrastructure.reading.orm.associations import reading_session_highlights
+from src.infrastructure.reading.orm.page_view_model import PageView as PageViewORM
 from src.infrastructure.reading.orm.reading_session_model import ReadingSession as ReadingSessionORM
 
 logger = logging.getLogger(__name__)
@@ -42,10 +43,11 @@ class ReadingSessionRepository:
         self, user_id: UserId, sessions: list[ReadingSession]
     ) -> BulkCreateResult:
         """
-        Bulk create reading sessions with deduplication.
+        Bulk create reading sessions with deduplication, and the new Page Views of those created.
 
         Uses PostgreSQL ON CONFLICT DO NOTHING or SQLite INSERT OR IGNORE
-        to skip sessions with duplicate content_hash.
+        to skip sessions with duplicate content_hash. A skipped session's
+        Page Views are not stored.
 
         Args:
             user_id: User ID value object
@@ -57,8 +59,10 @@ class ReadingSessionRepository:
         if not sessions:
             return BulkCreateResult(created_count=0, created_sessions=[])
 
-        # Map content_hash -> session for later retrieval
-        session_by_hash = {s.content_hash.value: s for s in sessions}
+        # First wins, as the insert keeps the first row of a hash.
+        session_by_hash: dict[str, ReadingSession] = {}
+        for session in sessions:
+            session_by_hash.setdefault(session.content_hash.value, session)
 
         values = [
             {
@@ -75,72 +79,69 @@ class ReadingSessionRepository:
                 "end_position": s.end_position.to_json() if s.end_position else None,
                 "device_id": s.device_id,
             }
-            for s in sessions
+            for s in session_by_hash.values()
         ]
 
-        dialect = self.db.bind.dialect.name
-
-        if dialect == "postgresql":
-            stmt = (
-                insert(ReadingSessionORM)
+        if self.db.bind.dialect.name == "postgresql":
+            result = await self.db.execute(
+                pg_insert(ReadingSessionORM)
                 .values(values)
                 .on_conflict_do_nothing(index_elements=["user_id", "content_hash"])
                 .returning(ReadingSessionORM.id)
             )
-            result = await self.db.execute(stmt)
             created_ids = [row[0] for row in result.fetchall()]
-
-            # Fetch the created sessions and convert to domain
-            if created_ids:
-                result = await self.db.execute(
-                    select(ReadingSessionORM).where(ReadingSessionORM.id.in_(created_ids))
-                )
-                created_orms = list(result.scalars().all())
-                created_sessions = [self.mapper.to_domain(orm) for orm in created_orms]
-            else:
-                created_sessions = []
-
-            await self.db.commit()
-            return BulkCreateResult(
-                created_count=len(created_ids), created_sessions=created_sessions
-            )
-
-        # SQLite - count before and after to determine how many were inserted
-        result = await self.db.execute(
-            select(func.count(ReadingSessionORM.id)).where(
-                ReadingSessionORM.user_id == user_id.value
-            )
-        )
-        count_before = result.scalar() or 0
-
-        stmt = insert(ReadingSessionORM).values(values).prefix_with("OR IGNORE")
-        await self.db.execute(stmt)
-
-        result = await self.db.execute(
-            select(func.count(ReadingSessionORM.id)).where(
-                ReadingSessionORM.user_id == user_id.value
-            )
-        )
-        count_after = result.scalar() or 0
-
-        created_count = count_after - count_before
-
-        # For SQLite, fetch created sessions by content_hash
-        if created_count > 0:
-            content_hashes = list(session_by_hash.keys())
-            result = await self.db.execute(
-                select(ReadingSessionORM).where(
-                    ReadingSessionORM.user_id == user_id.value,
-                    ReadingSessionORM.content_hash.in_(content_hashes),
-                )
-            )
-            created_orms = list(result.scalars().all())
-            created_sessions = [self.mapper.to_domain(orm) for orm in created_orms]
         else:
-            created_sessions = []
+            already_stored = set(
+                (
+                    await self.db.scalars(
+                        select(ReadingSessionORM.content_hash).where(
+                            ReadingSessionORM.user_id == user_id.value,
+                            ReadingSessionORM.content_hash.in_(session_by_hash),
+                        )
+                    )
+                ).all()
+            )
+            await self.db.execute(insert(ReadingSessionORM).values(values).prefix_with("OR IGNORE"))
+            created_ids = list(
+                (
+                    await self.db.scalars(
+                        select(ReadingSessionORM.id).where(
+                            ReadingSessionORM.user_id == user_id.value,
+                            ReadingSessionORM.content_hash.in_(
+                                session_by_hash.keys() - already_stored
+                            ),
+                        )
+                    )
+                ).all()
+            )
 
+        created_orms = (
+            list(
+                (
+                    await self.db.scalars(
+                        select(ReadingSessionORM).where(ReadingSessionORM.id.in_(created_ids))
+                    )
+                ).all()
+            )
+            if created_ids
+            else []
+        )
+
+        page_view_rows = [
+            self.mapper.page_view_values(orm.id, page_view)
+            for orm in created_orms
+            for page_view in session_by_hash[orm.content_hash].new_page_views
+        ]
+        if page_view_rows:
+            await self.db.execute(insert(PageViewORM), page_view_rows)
+
+        # One commit for the sessions and their Page Views: a session stored without
+        # them is skipped by its content_hash on the re-send, and they would be lost.
         await self.db.commit()
-        return BulkCreateResult(created_count=created_count, created_sessions=created_sessions)
+        return BulkCreateResult(
+            created_count=len(created_orms),
+            created_sessions=[self.mapper.to_domain(orm) for orm in created_orms],
+        )
 
     async def find_by_book_id(
         self, book_id: BookId, user_id: UserId, limit: int, offset: int

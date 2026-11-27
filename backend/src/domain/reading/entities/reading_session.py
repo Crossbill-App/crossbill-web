@@ -4,7 +4,7 @@ ReadingSession aggregate root.
 
 from contextlib import suppress
 from dataclasses import dataclass, field
-from datetime import datetime
+from datetime import datetime, timedelta
 
 from src.domain.common.aggregate_root import AggregateRoot
 from src.domain.common.exceptions import DomainError
@@ -18,6 +18,10 @@ from src.domain.common.value_objects import (
     XPointRange,
 )
 from src.domain.common.value_objects.position import Position
+from src.domain.reading.value_objects.page_view import PageView
+
+# A session's ends and its Page Views' times are separate whole-second clock readings.
+PAGE_VIEW_SPAN_TOLERANCE = timedelta(seconds=2)
 
 
 @dataclass
@@ -32,6 +36,7 @@ class ReadingSession(AggregateRoot[ReadingSessionId]):
     - Duration is computed from start/end times
     - Start page must be <= end page
     - Content hash prevents duplicate sessions
+    - Every Page View fits inside the session's span
     """
 
     # Identity
@@ -58,6 +63,9 @@ class ReadingSession(AggregateRoot[ReadingSessionId]):
 
     # Related highlights (IDs only - don't load full entities)
     _highlight_ids: list[int] = field(default_factory=list, repr=False)
+
+    # Only the Page Views recorded since loading; the stored ones are never loaded
+    _new_page_views: list[PageView] = field(default_factory=list, repr=False)
 
     def __post_init__(self) -> None:
         """Validate invariants."""
@@ -159,3 +167,29 @@ class ReadingSession(AggregateRoot[ReadingSessionId]):
             with suppress(ValueError):
                 reached = XPointRange(start=self.start_xpoint.end, end=xpoint)
                 self.start_xpoint = XPointRange(start=self.start_xpoint.start, end=reached.end)
+
+    @property
+    def new_page_views(self) -> list[PageView]:
+        """The Page Views recorded since the session was loaded, for the repository to insert."""
+        return list(self._new_page_views)
+
+    def record_page_views(self, page_views: list[PageView]) -> list[PageView]:
+        """Record the Page Views that fit inside the session's span.
+
+        A Page View that does not fit is never clamped: its duration is the
+        client's measurement, and a shortened one would count as reading.
+
+        Returns:
+            The Page Views left out because they do not fit.
+        """
+        earliest = as_aware(self.start_time) - PAGE_VIEW_SPAN_TOLERANCE
+        latest = as_aware(self.end_time) + PAGE_VIEW_SPAN_TOLERANCE
+        outside: list[PageView] = []
+        for page_view in page_views:
+            shown_at = as_aware(page_view.shown_at)
+            # Compared as a duration, so a client's absurd one cannot overflow a datetime.
+            if earliest <= shown_at and page_view.duration <= latest - shown_at:
+                self._new_page_views.append(page_view)
+            else:
+                outside.append(page_view)
+        return outside
