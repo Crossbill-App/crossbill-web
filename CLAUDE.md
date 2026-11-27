@@ -99,5 +99,5 @@ numbers disagree with the v5 CLI that the hook and CI run.
   the `gh` CLI — `docs/agents/issue-tracker.md`.
 - **Triage labels**: the five canonical roles use their default label strings —
   `docs/agents/triage-labels.md`.
-- **Domain docs**: single-context — one `CONTEXT.md` and one `docs/adr/` at the
+- **Domain docs**: single-context — one `GLOSSARY.md` and one `docs/adr/` at the
   repo root, created lazily — `docs/agents/domain.md`.
