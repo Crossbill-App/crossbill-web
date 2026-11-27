@@ -1,7 +1,7 @@
 """Use case for uploading reading sessions with deduplication and highlight linking."""
 
-from dataclasses import dataclass
-from datetime import datetime
+from dataclasses import dataclass, field
+from datetime import datetime, timedelta
 
 import structlog
 
@@ -27,6 +27,7 @@ from src.domain.common.value_objects import (
     BookId,
     ReadingSessionId,
     UserId,
+    XPoint,
     XPointRange,
 )
 from src.domain.common.value_objects.position import Position
@@ -34,8 +35,19 @@ from src.domain.common.value_objects.position_index import PositionIndex
 from src.domain.reading.entities.highlight import Highlight
 from src.domain.reading.entities.reading_session import ReadingSession
 from src.domain.reading.exceptions import BookNotFoundError
+from src.domain.reading.value_objects.page_view import PageView
 
 logger = structlog.get_logger(__name__)
+
+
+@dataclass
+class PageViewUploadData:
+    """DTO for one Page View of an uploaded session."""
+
+    start_xpoint: str
+    end_xpoint: str
+    shown_at: datetime
+    duration_seconds: int
 
 
 @dataclass
@@ -49,6 +61,7 @@ class ReadingSessionUploadData:
     start_page: int | None = None
     end_page: int | None = None
     device_id: str | None = None
+    page_views: list[PageViewUploadData] = field(default_factory=list)
 
 
 type _SessionWithPositions = tuple[ReadingSessionUploadData, Position | None, Position | None]
@@ -101,11 +114,10 @@ class ReadingSessionUploadUseCase:
         1. Looks up the book by client_book_id
         2. Filters sessions (same start/end points, minimum duration)
         3. Computes NEW hash: hash(book_id + user_id + start_time + device_id)
-        4. Creates ReadingSession entities using factory method
-        5. Bulk creates via repository
+        4. Creates ReadingSession entities, recording the Page Views that resolve and fit
+        5. Bulk creates the new sessions and their Page Views in one transaction
         6. Links highlights to created sessions
-        7. Commits transaction
-        8. Derives and stores a Readium Locator for both endpoints of each session
+        7. Derives and stores a Readium Locator for both endpoints of each session
 
         Args:
             client_book_id: Client-provided book identifier
@@ -135,10 +147,12 @@ class ReadingSessionUploadUseCase:
         # The bytes outlive the index: the locators below are derived from them too
         epub_content = None
         position_index = None
+        source_hash = None
         if book.file_type == "epub" and book.ebook_file:
             epub_content = await self.file_repository.get_epub(book.ebook_file)
             if epub_content:
                 position_index = self.position_index_service.build_position_index(epub_content)
+                source_hash = epub_content_hash(epub_content)
 
         if position_index is not None:
             await backfill_book_length(
@@ -188,6 +202,17 @@ class ReadingSessionUploadUseCase:
                     end_page=session.end_page,
                 )
                 continue
+            if session.page_views:
+                if position_index is None or source_hash is None:
+                    logger.warning(
+                        "dropping_page_views_without_epub",
+                        count=len(session.page_views),
+                        session_start=session.start_time,
+                    )
+                else:
+                    self._record_page_views(
+                        domain_session, session.page_views, position_index, source_hash
+                    )
             domain_sessions.append(domain_session)
 
         logger.debug(
@@ -273,6 +298,69 @@ class ReadingSessionUploadUseCase:
                 position_index.resolve(session.end_xpoint),
             )
         return (None, None)
+
+    def _record_page_views(
+        self,
+        session: ReadingSession,
+        uploaded: list[PageViewUploadData],
+        position_index: PositionIndex,
+        source_hash: str,
+    ) -> None:
+        """Record the uploaded Page Views on their session, dropping the ones that will not fit.
+
+        Contained like the locators: a Page View is never worth failing a sync over.
+        """
+        page_views: list[PageView] = []
+        for item in uploaded:
+            page_view = self._place_page_view(item, position_index, source_hash)
+            if page_view is None:
+                logger.warning(
+                    "dropping_invalid_page_view",
+                    session_start=session.start_time,
+                    start_xpoint=item.start_xpoint,
+                    end_xpoint=item.end_xpoint,
+                )
+            else:
+                page_views.append(page_view)
+
+        for page_view in session.record_page_views(page_views):
+            logger.warning(
+                "dropping_page_view_outside_session",
+                shown_at=page_view.shown_at,
+                duration_seconds=page_view.duration.total_seconds(),
+                session_start=session.start_time,
+                session_end=session.end_time,
+            )
+
+    def _place_page_view(
+        self, item: PageViewUploadData, position_index: PositionIndex, source_hash: str
+    ) -> PageView | None:
+        """Place an uploaded Page View in the book, or ``None`` if its xpoints do not resolve or it is malformed."""
+        start_position = position_index.resolve(item.start_xpoint)
+        end_position = position_index.resolve(item.end_xpoint)
+        start_offset = position_index.character_offset(item.start_xpoint)
+        end_offset = position_index.character_offset(item.end_xpoint)
+        if (
+            start_position is None
+            or end_position is None
+            or start_offset is None
+            or end_offset is None
+        ):
+            return None
+        try:
+            return PageView(
+                start_xpoint=XPoint.parse(item.start_xpoint),
+                end_xpoint=XPoint.parse(item.end_xpoint),
+                start_position=start_position,
+                end_position=end_position,
+                start_offset=start_offset,
+                end_offset=end_offset,
+                position_source_hash=source_hash,
+                shown_at=item.shown_at,
+                duration=timedelta(seconds=item.duration_seconds),
+            )
+        except (DomainError, OverflowError):
+            return None
 
     async def _store_locators(
         self,

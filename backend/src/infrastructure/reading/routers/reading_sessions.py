@@ -5,6 +5,7 @@ from typing import Annotated
 from fastapi import APIRouter, Depends, Query, status
 
 from src.application.reading.commands.reading_sessions.reading_session_upload_use_case import (
+    PageViewUploadData,
     ReadingSessionUploadData,
     ReadingSessionUploadUseCase,
 )
@@ -122,6 +123,15 @@ async def sync_reading_sessions(
             start_page=s.start_page,
             end_page=s.end_page,
             device_id=s.device_id,
+            page_views=[
+                PageViewUploadData(
+                    start_xpoint=p.start_xpoint,
+                    end_xpoint=p.end_xpoint,
+                    shown_at=p.shown_at,
+                    duration_seconds=p.duration_seconds,
+                )
+                for p in s.page_views
+            ],
         )
         for s in request.sessions
     ]

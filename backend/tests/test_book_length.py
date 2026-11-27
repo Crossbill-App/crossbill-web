@@ -15,8 +15,7 @@ from sqlalchemy import select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src import models
-from tests.readium_helpers import fixture_bytes
-from tests.test_locator_ingest import CLIENT_BOOK_ID, reading_session, sync_sessions
+from tests.test_locator_ingest import reading_session, sync_sessions, upload_epub
 from tests.test_readium_reading_position import CH1_HREF, CH1_QUOTE, locator, write
 
 MEASURED = (272, {"Chapter One": 0, "Chapter Two": 182})
@@ -24,13 +23,7 @@ MEASURED = (272, {"Chapter One": 0, "Chapter Two": 182})
 
 @pytest.fixture
 async def book_id(plugin_client: AsyncClient, storage_dir: Path) -> int:
-    response = await plugin_client.post(
-        "/api/v1/ereader/books",
-        files={"epub": ("book.epub", fixture_bytes("minimal"), "application/epub+zip")},
-        data={"client_book_id": CLIENT_BOOK_ID},
-    )
-    assert response.status_code == 200, response.text
-    return response.json()["book_id"]
+    return await upload_epub(plugin_client)
 
 
 async def measurements(

@@ -174,13 +174,14 @@ def highlight(text: str, start: str | None = None, end: str | None = None) -> di
     return payload
 
 
-async def upload_epub(plugin_client: AsyncClient, content: bytes = MINIMAL_EPUB) -> None:
+async def upload_epub(plugin_client: AsyncClient, content: bytes = MINIMAL_EPUB) -> int:
     response = await plugin_client.post(
         "/api/v1/ereader/books",
         files={"epub": ("book.epub", content, "application/epub+zip")},
         data={"client_book_id": CLIENT_BOOK_ID},
     )
     assert response.status_code == 200, response.text
+    return response.json()["book_id"]
 
 
 async def sync(plugin_client: AsyncClient, highlights: list[dict[str, Any]]) -> Response:

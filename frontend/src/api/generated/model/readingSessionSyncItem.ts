@@ -4,6 +4,7 @@
  * crossbill API
  * OpenAPI spec version: 0.0.0
  */
+import type { PageViewSyncItem } from './pageViewSyncItem.ts';
 
 /**
  * Schema for a single reading session in the sync request.
@@ -23,4 +24,6 @@ export interface ReadingSessionSyncItem {
   end_page?: number | null;
   /** Device identifier */
   device_id?: string | null;
+  /** Pages on screen during the session. One that does not fit inside the session's span or does not resolve in the book is dropped. */
+  page_views?: PageViewSyncItem[];
 }
