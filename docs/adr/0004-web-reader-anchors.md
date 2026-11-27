@@ -3,7 +3,9 @@
 - **Status:** Accepted
 - **Date:** 2026-09-07
 - **Amended:** 2026-09-13 — *Amendment 6* reverses §4; 2026-09-15 — *Amendment 7*
-  settles what that amendment left open; 2026-09-15 — *Amendment 8* narrows *Amendment 2*
+  settles what that amendment left open; 2026-09-15 — *Amendment 8* narrows *Amendment 2*;
+  2026-11-27 — *Amendment 9* measures Page Views in the frame; 2026-11-27 — *Amendment 10*
+  revises three session rules of *Amendment 3*
 - **Applies to:** `backend/`, `frontend/`, and the `xpoint-cfi` library
 - **Resolves:** #730 (M0.1, part of the web reader epic #729)
 - **Ground truth verified:** 2026-09-06
@@ -1169,3 +1171,56 @@ Measured by replaying about 7,150 random browser-style selections through
 `locator_to_xpoint_range` across the library's 13 test books: v0.1.0 placed
 7,124 at `BOTH_CONTEXTS` and 3 on the wrong text, all at block breaks; v0.1.1
 places 7,135 and none on the wrong text.
+
+## Amendment 9: Page Views are measured in the frame
+
+**Date:** 2026-11-27. **Decided in:** #1020, part of map #1010.
+
+A Page View records the start and end of each screen the reader saw, and how
+long it stayed on screen. Chapter Coverage and book progress are computed from
+them, so they need the place the text on screen begins and ends, not the
+approximate place a reading position settles for.
+
+The Web Reader therefore measures both in the frame on each settled page: the
+first and last text on screen, found with `caretPositionFromPoint`, sent as a
+quote plus a `cssSelector`. The backend resolves them through the anchor
+service at `QUOTE` or `ELEMENT` confidence.
+
+*Amendment 3* rejected scraping the iframe's DOM on every page turn. That
+rejection was about the reading position, which tolerates `PROGRESSION`
+because a position that is off costs only a moment finding one's place. It
+does not cover Page Views. Readium's `progression` divides by
+`scrollWidth − innerWidth`, so the last page of a resource always reports
+`1.0`, and the backend reads a layout fraction as a character fraction. Both
+errors are largest at a chapter's end, which is where a chapter would cross the
+Read Chapter threshold. The reading position keeps *Amendment 3*'s rule.
+
+## Amendment 10: a session opens with the book, so its Page Views fit it
+
+**Date:** 2026-11-27. **Decided in:** #1022, part of map #1010.
+
+Page Views ride on the reading-position `PUT` and must fit inside their
+session's start and end. Three rules of *Amendment 3* made that impossible, and
+this amendment replaces them.
+
+- **A session starts when the book opens.** The frontend sends an
+  `opening: true` write with the position the book opened at, and that write
+  starts a session even though the position did not move. Under the old rule
+  the session started on the first write after a page turn, at least 5 s after
+  the first page appeared, so every session's first Page Views came before its
+  start.
+- **The `closing` write cleans up.** A session shorter than
+  `MINIMUM_READING_SESSION_DURATION`, or whose start and end positions are equal,
+  is deleted on its `closing` write, with its Page Views by cascade. These are
+  the filters the KOReader sync applies, so opening a book and closing it again
+  still leaves no row. A tab that dies without its `closing` write leaves the
+  row behind. A session still ends by not being extended; only the cleanup runs.
+- **A jump back across the book extends the old sitting to the jump.** On a
+  backward jump of more than a quarter of the book, the old session is extended
+  to `now` and takes the write's Page Views; the new session starts with none.
+  An idle gap is unchanged: the old session is not extended, and Page Views that
+  fit neither session are dropped.
+
+"Neither clock measures reading" still holds. A session's start and end stay on
+the server's clock, and each Page View's time is sent as an offset from the
+send (`shown_ms_before_send`), which the server turns into `now − offset`.

@@ -65,6 +65,25 @@ session another device recorded. The e-reader keeps its own place and never
 reads this.
 _Avoid_: progress (see Reading Stage), bookmark, last page
 
+**Page View**:
+One appearance of a page on screen during a Reading Session: where the text on
+screen starts and ends in the book, when it appeared, and how long it stayed.
+Returning to a page is a new Page View. A two-page spread is one.
+_Avoid_: page turn, page visit, seen page
+
+**Chapter Coverage**:
+How much of a Chapter's own text — not its sub-chapters' — the reader has had
+on screen long enough to read it, measured in characters and accumulated over
+all their Reading Sessions on every device. Quickly flicking past a page adds
+nothing to it, however often it is repeated.
+_Avoid_: chapter progress
+
+**Read Chapter**:
+A Chapter whose Chapter Coverage has passed the threshold for counting as read.
+Inferred from Page Views, unlike the Reading Stage, which the user declares.
+A Chapter with no text of its own is never read.
+_Avoid_: finished chapter, completed chapter
+
 **Skimming**:
 Adler's second level of reading — systematic skimming and superficial reading —
 done to find out what a book or chapter contains before reading it properly.
