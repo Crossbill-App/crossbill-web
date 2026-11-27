@@ -20,7 +20,6 @@ Modern React application for managing and viewing book highlights from KOReader.
 ### Prerequisites
 
 - Node.js 18+ and npm
-- Backend server running (for API client generation)
 
 ### Installation
 
@@ -85,12 +84,8 @@ npm run preview
 
 ### Pre-commit Hooks
 
-The project uses git hooks to automatically run linting and formatting before commits:
-
-- **ESLint** - Checks and fixes code issues
-- **Prettier** - Formats code and organizes imports
-
-All code is automatically formatted and linted when you commit changes.
+Husky (installed by `npm install` at the repo root) runs lint-staged before
+each commit, which lints and formats the staged files with ESLint and Prettier.
 
 ### Manual Quality Checks
 
@@ -100,54 +95,14 @@ Before committing, you can run:
 npm run lint:fix && npm run format && npm run type-check
 ```
 
-## Project Structure
-
-```
-frontend/
-├── public/              # Static assets
-├── src/
-│   ├── api/
-│   │   ├── generated/   # Auto-generated API client (gitignored)
-│   │   └── axios-instance.ts
-│   ├── components/
-│   │   ├── common/      # Reusable UI components
-│   │   ├── layout/      # Layout components (AppBar, etc.)
-│   │   └── features/    # Feature-specific components
-│   ├── hooks/           # Custom React hooks
-│   ├── lib/
-│   │   └── queryClient.ts
-│   ├── routes/          # Tanstack Router file-based routes
-│   │   ├── __root.tsx
-│   │   └── index.tsx
-│   ├── theme/
-│   │   └── theme.ts
-│   ├── types/           # TypeScript type definitions
-│   ├── utils/
-│   │   ├── date.ts      # Luxon date utilities
-│   │   └── helpers.ts   # Lodash utility wrappers
-│   ├── App.tsx
-│   ├── main.tsx
-│   └── routeTree.gen.ts # Auto-generated (gitignored)
-├── .env                 # Environment variables (gitignored)
-├── .env.example         # Environment template
-├── eslint.config.js     # ESLint configuration
-├── .prettierrc          # Prettier configuration
-├── orval.config.ts      # API generation configuration
-├── tsr.config.json      # Router configuration
-├── tsconfig.json        # TypeScript configuration
-├── vite.config.ts       # Vite configuration
-└── package.json
-```
-
 ## Path Aliases
 
-The project uses TypeScript path aliases for cleaner imports:
+`@/` resolves to `src/` (configured in both `tsconfig.json` and
+`vite.config.ts`):
 
 ```typescript
-import { Button } from '@/components/common/Button';
-import { useAuth } from '@/hooks/useAuth';
 import { formatDate } from '@/utils/date';
-import { api } from '@/api/generated';
+import { useGetBooks } from '@/api/generated/books/books';
 ```
 
 ## API Integration
@@ -157,20 +112,18 @@ The frontend uses **Orval** to automatically generate a type-safe API client fro
 ### Generating API Client
 
 ```bash
-# Make sure backend is running at http://localhost:8000
-npm run api:generate
+# From the repo root; no running backend needed
+make api-client
 ```
 
-This will:
-
-1. Fetch the OpenAPI spec from `http://localhost:8000/api/v1/openapi.json`
-2. Generate TypeScript types and React Query hooks
-3. Place generated files in `src/api/generated/`
+This exports the backend's OpenAPI schema to `backend/openapi.json`, then has
+Orval generate TypeScript types and React Query hooks from it into
+`src/api/generated/`. Commit both; CI fails if either is stale.
 
 ### Using Generated API
 
 ```typescript
-import { useGetBooks } from '@/api/generated/books';
+import { useGetBooks } from '@/api/generated/books/books';
 
 function BooksList() {
   const { data: books, isLoading } = useGetBooks();
@@ -185,14 +138,6 @@ function BooksList() {
 
 See [CLAUDE.md](./CLAUDE.md) for the conventions (dead code, generated code, UI copy and i18n),
 and [the frontend testing skill](../.claude/skills/writing-frontend-tests/SKILL.md) for the test policy.
-
-### Key Principles
-
-1. **Always run linter and formatter before commits** (automated via pre-commit hooks)
-2. **Prefer functional programming** - Use pure functions, avoid mutations
-3. **Use Lodash** for functional utilities (map, filter, groupBy, etc.)
-4. **Type everything** - Leverage TypeScript's type system
-5. **Keep components small** - Single responsibility principle
 
 ## Environment Variables
 
@@ -226,16 +171,6 @@ throws if one does.
 
 ## Troubleshooting
 
-### API Generation Fails
-
-**Issue:** `npm run api:generate` fails
-
-**Solutions:**
-
-1. Ensure backend is running: `make dev-app` (from repo root)
-2. Check backend URL in `orval.config.ts` matches your backend
-3. Verify OpenAPI endpoint: `http://localhost:8000/api/v1/openapi.json`
-
 ### Import Path Aliases Not Working
 
 **Issue:** TypeScript can't resolve `@/` imports
@@ -245,21 +180,6 @@ throws if one does.
 1. Verify `tsconfig.json` has paths configured
 2. Verify `vite.config.ts` has aliases configured
 3. Restart TypeScript server in your editor
-
-### Pre-commit Hook Not Running
-
-**Issue:** Pre-commit hook doesn't run
-
-**Solution:**
-The git hook is installed at the repository root (`.git/hooks/pre-commit`). It automatically runs when frontend files are changed.
-
-## Contributing
-
-1. Create a feature branch
-2. Make your changes
-3. Run quality checks: `npm run lint:fix && npm run format && npm run type-check`
-4. Commit (pre-commit hooks will run automatically)
-5. Push and create a pull request
 
 ## License
 
