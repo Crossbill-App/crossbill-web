@@ -7,15 +7,21 @@ from fastapi import APIRouter, Depends, status
 from src.application.learning.commands.flashcards.delete_flashcard_use_case import (
     DeleteFlashcardUseCase,
 )
+from src.application.learning.commands.flashcards.record_flashcard_review_use_case import (
+    RecordFlashcardReviewUseCase,
+)
 from src.application.learning.commands.flashcards.update_flashcard_use_case import (
     UpdateFlashcardUseCase,
 )
 from src.core import container
 from src.domain.identity.entities.user import User
+from src.domain.learning.value_objects.flashcard_review import FlashcardRating, FlashcardReview
 from src.infrastructure.common.di import inject_use_case
 from src.infrastructure.common.schemas import SuccessResponse
 from src.infrastructure.identity.dependencies import get_current_user
 from src.infrastructure.learning.schemas import (
+    Flashcard,
+    FlashcardReviewRequest,
     FlashcardUpdateRequest,
     FlashcardUpdateResponse,
 )
@@ -95,3 +101,31 @@ async def delete_flashcard(
         success=True,
         message="Flashcard deleted successfully",
     )
+
+
+@router.post(
+    "/{flashcard_id}/reviews",
+    response_model=Flashcard,
+    status_code=status.HTTP_200_OK,
+)
+async def record_flashcard_review(
+    flashcard_id: int,
+    request: FlashcardReviewRequest,
+    current_user: Annotated[User, Depends(get_current_user)],
+    use_case: RecordFlashcardReviewUseCase = Depends(
+        inject_use_case(container.learning.record_flashcard_review_use_case)
+    ),
+) -> Flashcard:
+    """Record a review of a flashcard and return the card as it is now scheduled.
+
+    A review sent again with the same `reviewed_at` changes nothing. A suspended
+    card takes no reviews (409).
+    """
+    flashcard = await use_case.record_review(
+        flashcard_id=flashcard_id,
+        user_id=current_user.id.value,
+        review=FlashcardReview(
+            rating=FlashcardRating(request.rating), reviewed_at=request.reviewed_at
+        ),
+    )
+    return build_flashcard_schema(flashcard)

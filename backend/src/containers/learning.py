@@ -18,6 +18,9 @@ from src.application.learning.commands.flashcards.create_flashcard_for_note_use_
 from src.application.learning.commands.flashcards.delete_flashcard_use_case import (
     DeleteFlashcardUseCase,
 )
+from src.application.learning.commands.flashcards.record_flashcard_review_use_case import (
+    RecordFlashcardReviewUseCase,
+)
 from src.application.learning.commands.flashcards.update_flashcard_use_case import (
     UpdateFlashcardUseCase,
 )
@@ -55,6 +58,7 @@ class LearningContainer(containers.DeclarativeContainer):
     ai_service = providers.Dependency()
     ai_chat_session_repository = providers.Dependency()
     note_repository = providers.Dependency()
+    review_scheduler = providers.Dependency()
 
     # Read models: the query adapter (a port implementation) plus the read use
     # cases that routers call, mirroring how commands are exposed.
@@ -89,6 +93,11 @@ class LearningContainer(containers.DeclarativeContainer):
     delete_flashcard_use_case = providers.Factory(
         DeleteFlashcardUseCase,
         flashcard_repository=flashcard_repository,
+    )
+    record_flashcard_review_use_case = providers.Factory(
+        RecordFlashcardReviewUseCase,
+        flashcard_repository=flashcard_repository,
+        review_scheduler=review_scheduler,
     )
 
     # Flashcard suggestions

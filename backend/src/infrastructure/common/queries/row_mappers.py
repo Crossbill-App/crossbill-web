@@ -7,6 +7,8 @@ the domain put it (ADR-0001, rule 1).
 
 from src.application.common.queries.highlight_row import HighlightLabelView, HighlightRow
 from src.application.common.queries.refs import FlashcardRef, TagRef
+from src.domain.learning.value_objects.flashcard_origin import FlashcardOrigin
+from src.domain.learning.value_objects.flashcard_status import FlashcardStatus
 from src.domain.reading.services.highlight_style_resolver import ResolvedLabel
 from src.infrastructure.learning.orm.flashcard_model import Flashcard as FlashcardORM
 from src.infrastructure.reading.orm.highlight_model import Highlight as HighlightORM
@@ -29,6 +31,10 @@ def flashcard_ref(row: FlashcardORM) -> FlashcardRef:
         note_id=row.note_id,
         question=row.question,
         answer=row.answer,
+        status=FlashcardStatus(row.status),
+        origin=FlashcardOrigin(row.origin),
+        due=row.due,
+        last_review=row.last_review,
     )
 
 

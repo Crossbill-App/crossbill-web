@@ -37,6 +37,7 @@ dependencies = [
   # runtime dependency since R4.1: the anchor service imports it at module
   # scope and the container wires that service up, so it is loaded at startup.
   "xpoint-cfi",
+  "fsrs>=6.3,<7",
 ]
 
 [dependency-groups]

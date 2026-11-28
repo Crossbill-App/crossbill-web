@@ -20,6 +20,8 @@ from src.application.learning.queries.book_flashcards import (
 )
 from src.application.reading.services.label_resolution_service import LabelResolutionService
 from src.domain.common.value_objects.ids import BookId, UserId
+from src.domain.learning.value_objects.flashcard_origin import FlashcardOrigin
+from src.domain.learning.value_objects.flashcard_status import FlashcardStatus
 from src.domain.reading.services.highlight_style_resolver import ResolvedLabel
 from src.infrastructure.common.queries.row_mappers import tag_ref
 from src.infrastructure.learning.orm.flashcard_model import Flashcard as FlashcardORM
@@ -57,6 +59,10 @@ class BookFlashcardQuery:
                 note_id=card.note_id,
                 question=card.question,
                 answer=card.answer,
+                status=FlashcardStatus(card.status),
+                origin=FlashcardOrigin(card.origin),
+                due=card.due,
+                last_review=card.last_review,
                 highlight=highlights.get(card.highlight_id)
                 if card.highlight_id is not None
                 else None,

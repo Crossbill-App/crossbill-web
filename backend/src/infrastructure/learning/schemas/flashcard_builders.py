@@ -16,6 +16,10 @@ def build_flashcard_schema(flashcard: Flashcard) -> FlashcardSchema:
         note_id=flashcard.note_id.value if flashcard.note_id else None,
         question=flashcard.question,
         answer=flashcard.answer,
+        status=flashcard.status.value,
+        origin=flashcard.origin.value,
+        due=flashcard.review_state.due if flashcard.review_state else None,
+        last_review=flashcard.review_state.last_review if flashcard.review_state else None,
     )
 
 
@@ -30,4 +34,8 @@ def build_flashcard_ref_schema(card: FlashcardRef) -> FlashcardSchema:
         note_id=card.note_id,
         question=card.question,
         answer=card.answer,
+        status=card.status.value,
+        origin=card.origin.value,
+        due=card.due,
+        last_review=card.last_review,
     )

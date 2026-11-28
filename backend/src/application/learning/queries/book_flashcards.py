@@ -11,6 +11,8 @@ from typing import Protocol
 from src.application.common.queries.highlight_row import HighlightLabelView
 from src.application.common.queries.refs import TagRef
 from src.domain.common.value_objects.ids import BookId, UserId
+from src.domain.learning.value_objects.flashcard_origin import FlashcardOrigin
+from src.domain.learning.value_objects.flashcard_status import FlashcardStatus
 
 
 @dataclass(frozen=True)
@@ -49,6 +51,10 @@ class FlashcardWithHighlightView:
     note_id: int | None
     question: str
     answer: str
+    status: FlashcardStatus
+    origin: FlashcardOrigin
+    due: dt | None
+    last_review: dt | None
     highlight: FlashcardHighlightView | None
 
 
