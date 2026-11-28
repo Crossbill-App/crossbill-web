@@ -41,6 +41,10 @@ class ReadingSessionRepositoryProtocol(Protocol):
         """
         ...
 
+    async def delete(self, session_id: ReadingSessionId, user_id: UserId) -> None:
+        """Delete one of the user's sessions, with its Page Views; a missing one is no error."""
+        ...
+
     async def bulk_update_positions(
         self,
         position_updates: list[tuple[ReadingSessionId, Position, Position]],

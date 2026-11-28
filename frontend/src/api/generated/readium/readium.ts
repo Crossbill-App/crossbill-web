@@ -513,7 +513,7 @@ export function useGetReadingPosition<
  * canonical KOReader xpointer before anything is stored (ADR-0004 §2) and refused if
  * the conversion is too weak to say where it is. It also extends -- or begins -- a
  * real row in ``reading_sessions``, which is how browser reading reaches the progress
- * bar and the reading statistics (ADR-0004, Amendment 3).
+ * bar and the reading statistics (ADR-0004, Amendments 3 and 10).
  *
  * A write saying nothing newer than what is stored is answered with what is stored
  * rather than refused: the write a closing tab sends and the one a page turn sends

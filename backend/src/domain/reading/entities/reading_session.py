@@ -168,6 +168,22 @@ class ReadingSession(AggregateRoot[ReadingSessionId]):
                 reached = XPointRange(start=self.start_xpoint.end, end=xpoint)
                 self.start_xpoint = XPointRange(start=self.start_xpoint.start, end=reached.end)
 
+    def is_worth_keeping(self, minimum_duration: timedelta) -> bool:
+        """Whether the session lasted ``minimum_duration`` and went anywhere.
+
+        The filters the KOReader sync applies before storing a session, so a book
+        opened and closed again records nothing from either reader. Positions decide
+        when the session has any; otherwise its xpoint range or its pages do.
+        """
+        if as_aware(self.end_time) - as_aware(self.start_time) < minimum_duration:
+            return False
+        if self.start_position is not None or self.end_position is not None:
+            return self.start_position != self.end_position
+        xpoints_moved = self.start_xpoint is not None and (
+            self.start_xpoint.start != self.start_xpoint.end
+        )
+        return xpoints_moved or self.start_page != self.end_page
+
     @property
     def new_page_views(self) -> list[PageView]:
         """The Page Views recorded since the session was loaded, for the repository to insert."""

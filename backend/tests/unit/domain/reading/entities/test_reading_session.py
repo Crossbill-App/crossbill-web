@@ -158,3 +158,29 @@ class TestTheXpointRange:
         session.extend_to(LATER, xpoint=a_page(9))
 
         assert session.start_xpoint is None
+
+
+class TestWorthKeepingWithoutPositions:
+    """A session whose ends never resolved to positions is judged on its xpoints and pages."""
+
+    MINIMUM = timedelta(minutes=2)
+
+    def test_a_range_that_moved_is_kept(self) -> None:
+        session = a_session(start_xpoint=XPointRange(start=a_page(1), end=a_page(1)))
+        session.extend_to(LATER, xpoint=a_page(2))
+
+        assert session.is_worth_keeping(self.MINIMUM)
+
+    def test_pages_that_moved_are_kept(self) -> None:
+        session = a_session(start_page=3, end_page=3)
+        session.extend_to(LATER, page=4)
+
+        assert session.is_worth_keeping(self.MINIMUM)
+
+    def test_a_session_that_moved_neither_is_not_kept(self) -> None:
+        session = a_session(
+            start_page=3, end_page=3, start_xpoint=XPointRange(a_page(1), a_page(1))
+        )
+        session.extend_to(LATER, xpoint=a_page(1), page=3)
+
+        assert not session.is_worth_keeping(self.MINIMUM)
