@@ -13,6 +13,15 @@ import {
 import { ReadingActivity } from './components/ReadingActivity';
 import { RecentBooks } from './components/RecentBooks';
 import { RecentCaptures } from './components/RecentCaptures';
+import { PrototypeSwitcher } from '@/components/prototype/PrototypeSwitcher.tsx';
+import { useSearch } from '@tanstack/react-router';
+import {
+  CapturesWithSideColumn,
+  DUE_VARIANTS,
+  EmbeddedReview,
+  HeroStrip,
+  PerBookSection,
+} from './prototype/DueCardsPrototype.tsx';
 
 /**
  * The reader's dashboard: what they were last reading, how the year has gone,
@@ -25,6 +34,8 @@ import { RecentCaptures } from './components/RecentCaptures';
  */
 export const LandingPage = () => {
   const { t } = useTranslation();
+  // PROTOTYPE — throwaway variant switch for the due-cards element.
+  const variant = useSearch({ from: '/' }).variant ?? 'A';
   const loading = [useRecentBooks(), useReadingActivity(), useRecentCaptures()].some(
     (query) => query.isLoading
   );
@@ -54,13 +65,18 @@ export const LandingPage = () => {
             </Typography>
           </Box>
 
+          {variant === 'A' && <HeroStrip />}
+
           <RecentBooks />
 
           <ReadingActivity />
 
-          <RecentCaptures />
+          {variant === 'B' && <PerBookSection />}
+          {variant === 'D' && <EmbeddedReview />}
+          {variant === 'C' ? <CapturesWithSideColumn /> : <RecentCaptures />}
         </FadeInOut>
       )}
+      <PrototypeSwitcher variants={DUE_VARIANTS} current={variant} />
     </PageContainer>
   );
 };

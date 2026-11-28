@@ -10,8 +10,9 @@ export const Route = createFileRoute('/')({
    * the library rather than dropping the reader on a dashboard that ignores
    * them. Nothing on this page reads them.
    */
-  validateSearch: (search: Record<string, unknown>): LibrarySearch => {
+  validateSearch: (search: Record<string, unknown>): LibrarySearch & { variant?: string } => {
     return {
+      variant: (search.variant as string | undefined) || undefined,
       search: (search.search as string | undefined) || undefined,
       page: Number(search.page) || undefined,
     };
