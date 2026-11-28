@@ -87,7 +87,7 @@ class Flashcard(Entity[FlashcardId]):
 
     @property
     def reviews(self) -> tuple[FlashcardReview, ...]:
-        """Every review the card has, in the order they were recorded."""
+        """Every review the card has: the stored ones in time order, then any just recorded."""
         return tuple(self._reviews)
 
     @property

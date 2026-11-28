@@ -97,6 +97,10 @@ class FlashcardRepository(BaseRepository[Flashcard, FlashcardORM]):
         return self.mapper.to_domain(orm_model, await self._reviews_of(orm_model.id))
 
     async def _reviews_of(self, flashcard_id: int) -> list[FlashcardReview]:
-        stmt = select(FlashcardReviewORM).where(FlashcardReviewORM.flashcard_id == flashcard_id)
+        stmt = (
+            select(FlashcardReviewORM)
+            .where(FlashcardReviewORM.flashcard_id == flashcard_id)
+            .order_by(FlashcardReviewORM.reviewed_at)
+        )
         rows = (await self.db.execute(stmt)).scalars().all()
         return [self.mapper.review_to_domain(row) for row in rows]
