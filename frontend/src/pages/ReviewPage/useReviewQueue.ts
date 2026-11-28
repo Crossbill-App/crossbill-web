@@ -66,7 +66,7 @@ export const useReviewQueue = (bookId: number | undefined) => {
     current: remaining.length > 0 ? remaining[0] : null,
     position: removedIds.size + 1,
     total: removedIds.size + remaining.length + unfetched,
-    isLoadError: remaining.length === 0 && query.isError,
+    isLoadError: remaining.length === 0 && query.isError && !query.isFetching,
     isDone:
       loaded !== null && remaining.length === 0 && !query.isError && !(hasMore && query.isFetching),
     retry: () => void query.refetch(),
