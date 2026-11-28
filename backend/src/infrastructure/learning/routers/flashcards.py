@@ -35,7 +35,6 @@ from src.infrastructure.learning.schemas import (
     FlashcardUpdateResponse,
 )
 from src.infrastructure.learning.schemas.flashcard_builders import (
-    build_flashcard_ref_schema,
     build_flashcard_schema,
 )
 from src.infrastructure.reading.routers.reader_clock import reader_now
@@ -67,7 +66,7 @@ async def get_due_flashcards(
         user_id=current_user.id.value, now=now, book_id=book_id, limit=limit, offset=offset
     )
     return PaginatedResponse[Flashcard](
-        items=[build_flashcard_ref_schema(card) for card in page.flashcards],
+        items=[Flashcard.model_validate(card) for card in page.flashcards],
         total=page.total,
         offset=offset,
         limit=limit,

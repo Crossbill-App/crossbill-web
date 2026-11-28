@@ -33,7 +33,7 @@ from src.infrastructure.common.di import inject_use_case
 from src.infrastructure.common.schemas import CollectionResponse, PaginatedResponse
 from src.infrastructure.common.schemas.position_schemas import PositionResponse
 from src.infrastructure.identity import get_current_user
-from src.infrastructure.learning.schemas.flashcard_builders import build_flashcard_ref_schema
+from src.infrastructure.learning.schemas import Flashcard
 from src.infrastructure.library.routers.epub_upload import read_epub_upload
 from src.infrastructure.library.schemas import (
     BookWithHighlightCount,
@@ -150,7 +150,7 @@ def _build_book_details_schema(view: BookDetailsView) -> BookDetails:
             )
             for b in view.bookmarks
         ],
-        book_flashcards=[build_flashcard_ref_schema(f) for f in view.book_flashcards],
+        book_flashcards=[Flashcard.model_validate(f) for f in view.book_flashcards],
         chapters=[_build_chapter_schema(chapter) for chapter in view.chapters],
         highlight_count=view.highlight_count,
         reading_position=PositionResponse(

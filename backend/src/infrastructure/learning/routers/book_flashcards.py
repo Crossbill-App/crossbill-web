@@ -24,7 +24,6 @@ from src.infrastructure.learning.schemas import (
     FlashcardWithHighlight,
 )
 from src.infrastructure.learning.schemas.flashcard_builders import (
-    build_flashcard_ref_schema,
     build_flashcard_schema,
 )
 from src.infrastructure.reading.schemas import (
@@ -142,7 +141,5 @@ def _highlight_schema(view: FlashcardHighlightView) -> HighlightResponseBase:
 
 def _flashcard_schema(view: FlashcardWithHighlightView) -> FlashcardWithHighlight:
     """Render one flashcard row of the book's flashcard list."""
-    return FlashcardWithHighlight(
-        **build_flashcard_ref_schema(view).model_dump(),
-        highlight=_highlight_schema(view.highlight) if view.highlight else None,
-    )
+    highlight = _highlight_schema(view.highlight) if view.highlight else None
+    return FlashcardWithHighlight.model_validate(vars(view) | {"highlight": highlight})
