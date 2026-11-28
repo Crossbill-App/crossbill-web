@@ -3,6 +3,7 @@ import {
   type EbookAppearance,
   type EbookDecoration,
   type EbookLocation,
+  type EbookScreen,
   type EbookSelection,
   type PageTurnDirection,
 } from '@/components/reader/engine/EbookReader.ts';
@@ -11,6 +12,7 @@ import { fontSizeRangeConfig } from '@readium/navigator';
 import { aDetailedPositionList, aManifest, aPositionList } from '@tests/fixtures/publication';
 import { fakeTheClock } from '@tests/harness/fakeClock';
 import { drawnOn, drawnRanges } from '@tests/harness/paintedHighlights';
+import { afterFrames } from '@tests/harness/settle';
 import {
   adjustSelectionInBook as adjustSelectionIn,
   endOf,
@@ -1155,4 +1157,158 @@ test('destroying while the host has no size settles the open', { timeout: 3_000 
 
   await expect(opening).rejects.toThrow();
   expect(host.children).toHaveLength(0);
+});
+
+/**
+ * Each screen is reported by where its text starts and ends, for the Page Views
+ * the reader sends.
+ */
+
+/** The counting chapter's words wholly on screen, in reading order. */
+const wordsOnScreen = (): string[] => {
+  const chapter = visibleFrame()!.contentDocument!;
+  const view = chapter.defaultView!;
+  return [...chapter.querySelectorAll('p')].flatMap((paragraph) => {
+    const text = paragraph.firstChild as Text;
+    return [...text.data.matchAll(/word\d+/g)].flatMap((match) => {
+      const range = chapter.createRange();
+      range.setStart(text, match.index);
+      range.setEnd(text, match.index + match[0].length);
+      const rect = range.getBoundingClientRect();
+      const isShown = rect.left >= 0 && rect.right <= view.innerWidth && rect.width > 0;
+      return isShown ? [match[0]] : [];
+    });
+  });
+};
+
+const recordScreens = () => {
+  const screens: (EbookScreen | null)[] = [];
+  reader.onScreenShown((screen) => screens.push(screen));
+  return screens;
+};
+
+/** The book open on its first screen, and every screen it reports from that one on. */
+const theScreensOfAnOpenBook = async (
+  options: Parameters<typeof readiumApi>[0] = { counting: true }
+) => {
+  worker.use(...readiumApi(options));
+  const screens = recordScreens();
+  await openTheBook();
+  await expect.poll(() => screens.length).toBe(1);
+  return screens;
+};
+
+const firstWordOf = (location: EbookLocation | undefined) =>
+  location?.text?.highlight?.split(' ')[0];
+
+const lastWordOf = (location: EbookLocation | undefined) =>
+  location?.text?.highlight?.split(' ').pop();
+
+test('a screen is reported by the first and the last words on it', async () => {
+  const screens = await theScreensOfAnOpenBook();
+
+  await reader.next();
+
+  await expect.poll(() => firstWordOf(last(screens)?.start)).toBe(wordsOnScreen()[0]);
+  expect(lastWordOf(last(screens)?.end)).toBe(last(wordsOnScreen()));
+  expect(last(screens)?.start.locations.cssSelector).toMatch(/^body > p:nth-child\(\d+\)$/);
+});
+
+test('the first screen of a chapter starts at its heading', async () => {
+  const screens = await theScreensOfAnOpenBook();
+
+  expect(last(screens)?.start.text?.highlight).toMatch(/^On Counting word1 /);
+  expect(lastWordOf(last(screens)?.end)).toBe(last(wordsOnScreen()));
+});
+
+test('a page Readium reports more than once is one screen', async () => {
+  const screens = await theScreensOfAnOpenBook();
+  const recorded = recordEvents();
+
+  await reader.next();
+  await expect.poll(() => screens.length).toBe(2);
+  await afterFrames(4);
+
+  expect(recorded.positions.length).toBeGreaterThan(0);
+  expect(screens).toHaveLength(2);
+});
+
+test('going back to a page is another screen', async () => {
+  const screens = await theScreensOfAnOpenBook();
+
+  await reader.next();
+  await expect.poll(() => screens.length).toBe(2);
+  await reader.previous();
+
+  await expect.poll(() => screens.length).toBe(3);
+  expect(screens[2]).toEqual(screens[0]);
+});
+
+test('a new font size is another screen, even of the same words', async () => {
+  // Chapter one is a heading and one paragraph, on screen whole at either size.
+  const screens = await theScreensOfAnOpenBook({});
+
+  await reader.setAppearance({ ...AN_APPEARANCE, fontSize: 1.25 });
+
+  await expect.poll(() => screens.length).toBe(2);
+  expect(screens[1]).toEqual(screens[0]);
+  await afterFrames(4);
+  expect(screens).toHaveLength(2);
+});
+
+test('the screen after a new font size ends where the larger text does', async () => {
+  const screens = await theScreensOfAnOpenBook();
+
+  await reader.setAppearance({ ...AN_APPEARANCE, fontSize: 1.25 });
+
+  await expect.poll(() => screens.length).toBe(2);
+  expect(lastWordOf(screens[1]?.end)).toBe(last(wordsOnScreen()));
+  expect(lastWordOf(screens[1]?.end)).not.toBe(lastWordOf(screens[0]?.end));
+});
+
+test('two columns side by side are one screen, from the left one to the right one', async () => {
+  host.style.width = '1400px';
+  worker.use(...readiumApi({ counting: true }));
+  const screens = recordScreens();
+  await reader.open(MANIFEST_URL, { appearance: { ...AN_APPEARANCE, columnCount: 2 } });
+  await expect.poll(() => screens.length).toBe(1);
+
+  await reader.next();
+  await expect.poll(() => screens.length).toBe(2);
+  await afterFrames(4);
+
+  const chapter = visibleFrame()!.contentDocument!;
+  const end = rangeOver(chapter, lastWordOf(screens[1]?.end)!);
+  expect(end.getBoundingClientRect().left).toBeGreaterThan(chapter.defaultView!.innerWidth / 2);
+  expect(firstWordOf(screens[1]?.start)).toBe(wordsOnScreen()[0]);
+  expect(lastWordOf(screens[1]?.end)).toBe(last(wordsOnScreen()));
+  expect(screens).toHaveLength(2);
+});
+
+test('a page colour changes no screen', async () => {
+  const screens = await theScreensOfAnOpenBook();
+
+  await reader.setAppearance({ ...AN_APPEARANCE, pageBackgroundColor: '#1c1917' });
+  await expect.poll(() => userProperty('backgroundColor')).toBe('#1c1917');
+  await afterFrames(4);
+
+  expect(screens).toHaveLength(1);
+});
+
+test('the last page of a chapter ends at its last word', async () => {
+  const screens = await theScreensOfAnOpenBook();
+
+  await reader.goTo({ ...aPositionList().positions[0], locations: { progression: 1 } });
+
+  await expect.poll(() => lastWordOf(last(screens)?.end)).toBe('word2400');
+  expect(firstWordOf(last(screens)?.start)).toBe(wordsOnScreen()[0]);
+});
+
+test('a page with no text on it is reported as nothing to measure', async () => {
+  worker.use(...readiumApi({ picture: true }));
+  const screens = recordScreens();
+
+  await openTheBook();
+
+  await expect.poll(() => screens).toEqual([null]);
 });

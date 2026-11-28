@@ -10,6 +10,7 @@ from src.application.library.protocols.book_repository import BookRepositoryProt
 from src.application.library.protocols.chapter_repository import ChapterRepositoryProtocol
 from src.application.library.protocols.file_repository import FileRepositoryProtocol
 from src.application.library.protocols.position_index_service import PositionIndexServiceProtocol
+from src.application.reading.page_view_placement import place_page_view
 from src.application.reading.protocols.highlight_repository import (
     HighlightRepositoryProtocol,
 )
@@ -27,7 +28,6 @@ from src.domain.common.value_objects import (
     BookId,
     ReadingSessionId,
     UserId,
-    XPoint,
     XPointRange,
 )
 from src.domain.common.value_objects.position import Position
@@ -335,32 +335,18 @@ class ReadingSessionUploadUseCase:
     def _place_page_view(
         self, item: PageViewUploadData, position_index: PositionIndex, source_hash: str
     ) -> PageView | None:
-        """Place an uploaded Page View in the book, or ``None`` if its xpoints do not resolve or it is malformed."""
-        start_position = position_index.resolve(item.start_xpoint)
-        end_position = position_index.resolve(item.end_xpoint)
-        start_offset = position_index.character_offset(item.start_xpoint)
-        end_offset = position_index.character_offset(item.end_xpoint)
-        if (
-            start_position is None
-            or end_position is None
-            or start_offset is None
-            or end_offset is None
-        ):
-            return None
         try:
-            return PageView(
-                start_xpoint=XPoint.parse(item.start_xpoint),
-                end_xpoint=XPoint.parse(item.end_xpoint),
-                start_position=start_position,
-                end_position=end_position,
-                start_offset=start_offset,
-                end_offset=end_offset,
-                position_source_hash=source_hash,
-                shown_at=item.shown_at,
-                duration=timedelta(seconds=item.duration_seconds),
-            )
-        except (DomainError, OverflowError):
+            duration = timedelta(seconds=item.duration_seconds)
+        except OverflowError:
             return None
+        return place_page_view(
+            position_index,
+            item.start_xpoint,
+            item.end_xpoint,
+            source_hash,
+            shown_at=item.shown_at,
+            duration=duration,
+        )
 
     async def _store_locators(
         self,

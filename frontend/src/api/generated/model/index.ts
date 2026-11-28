@@ -119,6 +119,7 @@ export * from './noteUpdateRequestKind.ts';
 export * from './noteUpdateResponse.ts';
 export * from './noteWithLinks.ts';
 export * from './pageViewSyncItem.ts';
+export * from './pageViewUpdate.ts';
 export * from './paginatedResponseBookWithHighlightCount.ts';
 export * from './paginatedResponseReadingSession.ts';
 export * from './positionList.ts';

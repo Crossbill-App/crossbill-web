@@ -4,6 +4,7 @@ import type {
   EbookDecoration,
   EbookLocation,
   EbookReader,
+  EbookScreen,
   EbookSelection,
   OpenEbookOptions,
   OpenedEbook,
@@ -16,6 +17,17 @@ export const aFakeLocation = (position: number): EbookLocation => ({
   type: 'application/xhtml+xml',
   locations: { position, totalProgression: (position - 1) / 2 },
 });
+
+/** A screen of the first chapter, told from the others by its number. */
+export const aFakeScreen = (page: number): EbookScreen => {
+  const quoting = (highlight: string): EbookLocation => ({
+    href: 'resources/OEBPS/chapter1.xhtml',
+    type: 'application/xhtml+xml',
+    locations: { cssSelector: `body > p:nth-child(${page})` },
+    text: { highlight },
+  });
+  return { start: quoting(`Page ${page} opens`), end: quoting(`page ${page} closes`) };
+};
 
 /** An `EbookReader` whose open the test settles and whose events the test fires. */
 export class FakeEbookReader implements EbookReader {
@@ -47,6 +59,7 @@ export class FakeEbookReader implements EbookReader {
   private readonly decorationListeners = new Set<(id: string) => void>();
   private readonly linkListeners = new Set<() => void>();
   private readonly selectionListeners = new Set<(selection: EbookSelection | null) => void>();
+  private readonly screenListeners = new Set<(screen: EbookScreen | null) => void>();
   private settle: ((opened: OpenedEbook) => void) | undefined;
   private refuse: ((reason: Error) => void) | undefined;
   private isOpened = false;
@@ -108,6 +121,10 @@ export class FakeEbookReader implements EbookReader {
   followLink(destination: EbookLocation): void {
     for (const listener of [...this.linkListeners]) listener();
     this.reportLocation(destination);
+  }
+
+  showScreen(screen: EbookScreen | null): void {
+    for (const listener of [...this.screenListeners]) listener(screen);
   }
 
   activateDecoration(id: string): void {
@@ -200,6 +217,11 @@ export class FakeEbookReader implements EbookReader {
   onChapterProgressChanged(listener: (progress: EbookChapterProgress | null) => void): () => void {
     this.chapterProgressListeners.add(listener);
     return () => this.chapterProgressListeners.delete(listener);
+  }
+
+  onScreenShown(listener: (screen: EbookScreen | null) => void): () => void {
+    this.screenListeners.add(listener);
+    return () => this.screenListeners.delete(listener);
   }
 
   destroy(): Promise<void> {

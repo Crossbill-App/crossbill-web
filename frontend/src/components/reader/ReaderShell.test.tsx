@@ -8,6 +8,7 @@ import type {
 } from '@/api/generated/model';
 import type {
   EbookDecoration,
+  EbookScreen,
   EbookTocEntry,
   OpenedEbook,
 } from '@/components/reader/engine/EbookReader.ts';
@@ -25,7 +26,7 @@ import {
   createRouter,
   type AnyRouter,
 } from '@tanstack/react-router';
-import { aFakeLocation, type FakeEbookReader } from '@tests/fakes/FakeEbookReader';
+import { aFakeLocation, aFakeScreen, type FakeEbookReader } from '@tests/fakes/FakeEbookReader';
 import { aBookDetails, aChapter, aHighlight } from '@tests/fixtures/book';
 import {
   aHighlightLocator,
@@ -41,6 +42,7 @@ import {
   afterTheAnswersRender,
   unmountAndAwaitItsWrites,
 } from '@tests/harness/settle';
+import { visibleFrame } from '@tests/harness/textSelection';
 import { bookApi } from '@tests/msw/bookApi';
 import {
   aHeldSession,
@@ -876,12 +878,18 @@ test('closing the tab ends the session, and only once', async () => {
   expect(writes).toHaveLength(1);
 });
 
-test('a book that never came up writes nothing on the way out', async () => {
+/** The shell on its way to a book, over position handlers that remember what was written. */
+const aShellRecordingPositions = async () => {
   worker.use(...readiumApi());
   const positions = readingPositionApi();
   worker.use(...positions.handlers);
   const screen = await renderShell();
   await expect.poll(() => readers.length).toBe(1);
+  return { screen, positions };
+};
+
+test('a book that never came up writes nothing on the way out', async () => {
+  const { screen, positions } = await aShellRecordingPositions();
   readers[0].reportLocation(aFakeLocation(1));
   readers[0].rejectOpen();
   await expect.element(screen.getByRole('alert')).toBeVisible();
@@ -890,6 +898,202 @@ test('a book that never came up writes nothing on the way out', async () => {
 
   expect(positions.openings).toEqual([]);
   expect(positions.writes).toEqual([]);
+});
+
+/**
+ * Every write carries the Page Views ended since the last one that landed: each
+ * screen the reader saw, and for how long.
+ */
+
+/** The shell open on the last of `screens`, each shown while the book came up. */
+const aBookShowing = async (...screens: EbookScreen[]) => {
+  const { screen, positions } = await aShellRecordingPositions();
+  for (const shown of screens) readers[0].showScreen(shown);
+  readers[0].resolveOpen();
+  await expect.poll(() => positions.openings.length).toBe(1);
+  return { screen, ...positions };
+};
+
+const startsOf = (update: ReadingPositionUpdate | undefined) =>
+  update?.page_views.map((view) => view.start.text?.highlight);
+
+/** Unmounted, and the write it sends on the way out. */
+const theClosingWrite = async (screen: Screen, writes: ReadingPositionUpdate[]) => {
+  await unmountAndAwaitItsWrites(() => screen.unmount());
+  const closing = writes[writes.length - 1];
+  expect(closing.closing).toBe(true);
+  return closing;
+};
+
+test('the opening write carries no Page Views, and the closing one the screen on show', async () => {
+  const { screen, writes, openings } = await aBookShowing(aFakeScreen(1));
+
+  expect(openings[0].page_views).toEqual([]);
+  const closing = await theClosingWrite(screen, writes);
+  expect(closing.page_views).toEqual([
+    expect.objectContaining({ start: aFakeScreen(1).start, end: aFakeScreen(1).end }),
+  ]);
+});
+
+test('screens shown while the book comes up are not Page Views', async () => {
+  const { screen, writes, openings } = await aBookShowing(aFakeScreen(1), aFakeScreen(2));
+
+  const closing = await theClosingWrite(screen, writes);
+
+  expect(openings[0].page_views).toEqual([]);
+  expect(startsOf(closing)).toEqual(['Page 2 opens']);
+});
+
+test('a page brought back from the back-forward cache opens a sitting and records its screen', async () => {
+  fakeTheClock();
+  const { screen, writes, openings } = await aBookShowing(aFakeScreen(1));
+  window.dispatchEvent(new PageTransitionEvent('pagehide', { persisted: true }));
+  await expect.poll(() => writes.length).toBe(1);
+
+  window.dispatchEvent(new PageTransitionEvent('pageshow', { persisted: true }));
+  await expect.poll(() => openings.length).toBe(2);
+  await vi.advanceTimersByTimeAsync(60_000);
+
+  const closing = await theClosingWrite(screen, writes);
+  expect(startsOf(closing)).toEqual(['Page 1 opens']);
+  expect(closing.page_views[0].duration_ms).toBeGreaterThanOrEqual(60_000);
+});
+
+test('a move write carries the screens that ended before it', async () => {
+  fakeTheClock();
+  const { writes } = await aBookShowing(aFakeScreen(1));
+  await vi.advanceTimersByTimeAsync(3_000);
+
+  readers[0].showScreen(aFakeScreen(2));
+  readers[0].reportLocation(aFakeLocation(2));
+
+  await expectAWriteOnceTheDebounceRunsOut(writes);
+  expect(startsOf(writes[0])).toEqual(['Page 1 opens']);
+  expect(writes[0].page_views[0].duration_ms).toBeGreaterThanOrEqual(3_000);
+  // Shown before the move, which was sent a debounce later.
+  expect(writes[0].page_views[0].shown_ms_before_send).toBeGreaterThanOrEqual(8_000);
+});
+
+test('time the tab spends hidden is not counted as time on the page', async () => {
+  fakeTheClock();
+  const { screen, writes } = await aBookShowing(aFakeScreen(1));
+  await vi.advanceTimersByTimeAsync(2_000);
+  hideTheTab();
+  await vi.advanceTimersByTimeAsync(60_000);
+  showTheTab();
+  await vi.advanceTimersByTimeAsync(3_000);
+
+  readers[0].showScreen(aFakeScreen(2));
+
+  const closing = await theClosingWrite(screen, writes);
+  expect(startsOf(closing)).toEqual(['Page 1 opens', 'Page 2 opens']);
+  const [hidden] = closing.page_views;
+  expect(hidden.duration_ms).toBeGreaterThanOrEqual(5_000);
+  expect(hidden.duration_ms).toBeLessThan(60_000);
+  expect(hidden.shown_ms_before_send).toBeGreaterThanOrEqual(65_000);
+});
+
+test('the Page Views of a refused write go with the next one', async () => {
+  fakeTheClock();
+  const { writes } = await aBookShowing(aFakeScreen(1));
+  const refused: ReadingPositionUpdate[] = [];
+  worker.use(
+    http.put(
+      POSITION_PATH,
+      async ({ request }) => {
+        refused.push((await request.json()) as ReadingPositionUpdate);
+        return new HttpResponse(null, { status: 503 });
+      },
+      { once: true }
+    )
+  );
+  readers[0].showScreen(aFakeScreen(2));
+  readers[0].reportLocation(aFakeLocation(2));
+  await expect
+    .poll(async () => {
+      await vi.advanceTimersByTimeAsync(5_000);
+      return refused.length;
+    })
+    .toBe(1);
+
+  await vi.advanceTimersByTimeAsync(10_000);
+  readers[0].showScreen(aFakeScreen(3));
+  readers[0].reportLocation(aFakeLocation(3));
+
+  await expectAWriteOnceTheDebounceRunsOut(writes);
+  expect(startsOf(refused[0])).toEqual(['Page 1 opens']);
+  expect(startsOf(writes[0])).toEqual(['Page 1 opens', 'Page 2 opens']);
+  // Measured from this send, not the refused one.
+  expect(writes[0].page_views[0].shown_ms_before_send).toBeGreaterThanOrEqual(
+    refused[0].page_views[0].shown_ms_before_send + 15_000
+  );
+});
+
+test('a Page View a write delivered is not sent again', async () => {
+  fakeTheClock();
+  const { screen, writes } = await aBookShowing(aFakeScreen(1));
+  readers[0].showScreen(aFakeScreen(2));
+  readers[0].reportLocation(aFakeLocation(2));
+  await expectAWriteOnceTheDebounceRunsOut(writes);
+
+  const closing = await theClosingWrite(screen, writes);
+
+  expect(startsOf(closing)).toEqual(['Page 2 opens']);
+});
+
+test('a screen with nothing to measure ends the Page View and starts none', async () => {
+  const { screen, writes } = await aBookShowing(aFakeScreen(1));
+
+  readers[0].showScreen(null);
+
+  const closing = await theClosingWrite(screen, writes);
+  expect(startsOf(closing)).toEqual(['Page 1 opens']);
+});
+
+/** The shell open on Readium itself, at the first of the counting chapter's pages. */
+const aRealBookRecordingPositions = async (options: Parameters<typeof readiumApi>[0] = {}) => {
+  switchToTheRealEngine();
+  worker.use(...readiumApi(options));
+  const positions = readingPositionApi();
+  worker.use(...positions.handlers);
+  const screen = await renderShell();
+  await expect.poll(() => positions.openings.length, { timeout: 5_000 }).toBe(1);
+  return { screen, ...positions };
+};
+
+test('a page turned on Readium ends one Page View and starts the next', async () => {
+  fakeTheClock();
+  const { screen, writes } = await aRealBookRecordingPositions({ counting: true });
+
+  await screen.getByRole('button', { name: 'Next page' }).click();
+
+  await expectAWriteOnceTheDebounceRunsOut(writes);
+  expect(startsOf(writes[0])).toEqual([expect.stringMatching(/^On Counting word1 /)]);
+  const closing = await theClosingWrite(screen, writes);
+  expect(startsOf(closing)).toEqual([expect.stringMatching(/^word\d+/)]);
+});
+
+test('a new font size ends the Page View, even with the same words on screen', async () => {
+  fakeTheClock();
+  // Chapter one is a heading and one paragraph, on screen whole at either size.
+  const { screen, writes } = await aRealBookRecordingPositions();
+  await openTheAppearance(screen);
+
+  await screen.getByRole('button', { name: 'Larger text' }).click();
+  await expect
+    .poll(() =>
+      visibleFrame(document)?.contentDocument?.documentElement.style.getPropertyValue(
+        '--USER__fontSize'
+      )
+    )
+    .toBe('125%');
+  // Past the engine's wait for a relayout to settle.
+  await vi.advanceTimersByTimeAsync(1_000);
+
+  const closing = await theClosingWrite(screen, writes);
+  expect(closing.page_views).toHaveLength(2);
+  expect(closing.page_views[1].start).toEqual(closing.page_views[0].start);
+  expect(closing.page_views[1].end).toEqual(closing.page_views[0].end);
 });
 
 /**

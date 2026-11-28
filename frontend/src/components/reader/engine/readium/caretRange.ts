@@ -56,7 +56,7 @@ export const rangeBetween = (anchor: CaretPoint, caret: CaretPoint): Range | nul
   return range;
 };
 
-const isOnScreen = (frame: Window, rect: DOMRect): boolean =>
+export const isOnScreen = (frame: Window, rect: DOMRect): boolean =>
   rect.right > 0 && rect.left < frame.innerWidth && rect.bottom > 0 && rect.top < frame.innerHeight;
 
 /** A page is a column, so the bounding box of a range spanning several of them covers

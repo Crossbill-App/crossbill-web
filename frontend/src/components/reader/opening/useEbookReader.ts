@@ -5,6 +5,7 @@ import {
   type EbookDecoration,
   type EbookLocation,
   type EbookReader,
+  type EbookScreen,
   type EbookSelection,
   type EbookTocEntry,
   type OpenedEbook,
@@ -32,6 +33,8 @@ interface EbookReaderListeners {
   opened?: () => void;
   /** A place the book reports once it is on screen. */
   movedTo?: (location: EbookLocation) => void;
+  /** Every new screen, while the book comes up as well as after; `null` for one with no text. */
+  screenShown?: (screen: EbookScreen | null) => void;
   /** The id of a decoration the reader tapped. */
   decorationActivated?: (id: string) => void;
   /** A link inside the book was followed; the move it causes is reported after it. */
@@ -132,6 +135,7 @@ export const useEbookReader = ({
   const reportArrival = useEffectEvent((location: EbookLocation) => on?.arrivedAt?.(location));
   const reportOpened = useEffectEvent(() => on?.opened?.());
   const reportMove = useEffectEvent((location: EbookLocation) => on?.movedTo?.(location));
+  const reportScreen = useEffectEvent((screen: EbookScreen | null) => on?.screenShown?.(screen));
   const activateDecoration = useEffectEvent((id: string) => on?.decorationActivated?.(id));
   const followLink = useEffectEvent(() => on?.linkFollowed?.());
   const refuseExtension = useEffectEvent(() => on?.selectionExtensionRefused?.());
@@ -169,6 +173,7 @@ export const useEbookReader = ({
         // Any report, a reflow included, leaves the selection's rectangle behind.
         reader.clearSelection();
       }),
+      reader.onScreenShown((screen) => reportScreen(screen)),
       reader.onSelectionChanged(setSelection),
       reader.onTocEntryChanged(setCurrentTocHref),
       reader.onChapterProgressChanged(setChapterProgress),

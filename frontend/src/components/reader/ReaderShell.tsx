@@ -93,7 +93,7 @@ export const ReaderShell = ({ bookId, onClose, onOpenHighlight, target }: Reader
       }),
     [theme, pageColor, fontSize, typeface, spacing, alignment, hyphenation, columns]
   );
-  const { seed, opened, moved } = useReadingPositionWriter(bookId);
+  const { seed, opened, moved, screenShown } = useReadingPositionWriter(bookId);
   const linkHistory = useLinkHistory(bookId);
   // Latched, so that nothing done to the address after the book opens can move it.
   const [jump] = useState(target ?? null);
@@ -124,6 +124,7 @@ export const ReaderShell = ({ bookId, onClose, onOpenHighlight, target }: Reader
         moved(location);
         linkHistory.record(location);
       },
+      screenShown,
       linkFollowed: linkHistory.linkFollowed,
       decorationActivated: (id) => {
         const tapped = highlightIdFrom(id);

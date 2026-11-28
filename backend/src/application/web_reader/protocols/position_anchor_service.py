@@ -64,6 +64,18 @@ class PositionAnchorServiceProtocol(Protocol):
         """
         ...
 
+    async def xpoint_ranges_for_locators[K: Hashable](
+        self, epub_content: bytes, locators: Mapping[K, Locator]
+    ) -> dict[K, AnchorMatch | None]:
+        """Resolve many browser-made Locators against one parse, ``None`` where one does not place.
+
+        Graded, not filtered, as :meth:`xpoint_range_for_locator` is.
+
+        Raises:
+            AnchorResolutionError: If the archive itself cannot be read.
+        """
+        ...
+
     def verify_locator(self, locator: Locator, expected_text: str) -> bool:
         """Report whether a Locator's quote is the text that was stored.
 

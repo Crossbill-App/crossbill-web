@@ -5,6 +5,7 @@
  * OpenAPI spec version: 0.0.0
  */
 import type { BrowserLocatorSchema } from './browserLocatorSchema.ts';
+import type { PageViewUpdate } from './pageViewUpdate.ts';
 
 /**
  * What the reader sends when they open the book, move, or leave it.
@@ -12,6 +13,8 @@ import type { BrowserLocatorSchema } from './browserLocatorSchema.ts';
 export interface ReadingPositionUpdate {
   /** Where the reader now is */
   locator: BrowserLocatorSchema;
+  /** The screens seen since the last accepted write, possibly none. One that cannot be placed or does not fit the reading session is dropped. */
+  page_views: PageViewUpdate[];
   /** When the reader was there, by their own clock. Never read as later than the moment the request arrives. */
   recorded_at: string;
   /** Whether the book has just been opened at this position. Starts a new reading session even though the reader has not moved. */

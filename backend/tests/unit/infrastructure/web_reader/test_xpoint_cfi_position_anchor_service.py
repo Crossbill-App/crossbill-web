@@ -718,6 +718,31 @@ class TestLocatorToXPointFailure:
         assert type(raised.value) is AnchorResolutionError
 
 
+class TestLocatorsToXPointsBatch:
+    async def test_one_parse_resolves_the_batch_and_a_missing_place_is_none(
+        self, anchors: PositionAnchorServiceProtocol, epub: bytes, parses: list[bytes]
+    ) -> None:
+        missing = Locator(href="OEBPS/chapter9.xhtml", type="application/xhtml+xml")
+
+        matches = await anchors.xpoint_ranges_for_locators(
+            epub, {1: chapter_one_locator(highlight="She wrote"), 2: missing}
+        )
+
+        assert parses == [epub]
+        assert matches[2] is None
+        match = matches[1]
+        assert match is not None
+        assert match.xpoints.start.to_string() == "/body/DocFragment[1]/body/div[1]/p[2]/text().0"
+
+    async def test_bytes_that_are_not_an_epub_fail_the_whole_batch(
+        self, anchors: PositionAnchorServiceProtocol
+    ) -> None:
+        with pytest.raises(AnchorResolutionError, match="Cannot read EPUB"):
+            await anchors.xpoint_ranges_for_locators(
+                b"not a zip archive at all", {1: chapter_one_locator(highlight="She wrote")}
+            )
+
+
 class TestVerification:
     async def test_a_derived_anchor_verifies_against_the_stored_highlight_text(
         self, anchors: PositionAnchorServiceProtocol, derived: Locator

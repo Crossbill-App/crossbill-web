@@ -78,6 +78,31 @@ const linkingChapter = () =>
   </body>
 </html>`;
 
+/** A first chapter of several pages whose every word is different: `word1`, `word2` and on. */
+const countingChapter = () => {
+  const paragraphs = Array.from({ length: 60 }, (_, paragraph) =>
+    Array.from({ length: 40 }, (_, word) => `word${paragraph * 40 + word + 1}`).join(' ')
+  );
+  return `<?xml version="1.0" encoding="utf-8"?>
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head><title>On Counting</title></head>
+  <body>
+    <h1>On Counting</h1>
+    ${paragraphs.map((text) => `<p>${text}</p>`).join('\n    ')}
+  </body>
+</html>`;
+};
+
+/** A first chapter that is a picture and no text. */
+const pictureChapter = () =>
+  `<?xml version="1.0" encoding="utf-8"?>
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head><title>Plate</title></head>
+  <body><img alt="" width="300" height="300" src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg'/%3E" /></body>
+</html>`;
+
 /** The files `aManifest` names, keyed by the path the resource route receives. */
 const RESOURCES: Record<string, { body: string; type: string } | undefined> = {
   'OEBPS/chapter1.xhtml': { body: chapterDocument('On Attention'), type: 'application/xhtml+xml' },
@@ -205,6 +230,10 @@ interface ReadiumApiOptions {
   hostile?: boolean;
   /** Serve the first chapter with a link into the second and one out of the book. */
   withLinks?: boolean;
+  /** Serve the first chapter as pages of words each different from the rest. */
+  counting?: boolean;
+  /** Serve the first chapter as a picture with no text. */
+  picture?: boolean;
   /** Told about every request these handlers answer, for tests about what was sent. */
   onRequest?: (request: Request) => void;
 }
@@ -221,6 +250,8 @@ export const readiumApi = ({
   expiresIn = 900,
   hostile = false,
   withLinks = false,
+  counting = false,
+  picture = false,
   onRequest = () => {},
 }: ReadiumApiOptions = {}) => [
   http.post(SESSION_PATH, ({ request }) => {
@@ -248,7 +279,12 @@ export const readiumApi = ({
   http.get(RESOURCE_PATH, ({ request, params }) => {
     onRequest(request);
     const path = String(params[0]);
-    const firstChapter = hostile ? hostileChapter() : withLinks ? linkingChapter() : undefined;
+    const firstChapter = [
+      hostile && hostileChapter(),
+      withLinks && linkingChapter(),
+      counting && countingChapter(),
+      picture && pictureChapter(),
+    ].find(Boolean);
     const rewritten =
       firstChapter && path === 'OEBPS/chapter1.xhtml'
         ? { body: firstChapter, type: 'application/xhtml+xml' }

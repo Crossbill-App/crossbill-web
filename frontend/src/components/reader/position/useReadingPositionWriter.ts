@@ -2,21 +2,27 @@
  * Writes down where the reader is in one book while the reader is open.
  *
  * Hand `seed` every place the book reports while it is still coming up,
- * `opened` once it is on screen, and `moved` every place it reports afterwards,
- * and it decides what is worth sending. A failed write is swallowed: the reader
- * is reading, the next page turn tries again, and the position lost by saying
- * nothing is the one still in front of them.
+ * `opened` once it is on screen, `moved` every place it reports afterwards and
+ * `screenShown` every screen, and it decides what is worth sending. A failed
+ * write is swallowed: the reader is reading, the next page turn tries again,
+ * and the position lost by saying nothing is the one still in front of them.
+ * Its Page Views are not lost: the next write carries them.
  *
  * Nothing here resets when `bookId` changes: the shell is keyed by book, so a
  * different book is a different component with its own state.
  */
-import type { BrowserLocatorSchema, ReadingPositionUpdate } from '@/api/generated/model';
+import type {
+  BrowserLocatorSchema,
+  PageViewUpdate,
+  ReadingPositionUpdate,
+} from '@/api/generated/model';
 import { putReadingPosition } from '@/api/generated/readium/readium.ts';
 import { getAccessToken } from '@/api/token-manager.ts';
 import { toBrowserLocator } from '@/components/reader/api/apiLocators.ts';
 import { readingPositionUrl } from '@/components/reader/api/readiumUrls.ts';
 import type { EbookLocation } from '@/components/reader/engine/EbookReader.ts';
-import { useCallback, useEffect, useRef } from 'react';
+import { pageViewLog, pageViewUpdates } from '@/components/reader/position/pageViews.ts';
+import { useCallback, useEffect, useRef, useState } from 'react';
 
 // A page turn is not a decision to stop reading, and someone flicking through a
 // chapter would otherwise write a position per page.
@@ -32,12 +38,18 @@ interface Observation {
   at: string;
 }
 
+interface WriteKind {
+  opening?: boolean;
+  closing?: boolean;
+}
+
 const update = (
   { locator, at }: Observation,
-  closing: boolean,
-  opening = false
+  pageViews: PageViewUpdate[],
+  { opening = false, closing = false }: WriteKind
 ): ReadingPositionUpdate => ({
   locator,
+  page_views: pageViews,
   recorded_at: at,
   opening,
   closing,
@@ -60,13 +72,18 @@ export const useReadingPositionWriter = (bookId: number) => {
   // When anything was last said about this book, so the heartbeat can ask how
   // long the reader has been quiet rather than counting from its own last tick.
   const spokeAtRef = useRef(0);
+  const [pageViews] = useState(pageViewLog);
 
   const send = useCallback(
-    (body: ReadingPositionUpdate, departing: boolean) => {
+    (observed: Observation, kind: WriteKind, departing: boolean) => {
       readingRef.current = true;
       spokeAtRef.current = Date.now();
+      const batch = pageViews.take();
+      const body = update(observed, pageViewUpdates(batch, performance.now()), kind);
+      // Only a write that landed has delivered its Page Views.
+      const giveBack = () => pageViews.giveBack(batch);
       if (!departing) {
-        void putReadingPosition(bookId, body).catch(() => undefined);
+        void putReadingPosition(bookId, body).catch(giveBack);
         return;
       }
       // `keepalive` is the only kind of request a page is allowed to leave
@@ -80,9 +97,13 @@ export const useReadingPositionWriter = (bookId: number) => {
         },
         body: JSON.stringify(body),
         keepalive: true,
-      }).catch(() => undefined);
+      })
+        .then((response) => {
+          if (!response.ok) giveBack();
+        })
+        .catch(giveBack);
     },
-    [bookId]
+    [bookId, pageViews]
   );
 
   const sendPending = useCallback(
@@ -90,7 +111,7 @@ export const useReadingPositionWriter = (bookId: number) => {
       clearTimeout(timerRef.current);
       const pending = pendingRef.current;
       pendingRef.current = null;
-      if (pending) send(update(pending, false), departing);
+      if (pending) send(pending, {}, departing);
     },
     [send]
   );
@@ -103,9 +124,22 @@ export const useReadingPositionWriter = (bookId: number) => {
     // Something to record, or a session open that needs ending. A book that
     // never came up is neither, and nor is one this has already closed.
     if (!observed || !(pending || readingRef.current)) return;
-    send(update(observed, true), true);
+    pageViews.endCurrent();
+    send(observed, { closing: true }, true);
     readingRef.current = false;
-  }, [send]);
+  }, [send, pageViews]);
+
+  /**
+   * The book is on screen where it was last seeded: the sitting starts here.
+   * Opening a book and leaving it again writes twice, and the server keeps
+   * neither as reading.
+   */
+  const opened = useCallback(() => {
+    pageViews.startRecording();
+    const observed = latestRef.current;
+    if (!observed) return;
+    send(observed, { opening: true }, false);
+  }, [send, pageViews]);
 
   useEffect(() => {
     // Polled rather than scheduled from each write: a backgrounded tab throttles
@@ -125,24 +159,35 @@ export const useReadingPositionWriter = (bookId: number) => {
       // The observation's own moment, not this one: a heartbeat says the reader
       // is still here, never that they moved. A fresh timestamp would claim to
       // be a newer sighting than the page another tab is actually on.
-      send(update(observed, false), false);
+      send(observed, {}, false);
     }, HEARTBEAT_MS / 2);
 
     // Coming back to a hidden tab is the same sitting, so it flushes what is
-    // pending and leaves the session open.
+    // pending and leaves the session open; the page on screen only pauses.
     const flushIfHidden = () => {
-      if (document.visibilityState === 'hidden') sendPending(true);
+      if (document.visibilityState !== 'hidden') {
+        pageViews.shown();
+        return;
+      }
+      pageViews.hidden();
+      sendPending(true);
     };
     document.addEventListener('visibilitychange', flushIfHidden);
     // Closing the tab or reloading unmounts nothing, so the sitting is ended here.
     window.addEventListener('pagehide', close);
+    // A page brought back from the back-forward cache was closed by its pagehide.
+    const reopen = (event: PageTransitionEvent) => {
+      if (event.persisted) opened();
+    };
+    window.addEventListener('pageshow', reopen);
     return () => {
+      window.removeEventListener('pageshow', reopen);
       window.removeEventListener('pagehide', close);
       document.removeEventListener('visibilitychange', flushIfHidden);
       clearInterval(tick);
       close();
     };
-  }, [send, sendPending, close]);
+  }, [send, sendPending, close, opened, pageViews]);
 
   /** Where the reader already is: remembered, and written only as the opening. */
   const seed = useCallback((location: EbookLocation) => {
@@ -152,17 +197,6 @@ export const useReadingPositionWriter = (bookId: number) => {
     // Staying in a book is reading: the heartbeat's clock starts here.
     spokeAtRef.current = Date.now();
   }, []);
-
-  /**
-   * The book is on screen where it was last seeded: the sitting starts here.
-   * Opening a book and leaving it again writes twice, and the server keeps
-   * neither as reading.
-   */
-  const opened = useCallback(() => {
-    const observed = latestRef.current;
-    if (!observed) return;
-    send(update(observed, false, true), false);
-  }, [send]);
 
   /** Where the reader has moved to: written down once the moving stops. */
   const moved = useCallback(
@@ -186,5 +220,5 @@ export const useReadingPositionWriter = (bookId: number) => {
     [seed, sendPending]
   );
 
-  return { seed, opened, moved };
+  return { seed, opened, moved, screenShown: pageViews.screenShown };
 };

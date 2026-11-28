@@ -15,6 +15,7 @@ from src.application.web_reader.commands.start_publication_session_use_case impo
     StartPublicationSessionUseCase,
 )
 from src.application.web_reader.dtos import PublicationToken
+from src.application.web_reader.page_view_reports import PageViewReport
 from src.application.web_reader.publications import (
     ParsedPublication,
     PublicationResource,
@@ -337,6 +338,15 @@ async def put_reading_position(
         stored_locator=update.locator.model_dump(mode="json", by_alias=True, exclude_none=True),
         recorded_at=update.recorded_at,
         now=now,
+        page_views=[
+            PageViewReport(
+                start=anchor_locator(page_view.start),
+                end=anchor_locator(page_view.end),
+                shown_ms_before_send=page_view.shown_ms_before_send,
+                duration_ms=page_view.duration_ms,
+            )
+            for page_view in update.page_views
+        ],
         page=update.locator.locations.position,
         opening=update.opening,
         closing=update.closing,
