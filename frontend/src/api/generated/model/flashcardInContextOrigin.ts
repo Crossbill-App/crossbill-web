@@ -8,10 +8,10 @@
 /**
  * Written by the reader or generated
  */
-export type ReviewFlashcardOrigin =
-  (typeof ReviewFlashcardOrigin)[keyof typeof ReviewFlashcardOrigin];
+export type FlashcardInContextOrigin =
+  (typeof FlashcardInContextOrigin)[keyof typeof FlashcardInContextOrigin];
 
-export const ReviewFlashcardOrigin = {
+export const FlashcardInContextOrigin = {
   manual: 'manual',
   generated: 'generated',
 } as const;

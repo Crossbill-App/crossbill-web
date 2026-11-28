@@ -1,7 +1,7 @@
 """Read use case for the list of Suspended flashcards."""
 
 from src.application.common.ownership import require_book_if_given
-from src.application.learning.queries.review_flashcards import ReviewFlashcardPageView
+from src.application.learning.queries.flashcards_in_context import FlashcardInContextPageView
 from src.application.learning.queries.suspended_flashcards import (
     SuspendedFlashcardQueryProtocol,
 )
@@ -22,7 +22,7 @@ class GetSuspendedFlashcardsUseCase:
 
     async def get_suspended_flashcards(
         self, user_id: int, book_id: int | None, limit: int, offset: int
-    ) -> ReviewFlashcardPageView:
+    ) -> FlashcardInContextPageView:
         """Return a page of the suspended flashcards.
 
         Raises:

@@ -4,10 +4,10 @@
  * crossbill API
  * OpenAPI spec version: 0.0.0
  */
-import type { ReviewFlashcard } from './reviewFlashcard.ts';
+import type { FlashcardInContext } from './flashcardInContext.ts';
 
-export interface PaginatedResponseReviewFlashcard {
-  items: ReviewFlashcard[];
+export interface PaginatedResponseFlashcardInContext {
+  items: FlashcardInContext[];
   total: number;
   offset: number;
   limit: number;

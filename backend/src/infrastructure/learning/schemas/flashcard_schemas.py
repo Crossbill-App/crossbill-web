@@ -32,7 +32,7 @@ class Flashcard(BaseModel):
     model_config = {"from_attributes": True}
 
 
-class ReviewFlashcard(Flashcard):
+class FlashcardInContext(Flashcard):
     """A flashcard with the book, chapter and source a review shows it with."""
 
     book_title: str
@@ -54,7 +54,7 @@ class RatingPreviews(BaseModel):
     easy: dt
 
 
-class DueFlashcard(ReviewFlashcard):
+class DueFlashcard(FlashcardInContext):
     """A Due Flashcard with its rating previews."""
 
     previews: RatingPreviews

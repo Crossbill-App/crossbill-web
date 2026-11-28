@@ -1,4 +1,4 @@
-"""The select, book order and row mapping that every review flashcard list shares."""
+"""The select, book order and row mapping that every list of flashcards in context shares."""
 
 from collections.abc import Sequence
 from dataclasses import asdict
@@ -7,9 +7,9 @@ from typing import Any
 from sqlalchemy import ColumnElement, Row, Select, and_, case, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from src.application.learning.queries.review_flashcards import (
-    ReviewFlashcardPageView,
-    ReviewFlashcardView,
+from src.application.learning.queries.flashcards_in_context import (
+    FlashcardInContextPageView,
+    FlashcardInContextView,
 )
 from src.domain.common.value_objects.ids import BookId, UserId
 from src.infrastructure.common.queries.row_mappers import flashcard_ref
@@ -21,7 +21,7 @@ from src.infrastructure.notes.orm.note_model import Note as NoteORM
 from src.infrastructure.reading.orm.highlight_model import Highlight as HighlightORM
 
 
-async def review_flashcard_page(
+async def flashcard_in_context_page(
     db: AsyncSession,
     user_id: UserId,
     book_id: BookId | None,
@@ -29,7 +29,7 @@ async def review_flashcard_page(
     limit: int,
     offset: int,
     order_first_by: Sequence[ColumnElement[Any]] = (),
-) -> ReviewFlashcardPageView:
+) -> FlashcardInContextPageView:
     """Return a page of the user's flashcards matching ``where`` and how many match in all.
 
     The page is in book order (one book at a time, by chapter, chapterless
@@ -40,8 +40,8 @@ async def review_flashcard_page(
         filters.append(FlashcardORM.book_id == book_id.value)
     rows = (await db.execute(_page(filters, order_first_by).offset(offset).limit(limit))).all()
     total = await db.scalar(select(func.count(FlashcardORM.id)).where(*filters))
-    return ReviewFlashcardPageView(
-        flashcards=tuple(_review_flashcard_view(row) for row in rows), total=total or 0
+    return FlashcardInContextPageView(
+        flashcards=tuple(_flashcard_in_context_view(row) for row in rows), total=total or 0
     )
 
 
@@ -75,9 +75,9 @@ def _page(
     )
 
 
-def _review_flashcard_view(row: Row[Any]) -> ReviewFlashcardView:
+def _flashcard_in_context_view(row: Row[Any]) -> FlashcardInContextView:
     card, book_title, chapter_name, highlight_text, note_title = row
-    return ReviewFlashcardView(
+    return FlashcardInContextView(
         **asdict(flashcard_ref(card)),
         book_title=book_title,
         chapter_name=chapter_name,

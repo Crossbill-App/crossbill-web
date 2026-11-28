@@ -11,13 +11,13 @@ from typing import Any
 from sqlalchemy import ColumnElement, case, func, literal, or_
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from src.application.learning.queries.review_flashcards import ReviewFlashcardPageView
+from src.application.learning.queries.flashcards_in_context import FlashcardInContextPageView
 from src.domain.common.value_objects.ids import BookId, UserId
 from src.domain.learning.value_objects.flashcard_status import FlashcardStatus
 from src.infrastructure.common.sql import is_postgres
 from src.infrastructure.learning.orm.flashcard_model import Flashcard as FlashcardORM
-from src.infrastructure.learning.queries.review_flashcard_rows import (
-    review_flashcard_page,
+from src.infrastructure.learning.queries.flashcard_in_context_rows import (
+    flashcard_in_context_page,
 )
 
 _UNIX_EPOCH_JULIAN_DAY = 2440587.5
@@ -32,9 +32,9 @@ class DueFlashcardQuery:
 
     async def list_due(
         self, user_id: UserId, now: datetime, book_id: BookId | None, limit: int, offset: int
-    ) -> ReviewFlashcardPageView:
+    ) -> FlashcardInContextPageView:
         """Return a page of the queue as it stands at ``now``."""
-        return await review_flashcard_page(
+        return await flashcard_in_context_page(
             self.db,
             user_id,
             book_id,

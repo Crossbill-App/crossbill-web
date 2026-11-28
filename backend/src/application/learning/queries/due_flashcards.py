@@ -9,9 +9,9 @@ from dataclasses import dataclass
 from datetime import datetime
 from typing import Protocol
 
-from src.application.learning.queries.review_flashcards import (
-    ReviewFlashcardPageView,
-    ReviewFlashcardView,
+from src.application.learning.queries.flashcards_in_context import (
+    FlashcardInContextPageView,
+    FlashcardInContextView,
 )
 from src.domain.common.value_objects.ids import BookId, UserId
 from src.domain.learning.value_objects.flashcard_review import FlashcardRating
@@ -21,7 +21,7 @@ from src.domain.learning.value_objects.flashcard_review import FlashcardRating
 class DueFlashcardView:
     """A Due Flashcard and the due date each rating given now would set."""
 
-    flashcard: ReviewFlashcardView
+    flashcard: FlashcardInContextView
     previews: Mapping[FlashcardRating, datetime]
 
 
@@ -38,7 +38,7 @@ class DueFlashcardQueryProtocol(Protocol):
 
     async def list_due(
         self, user_id: UserId, now: datetime, book_id: BookId | None, limit: int, offset: int
-    ) -> ReviewFlashcardPageView:
+    ) -> FlashcardInContextPageView:
         """Return a page of the active cards due by ``now`` or never reviewed.
 
         Due reviews come first, lowest retrievability first; then new cards one

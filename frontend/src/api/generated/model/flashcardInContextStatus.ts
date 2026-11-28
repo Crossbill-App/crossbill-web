@@ -8,10 +8,10 @@
 /**
  * A suspended card is never due and takes no reviews
  */
-export type ReviewFlashcardStatus =
-  (typeof ReviewFlashcardStatus)[keyof typeof ReviewFlashcardStatus];
+export type FlashcardInContextStatus =
+  (typeof FlashcardInContextStatus)[keyof typeof FlashcardInContextStatus];
 
-export const ReviewFlashcardStatus = {
+export const FlashcardInContextStatus = {
   active: 'active',
   suspended: 'suspended',
 } as const;

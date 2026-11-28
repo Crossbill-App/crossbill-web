@@ -2858,7 +2858,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/PaginatedResponse_ReviewFlashcard_"
+                  "$ref": "#/components/schemas/PaginatedResponse_FlashcardInContext_"
                 }
               }
             }
@@ -7886,6 +7886,170 @@
         "title": "FlashcardCreateResponse",
         "description": "Schema for flashcard creation response."
       },
+      "FlashcardInContext": {
+        "properties": {
+          "id": {
+            "type": "integer",
+            "title": "Id"
+          },
+          "user_id": {
+            "type": "integer",
+            "title": "User Id"
+          },
+          "book_id": {
+            "type": "integer",
+            "title": "Book Id"
+          },
+          "highlight_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Highlight Id"
+          },
+          "chapter_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Chapter Id"
+          },
+          "note_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Note Id"
+          },
+          "question": {
+            "type": "string",
+            "minLength": 1,
+            "title": "Question",
+            "description": "Question text for the flashcard"
+          },
+          "answer": {
+            "type": "string",
+            "minLength": 1,
+            "title": "Answer",
+            "description": "Answer text for the flashcard"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "active",
+              "suspended"
+            ],
+            "title": "Status",
+            "description": "A suspended card is never due and takes no reviews"
+          },
+          "origin": {
+            "type": "string",
+            "enum": [
+              "manual",
+              "generated"
+            ],
+            "title": "Origin",
+            "description": "Written by the reader or generated"
+          },
+          "due": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Due",
+            "description": "When the card is next due; null until first reviewed"
+          },
+          "last_review": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Review",
+            "description": "When the card was last reviewed"
+          },
+          "book_title": {
+            "type": "string",
+            "title": "Book Title"
+          },
+          "chapter_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Chapter Name",
+            "description": "The flashcard's chapter, else its highlight's"
+          },
+          "highlight_text": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Highlight Text",
+            "description": "Text of the highlight the flashcard came from"
+          },
+          "note_title": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Note Title",
+            "description": "Title of the note the flashcard came from"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "user_id",
+          "book_id",
+          "highlight_id",
+          "question",
+          "answer",
+          "status",
+          "origin",
+          "due",
+          "last_review",
+          "book_title",
+          "chapter_name",
+          "highlight_text",
+          "note_title"
+        ],
+        "title": "FlashcardInContext",
+        "description": "A flashcard with the book, chapter and source a review shows it with."
+      },
       "FlashcardReviewRequest": {
         "properties": {
           "rating": {
@@ -10090,6 +10254,37 @@
         ],
         "title": "PaginatedResponse[DueFlashcard]"
       },
+      "PaginatedResponse_FlashcardInContext_": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/FlashcardInContext"
+            },
+            "type": "array",
+            "title": "Items"
+          },
+          "total": {
+            "type": "integer",
+            "title": "Total"
+          },
+          "offset": {
+            "type": "integer",
+            "title": "Offset"
+          },
+          "limit": {
+            "type": "integer",
+            "title": "Limit"
+          }
+        },
+        "type": "object",
+        "required": [
+          "items",
+          "total",
+          "offset",
+          "limit"
+        ],
+        "title": "PaginatedResponse[FlashcardInContext]"
+      },
       "PaginatedResponse_ReadingSession_": {
         "properties": {
           "items": {
@@ -10120,37 +10315,6 @@
           "limit"
         ],
         "title": "PaginatedResponse[ReadingSession]"
-      },
-      "PaginatedResponse_ReviewFlashcard_": {
-        "properties": {
-          "items": {
-            "items": {
-              "$ref": "#/components/schemas/ReviewFlashcard"
-            },
-            "type": "array",
-            "title": "Items"
-          },
-          "total": {
-            "type": "integer",
-            "title": "Total"
-          },
-          "offset": {
-            "type": "integer",
-            "title": "Offset"
-          },
-          "limit": {
-            "type": "integer",
-            "title": "Limit"
-          }
-        },
-        "type": "object",
-        "required": [
-          "items",
-          "total",
-          "offset",
-          "limit"
-        ],
-        "title": "PaginatedResponse[ReviewFlashcard]"
       },
       "PositionList": {
         "properties": {
@@ -10995,170 +11159,6 @@
         ],
         "title": "ResumeSource",
         "description": "Which reader the position being resumed from came from."
-      },
-      "ReviewFlashcard": {
-        "properties": {
-          "id": {
-            "type": "integer",
-            "title": "Id"
-          },
-          "user_id": {
-            "type": "integer",
-            "title": "User Id"
-          },
-          "book_id": {
-            "type": "integer",
-            "title": "Book Id"
-          },
-          "highlight_id": {
-            "anyOf": [
-              {
-                "type": "integer"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Highlight Id"
-          },
-          "chapter_id": {
-            "anyOf": [
-              {
-                "type": "integer"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Chapter Id"
-          },
-          "note_id": {
-            "anyOf": [
-              {
-                "type": "integer"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Note Id"
-          },
-          "question": {
-            "type": "string",
-            "minLength": 1,
-            "title": "Question",
-            "description": "Question text for the flashcard"
-          },
-          "answer": {
-            "type": "string",
-            "minLength": 1,
-            "title": "Answer",
-            "description": "Answer text for the flashcard"
-          },
-          "status": {
-            "type": "string",
-            "enum": [
-              "active",
-              "suspended"
-            ],
-            "title": "Status",
-            "description": "A suspended card is never due and takes no reviews"
-          },
-          "origin": {
-            "type": "string",
-            "enum": [
-              "manual",
-              "generated"
-            ],
-            "title": "Origin",
-            "description": "Written by the reader or generated"
-          },
-          "due": {
-            "anyOf": [
-              {
-                "type": "string",
-                "format": "date-time"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Due",
-            "description": "When the card is next due; null until first reviewed"
-          },
-          "last_review": {
-            "anyOf": [
-              {
-                "type": "string",
-                "format": "date-time"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Last Review",
-            "description": "When the card was last reviewed"
-          },
-          "book_title": {
-            "type": "string",
-            "title": "Book Title"
-          },
-          "chapter_name": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Chapter Name",
-            "description": "The flashcard's chapter, else its highlight's"
-          },
-          "highlight_text": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Highlight Text",
-            "description": "Text of the highlight the flashcard came from"
-          },
-          "note_title": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Note Title",
-            "description": "Title of the note the flashcard came from"
-          }
-        },
-        "type": "object",
-        "required": [
-          "id",
-          "user_id",
-          "book_id",
-          "highlight_id",
-          "question",
-          "answer",
-          "status",
-          "origin",
-          "due",
-          "last_review",
-          "book_title",
-          "chapter_name",
-          "highlight_text",
-          "note_title"
-        ],
-        "title": "ReviewFlashcard",
-        "description": "A flashcard with the book, chapter and source a review shows it with."
       },
       "SearchBookRef": {
         "properties": {

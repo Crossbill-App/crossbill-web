@@ -35,11 +35,11 @@ from src.infrastructure.identity.dependencies import get_current_user
 from src.infrastructure.learning.schemas import (
     DueFlashcard,
     Flashcard,
+    FlashcardInContext,
     FlashcardReviewRequest,
     FlashcardStatusRequest,
     FlashcardUpdateRequest,
     FlashcardUpdateResponse,
-    ReviewFlashcard,
 )
 from src.infrastructure.learning.schemas.flashcard_builders import (
     build_flashcard_schema,
@@ -87,7 +87,7 @@ def _due_flashcard(view: DueFlashcardView) -> DueFlashcard:
 
 @router.get(
     "/suspended",
-    response_model=PaginatedResponse[ReviewFlashcard],
+    response_model=PaginatedResponse[FlashcardInContext],
     status_code=status.HTTP_200_OK,
 )
 async def get_suspended_flashcards(
@@ -98,13 +98,13 @@ async def get_suspended_flashcards(
     use_case: GetSuspendedFlashcardsUseCase = Depends(
         inject_use_case(container.learning.get_suspended_flashcards_use_case)
     ),
-) -> PaginatedResponse[ReviewFlashcard]:
+) -> PaginatedResponse[FlashcardInContext]:
     """List the suspended flashcards book by book, in chapter order with those without a chapter last."""
     page = await use_case.get_suspended_flashcards(
         user_id=current_user.id.value, book_id=book_id, limit=limit, offset=offset
     )
-    return PaginatedResponse[ReviewFlashcard](
-        items=[ReviewFlashcard.model_validate(card) for card in page.flashcards],
+    return PaginatedResponse[FlashcardInContext](
+        items=[FlashcardInContext.model_validate(card) for card in page.flashcards],
         total=page.total,
         offset=offset,
         limit=limit,

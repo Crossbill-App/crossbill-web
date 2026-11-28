@@ -11,7 +11,7 @@ from src.domain.learning.value_objects.review_state import ReviewState
 
 
 @dataclass(frozen=True)
-class ReviewFlashcardView(FlashcardRef):
+class FlashcardInContextView(FlashcardRef):
     """A flashcard with its book, chapter and source, as review shows it.
 
     ``chapter_name`` is the flashcard's own chapter, else its highlight's.
@@ -25,8 +25,8 @@ class ReviewFlashcardView(FlashcardRef):
 
 
 @dataclass(frozen=True)
-class ReviewFlashcardPageView:
+class FlashcardInContextPageView:
     """One page of a flashcard list, plus the length of the whole list."""
 
-    flashcards: tuple[ReviewFlashcardView, ...]
+    flashcards: tuple[FlashcardInContextView, ...]
     total: int

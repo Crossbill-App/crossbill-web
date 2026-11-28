@@ -35,7 +35,7 @@ import type {
   HTTPValidationError,
   NoteFlashcardCreateRequest,
   PaginatedResponseDueFlashcard,
-  PaginatedResponseReviewFlashcard,
+  PaginatedResponseFlashcardInContext,
   SuccessResponse,
 } from '../model';
 
@@ -418,7 +418,7 @@ export const getSuspendedFlashcards = (
   params?: GetSuspendedFlashcardsParams,
   signal?: AbortSignal
 ) => {
-  return axiosInstance<PaginatedResponseReviewFlashcard>({
+  return axiosInstance<PaginatedResponseFlashcardInContext>({
     url: `/api/v1/flashcards/suspended`,
     method: 'GET',
     params,

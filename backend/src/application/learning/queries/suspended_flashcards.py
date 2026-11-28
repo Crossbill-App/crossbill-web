@@ -2,7 +2,7 @@
 
 from typing import Protocol
 
-from src.application.learning.queries.review_flashcards import ReviewFlashcardPageView
+from src.application.learning.queries.flashcards_in_context import FlashcardInContextPageView
 from src.domain.common.value_objects.ids import BookId, UserId
 
 
@@ -11,6 +11,6 @@ class SuspendedFlashcardQueryProtocol(Protocol):
 
     async def list_suspended(
         self, user_id: UserId, book_id: BookId | None, limit: int, offset: int
-    ) -> ReviewFlashcardPageView:
+    ) -> FlashcardInContextPageView:
         """Return a page of the suspended flashcards, book by book in book order."""
         ...

@@ -2,12 +2,12 @@
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from src.application.learning.queries.review_flashcards import ReviewFlashcardPageView
+from src.application.learning.queries.flashcards_in_context import FlashcardInContextPageView
 from src.domain.common.value_objects.ids import BookId, UserId
 from src.domain.learning.value_objects.flashcard_status import FlashcardStatus
 from src.infrastructure.learning.orm.flashcard_model import Flashcard as FlashcardORM
-from src.infrastructure.learning.queries.review_flashcard_rows import (
-    review_flashcard_page,
+from src.infrastructure.learning.queries.flashcard_in_context_rows import (
+    flashcard_in_context_page,
 )
 
 
@@ -19,7 +19,9 @@ class SuspendedFlashcardQuery:
 
     async def list_suspended(
         self, user_id: UserId, book_id: BookId | None, limit: int, offset: int
-    ) -> ReviewFlashcardPageView:
+    ) -> FlashcardInContextPageView:
         """Return a page of the suspended flashcards, book by book in book order."""
         suspended = FlashcardORM.status == FlashcardStatus.SUSPENDED.value
-        return await review_flashcard_page(self.db, user_id, book_id, [suspended], limit, offset)
+        return await flashcard_in_context_page(
+            self.db, user_id, book_id, [suspended], limit, offset
+        )

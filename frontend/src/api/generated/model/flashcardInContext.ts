@@ -4,13 +4,13 @@
  * crossbill API
  * OpenAPI spec version: 0.0.0
  */
-import type { ReviewFlashcardOrigin } from './reviewFlashcardOrigin.ts';
-import type { ReviewFlashcardStatus } from './reviewFlashcardStatus.ts';
+import type { FlashcardInContextOrigin } from './flashcardInContextOrigin.ts';
+import type { FlashcardInContextStatus } from './flashcardInContextStatus.ts';
 
 /**
  * A flashcard with the book, chapter and source a review shows it with.
  */
-export interface ReviewFlashcard {
+export interface FlashcardInContext {
   id: number;
   user_id: number;
   book_id: number;
@@ -28,9 +28,9 @@ export interface ReviewFlashcard {
    */
   answer: string;
   /** A suspended card is never due and takes no reviews */
-  status: ReviewFlashcardStatus;
+  status: FlashcardInContextStatus;
   /** Written by the reader or generated */
-  origin: ReviewFlashcardOrigin;
+  origin: FlashcardInContextOrigin;
   /** When the card is next due; null until first reviewed */
   due: string | null;
   /** When the card was last reviewed */
