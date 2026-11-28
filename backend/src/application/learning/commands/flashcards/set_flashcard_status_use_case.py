@@ -2,8 +2,9 @@
 
 import structlog
 
-from src.application.learning.flashcard_ownership import require_flashcard
+from src.application.common.ownership import require_flashcard
 from src.application.learning.protocols.flashcard_repository import FlashcardRepositoryProtocol
+from src.domain.common.value_objects.ids import FlashcardId, UserId
 from src.domain.learning.entities.flashcard import Flashcard
 from src.domain.learning.value_objects.flashcard_status import FlashcardStatus
 
@@ -24,7 +25,9 @@ class SetFlashcardStatusUseCase:
         Raises:
             FlashcardNotFoundError: If the user has no such flashcard.
         """
-        flashcard = await require_flashcard(self.flashcard_repository, flashcard_id, user_id)
+        flashcard = await require_flashcard(
+            self.flashcard_repository, FlashcardId(flashcard_id), UserId(user_id)
+        )
         flashcard.set_status(status)
         flashcard = await self.flashcard_repository.save(flashcard)
         logger.info("set_flashcard_status", flashcard_id=flashcard_id, status=status.value)

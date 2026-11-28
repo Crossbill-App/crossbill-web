@@ -2,11 +2,11 @@
 
 import structlog
 
+from src.application.common.ownership import require_flashcard
 from src.application.learning.protocols.flashcard_repository import FlashcardRepositoryProtocol
 from src.domain.common.exceptions import ValidationError
 from src.domain.common.value_objects.ids import FlashcardId, UserId
 from src.domain.learning.entities.flashcard import Flashcard
-from src.domain.learning.exceptions import FlashcardNotFoundError
 
 logger = structlog.get_logger(__name__)
 
@@ -47,12 +47,9 @@ class UpdateFlashcardUseCase:
         if question is None and answer is None:
             raise ValidationError("At least one of question or answer must be provided")
 
-        flashcard_id_vo = FlashcardId(flashcard_id)
-        user_id_vo = UserId(user_id)
-
-        flashcard = await self.flashcard_repository.find_by_id(flashcard_id_vo, user_id_vo)
-        if not flashcard:
-            raise FlashcardNotFoundError(flashcard_id)
+        flashcard = await require_flashcard(
+            self.flashcard_repository, FlashcardId(flashcard_id), UserId(user_id)
+        )
 
         if question is not None:
             flashcard.update_question(question)
