@@ -7,6 +7,7 @@ the domain put it (ADR-0001, rule 1).
 
 from src.application.common.queries.highlight_row import HighlightLabelView, HighlightRow
 from src.application.common.queries.refs import FlashcardRef, TagRef
+from src.domain.common.time import as_aware
 from src.domain.learning.value_objects.flashcard_origin import FlashcardOrigin
 from src.domain.learning.value_objects.flashcard_status import FlashcardStatus
 from src.domain.reading.services.highlight_style_resolver import ResolvedLabel
@@ -33,8 +34,8 @@ def flashcard_ref(row: FlashcardORM) -> FlashcardRef:
         answer=row.answer,
         status=FlashcardStatus(row.status),
         origin=FlashcardOrigin(row.origin),
-        due=row.due,
-        last_review=row.last_review,
+        due=as_aware(row.due) if row.due else None,
+        last_review=as_aware(row.last_review) if row.last_review else None,
     )
 
 

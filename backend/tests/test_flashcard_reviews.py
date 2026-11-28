@@ -9,7 +9,6 @@ from httpx import AsyncClient, Response
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src import models
-from src.domain.common.time import as_aware
 from src.infrastructure.learning.services.fsrs_review_scheduler import FsrsReviewScheduler
 from tests.conftest import (
     create_test_book,
@@ -56,9 +55,9 @@ async def record_review(
 
 
 def at(value: object) -> datetime:
-    """Read a timestamp from a response; SQLite hands them back without a zone."""
+    """Read a timestamp from a response."""
     assert isinstance(value, str)
-    return as_aware(datetime.fromisoformat(value))
+    return datetime.fromisoformat(value)
 
 
 class TestRecordReview:
@@ -285,6 +284,18 @@ class TestDueFlashcards:
         await set_status(client, suspended_due.id, "suspended")
 
         assert await due_ids(client) == [due.id]
+
+    async def test_the_queue_shows_a_cards_schedule_as_its_review_did(
+        self, client: AsyncClient, test_flashcard: models.Flashcard
+    ) -> None:
+        reviewed = await record_review(client, test_flashcard.id, "good", T)
+
+        (queued,) = (await get_due(client)).json()["items"]
+
+        assert (queued["due"], queued["last_review"]) == (
+            reviewed["due"],
+            reviewed["last_review"],
+        )
 
     async def test_the_queue_narrows_to_one_book(
         self, client: AsyncClient, db_session: AsyncSession, test_book: models.Book
