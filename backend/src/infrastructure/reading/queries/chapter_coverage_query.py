@@ -32,7 +32,7 @@ class ChapterCoverageQuery:
     async def get_chapter_coverage(
         self, book_id: BookId, user_id: UserId
     ) -> tuple[ChapterCoverage, ...]:
-        """Return the coverage of every chapter of a user's book, in reading order."""
+        """Return the coverage of every chapter of a user's book, in TOC order."""
         return measure_chapter_coverage(
             await self._fetch_chapter_starts(book_id, user_id),
             await self._fetch_total_characters(book_id, user_id),

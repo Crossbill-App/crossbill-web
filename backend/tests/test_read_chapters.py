@@ -161,6 +161,19 @@ async def test_a_parent_chapter_is_measured_on_its_text_before_its_first_child(
     assert await read_states(client, test_book) == {"Part": "read", "Child": "not_read"}
 
 
+async def test_a_chapter_listed_out_of_book_order_is_measured_on_its_own_text(
+    client: AsyncClient, db_session: AsyncSession, test_book: Book, session: ReadingSession
+) -> None:
+    await lay_out_book(db_session, test_book, 1500, First=0, Last=1000, Middle=500)
+    await view(db_session, session, 500, 1000, seconds=9)
+
+    assert await read_states(client, test_book) == {
+        "First": "not_read",
+        "Last": "not_read",
+        "Middle": "read",
+    }
+
+
 async def test_a_chapter_with_no_text_of_its_own_is_unmeasurable(
     client: AsyncClient, db_session: AsyncSession, test_book: Book, session: ReadingSession
 ) -> None:

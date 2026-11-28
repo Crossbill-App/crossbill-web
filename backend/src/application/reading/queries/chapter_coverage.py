@@ -16,5 +16,5 @@ class ChapterCoverageQueryProtocol(Protocol):
     async def get_chapter_coverage(
         self, book_id: BookId, user_id: UserId
     ) -> tuple[ChapterCoverage, ...]:
-        """Return the coverage of every chapter of a user's book, in reading order."""
+        """Return the coverage of every chapter of a user's book, in TOC order."""
         ...

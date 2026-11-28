@@ -67,35 +67,46 @@ class ChapterCoverage:
 
 
 def measure_chapter_coverage(
-    chapters_in_reading_order: Sequence[ChapterStart],
+    chapters_in_toc_order: Sequence[ChapterStart],
     total_characters: int | None,
     page_view_spans: Sequence[PageViewSpan],
 ) -> tuple[ChapterCoverage, ...]:
     """Measure every chapter's coverage from the Page Views of all its book's sessions.
 
-    A chapter's own text runs to the next chapter that has a start, or to the
-    end of the book.
+    A chapter's own text runs to the next start in the book, or to its end; of
+    chapters sharing a start, only the last in TOC order has text.
     """
     read_ranges = _union(
         view.characters for view in page_view_spans if view.stayed_long_enough_to_read
     )
+    own_text = _own_text_ranges(chapters_in_toc_order, total_characters)
     return tuple(
-        ChapterCoverage(chapter.chapter_id, _coverage(own_text, read_ranges))
-        for chapter, own_text in _own_text_ranges(chapters_in_reading_order, total_characters)
+        ChapterCoverage(
+            chapter.chapter_id, _coverage(own_text.get(chapter.chapter_id), read_ranges)
+        )
+        for chapter in chapters_in_toc_order
     )
 
 
 def _own_text_ranges(
     chapters: Sequence[ChapterStart], total_characters: int | None
-) -> list[tuple[ChapterStart, CharacterRange | None]]:
-    end = total_characters
-    ranges: list[CharacterRange | None] = []
-    for chapter in reversed(chapters):
-        start = chapter.start_offset
-        ranges.append(None if start is None or end is None else CharacterRange(start, end))
-        if start is not None:
-            end = start
-    return list(zip(chapters, reversed(ranges), strict=True))
+) -> dict[ChapterId, CharacterRange]:
+    starts = sorted(
+        (
+            (chapter.start_offset, chapter.chapter_id)
+            for chapter in chapters
+            if chapter.start_offset is not None
+        ),
+        key=lambda start: start[0],
+    )
+    if not starts:
+        return {}
+    ends = [offset for offset, _ in starts[1:]] + [total_characters]
+    return {
+        chapter_id: CharacterRange(start, end)
+        for (start, chapter_id), end in zip(starts, ends, strict=True)
+        if end is not None
+    }
 
 
 def _union(ranges: Iterable[CharacterRange]) -> list[CharacterRange]:
