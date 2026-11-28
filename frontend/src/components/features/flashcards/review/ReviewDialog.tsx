@@ -5,6 +5,8 @@ import {
 import type { FlashcardReviewRequestRating } from '@/api/generated/model';
 import { Spinner } from '@/components/animations/Spinner.tsx';
 import { CommonDialog } from '@/components/dialogs/CommonDialog.tsx';
+import { CommonDialogTitle } from '@/components/dialogs/CommonDialogTitle.tsx';
+import { ProgressBar } from '@/components/dialogs/ProgressBar.tsx';
 import { EmptyStateText } from '@/components/EmptyStateText.tsx';
 import { useSnackbar } from '@/context/SnackbarContext.tsx';
 import { useMutationErrorHandler } from '@/hooks/useMutationErrorHandler.ts';
@@ -155,19 +157,27 @@ export const ReviewDialog = ({ bookId, onClose }: ReviewDialogProps) => {
     <CommonDialog
       open
       onClose={close}
+      headerElement={
+        queue.total > 0 && (
+          <ProgressBar
+            currentIndex={Math.min(queue.position, queue.total) - 1}
+            totalCount={queue.total}
+          />
+        )
+      }
       title={
-        <Box component="span" sx={{ display: 'flex', alignItems: 'baseline', gap: 2 }}>
+        <CommonDialogTitle>
           {t('review.dialog.title')}
           {current && (
             <Typography
               component="span"
               variant="body2"
-              sx={{ color: 'text.secondary', ...tabularNums }}
+              sx={{ ml: 2, color: 'text.secondary', ...tabularNums }}
             >
               {t('review.dialog.position', { position: queue.position, total: queue.total })}
             </Typography>
           )}
-        </Box>
+        </CommonDialogTitle>
       }
       footerActions={
         queue.isDone && (

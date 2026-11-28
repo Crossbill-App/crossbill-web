@@ -1,4 +1,5 @@
 import type { FlashcardReviewRequestRating } from '@/api/generated/model';
+import { Collapsable } from '@/components/animations/Collapsable.tsx';
 import { Eyebrow } from '@/components/typography/Eyebrow.tsx';
 import { HighlightQuote } from '@/pages/BookPage/common/HighlightContent.tsx';
 import { EditIcon, NotesIcon, SuspendIcon } from '@/theme/Icons.tsx';
@@ -85,8 +86,8 @@ export const ReviewCard = ({
         </Typography>
       </Box>
 
-      {revealed ? (
-        <>
+      <Collapsable isExpanded={revealed}>
+        <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
           <Divider />
           <Box>
             <Eyebrow sx={{ mb: 0.5 }}>{t('flashcards.fields.answer')}</Eyebrow>
@@ -94,12 +95,13 @@ export const ReviewCard = ({
           </Box>
           <CardSource card={card} />
           <GradeButtons card={card} onGrade={onGrade} />
-        </>
-      ) : (
+        </Box>
+      </Collapsable>
+      <Collapsable isExpanded={!revealed}>
         <Button variant="contained" size="large" onClick={onReveal}>
           {t('review.card.showAnswer')}
         </Button>
-      )}
+      </Collapsable>
 
       <Box sx={{ display: 'flex', justifyContent: 'flex-end', gap: 1 }}>
         <Button startIcon={<EditIcon />} onClick={onEdit}>
