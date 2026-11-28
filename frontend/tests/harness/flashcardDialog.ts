@@ -9,13 +9,11 @@ interface FlashcardText {
   answer?: string;
 }
 
-/** Opens the Flashcards tab of the entity dialog on screen. */
 export const openFlashcardsTab = async (screen: Screen) => {
   await userEvent.click(screen.getByRole('tab', { name: /^Flashcards/ }));
   return screen.getByRole('tabpanel');
 };
 
-/** Fills the open flashcard dialog, saves, and waits for it to close. */
 export const saveFlashcardDialog = async (
   screen: Screen,
   title: 'New flashcard' | 'Edit flashcard',
@@ -32,10 +30,7 @@ export const saveFlashcardDialog = async (
   await expect.element(dialog).not.toBeInTheDocument();
 };
 
-/**
- * Rewrites the question of the only card in the entity dialog's Flashcards tab
- * and proves the tab lists the new question in place of the old.
- */
+/** Expects the tab to hold exactly one card. */
 export const expectQuestionEditedInTab = async (screen: Screen, from: string, to: string) => {
   const panel = await openFlashcardsTab(screen);
   await userEvent.click(panel.getByRole('button', { name: 'Edit flashcard' }));

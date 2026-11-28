@@ -59,15 +59,32 @@ export function bookApi(initial: Partial<BookApiState> = {}) {
   const findNote = (noteId: string | readonly string[] | undefined) =>
     state.notes.find((note) => note.id === Number(noteId));
 
+  const allHighlights = () => state.book.chapters.flatMap((chapter) => chapter.highlights);
+
+  const mapHighlights = (fn: (highlight: Highlight) => Highlight) => {
+    state.book = {
+      ...state.book,
+      chapters: state.book.chapters.map((chapter) => ({
+        ...chapter,
+        highlights: chapter.highlights.map(fn),
+      })),
+    };
+  };
+
   const allFlashcards = (): Flashcard[] => [
-    ...state.book.chapters.flatMap((chapter) =>
-      chapter.highlights.flatMap((highlight) => highlight.flashcards)
-    ),
+    ...allHighlights().flatMap((highlight) => highlight.flashcards),
     ...(state.book.book_flashcards ?? []),
     ...state.notes.flatMap((note) => note.flashcards ?? []),
   ];
 
-  const nextFlashcardId = () => Math.max(699, ...allFlashcards().map((card) => card.id)) + 1;
+  const newFlashcard = (body: FlashcardCreateRequest, overrides: Partial<Flashcard>) =>
+    aFlashcard({
+      id: Math.max(699, ...allFlashcards().map((card) => card.id)) + 1,
+      book_id: state.book.id,
+      question: body.question,
+      answer: body.answer,
+      ...overrides,
+    });
 
   /** Applies `change` to the card wherever the book and its notes embed it; null removes it. */
   const changeFlashcard = (flashcardId: number, change: (card: Flashcard) => Flashcard | null) => {
@@ -77,17 +94,8 @@ export function bookApi(initial: Partial<BookApiState> = {}) {
         const changed = change(card);
         return changed ? [changed] : [];
       });
-    state.book = {
-      ...state.book,
-      book_flashcards: changeAll(state.book.book_flashcards ?? []),
-      chapters: state.book.chapters.map((chapter) => ({
-        ...chapter,
-        highlights: chapter.highlights.map((highlight) => ({
-          ...highlight,
-          flashcards: changeAll(highlight.flashcards),
-        })),
-      })),
-    };
+    state.book = { ...state.book, book_flashcards: changeAll(state.book.book_flashcards ?? []) };
+    mapHighlights((highlight) => ({ ...highlight, flashcards: changeAll(highlight.flashcards) }));
     state.notes = state.notes.map((note) => ({
       ...note,
       flashcards: changeAll(note.flashcards ?? []),
@@ -167,9 +175,7 @@ export function bookApi(initial: Partial<BookApiState> = {}) {
     http.delete('/api/v1/books/:bookId/highlight', async ({ request }) => {
       const { highlight_ids } = (await request.json()) as HighlightDeleteRequest;
       const isDeleted = (highlight: Highlight) => highlight_ids.includes(highlight.id);
-      const deleted_count = state.book.chapters
-        .flatMap((chapter) => chapter.highlights)
-        .filter(isDeleted).length;
+      const deleted_count = allHighlights().filter(isDeleted).length;
       state.book = {
         ...state.book,
         chapters: state.book.chapters.map((chapter) => ({
@@ -187,13 +193,7 @@ export function bookApi(initial: Partial<BookApiState> = {}) {
 
     http.post('/api/v1/books/:bookId/flashcards', async ({ request }) => {
       const body = (await request.json()) as FlashcardCreateRequest;
-      const flashcard = aFlashcard({
-        id: nextFlashcardId(),
-        book_id: state.book.id,
-        chapter_id: body.chapter_id ?? null,
-        question: body.question,
-        answer: body.answer,
-      });
+      const flashcard = newFlashcard(body, { chapter_id: body.chapter_id ?? null });
       state.book = {
         ...state.book,
         book_flashcards: [...(state.book.book_flashcards ?? []), flashcard],
@@ -204,32 +204,20 @@ export function bookApi(initial: Partial<BookApiState> = {}) {
     http.post('/api/v1/highlights/:highlightId/flashcards', async ({ params, request }) => {
       const body = (await request.json()) as FlashcardCreateRequest;
       const highlightId = Number(params.highlightId);
-      const highlight = state.book.chapters
-        .flatMap((chapter) => chapter.highlights)
-        .find((candidate) => candidate.id === highlightId);
+      const highlight = allHighlights().find((candidate) => candidate.id === highlightId);
       if (!highlight) {
         return new HttpResponse(null, { status: 404 });
       }
 
-      const flashcard = aFlashcard({
-        id: nextFlashcardId(),
-        book_id: state.book.id,
+      const flashcard = newFlashcard(body, {
         highlight_id: highlightId,
         chapter_id: highlight.chapter_id ?? null,
-        question: body.question,
-        answer: body.answer,
       });
-      state.book = {
-        ...state.book,
-        chapters: state.book.chapters.map((chapter) => ({
-          ...chapter,
-          highlights: chapter.highlights.map((candidate) =>
-            candidate.id === highlightId
-              ? { ...candidate, flashcards: [...candidate.flashcards, flashcard] }
-              : candidate
-          ),
-        })),
-      };
+      mapHighlights((candidate) =>
+        candidate.id === highlightId
+          ? { ...candidate, flashcards: [...candidate.flashcards, flashcard] }
+          : candidate
+      );
       return created(flashcard);
     }),
 
@@ -240,12 +228,9 @@ export function bookApi(initial: Partial<BookApiState> = {}) {
         return new HttpResponse(null, { status: 404 });
       }
 
-      const flashcard = aFlashcard({
-        id: nextFlashcardId(),
+      const flashcard = newFlashcard(body, {
         book_id: body.book_id ?? note.book_ids[0],
         note_id: note.id,
-        question: body.question,
-        answer: body.answer,
       });
       state.notes = state.notes.map((candidate) =>
         candidate.id === note.id
@@ -262,17 +247,16 @@ export function bookApi(initial: Partial<BookApiState> = {}) {
     http.put('/api/v1/flashcards/:flashcardId', async ({ params, request }) => {
       const body = (await request.json()) as FlashcardUpdateRequest;
       const flashcardId = Number(params.flashcardId);
-      const flashcard = allFlashcards().find((candidate) => candidate.id === flashcardId);
-      if (!flashcard) {
+      changeFlashcard(flashcardId, (card) => ({
+        ...card,
+        question: body.question ?? card.question,
+        answer: body.answer ?? card.answer,
+      }));
+      const updated = allFlashcards().find((candidate) => candidate.id === flashcardId);
+      if (!updated) {
         return new HttpResponse(null, { status: 404 });
       }
 
-      const updated: Flashcard = {
-        ...flashcard,
-        question: body.question ?? flashcard.question,
-        answer: body.answer ?? flashcard.answer,
-      };
-      changeFlashcard(flashcardId, () => updated);
       return HttpResponse.json({
         success: true,
         message: 'Flashcard updated',

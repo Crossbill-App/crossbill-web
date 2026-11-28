@@ -1,4 +1,5 @@
 import { aBookDetails, aChapter, aFlashcard } from '@tests/fixtures/book';
+import { saveFlashcardDialog } from '@tests/harness/flashcardDialog';
 import { renderApp } from '@tests/harness/renderApp';
 import { bookApi } from '@tests/msw/bookApi';
 import { worker } from '@tests/msw/worker';
@@ -33,10 +34,10 @@ test('a flashcard made on the flashcards page is filed under not in a chapter', 
   const screen = await renderApp({ path: '/book/1/flashcards' });
   await userEvent.click(screen.getByRole('button', { name: 'New flashcard' }));
 
-  const dialog = screen.getByRole('dialog', { name: 'New flashcard' });
-  await userEvent.fill(dialog.getByRole('textbox', { name: 'Question' }), 'What is a map?');
-  await userEvent.fill(dialog.getByRole('textbox', { name: 'Answer' }), 'Not the territory.');
-  await userEvent.click(dialog.getByRole('button', { name: 'Save' }));
+  await saveFlashcardDialog(screen, 'New flashcard', {
+    question: 'What is a map?',
+    answer: 'Not the territory.',
+  });
 
   await expect
     .element(
@@ -45,7 +46,6 @@ test('a flashcard made on the flashcards page is filed under not in a chapter', 
         .getByRole('button', { name: 'What is a map?' })
     )
     .toBeVisible();
-  await expect.element(dialog).not.toBeInTheDocument();
 });
 
 test('editing a flashcard updates the list', async () => {
@@ -55,11 +55,7 @@ test('editing a flashcard updates the list', async () => {
   const dialog = await openForEditing(screen);
   await expect.element(dialog.getByRole('textbox', { name: 'Answer' })).toHaveValue('A filter.');
 
-  await userEvent.fill(
-    dialog.getByRole('textbox', { name: 'Question' }),
-    'What does attention do?'
-  );
-  await userEvent.click(dialog.getByRole('button', { name: 'Save' }));
+  await saveFlashcardDialog(screen, 'Edit flashcard', { question: 'What does attention do?' });
 
   await expect
     .element(chapterCards(screen).getByRole('button', { name: 'What does attention do?' }))
@@ -89,6 +85,11 @@ test('a failed save reports the error and keeps what was typed', async () => {
   await expect
     .element(dialog.getByRole('textbox', { name: 'Question' }))
     .toHaveValue('What does attention do?');
+
+  await userEvent.click(dialog.getByRole('button', { name: 'Cancel' }));
+  await expect
+    .element(chapterCards(screen).getByRole('button', { name: 'What is attention?' }))
+    .toBeVisible();
 });
 
 test('deleting a flashcard from its dialog removes it from the list', async () => {
