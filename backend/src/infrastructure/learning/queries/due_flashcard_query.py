@@ -1,4 +1,9 @@
-"""Query adapter for the queue of Due Flashcards."""
+"""Query adapter for the queue of Due Flashcards.
+
+The filter and the order restate two domain definitions in SQL, under the same
+names: ``is_due`` (``src/domain/learning/services/due_flashcards.py``) and
+``ReviewState.retrievability_key``. A test pins the queue to both.
+"""
 
 from datetime import datetime
 from typing import Any
@@ -20,7 +25,7 @@ _SECONDS_PER_DAY = 86400.0
 
 
 class DueFlashcardQuery:
-    """Serves the due-card queue from one ordered select and a count."""
+    """Serves the Due Flashcard queue from one ordered select and a count."""
 
     def __init__(self, db: AsyncSession) -> None:
         self.db = db
@@ -29,7 +34,9 @@ class DueFlashcardQuery:
         self, user_id: UserId, now: datetime, book_id: BookId | None, limit: int, offset: int
     ) -> DueFlashcardPageView:
         """Return a page of the queue as it stands at ``now``."""
-        filters = _due_filters(user_id, now, book_id)
+        filters = [FlashcardORM.user_id == user_id.value, *_is_due(now)]
+        if book_id is not None:
+            filters.append(FlashcardORM.book_id == book_id.value)
         rows = (
             (await self.db.execute(self._queue(filters, now).offset(offset).limit(limit)))
             .scalars()
@@ -44,7 +51,6 @@ class DueFlashcardQuery:
         self, filters: list[ColumnElement[bool]], now: datetime
     ) -> Select[tuple[FlashcardORM]]:
         chapter_id = func.coalesce(FlashcardORM.chapter_id, HighlightORM.chapter_id)
-        elapsed = literal(now.timestamp()) - self._last_review_epoch_seconds()
         is_new = FlashcardORM.due.is_(None)
         return (
             select(FlashcardORM)
@@ -53,7 +59,7 @@ class DueFlashcardQuery:
             .where(*filters)
             .order_by(
                 case((is_new, 1), else_=0),
-                (elapsed / FlashcardORM.stability).desc(),
+                self._retrievability_key(now).desc(),
                 FlashcardORM.book_id,
                 case((ChapterORM.chapter_number.is_(None), 1), else_=0),
                 ChapterORM.chapter_number,
@@ -61,6 +67,10 @@ class DueFlashcardQuery:
                 FlashcardORM.id,
             )
         )
+
+    def _retrievability_key(self, now: datetime) -> ColumnElement[Any]:
+        elapsed = literal(now.timestamp()) - self._last_review_epoch_seconds()
+        return elapsed / FlashcardORM.stability
 
     def _last_review_epoch_seconds(self) -> ColumnElement[Any]:
         if is_postgres(self.db):
@@ -70,14 +80,8 @@ class DueFlashcardQuery:
         ) * _SECONDS_PER_DAY
 
 
-def _due_filters(
-    user_id: UserId, now: datetime, book_id: BookId | None
-) -> list[ColumnElement[bool]]:
-    filters = [
-        FlashcardORM.user_id == user_id.value,
+def _is_due(now: datetime) -> list[ColumnElement[bool]]:
+    return [
         FlashcardORM.status == FlashcardStatus.ACTIVE.value,
         or_(FlashcardORM.due.is_(None), FlashcardORM.due <= now),
     ]
-    if book_id is not None:
-        filters.append(FlashcardORM.book_id == book_id.value)
-    return filters

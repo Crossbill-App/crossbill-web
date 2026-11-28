@@ -9,6 +9,10 @@ from httpx import AsyncClient, Response
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src import models
+from src.domain.common.value_objects.ids import FlashcardId, UserId
+from src.domain.learning.entities.flashcard import Flashcard
+from src.domain.learning.services.due_flashcards import is_due
+from src.infrastructure.learning.repositories.flashcard_repository import FlashcardRepository
 from src.infrastructure.learning.services.fsrs_review_scheduler import FsrsReviewScheduler
 from tests.conftest import (
     create_test_book,
@@ -200,6 +204,19 @@ class TestFlashcardStatus:
 NOW = T + timedelta(days=10)
 
 
+async def load_flashcard(db_session: AsyncSession, card: models.Flashcard) -> Flashcard:
+    loaded = await FlashcardRepository(db_session).find_by_id(
+        FlashcardId(card.id), UserId(card.user_id)
+    )
+    assert loaded is not None
+    return loaded
+
+
+def retrievability_key(card: Flashcard, now: datetime) -> float:
+    assert card.review_state is not None
+    return card.review_state.retrievability_key(now)
+
+
 async def get_due(client: AsyncClient, **params: int) -> Response:
     with readers_now(NOW):
         return await client.get("/api/v1/flashcards/due", params=params)
@@ -284,6 +301,27 @@ class TestDueFlashcards:
         await set_status(client, suspended_due.id, "suspended")
 
         assert await due_ids(client) == [due.id]
+
+    async def test_the_queue_follows_the_domains_due_rule_and_retrievability_key(
+        self, client: AsyncClient, db_session: AsyncSession, test_book: models.Book
+    ) -> None:
+        cards = [await create_test_flashcard(db_session, test_book) for _ in range(6)]
+        await record_review(client, cards[0].id, "good", T)
+        await record_review(client, cards[1].id, "again", NOW - timedelta(days=1))
+        await record_review(client, cards[2].id, "good", NOW - timedelta(days=1))
+        await record_review(client, cards[3].id, "hard", NOW - timedelta(days=3))
+        await set_status(client, cards[4].id, "suspended")
+        loaded = [await load_flashcard(db_session, card) for card in cards]
+
+        due = [card for card in loaded if is_due(card, NOW)]
+        due_reviews = sorted(
+            (card for card in due if card.review_state),
+            key=lambda card: retrievability_key(card, NOW),
+            reverse=True,
+        )
+        new_cards = [card for card in due if card.review_state is None]
+        assert await due_ids(client) == [card.id.value for card in due_reviews + new_cards]
+        assert len(due) == 4
 
     async def test_the_queue_shows_a_cards_schedule_as_its_review_did(
         self, client: AsyncClient, test_flashcard: models.Flashcard

@@ -23,3 +23,7 @@ class ReviewState:
     difficulty: float
     due: datetime
     last_review: datetime
+
+    def retrievability_key(self, now: datetime) -> float:
+        """Seconds since the last review per unit of stability; the larger, the less retrievable."""
+        return (now - self.last_review).total_seconds() / self.stability
