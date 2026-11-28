@@ -20,7 +20,7 @@ import { useBookTabFilters } from '@/pages/BookPage/common/useBookTabFilters.ts'
 import { BOOK_PAGE_LABELS } from '@/pages/BookPage/navigation/bookPageRoutes.ts';
 import { ChapterNav, type ChapterNavigationData } from '@/pages/BookPage/navigation/ChapterNav.tsx';
 import { AddIcon } from '@/theme/Icons.tsx';
-import { Divider, IconButton } from '@mui/material';
+import { Box, Divider, IconButton } from '@mui/material';
 import { flatMap } from 'lodash';
 import { useMemo, useState } from 'react';
 import { createPortal } from 'react-dom';
@@ -29,6 +29,7 @@ import { FilterFab } from '../common/FilterFab.tsx';
 import { FilterDrawer, type FilterTab } from '../navigation/FilterDrawer.tsx';
 import { TagsList } from '../navigation/TagsList/TagsList.tsx';
 import { FlashcardDialog, type FlashcardDialogTarget } from './FlashcardDialog.tsx';
+import { ReviewButton } from './ReviewButton.tsx';
 
 const BOOK_FLASHCARDS_KEY = -1;
 
@@ -212,13 +213,16 @@ export const FlashcardsPage = () => {
         count={{ value: filteredFlashcards.length, unit: 'flashcards' }}
         sort={<SortToggle isReversed={isReversed} onToggle={() => setIsReversed(!isReversed)} />}
         action={
-          <IconButton
-            aria-label={t('flashcards.actions.new')}
-            color="primary"
-            onClick={() => setDialogTarget({ mode: 'create', source: { kind: 'book' } })}
-          >
-            <AddIcon />
-          </IconButton>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+            <ReviewButton bookId={book.id} />
+            <IconButton
+              aria-label={t('flashcards.actions.new')}
+              color="primary"
+              onClick={() => setDialogTarget({ mode: 'create', source: { kind: 'book' } })}
+            >
+              <AddIcon />
+            </IconButton>
+          </Box>
         }
       />
 

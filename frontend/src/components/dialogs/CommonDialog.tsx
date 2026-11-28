@@ -2,6 +2,7 @@ import { useDialogStackEntry } from '@/components/dialogs/dialogStack.ts';
 import type { DialogNavigation } from '@/components/dialogs/useDialogHorizontalNavigation.ts';
 import { useBodyScrollLock } from '@/hooks/useBodyScrollLock.ts';
 import { ArrowBackIcon, ArrowForwardIcon, CloseIcon } from '@/theme/Icons.tsx';
+import { isTextEntry } from '@/utils/isTextEntry.ts';
 import {
   Box,
   Dialog,
@@ -99,15 +100,11 @@ export const CommonDialog = ({
 
       const target = e.target as HTMLElement;
 
-      // Don't navigate when user is typing in an input field
-      const isEditableElement =
-        target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable;
-
       // Don't navigate when user is interacting with element inside area which is marked as to prevent
       // navigation by the special attribute
       const isInPreventNavigationArea = target.closest('[data-prevent-navigation="true"]');
 
-      if (isEditableElement || isInPreventNavigationArea) return;
+      if (isTextEntry(target) || isInPreventNavigationArea) return;
 
       if (e.key === 'ArrowLeft' && navigation.hasPrevious) {
         e.preventDefault();

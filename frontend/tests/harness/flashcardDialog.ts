@@ -30,6 +30,15 @@ export const saveFlashcardDialog = async (
   await expect.element(dialog).not.toBeInTheDocument();
 };
 
+export const deleteFromFlashcardDialog = async (screen: Screen) => {
+  const dialog = screen.getByRole('dialog', { name: 'Edit flashcard' });
+  await userEvent.click(dialog.getByRole('button', { name: 'Delete', exact: true }));
+  await userEvent.click(
+    screen.getByRole('alertdialog').getByRole('button', { name: 'Delete', exact: true })
+  );
+  await expect.element(dialog).not.toBeInTheDocument();
+};
+
 /** Expects the tab to hold exactly one card. */
 export const expectQuestionEditedInTab = async (screen: Screen, from: string, to: string) => {
   const panel = await openFlashcardsTab(screen);

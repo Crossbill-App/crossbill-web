@@ -5,7 +5,7 @@ import { CommonDialog } from '@/components/dialogs/CommonDialog.tsx';
 import { RHFTextField } from '@/components/inputs/RHFTextField.tsx';
 import { useMutationErrorHandler } from '@/hooks/useMutationErrorHandler.ts';
 import { useCacheEvents } from '@/lib/cacheEvents.ts';
-import { HighlightContent } from '@/pages/BookPage/common/HighlightContent.tsx';
+import { HighlightContent, HighlightQuote } from '@/pages/BookPage/common/HighlightContent.tsx';
 import { NoteContent } from '@/pages/BookPage/Notes/NoteCard.tsx';
 import { DeleteIcon } from '@/theme/Icons.tsx';
 import { Box, Button } from '@mui/material';
@@ -21,6 +21,7 @@ import { useFlashcardDeletion } from './hooks/useFlashcardDeletion.tsx';
 
 interface EditedFlashcard extends Flashcard {
   highlight: Highlight | null;
+  highlight_text?: string | null;
 }
 
 export type FlashcardDialogTarget =
@@ -30,6 +31,7 @@ interface FlashcardDialogProps {
   bookId: number;
   target: FlashcardDialogTarget;
   onClose: () => void;
+  onDeleted?: () => void;
 }
 
 const sourceHighlight = (target: FlashcardDialogTarget) => {
@@ -37,17 +39,21 @@ const sourceHighlight = (target: FlashcardDialogTarget) => {
   return target.source.kind === 'highlight' ? target.source.highlight : null;
 };
 
+const sourceHighlightText = (target: FlashcardDialogTarget) =>
+  target.mode === 'edit' ? (target.flashcard.highlight_text ?? null) : null;
+
 const required = (message: string) => (value: string) => value.trim().length > 0 || message;
 
 const linkedNoteId = (target: FlashcardDialogTarget) =>
   target.mode === 'edit' ? (target.flashcard.note_id ?? undefined) : sourceNoteId(target.source);
 
-export const FlashcardDialog = ({ bookId, target, onClose }: FlashcardDialogProps) => {
+export const FlashcardDialog = ({ bookId, target, onClose, onDeleted }: FlashcardDialogProps) => {
   const { t } = useTranslation();
   const mutationErrorHandler = useMutationErrorHandler();
   const cache = useCacheEvents();
   const editing = target.mode === 'edit' ? target.flashcard : null;
   const highlight = sourceHighlight(target);
+  const highlightText = sourceHighlightText(target);
   const noteId = linkedNoteId(target);
 
   const {
@@ -74,7 +80,10 @@ export const FlashcardDialog = ({ bookId, target, onClose }: FlashcardDialogProp
   const { requestDelete, isDeleting, confirmation } = useFlashcardDeletion({
     bookId,
     noteId,
-    onDeleted: onClose,
+    onDeleted: () => {
+      onDeleted?.();
+      onClose();
+    },
   });
 
   const { data: note } = useGetNote(noteId ?? 0, { query: { enabled: noteId !== undefined } });
@@ -125,6 +134,7 @@ export const FlashcardDialog = ({ bookId, target, onClose }: FlashcardDialogProp
     >
       <Box sx={{ pt: 3, display: 'flex', flexDirection: 'column', gap: 3 }}>
         {highlight && <HighlightContent highlight={highlight} />}
+        {!highlight && highlightText && <HighlightQuote text={highlightText} />}
         {note && <NoteContent note={note} />}
 
         <RHFTextField

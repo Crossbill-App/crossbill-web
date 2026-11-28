@@ -10,6 +10,7 @@ import library from './library.json';
 import notes from './notes.json';
 import reader from './reader.json';
 import reflection from './reflection.json';
+import review from './review.json';
 import search from './search.json';
 import settings from './settings.json';
 import structure from './structure.json';
@@ -37,6 +38,7 @@ export const en = {
   notes,
   reflection,
   flashcards,
+  review,
   structure,
   reader,
 };

@@ -1,5 +1,5 @@
 import { aBookDetails, aChapter, aFlashcard } from '@tests/fixtures/book';
-import { saveFlashcardDialog } from '@tests/harness/flashcardDialog';
+import { deleteFromFlashcardDialog, saveFlashcardDialog } from '@tests/harness/flashcardDialog';
 import { renderApp } from '@tests/harness/renderApp';
 import { bookApi } from '@tests/msw/bookApi';
 import { worker } from '@tests/msw/worker';
@@ -96,13 +96,9 @@ test('deleting a flashcard from its dialog removes it from the list', async () =
   worker.use(...bookApi({ book: aBookWithAChapterCard() }).handlers);
 
   const screen = await renderApp({ path: '/book/1/flashcards' });
-  const dialog = await openForEditing(screen);
-  await userEvent.click(dialog.getByRole('button', { name: 'Delete', exact: true }));
-  await userEvent.click(
-    screen.getByRole('alertdialog').getByRole('button', { name: 'Delete', exact: true })
-  );
+  await openForEditing(screen);
+  await deleteFromFlashcardDialog(screen);
 
-  await expect.element(dialog).not.toBeInTheDocument();
   await expect.element(screen.getByRole('main').getByRole('status')).toBeVisible();
   expect(screen.getByRole('button', { name: 'What is attention?' }).elements()).toHaveLength(0);
 });
