@@ -149,6 +149,22 @@ test('a grade that fails to save keeps the card on screen', async () => {
   await expect.element(screen.getByText('1 of 2')).toBeVisible();
 });
 
+test('a card that left review elsewhere is skipped when graded', async () => {
+  const { screen } = await startReview([FIRST, SECOND]);
+  worker.use(
+    http.post('/api/v1/flashcards/:flashcardId/reviews', () =>
+      HttpResponse.json(null, { status: 409 })
+    )
+  );
+  await expectCardShown(screen, FIRST);
+
+  await showAnswer(screen);
+  await userEvent.click(gradeButton(screen, 'Good'));
+
+  await expectAlertRaised(screen);
+  await expectCardShown(screen, SECOND);
+});
+
 test('suspending moves on, and undo puts the card back', async () => {
   const { screen, state } = await startReview([FIRST, SECOND]);
   await expectCardShown(screen, FIRST);
@@ -163,6 +179,18 @@ test('suspending moves on, and undo puts the card back', async () => {
   await expectCardShown(screen, FIRST);
   await expect.element(screen.getByText('1 of 2')).toBeVisible();
   await expect.poll(() => state.cards[0].status).toBe('active');
+});
+
+test('Space after suspending with the mouse shows the next answer', async () => {
+  const { screen, state } = await startReview([FIRST, SECOND]);
+  await expectCardShown(screen, FIRST);
+
+  await userEvent.click(screen.getByRole('button', { name: 'Suspend' }));
+  await expectCardShown(screen, SECOND);
+  await userEvent.keyboard(' ');
+
+  await expect.element(screen.getByText(SECOND.answer)).toBeVisible();
+  await expect.poll(() => state.cards.map((card) => card.status)).toEqual(['suspended', 'active']);
 });
 
 test('editing keeps the card on screen, ungraded', async () => {
@@ -241,6 +269,32 @@ test('a queue longer than a page loads the rest before it runs out', async () =>
   await expect.poll(() => state.reviews).toHaveLength(53);
   expect(state.dueListRequests.length).toBeGreaterThan(1);
   expect(state.dueListRequests.every((request) => request.limit === 50)).toBe(true);
+});
+
+test('a page that fails to load near the end can be tried again', async () => {
+  const cards = cardsNumbered(53);
+  const { screen } = await startReview(cards);
+  await expectCardShown(screen, cards[0]);
+  let failing = true;
+  worker.use(
+    http.get('/api/v1/flashcards/due', () =>
+      failing ? HttpResponse.json(null, { status: 500 }) : undefined
+    )
+  );
+
+  for (const card of cards.slice(0, 50)) {
+    await expectCardShown(screen, card);
+    await userEvent.keyboard(' ');
+    await userEvent.keyboard('3');
+  }
+
+  await expectAlertRaised(screen);
+  expect(screen.getByRole('status').elements()).toHaveLength(0);
+
+  failing = false;
+  await userEvent.click(screen.getByRole('button', { name: 'Try again' }));
+
+  await expectCardShown(screen, cards[50]);
 });
 
 test('review is a destination in the app bar', async () => {

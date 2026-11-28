@@ -20,7 +20,7 @@ import {
 import { useFlashcardDeletion } from './hooks/useFlashcardDeletion.tsx';
 
 interface EditedFlashcard extends Flashcard {
-  highlight?: Highlight | null;
+  highlight: Highlight | null;
   highlight_text?: string | null;
 }
 
@@ -35,7 +35,7 @@ interface FlashcardDialogProps {
 }
 
 const sourceHighlight = (target: FlashcardDialogTarget) => {
-  if (target.mode === 'edit') return target.flashcard.highlight ?? null;
+  if (target.mode === 'edit') return target.flashcard.highlight;
   return target.source.kind === 'highlight' ? target.source.highlight : null;
 };
 

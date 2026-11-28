@@ -6,7 +6,7 @@ import { ICON_SIZE } from '@/theme/iconSizes.ts';
 import { Box, Button, Divider, Typography } from '@mui/material';
 import { useTranslation } from 'react-i18next';
 import { reviewInterval } from './reviewInterval.ts';
-import { GRADE_KEYS } from './useReviewKeys.ts';
+import { GRADES } from './useReviewKeys.ts';
 import type { QueuedFlashcard } from './useReviewQueue.ts';
 
 interface ReviewCardProps {
@@ -41,7 +41,7 @@ const GradeButtons = ({ card, onGrade }: Pick<ReviewCardProps, 'card' | 'onGrade
         gap: 1,
       }}
     >
-      {Object.entries(GRADE_KEYS).map(([key, rating]) => {
+      {GRADES.map(({ key, rating }) => {
         const interval = reviewInterval(Date.parse(card.previews[rating]) - card.fetchedAt);
         return (
           <Button

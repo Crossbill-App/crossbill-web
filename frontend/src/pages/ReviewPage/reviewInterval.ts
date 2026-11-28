@@ -7,7 +7,7 @@ const MINUTE = 60_000;
 const HOUR = 60 * MINUTE;
 const DAY = 24 * HOUR;
 
-/** How long until a card would be due again, in the largest unit that keeps it a whole number. */
+/** Rounded to the largest unit that is at least one; years keep one decimal. */
 export const reviewInterval = (milliseconds: number): ReviewInterval => {
   const minutes = Math.max(1, Math.round(milliseconds / MINUTE));
   if (minutes < 60) return { unit: 'minutes', count: minutes };

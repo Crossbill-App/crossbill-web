@@ -33,13 +33,7 @@ const mergeResponse = (
   };
 };
 
-/**
- * The due flashcards of one review session, one at a time.
- *
- * Reviewed cards leave the server's due list, so the next page is the first
- * page fetched again; a card already in the session keeps its place and takes
- * the fresh copy's content.
- */
+/** Reviewed cards leave the due list, so the next page is the first page fetched again. */
 export const useReviewQueue = (bookId: number | undefined) => {
   const query = useGetDueFlashcards(
     { ...(bookId === undefined ? {} : { book_id: bookId }), limit: PAGE_SIZE },
@@ -58,7 +52,7 @@ export const useReviewQueue = (bookId: number | undefined) => {
   const remove = (flashcardId: number) => {
     setRemovedIds((ids) => [...ids, flashcardId]);
     if (hasMore && remaining.length - 1 <= REFILL_AT) {
-      void query.refetch({ cancelRefetch: false });
+      void query.refetch();
     }
   };
 
@@ -69,8 +63,10 @@ export const useReviewQueue = (bookId: number | undefined) => {
     current: remaining.length > 0 ? remaining[0] : null,
     position: removedIds.length + 1,
     total: Math.max(loaded?.firstTotal ?? 0, removedIds.length + remaining.length),
-    isLoadError: loaded === null && query.isError,
-    isDone: loaded !== null && remaining.length === 0 && !(hasMore && query.isFetching),
+    isLoadError: remaining.length === 0 && query.isError,
+    isDone:
+      loaded !== null && remaining.length === 0 && !query.isError && !(hasMore && query.isFetching),
+    retry: () => void query.refetch(),
     remove,
     restore,
   };

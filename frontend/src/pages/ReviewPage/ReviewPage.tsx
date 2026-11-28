@@ -11,8 +11,9 @@ import { useMutationErrorHandler } from '@/hooks/useMutationErrorHandler.ts';
 import { useCacheEvents } from '@/lib/cacheEvents.ts';
 import { FlashcardDialog } from '@/pages/BookPage/Flashcards/FlashcardDialog.tsx';
 import { tabularNums } from '@/theme/theme.ts';
-import { Alert, Box, Typography } from '@mui/material';
+import { Alert, Box, Button, Typography } from '@mui/material';
 import { getRouteApi } from '@tanstack/react-router';
+import type { AxiosError } from 'axios';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { ReviewCard } from './ReviewCard.tsx';
@@ -20,6 +21,9 @@ import { useReviewKeys } from './useReviewKeys.ts';
 import { useReviewQueue, type QueuedFlashcard } from './useReviewQueue.ts';
 
 const route = getRouteApi('/review');
+
+const hasLeftReview = (error: unknown) =>
+  [404, 409].includes((error as AxiosError).response?.status ?? 0);
 
 const AllCaughtUp = () => {
   const { t } = useTranslation();
@@ -50,7 +54,7 @@ const ReviewSession = ({ bookId }: { bookId: number | undefined }) => {
   const recordReview = useRecordFlashcardReview({
     mutation: {
       onError: (error, { flashcardId }) => {
-        queue.restore(flashcardId);
+        if (!hasLeftReview(error)) queue.restore(flashcardId);
         mutationErrorHandler(t('review.errors.grade'))(error);
       },
     },
@@ -72,7 +76,7 @@ const ReviewSession = ({ bookId }: { bookId: number | undefined }) => {
       },
       onError: (error, { flashcardId, data }) => {
         if (data.status === 'suspended') {
-          queue.restore(flashcardId);
+          if (!hasLeftReview(error)) queue.restore(flashcardId);
           mutationErrorHandler(t('review.errors.suspend'))(error);
         } else {
           mutationErrorHandler(t('review.errors.unsuspend'))(error);
@@ -108,12 +112,26 @@ const ReviewSession = ({ bookId }: { bookId: number | undefined }) => {
   });
 
   const body = () => {
-    if (queue.isLoadError) return <Alert severity="error">{t('review.page.loadError')}</Alert>;
+    if (queue.isLoadError) {
+      return (
+        <Alert
+          severity="error"
+          action={
+            <Button color="inherit" size="small" onClick={queue.retry}>
+              {t('common.actions.tryAgain')}
+            </Button>
+          }
+        >
+          {t('review.page.loadError')}
+        </Alert>
+      );
+    }
     if (queue.isDone) return <AllCaughtUp />;
     if (!current) return <Spinner />;
 
     return (
       <ReviewCard
+        key={current.id}
         card={current}
         revealed={revealed}
         onReveal={reveal}
@@ -140,7 +158,7 @@ const ReviewSession = ({ bookId }: { bookId: number | undefined }) => {
       {editing && (
         <FlashcardDialog
           bookId={editing.book_id}
-          target={{ mode: 'edit', flashcard: editing }}
+          target={{ mode: 'edit', flashcard: { ...editing, highlight: null } }}
           onClose={() => setEditing(null)}
           onDeleted={() => queue.remove(editing.id)}
         />

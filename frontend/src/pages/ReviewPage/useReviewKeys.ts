@@ -1,12 +1,12 @@
 import type { FlashcardReviewRequestRating } from '@/api/generated/model';
 import { useEffect, useEffectEvent } from 'react';
 
-export const GRADE_KEYS: Record<string, FlashcardReviewRequestRating> = {
-  '1': 'again',
-  '2': 'hard',
-  '3': 'good',
-  '4': 'easy',
-};
+export const GRADES: readonly { key: string; rating: FlashcardReviewRequestRating }[] = [
+  { key: '1', rating: 'again' },
+  { key: '2', rating: 'hard' },
+  { key: '3', rating: 'good' },
+  { key: '4', rating: 'easy' },
+];
 
 interface ReviewKeyHandlers {
   enabled: boolean;
@@ -32,9 +32,13 @@ export const useReviewKeys = ({ enabled, revealed, onReveal, onGrade }: ReviewKe
       if (isControl(event.target)) return;
       event.preventDefault();
       onReveal();
-    } else if (revealed && event.key in GRADE_KEYS) {
+      return;
+    }
+
+    const grade = GRADES.find(({ key }) => key === event.key);
+    if (revealed && grade) {
       event.preventDefault();
-      onGrade(GRADE_KEYS[event.key]);
+      onGrade(grade.rating);
     }
   });
 
