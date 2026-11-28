@@ -46,9 +46,7 @@ from src.domain.tagging.exceptions import TagGroupNotFoundError, TagNotFoundErro
 from src.infrastructure.common.di import inject_use_case
 from src.infrastructure.common.schemas import CollectionResponse
 from src.infrastructure.identity.dependencies import get_current_user
-from src.infrastructure.learning.schemas import (
-    Flashcard,
-)
+from src.infrastructure.learning.schemas.flashcard_builders import build_flashcard_schema
 from src.infrastructure.reading.schemas import (
     Highlight,
     HighlightLabel,
@@ -386,17 +384,7 @@ async def add_tag_to_highlight(
             )
             for tag in tags
         ],
-        flashcards=[
-            Flashcard(
-                id=fc.id.value,
-                user_id=fc.user_id.value,
-                book_id=fc.book_id.value,
-                highlight_id=fc.highlight_id.value if fc.highlight_id else None,
-                question=fc.question,
-                answer=fc.answer,
-            )
-            for fc in flashcards
-        ],
+        flashcards=[build_flashcard_schema(fc) for fc in flashcards],
         created_at=highlight.created_at,
         updated_at=highlight.updated_at,
     )
@@ -466,17 +454,7 @@ async def remove_tag_from_highlight(
             )
             for tag in tags
         ],
-        flashcards=[
-            Flashcard(
-                id=fc.id.value,
-                user_id=fc.user_id.value,
-                book_id=fc.book_id.value,
-                highlight_id=fc.highlight_id.value if fc.highlight_id else None,
-                question=fc.question,
-                answer=fc.answer,
-            )
-            for fc in flashcards
-        ],
+        flashcards=[build_flashcard_schema(fc) for fc in flashcards],
         created_at=highlight.created_at,
         updated_at=highlight.updated_at,
     )

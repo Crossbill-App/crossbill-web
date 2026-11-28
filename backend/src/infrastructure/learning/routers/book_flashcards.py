@@ -19,11 +19,11 @@ from src.infrastructure.common.di import inject_use_case
 from src.infrastructure.common.schemas import CollectionResponse
 from src.infrastructure.identity import get_current_user
 from src.infrastructure.learning.schemas import (
-    Flashcard,
     FlashcardCreateRequest,
     FlashcardCreateResponse,
     FlashcardWithHighlight,
 )
+from src.infrastructure.learning.schemas.flashcard_builders import build_flashcard_schema
 from src.infrastructure.reading.schemas import (
     HighlightLabel,
     HighlightResponseBase,
@@ -70,16 +70,7 @@ async def create_flashcard_for_book(
         answer=request.answer,
         chapter_id=request.chapter_id,
     )
-    # Manually construct Pydantic schema from domain entity
-    flashcard = Flashcard(
-        id=flashcard_entity.id.value,
-        user_id=flashcard_entity.user_id.value,
-        book_id=flashcard_entity.book_id.value,
-        highlight_id=flashcard_entity.highlight_id.value if flashcard_entity.highlight_id else None,
-        chapter_id=flashcard_entity.chapter_id.value if flashcard_entity.chapter_id else None,
-        question=flashcard_entity.question,
-        answer=flashcard_entity.answer,
-    )
+    flashcard = build_flashcard_schema(flashcard_entity)
     return FlashcardCreateResponse(
         success=True,
         message="Flashcard created successfully",

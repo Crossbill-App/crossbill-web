@@ -13,10 +13,10 @@ from src.domain.identity import User
 from src.infrastructure.common.di import inject_use_case
 from src.infrastructure.identity import get_current_user
 from src.infrastructure.learning.schemas import (
-    Flashcard,
     FlashcardCreateRequest,
     FlashcardCreateResponse,
 )
+from src.infrastructure.learning.schemas.flashcard_builders import build_flashcard_schema
 
 router = APIRouter(prefix="/highlights", tags=["flashcards"])
 
@@ -57,15 +57,7 @@ async def create_flashcard_for_highlight(
         question=request.question,
         answer=request.answer,
     )
-    # Manually construct Pydantic schema from domain entity
-    flashcard = Flashcard(
-        id=flashcard_entity.id.value,
-        user_id=flashcard_entity.user_id.value,
-        book_id=flashcard_entity.book_id.value,
-        highlight_id=flashcard_entity.highlight_id.value if flashcard_entity.highlight_id else None,
-        question=flashcard_entity.question,
-        answer=flashcard_entity.answer,
-    )
+    flashcard = build_flashcard_schema(flashcard_entity)
     return FlashcardCreateResponse(
         success=True,
         message="Flashcard created successfully",

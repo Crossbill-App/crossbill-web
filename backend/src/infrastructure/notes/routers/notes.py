@@ -17,7 +17,7 @@ from src.domain.notes.entities.note import Note as NoteEntity
 from src.infrastructure.common.di import inject_use_case
 from src.infrastructure.common.schemas import CollectionResponse, SuccessResponse
 from src.infrastructure.identity import get_current_user
-from src.infrastructure.learning.schemas import Flashcard
+from src.infrastructure.learning.schemas.flashcard_builders import build_flashcard_ref_schema
 from src.infrastructure.notes.schemas import (
     Note,
     NoteCreateRequest,
@@ -73,19 +73,7 @@ def note_with_links_to_schema(view: NoteWithLinksView) -> NoteWithLinks:
             for highlight in view.highlights
         ],
         tags=[NoteLinkedTag(id=tag.id, name=tag.name) for tag in view.tags],
-        flashcards=[
-            Flashcard(
-                id=fc.id,
-                user_id=fc.user_id,
-                book_id=fc.book_id,
-                highlight_id=fc.highlight_id,
-                chapter_id=fc.chapter_id,
-                note_id=fc.note_id,
-                question=fc.question,
-                answer=fc.answer,
-            )
-            for fc in view.flashcards
-        ],
+        flashcards=[build_flashcard_ref_schema(fc) for fc in view.flashcards],
     )
 
 
