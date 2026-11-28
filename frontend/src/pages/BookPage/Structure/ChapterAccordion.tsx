@@ -6,10 +6,7 @@ import { Box, ButtonBase, Collapse, IconButton, Typography, type Theme } from '@
 import { sumBy } from 'lodash';
 import { useId, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { ChapterReadIndicator, READ_INDICATOR_SIZE } from './ChapterReadIndicator';
-
-/** `unmeasurable` keeps the indicator's slot empty, so names stay aligned with their siblings. */
-type ReadMark = 'read' | 'current' | 'unread' | 'unmeasurable';
+import { ChapterReadIndicator, type ReadMark } from './ChapterReadIndicator';
 
 interface ChapterAccordionProps {
   chapter: ChapterInBook;
@@ -34,9 +31,7 @@ interface ChapterAccordionProps {
 
 const readMarkOf = (chapter: ChapterInBook, isCurrent: boolean): ReadMark => {
   if (isCurrent) return 'current';
-  if (chapter.read_state === 'read') return 'read';
-  if (chapter.read_state === 'unmeasurable') return 'unmeasurable';
-  return 'unread';
+  return chapter.read_state === 'not_read' ? 'unread' : chapter.read_state;
 };
 
 const GistLine = ({ gist }: { gist: string }) => (
@@ -74,11 +69,7 @@ const ChapterLabel = ({
           flexShrink: 0,
         }}
       >
-        {readMark === 'unmeasurable' ? (
-          <Box sx={{ width: READ_INDICATOR_SIZE }} />
-        ) : (
-          <ChapterReadIndicator status={readMark} chapterName={chapter.name} />
-        )}
+        <ChapterReadIndicator status={readMark} chapterName={chapter.name} />
       </Box>
     )}
     <Box sx={{ minWidth: 0, textAlign: 'left' }}>

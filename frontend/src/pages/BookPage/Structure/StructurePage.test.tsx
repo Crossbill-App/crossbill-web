@@ -184,6 +184,13 @@ test('read marks come from the server, and the current chapter outranks them', a
           aChapter({ id: 2, name: 'Jumped over', start_position: at(1), read_state: 'not_read' }),
           aChapter({ id: 3, name: 'Plate', start_position: at(2), read_state: 'unmeasurable' }),
           aChapter({ id: 4, name: 'Revisited', start_position: at(5), read_state: 'read' }),
+          aChapter({
+            id: 41,
+            name: 'Frontispiece',
+            parent_id: 4,
+            start_position: at(5),
+            read_state: 'unmeasurable',
+          }),
           aChapter({ id: 5, name: 'Read before', start_position: at(9), read_state: 'read' }),
         ],
       }),
@@ -198,6 +205,9 @@ test('read marks come from the server, and the current chapter outranks them', a
     .toBeVisible();
   await expect
     .element(screen.getByRole('img', { name: 'Revisited: Current chapter' }))
+    .toBeVisible();
+  await expect
+    .element(screen.getByRole('img', { name: 'Frontispiece: Current chapter' }))
     .toBeVisible();
   await expect
     .element(screen.getByRole('img', { name: 'Read before: Read chapter' }))
