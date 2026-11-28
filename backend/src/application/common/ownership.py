@@ -1,15 +1,17 @@
 """Shared ownership checks used across application use cases.
 
 These helpers collapse the ownership-guard boilerplate that would otherwise be
-copy-pasted into every use case: loading a user's book (404 when absent) and
-asserting that a child entity belongs to the expected book.
+copy-pasted into every use case: loading a user's book or flashcard (404 when
+absent) and asserting that a child entity belongs to the expected book.
 """
 
 from collections.abc import Callable
 from typing import Protocol
 
 from src.domain.common.exceptions import DomainError
-from src.domain.common.value_objects.ids import BookId, UserId
+from src.domain.common.value_objects.ids import BookId, FlashcardId, UserId
+from src.domain.learning.entities.flashcard import Flashcard
+from src.domain.learning.exceptions import FlashcardNotFoundError
 from src.domain.library.entities.book import Book
 from src.domain.reading.exceptions import BookNotFoundError
 
@@ -24,6 +26,18 @@ class _BookByClientIdLookup(Protocol):
     """Minimal book-repository surface needed to load a book by client id."""
 
     async def find_by_client_book_id(self, client_book_id: str, user_id: UserId) -> Book | None: ...
+
+
+class _FlashcardByIdLookup(Protocol):
+    """Minimal flashcard-repository surface needed to load a flashcard by id."""
+
+    async def find_by_id(
+        self, flashcard_id: FlashcardId, /, user_id: UserId
+    ) -> Flashcard | None: ...
+
+    async def find_by_id_for_update(
+        self, flashcard_id: FlashcardId, user_id: UserId
+    ) -> Flashcard | None: ...
 
 
 class _BelongsToBook(Protocol):
@@ -43,6 +57,28 @@ async def require_book(
     if book is None:
         raise BookNotFoundError(book_id.value)
     return book
+
+
+async def require_flashcard(
+    flashcard_repository: _FlashcardByIdLookup,
+    flashcard_id: FlashcardId,
+    user_id: UserId,
+    *,
+    for_update: bool = False,
+) -> Flashcard:
+    """Load a user's flashcard by id, raising ``FlashcardNotFoundError`` when it is absent.
+
+    ``for_update`` locks its row until the flashcard is next saved.
+    """
+    find = (
+        flashcard_repository.find_by_id_for_update
+        if for_update
+        else flashcard_repository.find_by_id
+    )
+    flashcard = await find(flashcard_id, user_id)
+    if flashcard is None:
+        raise FlashcardNotFoundError(flashcard_id.value)
+    return flashcard
 
 
 async def require_book_by_client_id(

@@ -49,7 +49,7 @@ from src.infrastructure.identity.dependencies import (
 )
 from src.infrastructure.identity.services.token_service import ACCESS_TOKEN_EXPIRE_MINUTES
 from src.infrastructure.library.repositories import file_repository
-from src.infrastructure.reading.routers.reader_clock import reader_today
+from src.infrastructure.reading.routers.reader_clock import reader_now, reader_today
 from src.infrastructure.reading.schemas.ereader_highlight_schemas import (
     KOREADER_DATETIME_FORMAT,
 )
@@ -222,6 +222,23 @@ async def create_test_highlight(
     return highlight
 
 
+async def create_test_flashcard(
+    db_session: AsyncSession,
+    book: Book,
+    question: str = "Test question",
+    answer: str = "Test answer",
+    **fields: object,
+) -> Flashcard:
+    """Create a flashcard owned by the book's owner; ``fields`` sets any other column."""
+    flashcard = Flashcard(
+        user_id=book.user_id, book_id=book.id, question=question, answer=answer, **fields
+    )
+    db_session.add(flashcard)
+    await db_session.commit()
+    await db_session.refresh(flashcard)
+    return flashcard
+
+
 async def plant_highlight(
     db_session: AsyncSession, book: Book, text: str, *, deleted: bool = False
 ) -> Highlight:
@@ -285,6 +302,16 @@ def readers_today(day: date) -> Iterator[None]:
         yield
     finally:
         del app.dependency_overrides[reader_today]
+
+
+@contextmanager
+def readers_now(moment: dt) -> Iterator[None]:
+    """Pin the moment it is on the server's clock, so a test asserts on a fixed schedule."""
+    app.dependency_overrides[reader_now] = lambda: moment
+    try:
+        yield
+    finally:
+        del app.dependency_overrides[reader_now]
 
 
 async def create_test_highlight_style(
@@ -532,18 +559,9 @@ async def test_highlight(db_session: AsyncSession, test_book: Book, test_user: U
 
 
 @pytest.fixture
-async def test_flashcard(db_session: AsyncSession, test_book: Book, test_user: User) -> Flashcard:
+async def test_flashcard(db_session: AsyncSession, test_book: Book) -> Flashcard:
     """Create a standard test flashcard attached to test_book."""
-    flashcard = Flashcard(
-        user_id=test_user.id,
-        book_id=test_book.id,
-        question="Test question",
-        answer="Test answer",
-    )
-    db_session.add(flashcard)
-    await db_session.commit()
-    await db_session.refresh(flashcard)
-    return flashcard
+    return await create_test_flashcard(db_session, test_book)
 
 
 @pytest.fixture

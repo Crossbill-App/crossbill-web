@@ -18,6 +18,12 @@ from src.application.learning.commands.flashcards.create_flashcard_for_note_use_
 from src.application.learning.commands.flashcards.delete_flashcard_use_case import (
     DeleteFlashcardUseCase,
 )
+from src.application.learning.commands.flashcards.record_flashcard_review_use_case import (
+    RecordFlashcardReviewUseCase,
+)
+from src.application.learning.commands.flashcards.set_flashcard_status_use_case import (
+    SetFlashcardStatusUseCase,
+)
 from src.application.learning.commands.flashcards.update_flashcard_use_case import (
     UpdateFlashcardUseCase,
 )
@@ -29,6 +35,9 @@ from src.application.learning.commands.quiz.start_quiz_session_use_case import (
 )
 from src.application.learning.queries.get_chapter_flashcard_suggestions_use_case import (
     GetChapterFlashcardSuggestionsUseCase,
+)
+from src.application.learning.queries.get_due_flashcards_use_case import (
+    GetDueFlashcardsUseCase,
 )
 from src.application.learning.queries.get_flashcard_suggestions_use_case import (
     GetFlashcardSuggestionsUseCase,
@@ -55,10 +64,12 @@ class LearningContainer(containers.DeclarativeContainer):
     ai_service = providers.Dependency()
     ai_chat_session_repository = providers.Dependency()
     note_repository = providers.Dependency()
+    review_scheduler = providers.Dependency()
 
     # Read models: the query adapter (a port implementation) plus the read use
     # cases that routers call, mirroring how commands are exposed.
     book_flashcard_query = providers.Dependency()
+    due_flashcard_query = providers.Dependency()
 
     # Flashcards
     create_flashcard_for_highlight_use_case = providers.Factory(
@@ -82,12 +93,26 @@ class LearningContainer(containers.DeclarativeContainer):
         book_flashcard_query=book_flashcard_query,
         book_repository=book_repository,
     )
+    get_due_flashcards_use_case = providers.Factory(
+        GetDueFlashcardsUseCase,
+        due_flashcard_query=due_flashcard_query,
+        book_repository=book_repository,
+    )
     update_flashcard_use_case = providers.Factory(
         UpdateFlashcardUseCase,
         flashcard_repository=flashcard_repository,
     )
     delete_flashcard_use_case = providers.Factory(
         DeleteFlashcardUseCase,
+        flashcard_repository=flashcard_repository,
+    )
+    record_flashcard_review_use_case = providers.Factory(
+        RecordFlashcardReviewUseCase,
+        flashcard_repository=flashcard_repository,
+        review_scheduler=review_scheduler,
+    )
+    set_flashcard_status_use_case = providers.Factory(
+        SetFlashcardStatusUseCase,
         flashcard_repository=flashcard_repository,
     )
 

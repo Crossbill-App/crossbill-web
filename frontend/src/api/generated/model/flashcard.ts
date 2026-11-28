@@ -4,6 +4,8 @@
  * crossbill API
  * OpenAPI spec version: 0.0.0
  */
+import type { FlashcardOrigin } from './flashcardOrigin.ts';
+import type { FlashcardStatus } from './flashcardStatus.ts';
 
 /**
  * Schema for Flashcard response (without embedded highlight).
@@ -25,4 +27,12 @@ export interface Flashcard {
    * @minLength 1
    */
   answer: string;
+  /** A suspended card is never due and takes no reviews */
+  status: FlashcardStatus;
+  /** Written by the reader or generated */
+  origin: FlashcardOrigin;
+  /** When the card is next due; null until first reviewed */
+  due: string | null;
+  /** When the card was last reviewed */
+  last_review: string | null;
 }

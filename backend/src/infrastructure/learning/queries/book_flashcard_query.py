@@ -8,6 +8,7 @@ one rule-derived value here (a highlight's effective label) is delegated to
 """
 
 from collections.abc import Sequence
+from dataclasses import asdict
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -21,7 +22,7 @@ from src.application.learning.queries.book_flashcards import (
 from src.application.reading.services.label_resolution_service import LabelResolutionService
 from src.domain.common.value_objects.ids import BookId, UserId
 from src.domain.reading.services.highlight_style_resolver import ResolvedLabel
-from src.infrastructure.common.queries.row_mappers import tag_ref
+from src.infrastructure.common.queries.row_mappers import flashcard_ref, tag_ref
 from src.infrastructure.learning.orm.flashcard_model import Flashcard as FlashcardORM
 from src.infrastructure.reading.orm.highlight_model import Highlight as HighlightORM
 
@@ -49,14 +50,7 @@ class BookFlashcardQuery:
 
         return tuple(
             FlashcardWithHighlightView(
-                id=card.id,
-                user_id=card.user_id,
-                book_id=card.book_id,
-                highlight_id=card.highlight_id,
-                chapter_id=card.chapter_id,
-                note_id=card.note_id,
-                question=card.question,
-                answer=card.answer,
+                **asdict(flashcard_ref(card)),
                 highlight=highlights.get(card.highlight_id)
                 if card.highlight_id is not None
                 else None,

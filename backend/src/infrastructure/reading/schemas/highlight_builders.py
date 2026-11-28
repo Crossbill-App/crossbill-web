@@ -29,19 +29,7 @@ def build_highlight_schema(highlight: HighlightRow) -> Highlight:
         if highlight.label
         else None,
         removed_from_devices=highlight.removed_from_devices,
-        flashcards=[
-            Flashcard(
-                id=card.id,
-                user_id=card.user_id,
-                book_id=card.book_id,
-                highlight_id=card.highlight_id,
-                chapter_id=card.chapter_id,
-                note_id=card.note_id,
-                question=card.question,
-                answer=card.answer,
-            )
-            for card in highlight.flashcards
-        ],
+        flashcards=[Flashcard.model_validate(card) for card in highlight.flashcards],
         tags=[
             TagInBook(id=tag.id, name=tag.name, tag_group_id=tag.tag_group_id)
             for tag in highlight.tags

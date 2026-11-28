@@ -19,10 +19,12 @@ from src.infrastructure.common.di import inject_use_case
 from src.infrastructure.common.schemas import CollectionResponse
 from src.infrastructure.identity import get_current_user
 from src.infrastructure.learning.schemas import (
-    Flashcard,
     FlashcardCreateRequest,
     FlashcardCreateResponse,
     FlashcardWithHighlight,
+)
+from src.infrastructure.learning.schemas.flashcard_builders import (
+    build_flashcard_schema,
 )
 from src.infrastructure.reading.schemas import (
     HighlightLabel,
@@ -70,16 +72,7 @@ async def create_flashcard_for_book(
         answer=request.answer,
         chapter_id=request.chapter_id,
     )
-    # Manually construct Pydantic schema from domain entity
-    flashcard = Flashcard(
-        id=flashcard_entity.id.value,
-        user_id=flashcard_entity.user_id.value,
-        book_id=flashcard_entity.book_id.value,
-        highlight_id=flashcard_entity.highlight_id.value if flashcard_entity.highlight_id else None,
-        chapter_id=flashcard_entity.chapter_id.value if flashcard_entity.chapter_id else None,
-        question=flashcard_entity.question,
-        answer=flashcard_entity.answer,
-    )
+    flashcard = build_flashcard_schema(flashcard_entity)
     return FlashcardCreateResponse(
         success=True,
         message="Flashcard created successfully",
@@ -148,14 +141,5 @@ def _highlight_schema(view: FlashcardHighlightView) -> HighlightResponseBase:
 
 def _flashcard_schema(view: FlashcardWithHighlightView) -> FlashcardWithHighlight:
     """Render one flashcard row of the book's flashcard list."""
-    return FlashcardWithHighlight(
-        id=view.id,
-        user_id=view.user_id,
-        book_id=view.book_id,
-        highlight_id=view.highlight_id,
-        chapter_id=view.chapter_id,
-        note_id=view.note_id,
-        question=view.question,
-        answer=view.answer,
-        highlight=_highlight_schema(view.highlight) if view.highlight else None,
-    )
+    highlight = _highlight_schema(view.highlight) if view.highlight else None
+    return FlashcardWithHighlight.model_validate(vars(view) | {"highlight": highlight})

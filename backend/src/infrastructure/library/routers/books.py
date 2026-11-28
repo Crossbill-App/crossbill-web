@@ -150,19 +150,7 @@ def _build_book_details_schema(view: BookDetailsView) -> BookDetails:
             )
             for b in view.bookmarks
         ],
-        book_flashcards=[
-            Flashcard(
-                id=f.id,
-                user_id=f.user_id,
-                book_id=f.book_id,
-                highlight_id=None,
-                chapter_id=f.chapter_id,
-                note_id=f.note_id,
-                question=f.question,
-                answer=f.answer,
-            )
-            for f in view.book_flashcards
-        ],
+        book_flashcards=[Flashcard.model_validate(f) for f in view.book_flashcards],
         chapters=[_build_chapter_schema(chapter) for chapter in view.chapters],
         highlight_count=view.highlight_count,
         reading_position=PositionResponse(

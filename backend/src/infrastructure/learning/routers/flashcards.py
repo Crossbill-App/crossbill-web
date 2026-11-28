@@ -1,27 +1,76 @@
 """API routes for flashcard management."""
 
+from datetime import datetime
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, status
+from fastapi import APIRouter, Depends, Query, status
 
 from src.application.learning.commands.flashcards.delete_flashcard_use_case import (
     DeleteFlashcardUseCase,
 )
+from src.application.learning.commands.flashcards.record_flashcard_review_use_case import (
+    RecordFlashcardReviewUseCase,
+)
+from src.application.learning.commands.flashcards.set_flashcard_status_use_case import (
+    SetFlashcardStatusUseCase,
+)
 from src.application.learning.commands.flashcards.update_flashcard_use_case import (
     UpdateFlashcardUseCase,
 )
+from src.application.learning.queries.get_due_flashcards_use_case import (
+    GetDueFlashcardsUseCase,
+)
 from src.core import container
 from src.domain.identity.entities.user import User
+from src.domain.learning.value_objects.flashcard_review import FlashcardRating, FlashcardReview
+from src.domain.learning.value_objects.flashcard_status import FlashcardStatus
 from src.infrastructure.common.di import inject_use_case
-from src.infrastructure.common.schemas import SuccessResponse
+from src.infrastructure.common.schemas import PaginatedResponse, SuccessResponse
 from src.infrastructure.identity.dependencies import get_current_user
 from src.infrastructure.learning.schemas import (
     Flashcard,
+    FlashcardReviewRequest,
+    FlashcardStatusRequest,
     FlashcardUpdateRequest,
     FlashcardUpdateResponse,
 )
+from src.infrastructure.learning.schemas.flashcard_builders import (
+    build_flashcard_schema,
+)
+from src.infrastructure.reading.routers.reader_clock import reader_now
 
 router = APIRouter(prefix="/flashcards", tags=["flashcards"])
+
+
+@router.get(
+    "/due",
+    response_model=PaginatedResponse[Flashcard],
+    status_code=status.HTTP_200_OK,
+)
+async def get_due_flashcards(
+    current_user: Annotated[User, Depends(get_current_user)],
+    now: Annotated[datetime, Depends(reader_now)],
+    book_id: int | None = Query(None, description="Only this book's cards"),
+    limit: int = Query(50, ge=1, le=1000, description="Maximum cards to return"),
+    offset: int = Query(0, ge=0, description="Number of cards to skip"),
+    use_case: GetDueFlashcardsUseCase = Depends(
+        inject_use_case(container.learning.get_due_flashcards_use_case)
+    ),
+) -> PaginatedResponse[Flashcard]:
+    """List the active flashcards to review now: due cards, then cards never reviewed.
+
+    Due cards come lowest retrievability first; new cards follow one book at a
+    time, in book order with those without a chapter last.
+    """
+    page = await use_case.get_due_flashcards(
+        user_id=current_user.id.value, now=now, book_id=book_id, limit=limit, offset=offset
+    )
+    return PaginatedResponse[Flashcard](
+        items=[Flashcard.model_validate(card) for card in page.flashcards],
+        total=page.total,
+        offset=offset,
+        limit=limit,
+    )
 
 
 @router.put(
@@ -57,15 +106,7 @@ async def update_flashcard(
         question=request.question,
         answer=request.answer,
     )
-    # Manually construct Pydantic schema from domain entity
-    flashcard = Flashcard(
-        id=flashcard_entity.id.value,
-        user_id=flashcard_entity.user_id.value,
-        book_id=flashcard_entity.book_id.value,
-        highlight_id=flashcard_entity.highlight_id.value if flashcard_entity.highlight_id else None,
-        question=flashcard_entity.question,
-        answer=flashcard_entity.answer,
-    )
+    flashcard = build_flashcard_schema(flashcard_entity)
     return FlashcardUpdateResponse(
         success=True,
         message="Flashcard updated successfully",
@@ -103,3 +144,53 @@ async def delete_flashcard(
         success=True,
         message="Flashcard deleted successfully",
     )
+
+
+@router.post(
+    "/{flashcard_id}/reviews",
+    response_model=Flashcard,
+    status_code=status.HTTP_200_OK,
+)
+async def record_flashcard_review(
+    flashcard_id: int,
+    request: FlashcardReviewRequest,
+    current_user: Annotated[User, Depends(get_current_user)],
+    use_case: RecordFlashcardReviewUseCase = Depends(
+        inject_use_case(container.learning.record_flashcard_review_use_case)
+    ),
+) -> Flashcard:
+    """Record a review of a flashcard and return the card as it is now scheduled.
+
+    A review sent again with the same `reviewed_at` changes nothing. A suspended
+    card takes no reviews (409).
+    """
+    flashcard = await use_case.record_review(
+        flashcard_id=flashcard_id,
+        user_id=current_user.id.value,
+        review=FlashcardReview(
+            rating=FlashcardRating(request.rating), reviewed_at=request.reviewed_at
+        ),
+    )
+    return build_flashcard_schema(flashcard)
+
+
+@router.put(
+    "/{flashcard_id}/status",
+    response_model=Flashcard,
+    status_code=status.HTTP_200_OK,
+)
+async def set_flashcard_status(
+    flashcard_id: int,
+    request: FlashcardStatusRequest,
+    current_user: Annotated[User, Depends(get_current_user)],
+    use_case: SetFlashcardStatusUseCase = Depends(
+        inject_use_case(container.learning.set_flashcard_status_use_case)
+    ),
+) -> Flashcard:
+    """Suspend a flashcard, taking it out of review, or unsuspend it with its schedule intact."""
+    flashcard = await use_case.set_status(
+        flashcard_id=flashcard_id,
+        user_id=current_user.id.value,
+        status=FlashcardStatus(request.status),
+    )
+    return build_flashcard_schema(flashcard)

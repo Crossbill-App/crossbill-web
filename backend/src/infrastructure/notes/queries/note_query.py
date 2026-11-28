@@ -33,6 +33,7 @@ from src.domain.common.value_objects.ids import (
     UserId,
 )
 from src.domain.notes.entities.note import NoteKind
+from src.infrastructure.common.queries.row_mappers import flashcard_ref
 from src.infrastructure.learning.orm.flashcard_model import Flashcard as FlashcardORM
 from src.infrastructure.library.orm.book_model import Book as BookORM
 from src.infrastructure.library.orm.chapter_model import Chapter as ChapterORM
@@ -227,46 +228,17 @@ class NoteQuery:
     ) -> dict[int, tuple[FlashcardRef, ...]]:
         """Load every note's flashcards in one pass, newest first within a note."""
         stmt = (
-            select(
-                FlashcardORM.id,
-                FlashcardORM.user_id,
-                FlashcardORM.book_id,
-                FlashcardORM.highlight_id,
-                FlashcardORM.chapter_id,
-                FlashcardORM.note_id,
-                FlashcardORM.question,
-                FlashcardORM.answer,
-            )
+            select(FlashcardORM)
             .where(
                 FlashcardORM.note_id.in_(note_ids),
                 FlashcardORM.user_id == user_id.value,
             )
             .order_by(FlashcardORM.note_id, FlashcardORM.created_at.desc())
         )
-        rows = (await self.db.execute(stmt)).tuples().all()
+        rows = (await self.db.execute(stmt)).scalars().all()
         grouped: dict[int | None, list[FlashcardRef]] = defaultdict(list)
-        for (
-            card_id,
-            card_user_id,
-            book_id,
-            highlight_id,
-            chapter_id,
-            card_note_id,
-            question,
-            answer,
-        ) in rows:
-            grouped[card_note_id].append(
-                FlashcardRef(
-                    id=card_id,
-                    user_id=card_user_id,
-                    book_id=book_id,
-                    highlight_id=highlight_id,
-                    chapter_id=chapter_id,
-                    note_id=card_note_id,
-                    question=question,
-                    answer=answer,
-                )
-            )
+        for row in rows:
+            grouped[row.note_id].append(flashcard_ref(row))
         # ``note_id`` is nullable on the table -- book-level cards keep no note.
         return {note_id: tuple(cards) for note_id, cards in grouped.items() if note_id is not None}
 

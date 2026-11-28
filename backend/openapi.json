@@ -2708,6 +2708,90 @@
         }
       }
     },
+    "/api/v1/flashcards/due": {
+      "get": {
+        "tags": [
+          "flashcards"
+        ],
+        "summary": "Get Due Flashcards",
+        "description": "List the active flashcards to review now: due cards, then cards never reviewed.\n\nDue cards come lowest retrievability first; new cards follow one book at a\ntime, in book order with those without a chapter last.",
+        "operationId": "get_due_flashcards",
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "book_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Only this book's cards",
+              "title": "Book Id"
+            },
+            "description": "Only this book's cards"
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 1000,
+              "minimum": 1,
+              "description": "Maximum cards to return",
+              "default": 50,
+              "title": "Limit"
+            },
+            "description": "Maximum cards to return"
+          },
+          {
+            "name": "offset",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 0,
+              "description": "Number of cards to skip",
+              "default": 0,
+              "title": "Offset"
+            },
+            "description": "Number of cards to skip"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PaginatedResponse_Flashcard_"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/flashcards/{flashcard_id}": {
       "put": {
         "tags": [
@@ -2795,6 +2879,122 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/SuccessResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/flashcards/{flashcard_id}/reviews": {
+      "post": {
+        "tags": [
+          "flashcards"
+        ],
+        "summary": "Record Flashcard Review",
+        "description": "Record a review of a flashcard and return the card as it is now scheduled.\n\nA review sent again with the same `reviewed_at` changes nothing. A suspended\ncard takes no reviews (409).",
+        "operationId": "record_flashcard_review",
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "flashcard_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Flashcard Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/FlashcardReviewRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Flashcard"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/flashcards/{flashcard_id}/status": {
+      "put": {
+        "tags": [
+          "flashcards"
+        ],
+        "summary": "Set Flashcard Status",
+        "description": "Suspend a flashcard, taking it out of review, or unsuspend it with its schedule intact.",
+        "operationId": "set_flashcard_status",
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "flashcard_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Flashcard Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/FlashcardStatusRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Flashcard"
                 }
               }
             }
@@ -7311,6 +7511,50 @@
             "minLength": 1,
             "title": "Answer",
             "description": "Answer text for the flashcard"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "active",
+              "suspended"
+            ],
+            "title": "Status",
+            "description": "A suspended card is never due and takes no reviews"
+          },
+          "origin": {
+            "type": "string",
+            "enum": [
+              "manual",
+              "generated"
+            ],
+            "title": "Origin",
+            "description": "Written by the reader or generated"
+          },
+          "due": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Due",
+            "description": "When the card is next due; null until first reviewed"
+          },
+          "last_review": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Review",
+            "description": "When the card was last reviewed"
           }
         },
         "type": "object",
@@ -7320,7 +7564,11 @@
           "book_id",
           "highlight_id",
           "question",
-          "answer"
+          "answer",
+          "status",
+          "origin",
+          "due",
+          "last_review"
         ],
         "title": "Flashcard",
         "description": "Schema for Flashcard response (without embedded highlight)."
@@ -7385,6 +7633,52 @@
         ],
         "title": "FlashcardCreateResponse",
         "description": "Schema for flashcard creation response."
+      },
+      "FlashcardReviewRequest": {
+        "properties": {
+          "rating": {
+            "type": "string",
+            "enum": [
+              "again",
+              "hard",
+              "good",
+              "easy"
+            ],
+            "title": "Rating",
+            "description": "How well the card was recalled"
+          },
+          "reviewed_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Reviewed At",
+            "description": "When the reader gave the rating"
+          }
+        },
+        "type": "object",
+        "required": [
+          "rating",
+          "reviewed_at"
+        ],
+        "title": "FlashcardReviewRequest",
+        "description": "Schema for recording a review of a flashcard."
+      },
+      "FlashcardStatusRequest": {
+        "properties": {
+          "status": {
+            "type": "string",
+            "enum": [
+              "active",
+              "suspended"
+            ],
+            "title": "Status"
+          }
+        },
+        "type": "object",
+        "required": [
+          "status"
+        ],
+        "title": "FlashcardStatusRequest",
+        "description": "Schema for suspending or unsuspending a flashcard."
       },
       "FlashcardSuggestionItem": {
         "properties": {
@@ -7525,6 +7819,50 @@
             "title": "Answer",
             "description": "Answer text for the flashcard"
           },
+          "status": {
+            "type": "string",
+            "enum": [
+              "active",
+              "suspended"
+            ],
+            "title": "Status",
+            "description": "A suspended card is never due and takes no reviews"
+          },
+          "origin": {
+            "type": "string",
+            "enum": [
+              "manual",
+              "generated"
+            ],
+            "title": "Origin",
+            "description": "Written by the reader or generated"
+          },
+          "due": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Due",
+            "description": "When the card is next due; null until first reviewed"
+          },
+          "last_review": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Review",
+            "description": "When the card was last reviewed"
+          },
           "highlight": {
             "anyOf": [
               {
@@ -7544,7 +7882,11 @@
           "book_id",
           "highlight_id",
           "question",
-          "answer"
+          "answer",
+          "status",
+          "origin",
+          "due",
+          "last_review"
         ],
         "title": "FlashcardWithHighlight",
         "description": "Flashcard response schema with embedded highlight data."
@@ -9464,6 +9806,37 @@
           "limit"
         ],
         "title": "PaginatedResponse[BookWithHighlightCount]"
+      },
+      "PaginatedResponse_Flashcard_": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/Flashcard"
+            },
+            "type": "array",
+            "title": "Items"
+          },
+          "total": {
+            "type": "integer",
+            "title": "Total"
+          },
+          "offset": {
+            "type": "integer",
+            "title": "Offset"
+          },
+          "limit": {
+            "type": "integer",
+            "title": "Limit"
+          }
+        },
+        "type": "object",
+        "required": [
+          "items",
+          "total",
+          "offset",
+          "limit"
+        ],
+        "title": "PaginatedResponse[Flashcard]"
       },
       "PaginatedResponse_ReadingSession_": {
         "properties": {

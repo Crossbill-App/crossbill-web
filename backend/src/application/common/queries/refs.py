@@ -11,6 +11,9 @@ never be fed back into a command. See ``docs/adr/0001-read-models-and-query-serv
 from dataclasses import dataclass
 from datetime import datetime as dt
 
+from src.domain.learning.value_objects.flashcard_origin import FlashcardOrigin
+from src.domain.learning.value_objects.flashcard_status import FlashcardStatus
+
 
 @dataclass(frozen=True)
 class TagRef:
@@ -33,6 +36,10 @@ class FlashcardRef:
     note_id: int | None
     question: str
     answer: str
+    status: FlashcardStatus
+    origin: FlashcardOrigin
+    due: dt | None
+    last_review: dt | None
 
 
 @dataclass(frozen=True)

@@ -26,10 +26,12 @@ from src.infrastructure.identity.services.token_service_adapter import TokenServ
 from src.infrastructure.jobs.queries.job_batch_query import JobBatchQuery
 from src.infrastructure.jobs.repositories.job_batch_repository import JobBatchRepository
 from src.infrastructure.learning.queries.book_flashcard_query import BookFlashcardQuery
+from src.infrastructure.learning.queries.due_flashcard_query import DueFlashcardQuery
 from src.infrastructure.learning.repositories.ai_chat_session_repository import (
     AIChatSessionRepository,
 )
 from src.infrastructure.learning.repositories.flashcard_repository import FlashcardRepository
+from src.infrastructure.learning.services.fsrs_review_scheduler import FsrsReviewScheduler
 from src.infrastructure.library.queries.book_details_query import BookDetailsQuery
 from src.infrastructure.library.queries.book_list_query import BookListQuery
 from src.infrastructure.library.repositories import BookRepository
@@ -140,6 +142,7 @@ class SharedContainer(containers.DeclarativeContainer):
     position_anchor_service = providers.Factory(XPointCfiPositionAnchorService)
     ebook_text_extraction_service = providers.Factory(EpubTextExtractionService)
     cover_image_service = providers.Factory(CoverImageService)
+    review_scheduler = providers.Singleton(FsrsReviewScheduler)
 
     # Identity services
     user_repository = providers.Factory(UserRepository, db=db)
@@ -185,6 +188,7 @@ class SharedContainer(containers.DeclarativeContainer):
         db=db,
         label_resolution_service=label_resolution_service,
     )
+    due_flashcard_query = providers.Factory(DueFlashcardQuery, db=db)
     book_statistics_query = providers.Factory(
         BookStatisticsQuery,
         db=db,

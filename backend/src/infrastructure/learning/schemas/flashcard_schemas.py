@@ -1,6 +1,13 @@
 """Pydantic schemas for Flashcard API request/response validation."""
 
-from pydantic import BaseModel, Field
+from datetime import datetime as dt
+from typing import Literal
+
+from pydantic import AwareDatetime, BaseModel, Field
+
+FlashcardStatusLiteral = Literal["active", "suspended"]
+FlashcardOriginLiteral = Literal["manual", "generated"]
+FlashcardRatingLiteral = Literal["again", "hard", "good", "easy"]
 
 
 class Flashcard(BaseModel):
@@ -15,6 +22,12 @@ class Flashcard(BaseModel):
 
     question: str = Field(..., min_length=1, description="Question text for the flashcard")
     answer: str = Field(..., min_length=1, description="Answer text for the flashcard")
+    status: FlashcardStatusLiteral = Field(
+        ..., description="A suspended card is never due and takes no reviews"
+    )
+    origin: FlashcardOriginLiteral = Field(..., description="Written by the reader or generated")
+    due: dt | None = Field(..., description="When the card is next due; null until first reviewed")
+    last_review: dt | None = Field(..., description="When the card was last reviewed")
 
     model_config = {"from_attributes": True}
 
@@ -69,3 +82,16 @@ class FlashcardSuggestionItem(BaseModel):
 
     question: str = Field(..., description="Suggested question for flashcard")
     answer: str = Field(..., description="Suggested answer for flashcard")
+
+
+class FlashcardReviewRequest(BaseModel):
+    """Schema for recording a review of a flashcard."""
+
+    rating: FlashcardRatingLiteral = Field(..., description="How well the card was recalled")
+    reviewed_at: AwareDatetime = Field(..., description="When the reader gave the rating")
+
+
+class FlashcardStatusRequest(BaseModel):
+    """Schema for suspending or unsuspending a flashcard."""
+
+    status: FlashcardStatusLiteral

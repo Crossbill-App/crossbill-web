@@ -9,7 +9,7 @@ from datetime import datetime as dt
 from typing import Protocol
 
 from src.application.common.queries.highlight_row import HighlightLabelView
-from src.application.common.queries.refs import TagRef
+from src.application.common.queries.refs import FlashcardRef, TagRef
 from src.domain.common.value_objects.ids import BookId, UserId
 
 
@@ -32,7 +32,7 @@ class FlashcardHighlightView:
 
 
 @dataclass(frozen=True)
-class FlashcardWithHighlightView:
+class FlashcardWithHighlightView(FlashcardRef):
     """A flashcard of a book together with the highlight it came from.
 
     ``highlight_id`` is the flashcard's own column while ``highlight`` holds the
@@ -41,14 +41,6 @@ class FlashcardWithHighlightView:
     nothing. That is the API's behaviour, so the DTO carries both.
     """
 
-    id: int
-    user_id: int
-    book_id: int
-    highlight_id: int | None
-    chapter_id: int | None
-    note_id: int | None
-    question: str
-    answer: str
     highlight: FlashcardHighlightView | None
 
 

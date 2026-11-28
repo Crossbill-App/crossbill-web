@@ -14,6 +14,7 @@ from src.infrastructure.identity.orm.user_model import User
 from src.infrastructure.jobs.orm.job_batch_model import JobBatchModel
 from src.infrastructure.learning.orm.ai_chat_session_model import AIChatSession
 from src.infrastructure.learning.orm.flashcard_model import Flashcard
+from src.infrastructure.learning.orm.flashcard_review_model import FlashcardReview
 from src.infrastructure.library.orm.book_model import Book
 from src.infrastructure.library.orm.chapter_model import Chapter
 from src.infrastructure.notes.orm.associations import (
@@ -55,6 +56,7 @@ __all__ = [
     "ChapterDigest",
     "Embedding",
     "Flashcard",
+    "FlashcardReview",
     "Highlight",
     "HighlightStyle",
     "JobBatchModel",
