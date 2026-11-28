@@ -525,6 +525,11 @@ reports a position:
   starts fresh however soon the reader comes back. Written with a `keepalive`
   fetch, the only kind of request a page may leave behind.
 
+> **Amended by *Amendment 10*.** A session now starts on an `opening` write,
+> sent as the book comes up, and the `closing` write deletes one that fails the
+> KOReader sync's filters. The reader also sends `closing` on `pagehide`, since
+> closing the tab or reloading unmounts nothing.
+
 The session records `device_id = "crossbill-web-reader"`, a name three places
 share (`domain/common/devices.py`, since §6 keeps `reading` from depending on
 the web reader existing). It keeps browser reading distinguishable in the
@@ -548,6 +553,9 @@ and starts it again half an hour later would otherwise be one sitting reporting
 three hundred pages with a progress bar on page one. So a backward jump of more
 than **a quarter of the book** ends the sitting: a quarter is navigation, not a
 sequence of page turns, and re-reading the previous chapter sits inside it.
+
+> **Amended by *Amendment 10*.** The sitting the jump ends is extended to the
+> jump's moment, though not to where it landed.
 
 ### The new table is a bookmark, not a second source of truth
 
@@ -682,6 +690,7 @@ book's length, so a book read only in the browser had no denominator.
   instead of sessions. A second answer to a question that already has one.
 - **Writing a position on open.** It would start a session for opening a book,
   and — once a resume restores a stored position — write that position back.
+  (*Adopted by Amendment 10*, which deletes such a session on close.)
 - **Any change to the plugin surface.** No `koreader-plugin` minimum bump.
 
 ## Amendment 4: resuming from the latest position of any device
@@ -1197,7 +1206,8 @@ Read Chapter threshold. The reading position keeps *Amendment 3*'s rule.
 
 ## Amendment 10: a session opens with the book, so its Page Views fit it
 
-**Date:** 2026-11-27. **Decided in:** #1022, part of map #1010.
+**Date:** 2026-11-27. **Decided in:** #1022, part of map #1010. **Built by:** #1031
+(the session rules) and #1032 (the Page Views they make room for).
 
 Page Views ride on the reading-position `PUT` and must fit inside their
 session's start and end. Three rules of *Amendment 3* made that impossible, and
