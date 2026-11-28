@@ -76,13 +76,13 @@ class FlashcardMapper:
             reviewed_at=as_aware(orm_model.reviewed_at),
         )
 
-    def review_values(self, flashcard_id: int, review: FlashcardReview) -> dict[str, object]:
-        """The column values that insert a review of the given flashcard."""
-        return {
-            "flashcard_id": flashcard_id,
-            "rating": review.rating.value,
-            "reviewed_at": review.reviewed_at,
-        }
+    def review_to_orm(self, flashcard_id: int, review: FlashcardReview) -> FlashcardReviewORM:
+        """Convert a review of the given flashcard to a new row."""
+        return FlashcardReviewORM(
+            flashcard_id=flashcard_id,
+            rating=review.rating.value,
+            reviewed_at=review.reviewed_at,
+        )
 
 
 def _review_state(orm_model: FlashcardORM) -> ReviewState | None:

@@ -2,7 +2,7 @@
 
 from typing import Any
 
-from sqlalchemy import Select, insert, select
+from sqlalchemy import Select, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.domain.common.entity import EntityId
@@ -52,11 +52,7 @@ class FlashcardRepository(BaseRepository[Flashcard, FlashcardORM]):
         await self.db.flush()
 
         if flashcard.pending_review is not None:
-            await self.db.execute(
-                insert(FlashcardReviewORM).values(
-                    self.mapper.review_values(orm_model.id, flashcard.pending_review)
-                )
-            )
+            self.db.add(self.mapper.review_to_orm(orm_model.id, flashcard.pending_review))
 
         await self.db.commit()
         await self.db.refresh(orm_model)
