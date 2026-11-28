@@ -166,7 +166,7 @@ def repositories_satisfy_their_protocols(
     _book_reflection: BookReflectionRepositoryProtocol = BookReflectionRepository(db)
     _chapter_coverage_view: ChapterCoverageQueryProtocol = ChapterCoverageQuery(db)
     _book_details: BookDetailsQueryProtocol = BookDetailsQuery(
-        db, label_resolution_service, ChapterCoverageQuery(db)
+        db, label_resolution_service, _chapter_coverage_view
     )
     _book_list_view: BookListQueryProtocol = BookListQuery(db)
     _job_batch_view: JobBatchQueryProtocol = JobBatchQuery(db)

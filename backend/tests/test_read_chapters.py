@@ -16,17 +16,17 @@ from tests.conftest import create_test_chapter, create_test_reading_session
 FIRST_SESSION = datetime(2024, 1, 15, 10, tzinfo=UTC)
 
 
-async def measure_book(
+async def lay_out_book(
     db_session: AsyncSession, book: Book, total_characters: int | None, **starts: int | None
 ) -> dict[str, Chapter]:
     book.total_characters = total_characters
-    chapters: dict[str, Chapter] = {}
-    for number, (name, start_offset) in enumerate(starts.items(), start=1):
-        chapter = await create_test_chapter(db_session, book, name, chapter_number=number)
-        chapter.start_offset = start_offset
-        chapters[name] = chapter
     await db_session.commit()
-    return chapters
+    return {
+        name: await create_test_chapter(
+            db_session, book, name, chapter_number=number, start_offset=start_offset
+        )
+        for number, (name, start_offset) in enumerate(starts.items(), start=1)
+    }
 
 
 async def start_session(
@@ -75,7 +75,7 @@ async def session(db_session: AsyncSession, test_book: Book) -> ReadingSession:
 async def test_chapters_skipped_by_a_jump_ahead_stay_not_read(
     client: AsyncClient, db_session: AsyncSession, test_book: Book, session: ReadingSession
 ) -> None:
-    await measure_book(db_session, test_book, 2400, One=0, Two=600, Three=1200, Four=1800)
+    await lay_out_book(db_session, test_book, 2400, One=0, Two=600, Three=1200, Four=1800)
     await view(db_session, session, 0, 600, seconds=10)
     await view(db_session, session, 1800, 2400, seconds=10)
 
@@ -90,7 +90,7 @@ async def test_chapters_skipped_by_a_jump_ahead_stay_not_read(
 async def test_quick_flicking_through_the_same_text_never_adds_up(
     client: AsyncClient, db_session: AsyncSession, test_book: Book, session: ReadingSession
 ) -> None:
-    await measure_book(db_session, test_book, 600, One=0)
+    await lay_out_book(db_session, test_book, 600, One=0)
     for _ in range(20):
         await view(db_session, session, 0, 600, seconds=9.9)
 
@@ -100,7 +100,7 @@ async def test_quick_flicking_through_the_same_text_never_adds_up(
 async def test_a_short_revisit_keeps_a_read_chapter_read(
     client: AsyncClient, db_session: AsyncSession, test_book: Book, session: ReadingSession
 ) -> None:
-    await measure_book(db_session, test_book, 1200, One=0, Two=600)
+    await lay_out_book(db_session, test_book, 1200, One=0, Two=600)
     await view(db_session, session, 0, 600, seconds=10)
     await view(db_session, session, 600, 1200, seconds=10)
     revisit = await start_session(db_session, test_book, hours_later=1)
@@ -112,7 +112,7 @@ async def test_a_short_revisit_keeps_a_read_chapter_read(
 async def test_a_chapter_is_read_once_80_percent_of_its_text_was_read(
     client: AsyncClient, db_session: AsyncSession, test_book: Book, session: ReadingSession
 ) -> None:
-    await measure_book(db_session, test_book, 1200, Short=0, Enough=600)
+    await lay_out_book(db_session, test_book, 1200, Short=0, Enough=600)
     await view(db_session, session, 0, 479, seconds=10)
     await view(db_session, session, 600, 1080, seconds=10)
 
@@ -122,7 +122,7 @@ async def test_a_chapter_is_read_once_80_percent_of_its_text_was_read(
 async def test_coverage_is_the_union_of_sessions_on_every_device(
     client: AsyncClient, db_session: AsyncSession, test_book: Book, session: ReadingSession
 ) -> None:
-    await measure_book(db_session, test_book, 600, One=0)
+    await lay_out_book(db_session, test_book, 600, One=0)
     other_device = await start_session(db_session, test_book, hours_later=1)
     await view(db_session, session, 0, 400, seconds=7)
     await view(db_session, other_device, 300, 600, seconds=5)
@@ -133,7 +133,7 @@ async def test_coverage_is_the_union_of_sessions_on_every_device(
 async def test_reading_the_same_pages_twice_counts_them_once(
     client: AsyncClient, db_session: AsyncSession, test_book: Book, session: ReadingSession
 ) -> None:
-    await measure_book(db_session, test_book, 600, One=0)
+    await lay_out_book(db_session, test_book, 600, One=0)
     await view(db_session, session, 0, 300, seconds=5)
     await view(db_session, session, 0, 300, seconds=5)
 
@@ -143,7 +143,7 @@ async def test_reading_the_same_pages_twice_counts_them_once(
 async def test_a_page_view_across_two_chapters_counts_towards_both(
     client: AsyncClient, db_session: AsyncSession, test_book: Book, session: ReadingSession
 ) -> None:
-    await measure_book(db_session, test_book, 1200, One=0, Two=600)
+    await lay_out_book(db_session, test_book, 1200, One=0, Two=600)
     await view(db_session, session, 0, 450, seconds=8)
     await view(db_session, session, 500, 1100, seconds=10)
 
@@ -153,7 +153,7 @@ async def test_a_page_view_across_two_chapters_counts_towards_both(
 async def test_a_parent_chapter_is_measured_on_its_text_before_its_first_child(
     client: AsyncClient, db_session: AsyncSession, test_book: Book, session: ReadingSession
 ) -> None:
-    chapters = await measure_book(db_session, test_book, 700, Part=0, Child=100)
+    chapters = await lay_out_book(db_session, test_book, 700, Part=0, Child=100)
     chapters["Child"].parent_id = chapters["Part"].id
     await db_session.commit()
     await view(db_session, session, 0, 100, seconds=2)
@@ -164,7 +164,7 @@ async def test_a_parent_chapter_is_measured_on_its_text_before_its_first_child(
 async def test_a_chapter_with_no_text_of_its_own_is_unmeasurable(
     client: AsyncClient, db_session: AsyncSession, test_book: Book, session: ReadingSession
 ) -> None:
-    await measure_book(db_session, test_book, 600, Plate=0, Unplaced=None, Text=0)
+    await lay_out_book(db_session, test_book, 600, Plate=0, Unplaced=None, Text=0)
     await view(db_session, session, 0, 600, seconds=10)
 
     assert await read_states(client, test_book) == {
@@ -177,7 +177,7 @@ async def test_a_chapter_with_no_text_of_its_own_is_unmeasurable(
 async def test_the_last_chapter_of_a_book_without_a_length_is_unmeasurable(
     client: AsyncClient, db_session: AsyncSession, test_book: Book, session: ReadingSession
 ) -> None:
-    await measure_book(db_session, test_book, None, One=0, Two=600)
+    await lay_out_book(db_session, test_book, None, One=0, Two=600)
     await view(db_session, session, 0, 1200, seconds=20)
 
     assert await read_states(client, test_book) == {"One": "read", "Two": "unmeasurable"}
@@ -186,7 +186,7 @@ async def test_the_last_chapter_of_a_book_without_a_length_is_unmeasurable(
 async def test_a_book_with_no_page_views_has_no_read_chapters(
     client: AsyncClient, db_session: AsyncSession, test_book: Book, session: ReadingSession
 ) -> None:
-    await measure_book(db_session, test_book, 1200, One=0, Two=600)
+    await lay_out_book(db_session, test_book, 1200, One=0, Two=600)
 
     assert await read_states(client, test_book) == {"One": "not_read", "Two": "not_read"}
 
@@ -194,7 +194,7 @@ async def test_a_book_with_no_page_views_has_no_read_chapters(
 async def test_another_users_page_views_do_not_read_the_book(
     client: AsyncClient, db_session: AsyncSession, test_book: Book, other_user: User
 ) -> None:
-    await measure_book(db_session, test_book, 600, One=0)
+    await lay_out_book(db_session, test_book, 600, One=0)
     theirs = await start_session(db_session, test_book, user_id=other_user.id)
     await view(db_session, theirs, 0, 600, seconds=10)
 

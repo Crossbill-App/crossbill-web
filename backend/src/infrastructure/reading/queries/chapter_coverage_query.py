@@ -14,7 +14,7 @@ from src.domain.reading.services.chapter_coverage import (
     ChapterCoverage,
     ChapterStart,
     CharacterRange,
-    ViewedRange,
+    PageViewSpan,
     measure_chapter_coverage,
 )
 from src.infrastructure.library.orm.book_model import Book as BookORM
@@ -36,7 +36,7 @@ class ChapterCoverageQuery:
         return measure_chapter_coverage(
             await self._fetch_chapter_starts(book_id, user_id),
             await self._fetch_total_characters(book_id, user_id),
-            await self._fetch_viewed_ranges(book_id, user_id),
+            await self._fetch_page_view_spans(book_id, user_id),
         )
 
     async def _fetch_chapter_starts(self, book_id: BookId, user_id: UserId) -> list[ChapterStart]:
@@ -55,7 +55,7 @@ class ChapterCoverageQuery:
         )
         return await self.db.scalar(stmt)
 
-    async def _fetch_viewed_ranges(self, book_id: BookId, user_id: UserId) -> list[ViewedRange]:
+    async def _fetch_page_view_spans(self, book_id: BookId, user_id: UserId) -> list[PageViewSpan]:
         stmt = (
             select(PageViewORM.start_offset, PageViewORM.end_offset, PageViewORM.duration_ms)
             .join(ReadingSessionORM, ReadingSessionORM.id == PageViewORM.reading_session_id)
@@ -66,7 +66,7 @@ class ChapterCoverageQuery:
         )
         rows = (await self.db.execute(stmt)).all()
         return [
-            ViewedRange(
+            PageViewSpan(
                 CharacterRange(row.start_offset, row.end_offset),
                 timedelta(milliseconds=row.duration_ms),
             )
