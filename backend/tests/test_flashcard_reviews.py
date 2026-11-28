@@ -19,6 +19,7 @@ from tests.conftest import (
     create_test_chapter,
     create_test_flashcard,
     create_test_highlight,
+    plant_note,
     readers_now,
 )
 
@@ -366,4 +367,191 @@ class TestDueFlashcards:
 
         assert await due_ids(client) == [mine.id]
         response = await get_due(client, book_id=other_users_card.book_id)
+        assert response.status_code == status.HTTP_404_NOT_FOUND
+
+
+def context(item: dict[str, object]) -> tuple[object, ...]:
+    return (item["book_title"], item["chapter_name"], item["highlight_text"], item["note_title"])
+
+
+class TestReviewContext:
+    async def test_a_due_flashcard_carries_its_book_chapter_and_source(
+        self, client: AsyncClient, db_session: AsyncSession, test_book: models.Book
+    ) -> None:
+        chapter = await create_test_chapter(db_session, test_book, "Openings", chapter_number=1)
+        highlight = await create_test_highlight(
+            db_session,
+            test_book,
+            test_book.user_id,
+            "The marked passage",
+            "2026-10-01 10:00:00",
+            chapter_id=chapter.id,
+        )
+        note = await plant_note(db_session, test_book, "Gambits")
+        from_highlight = await create_test_flashcard(
+            db_session, test_book, highlight_id=highlight.id
+        )
+        from_note = await create_test_flashcard(db_session, test_book, note_id=note.id)
+        from_chapter = await create_test_flashcard(db_session, test_book, chapter_id=chapter.id)
+        standalone = await create_test_flashcard(db_session, test_book)
+
+        items = {item["id"]: item for item in (await get_due(client)).json()["items"]}
+
+        assert context(items[from_highlight.id]) == (
+            "Test Book",
+            "Openings",
+            "The marked passage",
+            None,
+        )
+        assert context(items[from_note.id]) == ("Test Book", None, None, "Gambits")
+        assert context(items[from_chapter.id]) == ("Test Book", "Openings", None, None)
+        assert context(items[standalone.id]) == ("Test Book", None, None, None)
+
+    async def test_a_flashcards_own_chapter_wins_over_its_highlights(
+        self, client: AsyncClient, db_session: AsyncSession, test_book: models.Book
+    ) -> None:
+        own = await create_test_chapter(db_session, test_book, "Own", chapter_number=2)
+        elsewhere = await create_test_chapter(db_session, test_book, "Elsewhere", chapter_number=1)
+        highlight = await create_test_highlight(
+            db_session,
+            test_book,
+            test_book.user_id,
+            "Text",
+            "2026-10-01 10:00:00",
+            chapter_id=elsewhere.id,
+        )
+        await create_test_flashcard(
+            db_session, test_book, chapter_id=own.id, highlight_id=highlight.id
+        )
+
+        (item,) = (await get_due(client)).json()["items"]
+
+        assert item["chapter_name"] == "Own"
+
+    async def test_a_deleted_highlight_shows_no_text(
+        self, client: AsyncClient, db_session: AsyncSession, test_book: models.Book
+    ) -> None:
+        highlight = await create_test_highlight(
+            db_session,
+            test_book,
+            test_book.user_id,
+            "Gone",
+            "2026-10-01 10:00:00",
+            deleted_at=T,
+        )
+        await create_test_flashcard(db_session, test_book, highlight_id=highlight.id)
+
+        (item,) = (await get_due(client)).json()["items"]
+
+        assert item["highlight_text"] is None
+
+
+RATINGS = ("again", "hard", "good", "easy")
+
+
+class TestRatingPreviews:
+    @pytest.mark.parametrize(
+        "earlier_ratings", [(), ("again",), ("good",)], ids=["new", "learning", "reviewed"]
+    )
+    async def test_each_preview_is_the_due_that_recording_that_rating_produces(
+        self,
+        client: AsyncClient,
+        db_session: AsyncSession,
+        test_book: models.Book,
+        earlier_ratings: tuple[str, ...],
+    ) -> None:
+        cards = [await create_test_flashcard(db_session, test_book) for _ in RATINGS]
+        for card in cards:
+            for rating in earlier_ratings:
+                await record_review(client, card.id, rating, T)
+
+        previews = [item["previews"] for item in (await get_due(client)).json()["items"]]
+
+        recorded = {
+            rating: at((await record_review(client, card.id, rating, NOW))["due"])
+            for rating, card in zip(RATINGS, cards, strict=True)
+        }
+        assert len(previews) == len(RATINGS)
+        assert all({r: at(p[r]) for r in RATINGS} == recorded for p in previews)
+        assert len(set(recorded.values())) == len(RATINGS)
+
+
+async def get_suspended(client: AsyncClient, **params: int) -> Response:
+    return await client.get("/api/v1/flashcards/suspended", params=params)
+
+
+async def suspended_ids(client: AsyncClient, **params: int) -> list[int]:
+    response = await get_suspended(client, **params)
+    assert response.status_code == status.HTTP_200_OK, response.text
+    return [item["id"] for item in response.json()["items"]]
+
+
+async def suspended_flashcard(db_session: AsyncSession, book: models.Book, **fields: object) -> int:
+    card = await create_test_flashcard(db_session, book, status="suspended", **fields)
+    return card.id
+
+
+class TestSuspendedFlashcards:
+    async def test_only_suspended_flashcards_are_listed_book_by_book_in_book_order(
+        self, client: AsyncClient, db_session: AsyncSession, test_book: models.Book
+    ) -> None:
+        other_book = await create_test_book(db_session, test_book.user_id, "Other Book")
+        one = await create_test_chapter(db_session, test_book, "One", chapter_number=1)
+        two = await create_test_chapter(db_session, test_book, "Two", chapter_number=2)
+        await create_test_flashcard(db_session, test_book, chapter_id=one.id)
+        in_other_book = await suspended_flashcard(db_session, other_book)
+        chapterless = await suspended_flashcard(db_session, test_book, created_at=T)
+        in_two = await suspended_flashcard(db_session, test_book, chapter_id=two.id)
+        in_one_later = await suspended_flashcard(
+            db_session, test_book, chapter_id=one.id, created_at=T + timedelta(days=1)
+        )
+        in_one_earlier = await suspended_flashcard(
+            db_session, test_book, chapter_id=one.id, created_at=T
+        )
+
+        assert await suspended_ids(client) == [
+            in_one_earlier,
+            in_one_later,
+            in_two,
+            chapterless,
+            in_other_book,
+        ]
+
+    async def test_a_suspended_flashcard_carries_its_context_and_no_previews(
+        self, client: AsyncClient, db_session: AsyncSession, test_book: models.Book
+    ) -> None:
+        chapter = await create_test_chapter(db_session, test_book, "Openings", chapter_number=1)
+        await suspended_flashcard(db_session, test_book, chapter_id=chapter.id)
+
+        (item,) = (await get_suspended(client)).json()["items"]
+
+        assert context(item) == ("Test Book", "Openings", None, None)
+        assert item["status"] == "suspended"
+        assert "previews" not in item
+
+    async def test_the_list_narrows_to_one_book_and_pages_with_its_total(
+        self, client: AsyncClient, db_session: AsyncSession, test_book: models.Book
+    ) -> None:
+        other_book = await create_test_book(db_session, test_book.user_id, "Other Book")
+        cards = [await suspended_flashcard(db_session, test_book) for _ in range(3)]
+        await suspended_flashcard(db_session, other_book)
+
+        page = (await get_suspended(client, book_id=test_book.id, limit=1, offset=1)).json()
+
+        assert [item["id"] for item in page["items"]] == [cards[1]]
+        assert (page["total"], page["offset"], page["limit"]) == (3, 1, 1)
+
+    async def test_another_users_suspended_flashcards_never_appear(
+        self,
+        client: AsyncClient,
+        db_session: AsyncSession,
+        test_book: models.Book,
+        other_user: models.User,
+    ) -> None:
+        their_book = await create_test_book(db_session, other_user.id, "Their Book")
+        await suspended_flashcard(db_session, their_book)
+        mine = await suspended_flashcard(db_session, test_book)
+
+        assert await suspended_ids(client) == [mine]
+        response = await get_suspended(client, book_id=their_book.id)
         assert response.status_code == status.HTTP_404_NOT_FOUND

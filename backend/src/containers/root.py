@@ -137,6 +137,7 @@ class RootContainer(containers.DeclarativeContainer):
         note_repository=shared.note_repository,
         book_flashcard_query=shared.book_flashcard_query,
         due_flashcard_query=shared.due_flashcard_query,
+        suspended_flashcard_query=shared.suspended_flashcard_query,
         review_scheduler=shared.review_scheduler,
     )
 

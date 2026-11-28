@@ -4,19 +4,32 @@ These are view DTOs, not domain entities: they exist to be rendered and must
 never be fed back into a command. See ``docs/adr/0001-read-models-and-query-services.md``.
 """
 
+from collections.abc import Mapping
 from dataclasses import dataclass
 from datetime import datetime
 from typing import Protocol
 
-from src.application.common.queries.refs import FlashcardRef
+from src.application.learning.queries.review_flashcards import (
+    ReviewFlashcardPageView,
+    ReviewFlashcardView,
+)
 from src.domain.common.value_objects.ids import BookId, UserId
+from src.domain.learning.value_objects.flashcard_review import FlashcardRating
+
+
+@dataclass(frozen=True)
+class DueFlashcardView:
+    """A Due Flashcard and the due date each rating given now would set."""
+
+    flashcard: ReviewFlashcardView
+    previews: Mapping[FlashcardRating, datetime]
 
 
 @dataclass(frozen=True)
 class DueFlashcardPageView:
     """One page of the queue, plus the length of the whole queue."""
 
-    flashcards: tuple[FlashcardRef, ...]
+    flashcards: tuple[DueFlashcardView, ...]
     total: int
 
 
@@ -25,7 +38,7 @@ class DueFlashcardQueryProtocol(Protocol):
 
     async def list_due(
         self, user_id: UserId, now: datetime, book_id: BookId | None, limit: int, offset: int
-    ) -> DueFlashcardPageView:
+    ) -> ReviewFlashcardPageView:
         """Return a page of the active cards due by ``now`` or never reviewed.
 
         Due reviews come first, lowest retrievability first; then new cards one

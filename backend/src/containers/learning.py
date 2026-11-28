@@ -48,6 +48,9 @@ from src.application.learning.queries.get_flashcards_by_book_use_case import (
 from src.application.learning.queries.get_note_flashcard_suggestions_use_case import (
     GetNoteFlashcardSuggestionsUseCase,
 )
+from src.application.learning.queries.get_suspended_flashcards_use_case import (
+    GetSuspendedFlashcardsUseCase,
+)
 
 
 class LearningContainer(containers.DeclarativeContainer):
@@ -70,6 +73,7 @@ class LearningContainer(containers.DeclarativeContainer):
     # cases that routers call, mirroring how commands are exposed.
     book_flashcard_query = providers.Dependency()
     due_flashcard_query = providers.Dependency()
+    suspended_flashcard_query = providers.Dependency()
 
     # Flashcards
     create_flashcard_for_highlight_use_case = providers.Factory(
@@ -96,6 +100,12 @@ class LearningContainer(containers.DeclarativeContainer):
     get_due_flashcards_use_case = providers.Factory(
         GetDueFlashcardsUseCase,
         due_flashcard_query=due_flashcard_query,
+        book_repository=book_repository,
+        review_scheduler=review_scheduler,
+    )
+    get_suspended_flashcards_use_case = providers.Factory(
+        GetSuspendedFlashcardsUseCase,
+        suspended_flashcard_query=suspended_flashcard_query,
         book_repository=book_repository,
     )
     update_flashcard_use_case = providers.Factory(

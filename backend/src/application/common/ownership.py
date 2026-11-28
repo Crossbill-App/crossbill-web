@@ -59,6 +59,18 @@ async def require_book(
     return book
 
 
+async def require_book_if_given(
+    book_repository: _BookByIdLookup,
+    book_id: int | None,
+    user_id: UserId,
+) -> BookId | None:
+    """Check a user owns the book a list is narrowed to, if it is narrowed to one."""
+    if book_id is None:
+        return None
+    await require_book(book_repository, BookId(book_id), user_id)
+    return BookId(book_id)
+
+
 async def require_flashcard(
     flashcard_repository: _FlashcardByIdLookup,
     flashcard_id: FlashcardId,
