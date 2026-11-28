@@ -5,15 +5,19 @@ from datetime import UTC, datetime, timedelta
 
 import pytest
 from fastapi import status
-from httpx import AsyncClient
+from httpx import AsyncClient, Response
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src import models
 from src.domain.common.time import as_aware
 from src.infrastructure.learning.services.fsrs_review_scheduler import FsrsReviewScheduler
-from src.infrastructure.reading.routers.reader_clock import reader_now
-from src.main import app
-from tests.conftest import create_test_book, create_test_chapter, create_test_highlight
+from tests.conftest import (
+    create_test_book,
+    create_test_chapter,
+    create_test_flashcard,
+    create_test_highlight,
+    readers_now,
+)
 
 T = datetime(2026, 11, 1, 9, 0, tzinfo=UTC)
 
@@ -28,27 +32,27 @@ def unfuzzed_scheduler() -> Iterator[None]:
     container.shared.review_scheduler.reset_override()
 
 
-async def record_review(
+@pytest.fixture
+async def other_users_card(db_session: AsyncSession, other_user: models.User) -> models.Flashcard:
+    their_book = await create_test_book(db_session, other_user.id, "Their Book")
+    return await create_test_flashcard(db_session, their_book)
+
+
+async def post_review(
     client: AsyncClient, flashcard_id: int, rating: str, reviewed_at: datetime
-) -> dict[str, object]:
-    response = await client.post(
+) -> Response:
+    return await client.post(
         f"/api/v1/flashcards/{flashcard_id}/reviews",
         json={"rating": rating, "reviewed_at": reviewed_at.isoformat()},
     )
+
+
+async def record_review(
+    client: AsyncClient, flashcard_id: int, rating: str, reviewed_at: datetime
+) -> dict[str, object]:
+    response = await post_review(client, flashcard_id, rating, reviewed_at)
     assert response.status_code == status.HTTP_200_OK, response.text
     return response.json()
-
-
-async def create_flashcard(
-    db_session: AsyncSession, book: models.Book, **fields: object
-) -> models.Flashcard:
-    flashcard = models.Flashcard(
-        user_id=book.user_id, book_id=book.id, question="Q", answer="A", **fields
-    )
-    db_session.add(flashcard)
-    await db_session.commit()
-    await db_session.refresh(flashcard)
-    return flashcard
 
 
 def at(value: object) -> datetime:
@@ -95,8 +99,8 @@ class TestRecordReview:
     async def test_a_late_review_leaves_the_card_as_in_order_arrival_would(
         self, client: AsyncClient, db_session: AsyncSession, test_book: models.Book
     ) -> None:
-        in_order = await create_flashcard(db_session, test_book)
-        late = await create_flashcard(db_session, test_book)
+        in_order = await create_test_flashcard(db_session, test_book)
+        late = await create_test_flashcard(db_session, test_book)
         reviews = [("good", T), ("again", T + timedelta(days=2)), ("good", T + timedelta(days=3))]
 
         expected = [await record_review(client, in_order.id, *review) for review in reviews]
@@ -115,23 +119,14 @@ class TestRecordReview:
     async def test_a_review_needs_a_timezone(
         self, client: AsyncClient, test_flashcard: models.Flashcard
     ) -> None:
-        response = await client.post(
-            f"/api/v1/flashcards/{test_flashcard.id}/reviews",
-            json={"rating": "good", "reviewed_at": "2026-11-01T09:00:00"},
-        )
+        response = await post_review(client, test_flashcard.id, "good", T.replace(tzinfo=None))
 
         assert response.status_code == status.HTTP_422_UNPROCESSABLE_CONTENT
 
     async def test_another_users_card_cannot_be_reviewed(
-        self, client: AsyncClient, db_session: AsyncSession, other_user: models.User
+        self, client: AsyncClient, other_users_card: models.Flashcard
     ) -> None:
-        their_book = await create_test_book(db_session, other_user.id, "Their Book")
-        their_card = await create_flashcard(db_session, their_book)
-
-        response = await client.post(
-            f"/api/v1/flashcards/{their_card.id}/reviews",
-            json={"rating": "good", "reviewed_at": T.isoformat()},
-        )
+        response = await post_review(client, other_users_card.id, "good", T)
 
         assert response.status_code == status.HTTP_404_NOT_FOUND
 
@@ -159,10 +154,7 @@ class TestFlashcardStatus:
     ) -> None:
         await set_status(client, test_flashcard.id, "suspended")
 
-        response = await client.post(
-            f"/api/v1/flashcards/{test_flashcard.id}/reviews",
-            json={"rating": "good", "reviewed_at": T.isoformat()},
-        )
+        response = await post_review(client, test_flashcard.id, "good", T)
 
         assert response.status_code == status.HTTP_409_CONFLICT
         unsuspended = await set_status(client, test_flashcard.id, "active")
@@ -191,13 +183,10 @@ class TestFlashcardStatus:
         assert response.json()["flashcard"]["status"] == "suspended"
 
     async def test_another_users_card_cannot_be_suspended(
-        self, client: AsyncClient, db_session: AsyncSession, other_user: models.User
+        self, client: AsyncClient, other_users_card: models.Flashcard
     ) -> None:
-        their_book = await create_test_book(db_session, other_user.id, "Their Book")
-        their_card = await create_flashcard(db_session, their_book)
-
         response = await client.put(
-            f"/api/v1/flashcards/{their_card.id}/status", json={"status": "suspended"}
+            f"/api/v1/flashcards/{other_users_card.id}/status", json={"status": "suspended"}
         )
 
         assert response.status_code == status.HTTP_404_NOT_FOUND
@@ -206,19 +195,17 @@ class TestFlashcardStatus:
 NOW = T + timedelta(days=10)
 
 
-@pytest.fixture
-def pinned_now(client: AsyncClient) -> None:
-    """Pin ``reader_now``. Depends on ``client``, whose teardown clears the overrides."""
-    app.dependency_overrides[reader_now] = lambda: NOW
+async def get_due(client: AsyncClient, **params: int) -> Response:
+    with readers_now(NOW):
+        return await client.get("/api/v1/flashcards/due", params=params)
 
 
 async def due_ids(client: AsyncClient, **params: int) -> list[int]:
-    response = await client.get("/api/v1/flashcards/due", params=params)
+    response = await get_due(client, **params)
     assert response.status_code == status.HTTP_200_OK, response.text
     return [item["id"] for item in response.json()["items"]]
 
 
-@pytest.mark.usefixtures("pinned_now")
 class TestDueFlashcards:
     async def test_due_reviews_come_lowest_retrievability_first_then_new_cards_in_book_order(
         self, client: AsyncClient, db_session: AsyncSession, test_book: models.Book
@@ -233,20 +220,20 @@ class TestDueFlashcards:
             "2026-10-01 10:00:00",
             chapter_id=chapter_one.id,
         )
-        long_overdue = await create_flashcard(db_session, test_book)
-        just_forgotten = await create_flashcard(db_session, test_book)
+        long_overdue = await create_test_flashcard(db_session, test_book)
+        just_forgotten = await create_test_flashcard(db_session, test_book)
         await record_review(client, long_overdue.id, "good", T)
         await record_review(client, just_forgotten.id, "again", NOW - timedelta(days=1))
-        chapterless = await create_flashcard(
+        chapterless = await create_test_flashcard(
             db_session, test_book, created_at=T - timedelta(days=5)
         )
-        in_chapter_two = await create_flashcard(
+        in_chapter_two = await create_test_flashcard(
             db_session, test_book, chapter_id=chapter_two.id, created_at=T - timedelta(days=4)
         )
-        via_highlight = await create_flashcard(
+        via_highlight = await create_test_flashcard(
             db_session, test_book, highlight_id=highlight.id, created_at=T - timedelta(days=2)
         )
-        in_chapter_one = await create_flashcard(
+        in_chapter_one = await create_test_flashcard(
             db_session, test_book, chapter_id=chapter_one.id, created_at=T - timedelta(days=3)
         )
 
@@ -266,19 +253,25 @@ class TestDueFlashcards:
         first_chapter = await create_test_chapter(db_session, test_book, "One", chapter_number=1)
         second_chapter = await create_test_chapter(db_session, test_book, "Two", chapter_number=2)
         other_first = await create_test_chapter(db_session, other_book, "One", chapter_number=1)
-        later_in_book = await create_flashcard(db_session, test_book, chapter_id=second_chapter.id)
-        in_other_book = await create_flashcard(db_session, other_book, chapter_id=other_first.id)
-        early_in_book = await create_flashcard(db_session, test_book, chapter_id=first_chapter.id)
+        later_in_book = await create_test_flashcard(
+            db_session, test_book, chapter_id=second_chapter.id
+        )
+        in_other_book = await create_test_flashcard(
+            db_session, other_book, chapter_id=other_first.id
+        )
+        early_in_book = await create_test_flashcard(
+            db_session, test_book, chapter_id=first_chapter.id
+        )
 
         assert await due_ids(client) == [early_in_book.id, later_in_book.id, in_other_book.id]
 
     async def test_cards_not_yet_due_and_suspended_cards_stay_out(
         self, client: AsyncClient, db_session: AsyncSession, test_book: models.Book
     ) -> None:
-        due = await create_flashcard(db_session, test_book)
-        not_yet_due = await create_flashcard(db_session, test_book)
-        suspended = await create_flashcard(db_session, test_book)
-        suspended_due = await create_flashcard(db_session, test_book)
+        due = await create_test_flashcard(db_session, test_book)
+        not_yet_due = await create_test_flashcard(db_session, test_book)
+        suspended = await create_test_flashcard(db_session, test_book)
+        suspended_due = await create_test_flashcard(db_session, test_book)
         await record_review(client, due.id, "good", T)
         await record_review(client, not_yet_due.id, "good", NOW - timedelta(days=1))
         await record_review(client, suspended_due.id, "good", T)
@@ -291,17 +284,17 @@ class TestDueFlashcards:
         self, client: AsyncClient, db_session: AsyncSession, test_book: models.Book
     ) -> None:
         other_book = await create_test_book(db_session, test_book.user_id, "Other Book")
-        in_book = await create_flashcard(db_session, test_book)
-        await create_flashcard(db_session, other_book)
+        in_book = await create_test_flashcard(db_session, test_book)
+        await create_test_flashcard(db_session, other_book)
 
         assert await due_ids(client, book_id=test_book.id) == [in_book.id]
 
     async def test_the_queue_pages_with_its_full_total(
         self, client: AsyncClient, db_session: AsyncSession, test_book: models.Book
     ) -> None:
-        cards = [await create_flashcard(db_session, test_book) for _ in range(3)]
+        cards = [await create_test_flashcard(db_session, test_book) for _ in range(3)]
 
-        response = await client.get("/api/v1/flashcards/due", params={"limit": 1, "offset": 1})
+        response = await get_due(client, limit=1, offset=1)
 
         page = response.json()
         assert [item["id"] for item in page["items"]] == [cards[1].id]
@@ -312,12 +305,10 @@ class TestDueFlashcards:
         client: AsyncClient,
         db_session: AsyncSession,
         test_book: models.Book,
-        other_user: models.User,
+        other_users_card: models.Flashcard,
     ) -> None:
-        their_book = await create_test_book(db_session, other_user.id, "Their Book")
-        await create_flashcard(db_session, their_book)
-        mine = await create_flashcard(db_session, test_book)
+        mine = await create_test_flashcard(db_session, test_book)
 
         assert await due_ids(client) == [mine.id]
-        response = await client.get("/api/v1/flashcards/due", params={"book_id": their_book.id})
+        response = await get_due(client, book_id=other_users_card.book_id)
         assert response.status_code == status.HTTP_404_NOT_FOUND
