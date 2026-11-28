@@ -1,12 +1,17 @@
 /* eslint-disable react-refresh/only-export-components */
 import { BOTTOM_NAV_CLEARANCE_VAR } from '@/components/layout/Layouts.tsx';
-import { Portal } from '@mui/material';
+import { Button, Portal } from '@mui/material';
 import Alert, { AlertColor } from '@mui/material/Alert';
 import Snackbar from '@mui/material/Snackbar';
 import { createContext, ReactNode, useCallback, useContext, useState } from 'react';
 
+interface SnackbarAction {
+  label: string;
+  onClick: () => void;
+}
+
 interface SnackbarContextType {
-  showSnackbar: (message: string, severity?: AlertColor) => void;
+  showSnackbar: (message: string, severity?: AlertColor, action?: SnackbarAction) => void;
   isSnackbarOpen: boolean;
 }
 
@@ -16,6 +21,7 @@ interface SnackbarState {
   open: boolean;
   message: string;
   severity: AlertColor;
+  action?: SnackbarAction;
 }
 
 export function SnackbarProvider({ children }: { children: ReactNode }) {
@@ -25,9 +31,12 @@ export function SnackbarProvider({ children }: { children: ReactNode }) {
     severity: 'info',
   });
 
-  const showSnackbar = useCallback((message: string, severity: AlertColor = 'info') => {
-    setSnackbar({ open: true, message, severity });
-  }, []);
+  const showSnackbar = useCallback(
+    (message: string, severity: AlertColor = 'info', action?: SnackbarAction) => {
+      setSnackbar({ open: true, message, severity, action });
+    },
+    []
+  );
 
   const handleClose = useCallback(
     (_event?: React.SyntheticEvent | Event | null, reason?: string) => {
@@ -56,6 +65,20 @@ export function SnackbarProvider({ children }: { children: ReactNode }) {
             onClose={handleClose}
             severity={snackbar.severity}
             variant="filled"
+            action={
+              snackbar.action && (
+                <Button
+                  color="inherit"
+                  size="small"
+                  onClick={() => {
+                    handleClose();
+                    snackbar.action?.onClick();
+                  }}
+                >
+                  {snackbar.action.label}
+                </Button>
+              )
+            }
             sx={{ width: '100%' }}
           >
             {snackbar.message}
