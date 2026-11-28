@@ -12,7 +12,7 @@ from typing import Any
 from sqlalchemy import ColumnElement, Row, Select, and_, case, func, literal, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from src.application.learning.queries.flashcards_in_context import (
+from src.application.learning.queries.due_flashcards import (
     FlashcardInContextPageView,
     FlashcardInContextView,
 )
