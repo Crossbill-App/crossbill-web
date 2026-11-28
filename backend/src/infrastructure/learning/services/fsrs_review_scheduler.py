@@ -43,7 +43,7 @@ class FsrsReviewScheduler:
 
     def review(self, state: ReviewState | None, review: FlashcardReview) -> ReviewState:
         """The state a card in ``state`` (``None`` when new) moves to after one more review."""
-        card = _card(state) if state else Card(card_id=_CARD_ID, due=review.reviewed_at)
+        card = _card(state) if state else Card(_CARD_ID)
         reviewed, _ = self._scheduler.review_card(
             card, _RATINGS[review.rating], review_datetime=review.reviewed_at
         )
@@ -51,7 +51,6 @@ class FsrsReviewScheduler:
 
     def replay(self, reviews: Sequence[FlashcardReview]) -> ReviewState:
         """The state a new card reaches after all of ``reviews``, taken in time order."""
-        first = min(review.reviewed_at for review in reviews)
         logs = [
             ReviewLog(
                 card_id=_CARD_ID,
@@ -61,7 +60,7 @@ class FsrsReviewScheduler:
             )
             for review in reviews
         ]
-        return _review_state(self._scheduler.reschedule_card(Card(_CARD_ID, due=first), logs))
+        return _review_state(self._scheduler.reschedule_card(Card(_CARD_ID), logs))
 
 
 def _card(state: ReviewState) -> Card:
