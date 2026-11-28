@@ -104,7 +104,7 @@ export const FlashcardListCard = ({
         open={deleteConfirmOpen}
         onClose={() => setDeleteConfirmOpen(false)}
         onConfirm={handleConfirmDelete}
-        message={t('flashcards.listCard.deleteConfirm')}
+        message={t('flashcards.shared.deleteConfirm')}
         confirmText={t('common.actions.delete')}
         confirmColor="error"
         isLoading={isDeleting}

@@ -1,140 +1,126 @@
 import type { FlashcardSuggestionItem } from '@/api/generated/model';
+import { AIActionButton } from '@/components/buttons/AIActionButton';
 import { CardList } from '@/components/CardList.tsx';
+import { DialogToolbar } from '@/components/dialogs/DialogToolbar.tsx';
+import { EmptyStateText } from '@/components/EmptyStateText.tsx';
 import { AIFeature } from '@/components/features/AIFeature.tsx';
 import type { FlashcardWithContext } from '@/components/features/flashcards/FlashcardChapterList.tsx';
 import {
-  CreateFlashcardForm,
-  type FlashcardFormValues,
-} from '@/pages/BookPage/Flashcards/CreateFlashcardForm.tsx';
+  FlashcardDialog,
+  type FlashcardDialogTarget,
+} from '@/pages/BookPage/Flashcards/FlashcardDialog.tsx';
 import { FlashcardListCard } from '@/pages/BookPage/Flashcards/FlashcardListCard.tsx';
 import { FlashcardSuggestions } from '@/pages/BookPage/Flashcards/FlashcardSuggestions.tsx';
-import { Box } from '@mui/material';
+import {
+  useAIFlashcardSuggestions,
+  type SuggestionsResult,
+} from '@/pages/BookPage/Flashcards/hooks/useAIFlashcardSuggestions.ts';
+import {
+  sourceNoteId,
+  useCreateFlashcard,
+  type FlashcardSource,
+} from '@/pages/BookPage/Flashcards/hooks/useCreateFlashcard.ts';
+import { AddIcon } from '@/theme/Icons.tsx';
+import { Box, Button } from '@mui/material';
 import { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 
-/**
- * Source-agnostic flashcard section for entity view modals (highlights, notes).
- * Renders the existing cards, a manual create/edit form and AI suggestions;
- * the caller wires the source-specific data and mutations.
- */
 interface FlashcardSectionProps {
-  /** Existing cards, pre-mapped and pre-sorted by the caller. */
   flashcards: FlashcardWithContext[];
   bookId: number;
+  /** Where a card made here is filed. */
+  source: FlashcardSource;
   disabled?: boolean;
-  isProcessing: boolean;
-  /** Creates a card; resolves true on success (form is cleared only then). */
-  onSaveFlashcard: (question: string, answer: string) => Promise<boolean>;
-  /** Updates a card; resolves true on success. */
-  onUpdateFlashcard: (flashcardId: number, question: string, answer: string) => Promise<boolean>;
-  suggestions: FlashcardSuggestionItem[];
-  suggestionsLoading: boolean;
-  onFetchSuggestions: () => Promise<void>;
-  onRemoveSuggestion: (index: number) => void;
-  /** Query keys to invalidate when a card is deleted, in addition to book details. */
-  /** Set when the cards belong to a note, whose detail embeds its own card list. */
-  noteId?: number;
+  /** Omitted where the surface has nothing to suggest from. */
+  fetchSuggestions?: () => Promise<SuggestionsResult>;
 }
 
-interface FlashcardsListProps {
-  flashcardsWithContext: FlashcardWithContext[];
-  bookId: number;
-  onEdit: (flashcardId: number) => void;
-  /** Set when the cards belong to a note, whose detail embeds its own card list. */
-  noteId?: number;
-}
+const noSuggestions = () => Promise.resolve({ error: null });
 
-const FlashcardsList = ({ flashcardsWithContext, bookId, onEdit, noteId }: FlashcardsListProps) => {
-  if (flashcardsWithContext.length === 0) {
-    return null;
-  }
-
-  return (
-    <CardList sx={{ mb: 2 }}>
-      {flashcardsWithContext.map((flashcard) => (
-        <li key={flashcard.id}>
-          <FlashcardListCard
-            flashcard={flashcard}
-            bookId={bookId}
-            onEdit={() => onEdit(flashcard.id)}
-            showSourceHighlight={false}
-            noteId={noteId}
-          />
-        </li>
-      ))}
-    </CardList>
-  );
-};
-
+/** The Flashcards tab of the highlight, note and chapter dialogs. */
 export const FlashcardSection = ({
   flashcards,
   bookId,
+  source,
   disabled = false,
-  isProcessing,
-  onSaveFlashcard,
-  onUpdateFlashcard,
-  suggestions,
-  suggestionsLoading,
-  onFetchSuggestions,
-  onRemoveSuggestion,
-  noteId,
+  fetchSuggestions,
 }: FlashcardSectionProps) => {
-  const [editingFlashcardId, setEditingFlashcardId] = useState<number | null>(null);
-
-  const editingFlashcard =
-    editingFlashcardId != null ? flashcards.find((f) => f.id === editingFlashcardId) : undefined;
-
-  const handleSave = async (values: FlashcardFormValues) => {
-    const saved = editingFlashcardId
-      ? await onUpdateFlashcard(editingFlashcardId, values.question, values.answer)
-      : await onSaveFlashcard(values.question, values.answer);
-    if (saved) setEditingFlashcardId(null);
-    return saved;
-  };
-
-  const handleCancelEdit = () => {
-    setEditingFlashcardId(null);
-  };
+  const { t } = useTranslation();
+  const [dialogTarget, setDialogTarget] = useState<FlashcardDialogTarget | null>(null);
+  const { createFlashcard } = useCreateFlashcard(bookId);
+  const {
+    isLoading,
+    suggestions,
+    fetchSuggestions: suggest,
+    removeSuggestion,
+  } = useAIFlashcardSuggestions(fetchSuggestions ?? noSuggestions);
 
   const handleAcceptSuggestion = async (suggestion: FlashcardSuggestionItem, index: number) => {
-    const saved = await onSaveFlashcard(suggestion.question, suggestion.answer);
-    if (saved) {
-      onRemoveSuggestion(index);
-    }
+    if (await createFlashcard(source, suggestion)) removeSuggestion(index);
   };
 
   return (
     <Box>
-      <FlashcardsList
-        flashcardsWithContext={flashcards}
-        bookId={bookId}
-        onEdit={setEditingFlashcardId}
-        noteId={noteId}
-      />
+      {flashcards.length === 0 ? (
+        <EmptyStateText>{t('flashcards.section.empty')}</EmptyStateText>
+      ) : (
+        <CardList>
+          {flashcards.map((flashcard) => (
+            <li key={flashcard.id}>
+              <FlashcardListCard
+                flashcard={flashcard}
+                bookId={bookId}
+                onEdit={() => setDialogTarget({ mode: 'edit', flashcard })}
+                showSourceHighlight={false}
+                noteId={sourceNoteId(source)}
+              />
+            </li>
+          ))}
+        </CardList>
+      )}
 
-      <CreateFlashcardForm
-        key={editingFlashcardId ?? 'new'}
-        editingFlashcardId={editingFlashcardId}
-        initialValues={
-          editingFlashcard
-            ? { question: editingFlashcard.question, answer: editingFlashcard.answer }
-            : undefined
-        }
-        isDisabled={disabled || isProcessing}
-        isProcessing={isProcessing}
-        onSave={handleSave}
-        onCancelEdit={handleCancelEdit}
-      />
-
-      <AIFeature>
-        <FlashcardSuggestions
-          suggestions={suggestions}
-          isLoading={suggestionsLoading}
+      <DialogToolbar sx={{ mt: 2 }}>
+        {fetchSuggestions && suggestions.length === 0 && (
+          <AIFeature>
+            <AIActionButton
+              text={t('flashcards.aiSuggestions.suggest')}
+              onClick={() => void suggest()}
+              disabled={disabled || isLoading}
+              iconOnly
+            />
+          </AIFeature>
+        )}
+        <Button
+          variant="outlined"
+          size="small"
+          startIcon={<AddIcon />}
+          onClick={() => setDialogTarget({ mode: 'create', source })}
           disabled={disabled}
-          onFetchSuggestions={() => void onFetchSuggestions()}
-          onAcceptSuggestion={(suggestion, index) => void handleAcceptSuggestion(suggestion, index)}
-          onRejectSuggestion={onRemoveSuggestion}
+        >
+          {t('flashcards.actions.new')}
+        </Button>
+      </DialogToolbar>
+
+      {fetchSuggestions && (
+        <AIFeature>
+          <FlashcardSuggestions
+            suggestions={suggestions}
+            isLoading={isLoading}
+            onAcceptSuggestion={(suggestion, index) =>
+              void handleAcceptSuggestion(suggestion, index)
+            }
+            onRejectSuggestion={removeSuggestion}
+          />
+        </AIFeature>
+      )}
+
+      {dialogTarget && (
+        <FlashcardDialog
+          bookId={bookId}
+          target={dialogTarget}
+          onClose={() => setDialogTarget(null)}
         />
-      </AIFeature>
+      )}
     </Box>
   );
 };

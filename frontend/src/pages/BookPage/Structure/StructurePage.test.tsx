@@ -1,7 +1,12 @@
-import { aBookDetails, aChapter } from '@tests/fixtures/book';
+import { aBookDetails, aChapter, aFlashcard } from '@tests/fixtures/book';
 import { aChapterDigest, aDigestQuestion } from '@tests/fixtures/digest';
 import { aNote } from '@tests/fixtures/notes';
 import { aDigestHit, aHighlightHit, aNoteHit } from '@tests/fixtures/search';
+import {
+  expectQuestionEditedInTab,
+  openFlashcardsTab,
+  saveFlashcardDialog,
+} from '@tests/harness/flashcardDialog';
 import { renderApp } from '@tests/harness/renderApp';
 import { afterFrames } from '@tests/harness/settle';
 import { atCompactViewport } from '@tests/harness/viewport';
@@ -685,4 +690,37 @@ test('arrow keys inside the tab strip move between tabs rather than paging the c
   const panel = dialog.getByRole('tabpanel');
   await expect.element(panel).toHaveAccessibleName('Notes');
   await expect.element(notesTab).toHaveAttribute('aria-controls', panel.element().id);
+});
+
+test("a flashcard made from a chapter's dialog lists under that chapter", async () => {
+  worker.use(
+    ...bookApi({ book: aBookDetails({ chapters: [aChapter({ id: 10, name: 'On Attention' })] }) })
+      .handlers
+  );
+
+  const screen = await renderApp({ path: '/book/1/structure?chapterId=10' });
+  const flashcards = await openFlashcardsTab(screen);
+  await userEvent.click(flashcards.getByRole('button', { name: 'New flashcard' }));
+  await saveFlashcardDialog(screen, 'New flashcard', {
+    question: 'What is attention?',
+    answer: 'A filter.',
+  });
+
+  await expect
+    .element(screen.getByRole('tabpanel').getByRole('button', { name: 'What is attention?' }))
+    .toBeVisible();
+});
+
+test("editing a flashcard from a chapter's dialog updates it there", async () => {
+  worker.use(
+    ...bookApi({
+      book: aBookDetails({
+        chapters: [aChapter({ id: 10, name: 'On Attention' })],
+        book_flashcards: [aFlashcard({ id: 700, chapter_id: 10 })],
+      }),
+    }).handlers
+  );
+
+  const screen = await renderApp({ path: '/book/1/structure?chapterId=10' });
+  await expectQuestionEditedInTab(screen, 'What is attention?', 'What does attention do?');
 });
