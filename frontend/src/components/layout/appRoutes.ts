@@ -1,8 +1,8 @@
-import { HomeIcon, LibraryIcon, ReviewIcon } from '@/theme/Icons.tsx';
+import { HomeIcon, LibraryIcon } from '@/theme/Icons.tsx';
 import type { SvgIconComponent } from '@mui/icons-material';
 import type { ParseKeys } from 'i18next';
 
-type AppRoute = '/' | '/library' | '/review';
+type AppRoute = '/' | '/library';
 
 export interface AppRouteConfig {
   to: AppRoute;
@@ -32,12 +32,6 @@ export const APP_ROUTES: AppRouteConfig[] = [
     labelKey: 'common.nav.library',
     icon: LibraryIcon,
     activePathPrefixes: ['/library', '/book'],
-  },
-  {
-    to: '/review',
-    labelKey: 'layout.appRoutes.review',
-    icon: ReviewIcon,
-    activePathPrefixes: ['/review'],
   },
 ];
 

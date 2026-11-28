@@ -111,6 +111,9 @@ export function bookApi(initial: Partial<BookApiState> = {}) {
 
   const handlers = [
     http.get('/api/v1/books/:bookId', () => HttpResponse.json(state.book)),
+    http.get('/api/v1/flashcards/due', () =>
+      HttpResponse.json({ items: [], total: 0, offset: 0, limit: 1 })
+    ),
     http.get('/api/v1/books/:bookId/notes', () => HttpResponse.json({ items: state.notes })),
     http.get('/api/v1/books/:bookId/digest', () => HttpResponse.json({ items: state.digests })),
 

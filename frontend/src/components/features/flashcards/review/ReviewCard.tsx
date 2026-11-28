@@ -73,17 +73,7 @@ export const ReviewCard = ({
   const { t } = useTranslation();
 
   return (
-    <Box
-      sx={{
-        bgcolor: 'background.paper',
-        borderRadius: 1,
-        boxShadow: 1,
-        p: { xs: 2.5, sm: 4 },
-        display: 'flex',
-        flexDirection: 'column',
-        gap: 3,
-      }}
-    >
+    <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
       <Box>
         <Typography variant="body2" sx={{ color: 'text.secondary', mb: 1 }}>
           {card.chapter_name

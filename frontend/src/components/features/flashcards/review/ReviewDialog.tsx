@@ -4,24 +4,20 @@ import {
 } from '@/api/generated/flashcards/flashcards.ts';
 import type { FlashcardReviewRequestRating } from '@/api/generated/model';
 import { Spinner } from '@/components/animations/Spinner.tsx';
+import { CommonDialog } from '@/components/dialogs/CommonDialog.tsx';
 import { EmptyStateText } from '@/components/EmptyStateText.tsx';
-import { PageContainer } from '@/components/layout/Layouts.tsx';
-import { PageTitle } from '@/components/typography/PageTitle.tsx';
 import { useSnackbar } from '@/context/SnackbarContext.tsx';
 import { useMutationErrorHandler } from '@/hooks/useMutationErrorHandler.ts';
 import { useCacheEvents } from '@/lib/cacheEvents.ts';
 import { FlashcardDialog } from '@/pages/BookPage/Flashcards/FlashcardDialog.tsx';
 import { tabularNums } from '@/theme/theme.ts';
 import { Alert, Box, Button, Typography } from '@mui/material';
-import { getRouteApi } from '@tanstack/react-router';
 import type { AxiosError } from 'axios';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { ReviewCard } from './ReviewCard.tsx';
 import { useReviewKeys } from './useReviewKeys.ts';
 import { useReviewQueue, type QueuedFlashcard } from './useReviewQueue.ts';
-
-const route = getRouteApi('/review');
 
 const hasLeftReview = (error: unknown) =>
   [404, 409].includes((error as AxiosError).response?.status ?? 0);
@@ -39,7 +35,13 @@ const AllCaughtUp = () => {
   );
 };
 
-const ReviewSession = ({ bookId }: { bookId: number | undefined }) => {
+interface ReviewDialogProps {
+  /** Only this book's due flashcards; every book's when left out. */
+  bookId?: number;
+  onClose: () => void;
+}
+
+export const ReviewDialog = ({ bookId, onClose }: ReviewDialogProps) => {
   const { t } = useTranslation();
   const { showSnackbar } = useSnackbar();
   const mutationErrorHandler = useMutationErrorHandler();
@@ -106,6 +108,11 @@ const ReviewSession = ({ bookId }: { bookId: number | undefined }) => {
     if (current) setRevealedId(current.id);
   };
 
+  const close = () => {
+    cache.dueFlashcardsReviewed();
+    onClose();
+  };
+
   useReviewKeys({
     enabled: current !== null && editing === null,
     revealed,
@@ -124,7 +131,7 @@ const ReviewSession = ({ bookId }: { bookId: number | undefined }) => {
             </Button>
           }
         >
-          {t('review.page.loadError')}
+          {t('review.dialog.loadError')}
         </Alert>
       );
     }
@@ -145,17 +152,32 @@ const ReviewSession = ({ bookId }: { bookId: number | undefined }) => {
   };
 
   return (
-    <>
-      <Box sx={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between' }}>
-        <PageTitle text={t('review.page.title')} component="h1" />
-        {current && (
-          <Typography variant="body2" sx={{ color: 'text.secondary', ...tabularNums }}>
-            {t('review.page.position', { position: queue.position, total: queue.total })}
-          </Typography>
-        )}
-      </Box>
-
-      {body()}
+    <CommonDialog
+      open
+      onClose={close}
+      title={
+        <Box component="span" sx={{ display: 'flex', alignItems: 'baseline', gap: 2 }}>
+          {t('review.dialog.title')}
+          {current && (
+            <Typography
+              component="span"
+              variant="body2"
+              sx={{ color: 'text.secondary', ...tabularNums }}
+            >
+              {t('review.dialog.position', { position: queue.position, total: queue.total })}
+            </Typography>
+          )}
+        </Box>
+      }
+      footerActions={
+        queue.isDone && (
+          <Button variant="contained" onClick={close}>
+            {t('common.actions.done')}
+          </Button>
+        )
+      }
+    >
+      <Box sx={{ py: 3 }}>{body()}</Box>
 
       {editing && (
         <FlashcardDialog
@@ -165,16 +187,6 @@ const ReviewSession = ({ bookId }: { bookId: number | undefined }) => {
           onDeleted={() => queue.remove(editing.id)}
         />
       )}
-    </>
-  );
-};
-
-export const ReviewPage = () => {
-  const { book } = route.useSearch();
-
-  return (
-    <PageContainer maxWidth="sm">
-      <ReviewSession key={book ?? 'all'} bookId={book} />
-    </PageContainer>
+    </CommonDialog>
   );
 };

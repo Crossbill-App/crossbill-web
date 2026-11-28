@@ -1,5 +1,8 @@
 {
-  "page": {
+  "actions": {
+    "open": "Review ({{count}})"
+  },
+  "dialog": {
     "title": "Review",
     "position": "{{position}} of {{total}}",
     "loadError": "Could not load the flashcards to review."

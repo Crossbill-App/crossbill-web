@@ -105,6 +105,9 @@ export const useCacheEvents = () => {
           ...(noteId === undefined ? [] : [getGetNoteQueryKey(noteId)])
         ),
 
+      /** Due flashcards were graded, which changes every due count. */
+      dueFlashcardsReviewed: () => invalidate(getGetDueFlashcardsQueryKey()),
+
       /** Digest content was generated or answered for a chapter. */
       digestChanged: (bookId: number) =>
         invalidate(getGetBookDigestQueryKey(bookId), getRelatedContentQueryKey()),

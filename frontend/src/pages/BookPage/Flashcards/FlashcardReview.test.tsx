@@ -1,8 +1,10 @@
 import type { DueFlashcard, FlashcardReviewRequestRating } from '@/api/generated/model';
+import { aBookDetails } from '@tests/fixtures/book';
 import { aDueFlashcard } from '@tests/fixtures/review';
 import { deleteFromFlashcardDialog, saveFlashcardDialog } from '@tests/harness/flashcardDialog';
 import { renderApp } from '@tests/harness/renderApp';
 import { afterTheAnswersRender } from '@tests/harness/settle';
+import { bookApi } from '@tests/msw/bookApi';
 import { reviewApi } from '@tests/msw/reviewApi';
 import { worker } from '@tests/msw/worker';
 import { range } from 'lodash';
@@ -25,12 +27,22 @@ const cardsNumbered = (count: number, overrides: Partial<DueFlashcard> = {}) =>
     })
   );
 
-const startReview = async (cards: DueFlashcard[], path = '/review') => {
+const openFlashcardsPage = async (cards: DueFlashcard[]) => {
   const api = reviewApi({ cards });
-  worker.use(...api.handlers);
-  const screen = await renderApp({ path });
+  worker.use(...api.handlers, ...bookApi({ book: aBookDetails({ id: 1 }) }).handlers);
+  const screen = await renderApp({ path: '/book/1/flashcards' });
   return { screen, state: api.state };
 };
+
+const reviewButton = (screen: Screen) => screen.getByRole('button', { name: /^Review/ });
+
+const startReview = async (cards: DueFlashcard[]) => {
+  const review = await openFlashcardsPage(cards);
+  await userEvent.click(reviewButton(review.screen));
+  return review;
+};
+
+const reviewDialog = (screen: Screen) => screen.getByRole('dialog', { name: /^Review/ });
 
 const expectCardShown = async (screen: Screen, card: DueFlashcard) => {
   await expect.element(screen.getByText(card.question)).toBeVisible();
@@ -44,7 +56,7 @@ const gradeButton = (screen: Screen, label: string) =>
   screen.getByRole('button', { name: new RegExp(`^${label}`) });
 
 const expectAllCaughtUp = async (screen: Screen) => {
-  await expect.element(screen.getByRole('status')).toBeVisible();
+  await expect.element(reviewDialog(screen).getByRole('status')).toBeVisible();
 };
 
 const expectAlertRaised = async (screen: Screen) => {
@@ -82,7 +94,9 @@ test('each grade shows when the card would be due again', async () => {
 test('the answer and its source stay hidden until shown', async () => {
   const { screen } = await startReview([FIRST]);
   await expectCardShown(screen, FIRST);
-  await expect.element(screen.getByText(FIRST.book_title, { exact: false })).toBeVisible();
+  await expect
+    .element(reviewDialog(screen).getByText(FIRST.book_title, { exact: false }))
+    .toBeVisible();
   expect(screen.getByText(FIRST.answer).elements()).toHaveLength(0);
   expect(screen.getByText(FIRST.highlight_text ?? '').elements()).toHaveLength(0);
 
@@ -239,25 +253,43 @@ test('deleting from the edit dialog moves on to the next card', async () => {
   expect(state.reviews).toEqual([]);
 });
 
-test('grading the last card shows the done state', async () => {
-  const { screen } = await startReview([FIRST]);
+test('the Review action is hidden when nothing is due', async () => {
+  const { screen } = await openFlashcardsPage([]);
+  await expect.element(screen.getByRole('button', { name: 'New flashcard' })).toBeVisible();
+  await afterTheAnswersRender(screen.queryClient);
+
+  expect(reviewButton(screen).elements()).toHaveLength(0);
+});
+
+test('closing the review updates the due count on the Review action', async () => {
+  const { screen } = await startReview([FIRST, SECOND]);
   await expectCardShown(screen, FIRST);
 
   await showAnswer(screen);
   await userEvent.click(gradeButton(screen, 'Good'));
+  await expectCardShown(screen, SECOND);
+  await userEvent.click(reviewDialog(screen).getByRole('button', { name: 'Close dialog' }));
 
-  await expectAllCaughtUp(screen);
+  await expect.element(reviewDialog(screen)).not.toBeInTheDocument();
+  await expect.element(screen.getByRole('button', { name: 'Review (1)' })).toBeVisible();
 });
 
-test('with nothing due the page shows the done state', async () => {
-  const { screen } = await startReview([]);
-
+test('grading the last card shows the done state, and Done closes the review', async () => {
+  const { screen } = await startReview([FIRST]);
+  await expectCardShown(screen, FIRST);
+  await showAnswer(screen);
+  await userEvent.click(gradeButton(screen, 'Good'));
   await expectAllCaughtUp(screen);
+
+  await userEvent.click(reviewDialog(screen).getByRole('button', { name: 'Done' }));
+
+  await expect.element(reviewDialog(screen)).not.toBeInTheDocument();
+  await expect.element(reviewButton(screen)).not.toBeInTheDocument();
 });
 
-test('?book= reviews only that book', async () => {
+test("a book's Review action reviews only that book", async () => {
   const otherBook = aDueFlashcard({ id: 801, book_id: 2, question: 'What is a map' });
-  const { screen, state } = await startReview([otherBook, FIRST], '/review?book=1');
+  const { screen, state } = await startReview([otherBook, FIRST]);
   await expectCardShown(screen, FIRST);
   await expect.element(screen.getByText('1 of 1')).toBeVisible();
 
@@ -282,8 +314,7 @@ test('a queue longer than a page loads the rest before it runs out', async () =>
 
   await expectAllCaughtUp(screen);
   await expect.poll(() => state.reviews).toHaveLength(53);
-  expect(state.dueListRequests.length).toBeGreaterThan(1);
-  expect(state.dueListRequests.every((request) => request.limit === 50)).toBe(true);
+  expect(state.dueListRequests.filter((request) => request.limit === 50).length).toBeGreaterThan(1);
 });
 
 test('a page that fails to load near the end can be tried again', async () => {
@@ -310,12 +341,4 @@ test('a page that fails to load near the end can be tried again', async () => {
   await userEvent.click(screen.getByRole('button', { name: 'Try again' }));
 
   await expectCardShown(screen, cards[50]);
-});
-
-test('review is a destination in the app bar', async () => {
-  const { screen } = await startReview([]);
-
-  await expect
-    .element(screen.getByRole('link', { name: 'Review', exact: true }))
-    .toHaveAttribute('data-status', 'active');
 });
