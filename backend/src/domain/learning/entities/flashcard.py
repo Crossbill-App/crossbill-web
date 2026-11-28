@@ -98,13 +98,15 @@ class Flashcard(Entity[FlashcardId]):
     def record_review(self, review: FlashcardReview) -> ReviewArrival:
         """Add a review to the card's log, saying how its review state must follow.
 
+        A review the card already holds is a duplicate even once the card is suspended.
+
         Raises:
-            FlashcardSuspendedError: If the card is suspended.
+            FlashcardSuspendedError: If the card is suspended and the review is new.
         """
-        if self.status is FlashcardStatus.SUSPENDED:
-            raise FlashcardSuspendedError(self.id.value)
         if self._has_review_at(review.reviewed_at):
             return ReviewArrival.DUPLICATE
+        if self.status is FlashcardStatus.SUSPENDED:
+            raise FlashcardSuspendedError(self.id.value)
         arrival = (
             ReviewArrival.IN_ORDER if self._follows_last_review(review) else ReviewArrival.LATE
         )

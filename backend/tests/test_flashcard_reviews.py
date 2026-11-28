@@ -160,6 +160,19 @@ class TestFlashcardStatus:
         unsuspended = await set_status(client, test_flashcard.id, "active")
         assert unsuspended["last_review"] is None
 
+    async def test_a_review_resent_after_suspending_changes_nothing(
+        self, client: AsyncClient, test_flashcard: models.Flashcard
+    ) -> None:
+        first = await record_review(client, test_flashcard.id, "easy", T)
+        await set_status(client, test_flashcard.id, "suspended")
+
+        resent = await record_review(client, test_flashcard.id, "easy", T)
+
+        assert resent == first | {"status": "suspended"}
+        assert at(resent["due"]) == T + timedelta(days=8)
+        later = await post_review(client, test_flashcard.id, "good", T + timedelta(days=8))
+        assert later.status_code == status.HTTP_409_CONFLICT
+
     async def test_unsuspending_keeps_the_cards_schedule(
         self, client: AsyncClient, test_flashcard: models.Flashcard
     ) -> None:
