@@ -124,8 +124,8 @@ def _page_view(
 ) -> PageView:
     first_words = _firmly_anchored(start).xpoints.start
     last_words = _firmly_anchored(end).xpoints.end
-    if report.shown_ms_before_send < 0 or report.duration_ms < 0:
-        raise _UnplaceablePageViewError("negative_time")
+    if report.shown_ms_before_send < 0:
+        raise _UnplaceablePageViewError("shown_after_send")
     try:
         shown_at = now - timedelta(milliseconds=report.shown_ms_before_send)
         duration = timedelta(milliseconds=report.duration_ms)
@@ -140,7 +140,7 @@ def _page_view(
         duration=duration,
     )
     if page_view is None:
-        raise _UnplaceablePageViewError("not_in_position_index")
+        raise _UnplaceablePageViewError("unplaceable")
     return page_view
 
 
@@ -444,11 +444,7 @@ class SaveReadingPositionUseCase:
     ) -> None:
         if not page_views:
             return
-        session = (
-            await self.session_repository.find_by_id(session_id, user_id)
-            if session_id is not None
-            else None
-        )
+        session = await self._last_session(session_id, user_id)
         if session is None:
             logger.warning(
                 "dropping_page_views",
