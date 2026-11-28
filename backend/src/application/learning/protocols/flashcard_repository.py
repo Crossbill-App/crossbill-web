@@ -2,7 +2,7 @@
 
 from typing import Protocol
 
-from src.domain.common.value_objects.ids import BookId, FlashcardId, UserId
+from src.domain.common.value_objects.ids import FlashcardId, UserId
 from src.domain.learning.entities.flashcard import Flashcard
 
 
@@ -26,19 +26,6 @@ class FlashcardRepositoryProtocol(Protocol):
         self, flashcard_id: FlashcardId, user_id: UserId
     ) -> Flashcard | None:
         """Find an owned flashcard and lock it against concurrent changes until it is saved."""
-        ...
-
-    async def find_by_book(self, book_id: BookId, user_id: UserId) -> list[Flashcard]:
-        """
-        Get all flashcards for a book.
-
-        Args:
-            book_id: The book ID
-            user_id: The user ID for ownership verification
-
-        Returns:
-            List of flashcard entities ordered by created_at DESC
-        """
         ...
 
     async def save(self, flashcard: Flashcard, /) -> Flashcard:

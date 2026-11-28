@@ -6,7 +6,7 @@ from sqlalchemy import Select, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.domain.common.entity import EntityId
-from src.domain.common.value_objects.ids import BookId, FlashcardId, UserId
+from src.domain.common.value_objects.ids import FlashcardId, UserId
 from src.domain.learning.entities.flashcard import Flashcard
 from src.domain.learning.exceptions import FlashcardNotFoundError
 from src.domain.learning.value_objects.flashcard_review import FlashcardReview
@@ -57,29 +57,6 @@ class FlashcardRepository(BaseRepository[Flashcard, FlashcardORM]):
         await self.db.commit()
         await self.db.refresh(orm_model)
         return self.mapper.to_domain(orm_model, flashcard.reviews)
-
-    async def find_by_book(self, book_id: BookId, user_id: UserId) -> list[Flashcard]:
-        """
-        Get all flashcards for a book.
-
-        Args:
-            book_id: The book ID
-            user_id: The user ID for ownership verification
-
-        Returns:
-            List of flashcard entities ordered by created_at DESC
-        """
-        stmt = (
-            select(FlashcardORM)
-            .where(
-                FlashcardORM.book_id == book_id.value,
-                FlashcardORM.user_id == user_id.value,
-            )
-            .order_by(FlashcardORM.created_at.desc())
-        )
-        result = await self.db.execute(stmt)
-        orm_models = result.scalars().all()
-        return [self.mapper.to_domain(orm) for orm in orm_models]
 
     def _owned(self, flashcard_id: EntityId, user_id: UserId) -> Select[Any]:
         return select(FlashcardORM).where(
