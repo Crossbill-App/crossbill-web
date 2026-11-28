@@ -7310,7 +7310,7 @@
           "previews"
         ],
         "title": "DueFlashcard",
-        "description": "A Due Flashcard with its rating previews."
+        "description": "A Due Flashcard with its book, chapter and source, and its rating previews."
       },
       "EreaderBookMetadata": {
         "properties": {

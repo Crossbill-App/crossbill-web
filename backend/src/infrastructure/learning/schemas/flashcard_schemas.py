@@ -32,19 +32,6 @@ class Flashcard(BaseModel):
     model_config = {"from_attributes": True}
 
 
-class FlashcardInContext(Flashcard):
-    """A flashcard with the book, chapter and source a review shows it with."""
-
-    book_title: str
-    chapter_name: str | None = Field(
-        ..., description="The flashcard's chapter, else its highlight's"
-    )
-    highlight_text: str | None = Field(
-        ..., description="Text of the highlight the flashcard came from"
-    )
-    note_title: str | None = Field(..., description="Title of the note the flashcard came from")
-
-
 class RatingPreviews(BaseModel):
     """When the flashcard would next be due after each rating given now."""
 
@@ -54,9 +41,17 @@ class RatingPreviews(BaseModel):
     easy: dt
 
 
-class DueFlashcard(FlashcardInContext):
-    """A Due Flashcard with its rating previews."""
+class DueFlashcard(Flashcard):
+    """A Due Flashcard with its book, chapter and source, and its rating previews."""
 
+    book_title: str
+    chapter_name: str | None = Field(
+        ..., description="The flashcard's chapter, else its highlight's"
+    )
+    highlight_text: str | None = Field(
+        ..., description="Text of the highlight the flashcard came from"
+    )
+    note_title: str | None = Field(..., description="Title of the note the flashcard came from")
     previews: RatingPreviews
 
 

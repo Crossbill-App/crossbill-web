@@ -9,7 +9,7 @@ import type { DueFlashcardStatus } from './dueFlashcardStatus.ts';
 import type { RatingPreviews } from './ratingPreviews.ts';
 
 /**
- * A Due Flashcard with its rating previews.
+ * A Due Flashcard with its book, chapter and source, and its rating previews.
  */
 export interface DueFlashcard {
   id: number;
