@@ -7,6 +7,7 @@ import type {
   Flashcard,
   FlashcardCreateRequest,
   FlashcardCreateResponse,
+  FlashcardStatusRequest,
   FlashcardUpdateRequest,
   FlashcardUpdateResponse,
   Highlight,
@@ -265,6 +266,14 @@ export function bookApi(initial: Partial<BookApiState> = {}) {
         message: 'Flashcard updated',
         flashcard: updated,
       } satisfies FlashcardUpdateResponse);
+    }),
+
+    http.put('/api/v1/flashcards/:flashcardId/status', async ({ params, request }) => {
+      const body = (await request.json()) as FlashcardStatusRequest;
+      const flashcardId = Number(params.flashcardId);
+      changeFlashcard(flashcardId, (card) => ({ ...card, status: body.status }));
+      const updated = allFlashcards().find((candidate) => candidate.id === flashcardId);
+      return updated ? HttpResponse.json(updated) : new HttpResponse(null, { status: 404 });
     }),
 
     http.delete('/api/v1/flashcards/:flashcardId', ({ params }) => {

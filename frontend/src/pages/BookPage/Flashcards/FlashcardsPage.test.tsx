@@ -102,3 +102,87 @@ test('deleting a flashcard from its dialog removes it from the list', async () =
   await expect.element(screen.getByRole('main').getByRole('status')).toBeVisible();
   expect(screen.getByRole('button', { name: 'What is attention?' }).elements()).toHaveLength(0);
 });
+
+const aBookWithASuspendedCard = () =>
+  aBookDetails({
+    chapters: [aChapter({ id: 10, name: 'On Attention' })],
+    book_flashcards: [
+      aFlashcard({ id: 700, chapter_id: 10, question: 'What is attention?' }),
+      aFlashcard({ id: 701, chapter_id: 10, question: 'What is memory?', status: 'suspended' }),
+    ],
+  });
+
+const cardFor = (screen: Screen, question: string) =>
+  chapterCards(screen).getByRole('listitem').filter({ hasText: question });
+
+const expectSuspended = async (screen: Screen, question: string) => {
+  const card = cardFor(screen, question);
+  await expect.element(card.getByText('Suspended', { exact: true })).toBeVisible();
+  await expect.element(card.getByRole('button', { name: 'Unsuspend flashcard' })).toBeVisible();
+};
+
+const expectActive = async (screen: Screen, question: string) => {
+  const card = cardFor(screen, question);
+  await expect.element(card.getByRole('button', { name: question })).toBeVisible();
+  await expect.element(card.getByText('Suspended', { exact: true })).not.toBeInTheDocument();
+  await expect
+    .element(card.getByRole('button', { name: 'Unsuspend flashcard' }))
+    .not.toBeInTheDocument();
+};
+
+test('only a suspended flashcard is labelled suspended and offers unsuspend', async () => {
+  worker.use(...bookApi({ book: aBookWithASuspendedCard() }).handlers);
+
+  const screen = await renderApp({ path: '/book/1/flashcards' });
+
+  await expectSuspended(screen, 'What is memory?');
+  await expectActive(screen, 'What is attention?');
+});
+
+test('unsuspending a flashcard puts it back in review', async () => {
+  const api = bookApi({ book: aBookWithASuspendedCard() });
+  worker.use(...api.handlers);
+
+  const screen = await renderApp({ path: '/book/1/flashcards' });
+  await userEvent.click(
+    cardFor(screen, 'What is memory?').getByRole('button', { name: 'Unsuspend flashcard' })
+  );
+
+  await expectActive(screen, 'What is memory?');
+  expect(api.state.book.book_flashcards?.map((card) => card.status)).toEqual(['active', 'active']);
+});
+
+test('a failed unsuspend reports the error and leaves the card suspended', async () => {
+  worker.use(
+    http.put(
+      '/api/v1/flashcards/:flashcardId/status',
+      () => new HttpResponse(null, { status: 500 })
+    ),
+    ...bookApi({ book: aBookWithASuspendedCard() }).handlers
+  );
+
+  const screen = await renderApp({ path: '/book/1/flashcards' });
+  await userEvent.click(
+    cardFor(screen, 'What is memory?').getByRole('button', { name: 'Unsuspend flashcard' })
+  );
+
+  await expect.element(screen.getByRole('alert')).toBeVisible();
+  await expectSuspended(screen, 'What is memory?');
+});
+
+test('editing a suspended flashcard leaves it suspended', async () => {
+  const api = bookApi({ book: aBookWithASuspendedCard() });
+  worker.use(...api.handlers);
+
+  const screen = await renderApp({ path: '/book/1/flashcards' });
+  await userEvent.click(
+    cardFor(screen, 'What is memory?').getByRole('button', { name: 'Edit flashcard' })
+  );
+  await saveFlashcardDialog(screen, 'Edit flashcard', { question: 'What does memory keep?' });
+
+  await expect
+    .element(chapterCards(screen).getByRole('button', { name: 'What does memory keep?' }))
+    .toBeVisible();
+  await expectSuspended(screen, 'What does memory keep?');
+  expect(api.state.book.book_flashcards?.[1].status).toBe('suspended');
+});

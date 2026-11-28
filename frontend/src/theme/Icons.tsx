@@ -71,6 +71,7 @@ export {
   TextDecrease as SmallerTextIcon,
   SwapVert as SortIcon,
   PauseCircleOutlined as SuspendIcon,
+  PlayCircleOutlined as UnsuspendIcon,
   UploadFile as UploadIcon,
 } from '@mui/icons-material';
 

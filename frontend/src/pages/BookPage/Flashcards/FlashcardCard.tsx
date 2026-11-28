@@ -1,8 +1,8 @@
 import { Collapsable } from '@/components/animations/Collapsable';
 import { Eyebrow } from '@/components/typography/Eyebrow.tsx';
-import { HighlightsIcon } from '@/theme/Icons';
+import { HighlightsIcon, SuspendIcon } from '@/theme/Icons';
 import { ICON_SIZE } from '@/theme/iconSizes.ts';
-import { Box, ButtonBase, styled, Typography } from '@mui/material';
+import { Box, ButtonBase, Chip, styled, Typography } from '@mui/material';
 import { ReactNode, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
@@ -11,6 +11,7 @@ export interface FlashcardCardProps {
   answer: string;
   showSourceHighlight?: boolean;
   sourceHighlightText?: string;
+  suspended?: boolean;
   renderActions: () => ReactNode;
 }
 
@@ -55,6 +56,7 @@ export const FlashcardCard = ({
   answer,
   showSourceHighlight,
   sourceHighlightText,
+  suspended = false,
   renderActions,
 }: FlashcardCardProps) => {
   const { t } = useTranslation();
@@ -63,25 +65,38 @@ export const FlashcardCard = ({
   return (
     <FlashcardStyled>
       <Box sx={{ display: 'flex', alignItems: 'flex-start', gap: 0.5 }}>
-        <ButtonBase
-          onClick={() => setIsExpanded(!isExpanded)}
-          aria-expanded={isExpanded}
-          sx={{
-            display: 'block',
-            flex: 1,
-            minWidth: 0,
-            textAlign: 'left',
-          }}
-        >
-          <Typography variant="body1" sx={{ lineHeight: 1.5 }}>
-            {question}
-          </Typography>
-        </ButtonBase>
+        <Box sx={{ flex: 1, minWidth: 0 }}>
+          <ButtonBase
+            onClick={() => setIsExpanded(!isExpanded)}
+            aria-expanded={isExpanded}
+            sx={{ display: 'block', width: '100%', textAlign: 'left' }}
+          >
+            <Typography
+              variant="body1"
+              sx={{ lineHeight: 1.5, color: suspended ? 'text.secondary' : undefined }}
+            >
+              {question}
+            </Typography>
+          </ButtonBase>
+          {suspended && (
+            <Chip
+              variant="outlined"
+              icon={<SuspendIcon />}
+              label={t('flashcards.card.suspended')}
+              sx={{
+                mt: 0.5,
+                color: 'text.secondary',
+                borderColor: 'divider',
+                '& .MuiChip-icon': { color: 'text.secondary', fontSize: ICON_SIZE.inline },
+              }}
+            />
+          )}
+        </Box>
         <ActionButtonsStyled>{renderActions()}</ActionButtonsStyled>
       </Box>
 
       <Collapsable isExpanded={isExpanded}>
-        <Box sx={{ mt: 1.5 }}>
+        <Box sx={{ mt: 1.5, opacity: suspended ? 0.7 : undefined }}>
           <Eyebrow sx={{ mb: 0.5 }}>{t('flashcards.fields.answer')}</Eyebrow>
 
           <Typography variant="body1" sx={{ color: 'text.secondary', lineHeight: 1.5 }}>

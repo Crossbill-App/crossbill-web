@@ -7,7 +7,11 @@
     "new": "New flashcard",
     "edit": "Edit flashcard",
     "delete": "Delete flashcard",
+    "unsuspend": "Unsuspend flashcard",
     "viewLinkedNote": "View linked note"
+  },
+  "card": {
+    "suspended": "Suspended"
   },
   "page": {
     "searchPlaceholder": "Search flashcards...",
@@ -41,6 +45,7 @@
   "errors": {
     "create": "Failed to create flashcard. Please try again.",
     "delete": "Failed to delete flashcard. Please try again.",
+    "unsuspend": "Failed to unsuspend flashcard. Please try again.",
     "update": "Failed to update flashcard. Please try again."
   }
 }

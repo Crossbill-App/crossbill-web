@@ -1,9 +1,12 @@
+import { useSetFlashcardStatus } from '@/api/generated/flashcards/flashcards.ts';
 import { IconButtonWithTooltip } from '@/components/buttons/IconButtonWithTooltip';
 import { FlashcardWithContext } from '@/components/features/flashcards/FlashcardChapterList.tsx';
+import { useMutationErrorHandler } from '@/hooks/useMutationErrorHandler.ts';
+import { useCacheEvents } from '@/lib/cacheEvents.ts';
 import { FlashcardCard } from '@/pages/BookPage/Flashcards/FlashcardCard.tsx';
 import { useFlashcardDeletion } from '@/pages/BookPage/Flashcards/hooks/useFlashcardDeletion.tsx';
 import { NoteViewDialog } from '@/pages/BookPage/Notes/NoteViewDialog.tsx';
-import { DeleteIcon, EditIcon, NotesIcon } from '@/theme/Icons.tsx';
+import { DeleteIcon, EditIcon, NotesIcon, UnsuspendIcon } from '@/theme/Icons.tsx';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
@@ -27,13 +30,23 @@ export const FlashcardListCard = ({
   noteId,
 }: FlashcardListCardProps) => {
   const { t } = useTranslation();
+  const cache = useCacheEvents();
+  const mutationErrorHandler = useMutationErrorHandler();
   const [isViewingNote, setIsViewingNote] = useState(false);
   const linkedNoteId =
     flashcard.note_id != null && flashcard.note_id !== noteId ? flashcard.note_id : null;
+  const owningNoteId = noteId ?? flashcard.note_id ?? undefined;
   const { requestDelete, isDeleting, confirmation } = useFlashcardDeletion({
     bookId,
-    noteId: noteId ?? flashcard.note_id ?? undefined,
+    noteId: owningNoteId,
   });
+  const unsuspend = useSetFlashcardStatus({
+    mutation: {
+      onSuccess: () => cache.flashcardsChanged(bookId, owningNoteId),
+      onError: mutationErrorHandler(t('flashcards.errors.unsuspend')),
+    },
+  });
+  const isBusy = isDeleting || unsuspend.isPending;
 
   const handleDeleteClick = (e: React.MouseEvent) => {
     e.stopPropagation();
@@ -52,26 +65,38 @@ export const FlashcardListCard = ({
         answer={flashcard.answer}
         showSourceHighlight={showSourceHighlight}
         sourceHighlightText={flashcard.highlight?.text}
+        suspended={flashcard.status === 'suspended'}
         renderActions={() => (
           <>
+            {flashcard.status === 'suspended' && (
+              <IconButtonWithTooltip
+                label={t('flashcards.actions.unsuspend')}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  unsuspend.mutate({ flashcardId: flashcard.id, data: { status: 'active' } });
+                }}
+                disabled={isBusy}
+                icon={<UnsuspendIcon fontSize="small" />}
+              />
+            )}
             {linkedNoteId != null && (
               <IconButtonWithTooltip
                 label={t('flashcards.actions.viewLinkedNote')}
                 onClick={handleViewNoteClick}
-                disabled={isDeleting}
+                disabled={isBusy}
                 icon={<NotesIcon fontSize="small" />}
               />
             )}
             <IconButtonWithTooltip
               label={t('flashcards.actions.edit')}
               onClick={onEdit}
-              disabled={isDeleting}
+              disabled={isBusy}
               icon={<EditIcon fontSize="small" />}
             />
             <IconButtonWithTooltip
               label={t('flashcards.actions.delete')}
               onClick={handleDeleteClick}
-              disabled={isDeleting}
+              disabled={isBusy}
               icon={<DeleteIcon fontSize="small" />}
             />
           </>
