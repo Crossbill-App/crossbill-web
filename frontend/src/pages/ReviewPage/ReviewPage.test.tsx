@@ -1,6 +1,6 @@
 import type { DueFlashcard, FlashcardReviewRequestRating } from '@/api/generated/model';
 import { aDueFlashcard } from '@tests/fixtures/review';
-import { saveFlashcardDialog } from '@tests/harness/flashcardDialog';
+import { deleteFromFlashcardDialog, saveFlashcardDialog } from '@tests/harness/flashcardDialog';
 import { renderApp } from '@tests/harness/renderApp';
 import { afterTheAnswersRender } from '@tests/harness/settle';
 import { reviewApi } from '@tests/msw/reviewApi';
@@ -165,13 +165,35 @@ test('a card that left review elsewhere is skipped when graded', async () => {
   await expectCardShown(screen, SECOND);
 });
 
-test('suspending moves on, and undo puts the card back', async () => {
-  const { screen, state } = await startReview([FIRST, SECOND]);
+test('a card suspended elsewhere leaves the queue when the list is fetched again', async () => {
+  const third = aDueFlashcard({ id: 703, question: 'What is a habit', answer: 'A loop' });
+  const { screen, state } = await startReview([FIRST, SECOND, third]);
   await expectCardShown(screen, FIRST);
+  await expect.element(screen.getByText('1 of 3')).toBeVisible();
+  state.cards = state.cards.map((card) =>
+    card.id === SECOND.id ? { ...card, status: 'suspended' } : card
+  );
 
-  await userEvent.click(screen.getByRole('button', { name: 'Suspend' }));
+  await userEvent.click(screen.getByRole('button', { name: 'Edit', exact: true }));
+  await saveFlashcardDialog(screen, 'Edit flashcard', { question: 'What does attention do' });
+  await expect.element(screen.getByText('1 of 2')).toBeVisible();
+  await showAnswer(screen);
+  await userEvent.click(gradeButton(screen, 'Good'));
 
-  await expectCardShown(screen, SECOND);
+  await expectCardShown(screen, third);
+  await expect.element(screen.getByText('2 of 2')).toBeVisible();
+});
+
+const suspendTheFirstOfTwo = async () => {
+  const review = await startReview([FIRST, SECOND]);
+  await expectCardShown(review.screen, FIRST);
+  await userEvent.click(review.screen.getByRole('button', { name: 'Suspend' }));
+  await expectCardShown(review.screen, SECOND);
+  return review;
+};
+
+test('suspending moves on, and undo puts the card back', async () => {
+  const { screen, state } = await suspendTheFirstOfTwo();
   await expect.poll(() => state.cards[0].status).toBe('suspended');
 
   await userEvent.click(screen.getByRole('button', { name: 'Undo' }));
@@ -182,11 +204,8 @@ test('suspending moves on, and undo puts the card back', async () => {
 });
 
 test('Space after suspending with the mouse shows the next answer', async () => {
-  const { screen, state } = await startReview([FIRST, SECOND]);
-  await expectCardShown(screen, FIRST);
+  const { screen, state } = await suspendTheFirstOfTwo();
 
-  await userEvent.click(screen.getByRole('button', { name: 'Suspend' }));
-  await expectCardShown(screen, SECOND);
   await userEvent.keyboard(' ');
 
   await expect.element(screen.getByText(SECOND.answer)).toBeVisible();
@@ -212,11 +231,7 @@ test('deleting from the edit dialog moves on to the next card', async () => {
   await expectCardShown(screen, FIRST);
 
   await userEvent.click(screen.getByRole('button', { name: 'Edit', exact: true }));
-  const dialog = screen.getByRole('dialog', { name: 'Edit flashcard' });
-  await userEvent.click(dialog.getByRole('button', { name: 'Delete' }));
-  await userEvent.click(
-    screen.getByRole('alertdialog').getByRole('button', { name: 'Delete', exact: true })
-  );
+  await deleteFromFlashcardDialog(screen);
 
   await expectCardShown(screen, SECOND);
   await expect.element(screen.getByText('2 of 2')).toBeVisible();

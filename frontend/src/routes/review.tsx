@@ -1,7 +1,7 @@
 import { ReviewPage } from '@/pages/ReviewPage/ReviewPage';
 import { createFileRoute } from '@tanstack/react-router';
 
-export interface ReviewSearch {
+interface ReviewSearch {
   book?: number;
 }
 

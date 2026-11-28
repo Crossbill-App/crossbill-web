@@ -4,6 +4,7 @@ import {
 } from '@/api/generated/flashcards/flashcards.ts';
 import type { FlashcardReviewRequestRating } from '@/api/generated/model';
 import { Spinner } from '@/components/animations/Spinner.tsx';
+import { EmptyStateText } from '@/components/EmptyStateText.tsx';
 import { PageContainer } from '@/components/layout/Layouts.tsx';
 import { PageTitle } from '@/components/typography/PageTitle.tsx';
 import { useSnackbar } from '@/context/SnackbarContext.tsx';
@@ -29,13 +30,11 @@ const AllCaughtUp = () => {
   const { t } = useTranslation();
 
   return (
-    <Box role="status" sx={{ textAlign: 'center', py: 8 }}>
-      <Typography variant="sectionTitle" component="h2" sx={{ mb: 1 }}>
+    <Box sx={{ textAlign: 'center', pt: 4 }}>
+      <Typography variant="sectionTitle" component="h2">
         {t('review.done.title')}
       </Typography>
-      <Typography variant="body1" sx={{ color: 'text.secondary' }}>
-        {t('review.done.message')}
-      </Typography>
+      <EmptyStateText variant="page">{t('review.done.message')}</EmptyStateText>
     </Box>
   );
 };
@@ -51,10 +50,14 @@ const ReviewSession = ({ bookId }: { bookId: number | undefined }) => {
   const [editing, setEditing] = useState<QueuedFlashcard | null>(null);
   const revealed = current !== null && revealedId === current.id;
 
+  const restoreUnlessGone = (flashcardId: number, error: unknown) => {
+    if (!hasLeftReview(error)) queue.restore(flashcardId);
+  };
+
   const recordReview = useRecordFlashcardReview({
     mutation: {
       onError: (error, { flashcardId }) => {
-        if (!hasLeftReview(error)) queue.restore(flashcardId);
+        restoreUnlessGone(flashcardId, error);
         mutationErrorHandler(t('review.errors.grade'))(error);
       },
     },
@@ -75,12 +78,11 @@ const ReviewSession = ({ bookId }: { bookId: number | undefined }) => {
         });
       },
       onError: (error, { flashcardId, data }) => {
-        if (data.status === 'suspended') {
-          if (!hasLeftReview(error)) queue.restore(flashcardId);
-          mutationErrorHandler(t('review.errors.suspend'))(error);
-        } else {
-          mutationErrorHandler(t('review.errors.unsuspend'))(error);
-        }
+        const suspending = data.status === 'suspended';
+        if (suspending) restoreUnlessGone(flashcardId, error);
+        mutationErrorHandler(t(suspending ? 'review.errors.suspend' : 'review.errors.unsuspend'))(
+          error
+        );
       },
     },
   });

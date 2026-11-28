@@ -51,14 +51,8 @@ const GradeButtons = ({ card, onGrade }: Pick<ReviewCardProps, 'card' | 'onGrade
             onClick={() => onGrade(rating)}
             sx={{ flexDirection: 'column', py: 1 }}
           >
-            <Box component="span" sx={{ display: 'block' }}>
-              {t(`review.grades.${rating}`)}
-            </Box>
-            <Typography
-              component="span"
-              variant="body2"
-              sx={{ display: 'block', color: 'text.secondary' }}
-            >
+            <span>{t(`review.grades.${rating}`)}</span>
+            <Typography component="span" variant="body2" sx={{ color: 'text.secondary' }}>
               {t(`review.interval.${interval.unit}`, { count: interval.count })}
             </Typography>
           </Button>

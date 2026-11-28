@@ -4,10 +4,7 @@ import {
   getGetRecentBooksQueryKey,
 } from '@/api/generated/books/books.ts';
 import { getGetBookDigestQueryKey } from '@/api/generated/digest/digest.ts';
-import {
-  getGetDueFlashcardsQueryKey,
-  getGetSuspendedFlashcardsQueryKey,
-} from '@/api/generated/flashcards/flashcards.ts';
+import { getGetDueFlashcardsQueryKey } from '@/api/generated/flashcards/flashcards.ts';
 import { getGetBookHighlightLabelsQueryKey } from '@/api/generated/highlight-labels/highlight-labels.ts';
 import { getGetActiveBookDigestBatchQueryKey } from '@/api/generated/jobs/jobs.ts';
 import { getGetNoteQueryKey, getGetNotesForBookQueryKey } from '@/api/generated/notes/notes.ts';
@@ -92,7 +89,7 @@ export const useCacheEvents = () => {
        * A flashcard was created, edited, deleted, suspended or unsuspended.
        *
        * Cards are counted in book details wherever they came from, and the due
-       * and suspended lists span every book. Pass `noteId` for a card belonging
+       * list spans every book. Pass `noteId` for a card belonging
        * to a note, whose detail embeds its own card list.
        *
        * The notes list embeds each note's cards too, and is refreshed whether or
@@ -105,7 +102,6 @@ export const useCacheEvents = () => {
           getGetBookDetailsQueryKey(bookId),
           getGetNotesForBookQueryKey(bookId),
           getGetDueFlashcardsQueryKey(),
-          getGetSuspendedFlashcardsQueryKey(),
           ...(noteId === undefined ? [] : [getGetNoteQueryKey(noteId)])
         ),
 

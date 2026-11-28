@@ -19,7 +19,6 @@ interface RecordedReview {
 interface DueListRequest {
   bookId: number | null;
   limit: number;
-  offset: number;
 }
 
 const asFlashcard = (card: DueFlashcard): Flashcard =>
@@ -42,8 +41,8 @@ export const reviewApi = ({ cards }: { cards: DueFlashcard[] }) => {
   const findCard = (flashcardId: string | readonly string[] | undefined) =>
     state.cards.find((card) => card.id === Number(flashcardId));
 
-  const changeCard = (flashcardId: number, change: (card: DueFlashcard) => DueFlashcard) => {
-    state.cards = state.cards.map((card) => (card.id === flashcardId ? change(card) : card));
+  const replaceCard = (updated: DueFlashcard) => {
+    state.cards = state.cards.map((card) => (card.id === updated.id ? updated : card));
   };
 
   const handlers = [
@@ -52,7 +51,7 @@ export const reviewApi = ({ cards }: { cards: DueFlashcard[] }) => {
       const bookId = params.has('book_id') ? Number(params.get('book_id')) : null;
       const limit = Number(params.get('limit') ?? 50);
       const offset = Number(params.get('offset') ?? 0);
-      state.dueListRequests.push({ bookId, limit, offset });
+      state.dueListRequests.push({ bookId, limit });
 
       const due = state.cards.filter(
         (card) => isDue(card) && (bookId === null || card.book_id === bookId)
@@ -79,8 +78,9 @@ export const reviewApi = ({ cards }: { cards: DueFlashcard[] }) => {
       if (!card) return new HttpResponse(null, { status: 404 });
 
       const body = (await request.json()) as FlashcardStatusRequest;
-      changeCard(card.id, (candidate) => ({ ...candidate, status: body.status }));
-      return HttpResponse.json(asFlashcard({ ...card, status: body.status }));
+      const updated = { ...card, status: body.status };
+      replaceCard(updated);
+      return HttpResponse.json(asFlashcard(updated));
     }),
 
     http.put('/api/v1/flashcards/:flashcardId', async ({ params, request }) => {
@@ -93,7 +93,7 @@ export const reviewApi = ({ cards }: { cards: DueFlashcard[] }) => {
         question: body.question ?? card.question,
         answer: body.answer ?? card.answer,
       };
-      changeCard(card.id, () => updated);
+      replaceCard(updated);
       return HttpResponse.json({
         success: true,
         message: 'Flashcard updated',
