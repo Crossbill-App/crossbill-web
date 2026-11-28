@@ -1,0 +1,38 @@
+{
+  "page": {
+    "title": "Review",
+    "position": "{{position}} of {{total}}",
+    "loadError": "Could not load the flashcards to review."
+  },
+  "card": {
+    "context": "{{book}} · {{chapter}}",
+    "showAnswer": "Show answer",
+    "suspend": "Suspend"
+  },
+  "grades": {
+    "again": "Again",
+    "hard": "Hard",
+    "good": "Good",
+    "easy": "Easy"
+  },
+  "interval": {
+    "minutes": "{{count}}m",
+    "hours": "{{count}}h",
+    "days": "{{count}}d",
+    "months": "{{count}}mo",
+    "years": "{{count}}y"
+  },
+  "done": {
+    "title": "All caught up",
+    "message": "No flashcards are due right now."
+  },
+  "suspended": {
+    "message": "Flashcard suspended",
+    "undo": "Undo"
+  },
+  "errors": {
+    "grade": "Failed to save the grade. Please try again.",
+    "suspend": "Failed to suspend the flashcard. Please try again.",
+    "unsuspend": "Failed to unsuspend the flashcard. Please try again."
+  }
+}

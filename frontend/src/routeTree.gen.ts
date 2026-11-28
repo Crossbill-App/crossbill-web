@@ -13,6 +13,7 @@ import { Route as IndexRouteImport } from './routes/index'
 import { Route as LibraryRouteImport } from './routes/library'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as RegisterRouteImport } from './routes/register'
+import { Route as ReviewRouteImport } from './routes/review'
 import { Route as SettingsRouteImport } from './routes/settings'
 import { Route as BookBookIdRouteImport } from './routes/book.$bookId'
 import { Route as BookBookIdIndexRouteImport } from './routes/book.$bookId/index'
@@ -42,6 +43,11 @@ const LoginRoute = LoginRouteImport.update({
 const RegisterRoute = RegisterRouteImport.update({
   id: '/register',
   path: '/register',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ReviewRoute = ReviewRouteImport.update({
+  id: '/review',
+  path: '/review',
   getParentRoute: () => rootRouteImport,
 } as any)
 const SettingsRoute = SettingsRouteImport.update({
@@ -100,6 +106,7 @@ export interface FileRoutesByFullPath {
   '/library': typeof LibraryRoute
   '/login': typeof LoginRoute
   '/register': typeof RegisterRoute
+  '/review': typeof ReviewRoute
   '/settings': typeof SettingsRoute
   '/book/$bookId': typeof BookBookIdRouteWithChildren
   '/book/$bookId/flashcards': typeof BookBookIdFlashcardsRoute
@@ -116,6 +123,7 @@ export interface FileRoutesByTo {
   '/library': typeof LibraryRoute
   '/login': typeof LoginRoute
   '/register': typeof RegisterRoute
+  '/review': typeof ReviewRoute
   '/settings': typeof SettingsRoute
   '/book/$bookId/flashcards': typeof BookBookIdFlashcardsRoute
   '/book/$bookId/highlights': typeof BookBookIdHighlightsRoute
@@ -132,6 +140,7 @@ export interface FileRoutesById {
   '/library': typeof LibraryRoute
   '/login': typeof LoginRoute
   '/register': typeof RegisterRoute
+  '/review': typeof ReviewRoute
   '/settings': typeof SettingsRoute
   '/book/$bookId': typeof BookBookIdRouteWithChildren
   '/book/$bookId/flashcards': typeof BookBookIdFlashcardsRoute
@@ -150,6 +159,7 @@ export interface FileRouteTypes {
     | '/library'
     | '/login'
     | '/register'
+    | '/review'
     | '/settings'
     | '/book/$bookId'
     | '/book/$bookId/flashcards'
@@ -166,6 +176,7 @@ export interface FileRouteTypes {
     | '/library'
     | '/login'
     | '/register'
+    | '/review'
     | '/settings'
     | '/book/$bookId/flashcards'
     | '/book/$bookId/highlights'
@@ -181,6 +192,7 @@ export interface FileRouteTypes {
     | '/library'
     | '/login'
     | '/register'
+    | '/review'
     | '/settings'
     | '/book/$bookId'
     | '/book/$bookId/flashcards'
@@ -198,6 +210,7 @@ export interface RootRouteChildren {
   LibraryRoute: typeof LibraryRoute
   LoginRoute: typeof LoginRoute
   RegisterRoute: typeof RegisterRoute
+  ReviewRoute: typeof ReviewRoute
   SettingsRoute: typeof SettingsRoute
   BookBookIdRoute: typeof BookBookIdRouteWithChildren
   BookBookIdReadRoute: typeof BookBookIdReadRoute
@@ -231,6 +244,13 @@ declare module '@tanstack/react-router' {
       path: '/register'
       fullPath: '/register'
       preLoaderRoute: typeof RegisterRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/review': {
+      id: '/review'
+      path: '/review'
+      fullPath: '/review'
+      preLoaderRoute: typeof ReviewRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/settings': {
@@ -335,6 +355,7 @@ const rootRouteChildren: RootRouteChildren = {
   LibraryRoute: LibraryRoute,
   LoginRoute: LoginRoute,
   RegisterRoute: RegisterRoute,
+  ReviewRoute: ReviewRoute,
   SettingsRoute: SettingsRoute,
   BookBookIdRoute: BookBookIdRouteWithChildren,
   BookBookIdReadRoute: BookBookIdReadRoute,

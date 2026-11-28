@@ -42,6 +42,7 @@ export {
   // Reading the book here in the browser, not a session read on a device.
   ChromeReaderMode as ReaderIcon,
   Psychology as ReflectionIcon,
+  SchoolOutlined as ReviewIcon,
   Equalizer as StatisticsIcon,
   LocalOffer as TagIcon,
 } from '@mui/icons-material';
@@ -69,6 +70,7 @@ export {
   Send as SendIcon,
   TextDecrease as SmallerTextIcon,
   SwapVert as SortIcon,
+  PauseCircleOutlined as SuspendIcon,
   UploadFile as UploadIcon,
 } from '@mui/icons-material';
 

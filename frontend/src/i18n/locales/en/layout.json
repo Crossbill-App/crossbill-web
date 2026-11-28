@@ -10,7 +10,8 @@
     "ariaLabel": "Global navigation"
   },
   "appRoutes": {
-    "home": "Home"
+    "home": "Home",
+    "review": "Review"
   },
   "pullToRefresh": {
     "refreshing": "Refreshing"
