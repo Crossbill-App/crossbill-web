@@ -28,7 +28,7 @@ class DueFlashcardQueryProtocol(Protocol):
     ) -> DueFlashcardPageView:
         """Return a page of the active cards due by ``now`` or never reviewed.
 
-        Due reviews come first, lowest retrievability first; then new cards in
-        book order, chapterless ones last.
+        Due reviews come first, lowest retrievability first; then new cards one
+        book at a time, in book order with chapterless ones last.
         """
         ...

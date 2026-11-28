@@ -59,8 +59,8 @@ async def get_due_flashcards(
 ) -> PaginatedResponse[Flashcard]:
     """List the active flashcards to review now: due cards, then cards never reviewed.
 
-    Due cards come lowest retrievability first; new cards follow in book order,
-    those without a chapter last.
+    Due cards come lowest retrievability first; new cards follow one book at a
+    time, in book order with those without a chapter last.
     """
     page = await use_case.get_due_flashcards(
         user_id=current_user.id.value, now=now, book_id=book_id, limit=limit, offset=offset

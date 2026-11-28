@@ -259,6 +259,19 @@ class TestDueFlashcards:
             chapterless.id,
         ]
 
+    async def test_new_cards_keep_to_one_book_at_a_time(
+        self, client: AsyncClient, db_session: AsyncSession, test_book: models.Book
+    ) -> None:
+        other_book = await create_test_book(db_session, test_book.user_id, "Other Book")
+        first_chapter = await create_test_chapter(db_session, test_book, "One", chapter_number=1)
+        second_chapter = await create_test_chapter(db_session, test_book, "Two", chapter_number=2)
+        other_first = await create_test_chapter(db_session, other_book, "One", chapter_number=1)
+        later_in_book = await create_flashcard(db_session, test_book, chapter_id=second_chapter.id)
+        in_other_book = await create_flashcard(db_session, other_book, chapter_id=other_first.id)
+        early_in_book = await create_flashcard(db_session, test_book, chapter_id=first_chapter.id)
+
+        assert await due_ids(client) == [early_in_book.id, later_in_book.id, in_other_book.id]
+
     async def test_cards_not_yet_due_and_suspended_cards_stay_out(
         self, client: AsyncClient, db_session: AsyncSession, test_book: models.Book
     ) -> None:

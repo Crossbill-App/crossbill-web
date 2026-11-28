@@ -54,6 +54,7 @@ class DueFlashcardQuery:
             .order_by(
                 case((is_new, 1), else_=0),
                 (elapsed / FlashcardORM.stability).desc(),
+                FlashcardORM.book_id,
                 case((ChapterORM.chapter_number.is_(None), 1), else_=0),
                 ChapterORM.chapter_number,
                 FlashcardORM.created_at,

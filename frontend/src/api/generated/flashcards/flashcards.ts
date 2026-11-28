@@ -295,8 +295,8 @@ export function useGetFlashcardsForBook<
 /**
  * List the active flashcards to review now: due cards, then cards never reviewed.
  *
- * Due cards come lowest retrievability first; new cards follow in book order,
- * those without a chapter last.
+ * Due cards come lowest retrievability first; new cards follow one book at a
+ * time, in book order with those without a chapter last.
  * @summary Get Due Flashcards
  */
 export const getDueFlashcards = (params?: GetDueFlashcardsParams, signal?: AbortSignal) => {

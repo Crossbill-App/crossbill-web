@@ -2714,7 +2714,7 @@
           "flashcards"
         ],
         "summary": "Get Due Flashcards",
-        "description": "List the active flashcards to review now: due cards, then cards never reviewed.\n\nDue cards come lowest retrievability first; new cards follow in book order,\nthose without a chapter last.",
+        "description": "List the active flashcards to review now: due cards, then cards never reviewed.\n\nDue cards come lowest retrievability first; new cards follow one book at a\ntime, in book order with those without a chapter last.",
         "operationId": "get_due_flashcards",
         "security": [
           {
