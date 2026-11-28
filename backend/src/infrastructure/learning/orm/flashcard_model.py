@@ -3,7 +3,7 @@
 from datetime import datetime as dt
 from typing import TYPE_CHECKING
 
-from sqlalchemy import DateTime, ForeignKey, Text, func
+from sqlalchemy import DateTime, Float, ForeignKey, Index, Integer, String, Text, func
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from src.database import Base
@@ -39,6 +39,14 @@ class Flashcard(Base):
     )
     question: Mapped[str] = mapped_column(Text, nullable=False)
     answer: Mapped[str] = mapped_column(Text, nullable=False)
+    status: Mapped[str] = mapped_column(String(20), nullable=False, server_default="active")
+    origin: Mapped[str] = mapped_column(String(20), nullable=False, server_default="manual")
+    fsrs_state: Mapped[str | None] = mapped_column(String(20), nullable=True)
+    step: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    stability: Mapped[float | None] = mapped_column(Float, nullable=True)
+    difficulty: Mapped[float | None] = mapped_column(Float, nullable=True)
+    due: Mapped[dt | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    last_review: Mapped[dt | None] = mapped_column(DateTime(timezone=True), nullable=True)
     created_at: Mapped[dt] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), nullable=False
     )
@@ -54,6 +62,8 @@ class Flashcard(Base):
     book: Mapped["Book"] = relationship(back_populates="flashcards")
     highlight: Mapped["Highlight | None"] = relationship(back_populates="flashcards")
     chapter: Mapped["Chapter | None"] = relationship()
+
+    __table_args__ = (Index("ix_flashcards_user_id_status_due", "user_id", "status", "due"),)
 
     def __repr__(self) -> str:
         """String representation of Flashcard."""
