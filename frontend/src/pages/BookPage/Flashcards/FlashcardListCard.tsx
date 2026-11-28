@@ -33,6 +33,7 @@ export const FlashcardListCard = ({
   const cache = useCacheEvents();
   const mutationErrorHandler = useMutationErrorHandler();
   const [isViewingNote, setIsViewingNote] = useState(false);
+  const isSuspended = flashcard.status === 'suspended';
   const linkedNoteId =
     flashcard.note_id != null && flashcard.note_id !== noteId ? flashcard.note_id : null;
   const owningNoteId = noteId ?? flashcard.note_id ?? undefined;
@@ -65,10 +66,10 @@ export const FlashcardListCard = ({
         answer={flashcard.answer}
         showSourceHighlight={showSourceHighlight}
         sourceHighlightText={flashcard.highlight?.text}
-        suspended={flashcard.status === 'suspended'}
+        suspended={isSuspended}
         renderActions={() => (
           <>
-            {flashcard.status === 'suspended' && (
+            {isSuspended && (
               <IconButtonWithTooltip
                 label={t('flashcards.actions.unsuspend')}
                 onClick={(e) => {

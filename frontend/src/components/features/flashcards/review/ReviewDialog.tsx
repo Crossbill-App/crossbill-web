@@ -84,9 +84,9 @@ export const ReviewDialog = ({ bookId, onClose }: ReviewDialogProps) => {
       onError: (error, { flashcardId, data }) => {
         const suspending = data.status === 'suspended';
         if (suspending) restoreUnlessGone(flashcardId, error);
-        mutationErrorHandler(t(suspending ? 'review.errors.suspend' : 'review.errors.unsuspend'))(
-          error
-        );
+        mutationErrorHandler(
+          t(suspending ? 'review.errors.suspend' : 'flashcards.errors.unsuspend')
+        )(error);
       },
     },
   });

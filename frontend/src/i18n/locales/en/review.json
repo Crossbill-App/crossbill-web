@@ -35,7 +35,6 @@
   },
   "errors": {
     "grade": "Failed to save the grade. Please try again.",
-    "suspend": "Failed to suspend the flashcard. Please try again.",
-    "unsuspend": "Failed to unsuspend the flashcard. Please try again."
+    "suspend": "Failed to suspend the flashcard. Please try again."
   }
 }
