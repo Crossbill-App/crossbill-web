@@ -23,12 +23,17 @@ import { useMutation, useQuery } from '@tanstack/react-query';
 import type {
   CollectionResponseFlashcardSuggestionItem,
   CollectionResponseFlashcardWithHighlight,
+  Flashcard,
   FlashcardCreateRequest,
   FlashcardCreateResponse,
+  FlashcardReviewRequest,
+  FlashcardStatusRequest,
   FlashcardUpdateRequest,
   FlashcardUpdateResponse,
+  GetDueFlashcardsParams,
   HTTPValidationError,
   NoteFlashcardCreateRequest,
+  PaginatedResponseFlashcard,
   SuccessResponse,
 } from '../model';
 
@@ -288,6 +293,121 @@ export function useGetFlashcardsForBook<
 }
 
 /**
+ * List the active flashcards to review now: due cards, then cards never reviewed.
+ *
+ * Due cards come lowest retrievability first; new cards follow in book order,
+ * those without a chapter last.
+ * @summary Get Due Flashcards
+ */
+export const getDueFlashcards = (params?: GetDueFlashcardsParams, signal?: AbortSignal) => {
+  return axiosInstance<PaginatedResponseFlashcard>({
+    url: `/api/v1/flashcards/due`,
+    method: 'GET',
+    params,
+    signal,
+  });
+};
+
+export const getGetDueFlashcardsQueryKey = (params?: GetDueFlashcardsParams) => {
+  return [`/api/v1/flashcards/due`, ...(params ? [params] : [])] as const;
+};
+
+export const getGetDueFlashcardsQueryOptions = <
+  TData = Awaited<ReturnType<typeof getDueFlashcards>>,
+  TError = HTTPValidationError,
+>(
+  params?: GetDueFlashcardsParams,
+  options?: {
+    query?: Partial<UseQueryOptions<Awaited<ReturnType<typeof getDueFlashcards>>, TError, TData>>;
+  }
+) => {
+  const { query: queryOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getGetDueFlashcardsQueryKey(params);
+
+  const queryFn: QueryFunction<Awaited<ReturnType<typeof getDueFlashcards>>> = ({ signal }) =>
+    getDueFlashcards(params, signal);
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof getDueFlashcards>>,
+    TError,
+    TData
+  > & { queryKey: DataTag<QueryKey, TData, TError> };
+};
+
+export type GetDueFlashcardsQueryResult = NonNullable<Awaited<ReturnType<typeof getDueFlashcards>>>;
+export type GetDueFlashcardsQueryError = HTTPValidationError;
+
+export function useGetDueFlashcards<
+  TData = Awaited<ReturnType<typeof getDueFlashcards>>,
+  TError = HTTPValidationError,
+>(
+  params: undefined | GetDueFlashcardsParams,
+  options: {
+    query: Partial<UseQueryOptions<Awaited<ReturnType<typeof getDueFlashcards>>, TError, TData>> &
+      Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getDueFlashcards>>,
+          TError,
+          Awaited<ReturnType<typeof getDueFlashcards>>
+        >,
+        'initialData'
+      >;
+  },
+  queryClient?: QueryClient
+): DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+export function useGetDueFlashcards<
+  TData = Awaited<ReturnType<typeof getDueFlashcards>>,
+  TError = HTTPValidationError,
+>(
+  params?: GetDueFlashcardsParams,
+  options?: {
+    query?: Partial<UseQueryOptions<Awaited<ReturnType<typeof getDueFlashcards>>, TError, TData>> &
+      Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getDueFlashcards>>,
+          TError,
+          Awaited<ReturnType<typeof getDueFlashcards>>
+        >,
+        'initialData'
+      >;
+  },
+  queryClient?: QueryClient
+): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+export function useGetDueFlashcards<
+  TData = Awaited<ReturnType<typeof getDueFlashcards>>,
+  TError = HTTPValidationError,
+>(
+  params?: GetDueFlashcardsParams,
+  options?: {
+    query?: Partial<UseQueryOptions<Awaited<ReturnType<typeof getDueFlashcards>>, TError, TData>>;
+  },
+  queryClient?: QueryClient
+): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+/**
+ * @summary Get Due Flashcards
+ */
+
+export function useGetDueFlashcards<
+  TData = Awaited<ReturnType<typeof getDueFlashcards>>,
+  TError = HTTPValidationError,
+>(
+  params?: GetDueFlashcardsParams,
+  options?: {
+    query?: Partial<UseQueryOptions<Awaited<ReturnType<typeof getDueFlashcards>>, TError, TData>>;
+  },
+  queryClient?: QueryClient
+): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+  const queryOptions = getGetDueFlashcardsQueryOptions(params, options);
+
+  const query = useQuery(queryOptions, queryClient) as UseQueryResult<TData, TError> & {
+    queryKey: DataTag<QueryKey, TData, TError>;
+  };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+/**
  * Update a flashcard's question and/or answer.
  *
  * Args:
@@ -470,6 +590,181 @@ export const useDeleteFlashcard = <TError = HTTPValidationError, TContext = unkn
   TContext
 > => {
   return useMutation(getDeleteFlashcardMutationOptions(options), queryClient);
+};
+/**
+ * Record a review of a flashcard and return the card as it is now scheduled.
+ *
+ * A review sent again with the same `reviewed_at` changes nothing. A suspended
+ * card takes no reviews (409).
+ * @summary Record Flashcard Review
+ */
+export const recordFlashcardReview = (
+  flashcardId: number,
+  flashcardReviewRequest: FlashcardReviewRequest,
+  signal?: AbortSignal
+) => {
+  return axiosInstance<Flashcard>({
+    url: `/api/v1/flashcards/${flashcardId}/reviews`,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    data: flashcardReviewRequest,
+    signal,
+  });
+};
+
+export const getRecordFlashcardReviewMutationKey = () => ['recordFlashcardReview'] as const;
+
+export const getRecordFlashcardReviewMutationOptions = <
+  TError = HTTPValidationError,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof recordFlashcardReview>>,
+    TError,
+    RecordFlashcardReviewMutationVariables,
+    TContext
+  >;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof recordFlashcardReview>>,
+  TError,
+  RecordFlashcardReviewMutationVariables,
+  TContext
+> => {
+  const mutationKey = getRecordFlashcardReviewMutationKey();
+  const { mutation: mutationOptions } = options
+    ? options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey } };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof recordFlashcardReview>>,
+    RecordFlashcardReviewMutationVariables
+  > = (props) => {
+    const { flashcardId, data } = props ?? {};
+
+    return recordFlashcardReview(flashcardId, data);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type RecordFlashcardReviewMutationResult = NonNullable<
+  Awaited<ReturnType<typeof recordFlashcardReview>>
+>;
+export type RecordFlashcardReviewMutationBody = FlashcardReviewRequest;
+export type RecordFlashcardReviewMutationError = HTTPValidationError;
+export type RecordFlashcardReviewMutationVariables = {
+  flashcardId: number;
+  data: FlashcardReviewRequest;
+};
+
+/**
+ * @summary Record Flashcard Review
+ */
+export const useRecordFlashcardReview = <TError = HTTPValidationError, TContext = unknown>(
+  options?: {
+    mutation?: UseMutationOptions<
+      Awaited<ReturnType<typeof recordFlashcardReview>>,
+      TError,
+      RecordFlashcardReviewMutationVariables,
+      TContext
+    >;
+  },
+  queryClient?: QueryClient
+): UseMutationResult<
+  Awaited<ReturnType<typeof recordFlashcardReview>>,
+  TError,
+  RecordFlashcardReviewMutationVariables,
+  TContext
+> => {
+  return useMutation(getRecordFlashcardReviewMutationOptions(options), queryClient);
+};
+/**
+ * Suspend a flashcard, taking it out of review, or unsuspend it with its schedule intact.
+ * @summary Set Flashcard Status
+ */
+export const setFlashcardStatus = (
+  flashcardId: number,
+  flashcardStatusRequest: FlashcardStatusRequest,
+  signal?: AbortSignal
+) => {
+  return axiosInstance<Flashcard>({
+    url: `/api/v1/flashcards/${flashcardId}/status`,
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    data: flashcardStatusRequest,
+    signal,
+  });
+};
+
+export const getSetFlashcardStatusMutationKey = () => ['setFlashcardStatus'] as const;
+
+export const getSetFlashcardStatusMutationOptions = <
+  TError = HTTPValidationError,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof setFlashcardStatus>>,
+    TError,
+    SetFlashcardStatusMutationVariables,
+    TContext
+  >;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof setFlashcardStatus>>,
+  TError,
+  SetFlashcardStatusMutationVariables,
+  TContext
+> => {
+  const mutationKey = getSetFlashcardStatusMutationKey();
+  const { mutation: mutationOptions } = options
+    ? options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey } };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof setFlashcardStatus>>,
+    SetFlashcardStatusMutationVariables
+  > = (props) => {
+    const { flashcardId, data } = props ?? {};
+
+    return setFlashcardStatus(flashcardId, data);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type SetFlashcardStatusMutationResult = NonNullable<
+  Awaited<ReturnType<typeof setFlashcardStatus>>
+>;
+export type SetFlashcardStatusMutationBody = FlashcardStatusRequest;
+export type SetFlashcardStatusMutationError = HTTPValidationError;
+export type SetFlashcardStatusMutationVariables = {
+  flashcardId: number;
+  data: FlashcardStatusRequest;
+};
+
+/**
+ * @summary Set Flashcard Status
+ */
+export const useSetFlashcardStatus = <TError = HTTPValidationError, TContext = unknown>(
+  options?: {
+    mutation?: UseMutationOptions<
+      Awaited<ReturnType<typeof setFlashcardStatus>>,
+      TError,
+      SetFlashcardStatusMutationVariables,
+      TContext
+    >;
+  },
+  queryClient?: QueryClient
+): UseMutationResult<
+  Awaited<ReturnType<typeof setFlashcardStatus>>,
+  TError,
+  SetFlashcardStatusMutationVariables,
+  TContext
+> => {
+  return useMutation(getSetFlashcardStatusMutationOptions(options), queryClient);
 };
 /**
  * Get AI-generated flashcard suggestions for a highlight.

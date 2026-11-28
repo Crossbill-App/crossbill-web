@@ -4,6 +4,8 @@
  * crossbill API
  * OpenAPI spec version: 0.0.0
  */
+import type { FlashcardWithHighlightOrigin } from './flashcardWithHighlightOrigin.ts';
+import type { FlashcardWithHighlightStatus } from './flashcardWithHighlightStatus.ts';
 import type { HighlightResponseBase } from './highlightResponseBase.ts';
 
 /**
@@ -26,6 +28,14 @@ export interface FlashcardWithHighlight {
    * @minLength 1
    */
   answer: string;
+  /** A suspended card is never due and takes no reviews */
+  status: FlashcardWithHighlightStatus;
+  /** Written by the reader or generated */
+  origin: FlashcardWithHighlightOrigin;
+  /** When the card is next due; null until first reviewed */
+  due: string | null;
+  /** When the card was last reviewed */
+  last_review: string | null;
   /** Associated highlight data with tags (if any) */
   highlight?: HighlightResponseBase | null;
 }
