@@ -13,18 +13,17 @@ from src.application.library.protocols.book_repository import BookRepositoryProt
 from src.application.library.protocols.chapter_repository import ChapterRepositoryProtocol
 from src.application.library.protocols.file_repository import FileRepositoryProtocol
 from src.application.library.protocols.position_index_service import PositionIndexServiceProtocol
-from src.application.reading.page_view_placement import place_page_view
 from src.application.reading.protocols.reading_session_repository import (
     ReadingSessionRepositoryProtocol,
 )
 from src.application.web_reader.anchors import (
     AnchorConfidence,
-    AnchorMatch,
     AnchorNotFoundError,
     AnchorResolutionError,
     AnchorSource,
     Locator,
 )
+from src.application.web_reader.page_view_reports import PageViewReport, placed_page_views
 from src.application.web_reader.protocols.position_anchor_service import (
     PositionAnchorServiceProtocol,
 )
@@ -75,24 +74,6 @@ MINIMUM_CONFIDENCE = {
 # the longest chapter.
 SAME_SITTING_BACKWARD_FRACTION = 0.25
 
-# A Page View is counted in characters, which a progression only approximates
-# (ADR-0004, Amendment 9).
-PAGE_VIEW_ANCHORS = {AnchorSource.QUOTE, AnchorSource.ELEMENT}
-
-
-@dataclass(frozen=True)
-class PageViewReport:
-    """One screen the Web Reader showed, as it reports it: the text at either edge, and when."""
-
-    start: Locator
-    end: Locator
-    shown_ms_before_send: int
-    duration_ms: int
-
-
-class _UnplaceablePageViewError(Exception):
-    pass
-
 
 @dataclass(frozen=True)
 class _Reached:
@@ -104,60 +85,17 @@ class _Reached:
     page: int | None
 
 
-def _firmly_anchored(match: AnchorMatch | None) -> AnchorMatch:
-    if match is None:
-        raise _UnplaceablePageViewError("not_in_book")
-    if match.anchored_by not in PAGE_VIEW_ANCHORS:
-        raise _UnplaceablePageViewError(f"anchored_by_{match.anchored_by.value}")
-    if match.confidence < MINIMUM_CONFIDENCE[match.anchored_by]:
-        raise _UnplaceablePageViewError("weak_anchor")
-    return match
-
-
-def _page_view(
-    report: PageViewReport,
-    start: AnchorMatch | None,
-    end: AnchorMatch | None,
-    position_index: PositionIndex,
-    source_hash: str,
-    now: datetime,
-) -> PageView:
-    first_words = _firmly_anchored(start).xpoints.start
-    last_words = _firmly_anchored(end).xpoints.end
-    if report.shown_ms_before_send < 0:
-        raise _UnplaceablePageViewError("shown_after_send")
-    try:
-        shown_at = now - timedelta(milliseconds=report.shown_ms_before_send)
-        duration = timedelta(milliseconds=report.duration_ms)
-    except OverflowError as exc:
-        raise _UnplaceablePageViewError("time_out_of_range") from exc
-    page_view = place_page_view(
-        position_index,
-        first_words.to_string(),
-        last_words.to_string(),
-        source_hash,
-        shown_at=shown_at,
-        duration=duration,
-    )
-    if page_view is None:
-        raise _UnplaceablePageViewError("unplaceable")
-    return page_view
-
-
-def _drop_unfitted(book_id: BookId, page_views: list[PageView]) -> None:
+def _drop(book_id: BookId, page_views: list[PageView], reason: str) -> None:
     for page_view in page_views:
         logger.warning(
-            "dropping_page_view",
-            book_id=book_id.value,
-            reason="outside_session",
-            shown_at=page_view.shown_at,
+            "dropping_page_view", book_id=book_id.value, reason=reason, shown_at=page_view.shown_at
         )
 
 
 def _record_page_views(
     book_id: BookId, session: ReadingSession, page_views: list[PageView]
 ) -> None:
-    _drop_unfitted(book_id, session.record_page_views(page_views))
+    _drop(book_id, session.record_page_views(page_views), "outside_session")
 
 
 def _has_restarted(session: ReadingSession, book: Book, position: Position | None) -> bool:
@@ -296,8 +234,14 @@ class SaveReadingPositionUseCase:
         xpoint = await self._canonical_position(book.id, epub_content, locator)
         position_index = await self._position_index(book, epub_content)
         position = position_index.resolve(xpoint.to_string())
-        placed = await self._placed_page_views(
-            book.id, epub_content, position_index, source_hash, now, page_views
+        placed = await placed_page_views(
+            self.position_anchor_service,
+            book.id,
+            epub_content,
+            position_index,
+            source_hash,
+            now,
+            page_views,
         )
 
         recorded = await self.position_repository.record(
@@ -320,7 +264,7 @@ class SaveReadingPositionUseCase:
             stored = await self.position_repository.find_for_book(book.id, user)
             if stored is None:
                 raise UnresolvablePositionError("the position was overtaken and then removed")
-            await self._add_to_stored_session(book.id, user, stored.reading_session_id, placed)
+            await self._give_to_stored_session(book.id, user, stored.reading_session_id, placed)
             return stored
 
         # Only a write that moved the position says anything about *where* the reader
@@ -394,68 +338,6 @@ class SaveReadingPositionUseCase:
         await backfill_book_length(book, index, self.book_repository, self.chapter_repository)
         return index
 
-    async def _placed_page_views(
-        self,
-        book_id: BookId,
-        epub_content: bytes,
-        position_index: PositionIndex,
-        source_hash: str,
-        now: datetime,
-        reports: list[PageViewReport],
-    ) -> list[PageView]:
-        if not reports:
-            return []
-        edges: dict[tuple[int, str], Locator] = {}
-        for n, report in enumerate(reports):
-            edges[(n, "start")] = report.start
-            edges[(n, "end")] = report.end
-        try:
-            matches = await self.position_anchor_service.xpoint_ranges_for_locators(
-                epub_content, edges
-            )
-        except AnchorResolutionError as exc:
-            logger.warning(
-                "dropping_page_views", book_id=book_id.value, count=len(reports), reason=str(exc)
-            )
-            return []
-        placed: list[PageView] = []
-        for n, report in enumerate(reports):
-            try:
-                placed.append(
-                    _page_view(
-                        report,
-                        matches[(n, "start")],
-                        matches[(n, "end")],
-                        position_index,
-                        source_hash,
-                        now,
-                    )
-                )
-            except _UnplaceablePageViewError as exc:
-                logger.warning("dropping_page_view", book_id=book_id.value, reason=str(exc))
-        return placed
-
-    async def _add_to_stored_session(
-        self,
-        book_id: BookId,
-        user_id: UserId,
-        session_id: ReadingSessionId | None,
-        page_views: list[PageView],
-    ) -> None:
-        if not page_views:
-            return
-        session = await self._last_session(session_id, user_id)
-        if session is None:
-            logger.warning(
-                "dropping_page_views",
-                book_id=book_id.value,
-                count=len(page_views),
-                reason="no_session",
-            )
-            return
-        _record_page_views(book_id, session, page_views)
-        await self.session_repository.add_page_views(session)
-
     async def _continue_session(
         self,
         book: Book,
@@ -474,9 +356,10 @@ class SaveReadingPositionUseCase:
         closing on a page another tab has long since left, and a sitting of its own
         would be a fiction.
         """
-        leftovers = page_views
         last = await self._last_session(was_open, user_id)
-        if last is not None and not self._has_gone_idle(last, now):
+        if last is not None and self._has_gone_idle(last, now):
+            page_views = await self._add_to_stored(last, page_views)
+        elif last is not None:
             position = reached.position if reached else None
             if not _has_restarted(last, book, position):
                 last.extend_to(
@@ -491,17 +374,37 @@ class SaveReadingPositionUseCase:
             last.extend_to(now)
             _record_page_views(book.id, last, page_views)
             await self._save_if_still_there(last)
-            leftovers = []
-        elif last is not None:
-            leftovers = last.record_page_views(page_views)
-            await self.session_repository.add_page_views(last)
+            page_views = []
 
         if reached is None:
-            _drop_unfitted(book.id, leftovers)
+            _drop(book.id, page_views, "outside_session")
             return None
         session = _begun_at(book.id, user_id, now, reached)
-        _record_page_views(book.id, session, leftovers)
+        _record_page_views(book.id, session, page_views)
         return session
+
+    async def _give_to_stored_session(
+        self,
+        book_id: BookId,
+        user_id: UserId,
+        session_id: ReadingSessionId | None,
+        page_views: list[PageView],
+    ) -> None:
+        if not page_views:
+            return
+        session = await self._last_session(session_id, user_id)
+        if session is None:
+            _drop(book_id, page_views, "no_session")
+        else:
+            _drop(book_id, await self._add_to_stored(session, page_views), "outside_session")
+
+    async def _add_to_stored(
+        self, session: ReadingSession, page_views: list[PageView]
+    ) -> list[PageView]:
+        """Store the Page Views that fit a session without rewriting it, returning the rest."""
+        outside = session.record_page_views(page_views)
+        await self.session_repository.add_page_views(session)
+        return outside
 
     async def _store_session(
         self,

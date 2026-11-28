@@ -9,13 +9,13 @@ from fastapi.responses import JSONResponse
 from starlette import status
 
 from src.application.web_reader.commands.save_reading_position_use_case import (
-    PageViewReport,
     SaveReadingPositionUseCase,
 )
 from src.application.web_reader.commands.start_publication_session_use_case import (
     StartPublicationSessionUseCase,
 )
 from src.application.web_reader.dtos import PublicationToken
+from src.application.web_reader.page_view_reports import PageViewReport
 from src.application.web_reader.publications import (
     ParsedPublication,
     PublicationResource,
