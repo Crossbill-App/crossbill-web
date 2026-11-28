@@ -2,6 +2,7 @@ import type {
   BookDetails,
   BookWithHighlightCount,
   ChapterInBook,
+  Flashcard,
   Highlight,
   HighlightLabelInBook,
 } from '@/api/generated/model';
@@ -42,6 +43,22 @@ export const aHighlight = (overrides: Partial<Highlight> = {}): Highlight => ({
   flashcards: [],
   created_at: '2026-01-01T00:00:00Z',
   updated_at: '2026-01-01T00:00:00Z',
+  ...overrides,
+});
+
+export const aFlashcard = (overrides: Partial<Flashcard> = {}): Flashcard => ({
+  id: 700,
+  user_id: 1,
+  book_id: 1,
+  highlight_id: null,
+  chapter_id: null,
+  note_id: null,
+  question: 'What is attention?',
+  answer: 'A filter.',
+  status: 'active',
+  origin: 'manual',
+  due: null,
+  last_review: null,
   ...overrides,
 });
 
