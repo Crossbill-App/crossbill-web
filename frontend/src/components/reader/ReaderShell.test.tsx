@@ -720,7 +720,7 @@ const aBookRecordingPositions = async () => {
   const positions = readingPositionApi();
   worker.use(...positions.handlers);
   const screen = await anOpenBook();
-  return { screen, writes: positions.writes };
+  return { screen, writes: positions.writes, openings: positions.openings };
 };
 
 test('turning a page writes the new position, once the reader settles', async () => {
@@ -800,11 +800,15 @@ test('a reader who has not moved writes nothing at all', async () => {
   await expectNothingWrittenBeforeTheNextTurn(writes);
 });
 
-test('the position the book opened at is never written', async () => {
+test('the position the book opened at is written once, as the opening', async () => {
   fakeTheClock();
-  const { writes } = await aBookRecordingPositions();
+  const { writes, openings } = await aBookRecordingPositions();
 
+  await expect.poll(() => openings.length).toBe(1);
+  expect(openings[0].locator.locations?.position).toBe(1);
+  expect(openings[0].closing).toBe(false);
   await expectNothingWrittenBeforeTheNextTurn(writes);
+  expect(openings).toHaveLength(1);
 });
 
 test('a reader who stays on one page is still recorded', async () => {
@@ -847,12 +851,45 @@ test('closing the reader writes the last position and ends the session', async (
   expect(writes[0].closing).toBe(true);
 });
 
-test('a book opened and closed again without being read writes nothing', async () => {
-  const { screen, writes } = await aBookRecordingPositions();
+test('a book opened and closed again closes the session it opened', async () => {
+  const { screen, writes, openings } = await aBookRecordingPositions();
+  await expect.poll(() => openings.length).toBe(1);
 
   await unmountAndAwaitItsWrites(() => screen.unmount());
 
-  expect(writes).toEqual([]);
+  // The server keeps neither as reading, but it has to be told the sitting ended.
+  expect(writes).toHaveLength(1);
+  expect(writes[0].locator.locations?.position).toBe(1);
+  expect(writes[0].closing).toBe(true);
+});
+
+test('closing the tab ends the session, and only once', async () => {
+  const { screen, writes, openings } = await aBookRecordingPositions();
+  await expect.poll(() => openings.length).toBe(1);
+
+  // Persisted, as a page kept for the back button is: MSW unhooks the test page on any other.
+  window.dispatchEvent(new PageTransitionEvent('pagehide', { persisted: true }));
+
+  await expect.poll(() => writes.length).toBe(1);
+  expect(writes[0].closing).toBe(true);
+  await unmountAndAwaitItsWrites(() => screen.unmount());
+  expect(writes).toHaveLength(1);
+});
+
+test('a book that never came up writes nothing on the way out', async () => {
+  worker.use(...readiumApi());
+  const positions = readingPositionApi();
+  worker.use(...positions.handlers);
+  const screen = await renderShell();
+  await expect.poll(() => readers.length).toBe(1);
+  readers[0].reportLocation(aFakeLocation(1));
+  readers[0].rejectOpen();
+  await expect.element(screen.getByRole('alert')).toBeVisible();
+
+  await unmountAndAwaitItsWrites(() => screen.unmount());
+
+  expect(positions.openings).toEqual([]);
+  expect(positions.writes).toEqual([]);
 });
 
 /**

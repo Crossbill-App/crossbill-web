@@ -28,6 +28,8 @@ type EbookReaderStatus = 'idle' | 'opening' | EbookReaderOutcome;
 interface EbookReaderListeners {
   /** Every place the book reports while it is still coming up; the last one is where it opened. */
   arrivedAt?: (location: EbookLocation) => void;
+  /** The book is on screen, at the last place it arrived at. */
+  opened?: () => void;
   /** A place the book reports once it is on screen. */
   movedTo?: (location: EbookLocation) => void;
   /** The id of a decoration the reader tapped. */
@@ -128,6 +130,7 @@ export const useEbookReader = ({
   // it, while a retry opens on the current pair rather than the one from mount.
   const mayTurnPage = useEffectEvent(() => canTurnPage());
   const reportArrival = useEffectEvent((location: EbookLocation) => on?.arrivedAt?.(location));
+  const reportOpened = useEffectEvent(() => on?.opened?.());
   const reportMove = useEffectEvent((location: EbookLocation) => on?.movedTo?.(location));
   const activateDecoration = useEffectEvent((id: string) => on?.decorationActivated?.(id));
   const followLink = useEffectEvent(() => on?.linkFollowed?.());
@@ -204,6 +207,7 @@ export const useEbookReader = ({
         if (isCancelled()) return;
       }
       isOpen = true;
+      reportOpened();
       setOutcome('open');
     };
     const onFailed = (error: unknown) => {

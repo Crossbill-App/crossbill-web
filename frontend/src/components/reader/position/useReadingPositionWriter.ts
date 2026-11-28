@@ -1,11 +1,11 @@
 /**
  * Writes down where the reader is in one book while the reader is open.
  *
- * Hand `seed` every place the book reports while it is still coming up, and
- * `moved` every place it reports afterwards, and it decides what is worth
- * sending. A failed write is swallowed: the reader is reading, the next page
- * turn tries again, and the position lost by saying nothing is the one still in
- * front of them.
+ * Hand `seed` every place the book reports while it is still coming up,
+ * `opened` once it is on screen, and `moved` every place it reports afterwards,
+ * and it decides what is worth sending. A failed write is swallowed: the reader
+ * is reading, the next page turn tries again, and the position lost by saying
+ * nothing is the one still in front of them.
  *
  * Nothing here resets when `bookId` changes: the shell is keyed by book, so a
  * different book is a different component with its own state.
@@ -32,9 +32,14 @@ interface Observation {
   at: string;
 }
 
-const update = ({ locator, at }: Observation, closing: boolean): ReadingPositionUpdate => ({
+const update = (
+  { locator, at }: Observation,
+  closing: boolean,
+  opening = false
+): ReadingPositionUpdate => ({
   locator,
   recorded_at: at,
+  opening,
   closing,
 });
 
@@ -48,8 +53,8 @@ export const useReadingPositionWriter = (bookId: number) => {
   const latestRef = useRef<Observation | null>(null);
   // A move that is still waiting out the debounce.
   const pendingRef = useRef<Observation | null>(null);
-  // Whether a session has been started at all, so that opening a book and
-  // leaving it does not close a session that was never opened.
+  // Whether a session is open, so that a book that never came up, or one
+  // already closed, is not closed again.
   const readingRef = useRef(false);
   const timerRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   // When anything was last said about this book, so the heartbeat can ask how
@@ -95,10 +100,11 @@ export const useReadingPositionWriter = (bookId: number) => {
     const pending = pendingRef.current;
     pendingRef.current = null;
     const observed = pending ?? latestRef.current;
-    // Something to record, or a session open that needs ending. A book opened
-    // and closed again without being read is neither.
+    // Something to record, or a session open that needs ending. A book that
+    // never came up is neither, and nor is one this has already closed.
     if (!observed || !(pending || readingRef.current)) return;
     send(update(observed, true), true);
+    readingRef.current = false;
   }, [send]);
 
   useEffect(() => {
@@ -128,22 +134,35 @@ export const useReadingPositionWriter = (bookId: number) => {
       if (document.visibilityState === 'hidden') sendPending(true);
     };
     document.addEventListener('visibilitychange', flushIfHidden);
+    // Closing the tab or reloading unmounts nothing, so the sitting is ended here.
+    window.addEventListener('pagehide', close);
     return () => {
+      window.removeEventListener('pagehide', close);
       document.removeEventListener('visibilitychange', flushIfHidden);
       clearInterval(tick);
       close();
     };
   }, [send, sendPending, close]);
 
-  /** Where the reader already is: remembered, written down nowhere. */
+  /** Where the reader already is: remembered, and written only as the opening. */
   const seed = useCallback((location: EbookLocation) => {
     const locator = toBrowserLocator(location);
     writtenRef.current = JSON.stringify(locator);
     latestRef.current = { locator, at: new Date().toISOString() };
-    // Nothing is written for opening a book, but staying in one is reading:
-    // the heartbeat's clock starts here.
+    // Staying in a book is reading: the heartbeat's clock starts here.
     spokeAtRef.current = Date.now();
   }, []);
+
+  /**
+   * The book is on screen where it was last seeded: the sitting starts here.
+   * Opening a book and leaving it again writes twice, and the server keeps
+   * neither as reading.
+   */
+  const opened = useCallback(() => {
+    const observed = latestRef.current;
+    if (!observed) return;
+    send(update(observed, false, true), false);
+  }, [send]);
 
   /** Where the reader has moved to: written down once the moving stops. */
   const moved = useCallback(
@@ -167,5 +186,5 @@ export const useReadingPositionWriter = (bookId: number) => {
     [seed, sendPending]
   );
 
-  return { seed, moved };
+  return { seed, opened, moved };
 };

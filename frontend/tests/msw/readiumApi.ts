@@ -99,16 +99,19 @@ const RESOURCES: Record<string, { body: string; type: string } | undefined> = {
  * The reading-position endpoint: what the reader resumes from, and every write.
  *
  * The reader writes debounced and again on the way out, so a test asserts on
- * `writes` rather than on a spy: what matters is what reached the server.
+ * `writes` rather than on a spy: what matters is what reached the server. The
+ * write a book sends as it opens lands in `openings` instead, so `writes` is
+ * what the reader did once it was in.
  * Register these after `readiumApi()`, which MSW resolves newest first.
  */
 export const readingPositionApi = (stored: ResumePositionResponse = nowhereToResume()) => {
   const writes: ReadingPositionUpdate[] = [];
+  const openings: ReadingPositionUpdate[] = [];
   const handlers = [
     http.get(POSITION_PATH, () => HttpResponse.json(stored)),
     http.put(POSITION_PATH, async ({ request }) => {
       const update = (await request.json()) as ReadingPositionUpdate;
-      writes.push(update);
+      (update.opening ? openings : writes).push(update);
       return HttpResponse.json({
         locator: update.locator,
         xpoint: '/body/DocFragment[1]/body/div[1]/p[1]',
@@ -117,7 +120,7 @@ export const readingPositionApi = (stored: ResumePositionResponse = nowhereToRes
       } satisfies ReadingPosition);
     }),
   ];
-  return { handlers, writes };
+  return { handlers, writes, openings };
 };
 
 /**
