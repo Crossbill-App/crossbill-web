@@ -50,7 +50,7 @@ const booksLabel = (t: TFunction, titles: string[]) => {
  * What was read on each day. The response names each book once and references
  * it by id, so the titles are joined back up here.
  */
-const booksByDay = (
+export const booksByDay = (
   t: TFunction,
   activity: LibraryActivity | null | undefined
 ): Map<string, string> => {
@@ -68,7 +68,7 @@ const booksByDay = (
 };
 
 /** The year said in numbers, in the order a reader would ask for them. */
-const summary = (t: TFunction, stats: LibraryStats): StatProps[] => [
+export const summary = (t: TFunction, stats: LibraryStats): StatProps[] => [
   {
     value: formatSeconds(stats.seconds_today),
     label: t('landing.readingActivity.stats.timeReadToday'),

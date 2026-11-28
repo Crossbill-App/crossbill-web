@@ -1,8 +1,10 @@
 import { FadeInOut } from '@/components/animations/FadeInOut.tsx';
 import { Spinner } from '@/components/animations/Spinner.tsx';
 import { PageContainer } from '@/components/layout/Layouts.tsx';
+import { PrototypeSwitcher } from '@/components/prototype/PrototypeSwitcher.tsx';
 import { PageTitle } from '@/components/typography/PageTitle.tsx';
 import { Box, Typography } from '@mui/material';
+import { useSearch } from '@tanstack/react-router';
 import { motion } from 'motion/react';
 import { useTranslation } from 'react-i18next';
 import {
@@ -13,12 +15,12 @@ import {
 import { ReadingActivity } from './components/ReadingActivity';
 import { RecentBooks } from './components/RecentBooks';
 import { RecentCaptures } from './components/RecentCaptures';
-import { PrototypeSwitcher } from '@/components/prototype/PrototypeSwitcher.tsx';
-import { useSearch } from '@tanstack/react-router';
 import {
+  ActivityWithReview,
   CapturesWithSideColumn,
   DUE_VARIANTS,
   EmbeddedReview,
+  FullRowReview,
   HeroStrip,
   PerBookSection,
 } from './prototype/DueCardsPrototype.tsx';
@@ -69,9 +71,10 @@ export const LandingPage = () => {
 
           <RecentBooks />
 
-          <ReadingActivity />
+          {variant === 'E' ? <ActivityWithReview /> : <ReadingActivity />}
 
           {variant === 'B' && <PerBookSection />}
+          {variant === 'F' && <FullRowReview />}
           {variant === 'D' && <EmbeddedReview />}
           {variant === 'C' ? <CapturesWithSideColumn /> : <RecentCaptures />}
         </FadeInOut>

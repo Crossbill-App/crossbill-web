@@ -8,20 +8,28 @@ import type { DueFlashcard } from '@/api/generated/model';
 import { ProgressBar } from '@/components/dialogs/ProgressBar.tsx';
 import { ReviewCard } from '@/components/features/flashcards/review/ReviewCard.tsx';
 import { ReviewDialog } from '@/components/features/flashcards/review/ReviewDialog.tsx';
+import { ReadingActivityGrid } from '@/components/reading/ReadingActivityGrid.tsx';
+import { Stat } from '@/components/reading/Stat.tsx';
 import { ReviewIcon } from '@/theme/Icons.tsx';
 import { tabularNums } from '@/theme/theme.ts';
 import { Box, Button, Typography } from '@mui/material';
 import { Link } from '@tanstack/react-router';
 import { groupBy } from 'lodash';
 import { useMemo, useState, type ReactNode } from 'react';
+import { useTranslation } from 'react-i18next';
 import { DashboardSection } from '../components/DashboardSection.tsx';
+import { booksByDay, summary } from '../components/ReadingActivity.tsx';
+import { RECENT_ROW_WIDTH } from '../components/RecentBooks.tsx';
 import { RecentCaptures } from '../components/RecentCaptures.tsx';
+import { useReadingActivity } from '../components/landingQueries.ts';
 
 export const DUE_VARIANTS = [
   { key: 'A', name: 'Count strip in the hero' },
   { key: 'B', name: 'Section before captures, per book' },
   { key: 'C', name: 'Column beside captures' },
   { key: 'D', name: 'Review embedded in the page' },
+  { key: 'E', name: 'Beside a narrower activity grid' },
+  { key: 'F', name: 'Full row: count + next card + books' },
 ];
 
 interface BookDue {
@@ -301,6 +309,214 @@ export const EmbeddedReview = () => {
           {body}
         </Box>
       </Box>
+    </DashboardSection>
+  );
+};
+
+// --- shared by E and F: the count and the first card, as the call to action --
+
+const BigCount = ({ total, books }: { total: number; books: number }) => (
+  <Box>
+    <Typography sx={{ fontSize: '3.5rem', lineHeight: 1, fontWeight: 600, ...tabularNums }}>
+      {total}
+    </Typography>
+    <Typography variant="body2" sx={{ color: 'text.secondary', mt: 0.5 }}>
+      {total === 1 ? 'card' : 'cards'} due from {plural(books, 'book', 'books')}
+    </Typography>
+  </Box>
+);
+
+const NextUp = ({
+  card,
+  onStart,
+  large,
+}: {
+  card: DueFlashcard;
+  onStart: () => void;
+  large?: boolean;
+}) => (
+  <Box
+    component="button"
+    onClick={onStart}
+    sx={{
+      all: 'unset',
+      cursor: 'pointer',
+      display: 'block',
+      boxSizing: 'border-box',
+      width: '100%',
+      borderLeft: 3,
+      borderColor: 'primary.main',
+      pl: 2,
+      py: 0.5,
+      '&:hover .next-question': { color: 'primary.main' },
+    }}
+  >
+    <Typography variant="body2" sx={{ color: 'text.secondary', mb: 0.5 }}>
+      Next up · {card.chapter_name ? `${card.book_title} · ${card.chapter_name}` : card.book_title}
+    </Typography>
+    <Typography
+      className="next-question"
+      variant={large ? 'h2' : 'body1'}
+      component="p"
+      sx={{ transition: 'color 0.2s', fontStyle: large ? 'normal' : 'italic' }}
+    >
+      {card.question}
+    </Typography>
+  </Box>
+);
+
+// --- E: activity grid shrinks, review panel beside it, stats under the grid --
+
+export const ActivityWithReview = () => {
+  const { t } = useTranslation();
+  const { data } = useReadingActivity();
+  const activity = data?.activity;
+  const stats = data?.stats;
+  const read = useMemo(() => booksByDay(t, activity), [t, activity]);
+  const due = useDue();
+  const review = useReview();
+  const next = due.cards[0];
+
+  return (
+    <Box
+      sx={{
+        display: 'grid',
+        gridTemplateColumns: { xs: '1fr', lg: 'auto minmax(320px, 1fr)' },
+        columnGap: 6,
+        maxWidth: { lg: `${RECENT_ROW_WIDTH}px` },
+        alignItems: 'start',
+      }}
+    >
+      <DashboardSection title={t('landing.readingActivity.title')}>
+        <Box sx={{ mt: 2 }}>
+          <ReadingActivityGrid activity={activity ?? null} dayNote={(date) => read.get(date)} />
+        </Box>
+        {stats && (
+          <Box
+            sx={{
+              display: 'grid',
+              gridTemplateColumns: {
+                xs: 'repeat(2, 1fr)',
+                sm: 'repeat(3, 1fr)',
+                lg: 'repeat(6, auto)',
+              },
+              justifyContent: 'space-between',
+              gap: 2,
+              mt: 3,
+            }}
+          >
+            {summary(t, stats).map((stat) => (
+              <Stat key={stat.label} value={stat.value} label={stat.label} />
+            ))}
+          </Box>
+        )}
+      </DashboardSection>
+
+      {due.total > 0 && (
+        <Box sx={{ order: { xs: -1, lg: 0 } }}>
+          <DashboardSection title="Due for review">
+            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2.5, mt: 2 }}>
+              <Box
+                sx={{
+                  display: 'flex',
+                  alignItems: 'flex-end',
+                  justifyContent: 'space-between',
+                  gap: 2,
+                }}
+              >
+                <BigCount total={due.total} books={due.books.length} />
+                <Button
+                  variant="contained"
+                  startIcon={<ReviewIcon />}
+                  onClick={() => review.start()}
+                >
+                  Start review
+                </Button>
+              </Box>
+              {next && <NextUp card={next} onStart={() => review.start()} />}
+              <Typography variant="body2" sx={{ color: 'text.secondary' }}>
+                {due.books
+                  .slice(0, 3)
+                  .map((b) => `${b.title} (${b.count})`)
+                  .join(' · ')}
+                {due.books.length > 3 && ` · and ${due.books.length - 3} more`}
+              </Typography>
+            </Box>
+          </DashboardSection>
+        </Box>
+      )}
+      {review.dialog}
+    </Box>
+  );
+};
+
+// --- F: B's full row, with C's count and first card leading it ------------
+
+export const FullRowReview = () => {
+  const due = useDue();
+  const review = useReview();
+  const next = due.cards[0];
+  if (due.total === 0) return null;
+
+  return (
+    <DashboardSection title="Due for review">
+      <Box
+        sx={{
+          display: 'grid',
+          gridTemplateColumns: {
+            xs: '1fr',
+            md: '200px minmax(0, 1fr)',
+            lg: '200px minmax(0, 1.4fr) minmax(0, 1fr)',
+          },
+          gap: { xs: 3, md: 5 },
+          alignItems: 'start',
+          mt: 3,
+        }}
+      >
+        <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2, alignItems: 'flex-start' }}>
+          <BigCount total={due.total} books={due.books.length} />
+          <Button variant="contained" startIcon={<ReviewIcon />} onClick={() => review.start()}>
+            Review all
+          </Button>
+        </Box>
+
+        {next && <NextUp card={next} onStart={() => review.start()} large />}
+
+        <Box
+          component="ul"
+          sx={{ listStyle: 'none', p: 0, m: 0, gridColumn: { md: '1 / -1', lg: 'auto' } }}
+        >
+          {due.books.slice(0, 5).map((book) => (
+            <Box
+              component="li"
+              key={book.bookId}
+              sx={{
+                display: 'grid',
+                gridTemplateColumns: 'minmax(0, 1fr) auto auto',
+                alignItems: 'center',
+                gap: 1.5,
+                py: 0.5,
+                borderBottom: 1,
+                borderColor: 'divider',
+              }}
+            >
+              <BookLink book={book} />
+              <Typography variant="body2" sx={{ color: 'text.secondary', ...tabularNums }}>
+                {book.count}
+              </Typography>
+              <Button size="small" onClick={() => review.start(book.bookId)}>
+                Review
+              </Button>
+            </Box>
+          ))}
+          {due.books.length > 5 && (
+            <Typography variant="body2" sx={{ color: 'text.secondary', pt: 1 }}>
+              and {plural(due.books.length - 5, 'more book', 'more books')}
+            </Typography>
+          )}
+        </Box>
+      </Box>
+      {review.dialog}
     </DashboardSection>
   );
 };
