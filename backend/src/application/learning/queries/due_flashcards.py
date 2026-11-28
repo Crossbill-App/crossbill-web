@@ -1,4 +1,4 @@
-"""Read model for the queue of Due Cards.
+"""Read model for the queue of Due Flashcards.
 
 These are view DTOs, not domain entities: they exist to be rendered and must
 never be fed back into a command. See ``docs/adr/0001-read-models-and-query-services.md``.
@@ -21,7 +21,7 @@ class DueFlashcardPageView:
 
 
 class DueFlashcardQueryProtocol(Protocol):
-    """Port for reading the user's Due Cards."""
+    """Port for reading the user's Due Flashcards."""
 
     async def list_due(
         self, user_id: UserId, now: datetime, book_id: BookId | None, limit: int, offset: int

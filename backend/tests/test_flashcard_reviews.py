@@ -1,4 +1,4 @@
-"""Tests for Flashcard Reviews, suspending cards, and the queue of Due Cards."""
+"""Tests for Flashcard Reviews, suspending cards, and the queue of Due Flashcards."""
 
 from collections.abc import Iterator
 from datetime import UTC, datetime, timedelta

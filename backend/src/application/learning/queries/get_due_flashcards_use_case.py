@@ -1,4 +1,4 @@
-"""Read use case for the queue of Due Cards."""
+"""Read use case for the queue of Due Flashcards."""
 
 from datetime import datetime
 

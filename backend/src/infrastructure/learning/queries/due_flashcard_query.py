@@ -1,4 +1,4 @@
-"""Query adapter for the queue of Due Cards."""
+"""Query adapter for the queue of Due Flashcards."""
 
 from datetime import datetime
 from typing import Any
