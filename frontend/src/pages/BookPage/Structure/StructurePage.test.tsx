@@ -95,6 +95,7 @@ const aBookWithReadingPosition = () =>
         name: 'Part One',
         chapter_number: 1,
         start_position: { index: 0, char_index: 0 },
+        read_state: 'read',
       }),
       aChapter({
         id: 11,
@@ -170,6 +171,49 @@ test('a search reveals a deeply-nested match and leaves the current-chapter indi
     .toBeVisible();
   await expect.element(screen.getByRole('img', { name: 'Part One: Read chapter' })).toBeVisible();
   expect(screen.getByRole('img', { name: 'Part One: Current chapter' }).elements()).toHaveLength(0);
+});
+
+test('read marks come from the server, and the current chapter outranks them', async () => {
+  const at = (index: number) => ({ index, char_index: 0 });
+  worker.use(
+    ...bookApi({
+      book: aBookDetails({
+        reading_position: at(5),
+        chapters: [
+          aChapter({ id: 1, name: 'Opening', start_position: at(0), read_state: 'read' }),
+          aChapter({ id: 2, name: 'Jumped over', start_position: at(1), read_state: 'not_read' }),
+          aChapter({ id: 3, name: 'Plate', start_position: at(2), read_state: 'unmeasurable' }),
+          aChapter({ id: 4, name: 'Revisited', start_position: at(5), read_state: 'read' }),
+          aChapter({
+            id: 41,
+            name: 'Frontispiece',
+            parent_id: 4,
+            start_position: at(5),
+            read_state: 'unmeasurable',
+          }),
+          aChapter({ id: 5, name: 'Read before', start_position: at(9), read_state: 'read' }),
+        ],
+      }),
+    }).handlers
+  );
+
+  const screen = await renderApp({ path: '/book/1/structure' });
+
+  await expect.element(screen.getByRole('img', { name: 'Opening: Read chapter' })).toBeVisible();
+  await expect
+    .element(screen.getByRole('img', { name: 'Jumped over: Unread chapter' }))
+    .toBeVisible();
+  await expect
+    .element(screen.getByRole('img', { name: 'Revisited: Current chapter' }))
+    .toBeVisible();
+  await expect
+    .element(screen.getByRole('img', { name: 'Frontispiece: Current chapter' }))
+    .toBeVisible();
+  await expect
+    .element(screen.getByRole('img', { name: 'Read before: Read chapter' }))
+    .toBeVisible();
+  await expect.element(screen.getByText('Plate')).toBeVisible();
+  expect(screen.getByRole('img', { name: /^Plate:/ }).elements()).toHaveLength(0);
 });
 
 /**

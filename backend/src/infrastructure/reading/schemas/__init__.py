@@ -14,6 +14,7 @@ from src.infrastructure.reading.schemas.bookmark_schemas import (
 from src.infrastructure.reading.schemas.highlight_schemas import (
     BookDetails,
     BookHighlightSearchResponse,
+    ChapterInBook,
     ChapterWithHighlights,
     Highlight,
     HighlightBase,
@@ -54,6 +55,7 @@ __all__ = [
     "Bookmark",
     "BookmarkBase",
     "BookmarkCreateRequest",
+    "ChapterInBook",
     "ChapterWithHighlights",
     "Highlight",
     "HighlightBase",

@@ -6,7 +6,7 @@
  */
 import type { BookDetailsReadingStage } from './bookDetailsReadingStage.ts';
 import type { Bookmark } from './bookmark.ts';
-import type { ChapterWithHighlights } from './chapterWithHighlights.ts';
+import type { ChapterInBook } from './chapterInBook.ts';
 import type { Flashcard } from './flashcard.ts';
 import type { PositionResponse } from './positionResponse.ts';
 import type { TagGroupInBook } from './tagGroupInBook.ts';
@@ -39,7 +39,7 @@ export interface BookDetails {
   /** Book-level flashcards not associated with any highlight */
   book_flashcards?: Flashcard[];
   /** List of chapters with highlights */
-  chapters: ChapterWithHighlights[];
+  chapters: ChapterInBook[];
   /**
    * Live highlights on the book, including any that sit in no chapter
    * @minimum 0

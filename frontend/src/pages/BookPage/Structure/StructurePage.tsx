@@ -1,9 +1,5 @@
 import { useGetBookDigest } from '@/api/generated/digest/digest';
-import type {
-  ChapterDigestResponse,
-  ChapterWithHighlights,
-  PositionResponse,
-} from '@/api/generated/model';
+import type { ChapterDigestResponse, ChapterInBook, PositionResponse } from '@/api/generated/model';
 import { useGetNotesForBook } from '@/api/generated/notes/notes.ts';
 import { EmptyStateText } from '@/components/EmptyStateText.tsx';
 import { useUrlEntityDialog } from '@/components/dialogs/useUrlEntityDialog.ts';
@@ -29,24 +25,26 @@ import { chapterMatchesFromDigests } from './chapterMatches.ts';
  * score, so deriving "current" from that map (e.g. by peeking at the next
  * rendered sibling) would put the indicator on whichever chapter happens to
  * render next rather than the next chapter in the book. At each level the
- * current chapter is the one that is read while its next document-order
- * sibling is not; its children are then walked the same way.
+ * current chapter is the one the reading position has reached while its next
+ * document-order sibling has not; its children are then walked the same way.
  */
 const currentChapterIdsAlongReadingPath = (
-  childrenByParentId: Map<number | null, ChapterWithHighlights[]>,
+  childrenByParentId: Map<number | null, ChapterInBook[]>,
   readingPosition: PositionResponse | null | undefined
 ): Set<number> => {
   const ids = new Set<number>();
   if (!readingPosition) return ids;
 
-  const isRead = (chapter: ChapterWithHighlights) =>
+  const startsAtOrBeforePosition = (chapter: ChapterInBook) =>
     chapter.start_position != null && readingPosition.index >= chapter.start_position.index;
 
   let parentId: number | null = null;
   for (;;) {
-    const siblings: ChapterWithHighlights[] = childrenByParentId.get(parentId) ?? [];
-    const current: ChapterWithHighlights | undefined = siblings.find(
-      (chapter, index) => isRead(chapter) && !(siblings[index + 1] && isRead(siblings[index + 1]))
+    const siblings: ChapterInBook[] = childrenByParentId.get(parentId) ?? [];
+    const current: ChapterInBook | undefined = siblings.find(
+      (chapter, index) =>
+        startsAtOrBeforePosition(chapter) &&
+        !(siblings[index + 1] && startsAtOrBeforePosition(siblings[index + 1]))
     );
     if (!current) break;
     ids.add(current.id);
@@ -115,7 +113,7 @@ export const StructurePage = () => {
   }, [allNotes]);
 
   const childrenByParentId = useMemo(() => {
-    const map = new Map<number | null, ChapterWithHighlights[]>();
+    const map = new Map<number | null, ChapterInBook[]>();
     for (const ch of book.chapters) {
       const key = ch.parent_id ?? null;
       const list = map.get(key) ?? [];
@@ -134,7 +132,7 @@ export const StructurePage = () => {
    * leaves-only list left those links resolving to nothing at all.
    */
   const chaptersInDocumentOrder = useMemo(() => {
-    const result: ChapterWithHighlights[] = [];
+    const result: ChapterInBook[] = [];
     const collect = (parentId: number | null) => {
       for (const ch of childrenByParentId.get(parentId) ?? []) {
         result.push(ch);
@@ -145,7 +143,7 @@ export const StructurePage = () => {
     return result;
   }, [childrenByParentId]);
 
-  const chapterDialog = useUrlEntityDialog<ChapterWithHighlights>({
+  const chapterDialog = useUrlEntityDialog<ChapterInBook>({
     param: 'chapterId',
     items: chaptersInDocumentOrder,
   });
@@ -169,7 +167,7 @@ export const StructurePage = () => {
   // ordered by their best descendant score. No search → the map is untouched.
   const visibleChildrenByParentId = useMemo(() => {
     if (!matches) return childrenByParentId;
-    const map = new Map<number | null, ChapterWithHighlights[]>();
+    const map = new Map<number | null, ChapterInBook[]>();
     for (const [parentId, children] of childrenByParentId) {
       const kept = children
         .filter((chapter) => matches.visibleIds.has(chapter.id))

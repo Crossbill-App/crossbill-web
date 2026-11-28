@@ -153,10 +153,15 @@ async def create_test_chapter(
     name: str,
     chapter_number: int | None = None,
     parent_id: int | None = None,
+    start_offset: int | None = None,
 ) -> Chapter:
     """Attach a chapter to a book."""
     chapter = Chapter(
-        book_id=book.id, name=name, chapter_number=chapter_number, parent_id=parent_id
+        book_id=book.id,
+        name=name,
+        chapter_number=chapter_number,
+        parent_id=parent_id,
+        start_offset=start_offset,
     )
     db_session.add(chapter)
     await db_session.commit()

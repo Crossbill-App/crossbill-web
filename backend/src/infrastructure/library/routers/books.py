@@ -46,7 +46,7 @@ from src.infrastructure.library.schemas.book_schemas import (
 from src.infrastructure.reading.schemas import (
     BookDetails,
     Bookmark,
-    ChapterWithHighlights,
+    ChapterInBook,
 )
 from src.infrastructure.reading.schemas.highlight_builders import build_highlight_schema
 from src.infrastructure.tagging.schemas import TagGroupInBook, TagInBook
@@ -54,9 +54,9 @@ from src.infrastructure.tagging.schemas import TagGroupInBook, TagInBook
 router = APIRouter(prefix="/books", tags=["books"])
 
 
-def _build_chapter_schema(chapter: ChapterWithHighlightsView) -> ChapterWithHighlights:
-    """Build the ChapterWithHighlights schema from the book-details read model."""
-    return ChapterWithHighlights(
+def _build_chapter_schema(chapter: ChapterWithHighlightsView) -> ChapterInBook:
+    """Build the ChapterInBook schema from the book-details read model."""
+    return ChapterInBook(
         id=chapter.id,
         name=chapter.name,
         chapter_number=chapter.chapter_number,
@@ -67,6 +67,7 @@ def _build_chapter_schema(chapter: ChapterWithHighlightsView) -> ChapterWithHigh
         )
         if chapter.start_position
         else None,
+        read_state=chapter.read_state.value,
         highlights=[build_highlight_schema(highlight) for highlight in chapter.highlights],
         created_at=chapter.created_at,
         updated_at=chapter.updated_at,

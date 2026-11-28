@@ -33,5 +33,5 @@ coverage
 
 # Artifacts vitest browser mode writes for failing tests
 __screenshots__/
-.vitest-attachments/
+.vitest/
 

@@ -5441,7 +5441,7 @@
           },
           "chapters": {
             "items": {
-              "$ref": "#/components/schemas/ChapterWithHighlights"
+              "$ref": "#/components/schemas/ChapterInBook"
             },
             "type": "array",
             "title": "Chapters",
@@ -6340,6 +6340,92 @@
         ],
         "title": "ChapterDigestResponse",
         "description": "Response schema for a chapter digest."
+      },
+      "ChapterInBook": {
+        "properties": {
+          "id": {
+            "type": "integer",
+            "title": "Id"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "chapter_number": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Chapter Number",
+            "description": "Chapter order number from TOC"
+          },
+          "parent_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Parent Id",
+            "description": "Parent chapter ID for hierarchy"
+          },
+          "start_position": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/PositionResponse"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Chapter start position"
+          },
+          "highlights": {
+            "items": {
+              "$ref": "#/components/schemas/Highlight"
+            },
+            "type": "array",
+            "title": "Highlights",
+            "description": "List of highlights in this chapter"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Updated At"
+          },
+          "read_state": {
+            "type": "string",
+            "enum": [
+              "read",
+              "not_read",
+              "unmeasurable"
+            ],
+            "title": "Read State",
+            "description": "Read Chapter state; unmeasurable when the chapter has no text of its own"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "name",
+          "highlights",
+          "created_at",
+          "updated_at",
+          "read_state"
+        ],
+        "title": "ChapterInBook",
+        "description": "A chapter on the book-details page, with whether it has been read."
       },
       "ChapterWithHighlights": {
         "properties": {

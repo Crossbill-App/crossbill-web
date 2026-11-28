@@ -1,6 +1,6 @@
 import { getGetBookDetailsQueryKey } from '@/api/generated/books/books.ts';
 import type {
-  ChapterWithHighlights,
+  ChapterInBook,
   Highlight,
   HighlightLabelInBook,
   HighlightLocatorResponse,
@@ -986,13 +986,13 @@ const FINISH_LANDING_TIMEOUT_MS = 3_000;
 const BOOK_DETAILS_PATH = '/api/v1/books/:bookId';
 
 /** A chapter of the book holding highlight 300. */
-const theChapterOf300 = (overrides: Partial<ChapterWithHighlights> = {}) =>
+const theChapterOf300 = (overrides: Partial<ChapterInBook> = {}) =>
   aChapter({ highlights: [aHighlight({ id: 300 })], ...overrides });
 
 /** The shell opened at highlight 300, with a place to resume from also on offer. */
 const aJump = async (
   locators: HighlightLocatorResponse[] = [aPassage(300)],
-  chapters: ChapterWithHighlights[] = [theChapterOf300({ name: 'On Memory' })],
+  chapters: ChapterInBook[] = [theChapterOf300({ name: 'On Memory' })],
   { detailsDelayMs = 0 } = {}
 ) => {
   worker.use(...readiumApi());
@@ -1263,7 +1263,7 @@ test('a heading that links nowhere is never the fallback', async () => {
 const HIGHLIGHT_LOCATOR_PATH = '/api/v1/highlights/:highlightId/locator';
 
 /** The shell opened at a chapter of the book, counting what it asks the server on the way. */
-const aChapterJump = async (chapter: ChapterWithHighlights) => {
+const aChapterJump = async (chapter: ChapterInBook) => {
   worker.use(...readiumApi());
   worker.use(...bookApi({ book: aBookDetails({ chapters: [chapter] }) }).handlers);
   const asked: string[] = [];

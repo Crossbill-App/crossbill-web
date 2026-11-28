@@ -1,10 +1,11 @@
 import { useTheme } from '@mui/material';
 import { useTranslation } from 'react-i18next';
 
-type ReadStatus = 'read' | 'current' | 'unread';
+/** `unmeasurable` leaves the slot empty, so names stay aligned with their siblings. */
+export type ReadMark = 'read' | 'current' | 'unread' | 'unmeasurable';
 
 interface ChapterReadIndicatorProps {
-  status: ReadStatus;
+  status: ReadMark;
   /** Chapter this indicator belongs to, folded into the accessible name so a
    * test (or a screen reader) can tell which chapter is "current". */
   chapterName: string;
@@ -20,8 +21,12 @@ export const ChapterReadIndicator = ({ status, chapterName }: ChapterReadIndicat
 
   return (
     <svg
-      role="img"
-      aria-label={t(`structure.chapterReadIndicator.${status}`, { chapterName })}
+      {...(status === 'unmeasurable'
+        ? { 'aria-hidden': true }
+        : {
+            role: 'img',
+            'aria-label': t(`structure.chapterReadIndicator.${status}`, { chapterName }),
+          })}
       width={SIZE}
       height={SIZE}
       viewBox={`0 0 ${SIZE} ${SIZE}`}

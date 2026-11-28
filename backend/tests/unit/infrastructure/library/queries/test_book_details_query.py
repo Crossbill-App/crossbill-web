@@ -8,6 +8,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from src.application.reading.services.label_resolution_service import LabelResolutionService
 from src.domain.common.value_objects.ids import BookId, UserId
 from src.infrastructure.library.queries.book_details_query import BookDetailsQuery
+from src.infrastructure.reading.queries.chapter_coverage_query import ChapterCoverageQuery
 from src.models import Book, Flashcard, HighlightStyle, Note, User
 from tests.conftest import create_test_book, create_test_highlight
 from tests.unit.infrastructure.conftest import AddChapter
@@ -20,7 +21,11 @@ def query(
     db_session: AsyncSession, label_resolution_service: LabelResolutionService
 ) -> BookDetailsQuery:
     """The query service wired the way the container wires it."""
-    return BookDetailsQuery(db=db_session, label_resolution_service=label_resolution_service)
+    return BookDetailsQuery(
+        db=db_session,
+        label_resolution_service=label_resolution_service,
+        chapter_coverage_query=ChapterCoverageQuery(db_session),
+    )
 
 
 async def test_chapters_without_highlights_still_appear(

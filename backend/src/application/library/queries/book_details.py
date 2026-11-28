@@ -13,6 +13,7 @@ from src.application.common.queries.refs import BookmarkView, FlashcardRef, TagR
 from src.domain.common.value_objects.ids import BookId, UserId
 from src.domain.common.value_objects.position import Position
 from src.domain.library.entities.book import ReadingStage
+from src.domain.reading.services.chapter_coverage import ChapterReadState
 
 
 @dataclass(frozen=True)
@@ -32,6 +33,7 @@ class ChapterWithHighlightsView:
     chapter_number: int | None
     parent_id: int | None
     start_position: Position | None
+    read_state: ChapterReadState
     highlights: tuple[HighlightRow, ...]
     created_at: dt
     updated_at: dt

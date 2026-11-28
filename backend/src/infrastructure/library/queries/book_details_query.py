@@ -20,10 +20,12 @@ from src.application.library.queries.book_details import (
     ChapterWithHighlightsView,
     TagGroupRef,
 )
+from src.application.reading.queries.chapter_coverage import ChapterCoverageQueryProtocol
 from src.application.reading.services.label_resolution_service import LabelResolutionService
 from src.domain.common.value_objects.ids import BookId, UserId
 from src.domain.common.value_objects.position import Position
 from src.domain.library.entities.book import ReadingStage
+from src.domain.reading.services.chapter_coverage import ChapterReadState
 from src.domain.reading.services.highlight_style_resolver import ResolvedLabel
 from src.infrastructure.common.queries.row_mappers import flashcard_ref, highlight_row
 from src.infrastructure.learning.orm.flashcard_model import Flashcard as FlashcardORM
@@ -46,9 +48,15 @@ def _position(raw: list[int] | None) -> Position | None:
 class BookDetailsQuery:
     """Serves the book-details read model from purpose-built selects."""
 
-    def __init__(self, db: AsyncSession, label_resolution_service: LabelResolutionService) -> None:
+    def __init__(
+        self,
+        db: AsyncSession,
+        label_resolution_service: LabelResolutionService,
+        chapter_coverage_query: ChapterCoverageQueryProtocol,
+    ) -> None:
         self.db = db
         self.label_resolution_service = label_resolution_service
+        self.chapter_coverage_query = chapter_coverage_query
 
     async def get_book_details(self, book_id: BookId, user_id: UserId) -> BookDetailsView | None:
         """Return the view for a user's book, or ``None`` when they have no such book."""
@@ -198,6 +206,10 @@ class BookDetailsQuery:
         than the book has -- hence ``BookDetailsView.highlight_count``.
         """
         chapters = await self._fetch_chapter_rows(book_id, user_id)
+        read_states = {
+            coverage.chapter_id.value: coverage.read_state
+            for coverage in await self.chapter_coverage_query.get_chapter_coverage(book_id, user_id)
+        }
 
         grouped: dict[int, list[HighlightORM]] = defaultdict(list)
         orphan_chapters: dict[int, ChapterORM] = {}
@@ -214,7 +226,13 @@ class BookDetailsQuery:
             orphan_chapters.values(), key=lambda chapter: chapter.chapter_number or 0
         )
         return tuple(
-            _chapter_view(chapter, grouped.get(chapter.id, []), labels) for chapter in ordered
+            _chapter_view(
+                chapter,
+                read_states.get(chapter.id, ChapterReadState.UNMEASURABLE),
+                grouped.get(chapter.id, []),
+                labels,
+            )
+            for chapter in ordered
         )
 
     async def _fetch_chapter_rows(self, book_id: BookId, user_id: UserId) -> Sequence[ChapterORM]:
@@ -255,6 +273,7 @@ class BookDetailsQuery:
 
 def _chapter_view(
     chapter: ChapterORM,
+    read_state: ChapterReadState,
     highlights: list[HighlightORM],
     labels: dict[int, ResolvedLabel],
 ) -> ChapterWithHighlightsView:
@@ -266,6 +285,7 @@ def _chapter_view(
         chapter_number=chapter.chapter_number,
         parent_id=chapter.parent_id,
         start_position=_position(chapter.start_position),
+        read_state=read_state,
         highlights=tuple(highlight_row(row, labels) for row in ordered),
         created_at=chapter.created_at,
         updated_at=chapter.updated_at,
