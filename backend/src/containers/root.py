@@ -136,6 +136,7 @@ class RootContainer(containers.DeclarativeContainer):
         ai_chat_session_repository=shared.ai_chat_session_repository,
         note_repository=shared.note_repository,
         book_flashcard_query=shared.book_flashcard_query,
+        due_flashcard_query=shared.due_flashcard_query,
         review_scheduler=shared.review_scheduler,
     )
 

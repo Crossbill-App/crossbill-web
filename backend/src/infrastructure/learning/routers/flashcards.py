@@ -1,8 +1,9 @@
 """API routes for flashcard management."""
 
+from datetime import datetime
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, status
+from fastapi import APIRouter, Depends, Query, status
 
 from src.application.learning.commands.flashcards.delete_flashcard_use_case import (
     DeleteFlashcardUseCase,
@@ -16,12 +17,15 @@ from src.application.learning.commands.flashcards.set_flashcard_status_use_case 
 from src.application.learning.commands.flashcards.update_flashcard_use_case import (
     UpdateFlashcardUseCase,
 )
+from src.application.learning.queries.get_due_flashcards_use_case import (
+    GetDueFlashcardsUseCase,
+)
 from src.core import container
 from src.domain.identity.entities.user import User
 from src.domain.learning.value_objects.flashcard_review import FlashcardRating, FlashcardReview
 from src.domain.learning.value_objects.flashcard_status import FlashcardStatus
 from src.infrastructure.common.di import inject_use_case
-from src.infrastructure.common.schemas import SuccessResponse
+from src.infrastructure.common.schemas import PaginatedResponse, SuccessResponse
 from src.infrastructure.identity.dependencies import get_current_user
 from src.infrastructure.learning.schemas import (
     Flashcard,
@@ -30,9 +34,44 @@ from src.infrastructure.learning.schemas import (
     FlashcardUpdateRequest,
     FlashcardUpdateResponse,
 )
-from src.infrastructure.learning.schemas.flashcard_builders import build_flashcard_schema
+from src.infrastructure.learning.schemas.flashcard_builders import (
+    build_flashcard_ref_schema,
+    build_flashcard_schema,
+)
+from src.infrastructure.reading.routers.reader_clock import reader_now
 
 router = APIRouter(prefix="/flashcards", tags=["flashcards"])
+
+
+@router.get(
+    "/due",
+    response_model=PaginatedResponse[Flashcard],
+    status_code=status.HTTP_200_OK,
+)
+async def get_due_flashcards(
+    current_user: Annotated[User, Depends(get_current_user)],
+    now: Annotated[datetime, Depends(reader_now)],
+    book_id: int | None = Query(None, description="Only this book's cards"),
+    limit: int = Query(50, ge=1, le=1000, description="Maximum cards to return"),
+    offset: int = Query(0, ge=0, description="Number of cards to skip"),
+    use_case: GetDueFlashcardsUseCase = Depends(
+        inject_use_case(container.learning.get_due_flashcards_use_case)
+    ),
+) -> PaginatedResponse[Flashcard]:
+    """List the active flashcards to review now: due cards, then cards never reviewed.
+
+    Due cards come lowest retrievability first; new cards follow in book order,
+    those without a chapter last.
+    """
+    page = await use_case.get_due_flashcards(
+        user_id=current_user.id.value, now=now, book_id=book_id, limit=limit, offset=offset
+    )
+    return PaginatedResponse[Flashcard](
+        items=[build_flashcard_ref_schema(card) for card in page.flashcards],
+        total=page.total,
+        offset=offset,
+        limit=limit,
+    )
 
 
 @router.put(

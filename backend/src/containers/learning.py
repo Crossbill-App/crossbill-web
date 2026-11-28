@@ -36,6 +36,9 @@ from src.application.learning.commands.quiz.start_quiz_session_use_case import (
 from src.application.learning.queries.get_chapter_flashcard_suggestions_use_case import (
     GetChapterFlashcardSuggestionsUseCase,
 )
+from src.application.learning.queries.get_due_flashcards_use_case import (
+    GetDueFlashcardsUseCase,
+)
 from src.application.learning.queries.get_flashcard_suggestions_use_case import (
     GetFlashcardSuggestionsUseCase,
 )
@@ -66,6 +69,7 @@ class LearningContainer(containers.DeclarativeContainer):
     # Read models: the query adapter (a port implementation) plus the read use
     # cases that routers call, mirroring how commands are exposed.
     book_flashcard_query = providers.Dependency()
+    due_flashcard_query = providers.Dependency()
 
     # Flashcards
     create_flashcard_for_highlight_use_case = providers.Factory(
@@ -87,6 +91,11 @@ class LearningContainer(containers.DeclarativeContainer):
     get_flashcards_by_book_use_case = providers.Factory(
         GetFlashcardsByBookUseCase,
         book_flashcard_query=book_flashcard_query,
+        book_repository=book_repository,
+    )
+    get_due_flashcards_use_case = providers.Factory(
+        GetDueFlashcardsUseCase,
+        due_flashcard_query=due_flashcard_query,
         book_repository=book_repository,
     )
     update_flashcard_use_case = providers.Factory(
