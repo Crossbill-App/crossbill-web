@@ -4396,7 +4396,7 @@
           "readium"
         ],
         "summary": "Put Reading Position",
-        "description": "Record where the reader has got to, and keep their reading session going.\n\nBearer-only, though the publication cookie's path scope contains this route: the\ncookie is a read credential and stays one (#792). The position is converted to the\ncanonical KOReader xpointer before anything is stored (ADR-0004 \u00a72) and refused if\nthe conversion is too weak to say where it is. It also extends -- or begins -- a\nreal row in ``reading_sessions``, which is how browser reading reaches the progress\nbar and the reading statistics (ADR-0004, Amendment 3).\n\nA write saying nothing newer than what is stored is answered with what is stored\nrather than refused: the write a closing tab sends and the one a page turn sends\nrace by design.",
+        "description": "Record where the reader has got to, and keep their reading session going.\n\nBearer-only, though the publication cookie's path scope contains this route: the\ncookie is a read credential and stays one (#792). The position is converted to the\ncanonical KOReader xpointer before anything is stored (ADR-0004 \u00a72) and refused if\nthe conversion is too weak to say where it is. It also extends -- or begins -- a\nreal row in ``reading_sessions``, which is how browser reading reaches the progress\nbar and the reading statistics (ADR-0004, Amendments 3 and 10).\n\nA write saying nothing newer than what is stored is answered with what is stored\nrather than refused: the write a closing tab sends and the one a page turn sends\nrace by design.",
         "operationId": "put_reading_position",
         "security": [
           {
@@ -9519,10 +9519,16 @@
             "title": "Recorded At",
             "description": "When the reader was there, by their own clock. Never read as later than the moment the request arrives."
           },
+          "opening": {
+            "type": "boolean",
+            "title": "Opening",
+            "description": "Whether the book has just been opened at this position. Starts a new reading session even though the reader has not moved.",
+            "default": false
+          },
           "closing": {
             "type": "boolean",
             "title": "Closing",
-            "description": "Whether the reader is leaving the book. The position is stored either way; this ends the reading session rather than leaving it to be extended.",
+            "description": "Whether the reader is leaving the book. The position is stored either way; this ends the reading session rather than leaving it to be extended, and deletes it if it lasted under the minimum session duration or ended where it started.",
             "default": false
           }
         },
@@ -9532,7 +9538,7 @@
           "recorded_at"
         ],
         "title": "ReadingPositionUpdate",
-        "description": "What the reader sends when they have moved."
+        "description": "What the reader sends when they open the book, move, or leave it."
       },
       "ReadingSession": {
         "properties": {

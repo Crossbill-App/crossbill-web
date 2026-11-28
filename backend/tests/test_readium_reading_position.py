@@ -21,6 +21,7 @@ from starlette import status
 
 from src import models
 from src.application.web_reader.queries.publication_positions import MAX_PUBLICATION_POSITIONS
+from src.config import get_settings
 from src.domain.common.devices import WEB_READER_DEVICE_ID
 from src.domain.common.time import as_aware
 from src.infrastructure.reading.routers.reader_clock import reader_now
@@ -48,6 +49,7 @@ CH2_HEADING_XPOINT = "/body/DocFragment[2]/body/div[1]/h1[1]/text().0"
 THE_SAME_TWICE = "The lantern went out at midnight"
 
 IDLE_SECONDS = 1800
+MINIMUM_SESSION_SECONDS = get_settings().MINIMUM_READING_SESSION_DURATION
 START = datetime(2026, 5, 1, 12, 0, tzinfo=UTC)
 
 
@@ -115,12 +117,14 @@ async def write(
     body: dict[str, Any],
     recorded_at: datetime | None = None,
     closing: bool = False,
+    opening: bool = False,
 ) -> Response:
     return await client.put(
         url(book.id),
         json={
             "locator": body,
             "recorded_at": (recorded_at or START).isoformat(),
+            "opening": opening,
             "closing": closing,
         },
     )
@@ -132,8 +136,9 @@ async def accepted(
     body: dict[str, Any],
     recorded_at: datetime | None = None,
     closing: bool = False,
+    opening: bool = False,
 ) -> dict[str, Any]:
-    response = await write(client, book, body, recorded_at, closing)
+    response = await write(client, book, body, recorded_at, closing, opening)
     assert response.status_code == status.HTTP_200_OK, response.text
     return response.json()
 
@@ -259,10 +264,132 @@ async def test_a_write_after_the_idle_window_starts_a_new_session(
 
     sessions = await stored_sessions(db_session, readable_book)
     assert len(sessions) == 2
+    assert as_aware(sessions[0].end_time) == START
     assert sessions[1].start_xpoint == CH2_XPOINT
     row = await stored_position(db_session, readable_book)
     assert row is not None
     assert row.reading_session_id == sessions[1].id
+
+
+async def test_opening_the_book_starts_a_session_though_the_reader_has_not_moved(
+    client: AsyncClient, db_session: AsyncSession, readable_book: models.Book, clock: Clock
+) -> None:
+    await accepted(client, readable_book, locator(CH1_HREF, quote=CH1_QUOTE))
+
+    clock.advance(60)
+    await accepted(
+        client,
+        readable_book,
+        locator(CH1_HREF, quote=CH1_QUOTE),
+        recorded_at=clock.now,
+        opening=True,
+    )
+
+    sessions = await stored_sessions(db_session, readable_book)
+    assert len(sessions) == 2
+    assert as_aware(sessions[1].start_time) == clock.now
+    assert sessions[1].start_xpoint == CH1_XPOINT
+    row = await stored_position(db_session, readable_book)
+    assert row is not None
+    assert row.reading_session_id == sessions[1].id
+
+
+async def test_opening_starts_a_session_where_the_book_opened_though_another_tab_is_further_on(
+    client: AsyncClient, db_session: AsyncSession, readable_book: models.Book, clock: Clock
+) -> None:
+    await moved_on(clock, 60, client, readable_book, locator(CH2_HREF, quote=CH2_QUOTE))
+    clock.advance(10)
+
+    await accepted(
+        client, readable_book, locator(CH1_HREF, quote=CH1_QUOTE), recorded_at=START, opening=True
+    )
+
+    sessions = await stored_sessions(db_session, readable_book)
+    assert len(sessions) == 2
+    assert sessions[1].start_xpoint == CH1_XPOINT
+    row = await stored_position(db_session, readable_book)
+    assert row is not None
+    assert row.xpoint == CH2_XPOINT
+
+
+async def test_closing_a_session_shorter_than_the_minimum_deletes_it(
+    client: AsyncClient, db_session: AsyncSession, readable_book: models.Book, clock: Clock
+) -> None:
+    await accepted(client, readable_book, locator(CH1_HREF, quote=CH1_QUOTE), opening=True)
+
+    await moved_on(
+        clock,
+        MINIMUM_SESSION_SECONDS - 1,
+        client,
+        readable_book,
+        locator(CH2_HREF, quote=CH2_QUOTE),
+        closing=True,
+    )
+
+    assert await stored_sessions(db_session, readable_book) == []
+    row = await stored_position(db_session, readable_book)
+    assert row is not None
+    assert row.xpoint == CH2_XPOINT
+    assert row.reading_session_id is None
+
+
+async def test_closing_a_session_that_ends_where_it_started_deletes_it(
+    client: AsyncClient, db_session: AsyncSession, readable_book: models.Book, clock: Clock
+) -> None:
+    await accepted(client, readable_book, locator(CH1_HREF, quote=CH1_QUOTE), opening=True)
+
+    await moved_on(
+        clock,
+        MINIMUM_SESSION_SECONDS + 300,
+        client,
+        readable_book,
+        locator(CH1_HREF, quote=CH1_QUOTE),
+        closing=True,
+    )
+
+    assert await stored_sessions(db_session, readable_book) == []
+
+
+async def test_closing_a_session_that_passes_the_filters_keeps_it(
+    client: AsyncClient, db_session: AsyncSession, readable_book: models.Book, clock: Clock
+) -> None:
+    await accepted(client, readable_book, locator(CH1_HREF, quote=CH1_QUOTE), opening=True)
+
+    closed_at = await moved_on(
+        clock,
+        MINIMUM_SESSION_SECONDS,
+        client,
+        readable_book,
+        locator(CH2_HREF, quote=CH2_QUOTE),
+        closing=True,
+    )
+
+    sessions = await stored_sessions(db_session, readable_book)
+    assert len(sessions) == 1
+    assert as_aware(sessions[0].end_time) == closed_at
+    assert sessions[0].end_xpoint == CH2_XPOINT
+
+
+async def test_a_closing_write_after_the_idle_window_records_no_new_session(
+    client: AsyncClient, db_session: AsyncSession, readable_book: models.Book, clock: Clock
+) -> None:
+    await accepted(client, readable_book, locator(CH1_HREF, quote=CH1_QUOTE), opening=True)
+    await moved_on(
+        clock, MINIMUM_SESSION_SECONDS, client, readable_book, locator(CH2_HREF, quote=CH2_QUOTE)
+    )
+
+    await moved_on(
+        clock,
+        IDLE_SECONDS + 1,
+        client,
+        readable_book,
+        locator(CH2_HREF, quote=CH2_QUOTE, progression=0.5),
+        closing=True,
+    )
+
+    sessions = await stored_sessions(db_session, readable_book)
+    assert len(sessions) == 1
+    assert sessions[0].end_xpoint == CH2_XPOINT
 
 
 async def test_closing_ends_the_session_so_the_next_write_starts_a_new_one(
@@ -270,7 +397,12 @@ async def test_closing_ends_the_session_so_the_next_write_starts_a_new_one(
 ) -> None:
     await accepted(client, readable_book, locator(CH1_HREF, quote=CH1_QUOTE))
     await moved_on(
-        clock, 60, client, readable_book, locator(CH2_HREF, quote=CH2_QUOTE), closing=True
+        clock,
+        MINIMUM_SESSION_SECONDS,
+        client,
+        readable_book,
+        locator(CH2_HREF, quote=CH2_QUOTE),
+        closing=True,
     )
 
     closed = await stored_position(db_session, readable_book)
@@ -343,10 +475,14 @@ async def test_a_jump_back_across_the_book_starts_a_new_session(
 ) -> None:
     await accepted(client, readable_book, locator(CH2_HREF, quote=CH2_QUOTE))
 
-    await moved_on(clock, 60, client, readable_book, locator(CH1_HREF, quote=CH1_QUOTE))
+    jumped_at = await moved_on(clock, 60, client, readable_book, locator(CH1_HREF, quote=CH1_QUOTE))
 
     sessions = await stored_sessions(db_session, readable_book)
     assert len(sessions) == 2
+    # The old sitting runs until the jump, without reaching where it landed.
+    assert as_aware(sessions[0].end_time) == jumped_at
+    assert sessions[0].end_xpoint == CH2_XPOINT
+    assert as_aware(sessions[1].start_time) == jumped_at
     assert sessions[1].start_xpoint == CH1_XPOINT
 
 

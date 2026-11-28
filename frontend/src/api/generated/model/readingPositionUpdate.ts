@@ -7,13 +7,15 @@
 import type { BrowserLocatorSchema } from './browserLocatorSchema.ts';
 
 /**
- * What the reader sends when they have moved.
+ * What the reader sends when they open the book, move, or leave it.
  */
 export interface ReadingPositionUpdate {
   /** Where the reader now is */
   locator: BrowserLocatorSchema;
   /** When the reader was there, by their own clock. Never read as later than the moment the request arrives. */
   recorded_at: string;
-  /** Whether the reader is leaving the book. The position is stored either way; this ends the reading session rather than leaving it to be extended. */
+  /** Whether the book has just been opened at this position. Starts a new reading session even though the reader has not moved. */
+  opening?: boolean;
+  /** Whether the reader is leaving the book. The position is stored either way; this ends the reading session rather than leaving it to be extended, and deletes it if it lasted under the minimum session duration or ended where it started. */
   closing?: boolean;
 }

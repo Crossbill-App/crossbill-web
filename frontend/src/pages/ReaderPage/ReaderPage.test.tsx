@@ -755,7 +755,7 @@ const readAPageAndLeave = async (screen: Screen) => {
 test('turning a page in the reader records where the reader got to', async () => {
   fakeTheClock();
   const { screen, writes } = await aBookRecordingPositions();
-  // Nothing yet: where the book opened is where the reader already was.
+  // Nothing yet but the opening: where the book opened is where the reader already was.
   expect(writes).toHaveLength(0);
 
   await screen.getByRole('button', { name: 'Next page' }).click();
@@ -782,9 +782,10 @@ test('the departing write carries the access token', async () => {
   await readAPageAndLeave(screen);
 
   // A Bearer-only route, and a `fetch` sends no interceptor's header for us:
-  // without this the reading session is never closed.
-  await expect.poll(() => requests.length).toBe(1);
-  expect(requests[0].headers.get('Authorization')).toBe('Bearer test-access-token');
+  // without this the reading session is never closed. The first is the opening.
+  await expect.poll(() => requests.length).toBe(2);
+  expect(requests[1].keepalive).toBe(true);
+  expect(requests[1].headers.get('Authorization')).toBe('Bearer test-access-token');
 });
 
 /**
@@ -799,7 +800,7 @@ const aBookResumingAt = async (stored: ResumePositionResponse, positions?: Posit
   const resume = readingPositionApi(stored);
   worker.use(...resume.handlers);
   const screen = await renderApp({ path: '/book/1/read' });
-  return { screen, writes: resume.writes };
+  return { screen, writes: resume.writes, openings: resume.openings };
 };
 
 /**
@@ -843,14 +844,15 @@ test('a place the e-reader recorded opens the same way', async () => {
   await expectHalfwayThroughChapterTwo(screen);
 });
 
-test('restoring a position writes nothing back, and reading on from it is written', async () => {
+test('a restored position is written back only as the opening, and reading on is written', async () => {
   fakeTheClock();
-  const { screen, writes } = await aBookResumingAt(aResumePosition());
+  const { screen, writes, openings } = await aBookResumingAt(aResumePosition());
   await expectChapterTwo(screen);
 
-  // Where the book opened is where the reader already was, and writing it back
-  // would credit them with a sitting for the act of opening a book. Such a write
-  // would fire here and be the one the turn below is counted against.
+  await expect.poll(() => openings.length).toBe(1);
+  expect(openings[0].locator.href).toBe('resources/OEBPS/chapter2.xhtml');
+  // Where the book opened is where the reader already was, so it is not a move.
+  // Such a write would fire here and be the one the turn below is counted against.
   await vi.advanceTimersByTimeAsync(10_000);
 
   await screen.getByRole('button', { name: 'Next page' }).click();

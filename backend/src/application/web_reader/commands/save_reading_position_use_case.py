@@ -3,7 +3,7 @@
 import asyncio
 from collections.abc import Mapping
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import datetime, timedelta
 from typing import Any
 
 import structlog
@@ -38,7 +38,7 @@ from src.domain.common.value_objects.position import Position
 from src.domain.library.entities.book import Book
 from src.domain.library.exceptions import EbookFileNotFoundError
 from src.domain.reading.entities.reading_session import ReadingSession
-from src.domain.reading.exceptions import BookNotFoundError
+from src.domain.reading.exceptions import BookNotFoundError, ReadingSessionNotFoundError
 from src.domain.web_reader.entities.web_reading_position import WebReadingPosition
 from src.domain.web_reader.exceptions import BookFileUnreadableError, UnresolvablePositionError
 
@@ -74,7 +74,7 @@ SAME_SITTING_BACKWARD_FRACTION = 0.25
 
 @dataclass(frozen=True)
 class _Reached:
-    """Where a write that moved the stored position says the reader now is."""
+    """Where a write that moved the stored position, or opened the book, says the reader is."""
 
     xpoint: XPoint
     locator: Locator
@@ -107,10 +107,11 @@ class SaveReadingPositionUseCase:
 
     A real ``reading_sessions`` row is written too, which is what lets browser reading
     reach the progress bar and the reading statistics without either knowing the web
-    reader exists (ADR-0004, Amendment 3). The first write after opening a book starts
-    a sitting, each one after that extends it, a gap longer than
+    reader exists (ADR-0004, Amendments 3 and 10). Opening the book starts a sitting,
+    each write after that extends it, a gap longer than
     ``WEB_READING_SESSION_IDLE_SECONDS`` starts a new one, and a reader who closes the
-    book ends theirs by saying so.
+    book ends theirs by saying so -- which deletes it if it fails the filters a
+    KOReader session must pass to be stored.
     """
 
     def __init__(
@@ -130,7 +131,9 @@ class SaveReadingPositionUseCase:
         self.position_anchor_service = position_anchor_service
         self.file_repository = file_repository
         self.position_index_service = position_index_service
-        self.idle_seconds = get_settings().WEB_READING_SESSION_IDLE_SECONDS
+        settings = get_settings()
+        self.idle_seconds = settings.WEB_READING_SESSION_IDLE_SECONDS
+        self.minimum_duration = timedelta(seconds=settings.MINIMUM_READING_SESSION_DURATION)
 
     async def save_reading_position(
         self,
@@ -141,6 +144,7 @@ class SaveReadingPositionUseCase:
         recorded_at: datetime,
         now: datetime,
         page: int | None = None,
+        opening: bool = False,
         closing: bool = False,
     ) -> WebReadingPosition:
         """Record the reader's position, returning what is now stored for the book.
@@ -169,8 +173,11 @@ class SaveReadingPositionUseCase:
                 on, so no client can be credited with time it did not spend.
             page: The synthetic page the reader is shown, if their navigator counts
                 one; what the sitting's page range is labelled with.
+            opening: Whether the book has just been opened at this position. Starts a
+                new sitting whether or not the position moved.
             closing: Whether the reader is leaving the book. The position is stored and
-                the session extended either way; this only ends the sitting.
+                the session extended either way; this ends the sitting, and deletes it
+                if it is too short or never moved.
 
         Raises:
             BookNotFoundError: If the user has no such book.
@@ -215,15 +222,19 @@ class SaveReadingPositionUseCase:
         # Only a write that moved the position says anything about *where* the reader
         # is; one that did not still says they are here, which is what extends the
         # sitting. Passing the stale position on would drag the session's progress back
-        # to a page another tab left an hour ago.
-        session_id = await self._continue_session(
+        # to a page another tab left an hour ago. An opening write says where its own
+        # sitting begins, whichever tab is further on.
+        reached = (
+            _Reached(xpoint, locator, position, page) if recorded.advanced or opening else None
+        )
+        session = await self._continue_session(
             book=book,
             user_id=user,
-            was_open=recorded.position.reading_session_id,
+            was_open=None if opening else recorded.position.reading_session_id,
             now=now,
-            reached=_Reached(xpoint, locator, position, page) if recorded.advanced else None,
-            source_hash=source_hash,
+            reached=reached,
         )
+        session_id = await self._store_session(session, closing, reached, source_hash)
         await self.position_repository.attach_session(
             recorded.position, None if closing else session_id
         )
@@ -287,61 +298,90 @@ class SaveReadingPositionUseCase:
         was_open: ReadingSessionId | None,
         now: datetime,
         reached: _Reached | None,
-        source_hash: str,
-    ) -> ReadingSessionId | None:
-        """Extend the sitting this position belongs to, or begin a new one.
+    ) -> ReadingSession | None:
+        """The sitting this position belongs to, extended to it or begun at it.
 
-        ``None`` when there is nothing to record: a write that moved no position and
+        A jump back saves the sitting it leaves, extended to the jump, before beginning
+        the next. ``None`` when there is nothing to record: a write that moved no position and
         found no sitting open is a tab closing on a page another tab has long since
         left, and a sitting of its own would be a fiction.
         """
-        session = await self._open_session(was_open, user_id, now, book, reached)
-        if session is None:
-            if reached is None:
-                return None
-            session = ReadingSession.create(
-                user_id=user_id,
-                book_id=book.id,
-                start_time=now,
-                end_time=now,
-                # Seeded here or never: a session that opened without a range can
-                # never be given one.
-                start_xpoint=XPointRange(start=reached.xpoint, end=reached.xpoint),
-                start_position=reached.position,
-                end_position=reached.position,
-                start_page=reached.page,
-                end_page=reached.page,
-                device_id=WEB_READER_DEVICE_ID,
-            )
-        else:
-            session.extend_to(
-                now,
-                xpoint=reached.xpoint if reached else None,
-                position=reached.position if reached else None,
-                page=reached.page if reached else None,
-            )
+        session = await self._open_session(was_open, user_id, now)
+        if session is not None:
+            position = reached.position if reached else None
+            if not _has_restarted(session, book, position):
+                session.extend_to(
+                    now,
+                    xpoint=reached.xpoint if reached else None,
+                    position=position,
+                    page=reached.page if reached else None,
+                )
+                return session
+            # The old sitting ran until the jump, but did not reach where it landed.
+            session.extend_to(now)
+            await self._save_if_still_there(session)
 
-        # The id comes back from the save rather than being written onto what was
-        # passed in, so an insert saved twice would be two rows.
-        stored = await self.session_repository.save(session)
+        if reached is None:
+            return None
+        return ReadingSession.create(
+            user_id=user_id,
+            book_id=book.id,
+            start_time=now,
+            end_time=now,
+            # Seeded here or never: a session that opened without a range can never be
+            # given one.
+            start_xpoint=XPointRange(start=reached.xpoint, end=reached.xpoint),
+            start_position=reached.position,
+            end_position=reached.position,
+            start_page=reached.page,
+            end_page=reached.page,
+            device_id=WEB_READER_DEVICE_ID,
+        )
+
+    async def _store_session(
+        self,
+        session: ReadingSession | None,
+        closing: bool,
+        reached: _Reached | None,
+        source_hash: str,
+    ) -> ReadingSessionId | None:
+        """Save the sitting, or on the way out delete one not worth keeping.
+
+        A session the store has never seen has nothing to delete, so a closing write
+        that would begin one writes nothing.
+        """
+        if session is None:
+            return None
+        if closing and not session.is_worth_keeping(self.minimum_duration):
+            if session.id.value != 0:
+                await self.session_repository.delete(session.id, session.user_id)
+            return None
+        stored = await self._save_if_still_there(session)
+        if stored is None:
+            return None
         if reached is not None:
             await self.session_repository.record_locator(stored.id, reached.locator, source_hash)
         return stored.id
 
+    async def _save_if_still_there(self, session: ReadingSession) -> ReadingSession | None:
+        """Save the session, or ``None`` if another tab's closing write deleted it meanwhile.
+
+        The id comes back from the save rather than being written onto what was passed
+        in, so an insert saved twice would be two rows.
+        """
+        try:
+            return await self.session_repository.save(session)
+        except ReadingSessionNotFoundError:
+            return None
+
     async def _open_session(
-        self,
-        was_open: ReadingSessionId | None,
-        user_id: UserId,
-        now: datetime,
-        book: Book,
-        reached: _Reached | None,
+        self, was_open: ReadingSessionId | None, user_id: UserId, now: datetime
     ) -> ReadingSession | None:
-        """The session this write continues, if there is still one to continue.
+        """The session this write may continue, if there is still one to continue.
 
         ``None`` when the reader has never read this book here, when they closed it
-        last time, when the session has since been deleted, when nothing has been
-        heard for long enough that this is a new sitting, or when the reader has
-        jumped back far enough that it is one anyway.
+        last time, when the session has since been deleted, or when nothing has been
+        heard for long enough that this is a new sitting.
 
         The gap is measured from the session's own end rather than from the stored
         position, so a session is judged on when it was really last extended.
@@ -353,5 +393,4 @@ class SaveReadingPositionUseCase:
             return None
         if (now - as_aware(session.end_time)).total_seconds() > self.idle_seconds:
             return None
-        position = reached.position if reached else None
-        return None if _has_restarted(session, book, position) else session
+        return session

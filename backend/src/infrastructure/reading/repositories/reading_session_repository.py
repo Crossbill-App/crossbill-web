@@ -8,7 +8,7 @@ Uses ReadingSessionMapper internally for conversions.
 import logging
 from collections.abc import Mapping
 
-from sqlalchemy import func, insert, literal, select, update
+from sqlalchemy import delete, func, insert, literal, select, update
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -208,6 +208,16 @@ class ReadingSessionRepository:
 
         await self.db.commit()
         return self.mapper.to_domain(orm)
+
+    async def delete(self, session_id: ReadingSessionId, user_id: UserId) -> None:
+        """Delete one of the user's sessions; its Page Views go with it by cascade."""
+        await self.db.execute(
+            delete(ReadingSessionORM).where(
+                ReadingSessionORM.id == session_id.value,
+                ReadingSessionORM.user_id == user_id.value,
+            )
+        )
+        await self.db.commit()
 
     async def bulk_update_positions(
         self,

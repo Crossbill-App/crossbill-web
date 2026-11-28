@@ -100,7 +100,7 @@ class BrowserLocatorSchema(BaseModel):
 
 
 class ReadingPositionUpdate(BaseModel):
-    """What the reader sends when they have moved."""
+    """What the reader sends when they open the book, move, or leave it."""
 
     locator: BrowserLocatorSchema = Field(..., description="Where the reader now is")
     recorded_at: dt = Field(
@@ -110,12 +110,20 @@ class ReadingPositionUpdate(BaseModel):
             "than the moment the request arrives."
         ),
     )
+    opening: bool = Field(
+        False,
+        description=(
+            "Whether the book has just been opened at this position. Starts a new "
+            "reading session even though the reader has not moved."
+        ),
+    )
     closing: bool = Field(
         False,
         description=(
             "Whether the reader is leaving the book. The position is stored either "
             "way; this ends the reading session rather than leaving it to be "
-            "extended."
+            "extended, and deletes it if it lasted under the minimum session "
+            "duration or ended where it started."
         ),
     )
 
