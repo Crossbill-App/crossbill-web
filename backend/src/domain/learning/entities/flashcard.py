@@ -48,7 +48,7 @@ class Flashcard(Entity[FlashcardId]):
     review_state: ReviewState | None = None
 
     _reviews: list[FlashcardReview] = field(default_factory=list, repr=False)
-    _new_reviews: list[FlashcardReview] = field(default_factory=list, repr=False)
+    _pending_review: FlashcardReview | None = field(default=None, repr=False)
 
     def __post_init__(self) -> None:
         """Validate invariants."""
@@ -91,9 +91,9 @@ class Flashcard(Entity[FlashcardId]):
         return tuple(self._reviews)
 
     @property
-    def new_reviews(self) -> tuple[FlashcardReview, ...]:
-        """The reviews recorded since the card was loaded, for the repository to insert."""
-        return tuple(self._new_reviews)
+    def pending_review(self) -> FlashcardReview | None:
+        """The review recorded since the card was loaded, for the repository to insert."""
+        return self._pending_review
 
     def record_review(self, review: FlashcardReview) -> ReviewArrival:
         """Add a review to the card's log, saying how its review state must follow.
@@ -109,7 +109,7 @@ class Flashcard(Entity[FlashcardId]):
             ReviewArrival.IN_ORDER if self._follows_last_review(review) else ReviewArrival.LATE
         )
         self._reviews.append(review)
-        self._new_reviews.append(review)
+        self._pending_review = review
         return arrival
 
     def apply_review_state(self, review_state: ReviewState) -> None:

@@ -22,6 +22,12 @@ class FlashcardRepositoryProtocol(Protocol):
         """
         ...
 
+    async def find_by_id_for_update(
+        self, flashcard_id: FlashcardId, user_id: UserId
+    ) -> Flashcard | None:
+        """Find an owned flashcard and lock it against concurrent changes until it is saved."""
+        ...
+
     async def find_by_book(self, book_id: BookId, user_id: UserId) -> list[Flashcard]:
         """
         Get all flashcards for a book.
