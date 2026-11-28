@@ -23,48 +23,54 @@ interface NoteCardProps {
   action?: ReactNode;
 }
 
-export const NoteCard = ({ note, onClick, action }: NoteCardProps) => {
+export const NoteCard = ({ note, onClick, action }: NoteCardProps) => (
+  <Box sx={{ position: 'relative' }}>
+    <HoverableCardActionArea
+      onClick={onClick}
+      sx={{
+        display: 'block',
+        textAlign: 'left',
+        pl: 2.5,
+        py: 1,
+        pr: action ? 6 : 2.5,
+      }}
+    >
+      <NoteContent note={note} />
+    </HoverableCardActionArea>
+    {action && <Box sx={{ position: 'absolute', top: 8, right: 8 }}>{action}</Box>}
+  </Box>
+);
+
+export const NoteContent = ({ note }: { note: NoteWithLinks }) => {
   const theme = useTheme();
 
   return (
-    <Box sx={{ position: 'relative' }}>
-      <HoverableCardActionArea
-        onClick={onClick}
-        sx={{
-          display: 'block',
-          textAlign: 'left',
-          pl: 2.5,
-          py: 1,
-          pr: action ? 6 : 2.5,
-        }}
-      >
-        <Typography variant="h3" sx={{ mb: 0.5 }}>
-          {note.title}
-        </Typography>
-        {note.body && (
-          <Box
-            sx={{
-              ...markdownStyles(theme),
-              display: '-webkit-box',
-              WebkitLineClamp: 3,
-              WebkitBoxOrient: 'vertical',
-              overflow: 'hidden',
-            }}
-          >
-            <ReactMarkdown>{note.body}</ReactMarkdown>
-          </Box>
-        )}
-        {/* After the content, as on the highlight card: the footer marks where one card ends. */}
-        <Box sx={{ display: 'flex', flexDirection: { xs: 'column', sm: 'row' }, gap: 2, mt: 1 }}>
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flexShrink: 0 }}>
-            <DateIcon sx={{ fontSize: ICON_SIZE.inline, color: 'text.secondary' }} />
-            <MetadataRow variant="caption" items={[formatDate(note.created_at)]} />
-            <NoteKindChip kind={note.kind} />
-          </Box>
-          <TagChipList tags={note.tags} />
+    <>
+      <Typography variant="h3" sx={{ mb: 0.5 }}>
+        {note.title}
+      </Typography>
+      {note.body && (
+        <Box
+          sx={{
+            ...markdownStyles(theme),
+            display: '-webkit-box',
+            WebkitLineClamp: 3,
+            WebkitBoxOrient: 'vertical',
+            overflow: 'hidden',
+          }}
+        >
+          <ReactMarkdown>{note.body}</ReactMarkdown>
         </Box>
-      </HoverableCardActionArea>
-      {action && <Box sx={{ position: 'absolute', top: 8, right: 8 }}>{action}</Box>}
-    </Box>
+      )}
+      {/* After the content, as on the highlight card: the footer marks where one card ends. */}
+      <Box sx={{ display: 'flex', flexDirection: { xs: 'column', sm: 'row' }, gap: 2, mt: 1 }}>
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flexShrink: 0 }}>
+          <DateIcon sx={{ fontSize: ICON_SIZE.inline, color: 'text.secondary' }} />
+          <MetadataRow variant="caption" items={[formatDate(note.created_at)]} />
+          <NoteKindChip kind={note.kind} />
+        </Box>
+        <TagChipList tags={note.tags} />
+      </Box>
+    </>
   );
 };

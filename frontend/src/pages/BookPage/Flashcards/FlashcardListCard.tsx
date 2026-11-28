@@ -1,10 +1,7 @@
-import { useDeleteFlashcard } from '@/api/generated/flashcards/flashcards.ts';
 import { IconButtonWithTooltip } from '@/components/buttons/IconButtonWithTooltip';
-import { ConfirmationDialog } from '@/components/dialogs/ConfirmationDialog.tsx';
 import { FlashcardWithContext } from '@/components/features/flashcards/FlashcardChapterList.tsx';
-import { useMutationErrorHandler } from '@/hooks/useMutationErrorHandler.ts';
-import { useCacheEvents } from '@/lib/cacheEvents.ts';
 import { FlashcardCard } from '@/pages/BookPage/Flashcards/FlashcardCard.tsx';
+import { useFlashcardDeletion } from '@/pages/BookPage/Flashcards/hooks/useFlashcardDeletion.tsx';
 import { NoteViewDialog } from '@/pages/BookPage/Notes/NoteViewDialog.tsx';
 import { DeleteIcon, EditIcon, NotesIcon } from '@/theme/Icons.tsx';
 import { useState } from 'react';
@@ -30,41 +27,22 @@ export const FlashcardListCard = ({
   noteId,
 }: FlashcardListCardProps) => {
   const { t } = useTranslation();
-  const [isDeleting, setIsDeleting] = useState(false);
-  const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
   const [isViewingNote, setIsViewingNote] = useState(false);
   const linkedNoteId =
     flashcard.note_id != null && flashcard.note_id !== noteId ? flashcard.note_id : null;
-  const cache = useCacheEvents();
-  const mutationErrorHandler = useMutationErrorHandler();
-
-  const deleteMutation = useDeleteFlashcard({
-    mutation: {
-      onSuccess: () => {
-        cache.flashcardsChanged(bookId, noteId ?? flashcard.note_id ?? undefined);
-      },
-      onError: mutationErrorHandler(t('flashcards.errors.delete')),
-    },
+  const { requestDelete, isDeleting, confirmation } = useFlashcardDeletion({
+    bookId,
+    noteId: noteId ?? flashcard.note_id ?? undefined,
   });
 
   const handleDeleteClick = (e: React.MouseEvent) => {
     e.stopPropagation();
-    setDeleteConfirmOpen(true);
+    requestDelete(flashcard.id);
   };
 
   const handleViewNoteClick = (e: React.MouseEvent) => {
     e.stopPropagation();
     setIsViewingNote(true);
-  };
-
-  const handleConfirmDelete = async () => {
-    setDeleteConfirmOpen(false);
-    setIsDeleting(true);
-    try {
-      await deleteMutation.mutateAsync({ flashcardId: flashcard.id });
-    } finally {
-      setIsDeleting(false);
-    }
   };
 
   return (
@@ -100,15 +78,7 @@ export const FlashcardListCard = ({
         )}
       />
 
-      <ConfirmationDialog
-        open={deleteConfirmOpen}
-        onClose={() => setDeleteConfirmOpen(false)}
-        onConfirm={handleConfirmDelete}
-        message={t('flashcards.shared.deleteConfirm')}
-        confirmText={t('common.actions.delete')}
-        confirmColor="error"
-        isLoading={isDeleting}
-      />
+      {confirmation}
 
       {isViewingNote && linkedNoteId != null && (
         <NoteViewDialog noteId={linkedNoteId} onClose={() => setIsViewingNote(false)} />

@@ -1,17 +1,14 @@
-import { useDeleteFlashcard, useUpdateFlashcard } from '@/api/generated/flashcards/flashcards.ts';
+import { useUpdateFlashcard } from '@/api/generated/flashcards/flashcards.ts';
+import type { Flashcard, Highlight } from '@/api/generated/model';
 import { useGetNote } from '@/api/generated/notes/notes.ts';
 import { CommonDialog } from '@/components/dialogs/CommonDialog.tsx';
-import { ConfirmationDialog } from '@/components/dialogs/ConfirmationDialog.tsx';
-import type { FlashcardWithContext } from '@/components/features/flashcards/FlashcardChapterList.tsx';
 import { RHFTextField } from '@/components/inputs/RHFTextField.tsx';
 import { useMutationErrorHandler } from '@/hooks/useMutationErrorHandler.ts';
 import { useCacheEvents } from '@/lib/cacheEvents.ts';
 import { HighlightContent } from '@/pages/BookPage/common/HighlightContent.tsx';
-import { NoteCard } from '@/pages/BookPage/Notes/NoteCard.tsx';
-import { NoteViewDialog } from '@/pages/BookPage/Notes/NoteViewDialog.tsx';
+import { NoteContent } from '@/pages/BookPage/Notes/NoteCard.tsx';
 import { DeleteIcon } from '@/theme/Icons.tsx';
 import { Box, Button } from '@mui/material';
-import { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { useTranslation } from 'react-i18next';
 import {
@@ -20,9 +17,14 @@ import {
   type FlashcardContent,
   type FlashcardSource,
 } from './hooks/useCreateFlashcard.ts';
+import { useFlashcardDeletion } from './hooks/useFlashcardDeletion.tsx';
+
+interface EditedFlashcard extends Flashcard {
+  highlight: Highlight | null;
+}
 
 export type FlashcardDialogTarget =
-  { mode: 'create'; source: FlashcardSource } | { mode: 'edit'; flashcard: FlashcardWithContext };
+  { mode: 'create'; source: FlashcardSource } | { mode: 'edit'; flashcard: EditedFlashcard };
 
 interface FlashcardDialogProps {
   bookId: number;
@@ -35,6 +37,8 @@ const sourceHighlight = (target: FlashcardDialogTarget) => {
   return target.source.kind === 'highlight' ? target.source.highlight : null;
 };
 
+const required = (message: string) => (value: string) => value.trim().length > 0 || message;
+
 const linkedNoteId = (target: FlashcardDialogTarget) =>
   target.mode === 'edit' ? (target.flashcard.note_id ?? undefined) : sourceNoteId(target.source);
 
@@ -42,8 +46,6 @@ export const FlashcardDialog = ({ bookId, target, onClose }: FlashcardDialogProp
   const { t } = useTranslation();
   const mutationErrorHandler = useMutationErrorHandler();
   const cache = useCacheEvents();
-  const [isViewingNote, setIsViewingNote] = useState(false);
-  const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
   const editing = target.mode === 'edit' ? target.flashcard : null;
   const highlight = sourceHighlight(target);
   const noteId = linkedNoteId(target);
@@ -54,53 +56,39 @@ export const FlashcardDialog = ({ bookId, target, onClose }: FlashcardDialogProp
     formState: { isDirty, isValid },
   } = useForm<FlashcardContent>({
     mode: 'onChange',
-    defaultValues: editing
-      ? { question: editing.question, answer: editing.answer }
-      : { question: '', answer: '' },
+    defaultValues: { question: editing?.question ?? '', answer: editing?.answer ?? '' },
   });
 
   const { createFlashcard, isPending: isCreating } = useCreateFlashcard(bookId);
 
-  const onChanged = () => {
-    cache.flashcardsChanged(bookId, noteId);
-    onClose();
-  };
-
   const updateMutation = useUpdateFlashcard({
     mutation: {
-      onSuccess: onChanged,
+      onSuccess: () => {
+        cache.flashcardsChanged(bookId, noteId);
+        onClose();
+      },
       onError: mutationErrorHandler(t('flashcards.errors.update')),
     },
   });
 
-  const deleteMutation = useDeleteFlashcard({
-    mutation: {
-      onSuccess: onChanged,
-      onError: mutationErrorHandler(t('flashcards.errors.delete')),
-    },
+  const { requestDelete, isDeleting, confirmation } = useFlashcardDeletion({
+    bookId,
+    noteId,
+    onDeleted: onClose,
   });
 
   const { data: note } = useGetNote(noteId ?? 0, { query: { enabled: noteId !== undefined } });
 
-  const isSaving = isCreating || updateMutation.isPending || deleteMutation.isPending;
+  const isSaving = isCreating || updateMutation.isPending || isDeleting;
 
   const onSubmit = async (values: FlashcardContent) => {
-    if (target.mode === 'create') {
-      if (await createFlashcard(target.source, values)) onClose();
-      return;
+    const content = { question: values.question.trim(), answer: values.answer.trim() };
+    if (target.mode === 'edit') {
+      updateMutation.mutate({ flashcardId: target.flashcard.id, data: content });
+    } else if (await createFlashcard(target.source, content)) {
+      onClose();
     }
-    updateMutation.mutate({
-      flashcardId: target.flashcard.id,
-      data: { question: values.question.trim(), answer: values.answer.trim() },
-    });
   };
-
-  const handleConfirmDelete = () => {
-    setDeleteConfirmOpen(false);
-    if (editing) deleteMutation.mutate({ flashcardId: editing.id });
-  };
-
-  const required = (message: string) => (value: string) => value.trim().length > 0 || message;
 
   return (
     <CommonDialog
@@ -115,7 +103,7 @@ export const FlashcardDialog = ({ bookId, target, onClose }: FlashcardDialogProp
             <Button
               color="error"
               startIcon={<DeleteIcon />}
-              onClick={() => setDeleteConfirmOpen(true)}
+              onClick={() => requestDelete(editing.id)}
               disabled={isSaving}
             >
               {t('common.actions.delete')}
@@ -137,7 +125,7 @@ export const FlashcardDialog = ({ bookId, target, onClose }: FlashcardDialogProp
     >
       <Box sx={{ pt: 3, display: 'flex', flexDirection: 'column', gap: 3 }}>
         {highlight && <HighlightContent highlight={highlight} />}
-        {note && <NoteCard note={note} onClick={() => setIsViewingNote(true)} />}
+        {note && <NoteContent note={note} />}
 
         <RHFTextField
           name="question"
@@ -163,19 +151,7 @@ export const FlashcardDialog = ({ bookId, target, onClose }: FlashcardDialogProp
         />
       </Box>
 
-      <ConfirmationDialog
-        open={deleteConfirmOpen}
-        onClose={() => setDeleteConfirmOpen(false)}
-        onConfirm={handleConfirmDelete}
-        message={t('flashcards.shared.deleteConfirm')}
-        confirmText={t('common.actions.delete')}
-        confirmColor="error"
-        isLoading={deleteMutation.isPending}
-      />
-
-      {isViewingNote && note && (
-        <NoteViewDialog noteId={note.id} onClose={() => setIsViewingNote(false)} />
-      )}
+      {confirmation}
     </CommonDialog>
   );
 };

@@ -11,14 +11,14 @@ export interface SuggestionsResult {
   error: unknown;
 }
 
-/** Holds AI flashcard suggestion state; `refetch` is the source's disabled suggestions query. */
-export const useAIFlashcardSuggestions = (refetch: () => Promise<SuggestionsResult>) => {
+export const useAIFlashcardSuggestions = (refetch?: () => Promise<SuggestionsResult>) => {
   const { t } = useTranslation();
   const { showSnackbar } = useSnackbar();
   const [isLoading, setIsLoading] = useState(false);
   const [suggestions, setSuggestions] = useState<FlashcardSuggestionItem[]>([]);
 
   const fetchSuggestions = async () => {
+    if (!refetch) return;
     setIsLoading(true);
     try {
       const { data, error } = await refetch();
@@ -38,5 +38,5 @@ export const useAIFlashcardSuggestions = (refetch: () => Promise<SuggestionsResu
     setSuggestions((prev) => prev.filter((_, i) => i !== index));
   };
 
-  return { isLoading, suggestions, fetchSuggestions, removeSuggestion };
+  return { canSuggest: !!refetch, isLoading, suggestions, fetchSuggestions, removeSuggestion };
 };

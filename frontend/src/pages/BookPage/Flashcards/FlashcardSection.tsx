@@ -5,55 +5,43 @@ import { DialogToolbar } from '@/components/dialogs/DialogToolbar.tsx';
 import { EmptyStateText } from '@/components/EmptyStateText.tsx';
 import { AIFeature } from '@/components/features/AIFeature.tsx';
 import type { FlashcardWithContext } from '@/components/features/flashcards/FlashcardChapterList.tsx';
-import {
-  FlashcardDialog,
-  type FlashcardDialogTarget,
-} from '@/pages/BookPage/Flashcards/FlashcardDialog.tsx';
-import { FlashcardListCard } from '@/pages/BookPage/Flashcards/FlashcardListCard.tsx';
-import { FlashcardSuggestions } from '@/pages/BookPage/Flashcards/FlashcardSuggestions.tsx';
-import {
-  useAIFlashcardSuggestions,
-  type SuggestionsResult,
-} from '@/pages/BookPage/Flashcards/hooks/useAIFlashcardSuggestions.ts';
-import {
-  sourceNoteId,
-  useCreateFlashcard,
-  type FlashcardSource,
-} from '@/pages/BookPage/Flashcards/hooks/useCreateFlashcard.ts';
 import { AddIcon } from '@/theme/Icons.tsx';
 import { Box, Button } from '@mui/material';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { FlashcardDialog, type FlashcardDialogTarget } from './FlashcardDialog.tsx';
+import { FlashcardListCard } from './FlashcardListCard.tsx';
+import { FlashcardSuggestions } from './FlashcardSuggestions.tsx';
+import {
+  useAIFlashcardSuggestions,
+  type SuggestionsResult,
+} from './hooks/useAIFlashcardSuggestions.ts';
+import {
+  sourceNoteId,
+  useCreateFlashcard,
+  type FlashcardSource,
+} from './hooks/useCreateFlashcard.ts';
 
 interface FlashcardSectionProps {
   flashcards: FlashcardWithContext[];
   bookId: number;
-  /** Where a card made here is filed. */
   source: FlashcardSource;
   disabled?: boolean;
-  /** Omitted where the surface has nothing to suggest from. */
-  fetchSuggestions?: () => Promise<SuggestionsResult>;
+  refetchSuggestions?: () => Promise<SuggestionsResult>;
 }
 
-const noSuggestions = () => Promise.resolve({ error: null });
-
-/** The Flashcards tab of the highlight, note and chapter dialogs. */
 export const FlashcardSection = ({
   flashcards,
   bookId,
   source,
   disabled = false,
-  fetchSuggestions,
+  refetchSuggestions,
 }: FlashcardSectionProps) => {
   const { t } = useTranslation();
   const [dialogTarget, setDialogTarget] = useState<FlashcardDialogTarget | null>(null);
   const { createFlashcard } = useCreateFlashcard(bookId);
-  const {
-    isLoading,
-    suggestions,
-    fetchSuggestions: suggest,
-    removeSuggestion,
-  } = useAIFlashcardSuggestions(fetchSuggestions ?? noSuggestions);
+  const { canSuggest, isLoading, suggestions, fetchSuggestions, removeSuggestion } =
+    useAIFlashcardSuggestions(refetchSuggestions);
 
   const handleAcceptSuggestion = async (suggestion: FlashcardSuggestionItem, index: number) => {
     if (await createFlashcard(source, suggestion)) removeSuggestion(index);
@@ -80,11 +68,11 @@ export const FlashcardSection = ({
       )}
 
       <DialogToolbar sx={{ mt: 2 }}>
-        {fetchSuggestions && suggestions.length === 0 && (
+        {canSuggest && suggestions.length === 0 && (
           <AIFeature>
             <AIActionButton
               text={t('flashcards.aiSuggestions.suggest')}
-              onClick={() => void suggest()}
+              onClick={() => void fetchSuggestions()}
               disabled={disabled || isLoading}
               iconOnly
             />
@@ -101,7 +89,7 @@ export const FlashcardSection = ({
         </Button>
       </DialogToolbar>
 
-      {fetchSuggestions && (
+      {canSuggest && (
         <AIFeature>
           <FlashcardSuggestions
             suggestions={suggestions}

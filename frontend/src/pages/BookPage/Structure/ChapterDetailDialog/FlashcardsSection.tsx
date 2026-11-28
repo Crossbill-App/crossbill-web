@@ -5,7 +5,7 @@ import type {
   Flashcard,
 } from '@/api/generated/model';
 import type { FlashcardWithContext } from '@/components/features/flashcards/FlashcardChapterList.tsx';
-import { FlashcardSection } from '@/components/features/flashcards/FlashcardSection.tsx';
+import { FlashcardSection } from '@/pages/BookPage/Flashcards/FlashcardSection.tsx';
 import { flatMap } from 'lodash';
 import { useMemo } from 'react';
 
@@ -55,7 +55,7 @@ export const FlashcardsSection = ({
       flashcards={flashcardsWithContext}
       bookId={bookId}
       source={{ kind: 'chapter', chapterId: chapter.id }}
-      fetchSuggestions={digestSummary ? refetch : undefined}
+      refetchSuggestions={digestSummary ? refetch : undefined}
     />
   );
 };

@@ -47,10 +47,10 @@ export const useCreateFlashcard = (bookId: number) => {
 
   const createFlashcard = async (
     source: FlashcardSource,
-    { question, answer }: FlashcardContent
+    content: FlashcardContent
   ): Promise<boolean> => {
     try {
-      await send(source, { question: question.trim(), answer: answer.trim() });
+      await send(source, content);
     } catch {
       return false;
     }

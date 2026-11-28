@@ -1,7 +1,7 @@
 import { useGetNoteFlashcardSuggestions } from '@/api/generated/flashcards/flashcards.ts';
 import type { NoteWithLinks } from '@/api/generated/model';
 import type { FlashcardWithContext } from '@/components/features/flashcards/FlashcardChapterList.tsx';
-import { FlashcardSection } from '@/components/features/flashcards/FlashcardSection.tsx';
+import { FlashcardSection } from '@/pages/BookPage/Flashcards/FlashcardSection.tsx';
 import { sortBy } from 'lodash';
 
 interface NoteFlashcardSectionProps {
@@ -36,7 +36,7 @@ export const NoteFlashcardSection = ({
       bookId={bookId}
       source={{ kind: 'note', noteId: note.id }}
       disabled={disabled}
-      fetchSuggestions={refetch}
+      refetchSuggestions={refetch}
     />
   );
 };

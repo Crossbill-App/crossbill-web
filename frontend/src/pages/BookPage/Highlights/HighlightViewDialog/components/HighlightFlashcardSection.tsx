@@ -1,7 +1,7 @@
 import { useGetHighlightFlashcardSuggestions } from '@/api/generated/flashcards/flashcards.ts';
 import type { Highlight } from '@/api/generated/model';
 import type { FlashcardWithContext } from '@/components/features/flashcards/FlashcardChapterList.tsx';
-import { FlashcardSection } from '@/components/features/flashcards/FlashcardSection.tsx';
+import { FlashcardSection } from '@/pages/BookPage/Flashcards/FlashcardSection.tsx';
 import { sortBy } from 'lodash';
 
 interface HighlightFlashcardSectionProps {
@@ -36,7 +36,7 @@ export const HighlightFlashcardSection = ({
       bookId={bookId}
       source={{ kind: 'highlight', highlight }}
       disabled={disabled}
-      fetchSuggestions={refetch}
+      refetchSuggestions={refetch}
     />
   );
 };
