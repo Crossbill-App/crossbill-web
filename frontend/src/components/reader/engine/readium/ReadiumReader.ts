@@ -5,6 +5,7 @@ import {
   type EbookDecoration,
   type EbookLocation,
   type EbookReader,
+  type EbookScreen,
   type EbookSelection,
   type EbookTocEntry,
   type OpenEbookOptions,
@@ -30,11 +31,13 @@ import {
 import { GestureWatch } from '@/components/reader/engine/readium/GestureWatch.ts';
 import { landingFor } from '@/components/reader/engine/readium/landing.ts';
 import { sanitizeResponse } from '@/components/reader/engine/readium/sanitizeResponse.ts';
+import { screenIn } from '@/components/reader/engine/readium/screenEdges.ts';
 import { type EbookResource } from '@/components/reader/engine/readium/selectionLocator.ts';
 import { SelectionTracker } from '@/components/reader/engine/readium/SelectionTracker.ts';
 import { EpubNavigator, type EpubNavigatorListeners } from '@readium/navigator';
 import {
   HttpFetcher,
+  Layout,
   Manifest,
   Publication,
   type Locator,
@@ -49,6 +52,8 @@ const DESTROY_TIMEOUT_MS = 2000;
  */
 const BUSY_WAIT_MS = 2000;
 const BUSY_RETRY_MS = 50;
+
+const RELAYOUT_SETTLE_MS = 150;
 
 const NOT_A_PLACE = 'That location does not name a place in this book.';
 
@@ -110,6 +115,15 @@ const followsALinkInTheBook = (target: EventTarget | null): boolean => {
   return href != null && !LINKS_OUT_OF_THE_BOOK.some((prefix) => href.startsWith(prefix));
 };
 
+/** What a relayout changes: the frame's size, or a setting Readium writes on its root other than a colour. */
+const layoutOf = (frame: Window): string => {
+  const style = frame.document.documentElement.style;
+  const settings = [...style]
+    .filter((name) => !/color/i.test(name))
+    .map((name) => `${name}:${style.getPropertyValue(name)}`);
+  return [frame.innerWidth, frame.innerHeight, ...settings].join(' ');
+};
+
 /** The reader engine on `@readium/navigator`'s `EpubNavigator`. Single-use. */
 export class ReadiumReader implements EbookReader {
   private readonly locationListeners = listenerSet<EbookLocation>();
@@ -118,6 +132,7 @@ export class ReadiumReader implements EbookReader {
   private readonly chapterProgressListeners = listenerSet<EbookChapterProgress | null>();
   private readonly decorationListeners = listenerSet<string>();
   private readonly linkListeners = listenerSet<void>();
+  private readonly screenListeners = listenerSet<EbookScreen | null>();
   private readonly destruction = new AbortController();
   /** Tells a tap on the page from the swipe that turns it, for whoever acts on one. */
   private readonly gestures = new GestureWatch();
@@ -131,6 +146,9 @@ export class ReadiumReader implements EbookReader {
   /** The window each resource was last loaded into, by its href. */
   private readonly frames = new Map<string, Window>();
   private chapterProgress: EbookChapterProgress | null = null;
+  /** The screen last reported, with the layout it was measured in. */
+  private shownScreenKey: string | undefined;
+  private relayoutTimer: ReturnType<typeof setTimeout> | undefined;
   private navigator: EpubNavigator | undefined;
   private wrapper: HTMLDivElement | undefined;
   private isOpened = false;
@@ -314,6 +332,10 @@ export class ReadiumReader implements EbookReader {
     return this.chapterProgressListeners.add(listener);
   }
 
+  onScreenShown(listener: (screen: EbookScreen | null) => void): () => void {
+    return this.screenListeners.add(listener);
+  }
+
   async destroy(): Promise<void> {
     if (this.isDestroyed) return;
     this.isDestroyed = true;
@@ -340,6 +362,7 @@ export class ReadiumReader implements EbookReader {
     this.wrapper?.remove();
     this.wrapper = undefined;
     this.selection.destroy();
+    clearTimeout(this.relayoutTimer);
     this.frames.clear();
     this.locationListeners.clear();
     this.pageTurnListeners.clear();
@@ -347,6 +370,7 @@ export class ReadiumReader implements EbookReader {
     this.chapterProgressListeners.clear();
     this.decorationListeners.clear();
     this.linkListeners.clear();
+    this.screenListeners.clear();
   }
 
   /** The wrapper Readium's ResizeObserver may keep, and the container it draws into. */
@@ -443,6 +467,8 @@ export class ReadiumReader implements EbookReader {
       positionChanged: (locator) => {
         this.locationListeners.notify(toLocation(locator));
         this.reportChapterProgress(locator);
+        // A position reported mid-relayout is measured with the rest of it.
+        if (this.relayoutTimer === undefined) this.reportScreen(locator);
       },
       viewportChanged: () => {},
       timelineItemChanged: (item) => this.tocEntryListeners.notify(this.tocEntryHrefFor(item)),
@@ -483,11 +509,13 @@ export class ReadiumReader implements EbookReader {
    * a tick later, and nothing promises a report after them.
    */
   private watchLayout(frame: Window, href: string): void {
-    const remeasure = () =>
+    const remeasure = () => {
+      if (this.navigator?.currentLocator.href === href) this.reportScreenOnceSettled();
       frame.requestAnimationFrame(() => {
         const locator = this.navigator?.currentLocator;
         if (locator?.href === href) this.reportChapterProgress(locator);
       });
+    };
     frame.addEventListener('resize', remeasure, { signal: this.destruction.signal });
     const restyled = new MutationObserver(remeasure);
     restyled.observe(frame.document.documentElement, { attributeFilter: ['style'] });
@@ -500,6 +528,35 @@ export class ReadiumReader implements EbookReader {
     if (progress?.pagesLeft === this.chapterProgress?.pagesLeft) return;
     this.chapterProgress = progress;
     this.chapterProgressListeners.notify(progress);
+  }
+
+  /** One report for a relayout, which Readium lands as a resize and a restyle a few ms apart. */
+  private reportScreenOnceSettled(): void {
+    clearTimeout(this.relayoutTimer);
+    this.relayoutTimer = setTimeout(() => {
+      this.relayoutTimer = undefined;
+      const locator = this.navigator?.currentLocator;
+      if (locator) this.reportScreen(locator);
+    }, RELAYOUT_SETTLE_MS);
+  }
+
+  /** Readium reports one page several times: a screen is new only if its text or layout is. */
+  private reportScreen(locator: Locator): void {
+    const shown = this.screenAt(locator);
+    const key = JSON.stringify(shown);
+    if (key === this.shownScreenKey) return;
+    this.shownScreenKey = key;
+    this.screenListeners.notify(shown?.screen ?? null);
+  }
+
+  // Fixed layout scales a frame per page and is not measured: it reports nothing on screen.
+  private screenAt(locator: Locator): { screen: EbookScreen; layout: string } | null {
+    if (this.navigator?.layout === Layout.fixed) return null;
+    const frame = this.frames.get(locator.href);
+    const resource = frame && this.resources.get(frame.document.baseURI);
+    if (!frame || !resource) return null;
+    const screen = screenIn(frame, resource);
+    return screen && { screen, layout: layoutOf(frame) };
   }
 
   /** Asked when the navigator reports a position, which it does once the page has settled. */

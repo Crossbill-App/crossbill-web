@@ -32,6 +32,12 @@ export interface EbookLocation {
   text?: { before?: string; highlight?: string; after?: string };
 }
 
+/** The text on one screen: a quote of its first words, and one of its last. */
+export interface EbookScreen {
+  start: EbookLocation;
+  end: EbookLocation;
+}
+
 /** A range of the book drawn in a colour of its own. */
 export interface EbookDecoration {
   id: string;
@@ -184,5 +190,7 @@ export interface EbookReader {
   onTocEntryChanged(listener: (href: string | null) => void): () => void;
   /** A page turn or a reflow moved the reader; `OpenedEbook.chapterProgress` is the first. */
   onChapterProgressChanged(listener: (progress: EbookChapterProgress | null) => void): () => void;
+  /** Once per appearance of a screen, a relayout included; `null` for one with no text to measure. */
+  onScreenShown(listener: (screen: EbookScreen | null) => void): () => void;
   destroy(): Promise<void>;
 }
