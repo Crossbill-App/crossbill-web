@@ -35,6 +35,10 @@ class _FlashcardByIdLookup(Protocol):
         self, flashcard_id: FlashcardId, /, user_id: UserId
     ) -> Flashcard | None: ...
 
+    async def find_by_id_for_update(
+        self, flashcard_id: FlashcardId, user_id: UserId
+    ) -> Flashcard | None: ...
+
 
 class _BelongsToBook(Protocol):
     """Any child entity that records the book it belongs to."""
@@ -59,9 +63,19 @@ async def require_flashcard(
     flashcard_repository: _FlashcardByIdLookup,
     flashcard_id: FlashcardId,
     user_id: UserId,
+    *,
+    for_update: bool = False,
 ) -> Flashcard:
-    """Load a user's flashcard by id, raising ``FlashcardNotFoundError`` when it is absent."""
-    flashcard = await flashcard_repository.find_by_id(flashcard_id, user_id)
+    """Load a user's flashcard by id, raising ``FlashcardNotFoundError`` when it is absent.
+
+    ``for_update`` locks its row until the flashcard is next saved.
+    """
+    find = (
+        flashcard_repository.find_by_id_for_update
+        if for_update
+        else flashcard_repository.find_by_id
+    )
+    flashcard = await find(flashcard_id, user_id)
     if flashcard is None:
         raise FlashcardNotFoundError(flashcard_id.value)
     return flashcard

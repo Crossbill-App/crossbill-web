@@ -2,11 +2,11 @@
 
 import structlog
 
+from src.application.common.ownership import require_flashcard
 from src.application.learning.protocols.flashcard_repository import FlashcardRepositoryProtocol
 from src.application.learning.protocols.review_scheduler import ReviewScheduler
 from src.domain.common.value_objects.ids import FlashcardId, UserId
 from src.domain.learning.entities.flashcard import Flashcard
-from src.domain.learning.exceptions import FlashcardNotFoundError
 from src.domain.learning.value_objects.flashcard_review import FlashcardReview, ReviewArrival
 
 logger = structlog.get_logger(__name__)
@@ -32,11 +32,9 @@ class RecordFlashcardReviewUseCase:
             FlashcardNotFoundError: If the user has no such flashcard.
             FlashcardSuspendedError: If the flashcard is suspended.
         """
-        flashcard = await self.flashcard_repository.find_by_id_for_update(
-            FlashcardId(flashcard_id), UserId(user_id)
+        flashcard = await require_flashcard(
+            self.flashcard_repository, FlashcardId(flashcard_id), UserId(user_id), for_update=True
         )
-        if flashcard is None:
-            raise FlashcardNotFoundError(flashcard_id)
 
         arrival = flashcard.record_review(review)
         if arrival is ReviewArrival.DUPLICATE:
