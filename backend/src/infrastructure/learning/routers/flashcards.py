@@ -22,9 +22,6 @@ from src.application.learning.queries.due_flashcards import DueFlashcardView
 from src.application.learning.queries.get_due_flashcards_use_case import (
     GetDueFlashcardsUseCase,
 )
-from src.application.learning.queries.get_suspended_flashcards_use_case import (
-    GetSuspendedFlashcardsUseCase,
-)
 from src.core import container
 from src.domain.identity.entities.user import User
 from src.domain.learning.value_objects.flashcard_review import FlashcardRating, FlashcardReview
@@ -35,7 +32,6 @@ from src.infrastructure.identity.dependencies import get_current_user
 from src.infrastructure.learning.schemas import (
     DueFlashcard,
     Flashcard,
-    FlashcardInContext,
     FlashcardReviewRequest,
     FlashcardStatusRequest,
     FlashcardUpdateRequest,
@@ -83,32 +79,6 @@ async def get_due_flashcards(
 
 def _due_flashcard(view: DueFlashcardView) -> DueFlashcard:
     return DueFlashcard.model_validate({**asdict(view.flashcard), "previews": view.previews})
-
-
-@router.get(
-    "/suspended",
-    response_model=PaginatedResponse[FlashcardInContext],
-    status_code=status.HTTP_200_OK,
-)
-async def get_suspended_flashcards(
-    current_user: Annotated[User, Depends(get_current_user)],
-    book_id: int | None = Query(None, description="Only this book's cards"),
-    limit: int = Query(50, ge=1, le=1000, description="Maximum cards to return"),
-    offset: int = Query(0, ge=0, description="Number of cards to skip"),
-    use_case: GetSuspendedFlashcardsUseCase = Depends(
-        inject_use_case(container.learning.get_suspended_flashcards_use_case)
-    ),
-) -> PaginatedResponse[FlashcardInContext]:
-    """List the suspended flashcards book by book, in chapter order with those without a chapter last."""
-    page = await use_case.get_suspended_flashcards(
-        user_id=current_user.id.value, book_id=book_id, limit=limit, offset=offset
-    )
-    return PaginatedResponse[FlashcardInContext](
-        items=[FlashcardInContext.model_validate(card) for card in page.flashcards],
-        total=page.total,
-        offset=offset,
-        limit=limit,
-    )
 
 
 @router.put(
