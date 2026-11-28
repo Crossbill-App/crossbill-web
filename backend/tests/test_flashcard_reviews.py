@@ -486,8 +486,15 @@ async def suspended_ids(client: AsyncClient, **params: int) -> list[int]:
     return [item["id"] for item in response.json()["items"]]
 
 
-async def suspended_flashcard(db_session: AsyncSession, book: models.Book, **fields: object) -> int:
-    card = await create_test_flashcard(db_session, book, status="suspended", **fields)
+async def suspended_flashcard(
+    db_session: AsyncSession,
+    book: models.Book,
+    chapter_id: int | None = None,
+    created_at: datetime = T,
+) -> int:
+    card = await create_test_flashcard(
+        db_session, book, status="suspended", chapter_id=chapter_id, created_at=created_at
+    )
     return card.id
 
 
