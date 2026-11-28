@@ -129,6 +129,18 @@ export const useReadingPositionWriter = (bookId: number) => {
     readingRef.current = false;
   }, [send, pageViews]);
 
+  /**
+   * The book is on screen where it was last seeded: the sitting starts here.
+   * Opening a book and leaving it again writes twice, and the server keeps
+   * neither as reading.
+   */
+  const opened = useCallback(() => {
+    pageViews.startRecording();
+    const observed = latestRef.current;
+    if (!observed) return;
+    send(observed, { opening: true }, false);
+  }, [send, pageViews]);
+
   useEffect(() => {
     // Polled rather than scheduled from each write: a backgrounded tab throttles
     // its timers to minutes and a sleeping machine runs none.
@@ -163,13 +175,19 @@ export const useReadingPositionWriter = (bookId: number) => {
     document.addEventListener('visibilitychange', flushIfHidden);
     // Closing the tab or reloading unmounts nothing, so the sitting is ended here.
     window.addEventListener('pagehide', close);
+    // A page brought back from the back-forward cache was closed by its pagehide.
+    const reopen = (event: PageTransitionEvent) => {
+      if (event.persisted) opened();
+    };
+    window.addEventListener('pageshow', reopen);
     return () => {
+      window.removeEventListener('pageshow', reopen);
       window.removeEventListener('pagehide', close);
       document.removeEventListener('visibilitychange', flushIfHidden);
       clearInterval(tick);
       close();
     };
-  }, [send, sendPending, close, pageViews]);
+  }, [send, sendPending, close, opened, pageViews]);
 
   /** Where the reader already is: remembered, and written only as the opening. */
   const seed = useCallback((location: EbookLocation) => {
@@ -179,18 +197,6 @@ export const useReadingPositionWriter = (bookId: number) => {
     // Staying in a book is reading: the heartbeat's clock starts here.
     spokeAtRef.current = Date.now();
   }, []);
-
-  /**
-   * The book is on screen where it was last seeded: the sitting starts here.
-   * Opening a book and leaving it again writes twice, and the server keeps
-   * neither as reading.
-   */
-  const opened = useCallback(() => {
-    pageViews.startRecording();
-    const observed = latestRef.current;
-    if (!observed) return;
-    send(observed, { opening: true }, false);
-  }, [send, pageViews]);
 
   /** Where the reader has moved to: written down once the moving stops. */
   const moved = useCallback(

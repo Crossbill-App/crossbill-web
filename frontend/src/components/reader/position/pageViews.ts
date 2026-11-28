@@ -1,6 +1,5 @@
 import type { PageViewUpdate } from '@/api/generated/model';
 import type { EbookLocation, EbookScreen } from '@/components/reader/engine/EbookReader.ts';
-import { sortBy } from 'lodash';
 
 /** A Page View that has ended, timed on `performance.now()`. */
 export interface PageView {
@@ -57,7 +56,6 @@ export const pageViewLog = () => {
     },
     startRecording: () => {
       isRecording = true;
-      endCurrent();
       begin(latestScreen);
     },
     endCurrent,
@@ -79,7 +77,7 @@ export const pageViewLog = () => {
     },
     /** A batch whose write failed, kept for the next one ahead of anything newer. */
     giveBack: (batch: PageView[]) => {
-      undelivered = sortBy([...batch, ...undelivered], (view) => view.shownAt);
+      undelivered = [...batch, ...undelivered];
     },
   };
 };

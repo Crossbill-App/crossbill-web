@@ -936,11 +936,27 @@ test('the opening write carries no Page Views, and the closing one the screen on
 });
 
 test('screens shown while the book comes up are not Page Views', async () => {
-  const { screen, writes } = await aBookShowing(aFakeScreen(1), aFakeScreen(2));
+  const { screen, writes, openings } = await aBookShowing(aFakeScreen(1), aFakeScreen(2));
 
   const closing = await theClosingWrite(screen, writes);
 
+  expect(openings[0].page_views).toEqual([]);
   expect(startsOf(closing)).toEqual(['Page 2 opens']);
+});
+
+test('a page brought back from the back-forward cache opens a sitting and records its screen', async () => {
+  fakeTheClock();
+  const { screen, writes, openings } = await aBookShowing(aFakeScreen(1));
+  window.dispatchEvent(new PageTransitionEvent('pagehide', { persisted: true }));
+  await expect.poll(() => writes.length).toBe(1);
+
+  window.dispatchEvent(new PageTransitionEvent('pageshow', { persisted: true }));
+  await expect.poll(() => openings.length).toBe(2);
+  await vi.advanceTimersByTimeAsync(60_000);
+
+  const closing = await theClosingWrite(screen, writes);
+  expect(startsOf(closing)).toEqual(['Page 1 opens']);
+  expect(closing.page_views[0].duration_ms).toBeGreaterThanOrEqual(60_000);
 });
 
 test('a move write carries the screens that ended before it', async () => {
@@ -1045,7 +1061,7 @@ const aRealBookRecordingPositions = async (options: Parameters<typeof readiumApi
   return { screen, ...positions };
 };
 
-test('a page the engine reports more than once is one Page View', async () => {
+test('a page turned on Readium ends one Page View and starts the next', async () => {
   fakeTheClock();
   const { screen, writes } = await aRealBookRecordingPositions({ counting: true });
 
