@@ -36,6 +36,8 @@ export * from './browserLocatorSchema.ts';
 export * from './browserLocatorTextSchema.ts';
 export * from './chapterContentResponse.ts';
 export * from './chapterDigestResponse.ts';
+export * from './chapterInBook.ts';
+export * from './chapterInBookReadState.ts';
 export * from './chapterWithHighlights.ts';
 export * from './collectionResponseBookmark.ts';
 export * from './collectionResponseBookWithHighlightCount.ts';

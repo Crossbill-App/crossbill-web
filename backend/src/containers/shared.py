@@ -50,6 +50,7 @@ from src.infrastructure.notes.queries.note_query import NoteQuery
 from src.infrastructure.notes.repositories.note_repository import NoteRepository
 from src.infrastructure.reading.queries.book_statistics_query import BookStatisticsQuery
 from src.infrastructure.reading.queries.bookmark_query import BookmarkQuery
+from src.infrastructure.reading.queries.chapter_coverage_query import ChapterCoverageQuery
 from src.infrastructure.reading.queries.ereader_digest_query import EreaderDigestQuery
 from src.infrastructure.reading.queries.ereader_highlights_query import EreaderHighlightsQuery
 from src.infrastructure.reading.queries.highlight_label_query import HighlightLabelQuery
@@ -170,10 +171,12 @@ class SharedContainer(containers.DeclarativeContainer):
     )
 
     # Query services (read models); like repositories, these take the session
+    chapter_coverage_query = providers.Factory(ChapterCoverageQuery, db=db)
     book_details_query = providers.Factory(
         BookDetailsQuery,
         db=db,
         label_resolution_service=label_resolution_service,
+        chapter_coverage_query=chapter_coverage_query,
     )
     book_list_query = providers.Factory(BookListQuery, db=db)
     note_query = providers.Factory(NoteQuery, db=db)

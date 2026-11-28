@@ -56,6 +56,7 @@ from src.application.reading.protocols.reading_session_repository import (
 )
 from src.application.reading.queries.book_statistics import BookStatisticsQueryProtocol
 from src.application.reading.queries.bookmarks import BookmarkQueryProtocol
+from src.application.reading.queries.chapter_coverage import ChapterCoverageQueryProtocol
 from src.application.reading.queries.ereader_digest import EreaderDigestQueryProtocol
 from src.application.reading.queries.highlight_labels import HighlightLabelQueryProtocol
 from src.application.reading.queries.highlight_search import HighlightSearchQueryProtocol
@@ -107,6 +108,7 @@ from src.infrastructure.notes.queries.note_query import NoteQuery
 from src.infrastructure.notes.repositories.note_repository import NoteRepository
 from src.infrastructure.reading.queries.book_statistics_query import BookStatisticsQuery
 from src.infrastructure.reading.queries.bookmark_query import BookmarkQuery
+from src.infrastructure.reading.queries.chapter_coverage_query import ChapterCoverageQuery
 from src.infrastructure.reading.queries.ereader_digest_query import EreaderDigestQuery
 from src.infrastructure.reading.queries.highlight_label_query import HighlightLabelQuery
 from src.infrastructure.reading.queries.highlight_search_query import HighlightSearchQuery
@@ -162,7 +164,10 @@ def repositories_satisfy_their_protocols(
     _ai_chat_session: AIChatSessionRepositoryProtocol = AIChatSessionRepository(db)
     _job_batch: JobBatchRepositoryProtocol = JobBatchRepository(db)
     _book_reflection: BookReflectionRepositoryProtocol = BookReflectionRepository(db)
-    _book_details: BookDetailsQueryProtocol = BookDetailsQuery(db, label_resolution_service)
+    _chapter_coverage_view: ChapterCoverageQueryProtocol = ChapterCoverageQuery(db)
+    _book_details: BookDetailsQueryProtocol = BookDetailsQuery(
+        db, label_resolution_service, ChapterCoverageQuery(db)
+    )
     _book_list_view: BookListQueryProtocol = BookListQuery(db)
     _job_batch_view: JobBatchQueryProtocol = JobBatchQuery(db)
     _note_view: NoteQueryProtocol = NoteQuery(db)

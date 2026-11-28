@@ -1,7 +1,7 @@
 import type {
   BookDetails,
   BookWithHighlightCount,
-  ChapterWithHighlights,
+  ChapterInBook,
   Highlight,
   HighlightLabelInBook,
 } from '@/api/generated/model';
@@ -45,14 +45,13 @@ export const aHighlight = (overrides: Partial<Highlight> = {}): Highlight => ({
   ...overrides,
 });
 
-export const aChapter = (
-  overrides: Partial<ChapterWithHighlights> = {}
-): ChapterWithHighlights => ({
+export const aChapter = (overrides: Partial<ChapterInBook> = {}): ChapterInBook => ({
   id: 10,
   name: 'Chapter One',
   chapter_number: 1,
   parent_id: null,
   start_position: null,
+  read_state: 'not_read',
   highlights: [],
   created_at: '2026-01-01T00:00:00Z',
   updated_at: '2026-01-01T00:00:00Z',

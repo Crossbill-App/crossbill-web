@@ -229,6 +229,15 @@ class ChapterWithHighlights(BaseModel):
     model_config = {"from_attributes": True}
 
 
+class ChapterInBook(ChapterWithHighlights):
+    """A chapter on the book-details page, with whether it has been read."""
+
+    read_state: Literal["read", "not_read", "unmeasurable"] = Field(
+        ...,
+        description="Read Chapter state; unmeasurable when the chapter has no text of its own",
+    )
+
+
 ReadingStageLiteral = Literal[
     "to_read", "skimming", "reading", "finished", "reflected", "did_not_finish"
 ]
@@ -257,9 +266,7 @@ class BookDetails(BaseModel):
         default_factory=list,
         description="Book-level flashcards not associated with any highlight",
     )
-    chapters: list[ChapterWithHighlights] = Field(
-        ..., description="List of chapters with highlights"
-    )
+    chapters: list[ChapterInBook] = Field(..., description="List of chapters with highlights")
     highlight_count: int = Field(
         0,
         ge=0,
