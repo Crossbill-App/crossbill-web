@@ -4,10 +4,10 @@
  * crossbill API
  * OpenAPI spec version: 0.0.0
  */
-import type { Flashcard } from './flashcard.ts';
+import type { DueFlashcard } from './dueFlashcard.ts';
 
-export interface PaginatedResponseFlashcard {
-  items: Flashcard[];
+export interface PaginatedResponseDueFlashcard {
+  items: DueFlashcard[];
   total: number;
   offset: number;
   limit: number;

@@ -31,9 +31,11 @@ import type {
   FlashcardUpdateRequest,
   FlashcardUpdateResponse,
   GetDueFlashcardsParams,
+  GetSuspendedFlashcardsParams,
   HTTPValidationError,
   NoteFlashcardCreateRequest,
-  PaginatedResponseFlashcard,
+  PaginatedResponseDueFlashcard,
+  PaginatedResponseReviewFlashcard,
   SuccessResponse,
 } from '../model';
 
@@ -296,11 +298,12 @@ export function useGetFlashcardsForBook<
  * List the active flashcards to review now: due cards, then cards never reviewed.
  *
  * Due cards come lowest retrievability first; new cards follow one book at a
- * time, in book order with those without a chapter last.
+ * time, in book order with those without a chapter last. Each flashcard carries
+ * `previews`: the exact due date each rating given now would set.
  * @summary Get Due Flashcards
  */
 export const getDueFlashcards = (params?: GetDueFlashcardsParams, signal?: AbortSignal) => {
-  return axiosInstance<PaginatedResponseFlashcard>({
+  return axiosInstance<PaginatedResponseDueFlashcard>({
     url: `/api/v1/flashcards/due`,
     method: 'GET',
     params,
@@ -399,6 +402,133 @@ export function useGetDueFlashcards<
   queryClient?: QueryClient
 ): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
   const queryOptions = getGetDueFlashcardsQueryOptions(params, options);
+
+  const query = useQuery(queryOptions, queryClient) as UseQueryResult<TData, TError> & {
+    queryKey: DataTag<QueryKey, TData, TError>;
+  };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+/**
+ * List the suspended flashcards book by book, in chapter order with those without a chapter last.
+ * @summary Get Suspended Flashcards
+ */
+export const getSuspendedFlashcards = (
+  params?: GetSuspendedFlashcardsParams,
+  signal?: AbortSignal
+) => {
+  return axiosInstance<PaginatedResponseReviewFlashcard>({
+    url: `/api/v1/flashcards/suspended`,
+    method: 'GET',
+    params,
+    signal,
+  });
+};
+
+export const getGetSuspendedFlashcardsQueryKey = (params?: GetSuspendedFlashcardsParams) => {
+  return [`/api/v1/flashcards/suspended`, ...(params ? [params] : [])] as const;
+};
+
+export const getGetSuspendedFlashcardsQueryOptions = <
+  TData = Awaited<ReturnType<typeof getSuspendedFlashcards>>,
+  TError = HTTPValidationError,
+>(
+  params?: GetSuspendedFlashcardsParams,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<Awaited<ReturnType<typeof getSuspendedFlashcards>>, TError, TData>
+    >;
+  }
+) => {
+  const { query: queryOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getGetSuspendedFlashcardsQueryKey(params);
+
+  const queryFn: QueryFunction<Awaited<ReturnType<typeof getSuspendedFlashcards>>> = ({ signal }) =>
+    getSuspendedFlashcards(params, signal);
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof getSuspendedFlashcards>>,
+    TError,
+    TData
+  > & { queryKey: DataTag<QueryKey, TData, TError> };
+};
+
+export type GetSuspendedFlashcardsQueryResult = NonNullable<
+  Awaited<ReturnType<typeof getSuspendedFlashcards>>
+>;
+export type GetSuspendedFlashcardsQueryError = HTTPValidationError;
+
+export function useGetSuspendedFlashcards<
+  TData = Awaited<ReturnType<typeof getSuspendedFlashcards>>,
+  TError = HTTPValidationError,
+>(
+  params: undefined | GetSuspendedFlashcardsParams,
+  options: {
+    query: Partial<
+      UseQueryOptions<Awaited<ReturnType<typeof getSuspendedFlashcards>>, TError, TData>
+    > &
+      Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getSuspendedFlashcards>>,
+          TError,
+          Awaited<ReturnType<typeof getSuspendedFlashcards>>
+        >,
+        'initialData'
+      >;
+  },
+  queryClient?: QueryClient
+): DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+export function useGetSuspendedFlashcards<
+  TData = Awaited<ReturnType<typeof getSuspendedFlashcards>>,
+  TError = HTTPValidationError,
+>(
+  params?: GetSuspendedFlashcardsParams,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<Awaited<ReturnType<typeof getSuspendedFlashcards>>, TError, TData>
+    > &
+      Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getSuspendedFlashcards>>,
+          TError,
+          Awaited<ReturnType<typeof getSuspendedFlashcards>>
+        >,
+        'initialData'
+      >;
+  },
+  queryClient?: QueryClient
+): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+export function useGetSuspendedFlashcards<
+  TData = Awaited<ReturnType<typeof getSuspendedFlashcards>>,
+  TError = HTTPValidationError,
+>(
+  params?: GetSuspendedFlashcardsParams,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<Awaited<ReturnType<typeof getSuspendedFlashcards>>, TError, TData>
+    >;
+  },
+  queryClient?: QueryClient
+): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+/**
+ * @summary Get Suspended Flashcards
+ */
+
+export function useGetSuspendedFlashcards<
+  TData = Awaited<ReturnType<typeof getSuspendedFlashcards>>,
+  TError = HTTPValidationError,
+>(
+  params?: GetSuspendedFlashcardsParams,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<Awaited<ReturnType<typeof getSuspendedFlashcards>>, TError, TData>
+    >;
+  },
+  queryClient?: QueryClient
+): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+  const queryOptions = getGetSuspendedFlashcardsQueryOptions(params, options);
 
   const query = useQuery(queryOptions, queryClient) as UseQueryResult<TData, TError> & {
     queryKey: DataTag<QueryKey, TData, TError>;
