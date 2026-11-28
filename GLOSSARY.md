@@ -130,9 +130,28 @@ reflection is the whole; a reflection note is a part.
 _Avoid_: reflection (bare — that names the whole)
 
 **Flashcard**:
-A question-and-answer study card the user made from a highlight, a chapter, or
-a note, for review by spaced repetition.
+A question-and-answer study card made from a highlight, a chapter, or a note,
+for review by spaced repetition. Its _origin_ says whether the user wrote it
+(_manual_) or Crossbill generated it (_generated_).
 _Avoid_: card, quiz item, cloze
+
+**Flashcard Review**:
+One grading of a flashcard — _again_, _hard_, _good_ or _easy_ — at the time
+the client gave it. A flashcard's reviews are the source of truth for its
+schedule; the schedule is recomputed from them when a review arrives late.
+_Avoid_: repetition, answer, attempt
+
+**Due Card**:
+An active flashcard Crossbill wants reviewed now: either its scheduled review
+time has passed, or it has never been reviewed (a _new_ card, whose first
+showing is its triage).
+_Avoid_: pending card, review item
+
+**Suspended**:
+A flashcard the user has taken out of review until they unsuspend it, usually
+to fix or delete it later. A suspended card is never a Due Card. Same meaning as Anki's
+_suspend_; Anki's _bury_ (hide until tomorrow) has no counterpart here.
+_Avoid_: buried, archived, disabled
 
 **AI Chat Session**:
 A conversation between the user and the AI about a chapter — a quiz, or an open
