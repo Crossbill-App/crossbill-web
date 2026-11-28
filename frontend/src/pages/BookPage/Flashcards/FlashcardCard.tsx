@@ -1,8 +1,8 @@
 import { Collapsable } from '@/components/animations/Collapsable';
 import { Eyebrow } from '@/components/typography/Eyebrow.tsx';
-import { HighlightsIcon, SuspendIcon } from '@/theme/Icons';
+import { HighlightsIcon } from '@/theme/Icons';
 import { ICON_SIZE } from '@/theme/iconSizes.ts';
-import { Box, ButtonBase, Chip, styled, Typography } from '@mui/material';
+import { Box, ButtonBase, styled, Typography } from '@mui/material';
 import { ReactNode, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
@@ -11,7 +11,8 @@ export interface FlashcardCardProps {
   answer: string;
   showSourceHighlight?: boolean;
   sourceHighlightText?: string;
-  suspended?: boolean;
+  dimmed?: boolean;
+  badge?: ReactNode;
   renderActions: () => ReactNode;
 }
 
@@ -56,7 +57,8 @@ export const FlashcardCard = ({
   answer,
   showSourceHighlight,
   sourceHighlightText,
-  suspended = false,
+  dimmed = false,
+  badge,
   renderActions,
 }: FlashcardCardProps) => {
   const { t } = useTranslation();
@@ -73,30 +75,18 @@ export const FlashcardCard = ({
           >
             <Typography
               variant="body1"
-              sx={{ lineHeight: 1.5, color: suspended ? 'text.secondary' : undefined }}
+              sx={{ lineHeight: 1.5, color: dimmed ? 'text.secondary' : undefined }}
             >
               {question}
             </Typography>
           </ButtonBase>
-          {suspended && (
-            <Chip
-              variant="outlined"
-              icon={<SuspendIcon />}
-              label={t('flashcards.card.suspended')}
-              sx={{
-                mt: 0.5,
-                color: 'text.secondary',
-                borderColor: 'divider',
-                '& .MuiChip-icon': { color: 'text.secondary', fontSize: ICON_SIZE.inline },
-              }}
-            />
-          )}
+          {badge && <Box sx={{ mt: 0.5 }}>{badge}</Box>}
         </Box>
         <ActionButtonsStyled>{renderActions()}</ActionButtonsStyled>
       </Box>
 
       <Collapsable isExpanded={isExpanded}>
-        <Box sx={{ mt: 1.5, opacity: suspended ? 0.7 : undefined }}>
+        <Box sx={{ mt: 1.5 }}>
           <Eyebrow sx={{ mb: 0.5 }}>{t('flashcards.fields.answer')}</Eyebrow>
 
           <Typography variant="body1" sx={{ color: 'text.secondary', lineHeight: 1.5 }}>

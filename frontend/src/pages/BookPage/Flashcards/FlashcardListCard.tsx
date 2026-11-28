@@ -1,10 +1,9 @@
-import { useSetFlashcardStatus } from '@/api/generated/flashcards/flashcards.ts';
 import { IconButtonWithTooltip } from '@/components/buttons/IconButtonWithTooltip';
 import { FlashcardWithContext } from '@/components/features/flashcards/FlashcardChapterList.tsx';
-import { useMutationErrorHandler } from '@/hooks/useMutationErrorHandler.ts';
-import { useCacheEvents } from '@/lib/cacheEvents.ts';
 import { FlashcardCard } from '@/pages/BookPage/Flashcards/FlashcardCard.tsx';
 import { useFlashcardDeletion } from '@/pages/BookPage/Flashcards/hooks/useFlashcardDeletion.tsx';
+import { useFlashcardUnsuspend } from '@/pages/BookPage/Flashcards/hooks/useFlashcardUnsuspend.ts';
+import { SuspendedChip } from '@/pages/BookPage/Flashcards/SuspendedChip.tsx';
 import { NoteViewDialog } from '@/pages/BookPage/Notes/NoteViewDialog.tsx';
 import { DeleteIcon, EditIcon, NotesIcon, UnsuspendIcon } from '@/theme/Icons.tsx';
 import { useState } from 'react';
@@ -30,8 +29,6 @@ export const FlashcardListCard = ({
   noteId,
 }: FlashcardListCardProps) => {
   const { t } = useTranslation();
-  const cache = useCacheEvents();
-  const mutationErrorHandler = useMutationErrorHandler();
   const [isViewingNote, setIsViewingNote] = useState(false);
   const isSuspended = flashcard.status === 'suspended';
   const linkedNoteId =
@@ -41,13 +38,8 @@ export const FlashcardListCard = ({
     bookId,
     noteId: owningNoteId,
   });
-  const unsuspend = useSetFlashcardStatus({
-    mutation: {
-      onSuccess: () => cache.flashcardsChanged(bookId, owningNoteId),
-      onError: mutationErrorHandler(t('flashcards.errors.unsuspend')),
-    },
-  });
-  const isBusy = isDeleting || unsuspend.isPending;
+  const { unsuspend, isUnsuspending } = useFlashcardUnsuspend({ bookId, noteId: owningNoteId });
+  const isBusy = isDeleting || isUnsuspending;
 
   const handleDeleteClick = (e: React.MouseEvent) => {
     e.stopPropagation();
@@ -66,7 +58,8 @@ export const FlashcardListCard = ({
         answer={flashcard.answer}
         showSourceHighlight={showSourceHighlight}
         sourceHighlightText={flashcard.highlight?.text}
-        suspended={isSuspended}
+        dimmed={isSuspended}
+        badge={isSuspended && <SuspendedChip />}
         renderActions={() => (
           <>
             {isSuspended && (
@@ -74,7 +67,7 @@ export const FlashcardListCard = ({
                 label={t('flashcards.actions.unsuspend')}
                 onClick={(e) => {
                   e.stopPropagation();
-                  unsuspend.mutate({ flashcardId: flashcard.id, data: { status: 'active' } });
+                  unsuspend(flashcard.id);
                 }}
                 disabled={isBusy}
                 icon={<UnsuspendIcon fontSize="small" />}
