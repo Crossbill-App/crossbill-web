@@ -7,6 +7,7 @@ import type {
   Flashcard,
   FlashcardCreateRequest,
   FlashcardCreateResponse,
+  FlashcardStatusRequest,
   FlashcardUpdateRequest,
   FlashcardUpdateResponse,
   Highlight,
@@ -86,7 +87,10 @@ export function bookApi(initial: Partial<BookApiState> = {}) {
       ...overrides,
     });
 
-  /** Applies `change` to the card wherever the book and its notes embed it; null removes it. */
+  /**
+   * Applies `change` to the card wherever the book and its notes embed it; null
+   * removes it. Returns the changed card, if it is still there.
+   */
   const changeFlashcard = (flashcardId: number, change: (card: Flashcard) => Flashcard | null) => {
     const changeAll = (cards: Flashcard[]) =>
       cards.flatMap((card) => {
@@ -100,6 +104,7 @@ export function bookApi(initial: Partial<BookApiState> = {}) {
       ...note,
       flashcards: changeAll(note.flashcards ?? []),
     }));
+    return allFlashcards().find((candidate) => candidate.id === flashcardId);
   };
 
   const created = (flashcard: Flashcard) =>
@@ -249,13 +254,11 @@ export function bookApi(initial: Partial<BookApiState> = {}) {
 
     http.put('/api/v1/flashcards/:flashcardId', async ({ params, request }) => {
       const body = (await request.json()) as FlashcardUpdateRequest;
-      const flashcardId = Number(params.flashcardId);
-      changeFlashcard(flashcardId, (card) => ({
+      const updated = changeFlashcard(Number(params.flashcardId), (card) => ({
         ...card,
         question: body.question ?? card.question,
         answer: body.answer ?? card.answer,
       }));
-      const updated = allFlashcards().find((candidate) => candidate.id === flashcardId);
       if (!updated) {
         return new HttpResponse(null, { status: 404 });
       }
@@ -265,6 +268,15 @@ export function bookApi(initial: Partial<BookApiState> = {}) {
         message: 'Flashcard updated',
         flashcard: updated,
       } satisfies FlashcardUpdateResponse);
+    }),
+
+    http.put('/api/v1/flashcards/:flashcardId/status', async ({ params, request }) => {
+      const body = (await request.json()) as FlashcardStatusRequest;
+      const updated = changeFlashcard(Number(params.flashcardId), (card) => ({
+        ...card,
+        status: body.status,
+      }));
+      return updated ? HttpResponse.json(updated) : new HttpResponse(null, { status: 404 });
     }),
 
     http.delete('/api/v1/flashcards/:flashcardId', ({ params }) => {

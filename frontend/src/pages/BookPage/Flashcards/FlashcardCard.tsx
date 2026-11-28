@@ -11,6 +11,8 @@ export interface FlashcardCardProps {
   answer: string;
   showSourceHighlight?: boolean;
   sourceHighlightText?: string;
+  dimmed?: boolean;
+  badge?: ReactNode;
   renderActions: () => ReactNode;
 }
 
@@ -55,6 +57,8 @@ export const FlashcardCard = ({
   answer,
   showSourceHighlight,
   sourceHighlightText,
+  dimmed = false,
+  badge,
   renderActions,
 }: FlashcardCardProps) => {
   const { t } = useTranslation();
@@ -63,20 +67,21 @@ export const FlashcardCard = ({
   return (
     <FlashcardStyled>
       <Box sx={{ display: 'flex', alignItems: 'flex-start', gap: 0.5 }}>
-        <ButtonBase
-          onClick={() => setIsExpanded(!isExpanded)}
-          aria-expanded={isExpanded}
-          sx={{
-            display: 'block',
-            flex: 1,
-            minWidth: 0,
-            textAlign: 'left',
-          }}
-        >
-          <Typography variant="body1" sx={{ lineHeight: 1.5 }}>
-            {question}
-          </Typography>
-        </ButtonBase>
+        <Box sx={{ flex: 1, minWidth: 0 }}>
+          <ButtonBase
+            onClick={() => setIsExpanded(!isExpanded)}
+            aria-expanded={isExpanded}
+            sx={{ display: 'block', width: '100%', textAlign: 'left' }}
+          >
+            <Typography
+              variant="body1"
+              sx={{ lineHeight: 1.5, color: dimmed ? 'text.secondary' : undefined }}
+            >
+              {question}
+            </Typography>
+          </ButtonBase>
+          {badge && <Box sx={{ mt: 0.5 }}>{badge}</Box>}
+        </Box>
         <ActionButtonsStyled>{renderActions()}</ActionButtonsStyled>
       </Box>
 

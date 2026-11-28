@@ -9,12 +9,32 @@ from dataclasses import dataclass
 from datetime import datetime
 from typing import Protocol
 
-from src.application.learning.queries.flashcards_in_context import (
-    FlashcardInContextPageView,
-    FlashcardInContextView,
-)
+from src.application.common.queries.refs import FlashcardRef
 from src.domain.common.value_objects.ids import BookId, UserId
 from src.domain.learning.value_objects.flashcard_review import FlashcardRating
+from src.domain.learning.value_objects.review_state import ReviewState
+
+
+@dataclass(frozen=True)
+class FlashcardInContextView(FlashcardRef):
+    """A flashcard with its book, chapter and source, as review shows it.
+
+    ``chapter_name`` is the flashcard's own chapter, else its highlight's.
+    """
+
+    book_title: str
+    chapter_name: str | None
+    highlight_text: str | None
+    note_title: str | None
+    review_state: ReviewState | None
+
+
+@dataclass(frozen=True)
+class FlashcardInContextPageView:
+    """One page of the queue before previews, plus the length of the whole queue."""
+
+    flashcards: tuple[FlashcardInContextView, ...]
+    total: int
 
 
 @dataclass(frozen=True)
