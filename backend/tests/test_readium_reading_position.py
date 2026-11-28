@@ -11,7 +11,7 @@ the server's clock, so two writes a test means to be apart have to be apart.
 from collections.abc import Iterator
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
-from typing import Any
+from typing import Any, TypedDict, Unpack
 
 import pytest
 from httpx import AsyncClient, Response
@@ -31,6 +31,7 @@ from src.infrastructure.web_reader.services.publication_token_service import (
 from src.main import app
 from tests.conftest import create_test_book
 from tests.readium_helpers import another_users_book, fixture_bytes, present
+from tests.test_locator_ingest import MINIMAL_EPUB_DIGEST
 from tests.test_readium_manifest import store_epub
 
 CH1_HREF = "resources/OEBPS/chapter1.xhtml"
@@ -118,11 +119,13 @@ async def write(
     recorded_at: datetime | None = None,
     closing: bool = False,
     opening: bool = False,
+    page_views: list[dict[str, Any]] | None = None,
 ) -> Response:
     return await client.put(
         url(book.id),
         json={
             "locator": body,
+            "page_views": page_views or [],
             "recorded_at": (recorded_at or START).isoformat(),
             "opening": opening,
             "closing": closing,
@@ -130,15 +133,17 @@ async def write(
     )
 
 
+class WriteOptions(TypedDict, total=False):
+    recorded_at: datetime | None
+    closing: bool
+    opening: bool
+    page_views: list[dict[str, Any]] | None
+
+
 async def accepted(
-    client: AsyncClient,
-    book: models.Book,
-    body: dict[str, Any],
-    recorded_at: datetime | None = None,
-    closing: bool = False,
-    opening: bool = False,
+    client: AsyncClient, book: models.Book, body: dict[str, Any], **options: Unpack[WriteOptions]
 ) -> dict[str, Any]:
-    response = await write(client, book, body, recorded_at, closing, opening)
+    response = await write(client, book, body, **options)
     assert response.status_code == status.HTTP_200_OK, response.text
     return response.json()
 
@@ -593,7 +598,7 @@ async def test_a_non_finite_progression_is_read_as_no_progression(
         url(readable_book.id),
         content=(
             '{"locator": {"href": "' + CH1_HREF + '", "type": "' + MEDIA_TYPE + '",'
-            ' "locations": {"progression": NaN}, "text": {}},'
+            ' "locations": {"progression": NaN}, "text": {}}, "page_views": [],'
             ' "recorded_at": "' + START.isoformat() + '", "closing": false}'
         ),
         headers={"content-type": "application/json"},
@@ -621,3 +626,239 @@ async def test_a_page_off_the_position_list_costs_the_label_not_the_reading(
     session = (await stored_sessions(db_session, readable_book))[0]
     assert session.start_page is None
     assert session.end_page is None
+
+
+# Page Views ride on the same write (#1032): the first and last words on screen as
+# quotes, and the time as an offset back from the moment the write arrives.
+FIRST_WORDS = "She wrote"
+LAST_WORDS = "until morning."
+
+
+def page_view(
+    shown_ms_before_send: int,
+    duration_ms: int,
+    start: dict[str, Any] | None = None,
+    end: dict[str, Any] | None = None,
+) -> dict[str, Any]:
+    return {
+        "start": start or locator(CH1_HREF, quote=FIRST_WORDS),
+        "end": end or locator(CH1_HREF, quote=LAST_WORDS),
+        "shown_ms_before_send": shown_ms_before_send,
+        "duration_ms": duration_ms,
+    }
+
+
+async def send(
+    client: AsyncClient,
+    book: models.Book,
+    clock: Clock,
+    page_views: list[dict[str, Any]],
+    body: dict[str, Any] | None = None,
+    closing: bool = False,
+) -> dict[str, Any]:
+    return await accepted(
+        client,
+        book,
+        body or locator(CH2_HREF, quote=CH2_QUOTE),
+        recorded_at=clock.now,
+        closing=closing,
+        page_views=page_views,
+    )
+
+
+async def stored_page_views(db_session: AsyncSession) -> list[models.PageView]:
+    rows = await db_session.execute(
+        select(models.PageView)
+        .order_by(models.PageView.shown_at)
+        .execution_options(populate_existing=True)
+    )
+    return list(rows.scalars().all())
+
+
+def shown_at(page_view: models.PageView) -> datetime:
+    return page_view.shown_at.replace(tzinfo=UTC)
+
+
+async def opened(client: AsyncClient, book: models.Book, body: dict[str, Any]) -> None:
+    await accepted(client, book, body, recorded_at=START, opening=True)
+
+
+@pytest.fixture
+async def a_minute_in(client: AsyncClient, readable_book: models.Book, clock: Clock) -> models.Book:
+    """The book opened at chapter one at ``START``, and read for a minute since."""
+    await opened(client, readable_book, locator(CH1_HREF, quote=CH1_QUOTE))
+    clock.advance(60)
+    return readable_book
+
+
+async def test_a_batch_is_stored_on_the_session_the_write_extends(
+    client: AsyncClient, db_session: AsyncSession, a_minute_in: models.Book, clock: Clock
+) -> None:
+    await send(client, a_minute_in, clock, [page_view(50_000, 40_000)])
+
+    [session] = await stored_sessions(db_session, a_minute_in)
+    [stored] = await stored_page_views(db_session)
+    assert stored.reading_session_id == session.id
+    assert (stored.start_xpoint, stored.end_xpoint) == (
+        "/body/DocFragment[1]/body/div[1]/p[2]/text().0",
+        "/body/DocFragment[1]/body/div[1]/p[4]/text().46",
+    )
+    assert (stored.start_position, stored.end_position) == ([7, 0], [10, 46])
+    assert (stored.start_offset, stored.end_offset) == (44, 182)
+    assert shown_at(stored) == START + timedelta(seconds=10)
+    assert stored.duration_ms == 40_000
+    assert stored.position_source_hash == MINIMAL_EPUB_DIGEST
+
+
+async def test_an_overtaken_write_adds_its_batch_to_the_stored_positions_session(
+    client: AsyncClient, db_session: AsyncSession, a_minute_in: models.Book, clock: Clock
+) -> None:
+    await send(client, a_minute_in, clock, [])
+
+    body = await send(
+        client,
+        a_minute_in,
+        clock,
+        [page_view(30_000, 20_000)],
+        body=locator(CH1_HREF, quote=CH1_QUOTE),
+    )
+
+    assert body["position"]["index"] == 16
+    [session] = await stored_sessions(db_session, a_minute_in)
+    [stored] = await stored_page_views(db_session)
+    assert stored.reading_session_id == session.id
+    assert shown_at(stored) == START + timedelta(seconds=30)
+    assert session.end_position == [16, 0]
+
+
+async def test_an_overtaken_write_drops_its_batch_when_no_session_is_open(
+    client: AsyncClient, db_session: AsyncSession, readable_book: models.Book, clock: Clock
+) -> None:
+    await opened(client, readable_book, locator(CH1_HREF, quote=CH1_QUOTE))
+    clock.advance(MINIMUM_SESSION_SECONDS)
+    await send(client, readable_book, clock, [], closing=True)
+
+    await send(client, readable_book, clock, [page_view(30_000, 20_000)])
+
+    assert len(await stored_sessions(db_session, readable_book)) == 1
+    assert await stored_page_views(db_session) == []
+
+
+async def test_a_jump_back_gives_the_batch_to_the_sitting_it_ends(
+    client: AsyncClient, db_session: AsyncSession, readable_book: models.Book, clock: Clock
+) -> None:
+    await opened(client, readable_book, locator(CH2_HREF, quote=CH2_QUOTE))
+    clock.advance(60)
+
+    await send(
+        client,
+        readable_book,
+        clock,
+        [page_view(30_000, 20_000)],
+        body=locator(CH1_HREF, quote=CH1_QUOTE),
+    )
+
+    old, new = await stored_sessions(db_session, readable_book)
+    assert as_aware(old.end_time) == clock.now
+    assert [p.reading_session_id for p in await stored_page_views(db_session)] == [old.id]
+    assert new.id != old.id
+
+
+async def test_after_an_idle_gap_each_page_view_goes_to_the_sitting_it_fits(
+    client: AsyncClient, db_session: AsyncSession, a_minute_in: models.Book, clock: Clock
+) -> None:
+    await send(client, a_minute_in, clock, [])
+    clock.advance(IDLE_SECONDS + 1)
+    since_start = (clock.now - START) // timedelta(milliseconds=1)
+
+    await send(
+        client,
+        a_minute_in,
+        clock,
+        [
+            page_view(since_start - 10_000, 20_000),
+            page_view(600_000, 60_000),
+            page_view(1_000, 500),
+        ],
+    )
+
+    old, new = await stored_sessions(db_session, a_minute_in)
+    assert as_aware(old.end_time) == START + timedelta(seconds=60)
+    assert [(p.reading_session_id, p.duration_ms) for p in await stored_page_views(db_session)] == [
+        (old.id, 20_000),
+        (new.id, 500),
+    ]
+
+
+async def test_a_page_view_without_a_firm_anchor_at_both_ends_is_dropped(
+    client: AsyncClient, db_session: AsyncSession, a_minute_in: models.Book, clock: Clock
+) -> None:
+    body = await send(
+        client,
+        a_minute_in,
+        clock,
+        [
+            page_view(50_000, 1_000, start=locator(CH1_HREF, quote=THE_SAME_TWICE)),
+            page_view(50_000, 2_000, end=locator(CH1_HREF, quote="moved until evening.")),
+            page_view(50_000, 3_000, end=locator(CH1_HREF, progression=0.9)),
+            page_view(50_000, 4_000, start=locator("resources/OEBPS/chapter9.xhtml", quote="x")),
+            page_view(50_000, 5_000, start=locator(CH1_HREF, selector=CH1_SELECTOR)),
+        ],
+    )
+
+    assert body["position"]["index"] == 16
+    [stored] = await stored_page_views(db_session)
+    assert stored.duration_ms == 5_000
+    assert stored.start_position == [10, 0]
+
+
+async def test_a_write_without_page_views_is_refused(
+    client: AsyncClient, db_session: AsyncSession, readable_book: models.Book, clock: Clock
+) -> None:
+    response = await client.put(
+        url(readable_book.id),
+        json={"locator": locator(CH1_HREF, quote=CH1_QUOTE), "recorded_at": START.isoformat()},
+    )
+
+    assert response.status_code == status.HTTP_422_UNPROCESSABLE_ENTITY, response.text
+    assert await stored_sessions(db_session, readable_book) == []
+
+
+@pytest.mark.parametrize(
+    ("lasted", "kept"), [(MINIMUM_SESSION_SECONDS - 1, 0), (MINIMUM_SESSION_SECONDS, 1)]
+)
+async def test_a_closing_write_keeps_its_page_views_only_if_it_keeps_the_session(
+    client: AsyncClient,
+    db_session: AsyncSession,
+    readable_book: models.Book,
+    clock: Clock,
+    lasted: int,
+    kept: int,
+) -> None:
+    await opened(client, readable_book, locator(CH1_HREF, quote=CH1_QUOTE))
+    clock.advance(lasted)
+
+    await send(client, readable_book, clock, [page_view(lasted * 1000, 1_000)], closing=True)
+
+    assert len(await stored_sessions(db_session, readable_book)) == kept
+    assert len(await stored_page_views(db_session)) == kept
+
+
+async def test_page_views_with_impossible_times_are_dropped(
+    client: AsyncClient, db_session: AsyncSession, a_minute_in: models.Book, clock: Clock
+) -> None:
+    await send(
+        client,
+        a_minute_in,
+        clock,
+        [
+            page_view(-1_000, 500),
+            page_view(30_000, -500),
+            page_view(10**14, 500),
+            page_view(10**18, 500),
+            page_view(30_000, 10**18),
+            page_view(30_000, 20_000),
+        ],
+    )
+
+    assert [p.duration_ms for p in await stored_page_views(db_session)] == [20_000]

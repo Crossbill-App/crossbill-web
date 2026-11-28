@@ -74,6 +74,14 @@ class XPointCfiPositionAnchorService:
         """Resolve one browser-made Locator back to the canonical coordinates."""
         return await asyncio.to_thread(_resolved, epub_content, locator)
 
+    async def xpoint_ranges_for_locators[K: Hashable](
+        self, epub_content: bytes, locators: Mapping[K, Locator]
+    ) -> dict[K, AnchorMatch | None]:
+        """Resolve many browser-made Locators against one parse, ``None`` where one does not place."""
+        if not locators:
+            return {}
+        return await asyncio.to_thread(_all_resolved, epub_content, locators)
+
     def verify_locator(self, locator: Locator, expected_text: str) -> bool:
         """Report whether a Locator's quote is the text that was stored."""
         normalize = xpoint_cfi.normalize_for_comparison
@@ -105,7 +113,25 @@ def _converted[K: Hashable, P](
 
 
 def _resolved(epub_content: bytes, locator: Locator) -> AnchorMatch:
+    return _resolved_in(_parsed(epub_content), locator)
+
+
+def _all_resolved[K: Hashable](
+    epub_content: bytes, locators: Mapping[K, Locator]
+) -> dict[K, AnchorMatch | None]:
     book = _parsed(epub_content)
+
+    resolved: dict[K, AnchorMatch | None] = {}
+    for key, locator in locators.items():
+        try:
+            resolved[key] = _resolved_in(book, locator)
+        except AnchorResolutionError as exc:
+            logger.info("unresolvable_anchor", anchor_key=key, reason=str(exc))
+            resolved[key] = None
+    return resolved
+
+
+def _resolved_in(book: xpoint_cfi.EpubMap, locator: Locator) -> AnchorMatch:
     try:
         anchored, source = _anchored(book, locator)
         match = xpoint_cfi.locator_to_xpoint_range(book, _to_library_locator(anchored))

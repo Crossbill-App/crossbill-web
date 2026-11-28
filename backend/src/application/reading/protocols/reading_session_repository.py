@@ -33,12 +33,17 @@ class ReadingSessionRepositoryProtocol(Protocol):
     async def save(self, session: ReadingSession) -> ReadingSession:
         """Insert a session, or update the one it already is.
 
-        Returns the session with its real id, which the caller must use: the one
-        passed in keeps the placeholder, and saving that again inserts a second row.
+        Inserts its new Page Views in the same commit. Returns the session with its
+        real id, which the caller must use: the one passed in keeps the placeholder
+        and its Page Views, and saving that again inserts both a second time.
 
         Raises:
             ReadingSessionNotFoundError: If the session names a row that is gone.
         """
+        ...
+
+    async def add_page_views(self, session: ReadingSession) -> None:
+        """Insert the session's new Page Views, leaving the stored session row as it is."""
         ...
 
     async def delete(self, session_id: ReadingSessionId, user_id: UserId) -> None:

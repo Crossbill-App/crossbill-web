@@ -9403,6 +9403,37 @@
         "title": "PageViewSyncItem",
         "description": "Schema for one Page View of a synced reading session."
       },
+      "PageViewUpdate": {
+        "properties": {
+          "start": {
+            "$ref": "#/components/schemas/BrowserLocatorSchema",
+            "description": "A quote of the first words on screen, with their cssSelector"
+          },
+          "end": {
+            "$ref": "#/components/schemas/BrowserLocatorSchema",
+            "description": "A quote of the last words on screen, with their cssSelector"
+          },
+          "shown_ms_before_send": {
+            "type": "integer",
+            "title": "Shown Ms Before Send",
+            "description": "How long before this request was sent the screen appeared"
+          },
+          "duration_ms": {
+            "type": "integer",
+            "title": "Duration Ms",
+            "description": "Time on screen, not counting time hidden"
+          }
+        },
+        "type": "object",
+        "required": [
+          "start",
+          "end",
+          "shown_ms_before_send",
+          "duration_ms"
+        ],
+        "title": "PageViewUpdate",
+        "description": "One screen the reader saw since the last accepted write (ADR-0004, Amendment 9)."
+      },
       "PaginatedResponse_BookWithHighlightCount_": {
         "properties": {
           "items": {
@@ -9599,6 +9630,14 @@
             "$ref": "#/components/schemas/BrowserLocatorSchema",
             "description": "Where the reader now is"
           },
+          "page_views": {
+            "items": {
+              "$ref": "#/components/schemas/PageViewUpdate"
+            },
+            "type": "array",
+            "title": "Page Views",
+            "description": "The screens seen since the last accepted write, possibly none. One that cannot be placed or does not fit the reading session is dropped."
+          },
           "recorded_at": {
             "type": "string",
             "format": "date-time",
@@ -9621,6 +9660,7 @@
         "type": "object",
         "required": [
           "locator",
+          "page_views",
           "recorded_at"
         ],
         "title": "ReadingPositionUpdate",

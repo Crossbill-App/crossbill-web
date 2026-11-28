@@ -13,11 +13,13 @@ from src.application.library.protocols.book_repository import BookRepositoryProt
 from src.application.library.protocols.chapter_repository import ChapterRepositoryProtocol
 from src.application.library.protocols.file_repository import FileRepositoryProtocol
 from src.application.library.protocols.position_index_service import PositionIndexServiceProtocol
+from src.application.reading.page_view_placement import place_page_view
 from src.application.reading.protocols.reading_session_repository import (
     ReadingSessionRepositoryProtocol,
 )
 from src.application.web_reader.anchors import (
     AnchorConfidence,
+    AnchorMatch,
     AnchorNotFoundError,
     AnchorResolutionError,
     AnchorSource,
@@ -35,10 +37,12 @@ from src.domain.common.devices import WEB_READER_DEVICE_ID
 from src.domain.common.time import as_aware
 from src.domain.common.value_objects import BookId, ReadingSessionId, UserId, XPoint, XPointRange
 from src.domain.common.value_objects.position import Position
+from src.domain.common.value_objects.position_index import PositionIndex
 from src.domain.library.entities.book import Book
 from src.domain.library.exceptions import EbookFileNotFoundError
 from src.domain.reading.entities.reading_session import ReadingSession
 from src.domain.reading.exceptions import BookNotFoundError, ReadingSessionNotFoundError
+from src.domain.reading.value_objects.page_view import PageView
 from src.domain.web_reader.entities.web_reading_position import WebReadingPosition
 from src.domain.web_reader.exceptions import BookFileUnreadableError, UnresolvablePositionError
 
@@ -71,6 +75,24 @@ MINIMUM_CONFIDENCE = {
 # the longest chapter.
 SAME_SITTING_BACKWARD_FRACTION = 0.25
 
+# A Page View is counted in characters, which a progression only approximates
+# (ADR-0004, Amendment 9).
+PAGE_VIEW_ANCHORS = {AnchorSource.QUOTE, AnchorSource.ELEMENT}
+
+
+@dataclass(frozen=True)
+class PageViewReport:
+    """One screen the Web Reader showed, as it reports it: the text at either edge, and when."""
+
+    start: Locator
+    end: Locator
+    shown_ms_before_send: int
+    duration_ms: int
+
+
+class _UnplaceablePageViewError(Exception):
+    pass
+
 
 @dataclass(frozen=True)
 class _Reached:
@@ -80,6 +102,62 @@ class _Reached:
     locator: Locator
     position: Position | None
     page: int | None
+
+
+def _firmly_anchored(match: AnchorMatch | None) -> AnchorMatch:
+    if match is None:
+        raise _UnplaceablePageViewError("not_in_book")
+    if match.anchored_by not in PAGE_VIEW_ANCHORS:
+        raise _UnplaceablePageViewError(f"anchored_by_{match.anchored_by.value}")
+    if match.confidence < MINIMUM_CONFIDENCE[match.anchored_by]:
+        raise _UnplaceablePageViewError("weak_anchor")
+    return match
+
+
+def _page_view(
+    report: PageViewReport,
+    start: AnchorMatch | None,
+    end: AnchorMatch | None,
+    position_index: PositionIndex,
+    source_hash: str,
+    now: datetime,
+) -> PageView:
+    first_words = _firmly_anchored(start).xpoints.start
+    last_words = _firmly_anchored(end).xpoints.end
+    if report.shown_ms_before_send < 0 or report.duration_ms < 0:
+        raise _UnplaceablePageViewError("negative_time")
+    try:
+        shown_at = now - timedelta(milliseconds=report.shown_ms_before_send)
+        duration = timedelta(milliseconds=report.duration_ms)
+    except OverflowError as exc:
+        raise _UnplaceablePageViewError("time_out_of_range") from exc
+    page_view = place_page_view(
+        position_index,
+        first_words.to_string(),
+        last_words.to_string(),
+        source_hash,
+        shown_at=shown_at,
+        duration=duration,
+    )
+    if page_view is None:
+        raise _UnplaceablePageViewError("not_in_position_index")
+    return page_view
+
+
+def _drop_unfitted(book_id: BookId, page_views: list[PageView]) -> None:
+    for page_view in page_views:
+        logger.warning(
+            "dropping_page_view",
+            book_id=book_id.value,
+            reason="outside_session",
+            shown_at=page_view.shown_at,
+        )
+
+
+def _record_page_views(
+    book_id: BookId, session: ReadingSession, page_views: list[PageView]
+) -> None:
+    _drop_unfitted(book_id, session.record_page_views(page_views))
 
 
 def _has_restarted(session: ReadingSession, book: Book, position: Position | None) -> bool:
@@ -96,6 +174,23 @@ def _has_restarted(session: ReadingSession, book: Book, position: Position | Non
         return False
     jumped_back = session.end_position.index - position.index
     return jumped_back > length * SAME_SITTING_BACKWARD_FRACTION
+
+
+def _begun_at(book_id: BookId, user_id: UserId, now: datetime, reached: _Reached) -> ReadingSession:
+    return ReadingSession.create(
+        user_id=user_id,
+        book_id=book_id,
+        start_time=now,
+        end_time=now,
+        # Seeded here or never: a session that opened without a range can never be
+        # given one.
+        start_xpoint=XPointRange(start=reached.xpoint, end=reached.xpoint),
+        start_position=reached.position,
+        end_position=reached.position,
+        start_page=reached.page,
+        end_page=reached.page,
+        device_id=WEB_READER_DEVICE_ID,
+    )
 
 
 class SaveReadingPositionUseCase:
@@ -143,6 +238,7 @@ class SaveReadingPositionUseCase:
         stored_locator: Mapping[str, Any],
         recorded_at: datetime,
         now: datetime,
+        page_views: list[PageViewReport],
         page: int | None = None,
         opening: bool = False,
         closing: bool = False,
@@ -171,6 +267,8 @@ class SaveReadingPositionUseCase:
             now: The server's clock, read once at the edge. Decides which of two
                 writes is later, and is the only clock a reading session is measured
                 on, so no client can be credited with time it did not spend.
+            page_views: The screens shown since the last accepted write. Each goes to
+                the session it fits, and one that cannot be placed is dropped.
             page: The synthetic page the reader is shown, if their navigator counts
                 one; what the sitting's page range is labelled with.
             opening: Whether the book has just been opened at this position. Starts a
@@ -196,7 +294,11 @@ class SaveReadingPositionUseCase:
 
         source_hash = epub_content_hash(epub_content)
         xpoint = await self._canonical_position(book.id, epub_content, locator)
-        position = await self._resolve_position(book, epub_content, xpoint)
+        position_index = await self._position_index(book, epub_content)
+        position = position_index.resolve(xpoint.to_string())
+        placed = await self._placed_page_views(
+            book.id, epub_content, position_index, source_hash, now, page_views
+        )
 
         recorded = await self.position_repository.record(
             WebReadingPosition.create(
@@ -213,10 +315,12 @@ class SaveReadingPositionUseCase:
         if recorded is None:
             # Overtaken, and so answered with what is stored rather than refused: the
             # write a closing tab sends and the one a page turn sends race by design.
-            # Nothing was written, and no reading session was touched.
+            # Its Page Views still go to the session the stored position points at,
+            # which is otherwise left alone.
             stored = await self.position_repository.find_for_book(book.id, user)
             if stored is None:
                 raise UnresolvablePositionError("the position was overtaken and then removed")
+            await self._add_to_stored_session(book.id, user, stored.reading_session_id, placed)
             return stored
 
         # Only a write that moved the position says anything about *where* the reader
@@ -233,6 +337,7 @@ class SaveReadingPositionUseCase:
             was_open=None if opening else recorded.position.reading_session_id,
             now=now,
             reached=reached,
+            page_views=placed,
         )
         session_id = await self._store_session(session, closing, reached, source_hash)
         await self.position_repository.attach_session(
@@ -275,10 +380,8 @@ class SaveReadingPositionUseCase:
             )
         return match.xpoints.start
 
-    async def _resolve_position(
-        self, book: Book, epub_content: bytes, xpoint: XPoint
-    ) -> Position | None:
-        """Place the xpointer in document order, learning the book's length on the way.
+    async def _position_index(self, book: Book, epub_content: bytes) -> PositionIndex:
+        """Index the book in document order, learning its length on the way.
 
         Progress is a fraction of that length, and a book uploaded before the column
         existed has none; the KOReader upload path backfills it for the same reason.
@@ -289,7 +392,73 @@ class SaveReadingPositionUseCase:
             self.position_index_service.build_position_index, epub_content
         )
         await backfill_book_length(book, index, self.book_repository, self.chapter_repository)
-        return index.resolve(xpoint.to_string())
+        return index
+
+    async def _placed_page_views(
+        self,
+        book_id: BookId,
+        epub_content: bytes,
+        position_index: PositionIndex,
+        source_hash: str,
+        now: datetime,
+        reports: list[PageViewReport],
+    ) -> list[PageView]:
+        if not reports:
+            return []
+        edges: dict[tuple[int, str], Locator] = {}
+        for n, report in enumerate(reports):
+            edges[(n, "start")] = report.start
+            edges[(n, "end")] = report.end
+        try:
+            matches = await self.position_anchor_service.xpoint_ranges_for_locators(
+                epub_content, edges
+            )
+        except AnchorResolutionError as exc:
+            logger.warning(
+                "dropping_page_views", book_id=book_id.value, count=len(reports), reason=str(exc)
+            )
+            return []
+        placed: list[PageView] = []
+        for n, report in enumerate(reports):
+            try:
+                placed.append(
+                    _page_view(
+                        report,
+                        matches[(n, "start")],
+                        matches[(n, "end")],
+                        position_index,
+                        source_hash,
+                        now,
+                    )
+                )
+            except _UnplaceablePageViewError as exc:
+                logger.warning("dropping_page_view", book_id=book_id.value, reason=str(exc))
+        return placed
+
+    async def _add_to_stored_session(
+        self,
+        book_id: BookId,
+        user_id: UserId,
+        session_id: ReadingSessionId | None,
+        page_views: list[PageView],
+    ) -> None:
+        if not page_views:
+            return
+        session = (
+            await self.session_repository.find_by_id(session_id, user_id)
+            if session_id is not None
+            else None
+        )
+        if session is None:
+            logger.warning(
+                "dropping_page_views",
+                book_id=book_id.value,
+                count=len(page_views),
+                reason="no_session",
+            )
+            return
+        _record_page_views(book_id, session, page_views)
+        await self.session_repository.add_page_views(session)
 
     async def _continue_session(
         self,
@@ -298,45 +467,45 @@ class SaveReadingPositionUseCase:
         was_open: ReadingSessionId | None,
         now: datetime,
         reached: _Reached | None,
+        page_views: list[PageView],
     ) -> ReadingSession | None:
         """The sitting this position belongs to, extended to it or begun at it.
 
-        A jump back saves the sitting it leaves, extended to the jump, before beginning
-        the next. ``None`` when there is nothing to record: a write that moved no position and
-        found no sitting open is a tab closing on a page another tab has long since
-        left, and a sitting of its own would be a fiction.
+        A jump back saves the sitting it leaves, extended to the jump and holding the
+        write's Page Views, before beginning the next. After an idle gap the old sitting
+        keeps the Page Views that fit it, unextended. ``None`` when there is nothing to
+        record: a write that moved no position and found no sitting open is a tab
+        closing on a page another tab has long since left, and a sitting of its own
+        would be a fiction.
         """
-        session = await self._open_session(was_open, user_id, now)
-        if session is not None:
+        leftovers = page_views
+        last = await self._last_session(was_open, user_id)
+        if last is not None and not self._has_gone_idle(last, now):
             position = reached.position if reached else None
-            if not _has_restarted(session, book, position):
-                session.extend_to(
+            if not _has_restarted(last, book, position):
+                last.extend_to(
                     now,
                     xpoint=reached.xpoint if reached else None,
                     position=position,
                     page=reached.page if reached else None,
                 )
-                return session
+                _record_page_views(book.id, last, page_views)
+                return last
             # The old sitting ran until the jump, but did not reach where it landed.
-            session.extend_to(now)
-            await self._save_if_still_there(session)
+            last.extend_to(now)
+            _record_page_views(book.id, last, page_views)
+            await self._save_if_still_there(last)
+            leftovers = []
+        elif last is not None:
+            leftovers = last.record_page_views(page_views)
+            await self.session_repository.add_page_views(last)
 
         if reached is None:
+            _drop_unfitted(book.id, leftovers)
             return None
-        return ReadingSession.create(
-            user_id=user_id,
-            book_id=book.id,
-            start_time=now,
-            end_time=now,
-            # Seeded here or never: a session that opened without a range can never be
-            # given one.
-            start_xpoint=XPointRange(start=reached.xpoint, end=reached.xpoint),
-            start_position=reached.position,
-            end_position=reached.position,
-            start_page=reached.page,
-            end_page=reached.page,
-            device_id=WEB_READER_DEVICE_ID,
-        )
+        session = _begun_at(book.id, user_id, now, reached)
+        _record_page_views(book.id, session, leftovers)
+        return session
 
     async def _store_session(
         self,
@@ -374,23 +543,21 @@ class SaveReadingPositionUseCase:
         except ReadingSessionNotFoundError:
             return None
 
-    async def _open_session(
-        self, was_open: ReadingSessionId | None, user_id: UserId, now: datetime
+    async def _last_session(
+        self, was_open: ReadingSessionId | None, user_id: UserId
     ) -> ReadingSession | None:
-        """The session this write may continue, if there is still one to continue.
+        """The session the stored position still points at, if it has not been deleted.
 
-        ``None`` when the reader has never read this book here, when they closed it
-        last time, when the session has since been deleted, or when nothing has been
-        heard for long enough that this is a new sitting.
-
-        The gap is measured from the session's own end rather than from the stored
-        position, so a session is judged on when it was really last extended.
+        ``None`` when the reader has never read this book here, or closed it last time.
         """
         if was_open is None:
             return None
-        session = await self.session_repository.find_by_id(was_open, user_id)
-        if session is None:
-            return None
-        if (now - as_aware(session.end_time)).total_seconds() > self.idle_seconds:
-            return None
-        return session
+        return await self.session_repository.find_by_id(was_open, user_id)
+
+    def _has_gone_idle(self, session: ReadingSession, now: datetime) -> bool:
+        """Whether nothing has been heard for long enough that this is a new sitting.
+
+        Measured from the session's own end rather than from the stored position, so a
+        session is judged on when it was really last extended.
+        """
+        return (now - as_aware(session.end_time)).total_seconds() > self.idle_seconds

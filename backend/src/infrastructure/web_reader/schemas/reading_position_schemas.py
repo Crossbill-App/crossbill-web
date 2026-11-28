@@ -99,10 +99,32 @@ class BrowserLocatorSchema(BaseModel):
     text: BrowserLocatorTextSchema = BrowserLocatorTextSchema()
 
 
+class PageViewUpdate(BaseModel):
+    """One screen the reader saw since the last accepted write (ADR-0004, Amendment 9)."""
+
+    start: BrowserLocatorSchema = Field(
+        ..., description="A quote of the first words on screen, with their cssSelector"
+    )
+    end: BrowserLocatorSchema = Field(
+        ..., description="A quote of the last words on screen, with their cssSelector"
+    )
+    shown_ms_before_send: int = Field(
+        ..., description="How long before this request was sent the screen appeared"
+    )
+    duration_ms: int = Field(..., description="Time on screen, not counting time hidden")
+
+
 class ReadingPositionUpdate(BaseModel):
     """What the reader sends when they open the book, move, or leave it."""
 
     locator: BrowserLocatorSchema = Field(..., description="Where the reader now is")
+    page_views: list[PageViewUpdate] = Field(
+        ...,
+        description=(
+            "The screens seen since the last accepted write, possibly none. One that "
+            "cannot be placed or does not fit the reading session is dropped."
+        ),
+    )
     recorded_at: dt = Field(
         ...,
         description=(

@@ -206,8 +206,26 @@ class ReadingSessionRepository:
             # dropped -- and a rewritten one no longer de-duplicates against anything.
             orm.content_hash = identity
 
+        if session.new_page_views:
+            await self.db.flush()
+            await self._insert_page_views(orm.id, session)
         await self.db.commit()
         return self.mapper.to_domain(orm)
+
+    async def add_page_views(self, session: ReadingSession) -> None:
+        """Insert the session's new Page Views, leaving the stored session row as it is."""
+        if session.new_page_views:
+            await self._insert_page_views(session.id.value, session)
+            await self.db.commit()
+
+    async def _insert_page_views(self, reading_session_id: int, session: ReadingSession) -> None:
+        await self.db.execute(
+            insert(PageViewORM),
+            [
+                self.mapper.page_view_values(reading_session_id, page_view)
+                for page_view in session.new_page_views
+            ],
+        )
 
     async def delete(self, session_id: ReadingSessionId, user_id: UserId) -> None:
         """Delete one of the user's sessions; its Page Views go with it by cascade."""
