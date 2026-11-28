@@ -17,25 +17,25 @@ interface HighlightContentProps {
   actions?: ReactNode;
 }
 
-export const HighlightContent = ({
-  highlight,
-  onLabelClick,
-  labelRef,
-  actions,
-}: HighlightContentProps) => {
-  const { t } = useTranslation();
-  const startsWithLowercase =
-    highlight.text.length > 0 &&
-    highlight.text[0] === highlight.text[0].toLowerCase() &&
-    highlight.text[0] !== highlight.text[0].toUpperCase();
+const startsMidSentence = (text: string) =>
+  text.length > 0 && text[0] === text[0].toLowerCase() && text[0] !== text[0].toUpperCase();
 
-  const renderHighlightText = () => {
-    const prefix = startsWithLowercase ? '...' : '';
-    // Split by newlines and filter out empty strings
-    const paragraphs = highlight.text.split('\n').filter((p) => p.trim() !== '');
+export const HighlightQuote = ({ text }: { text: string }) => {
+  const prefix = startsMidSentence(text) ? '...' : '';
+  const paragraphs = text.split('\n').filter((p) => p.trim() !== '');
 
-    return (
-      <>
+  return (
+    <Box sx={{ display: 'flex', alignItems: 'start', gap: 2 }}>
+      <HighlightsIcon
+        sx={{
+          fontSize: ICON_SIZE.prominent,
+          color: 'primary.main',
+          flexShrink: 0,
+          mt: 0.5,
+          opacity: 0.7,
+        }}
+      />
+      <Box sx={{ flex: 1 }}>
         {paragraphs.map((paragraph, index) => (
           <Typography
             key={index}
@@ -52,9 +52,18 @@ export const HighlightContent = ({
             {index === 0 ? prefix + paragraph : paragraph}
           </Typography>
         ))}
-      </>
-    );
-  };
+      </Box>
+    </Box>
+  );
+};
+
+export const HighlightContent = ({
+  highlight,
+  onLabelClick,
+  labelRef,
+  actions,
+}: HighlightContentProps) => {
+  const { t } = useTranslation();
 
   return (
     <Box
@@ -65,19 +74,7 @@ export const HighlightContent = ({
         flex: 1,
       }}
     >
-      {/* Highlight Text */}
-      <Box sx={{ display: 'flex', alignItems: 'start', gap: 2 }}>
-        <HighlightsIcon
-          sx={{
-            fontSize: ICON_SIZE.prominent,
-            color: 'primary.main',
-            flexShrink: 0,
-            mt: 0.5,
-            opacity: 0.7,
-          }}
-        />
-        <Box sx={{ flex: 1 }}>{renderHighlightText()}</Box>
-      </Box>
+      <HighlightQuote text={highlight.text} />
 
       <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 2 }}>
         <Box sx={{ display: 'flex', gap: 2, alignItems: 'center', opacity: 0.8 }}>
