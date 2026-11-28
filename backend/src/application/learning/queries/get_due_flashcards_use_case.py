@@ -31,7 +31,7 @@ class GetDueFlashcardsUseCase:
             BookNotFoundError: If a book is given and the user has no such book.
         """
         user_id_vo = UserId(user_id)
-        book_id_vo = BookId(book_id) if book_id is not None else None
+        book_id_vo = None if book_id is None else BookId(book_id)
         if book_id_vo is not None:
             await require_book(self.book_repository, book_id_vo, user_id_vo)
         return await self.due_flashcard_query.list_due(user_id_vo, now, book_id_vo, limit, offset)
