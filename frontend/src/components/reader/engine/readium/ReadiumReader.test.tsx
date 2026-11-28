@@ -1205,9 +1205,7 @@ const lastWordOf = (location: EbookLocation | undefined) =>
   location?.text?.highlight?.split(' ').pop();
 
 test('a screen is reported by the first and the last words on it', async () => {
-  worker.use(...readiumApi({ counting: true }));
-  const screens = recordScreens();
-  await openTheBook();
+  const screens = await theScreensOfAnOpenBook();
 
   await reader.next();
 
@@ -1217,12 +1215,8 @@ test('a screen is reported by the first and the last words on it', async () => {
 });
 
 test('the first screen of a chapter starts at its heading', async () => {
-  worker.use(...readiumApi({ counting: true }));
-  const screens = recordScreens();
+  const screens = await theScreensOfAnOpenBook();
 
-  await openTheBook();
-
-  await expect.poll(() => screens.length).toBeGreaterThan(0);
   expect(last(screens)?.start.text?.highlight).toMatch(/^On Counting word1 /);
   expect(lastWordOf(last(screens)?.end)).toBe(last(wordsOnScreen()));
 });
@@ -1302,9 +1296,7 @@ test('a page colour changes no screen', async () => {
 });
 
 test('the last page of a chapter ends at its last word', async () => {
-  worker.use(...readiumApi({ counting: true }));
-  const screens = recordScreens();
-  await openTheBook();
+  const screens = await theScreensOfAnOpenBook();
 
   await reader.goTo({ ...aPositionList().positions[0], locations: { progression: 1 } });
 
