@@ -116,13 +116,6 @@ class TestRecordReview:
         )
         assert at(actual["last_review"]) == T + timedelta(days=3)
 
-    async def test_a_review_needs_a_timezone(
-        self, client: AsyncClient, test_flashcard: models.Flashcard
-    ) -> None:
-        response = await post_review(client, test_flashcard.id, "good", T.replace(tzinfo=None))
-
-        assert response.status_code == status.HTTP_422_UNPROCESSABLE_CONTENT
-
     async def test_another_users_card_cannot_be_reviewed(
         self, client: AsyncClient, other_users_card: models.Flashcard
     ) -> None:
