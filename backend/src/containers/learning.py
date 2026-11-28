@@ -21,6 +21,9 @@ from src.application.learning.commands.flashcards.delete_flashcard_use_case impo
 from src.application.learning.commands.flashcards.record_flashcard_review_use_case import (
     RecordFlashcardReviewUseCase,
 )
+from src.application.learning.commands.flashcards.set_flashcard_status_use_case import (
+    SetFlashcardStatusUseCase,
+)
 from src.application.learning.commands.flashcards.update_flashcard_use_case import (
     UpdateFlashcardUseCase,
 )
@@ -98,6 +101,10 @@ class LearningContainer(containers.DeclarativeContainer):
         RecordFlashcardReviewUseCase,
         flashcard_repository=flashcard_repository,
         review_scheduler=review_scheduler,
+    )
+    set_flashcard_status_use_case = providers.Factory(
+        SetFlashcardStatusUseCase,
+        flashcard_repository=flashcard_repository,
     )
 
     # Flashcard suggestions

@@ -10,18 +10,23 @@ from src.application.learning.commands.flashcards.delete_flashcard_use_case impo
 from src.application.learning.commands.flashcards.record_flashcard_review_use_case import (
     RecordFlashcardReviewUseCase,
 )
+from src.application.learning.commands.flashcards.set_flashcard_status_use_case import (
+    SetFlashcardStatusUseCase,
+)
 from src.application.learning.commands.flashcards.update_flashcard_use_case import (
     UpdateFlashcardUseCase,
 )
 from src.core import container
 from src.domain.identity.entities.user import User
 from src.domain.learning.value_objects.flashcard_review import FlashcardRating, FlashcardReview
+from src.domain.learning.value_objects.flashcard_status import FlashcardStatus
 from src.infrastructure.common.di import inject_use_case
 from src.infrastructure.common.schemas import SuccessResponse
 from src.infrastructure.identity.dependencies import get_current_user
 from src.infrastructure.learning.schemas import (
     Flashcard,
     FlashcardReviewRequest,
+    FlashcardStatusRequest,
     FlashcardUpdateRequest,
     FlashcardUpdateResponse,
 )
@@ -127,5 +132,27 @@ async def record_flashcard_review(
         review=FlashcardReview(
             rating=FlashcardRating(request.rating), reviewed_at=request.reviewed_at
         ),
+    )
+    return build_flashcard_schema(flashcard)
+
+
+@router.put(
+    "/{flashcard_id}/status",
+    response_model=Flashcard,
+    status_code=status.HTTP_200_OK,
+)
+async def set_flashcard_status(
+    flashcard_id: int,
+    request: FlashcardStatusRequest,
+    current_user: Annotated[User, Depends(get_current_user)],
+    use_case: SetFlashcardStatusUseCase = Depends(
+        inject_use_case(container.learning.set_flashcard_status_use_case)
+    ),
+) -> Flashcard:
+    """Suspend a flashcard, taking it out of review, or unsuspend it with its schedule intact."""
+    flashcard = await use_case.set_status(
+        flashcard_id=flashcard_id,
+        user_id=current_user.id.value,
+        status=FlashcardStatus(request.status),
     )
     return build_flashcard_schema(flashcard)

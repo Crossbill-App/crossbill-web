@@ -132,3 +132,70 @@ class TestRecordReview:
         )
 
         assert response.status_code == status.HTTP_404_NOT_FOUND
+
+
+async def set_status(client: AsyncClient, flashcard_id: int, new_status: str) -> dict[str, object]:
+    response = await client.put(
+        f"/api/v1/flashcards/{flashcard_id}/status", json={"status": new_status}
+    )
+    assert response.status_code == status.HTTP_200_OK, response.text
+    return response.json()
+
+
+class TestFlashcardStatus:
+    async def test_a_suspended_card_shows_as_suspended_in_the_books_list(
+        self, client: AsyncClient, test_book: models.Book, test_flashcard: models.Flashcard
+    ) -> None:
+        card = await set_status(client, test_flashcard.id, "suspended")
+
+        assert card["status"] == "suspended"
+        listed = (await client.get(f"/api/v1/books/{test_book.id}/flashcards")).json()["items"]
+        assert [item["status"] for item in listed] == ["suspended"]
+
+    async def test_a_suspended_card_takes_no_review(
+        self, client: AsyncClient, test_flashcard: models.Flashcard
+    ) -> None:
+        await set_status(client, test_flashcard.id, "suspended")
+
+        response = await client.post(
+            f"/api/v1/flashcards/{test_flashcard.id}/reviews",
+            json={"rating": "good", "reviewed_at": T.isoformat()},
+        )
+
+        assert response.status_code == status.HTTP_409_CONFLICT
+        unsuspended = await set_status(client, test_flashcard.id, "active")
+        assert unsuspended["last_review"] is None
+
+    async def test_unsuspending_keeps_the_cards_schedule(
+        self, client: AsyncClient, test_flashcard: models.Flashcard
+    ) -> None:
+        await record_review(client, test_flashcard.id, "good", T)
+        await set_status(client, test_flashcard.id, "suspended")
+
+        card = await set_status(client, test_flashcard.id, "active")
+
+        assert card["status"] == "active"
+        assert at(card["due"]) == T + timedelta(days=2)
+
+    async def test_editing_a_suspended_card_keeps_it_suspended(
+        self, client: AsyncClient, test_flashcard: models.Flashcard
+    ) -> None:
+        await set_status(client, test_flashcard.id, "suspended")
+
+        response = await client.put(
+            f"/api/v1/flashcards/{test_flashcard.id}", json={"question": "Sharper question"}
+        )
+
+        assert response.json()["flashcard"]["status"] == "suspended"
+
+    async def test_another_users_card_cannot_be_suspended(
+        self, client: AsyncClient, db_session: AsyncSession, other_user: models.User
+    ) -> None:
+        their_book = await create_test_book(db_session, other_user.id, "Their Book")
+        their_card = await create_flashcard(db_session, their_book)
+
+        response = await client.put(
+            f"/api/v1/flashcards/{their_card.id}/status", json={"status": "suspended"}
+        )
+
+        assert response.status_code == status.HTTP_404_NOT_FOUND
