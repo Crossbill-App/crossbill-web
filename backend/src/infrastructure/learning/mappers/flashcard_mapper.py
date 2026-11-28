@@ -43,7 +43,7 @@ class FlashcardMapper:
             updated_at=orm_model.updated_at,
             origin=FlashcardOrigin(orm_model.origin),
             status=FlashcardStatus(orm_model.status),
-            review_state=_review_state(orm_model),
+            review_state=review_state_from_row(orm_model),
             reviews=tuple(reviews),
         )
 
@@ -85,7 +85,8 @@ class FlashcardMapper:
         )
 
 
-def _review_state(orm_model: FlashcardORM) -> ReviewState | None:
+def review_state_from_row(orm_model: FlashcardORM) -> ReviewState | None:
+    """Read a flashcard row's schedule; ``None`` until its first review."""
     if (
         orm_model.fsrs_state is None
         or orm_model.stability is None

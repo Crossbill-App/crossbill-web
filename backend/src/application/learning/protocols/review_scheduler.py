@@ -1,7 +1,8 @@
-from collections.abc import Sequence
+from collections.abc import Mapping, Sequence
+from datetime import datetime
 from typing import Protocol
 
-from src.domain.learning.value_objects.flashcard_review import FlashcardReview
+from src.domain.learning.value_objects.flashcard_review import FlashcardRating, FlashcardReview
 from src.domain.learning.value_objects.review_state import ReviewState
 
 
@@ -14,4 +15,10 @@ class ReviewScheduler(Protocol):
 
     def replay(self, reviews: Sequence[FlashcardReview]) -> ReviewState:
         """The state a new card reaches after all of ``reviews``, taken in time order."""
+        ...
+
+    def preview(
+        self, state: ReviewState | None, now: datetime
+    ) -> Mapping[FlashcardRating, datetime]:
+        """The due date each rating given at ``now`` would set, without fuzz."""
         ...

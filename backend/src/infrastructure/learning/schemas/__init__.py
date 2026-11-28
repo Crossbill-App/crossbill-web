@@ -4,21 +4,26 @@ from src.infrastructure.learning.schemas.flashcard_api_schemas import (
     FlashcardWithHighlight,
 )
 from src.infrastructure.learning.schemas.flashcard_schemas import (
+    DueFlashcard,
     Flashcard,
     FlashcardCreateRequest,
     FlashcardCreateResponse,
+    FlashcardInContext,
     FlashcardReviewRequest,
     FlashcardStatusRequest,
     FlashcardSuggestionItem,
     FlashcardUpdateRequest,
     FlashcardUpdateResponse,
     NoteFlashcardCreateRequest,
+    RatingPreviews,
 )
 
 __all__ = [
+    "DueFlashcard",
     "Flashcard",
     "FlashcardCreateRequest",
     "FlashcardCreateResponse",
+    "FlashcardInContext",
     "FlashcardReviewRequest",
     "FlashcardStatusRequest",
     "FlashcardSuggestionItem",
@@ -26,4 +31,5 @@ __all__ = [
     "FlashcardUpdateResponse",
     "FlashcardWithHighlight",
     "NoteFlashcardCreateRequest",
+    "RatingPreviews",
 ]

@@ -1,7 +1,7 @@
 """ReviewScheduler adapter backed by the PyPI ``fsrs`` package."""
 
-from collections.abc import Sequence
-from datetime import timedelta
+from collections.abc import Mapping, Sequence
+from datetime import datetime, timedelta
 
 from fsrs import Card, Rating, ReviewLog, Scheduler, State
 
@@ -34,20 +34,26 @@ class FsrsReviewScheduler:
     """Schedules reviews with FSRS; fuzzing spreads due dates and is off only in tests."""
 
     def __init__(self, enable_fuzzing: bool = True) -> None:
-        self._scheduler = Scheduler(
-            desired_retention=DESIRED_RETENTION,
-            learning_steps=LEARNING_STEPS,
-            relearning_steps=RELEARNING_STEPS,
-            enable_fuzzing=enable_fuzzing,
-        )
+        self._scheduler = _scheduler(enable_fuzzing)
+        self._unfuzzed_scheduler = _scheduler(enable_fuzzing=False)
 
     def review(self, state: ReviewState | None, review: FlashcardReview) -> ReviewState:
         """The state a card in ``state`` (``None`` when new) moves to after one more review."""
-        card = _card(state) if state else Card(_CARD_ID)
         reviewed, _ = self._scheduler.review_card(
-            card, _RATINGS[review.rating], review_datetime=review.reviewed_at
+            _card(state), _RATINGS[review.rating], review_datetime=review.reviewed_at
         )
         return _review_state(reviewed)
+
+    def preview(
+        self, state: ReviewState | None, now: datetime
+    ) -> Mapping[FlashcardRating, datetime]:
+        """The due date each rating given at ``now`` would set, without fuzz."""
+        card = _card(state)
+        return {rating: self._unfuzzed_due(card, fsrs, now) for rating, fsrs in _RATINGS.items()}
+
+    def _unfuzzed_due(self, card: Card, rating: Rating, now: datetime) -> datetime:
+        reviewed, _ = self._unfuzzed_scheduler.review_card(card, rating, review_datetime=now)
+        return reviewed.due
 
     def replay(self, reviews: Sequence[FlashcardReview]) -> ReviewState:
         """The state a new card reaches after all of ``reviews``, taken in time order."""
@@ -63,7 +69,18 @@ class FsrsReviewScheduler:
         return _review_state(self._scheduler.reschedule_card(Card(_CARD_ID), logs))
 
 
-def _card(state: ReviewState) -> Card:
+def _scheduler(enable_fuzzing: bool) -> Scheduler:
+    return Scheduler(
+        desired_retention=DESIRED_RETENTION,
+        learning_steps=LEARNING_STEPS,
+        relearning_steps=RELEARNING_STEPS,
+        enable_fuzzing=enable_fuzzing,
+    )
+
+
+def _card(state: ReviewState | None) -> Card:
+    if state is None:
+        return Card(_CARD_ID)
     return Card(
         card_id=_CARD_ID,
         state=_STATES[state.phase],
