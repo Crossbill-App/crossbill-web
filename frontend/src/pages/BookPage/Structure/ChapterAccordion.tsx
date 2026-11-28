@@ -1,4 +1,4 @@
-import type { ChapterWithHighlights, PositionResponse } from '@/api/generated/model';
+import type { ChapterInBook, PositionResponse } from '@/api/generated/model';
 import { CollapseChevron } from '@/components/CollapseChevron.tsx';
 import { CountWithIcon } from '@/components/CountWithIcon.tsx';
 import { FlashcardsIcon, HighlightsIcon, NotesIcon } from '@/theme/Icons.tsx';
@@ -6,13 +6,14 @@ import { Box, ButtonBase, Collapse, IconButton, Typography, type Theme } from '@
 import { sumBy } from 'lodash';
 import { useId, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { ChapterReadIndicator } from './ChapterReadIndicator';
+import { ChapterReadIndicator, READ_INDICATOR_SIZE } from './ChapterReadIndicator';
 
-type ReadStatus = 'read' | 'current' | 'unread';
+/** `unmeasurable` keeps the indicator's slot empty, so names stay aligned with their siblings. */
+type ReadMark = 'read' | 'current' | 'unread' | 'unmeasurable';
 
 interface ChapterAccordionProps {
-  chapter: ChapterWithHighlights;
-  childrenByParentId: Map<number | null, ChapterWithHighlights[]>;
+  chapter: ChapterInBook;
+  childrenByParentId: Map<number | null, ChapterInBook[]>;
   gistByChapterId: Map<number, string>;
   /** Notes linked to each chapter, matching what the chapter dialog's Notes tab counts. */
   noteCountByChapterId: Map<number, number>;
@@ -30,6 +31,13 @@ interface ChapterAccordionProps {
   preExpanded?: boolean;
   onChapterClick?: (chapterId: number) => void;
 }
+
+const readMarkOf = (chapter: ChapterInBook, isCurrent: boolean): ReadMark => {
+  if (isCurrent) return 'current';
+  if (chapter.read_state === 'read') return 'read';
+  if (chapter.read_state === 'unmeasurable') return 'unmeasurable';
+  return 'unread';
+};
 
 const GistLine = ({ gist }: { gist: string }) => (
   <Typography
@@ -49,14 +57,14 @@ const GistLine = ({ gist }: { gist: string }) => (
 const ChapterLabel = ({
   chapter,
   gist,
-  readStatus,
+  readMark,
 }: {
-  chapter: ChapterWithHighlights;
+  chapter: ChapterInBook;
   gist?: string;
-  readStatus?: ReadStatus;
+  readMark?: ReadMark;
 }) => (
   <Box sx={{ display: 'flex', alignItems: 'flex-start', gap: 1, minWidth: 0 }}>
-    {readStatus && (
+    {readMark && (
       <Box
         sx={{
           typography: 'body1',
@@ -66,7 +74,11 @@ const ChapterLabel = ({
           flexShrink: 0,
         }}
       >
-        <ChapterReadIndicator status={readStatus} chapterName={chapter.name} />
+        {readMark === 'unmeasurable' ? (
+          <Box sx={{ width: READ_INDICATOR_SIZE }} />
+        ) : (
+          <ChapterReadIndicator status={readMark} chapterName={chapter.name} />
+        )}
       </Box>
     )}
     <Box sx={{ minWidth: 0, textAlign: 'left' }}>
@@ -78,13 +90,7 @@ const ChapterLabel = ({
   </Box>
 );
 
-const ChapterCounts = ({
-  chapter,
-  noteCount,
-}: {
-  chapter: ChapterWithHighlights;
-  noteCount: number;
-}) => (
+const ChapterCounts = ({ chapter, noteCount }: { chapter: ChapterInBook; noteCount: number }) => (
   <Box
     sx={{
       display: 'flex',
@@ -137,26 +143,19 @@ const hoverSx = {
 };
 
 interface ChapterRowProps {
-  chapter: ChapterWithHighlights;
+  chapter: ChapterInBook;
   gist?: string;
   noteCount: number;
   depth: number;
-  readStatus?: ReadStatus;
+  readMark?: ReadMark;
   onOpen: () => void;
 }
 
 /** A chapter with no children: the whole row opens it, nothing competes. */
-const LeafChapterRow = ({
-  chapter,
-  gist,
-  noteCount,
-  depth,
-  readStatus,
-  onOpen,
-}: ChapterRowProps) => (
+const LeafChapterRow = ({ chapter, gist, noteCount, depth, readMark, onOpen }: ChapterRowProps) => (
   <Box sx={rowSx(depth)}>
     <ButtonBase onClick={onOpen} sx={[rowBodySx, hoverSx]}>
-      <ChapterLabel chapter={chapter} gist={gist} readStatus={readStatus} />
+      <ChapterLabel chapter={chapter} gist={gist} readMark={readMark} />
       <ChapterCounts chapter={chapter} noteCount={noteCount} />
     </ButtonBase>
   </Box>
@@ -180,7 +179,7 @@ const ParentChapterRow = ({
   gist,
   noteCount,
   depth,
-  readStatus,
+  readMark,
   onOpen,
   expanded,
   onToggle,
@@ -198,7 +197,7 @@ const ParentChapterRow = ({
           }}
           sx={[{ borderRadius: 1, mx: -0.5, px: 0.5, minWidth: 0 }, hoverSx]}
         >
-          <ChapterLabel chapter={chapter} gist={gist} readStatus={readStatus} />
+          <ChapterLabel chapter={chapter} gist={gist} readMark={readMark} />
         </ButtonBase>
         <ChapterCounts chapter={chapter} noteCount={noteCount} />
       </Box>
@@ -234,13 +233,8 @@ export const ChapterAccordion = ({
   preExpanded = false,
   onChapterClick,
 }: ChapterAccordionProps) => {
-  const isRead =
-    readingPosition != null &&
-    chapter.start_position != null &&
-    readingPosition.index >= chapter.start_position.index;
   const isCurrent = currentChapterIds.has(chapter.id);
-  const readStatus: ReadStatus | undefined =
-    readingPosition == null ? undefined : isCurrent ? 'current' : isRead ? 'read' : 'unread';
+  const readMark = readingPosition == null ? undefined : readMarkOf(chapter, isCurrent);
   const [expanded, setExpanded] = useState(isCurrent || readingPosition == null || preExpanded);
   const childrenId = useId();
 
@@ -250,14 +244,14 @@ export const ChapterAccordion = ({
   const noteCount = noteCountByChapterId.get(chapter.id) ?? 0;
 
   return (
-    <Box data-chapter-read={isRead ? 'true' : 'false'}>
+    <Box>
       {isLeaf ? (
         <LeafChapterRow
           chapter={chapter}
           gist={gist}
           noteCount={noteCount}
           depth={depth}
-          readStatus={readStatus}
+          readMark={readMark}
           onOpen={() => onChapterClick?.(chapter.id)}
         />
       ) : (
@@ -266,7 +260,7 @@ export const ChapterAccordion = ({
           gist={gist}
           noteCount={noteCount}
           depth={depth}
-          readStatus={readStatus}
+          readMark={readMark}
           onOpen={() => onChapterClick?.(chapter.id)}
           expanded={expanded}
           onToggle={() => setExpanded(!expanded)}

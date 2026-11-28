@@ -10,7 +10,7 @@ interface ChapterReadIndicatorProps {
   chapterName: string;
 }
 
-const SIZE = 20;
+export const READ_INDICATOR_SIZE = 20;
 
 export const ChapterReadIndicator = ({ status, chapterName }: ChapterReadIndicatorProps) => {
   const { t } = useTranslation();
@@ -22,9 +22,9 @@ export const ChapterReadIndicator = ({ status, chapterName }: ChapterReadIndicat
     <svg
       role="img"
       aria-label={t(`structure.chapterReadIndicator.${status}`, { chapterName })}
-      width={SIZE}
-      height={SIZE}
-      viewBox={`0 0 ${SIZE} ${SIZE}`}
+      width={READ_INDICATOR_SIZE}
+      height={READ_INDICATOR_SIZE}
+      viewBox={`0 0 ${READ_INDICATOR_SIZE} ${READ_INDICATOR_SIZE}`}
       style={{ flexShrink: 0, display: 'block' }}
     >
       {status === 'read' && (
