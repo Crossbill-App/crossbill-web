@@ -105,9 +105,13 @@ def _review_state(orm_model: FlashcardORM) -> ReviewState | None:
 
 
 def _write_review_state(orm_model: FlashcardORM, state: ReviewState | None) -> None:
-    orm_model.fsrs_state = state.phase.value if state else None
-    orm_model.step = state.step if state else None
-    orm_model.stability = state.stability if state else None
-    orm_model.difficulty = state.difficulty if state else None
-    orm_model.due = state.due if state else None
-    orm_model.last_review = state.last_review if state else None
+    if state is None:
+        orm_model.fsrs_state = orm_model.step = orm_model.stability = None
+        orm_model.difficulty = orm_model.due = orm_model.last_review = None
+        return
+    orm_model.fsrs_state = state.phase.value
+    orm_model.step = state.step
+    orm_model.stability = state.stability
+    orm_model.difficulty = state.difficulty
+    orm_model.due = state.due
+    orm_model.last_review = state.last_review
