@@ -19,7 +19,8 @@ import { SortToggle } from '@/pages/BookPage/common/SortToggle.tsx';
 import { useBookTabFilters } from '@/pages/BookPage/common/useBookTabFilters.ts';
 import { BOOK_PAGE_LABELS } from '@/pages/BookPage/navigation/bookPageRoutes.ts';
 import { ChapterNav, type ChapterNavigationData } from '@/pages/BookPage/navigation/ChapterNav.tsx';
-import { Divider } from '@mui/material';
+import { AddIcon } from '@/theme/Icons.tsx';
+import { Divider, IconButton } from '@mui/material';
 import { flatMap } from 'lodash';
 import { useMemo, useState } from 'react';
 import { createPortal } from 'react-dom';
@@ -27,7 +28,7 @@ import { useTranslation } from 'react-i18next';
 import { FilterFab } from '../common/FilterFab.tsx';
 import { FilterDrawer, type FilterTab } from '../navigation/FilterDrawer.tsx';
 import { TagsList } from '../navigation/TagsList/TagsList.tsx';
-import { FlashcardEditDialog } from './FlashcardEditDialog.tsx';
+import { FlashcardDialog, type FlashcardDialogTarget } from './FlashcardDialog.tsx';
 
 const BOOK_FLASHCARDS_KEY = -1;
 
@@ -44,7 +45,7 @@ export const FlashcardsPage = () => {
     clearFilters,
   } = useBookTabFilters('/book/$bookId/flashcards');
   const [isReversed, setIsReversed] = useState(false);
-  const [editingFlashcard, setEditingFlashcard] = useState<FlashcardWithContext | null>(null);
+  const [dialogTarget, setDialogTarget] = useState<FlashcardDialogTarget | null>(null);
   const [filterDrawerOpen, setFilterDrawerOpen] = useState(false);
 
   const bookChapters = book.chapters;
@@ -210,6 +211,15 @@ export const FlashcardsPage = () => {
         }
         count={{ value: filteredFlashcards.length, unit: 'flashcards' }}
         sort={<SortToggle isReversed={isReversed} onToggle={() => setIsReversed(!isReversed)} />}
+        action={
+          <IconButton
+            aria-label={t('flashcards.actions.new')}
+            color="primary"
+            onClick={() => setDialogTarget({ mode: 'create', source: { kind: 'book' } })}
+          >
+            <AddIcon />
+          </IconButton>
+        }
       />
 
       {/* Content */}
@@ -217,7 +227,7 @@ export const FlashcardsPage = () => {
         chapters={flashcardChapters}
         bookId={book.id}
         emptyState={emptyState}
-        onEditFlashcard={setEditingFlashcard}
+        onEditFlashcard={(flashcard) => setDialogTarget({ mode: 'edit', flashcard })}
       />
 
       {isDesktop
@@ -246,12 +256,11 @@ export const FlashcardsPage = () => {
         </>
       )}
 
-      {editingFlashcard && (
-        <FlashcardEditDialog
-          flashcard={editingFlashcard}
+      {dialogTarget && (
+        <FlashcardDialog
           bookId={book.id}
-          open={!!editingFlashcard}
-          onClose={() => setEditingFlashcard(null)}
+          target={dialogTarget}
+          onClose={() => setDialogTarget(null)}
         />
       )}
     </>

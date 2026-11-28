@@ -1,6 +1,12 @@
-import { aBookDetails, aChapter, aHighlight } from '@tests/fixtures/book';
+import { aBookDetails, aChapter, aFlashcard, aHighlight } from '@tests/fixtures/book';
 import { aNote } from '@tests/fixtures/notes';
+import {
+  expectQuestionEditedInTab,
+  openFlashcardsTab,
+  saveFlashcardDialog,
+} from '@tests/harness/flashcardDialog';
 import { renderApp } from '@tests/harness/renderApp';
+import { settingsWithAi } from '@tests/msw/auth';
 import { bookApi } from '@tests/msw/bookApi';
 import { worker } from '@tests/msw/worker';
 import { http, HttpResponse } from 'msw';
@@ -440,4 +446,70 @@ test("a highlight's dialog offers to open it in the reader", async () => {
   await expect
     .element(screen.getByRole('dialog').getByRole('link', { name: 'Open in reader' }))
     .toHaveAttribute('href', '/book/1/read?highlightId=301');
+});
+
+test("a flashcard made from a highlight's dialog shows the highlight and lists under it", async () => {
+  worker.use(...bookApi({ book: aBookWithTwoHighlights() }).handlers);
+
+  const screen = await renderApp({ path: '/book/1/highlights?highlightId=301' });
+  const flashcards = await openFlashcardsTab(screen);
+  await userEvent.click(flashcards.getByRole('button', { name: 'New flashcard' }));
+
+  await expect
+    .element(screen.getByRole('dialog', { name: 'New flashcard' }).getByText(A_HIGHLIGHT))
+    .toBeVisible();
+  await saveFlashcardDialog(screen, 'New flashcard', {
+    question: 'What is a map not?',
+    answer: 'The territory.',
+  });
+
+  await expect
+    .element(screen.getByRole('tabpanel').getByRole('button', { name: 'What is a map not?' }))
+    .toBeVisible();
+});
+
+test("editing a flashcard from a highlight's dialog updates it there", async () => {
+  worker.use(
+    ...bookApi({
+      book: aBookDetails({
+        chapters: [
+          aChapter({
+            highlights: [
+              aHighlight({
+                id: 301,
+                text: A_HIGHLIGHT,
+                flashcards: [aFlashcard({ id: 700, highlight_id: 301, chapter_id: 10 })],
+              }),
+            ],
+          }),
+        ],
+      }),
+    }).handlers
+  );
+
+  const screen = await renderApp({ path: '/book/1/highlights?highlightId=301' });
+  await expectQuestionEditedInTab(screen, 'What is attention?', 'What does attention do?');
+});
+
+test('accepting a suggested flashcard adds it without opening the dialog', async () => {
+  worker.use(
+    settingsWithAi(true),
+    http.get('/api/v1/highlights/:highlightId/flashcard_suggestions', () =>
+      HttpResponse.json({ items: [{ question: 'What is a map not?', answer: 'The territory.' }] })
+    ),
+    ...bookApi({ book: aBookWithTwoHighlights() }).handlers
+  );
+
+  const screen = await renderApp({ path: '/book/1/highlights?highlightId=301' });
+  const flashcards = await openFlashcardsTab(screen);
+  await userEvent.click(flashcards.getByRole('button', { name: 'Suggest flashcards' }));
+  await userEvent.click(flashcards.getByRole('button', { name: 'Accept suggestion' }));
+
+  await expect
+    .element(flashcards.getByRole('button', { name: 'Accept suggestion' }))
+    .not.toBeInTheDocument();
+  await expect
+    .element(flashcards.getByRole('button', { name: 'What is a map not?' }))
+    .toBeVisible();
+  expect(screen.getByRole('dialog', { name: 'New flashcard' }).elements()).toHaveLength(0);
 });

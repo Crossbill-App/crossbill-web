@@ -6,22 +6,23 @@ import { useSnackbar } from '@/context/SnackbarContext.tsx';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
-/**
- * Holds AI flashcard suggestion state for an entity view modal.
- * The fetcher is source-specific (highlight, note, ...) and provided by the caller.
- */
-export const useAIFlashcardSuggestions = (
-  fetchFn: () => Promise<CollectionResponseFlashcardSuggestionItem | undefined>
-) => {
+export interface SuggestionsResult {
+  data?: CollectionResponseFlashcardSuggestionItem;
+  error: unknown;
+}
+
+export const useAIFlashcardSuggestions = (refetch?: () => Promise<SuggestionsResult>) => {
   const { t } = useTranslation();
   const { showSnackbar } = useSnackbar();
   const [isLoading, setIsLoading] = useState(false);
   const [suggestions, setSuggestions] = useState<FlashcardSuggestionItem[]>([]);
 
   const fetchSuggestions = async () => {
+    if (!refetch) return;
     setIsLoading(true);
     try {
-      const data = await fetchFn();
+      const { data, error } = await refetch();
+      if (error) throw error;
       if (data?.items) {
         setSuggestions(data.items);
       }
@@ -37,5 +38,5 @@ export const useAIFlashcardSuggestions = (
     setSuggestions((prev) => prev.filter((_, i) => i !== index));
   };
 
-  return { isLoading, suggestions, fetchSuggestions, removeSuggestion };
+  return { canSuggest: !!refetch, isLoading, suggestions, fetchSuggestions, removeSuggestion };
 };

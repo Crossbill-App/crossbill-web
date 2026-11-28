@@ -4,14 +4,14 @@
     "answer": "Answer"
   },
   "actions": {
-    "add": "Add flashcard",
+    "new": "New flashcard",
     "edit": "Edit flashcard",
     "delete": "Delete flashcard",
     "viewLinkedNote": "View linked note"
   },
   "page": {
     "searchPlaceholder": "Search flashcards...",
-    "emptyState": "No flashcards yet. Create flashcards from your highlights to start studying.",
+    "emptyState": "No flashcards yet. Add one here, or from a highlight, note or chapter.",
     "notInAChapter": "Not in a chapter",
     "notInAChapterListLabel": "Flashcards not in a chapter",
     "filteredEmpty": "No flashcards match the current filters."
@@ -20,16 +20,13 @@
     "listLabel": "Flashcards in {{chapter}}",
     "emptyState": "No flashcards found."
   },
-  "listCard": {
+  "section": {
+    "empty": "No flashcards yet."
+  },
+  "shared": {
     "deleteConfirm": "Delete this flashcard?"
   },
-  "form": {
-    "questionPlaceholder": "Question...",
-    "answerPlaceholder": "Answer..."
-  },
-  "editDialog": {
-    "questionPlaceholder": "Enter your question...",
-    "answerPlaceholder": "Enter your answer...",
+  "dialog": {
     "validation": {
       "questionRequired": "Question is required",
       "answerRequired": "Answer is required"

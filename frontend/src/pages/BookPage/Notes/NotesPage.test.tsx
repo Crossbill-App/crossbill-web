@@ -1,6 +1,11 @@
-import { aBookDetails } from '@tests/fixtures/book';
+import { aBookDetails, aFlashcard } from '@tests/fixtures/book';
 import { aNote } from '@tests/fixtures/notes';
 import { aNoteHit } from '@tests/fixtures/search';
+import {
+  expectQuestionEditedInTab,
+  openFlashcardsTab,
+  saveFlashcardDialog,
+} from '@tests/harness/flashcardDialog';
 import { renderApp } from '@tests/harness/renderApp';
 import { settingsWithEmbeddings } from '@tests/msw/auth';
 import { bookApi } from '@tests/msw/bookApi';
@@ -181,4 +186,44 @@ test('clearing the filters from the empty state brings the notes back', async ()
   await expect.element(screen.getByRole('heading', { name: 'Difference Engine' })).toBeVisible();
   // The query is gone from the field too, not just from the results.
   await expect.element(screen.getByPlaceholder(NOTES_SEARCH_PLACEHOLDER)).toHaveValue('');
+});
+
+test("a flashcard made from a note's dialog shows the note and lists under it", async () => {
+  worker.use(
+    ...bookApi({ book: aBookDetails(), notes: [aNote({ id: 100, title: 'Analytical Engine' })] })
+      .handlers
+  );
+
+  const screen = await renderApp({ path: '/book/1/notes?noteId=100' });
+  const flashcards = await openFlashcardsTab(screen);
+  await userEvent.click(flashcards.getByRole('button', { name: 'New flashcard' }));
+
+  await expect
+    .element(
+      screen
+        .getByRole('dialog', { name: 'New flashcard' })
+        .getByRole('heading', { name: 'Analytical Engine' })
+    )
+    .toBeVisible();
+  await saveFlashcardDialog(screen, 'New flashcard', {
+    question: 'Who designed it?',
+    answer: 'Charles Babbage.',
+  });
+
+  await expect
+    .element(screen.getByRole('tabpanel').getByRole('button', { name: 'Who designed it?' }))
+    .toBeVisible();
+});
+
+test("editing a flashcard from a note's dialog updates it there", async () => {
+  const card = aFlashcard({ id: 700, note_id: 100, question: 'Who designed it?' });
+  worker.use(
+    ...bookApi({
+      book: aBookDetails({ book_flashcards: [card] }),
+      notes: [aNote({ id: 100, title: 'Analytical Engine', flashcards: [card] })],
+    }).handlers
+  );
+
+  const screen = await renderApp({ path: '/book/1/notes?noteId=100' });
+  await expectQuestionEditedInTab(screen, 'Who designed it?', 'Who first programmed it?');
 });
