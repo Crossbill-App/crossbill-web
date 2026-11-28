@@ -23,7 +23,10 @@ from src.infrastructure.learning.schemas import (
     FlashcardCreateResponse,
     FlashcardWithHighlight,
 )
-from src.infrastructure.learning.schemas.flashcard_builders import build_flashcard_schema
+from src.infrastructure.learning.schemas.flashcard_builders import (
+    build_flashcard_ref_schema,
+    build_flashcard_schema,
+)
 from src.infrastructure.reading.schemas import (
     HighlightLabel,
     HighlightResponseBase,
@@ -140,17 +143,6 @@ def _highlight_schema(view: FlashcardHighlightView) -> HighlightResponseBase:
 def _flashcard_schema(view: FlashcardWithHighlightView) -> FlashcardWithHighlight:
     """Render one flashcard row of the book's flashcard list."""
     return FlashcardWithHighlight(
-        id=view.id,
-        user_id=view.user_id,
-        book_id=view.book_id,
-        highlight_id=view.highlight_id,
-        chapter_id=view.chapter_id,
-        note_id=view.note_id,
-        question=view.question,
-        answer=view.answer,
-        status=view.status.value,
-        origin=view.origin.value,
-        due=view.due,
-        last_review=view.last_review,
+        **build_flashcard_ref_schema(view).model_dump(),
         highlight=_highlight_schema(view.highlight) if view.highlight else None,
     )
