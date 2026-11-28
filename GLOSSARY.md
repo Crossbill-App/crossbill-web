@@ -141,16 +141,17 @@ the client gave it. A flashcard's reviews are the source of truth for its
 schedule; the schedule is recomputed from them when a review arrives late.
 _Avoid_: repetition, answer, attempt
 
-**Due Card**:
+**Due Flashcard**:
 An active flashcard Crossbill wants reviewed now: either its scheduled review
-time has passed, or it has never been reviewed (a _new_ card, whose first
+time has passed, or it has never been reviewed (a _new_ flashcard, whose first
 showing is its triage).
-_Avoid_: pending card, review item
+_Avoid_: due card, pending card, review item
 
 **Suspended**:
 A flashcard the user has taken out of review until they unsuspend it, usually
-to fix or delete it later. A suspended card is never a Due Card. Same meaning as Anki's
-_suspend_; Anki's _bury_ (hide until tomorrow) has no counterpart here.
+to fix or delete it later. A suspended flashcard is never a Due Flashcard. Same
+meaning as Anki's _suspend_; Anki's _bury_ (hide until tomorrow) has no
+counterpart here.
 _Avoid_: buried, archived, disabled
 
 **AI Chat Session**:
