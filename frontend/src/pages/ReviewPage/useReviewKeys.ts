@@ -1,4 +1,5 @@
 import type { FlashcardReviewRequestRating } from '@/api/generated/model';
+import { isTextEntry } from '@/utils/isTextEntry.ts';
 import { useEffect, useEffectEvent } from 'react';
 
 export const GRADES: readonly { key: string; rating: FlashcardReviewRequestRating }[] = [
@@ -14,10 +15,6 @@ interface ReviewKeyHandlers {
   onReveal: () => void;
   onGrade: (rating: FlashcardReviewRequestRating) => void;
 }
-
-const isTextEntry = (target: EventTarget | null) =>
-  target instanceof HTMLElement &&
-  (target.isContentEditable || ['INPUT', 'TEXTAREA', 'SELECT'].includes(target.tagName));
 
 const isControl = (target: EventTarget | null) =>
   target instanceof HTMLElement && target.closest('button, a, [role="button"]') !== null;
